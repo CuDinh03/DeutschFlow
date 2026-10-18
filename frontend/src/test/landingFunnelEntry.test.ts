@@ -47,7 +47,8 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
   it('CTA B2B KHÔNG bị đẩy vào phễu học viên', () => {
     // Gói "Giáo viên" và nút tư vấn trung tâm phục vụ trung tâm, không phải người học.
     expect(code).toMatch(/\{ href: '\/v2\/register', highlight: false \}/)
-    expect(code).toMatch(/href="\/v2\/register"><YellowSq \/>\{t\('teachers\.ctaConsult'\)\}/)
+    // 19/10/2026 (đợt 1 A+B+E): nút tư vấn trung tâm chuyển vào khối S7 `partners.centers`.
+    expect(code).toMatch(/href="\/v2\/register"><YellowSq \/>\{t\('partners\.centers\.ctaConsult'\)\}/)
   })
 
   it('chỉ còn đúng một href /v2/register hard-code trong JSX — nút tư vấn trung tâm', () => {

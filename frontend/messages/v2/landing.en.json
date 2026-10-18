@@ -6,10 +6,10 @@
       "description": "Practise German job interviews with AI: questions for your profession and feedback after every answer. A1–B1 learning path, mock exams in Goethe format."
     },
     "nav": {
-      "features": "Features",
-      "learningPath": "Learning path",
+      "interview": "Interview by trade",
+      "pathways": "Pathways",
       "exam": "Exam practice",
-      "teachers": "For teachers",
+      "centers": "For schools",
       "mainAria": "Main navigation"
     },
     "header": {
@@ -23,96 +23,81 @@
       "eyebrow": "AI Interview Coach · For working and training in Germany",
       "titleLead": "Practise your German job interview,",
       "titleEm": "for your profession.",
-      "sub": "An AI plays the German employer, asks questions for your field and shows you what to fix after every answer: grammar, word choice, missing points.",
+      "sub": "An AI plays the German employer, asks questions for your trade and shows you what to fix after every answer: grammar, word choice, missing points.",
       "ctaStart": "Try it for free",
-      "ctaSample": "See questions by trade",
-      "bullets": ["Questions for your own trade", "Mock exams in Goethe format", "No credit card needed"],
-      "previewCap": "Example · Interview session",
-      "hrRole": "AI interviewer · Küchenchef · München · B1",
-      "qCap": "Question 3 / 8",
-      "answeringCap": "You are answering…",
-      "scoreIntro": "Introduction",
-      "scoreStar": "Situations",
-      "scoreSkills": "Job skills"
+      "bullets": ["Questions for your own trade", "Mock exams in Goethe and telc format", "No credit card needed"]
     },
-    "stats": [
-      { "n": "A1–B1", "l": "learning path on the CEFR scale" },
-      { "n": "4 skills", "l": "Lesen · Hören · Schreiben · Sprechen" },
-      { "n": "24/7", "l": "AI interviewer ready any time" }
-    ],
-    "pains": {
-      "cap": "The real problem",
-      "title": "Why a German interview is harder than you think",
+    "explorer": {
+      "cap": "Preview the interview questions",
+      "label": "What is your job?",
+      "placeholder": "e.g. cook, Kellner…",
+      "popular": "Popular roles",
+      "interviewer": "Interviewer: {name} · {tag}",
+      "questionsCap": "The AI will ask you questions like",
+      "sourceNote": "These are real questions from the question set for this role. The AI asks in German and follows up on your answers.",
+      "cta": "Practise an interview for this role",
+      "noMatchTitle": "No dedicated question set for “{query}” yet",
+      "noMatchBody": "The AI can still interview you with the general question set (introduction, situations, job skills), adapted to the role you enter. Dedicated sets for more trades, including nursing and construction, are being written.",
+      "ctaGeneral": "Practise with the general question set"
+    },
+    "pathways": {
+      "cap": "Pathways to Germany",
+      "title": "Which road are you on?",
+      "sub": "Each road needs a different level, exam and kind of interview. Know where you stand so you practise what matters.",
+      "levelLabel": "Level usually needed",
+      "examLabel": "Exam",
+      "interviewLabel": "Interviews focus on",
       "items": [
-        { "title": "Warum wollen Sie bei uns arbeiten?", "body": "A simple question, yet many candidates give answers that fall short, because German interview culture is new to them." },
-        { "title": "Clear pronunciation when calm, gone under pressure", "body": "Practising alone, nobody corrects you. In the real interview, stress makes you mispronounce the very words you learnt." },
-        { "title": "No idea what German HR expects", "body": "Germans value preparation, precision and a direct attitude — very different from interviews in Vietnam." },
-        { "title": "No safe place to practise", "body": "You cannot afford mistakes with a real recruiter. Practising with friends lacks expert feedback and German context." }
+        { "name": "Vocational training", "de": "Ausbildung", "who": "Aged 18–35, starting a trade or switching to a new one.", "level": "B1, sometimes B2", "exam": "Goethe or telc B1", "interview": "Motivation, plans, knowledge of the trade and of Germany", "fit": "On myDeutschFlow: interviews by trade, A1–B1 path, B1 mock exams." },
+        { "name": "Recognised qualifications", "de": "Anerkennung", "who": "Qualified and experienced: healthcare, engineering, crafts…", "level": "B1–B2, depending on the job and the state", "exam": "Job-specific exams such as telc Pflege, DTB", "interview": "Expertise, workplace situations, procedures", "fit": "On myDeutschFlow: interviews by trade. Job-specific exam papers are being written." },
+        { "name": "Job search", "de": "Chancenkarte · Blaue Karte", "who": "Engineers, IT specialists, university graduates.", "level": "From A1, or B2 English", "exam": "Depends on the employer", "interview": "Expertise; German is an advantage", "fit": "On myDeutschFlow: interviews for IT, engineering and office roles." },
+        { "name": "University", "de": "Studium", "who": "Students planning to study at a German university.", "level": "Usually B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "University and visa interviews", "fit": "On myDeutschFlow: speaking practice, mock exams up to B2. No C1 path yet." },
+        { "name": "Family reunion, settling", "de": "Familiennachzug", "who": "Spouses and relatives of people living in Germany.", "level": "A1 for the visa, B1 to settle long-term", "exam": "Start Deutsch A1, DTZ", "interview": "Visa interviews, everyday life", "fit": "On myDeutschFlow: path from A1, everyday speaking practice." }
       ]
     },
-    "how": {
-      "cap": "How it works",
-      "title": "Three steps to a successful interview",
-      "items": [
-        { "title": "Pick your trade and level", "body": "Enter your profession and German level. The AI picks interview questions for your trade and level, from A2 to B2." },
-        { "title": "Interview with a German AI recruiter", "body": "The AI plays a German interviewer, asks in German and adapts pace and complexity to you." },
-        { "title": "Get a detailed analysis", "body": "After every session: a score for each part of the interview, your answers quoted back, and concrete tips to improve." }
-      ]
+    "report": {
+      "cap": "After every session",
+      "title": "You know exactly what to fix",
+      "sub": "After each interview, the report scores every part of the session, quotes what you said, gives the corrected sentence and suggests what to practise next.",
+      "sampleCap": "Example with the real report structure · Role: Koch/Köchin",
+      "overall": "68 / 100",
+      "verdict": "Almost ready · practise the situation questions",
+      "phases": [
+        { "name": "Introduction", "score": "74" },
+        { "name": "Situations", "score": "61" },
+        { "name": "Job skills", "score": "70" }
+      ],
+      "quoteCap": "You said",
+      "quote": "„Letztes Jahr ich habe in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
+      "fixCap": "Better",
+      "fix": "„Letztes Jahr habe ich in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
+      "fixWhy": "When a sentence starts with a time expression, the conjugated verb comes second.",
+      "strengthsCap": "Done well",
+      "strengths": ["Clear introduction of your kitchen experience", "Correct job vocabulary: die Station, die Bestellung"],
+      "gapsCap": "To fix",
+      "gaps": ["Situation example has no concrete result", "Verb position after a time expression"],
+      "drillsCap": "Practise next",
+      "drills": ["Answer the situation question again using STAR, ending with the result", "Make 3 sentences with die Station, die Bestellung, die Hygiene"]
     },
-    "features": {
-      "cap": "Features",
-      "title": "Every tool you need to be ready for Germany",
-      "sub": "One complete platform — from speaking practice and vocabulary to exam prep and progress tracking, all personalised to your trade.",
+    "learn": {
+      "cap": "Beyond interviews",
+      "title": "Build your German up to B1 in the same app",
+      "sub": "Interviews need solid German. A day-by-day path takes you from A1 to B1, with vocabulary reviews right before you forget.",
       "items": [
-        { "name": "AI speaking practice", "desc": "The AI plays a German employer, interviews you for your trade and points out grammar mistakes, wrong words and missing points after every sentence." },
-        { "name": "Video lessons", "desc": "In the mobile app: visuals, German voice-over and Vietnamese–German subtitles for vocabulary, grammar and listening." },
-        { "name": "SRS vocabulary", "desc": "Review cards at the right moment with spaced repetition — remember longer, forget less." },
-        { "name": "Personal learning path", "desc": "Lessons ordered by your level and goal, one clear road from A1 to B1." },
-        { "name": "Goethe exam practice", "desc": "Simulates all four parts (Lesen, Hören, Schreiben, Sprechen) in exam format, auto-scored. Speaking scoring is in beta." },
-        { "name": "Progress reports", "desc": "Track XP, study streaks, strong and weak skills and your full activity history." }
-      ]
-    },
-    "path": {
+        { "name": "A1–B1 path, day by day", "desc": "One stage a day covering listening, reading, speaking and writing. B2 is in progress." },
+        { "name": "Vocabulary at the right moment", "desc": "Word cards come back on a spaced-repetition schedule so they stick." },
+        { "name": "Video lessons", "desc": "In the mobile app: visuals, German voice-over, bilingual subtitles." },
+        { "name": "Progress tracking", "desc": "Study streaks, strong and weak skills, and your practice history." }
+      ],
       "shotCap": "Real screen · A learner’s roadmap tree",
-      "shotAlt": "A 30-day roadmap tree: the 12 finished stages have grown leaves, the stage in progress is a flower, and the panel on the right lists day 13’s four skills — listening, reading, speaking and writing.",
-      "cap": "Learning path",
-      "title": "From A1 to B1, one clear road",
-      "sub": "Most learners going abroad for work need <b>B1</b>. We map out every step and adjust to your pace.",
-      "popular": "Popular",
-      "soon": "In progress",
-      "goal": "Default goal: <b>B1</b>. You can change it any time in your profile.",
-      "levels": [
-        { "name": "Getting started", "weeks": "6–8 weeks", "body": "Greetings, introducing yourself, numbers, simple everyday sentences." },
-        { "name": "Basic communication", "weeks": "8 weeks", "body": "Daily work, shopping, appointments, talking about the past with Perfekt." },
-        { "name": "Confident at work", "weeks": "10–12 weeks", "body": "Interviews, the workplace, subordinate clauses with „weil\", „dass\"." },
-        { "name": "Professional fluency", "weeks": "12 weeks", "body": "Writing at work, discussions, Passiv and complex sentence structures." }
-      ]
-    },
-    "industries": {
-      "cap": "Supported trades",
-      "title": "Made for your trade",
-      "sub": "Pick a trade to see how the AI trains you — real questions in German and the key vocabulary.",
-      "roles": "Common roles",
-      "level": "Target level",
-      "topic": "Vocabulary topic",
-      "sampleQ": "Sample interview questions",
-      "vocab": "Key vocabulary",
-      "more": "For other roles such as <b>office and retail</b>, the AI uses a general interview question set, adapts it to the position you enter and adds questions when needed.",
-      "soon": "Coming soon",
-      "soonNote": "A dedicated question set for this trade is being written. Until then the AI uses the general interview question set, adapted to the position you enter.",
-      "items": [
-        { "label": "IT / Engineering", "pitch": "Technical interviews in German — you present projects, explain solutions and coordinate in an international team." },
-        { "label": "Kitchen / F&B", "pitch": "Interviews for cooks and kitchen assistants — hygiene, procedures and working fast under pressure." },
-        { "label": "Nursing", "pitch": "Germany's most understaffed sector. Interviews focus on care experience, medical ethics and handling situations with patients." },
-        { "label": "Construction", "pitch": "Interviews for builders and craftspeople — skills, occupational safety and reading technical drawings." }
-      ]
+      "shotAlt": "A 30-day roadmap tree: the 12 finished stages have grown leaves, the stage in progress is a flower, and the panel on the right lists day 13’s four skills — listening, reading, speaking and writing."
     },
     "exam": {
       "shotCap": "Real screen · Lesen exam room, clock running",
       "shotAlt": "The reading section of the Goethe B1 mock exam: 58 minutes left of the 65 allowed, a 2-of-4 progress bar, richtig/falsch questions in German and a note that answers are being saved.",
-      "cap": "Goethe exam practice",
+      "cap": "Exam practice",
       "title": "Mock exams in the real exam format",
-      "sub": "Practise all four parts of the Goethe-Zertifikat B1/B2 under exam-like conditions, with a weakness analysis after every attempt.",
+      "sub": "Practise all four parts of the Goethe-Zertifikat A2–B2 and telc B1 with the real timing and structure, with a weakness analysis after every attempt.",
       "parts": [
         { "name": "Reading", "time": "65 min", "body": "5 reading parts with everyday and workplace texts, auto-scored instantly." },
         { "name": "Listening", "time": "40 min", "body": "Dialogues, announcements and radio interviews at real exam speed." },
@@ -120,40 +105,29 @@
         { "name": "Speaking", "time": "15 min", "body": "Paired speaking, practised with the AI before exam day. Speaking scoring is in beta." }
       ],
       "disclaimer": "Mock exams simulate the exam format and are not affiliated with the Goethe-Institut or telc. Speaking scoring is in beta; scores are for guidance only.",
+      "guideLink": "See the structure of each exam",
       "bannerCap": "AI-scored mock exam",
       "bannerTitle": "Know where you stand against B1 before you register for the real exam.",
       "cta": "Try it for free"
     },
-    "audiences": {
-      "cap": "Who it is for",
-      "title": "Built for your journey to Germany",
-      "items": [
-        { "title": "Vocational trainees (Ausbildung)", "body": "Practise answering questions about motivation, plans and the trade in German, just as training companies ask them, with feedback after every answer." },
-        { "title": "Engineers & IT", "body": "Rehearse presenting projects, explaining technical solutions and answering expert questions in German before you face a real recruiter." },
-        { "title": "Kitchen & service", "body": "Practise shift communication, hygiene procedures and job interviews at A2–B1 with the real language of German kitchens and restaurants." }
-      ]
-    },
-    "teachers": {
-      "cap": "For teachers",
-      "title": "Tools for German teachers & language centres",
-      "sub": "Cut the grading and material prep so you can focus on what matters most — getting your students to speak with confidence.",
-      "values": [
-        { "t": "Class management", "s": "Create classes by code and follow every student's progress in real time." },
-        { "t": "AI grading", "s": "The AI drafts grades for speaking and writing, including photos of handwritten work. The teacher reviews and confirms the grade." },
-        { "t": "AI materials", "s": "Generate exercises, quizzes and tests on any topic in seconds." },
-        { "t": "Progress reports", "s": "See strengths and weaknesses per class and per student to teach what matters." }
-      ],
-      "ctaConsult": "Get a consultation for your centre",
-      "ctaDemo": "See the teacher dashboard demo →",
-      "boardCap": "Teacher board · Class K30",
-      "pending": "2 to grade",
-      "rows": [
-        { "who": "Võ Thị Hoa", "what": "scored 91 in Interview round 1" },
-        { "who": "Phạm Thị Mai", "what": "submitted Schreiben as a photo" },
-        { "who": "Lê Đức Anh", "what": "absent 3 days — needs a nudge" }
-      ],
-      "shotReportCap": "Real screen · Class K30 gradebook",
-      "shotReportAlt": "A teacher’s class report: four summary tiles for content, pacing, participation and objectives, above a matrix of every learner’s score on every assignment.",
+    "partners": {
+      "cap": "Schools and employers",
+      "title": "Use it with your school or employer",
+      "centers": {
+        "cap": "Language schools, teachers",
+        "title": "Students practise speaking every day between classes",
+        "body": "Teachers assign work to the whole class, students do it on their phones and the AI drafts the grade. Teachers review and confirm grades for written work; results become a report for families.",
+        "points": ["Assign a speaking task to a whole class with one topic", "Grade photos of handwritten work", "AI drafts, the teacher confirms grades for written work", "Family reports in Vietnamese, English and German"],
+        "ctaConsult": "Get a consultation for your school",
+        "ctaFree": "Free plan for teachers"
+      },
+      "employers": {
+        "cap": "Employers in Germany",
+        "title": "See how candidates speak German before you hire",
+        "body": "Candidates practise interviews for their trade, teachers confirm the results, and candidates send you a link to their speaking record themselves.",
+        "soon": "Coming soon · looking for pilot partners",
+        "contact": "Contact: support@mydeutschflow.com"
+      },
       "shotGradingCap": "Real screen · Grading with an AI first pass",
       "shotGradingAlt": "The grading center: the queue of work waiting to be marked on the left, a learner’s German essay in the middle, and on the right the AI grading button next to the teacher’s score confirmation box."
     },
@@ -165,6 +139,24 @@
         { "name": "Pro", "price": "299,000₫", "sub": "/month", "features": ["High daily AI interview limit", "Detailed grammar & content feedback", "Every interview trade", "Goethe exam practice A1–B2"], "cta": "Try 7 days free" },
         { "name": "Teachers", "price": "Contact us", "sub": "", "features": ["Class management", "AI materials", "Speaking grading", "Student progress reports"], "cta": "Get a consultation" }
       ]
+    },
+    "faq": {
+      "cap": "Questions",
+      "title": "Before you start",
+      "items": [
+        { "q": "Can I start from zero?", "a": "Yes. The path starts at A1: the alphabet, greetings, introducing yourself. Interview practice by trade works best from about A2." },
+        { "q": "Is my job covered?", "a": "Type your job into “What is your job?” at the top of the page. Roles with a dedicated question set show sample questions right away. For other roles the AI uses the general question set, adapted to the role you enter." },
+        { "q": "How accurate is the AI feedback?", "a": "The AI points out grammar mistakes, wrong words and missing points, with a corrected sentence. Scores help you track progress and do not replace a real exam. If you study with a school, your teacher reviews and confirms grades for written work." },
+        { "q": "Does it score pronunciation?", "a": "The AI shows which words it could not hear clearly in your answer. This is not yet a detailed sound-by-sound pronunciation analysis." },
+        { "q": "What happens to my recordings?", "a": "Recordings are turned into text so they can be scored and reviewed. How long they are kept and how to ask for deletion is described in the Privacy Policy." },
+        { "q": "Is a mock exam a certificate?", "a": "No. Mock exams simulate the Goethe and telc format, are not affiliated with either organisation and do not replace a certificate." },
+        { "q": "I study at a language school. Can we use it together?", "a": "Yes. The school creates classes and assigns work; you do it in the app and your teacher follows and grades it." },
+        { "q": "Does it cost anything?", "a": "You start for free with a daily AI practice allowance, no credit card needed. Paid plans are shown in the app." }
+      ]
+    },
+    "founder": {
+      "line": "myDeutschFlow is built by a Vietnamese learner of German, as the tool they wished they had.",
+      "link": "Read the story"
     },
     "cta": {
       "cap": "Start today",

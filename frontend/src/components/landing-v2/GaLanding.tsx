@@ -7,19 +7,23 @@ import { useTranslations } from 'next-intl'
 import { GaLogo, GaBtn, GaCap } from '@/components/ui-v2'
 import { LanguageToggle } from '@/components/ui-v2/LanguageToggle'
 import { GaShot } from './GaShot'
+import { OccupationExplorer } from './OccupationExplorer'
 
 /**
- * GaLanding — public marketing landing (proto-landing.jsx + proto-landing-sections.jsx).
- * Canonical homepage: rendered at `/` AND at `/v2` (each route wraps it in `.ga-scope`).
- * Full-bleed (no role shell). CTA học viên → /v2/onboarding (phễu value-first, xem START_HREF);
- * CTA B2B + đăng nhập giữ /v2/register · /v2/login · /v2/teacher.
- * Editorial Galerie style: 1px-divided grids, Newsreader display, yellow brand accent.
+ * GaLanding — trang chủ công khai cho NGƯỜI HỌC (nhóm B), render ở `/`, `/en/`, `/de/` và `/v2`.
  *
- * 06/09/2026 (F-I18N-02a, audit UTF-8/i18n): mọi chuỗi hiển thị đọc từ catalog `v2.landing`
- * (messages/v2/landing.{vi,en,de}.json — area `landing`, cấp cho provider gốc trong RootLayout).
- * Phần TIẾNG ĐỨC làm nội dung (tên tính năng/level/ngành bằng tiếng Đức, câu hỏi và từ vựng mẫu,
- * thẻ phỏng vấn demo) là nội dung học nên giữ nguyên trong code cho cả ba locale. Header có
- * LanguageToggle (VI/EN/DE) để khách mới đổi ngôn ngữ ngay tại trang chủ.
+ * 19/10/2026 — đợt 1 định hướng A+B+E (plans/2026-10-18-phuong-an-landing-abe.html, mục 4).
+ * Trang chỉ có một việc: cho người học ở bất kỳ nước nào, làm bất kỳ nghề nào, thấy ngay câu hỏi
+ * phỏng vấn của đúng nghề mình rồi bắt đầu luyện. Thứ tự khối:
+ *   S1 header · S2+S3 hero có ô "Bạn làm nghề gì?" (OccupationExplorer) · S4 hành trình sang Đức ·
+ *   S5 báo cáo mẫu · ngoài phỏng vấn (lộ trình A1–B1) · S6 thi Nói theo format · S7 lối sang trung
+ *   tâm (A) và nhà tuyển dụng (E) · S8 bảng giá (tạm ẩn) · S9 câu hỏi thường gặp · S10 founder + CTA.
+ * Đã bỏ: dải số liệu, bốn ô "vấn đề", ba bước, lưới 6 tính năng, lộ trình 5 cấp, 4 tab ngành cố
+ * định, khối "Dành cho ai" theo ba ngành — lý do ở phương án landing, mục "Số phận các khối hiện tại".
+ *
+ * Mọi câu chữ đọc từ catalog `v2.landing` (messages/v2/landing.{vi,en,de}.json). Mọi lời hứa phải
+ * có trong sổ lời hứa (plans/2026-10-18-quyet-dinh-dinh-huong-abe.md, mục 4) — ví dụ khối trung tâm
+ * chỉ nói "giáo viên chốt điểm" cho bài VIẾT vì giáo viên chưa đọc được lời học viên trong bài nói.
  */
 
 const YellowSq = ({ dark = false }: { dark?: boolean }) => (
@@ -28,10 +32,10 @@ const YellowSq = ({ dark = false }: { dark?: boolean }) => (
 
 // [labelKey, anchor id] — nhãn đọc từ landing.nav.<labelKey>.
 const NAV_LINKS = [
-  ['features', 'features'],
-  ['learningPath', 'learning-path'],
+  ['interview', 'interview'],
+  ['pathways', 'pathways'],
   ['exam', 'exam'],
-  ['teachers', 'teachers'],
+  ['centers', 'centers'],
 ] as const
 
 // Footer legal/support links — [labelKey, href]. Route to the standalone pages.
@@ -42,50 +46,20 @@ const FOOTER_LINKS = [
   ['support', '/support'],
 ] as const
 
-// Metadata không dịch (tiếng Đức là nội dung) — ghép theo chỉ số với mảng dịch trong catalog.
-const HOW_N = ['01', '02', '03']
-const FEATURE_META = [
-  { de: 'KI-Sprechtraining', accent: 'var(--ga-yellow)' },
-  { de: 'Video-Lektionen', accent: 'var(--ga-green)' },
-  { de: 'Wortschatz', accent: 'var(--ga-violet)' },
-  { de: 'Lernpfad', accent: 'var(--ga-blue)' },
-  { de: 'Prüfung', accent: 'var(--ga-orange)' },
-  { de: 'Fortschritt', accent: 'var(--ga-teal)' },
-]
-// 18/10/2026 (đợt 0, sổ lời hứa): lộ trình đang chạy là A1–B1; B2 đang xây nên gắn `soon`;
-// bỏ C1 vì chưa có nội dung — landing không được hứa cấp độ chưa dạy được.
-const PATH_META = [
-  { id: 'A1', de: 'Anfänger', current: false, soon: false },
-  { id: 'A2', de: 'Grundlagen', current: false, soon: false },
-  { id: 'B1', de: 'Beruf', current: true, soon: false },
-  { id: 'B2', de: 'Fortgeschritten', current: false, soon: true },
-]
 const EXAM_DE = ['Lesen', 'Hören', 'Schreiben', 'Sprechen']
-const AUDIENCE_META = [
-  { de: 'Ausbildung', color: 'var(--ga-red)' },
-  { de: 'IT & Ingenieurwesen', color: 'var(--ga-blue)' },
-  { de: 'Gastronomie & Service', color: 'var(--ga-green)' },
-]
-// Copy gói phải khớp entitlement thật (audit H-01): backend áp hạn mức token AI theo ngày,
-// nên không hứa "không giới hạn"; không nêu con số quota cứng vì cấu hình chỉnh được runtime.
+const PATHWAY_COLORS = ['var(--ga-yellow)', 'var(--ga-red)', 'var(--ga-blue)', 'var(--ga-violet)', 'var(--ga-green)']
 /**
  * Đích của mọi CTA "học thử / miễn phí" cho HỌC VIÊN.
  *
- * QA 2026-09-01 (F-13): trang này có 19 link, trong đó 8 CTA đều trỏ thẳng `/v2/register`, KHÔNG
- * một CTA nào trỏ `/v2/onboarding` — trong khi `/v2/onboarding` là trang CÔNG KHAI, đã dịch đủ ba
- * thứ tiếng, có ghép mentor, có "quick win" và đủ event PostHog. Chú thích trong chính trang đó
- * viết: "a GUEST runs the whole funnel here before signing up". Thực tế khách lạ bấm "Học thử miễn
- * phí" rơi thẳng vào form 5 ô kèm số điện thoại bắt buộc, chưa nhận được chút giá trị nào — nên
- * toàn bộ phễu value-first nằm không và dashboard funnel gần như không có dữ liệu.
- *
- * Phễu tự đưa khách sang `/v2/register` ở bước cuối (kèm bản nháp lộ trình), nên đây là THÊM một
- * chặng giá trị trước tường đăng ký chứ không phải thay thế nó. CTA B2B ("Nhận tư vấn…") giữ
- * nguyên: phễu này dành cho học viên, không dành cho trung tâm.
+ * QA 2026-09-01 (F-13): CTA học viên phải vào phễu value-first `/v2/onboarding` (trang công khai,
+ * ba thứ tiếng, có quick win và event PostHog) chứ không thả khách lạ thẳng vào form đăng ký.
+ * Phễu tự đưa khách sang `/v2/register` ở bước cuối. CTA B2B ("Nhận tư vấn…") giữ `/v2/register`:
+ * phễu này dành cho học viên, không dành cho trung tâm.
  */
 const START_HREF = '/v2/onboarding'
 /**
- * Bảng giá TẠM ẨN (owner yêu cầu 17/09/2026). Giữ nguyên JSX, catalog `landing.pricing.*` và điểm
- * đo `pricing_plan_N` để bật lại chỉ cần lật cờ này; test phễu đọc mã nguồn nên vẫn xanh.
+ * Bảng giá TẠM ẨN (owner yêu cầu 17/09/2026; giá theo nước chốt ở đợt 3). Giữ nguyên JSX, catalog
+ * `landing.pricing.*` và điểm đo `pricing_plan_N` để bật lại chỉ cần lật cờ này.
  */
 const SHOW_PRICING = false
 const PLAN_META = [
@@ -93,100 +67,65 @@ const PLAN_META = [
   { href: START_HREF, highlight: true },
   { href: '/v2/register', highlight: false },
 ]
-/**
- * Thứ tự tab = thứ tự `landing.industries.items` trong catalog (ghép theo chỉ số).
- *
- * 18/10/2026 (đợt 0, sổ lời hứa): Pflege và Bau CHƯA có bộ câu hỏi phỏng vấn riêng trong
- * InterviewQuestionBank (người dùng chọn hai ngành này nhận bộ câu hỏi chung) nên gắn `soon` và
- * dời xuống cuối; tab mặc định là ngành đã có nội dung. Gỡ `soon` khi đợt 2 duyệt xong bộ câu hỏi.
- */
-const INDUSTRY_META = [
-  {
-    id: 'it', de: 'IT / Ingenieur', color: 'var(--ga-blue)', soon: false,
-    level: 'B1 – B2', topic: 'Fachvokabular IT', roles: 'Softwareentwickler · Systemadmin · Ingenieur',
-    questions: ['„Können Sie ein Projekt beschreiben, an dem Sie gearbeitet haben?"', '„Welche Programmiersprachen beherrschen Sie am besten?"', '„Wie lösen Sie technische Konflikte im Team?"'],
-    vocab: ['die Programmierung', 'die Schnittstelle', 'die Datenbank', 'der Algorithmus', 'die Anforderung', 'die Bereitstellung'],
-  },
-  {
-    id: 'gastro', de: 'Gastronomie / Küche', color: 'var(--ga-green)', soon: false,
-    level: 'A2 – B1', topic: 'Gastronomie', roles: 'Koch · Küchenhilfe · Servicekraft',
-    questions: ['„Haben Sie Erfahrung in einer professionellen Küche?"', '„Wie halten Sie die Hygienevorschriften (HACCP) ein?"', '„Wie arbeiten Sie unter Zeitdruck im Service?"'],
-    vocab: ['die Küche', 'die Hygiene', 'die Zutat', 'das Gericht', 'die Bestellung', 'der Arbeitsplatz'],
-  },
-  {
-    id: 'pflege', de: 'Pflege / Krankenpflege', color: 'var(--ga-red)', soon: true,
-    level: 'B1 – B2', topic: 'Krankenhaus & Pflege', roles: 'Krankenpfleger · Altenpfleger · Pflegehelfer',
-    questions: ['„Warum möchten Sie als Pflegekraft in Deutschland arbeiten?"', '„Wie gehen Sie mit schwierigen oder dementen Patienten um?"', '„Beschreiben Sie Ihren typischen Arbeitstag im Krankenhaus."'],
-    vocab: ['die Pflegekraft', 'die Untersuchung', 'das Medikament', 'der Patient', 'die Behandlung', 'die Krankenversicherung'],
-  },
-  {
-    id: 'bau', de: 'Bau / Handwerk', color: 'var(--ga-orange)', soon: true,
-    level: 'A2 – B1', topic: 'Bau & Sicherheit', roles: 'Maurer · Elektriker · Bauhelfer',
-    questions: ['„Welche handwerklichen Fähigkeiten bringen Sie mit?"', '„Kennen Sie die Sicherheitsvorschriften auf der Baustelle?"', '„Können Sie technische Zeichnungen lesen?"'],
-    vocab: ['die Baustelle', 'die Sicherheit', 'das Werkzeug', 'der Beton', 'die Zeichnung', 'der Schutzhelm'],
-  },
-]
-const TEACH_ROW_COLORS = ['var(--ga-green)', 'var(--ga-violet)', 'var(--ga-orange)']
 
-type Pair = { title: string; body: string }
-type Feature = { name: string; desc: string }
-type Level = { name: string; weeks: string; body: string }
-type Industry = { label: string; pitch: string }
 type ExamPart = { name: string; time: string; body: string }
-type TeachValue = { t: string; s: string }
-type TeachRow = { who: string; what: string }
 type Plan = { name: string; price: string; sub: string; features: string[]; cta: string }
-type Stat = { n: string; l: string }
+type Pathway = { name: string; de: string; who: string; level: string; exam: string; interview: string; fit: string }
+type Phase = { name: string; score: string }
+type Learn = { name: string; desc: string }
+type Faq = { q: string; a: string }
 
 const SECTION = 'mx-auto max-w-[1240px] px-5 py-14 sm:px-8 md:py-[78px] lg:px-[60px]'
 // Bề rộng THỰC TẾ của ô ảnh để next/image tải đúng cỡ: khung 1240px trừ 2×60px đệm ở lg. Nhánh
 // cuối là 720px chứ không phải bề ngang màn hình — dưới `md` GaShot giữ ảnh ở 720px và cho cuộn
 // ngang, khai theo 100vw thì next/image gửi bản ~390px rồi bị kéo giãn thành ảnh nhoè.
 const SHOT_FULL_SIZES = '(min-width: 1240px) 1120px, (min-width: 768px) calc(100vw - 64px), 720px'
-const SHOT_HALF_SIZES = '(min-width: 1240px) 550px, (min-width: 768px) calc(50vw - 42px), 720px'
+// Ảnh chấm bài ở khối S7 nằm trong khung tối đa 640px (md:max-w-[640px]).
+const SHOT_GRADING_SIZES = '(min-width: 768px) 640px, 720px'
 const H2 = 'font-ga-display text-[32px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[38px] lg:text-[44px]'
 
 export function GaLanding() {
   const t = useTranslations('v2.landing')
   const raw = <T,>(key: string): T => t.raw(key) as T
-  const strong = { b: (chunks: React.ReactNode) => <strong className="text-ga-ink">{chunks}</strong> }
 
-  const stats = raw<Stat[]>('stats')
-  const pains = raw<Pair[]>('pains.items')
-  const how = raw<Pair[]>('how.items')
-  const features = raw<Feature[]>('features.items')
-  const levels = raw<Level[]>('path.levels')
-  const industries = raw<Industry[]>('industries.items')
   const examParts = raw<ExamPart[]>('exam.parts')
-  const audiences = raw<Pair[]>('audiences.items')
-  const teachValues = raw<TeachValue[]>('teachers.values')
-  const teachRows = raw<TeachRow[]>('teachers.rows')
   const plans = raw<Plan[]>('pricing.plans')
   const heroBullets = raw<string[]>('hero.bullets')
+  const pathways = raw<Pathway[]>('pathways.items')
+  const phases = raw<Phase[]>('report.phases')
+  const strengths = raw<string[]>('report.strengths')
+  const gaps = raw<string[]>('report.gaps')
+  const drills = raw<string[]>('report.drills')
+  const learnItems = raw<Learn[]>('learn.items')
+  const centerPoints = raw<string[]>('partners.centers.points')
+  const faqs = raw<Faq[]>('faq.items')
 
-  const [indIdx, setIndIdx] = React.useState(0)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const { trackEvent } = useTracking()
   /**
-   * Điểm vào của phễu. Ba chặng sau đã đo được từ trước — `register_success`,
-   * `onboarding_completed`, `feature_lesson_completed` — nhưng chặng ĐẦU thì không: cả 7 CTA đều là
-   * <Link> trần, nên chỉ còn $autocapture của PostHog, thứ không phân biệt được CTA phễu với 19
-   * link khác trên trang và không nói CTA nằm ở đâu. Thiếu chặng này thì không tính được tỉ lệ từ
-   * CTA sang đăng ký — chính phép đo mà G5 đặt làm điều kiện cho baseline.
-   *
-   * `placement` là vị trí trên trang, không phải nhãn nút: nhãn đổi theo ngôn ngữ và theo mỗi lần
-   * viết lại copy, còn vị trí thì bền qua các lần thử biến thể.
+   * Điểm vào của phễu (G5): mọi CTA phễu bắn `landing_cta_clicked` kèm VỊ TRÍ trên trang — nhãn đổi
+   * theo ngôn ngữ và theo mỗi lần viết lại copy, còn vị trí thì bền qua các lần thử biến thể.
    */
   const trackCta = React.useCallback(
     (placement: string) => trackEvent('landing_cta_clicked', { placement }),
     [trackEvent],
   )
-  const ind = INDUSTRY_META[indIdx]
-  const indCopy = industries[indIdx]
+  // Nghề nào được chọn nhiều → duyệt tay trước (quyết định 6, file quyết định A+B+E).
+  const trackOccupation = React.useCallback(
+    (positionId: string) => trackEvent('landing_occupation_selected', { position: positionId }),
+    [trackEvent],
+  )
+
+  // Câu hỏi thường gặp → dữ liệu có cấu trúc FAQPage. Thoát "<" để chuỗi không đóng nhầm thẻ script.
+  const faqLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  }).replace(/</g, '\\u003c')
 
   return (
     <div className="min-h-screen overflow-x-clip scroll-smooth bg-ga-bg font-ga-ui text-ga-ink">
-      {/* Nav */}
+      {/* S1 — Nav */}
       <header className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
         <div className="flex h-16 items-center justify-between gap-2 px-5 sm:px-8 md:h-[78px] xl:px-[60px]">
           <GaLogo size={26} className="shrink-0 md:hidden" />
@@ -203,8 +142,7 @@ export function GaLanding() {
             <Link href="/v2/login" className="hidden text-[14.5px] font-semibold text-ga-ink hover:opacity-80 sm:block">
               {t('header.login')}
             </Link>
-            {/* h-11 (44px) ở mọi bề ngang — trước là h-9 (36px) trên máy nhỏ, dưới mức tối thiểu
-                44pt của Apple HIG, mà đây là nút chuyển đổi chính nằm ngay cạnh nút menu. */}
+            {/* h-11 (44px) ở mọi bề ngang — mức tối thiểu 44pt của Apple HIG cho nút chuyển đổi chính. */}
             <GaBtn asChild variant="ink" size="lg" className="h-11 px-3.5 text-[13px] sm:px-6 sm:text-[14.5px]">
               <Link href={START_HREF} onClick={() => trackCta('header')}>
                 <YellowSq />
@@ -264,12 +202,11 @@ export function GaLanding() {
         )}
       </header>
 
-      {/* QA 13/08: trang thiếu landmark <main> nên VoiceOver/rotor không có "nội dung chính"
-          để nhảy tới — người dùng trình đọc màn hình phải lướt qua cả thanh điều hướng mỗi lần. */}
+      {/* QA 13/08: landmark <main> để VoiceOver/rotor có "nội dung chính" mà nhảy tới. */}
       <main>
 
-      {/* Hero */}
-      <section className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-14 pt-10 sm:px-8 sm:pt-14 lg:grid-cols-[1.15fr_1fr] lg:gap-20 lg:px-[60px] lg:pb-[72px] lg:pt-[90px]">
+      {/* S2 + S3 — Hero có ô tìm nghề */}
+      <section id="interview" className="mx-auto grid max-w-[1240px] scroll-mt-[78px] items-start gap-12 px-5 pb-14 pt-10 sm:px-8 sm:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:px-[60px] lg:pb-[72px] lg:pt-[90px]">
         <div>
           <div className="mb-[26px] inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ga-muted">
             <YellowSq />{t('hero.eyebrow')}
@@ -287,12 +224,6 @@ export function GaLanding() {
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
               <Link href={START_HREF} onClick={() => trackCta('hero')}><YellowSq />{t('hero.ctaStart')}</Link>
             </GaBtn>
-            {/* 18/10/2026 (đợt 0): nút phụ trước là "Đăng nhập để trải nghiệm" — chỉ dành cho người
-                đã có tài khoản (header đã có Đăng nhập). Thay bằng lối xem câu hỏi phỏng vấn thật
-                theo ngành ngay trên trang, cho khách còn phân vân. */}
-            <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-              <a href="#industries">{t('hero.ctaSample')}</a>
-            </GaBtn>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
             {heroBullets.map((b) => (
@@ -302,139 +233,120 @@ export function GaLanding() {
             ))}
           </div>
         </div>
-        {/* Interview preview card — hội thoại mẫu tiếng Đức giữ nguyên ở mọi locale (nội dung học).
-            18/10/2026 (đợt 0): thẻ trước dựng phiên ngành Pflege (chưa có bộ câu hỏi riêng) với
-            điểm "Phát âm" (app không chấm âm). Nay dựng theo nhân vật Klaus (bếp) và câu hỏi lấy từ
-            InterviewQuestionBank.gastroQuestions; ba ô điểm theo đúng giai đoạn của báo cáo phỏng
-            vấn (phaseResults: INTRO, STAR_SOFT, HARD_SKILLS). Nhãn ghi rõ là minh hoạ. */}
-        <div className="border border-ga-border bg-ga-card p-5 shadow-[0_8px_48px_rgba(22,21,19,0.07)] sm:p-[28px_30px]">
-          <GaCap className="mb-[18px]">{t('hero.previewCap')}</GaCap>
-          <div className="mb-[18px] flex items-center gap-3 border-b border-ga-border pb-[18px]">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-ga-ink text-[16px] font-bold text-ga-yellow">K</div>
-            <div>
-              <div className="text-[15px] font-bold">Klaus</div>
-              <div className="text-[12.5px] text-ga-muted">{t('hero.hrRole')}</div>
-            </div>
-            <span className="ml-auto inline-flex items-center gap-1.5 text-[11.5px] font-bold tracking-[0.04em] text-ga-red">
-              <span className="inline-block h-[7px] w-[7px] animate-pulse rounded-full bg-ga-red" />REC
-            </span>
-          </div>
-          <div className="mb-3 bg-ga-bg p-[14px_16px]">
-            <GaCap className="mb-[7px] text-ga-subtle">{t('hero.qCap')}</GaCap>
-            <div className="font-ga-display text-[16px] italic leading-[1.5]">„Nennen Sie einen Hygiene-Vorfall in der Küche und Ihre sofortigen Maßnahmen.“</div>
-          </div>
-          <div className="mb-[18px] border border-ga-yellow bg-ga-yellow-soft p-[13px_16px]">
-            <GaCap className="mb-[7px] text-ga-gold">{t('hero.answeringCap')}</GaCap>
-            <div className="text-[15px] leading-[1.55] text-ga-ink">„Einmal war die Kühltemperatur zu hoch. Ich habe die Ware sofort aussortiert und…“</div>
-          </div>
-          <div className="grid grid-cols-3">
-            {[[t('hero.scoreIntro'), '82'], [t('hero.scoreStar'), '76'], [t('hero.scoreSkills'), '88']].map(([l, v], i) => (
-              <div key={l} className={`border-t-2 border-ga-border py-3 text-center ${i ? 'border-l border-l-ga-border' : ''}`}>
-                <div className="font-ga-display text-[26px] font-medium">{v}</div>
-                <div className="mt-1 text-[11.5px] text-ga-muted">{l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <OccupationExplorer
+          startHref={START_HREF}
+          onStart={() => trackCta('occupation_explorer')}
+          onSelect={trackOccupation}
+        />
       </section>
 
-      {/* Stats bar — chỉ nêu năng lực sản phẩm kiểm chứng được, không số liệu xã hội
-          không có nguồn (audit 2026-08-28, H-01: 2.400+/92%/4.9 không có provenance). */}
-      <div className="grid border-y border-ga-border sm:grid-cols-3">
-        {stats.map(({ n, l }, i) => (
-          <div key={l} className={`py-6 text-center sm:py-8 ${i ? 'border-t border-ga-border sm:border-l sm:border-t-0' : ''}`}>
-            <div className="font-ga-display text-[34px] font-medium sm:text-[42px]">{n}</div>
-            <div className="mt-1.5 text-[14px] text-ga-muted sm:mt-[9px]">{l}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Pain points */}
-      <section className={SECTION}>
-        <GaCap className="mb-[18px]">{t('pains.cap')}</GaCap>
-        <h2 className={`${H2} mb-12 max-w-[700px]`}>{t('pains.title')}</h2>
-        <div className="grid border border-ga-border sm:grid-cols-2">
-          {pains.map((p, i) => (
-            <div key={i} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border' : ''} ${i === 1 ? 'sm:border-t-0' : ''} ${i % 2 ? 'sm:border-l sm:border-l-ga-border' : ''}`}>
-              <div className="mb-3.5 font-ga-display text-[20px] font-medium italic leading-[1.35] sm:text-[22px]">„{p.title}“</div>
-              <p className="text-[15px] leading-[1.72] text-ga-muted">{p.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="border-y border-ga-border bg-ga-card">
+      {/* S4 — Hành trình sang Đức */}
+      <section id="pathways" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
         <div className={SECTION}>
-          <GaCap className="mb-[18px]">{t('how.cap')}</GaCap>
-          <h2 className={`${H2} mb-12`}>{t('how.title')}</h2>
-          <div className="grid border border-ga-border md:grid-cols-3">
-            {how.map((h, i) => (
-              <div key={i} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
-                <div className="mb-5 font-ga-display text-[56px] font-normal leading-none text-[#D8D3C8]">{HOW_N[i]}</div>
-                <div className="mb-3 text-[18px] font-bold">{h.title}</div>
-                <p className="text-[15px] leading-[1.72] text-ga-muted">{h.body}</p>
+          <GaCap className="mb-[18px]">{t('pathways.cap')}</GaCap>
+          <h2 className={`${H2} mb-3`}>{t('pathways.title')}</h2>
+          <p className="mb-11 max-w-[620px] text-ga-body-lg text-ga-muted">{t('pathways.sub')}</p>
+          <div className="grid border border-ga-border md:grid-cols-2 xl:grid-cols-5">
+            {pathways.map((p, i) => (
+              <div key={p.name} className={`flex flex-col gap-3 border-ga-border p-5 sm:p-6 ${i ? 'border-t md:border-t-0' : ''} ${i % 2 ? 'md:border-l' : ''} ${i >= 2 ? 'md:border-t xl:border-t-0' : ''} ${i ? 'xl:border-l' : ''}`}>
+                <span className="inline-block h-[9px] w-[9px]" style={{ background: PATHWAY_COLORS[i] }} />
+                <div>
+                  <div className="text-ga-h3 text-ga-ink">{p.name}</div>
+                  {/* Bản tiếng Đức: tên lộ trình đã là thuật ngữ Đức — không lặp lại dòng phụ. */}
+                  {p.de !== p.name && <div className="font-ga-display text-ga-small italic text-ga-subtle">{p.de}</div>}
+                </div>
+                <p className="text-ga-small text-ga-muted">{p.who}</p>
+                <dl className="flex flex-col gap-2 border-t border-ga-border pt-3 text-ga-small">
+                  {[[t('pathways.levelLabel'), p.level], [t('pathways.examLabel'), p.exam], [t('pathways.interviewLabel'), p.interview]].map(([k, v]) => (
+                    <div key={k}>
+                      <dt className="text-ga-caption text-ga-muted">{k}</dt>
+                      <dd className="text-ga-ink">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-auto border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-ink">{p.fit}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className={`${SECTION} scroll-mt-[78px]`}>
-        <GaCap className="mb-[18px]">{t('features.cap')}</GaCap>
-        <h2 className={`${H2} mb-3 max-w-[760px]`}>{t('features.title')}</h2>
-        <p className="mb-11 max-w-[560px] text-[17px] leading-[1.6] text-ga-muted">{t('features.sub')}</p>
-        <div className="grid border border-ga-border md:grid-cols-3">
-          {features.map((f, i) => (
-            <div key={f.name} className={`bg-ga-card p-6 transition-shadow hover:shadow-[var(--ga-shadow-card-hover)] sm:p-[30px_32px] ${i ? 'border-t border-ga-border' : ''} ${i === 1 || i === 2 ? 'md:border-t-0' : ''} ${i % 3 ? 'md:border-l md:border-l-ga-border' : ''}`}>
-              <div className="mb-4 flex items-center gap-3">
-                <span className="h-[11px] w-[11px] shrink-0" style={{ background: FEATURE_META[i]?.accent }} />
-                <span className="text-[18px] font-bold">{f.name}</span>
-              </div>
-              <div className="mb-3 font-ga-display text-[14px] italic text-ga-subtle">{FEATURE_META[i]?.de}</div>
-              <p className="text-[14.5px] leading-[1.7] text-ga-muted">{f.desc}</p>
+      {/* S5 — Sau mỗi buổi bạn nhận được gì (báo cáo mẫu, đúng cấu trúc InterviewReportDto) */}
+      <section className={SECTION}>
+        <div className="grid items-start gap-10 md:grid-cols-[1fr_1.15fr] md:gap-[60px]">
+          <div>
+            <GaCap className="mb-[18px]">{t('report.cap')}</GaCap>
+            <h2 className={`${H2} mb-3`}>{t('report.title')}</h2>
+            <p className="text-ga-body-lg text-ga-muted">{t('report.sub')}</p>
+          </div>
+          <div className="border border-ga-border bg-ga-card p-5 sm:p-7">
+            <GaCap className="mb-4 text-ga-subtle">{t('report.sampleCap')}</GaCap>
+            <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-ga-border pb-4">
+              <span className="font-ga-display text-ga-stat text-ga-ink">{t('report.overall')}</span>
+              <span className="text-ga-body text-ga-muted">{t('report.verdict')}</span>
             </div>
-          ))}
+            <div className="mb-5 grid grid-cols-3">
+              {phases.map((ph, i) => (
+                <div key={ph.name} className={`py-1 text-center ${i ? 'border-l border-ga-border' : ''}`}>
+                  <div className="font-ga-display text-ga-numeral text-ga-ink">{ph.score}</div>
+                  <div className="mt-1 text-ga-caption text-ga-muted">{ph.name}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mb-4 bg-ga-bg p-4">
+              <GaCap className="mb-2 text-ga-subtle">{t('report.quoteCap')}</GaCap>
+              <p className="mb-3 font-ga-display text-ga-body-lg italic text-ga-ink">{t('report.quote')}</p>
+              <GaCap className="mb-2 text-ga-gold">{t('report.fixCap')}</GaCap>
+              <p className="mb-1 font-ga-display text-ga-body-lg italic text-ga-ink">{t('report.fix')}</p>
+              <p className="text-ga-small text-ga-muted">{t('report.fixWhy')}</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {([[t('report.strengthsCap'), strengths], [t('report.gapsCap'), gaps]] as const).map(([cap, list]) => (
+                <div key={cap}>
+                  <GaCap className="mb-2">{cap}</GaCap>
+                  <ul className="flex flex-col gap-1.5">
+                    {list.map((s) => (
+                      <li key={s} className="flex items-start gap-2 text-ga-small text-ga-ink">
+                        <span className="mt-[7px] inline-block h-[5px] w-[5px] shrink-0 bg-ga-yellow" />{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 border-t border-ga-border pt-4">
+              <GaCap className="mb-2">{t('report.drillsCap')}</GaCap>
+              <ul className="flex flex-col gap-1.5">
+                {drills.map((d) => (
+                  <li key={d} className="flex items-start gap-2 text-ga-small text-ga-ink">
+                    <span className="mt-[7px] inline-block h-[5px] w-[5px] shrink-0 bg-ga-ink" />{d}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Learning path */}
+      {/* Ngoài phỏng vấn — lộ trình A1–B1, từ vựng, video trên app (ảnh chụp thật cây lộ trình) */}
       <section id="learning-path" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
         <div className={SECTION}>
-          <GaCap className="mb-[18px]">{t('path.cap')}</GaCap>
-          <h2 className={`${H2} mb-3`}>{t('path.title')}</h2>
-          <p className="mb-11 max-w-[600px] text-[17px] leading-[1.6] text-ga-muted">
-            {t.rich('path.sub', strong)}
-          </p>
-          <div className="grid grid-cols-2 border border-ga-border md:grid-cols-4">
-            {levels.map((lv, i) => {
-              const meta = PATH_META[i]
-              if (!meta) return null
-              return (
-                <div key={meta.id} className={`relative border-ga-border p-5 sm:p-[28px_26px] ${i ? (i % 2 ? 'border-l' : 'md:border-l') : ''} ${i >= 2 ? 'border-t md:border-t-0' : ''} ${meta.current ? 'bg-ga-ink text-ga-bg' : ''}`}>
-                  {meta.current && <div className="absolute inset-x-0 top-0 h-[3px] bg-ga-yellow" />}
-                  <div className="mb-3.5 flex items-baseline gap-2">
-                    <span className={`font-ga-display text-[36px] font-medium leading-none ${meta.current ? 'text-ga-yellow' : 'text-[#D8D3C8]'}`}>{meta.id}</span>
-                    {meta.current && <span className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ga-yellow">{t('path.popular')}</span>}
-                    {meta.soon && <span className="text-ga-eyebrow uppercase text-ga-muted">{t('path.soon')}</span>}
-                  </div>
-                  <div className="mb-1 text-[15.5px] font-bold">{lv.name}</div>
-                  <div className={`mb-3 font-ga-display text-[12.5px] italic ${meta.current ? 'text-[#A39E94]' : 'text-ga-subtle'}`}>{meta.de} · {lv.weeks}</div>
-                  <p className={`text-[13px] leading-[1.6] ${meta.current ? 'text-[#A39E94]' : 'text-ga-muted'}`}>{lv.body}</p>
-                </div>
-              )
-            })}
-          </div>
-          <div className="mt-5 flex items-center gap-2.5 text-[14px] text-ga-muted">
-            <span className="inline-block h-[7px] w-[7px] bg-ga-yellow" />
-            <span>{t.rich('path.goal', strong)}</span>
+          <GaCap className="mb-[18px]">{t('learn.cap')}</GaCap>
+          <h2 className={`${H2} mb-3`}>{t('learn.title')}</h2>
+          <p className="mb-11 max-w-[600px] text-ga-body-lg text-ga-muted">{t('learn.sub')}</p>
+          <div className="grid border border-ga-border sm:grid-cols-2 lg:grid-cols-4">
+            {learnItems.map((it, i) => (
+              <div key={it.name} className={`border-ga-border bg-ga-bg p-5 sm:p-6 ${i ? 'border-t sm:border-t-0' : ''} ${i % 2 ? 'sm:border-l' : ''} ${i >= 2 ? 'sm:border-t lg:border-t-0' : ''} ${i ? 'lg:border-l' : ''}`}>
+                <div className="mb-2 text-ga-h3 text-ga-ink">{it.name}</div>
+                <p className="text-ga-small text-ga-muted">{it.desc}</p>
+              </div>
+            ))}
           </div>
           <div className="mt-9 md:mt-11">
             <GaShot
               name="roadmap"
-              caption={t('path.shotCap')}
-              alt={t('path.shotAlt')}
+              caption={t('learn.shotCap')}
+              alt={t('learn.shotAlt')}
               accent="var(--ga-yellow)"
               sizes={SHOT_FULL_SIZES}
             />
@@ -442,75 +354,7 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* Industries — interactive */}
-      <section id="industries" className={`${SECTION} scroll-mt-[78px]`}>
-        <GaCap className="mb-[18px]">{t('industries.cap')}</GaCap>
-        <h2 className={`${H2} mb-3`}>{t('industries.title')}</h2>
-        <p className="mb-9 max-w-[580px] text-[17px] leading-[1.6] text-ga-muted">{t('industries.sub')}</p>
-        <div className="grid grid-cols-2 border border-ga-border md:grid-cols-4">
-          {INDUSTRY_META.map((x, i) => {
-            const on = i === indIdx
-            return (
-              <button
-                key={x.id}
-                onClick={() => setIndIdx(i)}
-                style={{ borderTopColor: on ? x.color : 'transparent' }}
-                className={`border-t-[3px] p-[14px_16px] text-left transition-colors sm:p-[18px_20px] ${i ? (i % 2 ? 'border-l border-l-ga-border' : 'md:border-l md:border-l-ga-border') : ''} ${on ? 'bg-ga-ink text-ga-bg' : 'bg-ga-card text-ga-ink'}`}
-              >
-                <span className="mb-2.5 flex items-center gap-2">
-                  <span className="inline-block h-[9px] w-[9px]" style={{ background: x.color }} />
-                  {x.soon && (
-                    <span className={`text-ga-eyebrow uppercase ${on ? 'text-ga-yellow' : 'text-ga-muted'}`}>{t('industries.soon')}</span>
-                  )}
-                </span>
-                <div className="mb-1 text-[15.5px] font-bold">{industries[i]?.label}</div>
-                <div className={`font-ga-display text-[12.5px] italic ${on ? 'text-[#A39E94]' : 'text-ga-subtle'}`}>{x.de}</div>
-              </button>
-            )
-          })}
-        </div>
-        <div className="grid border border-t-0 border-ga-border md:grid-cols-[1fr_1.1fr]">
-          <div className="border-ga-border bg-ga-bg p-5 sm:p-[28px_32px] md:border-r">
-            <div className="mb-3.5 flex items-center gap-2.5">
-              <span className="h-[11px] w-[11px] shrink-0" style={{ background: ind.color }} />
-              <span className="text-[18px] font-bold">{indCopy?.label}</span>
-            </div>
-            <p className="mb-[22px] text-[15px] leading-[1.7] text-ga-muted">{indCopy?.pitch}</p>
-            {ind.soon && (
-              <p className="mb-[22px] border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-ink">{t('industries.soonNote')}</p>
-            )}
-            {[[t('industries.roles'), ind.roles], [t('industries.level'), ind.level], [t('industries.topic'), ind.topic]].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 border-t border-ga-border py-[11px]">
-                <span className="shrink-0 text-[12.5px] text-ga-muted">{k}</span>
-                <span className="text-right text-[13px] font-semibold text-ga-ink">{v}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-ga-border p-5 sm:p-[28px_32px] md:border-t-0">
-            <GaCap className="mb-3.5">{t('industries.sampleQ')}</GaCap>
-            <div className="mb-6 flex flex-col gap-2.5">
-              {ind.questions.map((q, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <span className="shrink-0 font-ga-display text-[15px] font-semibold leading-[1.5]" style={{ color: ind.color }}>{i + 1}</span>
-                  <div className="font-ga-display text-[15px] italic leading-[1.5] text-ga-ink">{q}</div>
-                </div>
-              ))}
-            </div>
-            <GaCap className="mb-3">{t('industries.vocab')}</GaCap>
-            <div className="flex flex-wrap gap-2">
-              {ind.vocab.map((w) => (
-                <span key={w} className="border border-ga-border bg-ga-card p-[7px_12px] font-ga-display text-[14px] italic text-ga-ink">{w}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="mt-[18px] flex items-center gap-2.5 text-[14px] text-ga-muted">
-          <span className="inline-block h-[7px] w-[7px] bg-ga-yellow" />
-          <span>{t.rich('industries.more', strong)}</span>
-        </div>
-      </section>
-
-      {/* Exam */}
+      {/* S6 — Thi Nói theo format thật */}
       <section id="exam" className={`${SECTION} scroll-mt-[78px]`}>
         <GaCap className="mb-[18px]">{t('exam.cap')}</GaCap>
         <h2 className={`${H2} mb-3`}>{t('exam.title')}</h2>
@@ -524,10 +368,13 @@ export function GaLanding() {
             </div>
           ))}
         </div>
-        {/* 18/10/2026 (đợt 0, sổ lời hứa): thi thử là mô phỏng, phần chấm Nói chưa hiệu chuẩn. */}
+        {/* Sổ lời hứa: thi thử là mô phỏng, phần chấm Nói chưa hiệu chuẩn. */}
         <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">
           <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
-          <span>{t('exam.disclaimer')}</span>
+          <span>
+            {t('exam.disclaimer')}{' '}
+            <Link href="/luyen-thi" className="text-ga-ink underline">{t('exam.guideLink')}</Link>
+          </span>
         </p>
         <div className="mt-9 md:mt-11">
           <GaShot
@@ -549,87 +396,54 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* Audiences — thay khối testimonial: nói sản phẩm làm gì cho từng nhóm người học */}
-      <section className="border-y border-ga-border bg-ga-card">
+      {/* S7 — Lối sang trung tâm (A) và nhà tuyển dụng (E) */}
+      <section id="centers" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
         <div className={SECTION}>
-          <GaCap className="mb-[18px]">{t('audiences.cap')}</GaCap>
-          <h2 className={`${H2} mb-12`}>{t('audiences.title')}</h2>
-          <div className="grid border border-ga-border md:grid-cols-3">
-            {audiences.map((a, i) => (
-              <div key={a.title} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
-                <span className="mb-4 inline-block h-[11px] w-[11px]" style={{ background: AUDIENCE_META[i]?.color }} />
-                <div className="text-[18px] font-bold">{a.title}</div>
-                <div className="mb-4 mt-1 font-ga-display text-[14px] italic text-ga-subtle">{AUDIENCE_META[i]?.de}</div>
-                <p className="text-[15px] leading-[1.72] text-ga-muted">{a.body}</p>
+          <GaCap className="mb-[18px]">{t('partners.cap')}</GaCap>
+          <h2 className={`${H2} mb-11`}>{t('partners.title')}</h2>
+          <div className="grid gap-5 md:grid-cols-[1.4fr_1fr]">
+            <div className="flex flex-col border border-ga-border bg-ga-bg p-5 sm:p-7">
+              <GaCap className="mb-3 text-ga-violet">{t('partners.centers.cap')}</GaCap>
+              <div className="mb-2 text-ga-h2 text-ga-ink">{t('partners.centers.title')}</div>
+              <p className="mb-4 text-ga-body text-ga-muted">{t('partners.centers.body')}</p>
+              <ul className="mb-6 grid gap-2 sm:grid-cols-2">
+                {centerPoints.map((pt) => (
+                  <li key={pt} className="flex items-start gap-2 text-ga-small text-ga-ink">
+                    <span className="mt-[6px] h-2 w-2 shrink-0 bg-ga-violet" />{pt}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-auto flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
+                  <Link href="/v2/register"><YellowSq />{t('partners.centers.ctaConsult')}</Link>
+                </GaBtn>
+                <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+                  <Link href="/giao-vien-mien-phi">{t('partners.centers.ctaFree')}</Link>
+                </GaBtn>
               </div>
-            ))}
+            </div>
+            <div className="flex flex-col border border-ga-border bg-ga-bg p-5 sm:p-7">
+              <GaCap className="mb-3 text-ga-blue">{t('partners.employers.cap')}</GaCap>
+              <div className="mb-2 text-ga-h2 text-ga-ink">{t('partners.employers.title')}</div>
+              <p className="mb-4 text-ga-body text-ga-muted">{t('partners.employers.body')}</p>
+              <p className="mb-2 text-ga-eyebrow uppercase text-ga-muted">{t('partners.employers.soon')}</p>
+              <p className="mt-auto select-all text-ga-small text-ga-ink">{t('partners.employers.contact')}</p>
+            </div>
+          </div>
+          {/* Ảnh chụp thật màn chấm bài của giáo viên — dữ liệu lớp K30 dựng sẵn. */}
+          <div className="mt-10 md:mt-[60px] md:max-w-[640px]">
+            <GaShot
+              name="grading"
+              caption={t('partners.shotGradingCap')}
+              alt={t('partners.shotGradingAlt')}
+              accent="var(--ga-green)"
+              sizes={SHOT_GRADING_SIZES}
+            />
           </div>
         </div>
       </section>
 
-      {/* Teachers */}
-      <section id="teachers" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
-        <div className={SECTION}>
-        <div className="grid items-center gap-10 md:grid-cols-2 md:gap-[60px]">
-          <div>
-            <GaCap className="mb-[18px]">{t('teachers.cap')}</GaCap>
-            <h2 className="mb-4 font-ga-display text-[30px] font-medium leading-[1.15] tracking-[-0.015em] sm:text-[36px] md:text-[42px] md:leading-[1.12]">{t('teachers.title')}</h2>
-            <p className="mb-[30px] max-w-[480px] text-[16.5px] leading-[1.65] text-ga-muted">{t('teachers.sub')}</p>
-            <div className="mb-[30px] grid grid-cols-2 border border-ga-border">
-              {teachValues.map((v, i) => (
-                <div key={v.t} className={`p-4 sm:p-[22px_24px] ${i % 2 ? 'border-l border-l-ga-border' : ''} ${i >= 2 ? 'border-t border-t-ga-border' : ''}`}>
-                  <div className="mb-2 flex items-start gap-2.5">
-                    <span className="mt-[6px] h-2 w-2 shrink-0 bg-ga-violet" />
-                    <span className="text-[15px] font-bold">{v.t}</span>
-                  </div>
-                  <p className="text-[13px] leading-[1.6] text-ga-muted">{v.s}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-                <Link href="/v2/register"><YellowSq />{t('teachers.ctaConsult')}</Link>
-              </GaBtn>
-              <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-                <Link href="/v2/login">{t('teachers.ctaDemo')}</Link>
-              </GaBtn>
-            </div>
-          </div>
-          <div className="border border-ga-border bg-ga-bg p-5 sm:p-[24px_26px]">
-            <div className="mb-4 flex items-center justify-between">
-              <GaCap>{t('teachers.boardCap')}</GaCap>
-              <span className="border border-ga-violet/30 bg-ga-violet-soft p-[4px_10px] text-[10.5px] font-bold text-ga-violet">{t('teachers.pending')}</span>
-            </div>
-            {teachRows.map((r, i) => (
-              <div key={i} className="flex gap-2.5 border-t border-ga-border py-3">
-                <span className="mt-1.5 h-2 w-2 shrink-0" style={{ background: TEACH_ROW_COLORS[i] }} />
-                <div className="min-w-0 flex-1 text-[13.5px] leading-[1.45] text-ga-ink"><strong>{r.who}</strong> {r.what}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Hai màn giáo viên dùng hằng ngày — ảnh chụp thật, dữ liệu lớp K30 dựng sẵn. Đặt dưới
-            lưới hai cột để mỗi ảnh có nửa khung (~550px) và chữ trong ảnh còn đọc được. */}
-        <div className="mt-10 grid gap-5 md:mt-[60px] md:grid-cols-2">
-          <GaShot
-            name="classReport"
-            caption={t('teachers.shotReportCap')}
-            alt={t('teachers.shotReportAlt')}
-            accent="var(--ga-violet)"
-            sizes={SHOT_HALF_SIZES}
-          />
-          <GaShot
-            name="grading"
-            caption={t('teachers.shotGradingCap')}
-            alt={t('teachers.shotGradingAlt')}
-            accent="var(--ga-green)"
-            sizes={SHOT_HALF_SIZES}
-          />
-        </div>
-        </div>
-      </section>
-
-      {/* Pricing — tạm ẩn, xem SHOW_PRICING */}
+      {/* S8 — Pricing — tạm ẩn, xem SHOW_PRICING */}
       {SHOW_PRICING && (
       <section className={SECTION}>
         <GaCap className="mb-[18px]">{t('pricing.cap')}</GaCap>
@@ -660,12 +474,34 @@ export function GaLanding() {
       </section>
       )}
 
-      {/* CTA footer */}
+      {/* S9 — Câu hỏi thường gặp */}
+      <section id="faq" className={`${SECTION} scroll-mt-[78px]`}>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqLd }} />
+        <GaCap className="mb-[18px]">{t('faq.cap')}</GaCap>
+        <h2 className={`${H2} mb-9`}>{t('faq.title')}</h2>
+        <div className="border-t border-ga-border">
+          {faqs.map((f) => (
+            <details key={f.q} className="group border-b border-ga-border">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-4 text-ga-h3 text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus">
+                {f.q}
+                <span aria-hidden className="shrink-0 text-ga-muted transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="max-w-[760px] pb-5 text-ga-body text-ga-muted">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* S10 — Founder + CTA cuối */}
       <section className="bg-ga-ink text-ga-bg">
         <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-14 sm:px-8 md:py-[72px] lg:px-[60px] min-[1240px]:grid-cols-[1fr_auto] min-[1240px]:gap-[60px]">
           <div>
-            <GaCap className="mb-[18px] text-[#76716A]">{t('cta.cap')}</GaCap>
+            <GaCap className="mb-[18px] text-ga-subtle">{t('cta.cap')}</GaCap>
             <h2 className="text-balance font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:leading-[1.1]">{t('cta.title')}</h2>
+            <p className="mt-4 max-w-[620px] text-ga-body text-ga-subtle">
+              {t('founder.line')}{' '}
+              <Link href="/about" className="text-ga-bg underline">{t('founder.link')}</Link>
+            </p>
           </div>
           <GaBtn asChild variant="yellow" size="lg" className="w-full justify-self-start sm:w-auto">
             <Link href={START_HREF} onClick={() => trackCta('footer_cta')}><YellowSq dark />{t('cta.button')}</Link>

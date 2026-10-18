@@ -85,7 +85,7 @@ describe('GaLanding — menu mobile', () => {
     const panel = menuPanel()
     expect(panel).not.toBeNull()
 
-    fireEvent.click(within(panel as HTMLElement).getByText('Lộ trình học'))
+    fireEvent.click(within(panel as HTMLElement).getByText('Hành trình'))
     expect(menuPanel()).toBeNull()
   })
 
@@ -95,20 +95,20 @@ describe('GaLanding — menu mobile', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mở menu' }))
     const panel = within(menuPanel() as HTMLElement)
 
-    expect(panel.getByText('Tính năng')).toBeDefined()
+    expect(panel.getByText('Phỏng vấn theo nghề')).toBeDefined()
     expect(panel.getByText('Luyện thi')).toBeDefined()
-    expect(panel.getByText('Dành cho giáo viên')).toBeDefined()
+    expect(panel.getByText('Cho trung tâm')).toBeDefined()
     expect(panel.getByText('Đăng nhập')).toBeDefined()
     expect(panel.getByText('Học thử miễn phí')).toBeDefined()
   })
 
-  it('CTA phụ dẫn tới nội dung thật thay vì giả làm video demo', () => {
+  it('CTA trung tâm dẫn tới route thật, không giả làm video demo', () => {
     renderLanding()
 
-    // Bản funnel value-first: CTA demo duy nhất là bảng giáo viên và trỏ route thật,
-    // không còn nút giả làm video ("Xem demo 90 giây" đã bị gỡ từ P0.2).
-    const cta = screen.getByRole('link', { name: 'Xem demo bảng giáo viên →' })
-    expect(cta).toHaveAttribute('href', '/v2/login')
+    // 19/10/2026 (đợt 1 A+B+E): khối giáo viên gộp vào S7 "Trung tâm và nhà tuyển dụng".
+    // Không có nút giả làm video ("Xem demo 90 giây" đã bị gỡ từ P0.2).
+    expect(screen.getByRole('link', { name: /Nhận tư vấn cho trung tâm/ })).toHaveAttribute('href', '/v2/register')
+    expect(screen.getByRole('link', { name: 'Gói miễn phí cho giáo viên' })).toHaveAttribute('href', '/giao-vien-mien-phi')
     expect(screen.queryByText('Xem demo 90 giây')).not.toBeInTheDocument()
   })
 
@@ -125,5 +125,48 @@ describe('GaLanding — menu mobile', () => {
     expect(screen.queryByText('92%')).not.toBeInTheDocument()
     expect(screen.queryByText('2.400+')).not.toBeInTheDocument()
     expect(screen.queryByText('Nguyễn Thị Lan')).not.toBeInTheDocument()
+  })
+})
+
+describe('GaLanding — ô "Bạn làm nghề gì?" (đợt 1 A+B+E)', () => {
+  it('mặc định hiện câu hỏi thật của vị trí đầu bếp, kể cả câu mở đầu dùng chung', () => {
+    renderLanding()
+
+    expect(screen.getByText(/Nennen Sie einen HACCP-\/Hygiene-Vorfall in der Küche/)).toBeInTheDocument()
+    expect(screen.getByText(/relevante Erfahrung für Koch\/Köchin/)).toBeInTheDocument()
+  })
+
+  it('tìm "kellner" (không phân biệt hoa thường) rồi chọn → hiện câu hỏi của nhân vật phục vụ', () => {
+    renderLanding()
+
+    const input = screen.getByRole('combobox', { name: 'Bạn làm nghề gì?' })
+    fireEvent.change(input, { target: { value: 'kellner' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText(/Wie behandeln Sie einen unzufriedenen Gast\? STAR-Beispiel für Kellner\/in\./)).toBeInTheDocument()
+  })
+
+  it('tìm theo tiếng Việt không dấu vẫn ra ("thu ngan" → Kassierer/in)', () => {
+    renderLanding()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Bạn làm nghề gì?' }), { target: { value: 'thu ngan' } })
+    expect(screen.getByRole('option', { name: /Kassierer\/in/ })).toBeInTheDocument()
+  })
+
+  it('nghề chưa có bộ câu hỏi riêng → nói thật là dùng bộ câu hỏi chung, không bịa câu hỏi', () => {
+    renderLanding()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Bạn làm nghề gì?' }), { target: { value: 'điều dưỡng' } })
+    expect(screen.getByText('Chưa có bộ câu hỏi riêng cho “điều dưỡng”')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Luyện với bộ câu hỏi chung' })).toHaveAttribute('href', '/v2/onboarding')
+  })
+
+  it('không còn lời hứa đã gỡ ở đợt 0 (phát âm từng câu, chấm điểm tức thì, C1)', () => {
+    const { container } = renderLanding()
+    const text = container.textContent ?? ''
+
+    expect(text).not.toMatch(/sửa phát âm|chấm điểm tức thì|ngay lần đầu/)
+    // C1 chỉ được nhắc như yêu cầu của lộ trình du học, kèm câu nói rõ là CHƯA có lộ trình C1.
+    expect(text).not.toMatch(/A1 (đến|–) C1|A1–C1/)
+    expect(text).toContain('Chưa có lộ trình C1')
   })
 })
