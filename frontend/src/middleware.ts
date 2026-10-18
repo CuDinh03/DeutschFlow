@@ -3,6 +3,7 @@
 // why the middleware did nothing in production for a long time. Do not move it back to the root.
 import { jwtVerify, decodeProtectedHeader, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
+import { LOCALE_HEADER, isLocalizedPublicPath, localizedHref, splitLocalePrefix } from '@/lib/publicLocale'
 
 type Role = 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
 
@@ -324,6 +325,31 @@ export async function middleware(request: NextRequest) {
   }
   const passThrough = () => secure(NextResponse.next({ request: { headers: requestHeaders } }))
   const redirectTo = (url: URL) => secure(NextResponse.redirect(url))
+
+  // Ngôn ngữ theo URL cho trang công khai đã dịch (đợt 1 A+B+E, xem src/lib/publicLocale.ts).
+  // Header ngôn ngữ chỉ do middleware gắn — xoá bản khách tự gửi để URL luôn quyết định ngôn ngữ.
+  requestHeaders.delete(LOCALE_HEADER)
+  const { locale: urlLocale, path: unprefixedPath } = splitLocalePrefix(pathname)
+  if (urlLocale && isLocalizedPublicPath(unprefixedPath)) {
+    // `/en/` → render trang `/` bằng tiếng Anh; URL trên trình duyệt giữ nguyên `/en/`.
+    requestHeaders.set(LOCALE_HEADER, urlLocale)
+    const target = request.nextUrl.clone()
+    target.pathname = unprefixedPath
+    return secure(NextResponse.rewrite(target, { request: { headers: requestHeaders } }))
+  }
+  if (!urlLocale && isLocalizedPublicPath(pathname)) {
+    // Khách đã chọn EN/DE (cookie) mà mở bản tiếng Việt không tiền tố → đưa sang URL đúng ngôn ngữ,
+    // để một URL luôn ứng với đúng một ngôn ngữ (canonical/hreflang không mâu thuẫn). Bot không có
+    // cookie nên luôn nhận bản tiếng Việt ở `/`. Không đoán theo Accept-Language: dễ làm rối bot.
+    const cookieLocale = request.cookies.get('locale')?.value
+    if (cookieLocale === 'en' || cookieLocale === 'de') {
+      // Dựng URL thẳng thay vì nextUrl.clone(): NextURL tự bỏ dấu "/" cuối theo cấu hình, tốn thêm
+      // một chặng redirect `/en` → `/en/`.
+      const target = new URL(localizedHref(cookieLocale, pathname), request.url)
+      target.search = request.nextUrl.search
+      return redirectTo(target)
+    }
+  }
 
   // ĐÃ GỠ: kill-switch `GALERIE_V2_DISABLED` (bounce mọi /v2/* về path legacy tương ứng).
   //
