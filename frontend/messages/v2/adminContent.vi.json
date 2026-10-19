@@ -117,6 +117,44 @@
       "rejectPlaceholder": "Lý do từ chối (tuỳ chọn)…",
       "reject": "Từ chối"
     },
+    "occupationReview": {
+      "title": "Duyệt câu hỏi theo nghề",
+      "subtitle": "{count} nghề trong danh sách",
+      "hint": "AI tạo 6 câu hỏi chuyên môn và 6 từ chuyên môn cho mỗi nghề dùng bộ câu hỏi chung. Câu “AI tạo” vẫn được hỏi trong phiên; câu bị từ chối thì không bao giờ được hỏi lại. Giáo viên tiếng Đức duyệt ngôn ngữ; với 10 nghề đầu, thêm một người đang làm nghề đó ở Đức đọc lại.",
+      "refresh": "Làm mới",
+      "loadError": "Không tải được hàng duyệt",
+      "emptyQueue": "Không có nội dung nào ở trạng thái này.",
+      "status": {
+        "AI_GENERATED": "AI tạo",
+        "APPROVED": "Đã duyệt",
+        "REJECTED": "Đã từ chối"
+      },
+      "difficulty": {
+        "BEGINNER": "Dễ",
+        "INTERMEDIATE": "Vừa",
+        "ADVANCED": "Khó"
+      },
+      "field": {
+        "termDe": "Từ tiếng Đức",
+        "meaningVi": "Nghĩa tiếng Việt",
+        "meaningEn": "Nghĩa tiếng Anh",
+        "exampleDe": "Câu ví dụ"
+      },
+      "sessions": "{count} phiên đã chọn",
+      "questions": "Câu hỏi chuyên môn",
+      "terms": "Từ chuyên môn",
+      "approve": "Duyệt",
+      "reject": "Từ chối",
+      "edit": "Sửa",
+      "saveApprove": "Lưu và duyệt",
+      "cancel": "Huỷ",
+      "approved": "Đã duyệt",
+      "rejected": "Đã từ chối",
+      "notePlaceholder": "Ghi chú (tuỳ chọn)…",
+      "generate": "Sinh thêm",
+      "generatePlaceholder": "Mã nghề, vd. maurer",
+      "generated": "Đã sinh {questions} câu hỏi và {terms} từ mới"
+    },
     "media": {
       "loadDataError": "Không thể tải thư viện media.",
       "catWordImage": "Ảnh từ vựng",

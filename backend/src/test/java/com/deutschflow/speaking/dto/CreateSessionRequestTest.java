@@ -31,7 +31,7 @@ class CreateSessionRequestTest {
     }
 
     private boolean topicHasViolation(String topic) {
-        var req = new CreateSessionRequest(topic, "A2", "DEFAULT", "V1", "LESSON", null, null, 42L);
+        var req = new CreateSessionRequest(topic, "A2", "DEFAULT", "V1", "LESSON", null, null, 42L, null);
         return !validator.validateProperty(req, "topic").isEmpty();
     }
 

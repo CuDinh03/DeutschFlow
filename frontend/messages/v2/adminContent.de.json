@@ -117,6 +117,44 @@
       "rejectPlaceholder": "Ablehnungsgrund (optional)…",
       "reject": "Ablehnen"
     },
+    "occupationReview": {
+      "title": "Berufsfragen prüfen",
+      "subtitle": "{count} Berufe in der Liste",
+      "hint": "Die KI schreibt für jeden Beruf mit dem allgemeinen Fragenset 6 Fachfragen und 6 Fachbegriffe. Fragen mit „KI-erstellt“ werden in Sitzungen weiter gestellt; abgelehnte nie wieder. Eine Deutschlehrkraft prüft die Sprache; bei den ersten 10 Berufen liest zusätzlich jemand mit, der den Beruf in Deutschland ausübt.",
+      "refresh": "Aktualisieren",
+      "loadError": "Prüfliste konnte nicht geladen werden",
+      "emptyQueue": "Nichts in diesem Status.",
+      "status": {
+        "AI_GENERATED": "KI-erstellt",
+        "APPROVED": "Geprüft",
+        "REJECTED": "Abgelehnt"
+      },
+      "difficulty": {
+        "BEGINNER": "Leicht",
+        "INTERMEDIATE": "Mittel",
+        "ADVANCED": "Schwer"
+      },
+      "field": {
+        "termDe": "Deutscher Begriff",
+        "meaningVi": "Bedeutung (Vietnamesisch)",
+        "meaningEn": "Bedeutung (Englisch)",
+        "exampleDe": "Beispielsatz"
+      },
+      "sessions": "{count} Sitzungen gewählt",
+      "questions": "Fachfragen",
+      "terms": "Fachbegriffe",
+      "approve": "Freigeben",
+      "reject": "Ablehnen",
+      "edit": "Bearbeiten",
+      "saveApprove": "Speichern und freigeben",
+      "cancel": "Abbrechen",
+      "approved": "Freigegeben",
+      "rejected": "Abgelehnt",
+      "notePlaceholder": "Notiz (optional)…",
+      "generate": "Mehr erzeugen",
+      "generatePlaceholder": "Berufscode, z. B. maurer",
+      "generated": "{questions} Fragen und {terms} neue Begriffe erzeugt"
+    },
     "media": {
       "loadDataError": "Die Medienbibliothek konnte nicht geladen werden.",
       "catWordImage": "Vokabelbild",

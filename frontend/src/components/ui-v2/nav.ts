@@ -159,6 +159,8 @@ export const adminNav: RoleNav = {
         { id: 'admin-mock-packs', label: 'Bộ đề thi', href: '/v2/admin/mock-exam-packs', icon: 'quiz' },
         { id: 'admin-vocab', label: 'Từ vựng', href: '/v2/admin/vocabulary', icon: 'menu_book' },
         { id: 'admin-grammar-review', label: 'Duyệt ngữ pháp', href: '/v2/admin/grammar-review', icon: 'spellcheck' },
+        // Đợt 2b A+B+E: câu hỏi + từ chuyên môn AI tạo cho từng nghề → giáo viên tiếng Đức duyệt.
+        { id: 'admin-occupation-review', label: 'Duyệt câu hỏi nghề', href: '/v2/admin/occupation-review', icon: 'work' },
         { id: 'admin-media', label: 'Ảnh', href: '/v2/admin/media', icon: 'photo_library' },
         { id: 'admin-ai', label: 'Cấu hình AI', href: '/v2/admin/ai-config', icon: 'tune' },
         { id: 'admin-broadcast', label: 'Thông báo', href: '/v2/admin/broadcast', icon: 'campaign' },

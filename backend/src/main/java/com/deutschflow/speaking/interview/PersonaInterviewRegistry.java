@@ -1,7 +1,10 @@
 package com.deutschflow.speaking.interview;
 
 import com.deutschflow.interview.entity.InterviewQuestion;
+import com.deutschflow.interview.entity.OccupationContentStatus;
+import com.deutschflow.interview.entity.OccupationQuestion;
 import com.deutschflow.interview.repository.InterviewQuestionRepository;
+import com.deutschflow.interview.repository.OccupationQuestionRepository;
 import com.deutschflow.interview.service.PersonaRegistryService;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import lombok.extern.slf4j.Slf4j;
@@ -20,23 +23,32 @@ public class PersonaInterviewRegistry {
     private final InterviewQuestionRepository questionRepository;
     @Nullable
     private final PersonaRegistryService personaRegistryService;
+    @Nullable
+    private final OccupationQuestionRepository occupationQuestionRepository;
 
     /** No-arg constructor — used in unit tests that construct this directly. */
     public PersonaInterviewRegistry() {
-        this(null, null);
+        this(null, null, null);
     }
 
     /** Question-bank-only constructor — used in unit tests of DB-backed question selection. */
     public PersonaInterviewRegistry(InterviewQuestionRepository questionRepository) {
-        this(questionRepository, null);
+        this(questionRepository, null, null);
     }
 
-    /** Spring-managed constructor: DB-backed question selection and persona registry available. */
-    @Autowired
     public PersonaInterviewRegistry(@Nullable InterviewQuestionRepository questionRepository,
                                     @Nullable PersonaRegistryService personaRegistryService) {
+        this(questionRepository, personaRegistryService, null);
+    }
+
+    /** Spring-managed constructor: DB-backed question selection, persona registry and occupation layer. */
+    @Autowired
+    public PersonaInterviewRegistry(@Nullable InterviewQuestionRepository questionRepository,
+                                    @Nullable PersonaRegistryService personaRegistryService,
+                                    @Nullable OccupationQuestionRepository occupationQuestionRepository) {
         this.questionRepository = questionRepository;
         this.personaRegistryService = personaRegistryService;
+        this.occupationQuestionRepository = occupationQuestionRepository;
     }
 
     /**
@@ -102,6 +114,15 @@ public class PersonaInterviewRegistry {
             InterviewSessionState state) {
         List<String> asked = state.getAskedQuestionIds();
 
+        // Đợt 2b: phiên theo nghề — lớp nghề đi trước trong HARD_SKILLS, hết thì rơi về lớp chung.
+        if (phase == InterviewPhase.HARD_SKILLS && state.getOccupationCode() != null) {
+            Optional<InterviewQuestionDef> occupational =
+                    pickOccupationQuestion(state.getOccupationCode(), phase, target, asked, position);
+            if (occupational.isPresent()) {
+                return occupational;
+            }
+        }
+
         // DB-backed path
         if (questionRepository != null) {
             List<InterviewQuestion> dbRows = questionRepository
@@ -121,6 +142,36 @@ public class PersonaInterviewRegistry {
                 .filter(q -> q.phase() == phase)
                 .filter(q -> !asked.contains(q.id()))
                 .findFirst();
+    }
+
+    private static final List<OccupationContentStatus> USABLE_OCCUPATION_STATUSES =
+            List.of(OccupationContentStatus.APPROVED, OccupationContentStatus.AI_GENERATED);
+
+    /**
+     * Câu lớp nghề chưa hỏi: câu "Đã duyệt" trước câu "AI tạo", rồi độ khó gần {@code target} nhất,
+     * rồi theo thứ tự sinh. REJECTED không bao giờ được chọn.
+     */
+    Optional<InterviewQuestionDef> pickOccupationQuestion(
+            String occupationCode, InterviewPhase phase, QuestionDifficulty target,
+            List<String> asked, String position) {
+        if (occupationQuestionRepository == null) {
+            return Optional.empty();
+        }
+        java.util.Comparator<OccupationQuestion> order = java.util.Comparator.comparingInt(
+                q -> q.getStatus() == OccupationContentStatus.APPROVED ? 0 : 1);
+        if (target != null) {
+            order = order.thenComparingInt(q -> parseDifficulty(q.getDifficulty()).distanceTo(target));
+        }
+        order = order.thenComparing(OccupationQuestion::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                .thenComparing(OccupationQuestion::getId);
+        return occupationQuestionRepository
+                .findByOccupationCodeAndPhaseAndStatusIn(occupationCode, phase.name(), USABLE_OCCUPATION_STATUSES)
+                .stream()
+                .filter(q -> !asked.contains(q.getId()))
+                .min(order)
+                .map(q -> new InterviewQuestionDef(q.getId(), phase, q.getTopicKey(),
+                        withPosition(q.getQuestionDe(), position)));
     }
 
     /** Among un-asked rows, pick the one nearest the target band (or the first un-asked if no target). */
