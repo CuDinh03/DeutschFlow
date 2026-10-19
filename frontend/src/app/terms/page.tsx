@@ -4,7 +4,7 @@ import { LegalDocGa } from '@/components/legal/LegalDocGa'
 import { TERMS } from '@/content/legal/terms'
 
 export const metadata: Metadata = {
-  title: 'Terms of Use · DeutschFlow',
+  title: 'Terms of Use · myDeutschFlow',
   description: 'DeutschFlow Terms of Use / Điều khoản sử dụng / Nutzungsbedingungen.',
 }
 
