@@ -10,6 +10,7 @@
       "pathways": "Pathways",
       "exam": "Exam practice",
       "centers": "For schools",
+      "about": "About us",
       "mainAria": "Main navigation"
     },
     "header": {
@@ -155,13 +156,129 @@
       ]
     },
     "founder": {
-      "line": "myDeutschFlow is built by a Vietnamese learner of German, as the tool they wished they had.",
+      "cap": "Why myDeutschFlow exists",
+      "quote": "I am learning German and preparing for interviews myself. Every feature comes from a real need, not a guess.",
+      "name": "Đinh Huy Cự",
+      "role": "Founder of myDeutschFlow",
+      "photoAlt": "Đinh Huy Cự, founder of myDeutschFlow",
       "link": "Read the story"
     },
     "cta": {
       "cap": "Start today",
       "title": "Ready for your German job interview?",
       "button": "Try it for free"
+    },
+    "cast": {
+      "cap": "Your interviewers",
+      "title": "One interviewer for every line of work.",
+      "sub": "Kitchen, restaurant, hotel, medical practice, workshop, office. If your job has no dedicated interviewer yet, the AI still asks about the job you choose.",
+      "soonCap": "Coming soon",
+      "soon": [
+        {
+          "name": "Nursing",
+          "de": "Pflege",
+          "note": "A dedicated question set is being written and reviewed."
+        },
+        {
+          "name": "Construction",
+          "de": "Bau",
+          "note": "A dedicated question set is being written and reviewed."
+        }
+      ]
+    },
+    "about": {
+      "meta": {
+        "title": "About us · myDeutschFlow",
+        "description": "myDeutschFlow is a project by Đinh Huy Cự, a software developer teaching himself German, building the German interview practice tool he needed himself."
+      },
+      "hero": {
+        "cap": "About us · Our story",
+        "titleLead": "It started with someone",
+        "titleEm": "learning German.",
+        "sub": "myDeutschFlow is a project by Đinh Huy Cự, a software developer teaching himself German to find work in Germany, and building exactly the tool he needed.",
+        "readOn": "Start reading",
+        "photoAlt": "Đinh Huy Cự, founder of myDeutschFlow, in a grey suit"
+      },
+      "chapterLabel": "Chapter {n}",
+      "ch1": {
+        "name": "The gap",
+        "title": "Plenty of study material. Almost nowhere to practise a job interview for your field.",
+        "body": [
+          "Like many others, I am not learning German to pass a test for fun. I am learning it to live, work and get through interviews in German.",
+          "Along the way I noticed that Vietnamese learners of German have plenty of material, but almost nowhere to practise speaking and job interviews for their field safely, with expert feedback, and with an understanding of how German employers hire."
+        ]
+      },
+      "quote": "Every feature comes from a real need, not a guess.",
+      "ch2": {
+        "name": "Building it",
+        "title": "So I built the tool I needed.",
+        "body": "An AI plays a German employer, asks about your actual job and points out what to fix after every answer. Add a day-by-day A1–B1 path and mock exams in the Goethe and telc format. Every job has an interviewer from that line of work."
+      },
+      "timeline": {
+        "name": "Step by step",
+        "title": "One person, one step at a time.",
+        "solo": "There is no team behind this. From the first line of code until today, I have built myDeutschFlow on my own, over more than 1,600 commits.",
+        "items": [
+          {
+            "date": "12 April 2026",
+            "title": "The first line of code",
+            "body": "The day I decided to build myDeutschFlow myself and wrote the first lines of code."
+          },
+          {
+            "date": "31 May 2026",
+            "title": "On your phone",
+            "body": "Started building the iOS and Android app, so you can practise speaking anywhere."
+          },
+          {
+            "date": "18 October 2026",
+            "title": "For every job, every country",
+            "body": "Opened up to learners from every country, to German language schools and to employers in Germany."
+          }
+        ]
+      },
+      "ch3": {
+        "name": "Growing",
+        "title": "It began with Vietnamese learners. It is for everyone preparing to move to Germany.",
+        "body": "That gap is not only a Vietnamese one. Anyone moving to Germany for work or vocational training needs to practise interviews for their field, in German. So myDeutschFlow serves three groups, in every job and every country.",
+        "groups": [
+          {
+            "name": "Learners",
+            "body": "Practise job interviews for your field, prepare for speaking exams, build a foundation up to B1."
+          },
+          {
+            "name": "German language schools",
+            "body": "Assign speaking tasks to a whole class, AI drafts the marking, teachers confirm the grades for writing."
+          },
+          {
+            "name": "Employers in Germany",
+            "body": "See how a candidate speaks German before you hire."
+          }
+        ],
+        "soon": "Coming soon"
+      },
+      "values": {
+        "cap": "What I care about",
+        "items": [
+          {
+            "title": "From someone on the same path",
+            "body": "I am learning German and preparing for interviews myself. Every feature comes from a real need, not a guess."
+          },
+          {
+            "title": "Honesty",
+            "body": "No empty promises. What works is described as working; what is not ready yet is clearly marked as in progress."
+          },
+          {
+            "title": "Listening",
+            "body": "There is one person behind this, so I read and answer every email. Your feedback directly shapes the product."
+          }
+        ]
+      },
+      "signoff": {
+        "line": "If you are on your way to Germany too, I hope myDeutschFlow helps you the way it helps me.",
+        "contact": "Write to me:",
+        "photoAlt": "Portrait of Đinh Huy Cự",
+        "cta": "Try it free"
+      }
     },
     "footer": {
       "about": "About us",

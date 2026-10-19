@@ -10,6 +10,7 @@
       "pathways": "Hành trình",
       "exam": "Luyện thi",
       "centers": "Cho trung tâm",
+      "about": "Về chúng tôi",
       "mainAria": "Điều hướng chính"
     },
     "header": {
@@ -155,13 +156,129 @@
       ]
     },
     "founder": {
-      "line": "myDeutschFlow do một người Việt đang tự học tiếng Đức làm ra, từ chính công cụ mình cần.",
+      "cap": "Vì sao có myDeutschFlow",
+      "quote": "Mình cũng đang học tiếng Đức và chuẩn bị phỏng vấn. Mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán.",
+      "name": "Đinh Huy Cự",
+      "role": "Người làm myDeutschFlow",
+      "photoAlt": "Đinh Huy Cự, người làm myDeutschFlow",
       "link": "Đọc câu chuyện"
     },
     "cta": {
       "cap": "Bắt đầu ngay hôm nay",
       "title": "Sẵn sàng cho phỏng vấn tiếng Đức của bạn?",
       "button": "Học thử miễn phí"
+    },
+    "cast": {
+      "cap": "Người phỏng vấn của bạn",
+      "title": "Mỗi nghề, một người phỏng vấn của đúng ngành đó.",
+      "sub": "Bếp, nhà hàng, khách sạn, phòng khám, xưởng máy, văn phòng. Nghề chưa có người phỏng vấn riêng thì AI vẫn hỏi theo đúng nghề bạn chọn.",
+      "soonCap": "Sắp có",
+      "soon": [
+        {
+          "name": "Điều dưỡng",
+          "de": "Pflege",
+          "note": "Bộ câu hỏi riêng đang được biên soạn và duyệt."
+        },
+        {
+          "name": "Xây dựng",
+          "de": "Bau",
+          "note": "Bộ câu hỏi riêng đang được biên soạn và duyệt."
+        }
+      ]
+    },
+    "about": {
+      "meta": {
+        "title": "Về chúng tôi · myDeutschFlow",
+        "description": "myDeutschFlow là dự án của Đinh Huy Cự, một lập trình viên đang tự học tiếng Đức, xây công cụ luyện phỏng vấn tiếng Đức mà chính mình cần."
+      },
+      "hero": {
+        "cap": "Về chúng tôi · Câu chuyện",
+        "titleLead": "Bắt đầu từ một người",
+        "titleEm": "đang học tiếng Đức.",
+        "sub": "myDeutschFlow là dự án của Đinh Huy Cự, một lập trình viên tự học tiếng Đức để tìm cơ hội ở Đức, và xây đúng công cụ mà chính mình cần.",
+        "readOn": "Đọc từ đầu",
+        "photoAlt": "Đinh Huy Cự, người làm myDeutschFlow, mặc vest xám"
+      },
+      "chapterLabel": "Chương {n}",
+      "ch1": {
+        "name": "Khoảng trống",
+        "title": "Tài liệu thì nhiều. Chỗ để luyện phỏng vấn đúng ngành thì gần như không có.",
+        "body": [
+          "Giống nhiều người khác, mình học tiếng Đức không phải để thi cho vui, mà để thật sự sống, làm việc và phỏng vấn được bằng tiếng Đức.",
+          "Trên hành trình đó, mình thấy người Việt học tiếng Đức có rất nhiều tài liệu, nhưng gần như không có chỗ nào để luyện nói và luyện phỏng vấn đúng ngành một cách an toàn, có phản hồi chuyên môn, và hiểu được văn hoá tuyển dụng của người Đức."
+        ]
+      },
+      "quote": "Mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán.",
+      "ch2": {
+        "name": "Tự xây",
+        "title": "Nên mình tự xây đúng công cụ mình đang cần.",
+        "body": "AI đóng vai nhà tuyển dụng Đức, hỏi theo đúng nghề và chỉ ra chỗ cần sửa sau mỗi câu trả lời. Thêm lộ trình A1–B1 từng ngày và thi thử theo format Goethe, telc. Mỗi nghề có người phỏng vấn của đúng ngành đó."
+      },
+      "timeline": {
+        "name": "Từng bước",
+        "title": "Một người, từng bước một.",
+        "solo": "Không có đội ngũ nào phía sau. Từ dòng code đầu tiên tới hôm nay, myDeutschFlow do một mình mình làm, qua hơn 1.600 lần commit.",
+        "items": [
+          {
+            "date": "12/04/2026",
+            "title": "Dòng code đầu tiên",
+            "body": "Ngày mình quyết định tự làm myDeutschFlow và viết những dòng code đầu tiên."
+          },
+          {
+            "date": "31/05/2026",
+            "title": "Lên điện thoại",
+            "body": "Bắt đầu làm ứng dụng iOS và Android, để luyện nói ở bất cứ đâu."
+          },
+          {
+            "date": "18/10/2026",
+            "title": "Cho mọi nghề, mọi nước",
+            "body": "Mở rộng cho người học ở mọi nước, cho trung tâm tiếng Đức và nhà tuyển dụng ở Đức."
+          }
+        ]
+      },
+      "ch3": {
+        "name": "Mở rộng",
+        "title": "Bắt đầu từ người Việt. Hướng tới mọi người đang chuẩn bị sang Đức.",
+        "body": "Khoảng trống ấy không chỉ của người Việt. Ai sang Đức làm việc hay học nghề cũng cần luyện phỏng vấn đúng ngành, bằng tiếng Đức. Nên myDeutschFlow phục vụ ba nhóm, ở mọi nghề và mọi nước.",
+        "groups": [
+          {
+            "name": "Người học",
+            "body": "Luyện phỏng vấn theo nghề, luyện thi Nói, học nền tảng đến B1."
+          },
+          {
+            "name": "Trung tâm tiếng Đức",
+            "body": "Giao bài nói cho cả lớp, AI chấm nháp, giáo viên chốt điểm bài viết."
+          },
+          {
+            "name": "Nhà tuyển dụng ở Đức",
+            "body": "Xem ứng viên nói tiếng Đức thế nào trước khi tuyển."
+          }
+        ],
+        "soon": "Sắp có"
+      },
+      "values": {
+        "cap": "Điều mình quan tâm",
+        "items": [
+          {
+            "title": "Của người trong cuộc",
+            "body": "Mình cũng đang học tiếng Đức và chuẩn bị phỏng vấn. Mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán."
+          },
+          {
+            "title": "Thành thật",
+            "body": "Không hứa hẹn viển vông. Cái gì làm được thì nói làm được; cái gì chưa có thì ghi rõ là đang làm."
+          },
+          {
+            "title": "Lắng nghe",
+            "body": "Chỉ có một người phía sau, nên mình đọc và trả lời từng email. Góp ý của bạn trực tiếp định hình sản phẩm."
+          }
+        ]
+      },
+      "signoff": {
+        "line": "Nếu bạn cũng đang trên con đường sang Đức, hy vọng myDeutschFlow giúp được bạn như đang giúp chính mình.",
+        "contact": "Viết cho mình:",
+        "photoAlt": "Ảnh chân dung Đinh Huy Cự",
+        "cta": "Học thử miễn phí"
+      }
     },
     "footer": {
       "about": "Về chúng tôi",

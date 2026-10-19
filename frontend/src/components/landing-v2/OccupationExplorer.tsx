@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { GaBtn, GaCap } from '@/components/ui-v2'
 import { PERSONA_LIST } from '@/lib/personas'
+import { PersonaPortrait } from './PersonaPortrait'
 import {
   COMMON_INTRO_QUESTION,
   INTERVIEW_SAMPLES,
@@ -186,12 +187,18 @@ export function OccupationExplorer({
           </div>
         ) : selected ? (
           <div>
-            <div className="mb-1 flex flex-wrap items-baseline gap-x-2">
-              <span className="text-ga-h3 text-ga-ink">{selected.labelDe}</span>
-              <span className="text-ga-caption text-ga-muted">{selected.label}</span>
-            </div>
-            <div className="mb-4 text-ga-caption text-ga-muted">
-              {t('interviewer', { name: selected.personaName, tag: selected.personaTag })}
+            <div className="mb-4 flex items-center gap-4">
+              {/* Người sẽ phỏng vấn — đúng hình vẽ trong phòng phỏng vấn của app. */}
+              <PersonaPortrait id={selected.persona} className="w-[72px] shrink-0 sm:w-[84px]" tint={0.24} />
+              <div className="min-w-0">
+                <div className="mb-1 flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-ga-h3 text-ga-ink">{selected.labelDe}</span>
+                  <span className="text-ga-caption text-ga-muted">{selected.label}</span>
+                </div>
+                <div className="text-ga-caption text-ga-muted">
+                  {t('interviewer', { name: selected.personaName, tag: selected.personaTag })}
+                </div>
+              </div>
             </div>
             <GaCap className="mb-2">{t('questionsCap')}</GaCap>
             <ol className="mb-4 flex flex-col gap-2.5">

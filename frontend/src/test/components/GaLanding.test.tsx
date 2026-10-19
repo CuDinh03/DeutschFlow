@@ -170,3 +170,29 @@ describe('GaLanding — ô "Bạn làm nghề gì?" (đợt 1 A+B+E)', () => {
     expect(text).toContain('Chưa có lộ trình C1')
   })
 })
+
+describe('GaLanding — làm mới hình ảnh 19/10/2026', () => {
+  it('menu có mục Về chúng tôi trỏ /about/', () => {
+    renderLanding()
+    const nav = screen.getByRole('navigation', { name: 'Điều hướng chính' })
+    expect(within(nav).getByRole('link', { name: 'Về chúng tôi' }).getAttribute('href')).toBe('/about/')
+  })
+
+  it('dàn người phỏng vấn có nhân vật của app và hai nghề Sắp có', () => {
+    renderLanding()
+    const cast = document.getElementById('cast')
+    expect(cast).not.toBeNull()
+    for (const name of ['Klaus', 'Niklas', 'Sarah', 'Max']) {
+      expect(within(cast as HTMLElement).getByText(name)).toBeTruthy()
+    }
+    expect(within(cast as HTMLElement).getAllByText('Sắp có')).toHaveLength(2)
+    expect(within(cast as HTMLElement).getByText('Điều dưỡng')).toBeTruthy()
+    expect(within(cast as HTMLElement).getByText('Xây dựng')).toBeTruthy()
+  })
+
+  it('dải người làm sản phẩm có ảnh và lối sang Về chúng tôi', () => {
+    renderLanding()
+    expect(screen.getByAltText('Đinh Huy Cự, người làm myDeutschFlow')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Đọc câu chuyện/ }).getAttribute('href')).toBe('/about/')
+  })
+})

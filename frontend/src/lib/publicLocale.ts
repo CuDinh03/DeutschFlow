@@ -14,8 +14,8 @@
  * vẫn đọc ngôn ngữ từ cookie) không đổi.
  *
  * Chỉ thêm một đường vào PUBLIC_LOCALIZED_PATHS khi trang đó THẬT SỰ đọc chữ từ catalog ba thứ tiếng.
- * Trang còn viết cứng tiếng Việt (/about, /luyen-thi, …) mà gắn tiền tố thì `/en/about/` vẫn ra tiếng
- * Việt — tệ hơn không có.
+ * Trang còn viết cứng tiếng Việt (/luyen-thi, /privacy, …) mà gắn tiền tố thì `/en/luyen-thi/` vẫn ra
+ * tiếng Việt — tệ hơn không có. `/about` vào danh sách ngày 19/10/2026 khi trang chuyển sang catalog.
  *
  * Module thuần (không import Next) để dùng được ở middleware (edge), server và client.
  */
@@ -34,7 +34,7 @@ export const LOCALE_HEADER = 'x-df-locale'
  * Đường công khai đã dịch đủ ba thứ tiếng, dạng KHÔNG dấu "/" cuối (trừ trang chủ "/").
  * So khớp luôn qua normalizePath vì next.config đặt `trailingSlash: true`.
  */
-export const PUBLIC_LOCALIZED_PATHS: ReadonlySet<string> = new Set(['/'])
+export const PUBLIC_LOCALIZED_PATHS: ReadonlySet<string> = new Set(['/', '/about'])
 
 export function isPublicLocale(v: string | null | undefined): v is PublicLocale {
   return (PUBLIC_LOCALES as readonly string[]).includes(v ?? '')

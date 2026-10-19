@@ -4,10 +4,14 @@ import * as React from 'react'
 import { useTracking } from '@/hooks/useTracking'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { GaLogo, GaBtn, GaCap } from '@/components/ui-v2'
-import { LanguageToggle } from '@/components/ui-v2/LanguageToggle'
+import { GaBtn, GaCap } from '@/components/ui-v2'
 import { GaShot } from './GaShot'
 import { OccupationExplorer } from './OccupationExplorer'
+import { CastSection } from './CastSection'
+import { FounderBand } from './FounderBand'
+import { LandingFooter } from './LandingFooter'
+import { LandingHeader } from './LandingHeader'
+import { START_HREF } from './links'
 
 /**
  * GaLanding — trang chủ công khai cho NGƯỜI HỌC (nhóm B), render ở `/`, `/en/`, `/de/` và `/v2`.
@@ -15,9 +19,14 @@ import { OccupationExplorer } from './OccupationExplorer'
  * 19/10/2026 — đợt 1 định hướng A+B+E (plans/2026-10-18-phuong-an-landing-abe.html, mục 4).
  * Trang chỉ có một việc: cho người học ở bất kỳ nước nào, làm bất kỳ nghề nào, thấy ngay câu hỏi
  * phỏng vấn của đúng nghề mình rồi bắt đầu luyện. Thứ tự khối:
- *   S1 header · S2+S3 hero có ô "Bạn làm nghề gì?" (OccupationExplorer) · S4 hành trình sang Đức ·
+ *   S1 header · S2+S3 hero có ô "Bạn làm nghề gì?" (OccupationExplorer) · dàn người phỏng vấn ·
+ *   S4 hành trình sang Đức ·
  *   S5 báo cáo mẫu · ngoài phỏng vấn (lộ trình A1–B1) · S6 thi Nói theo format · S7 lối sang trung
- *   tâm (A) và nhà tuyển dụng (E) · S8 bảng giá (tạm ẩn) · S9 câu hỏi thường gặp · S10 founder + CTA.
+ *   tâm (A) và nhà tuyển dụng (E) · S8 bảng giá (tạm ẩn) · S9 câu hỏi thường gặp · S10 dải người làm
+ *   sản phẩm (ảnh thật) + CTA vàng. Header/footer dùng chung với trang Về chúng tôi (LandingHeader/Footer).
+ *
+ * 19/10/2026 — làm mới hình ảnh: thêm dàn người phỏng vấn (nhân vật vẽ phẳng của app), khối vàng sau
+ * ô tìm nghề, ảnh người làm sản phẩm; menu có thêm "Về chúng tôi".
  * Đã bỏ: dải số liệu, bốn ô "vấn đề", ba bước, lưới 6 tính năng, lộ trình 5 cấp, 4 tab ngành cố
  * định, khối "Dành cho ai" theo ba ngành — lý do ở phương án landing, mục "Số phận các khối hiện tại".
  *
@@ -30,33 +39,8 @@ const YellowSq = ({ dark = false }: { dark?: boolean }) => (
   <span className={`inline-block h-[7px] w-[7px] shrink-0 ${dark ? 'bg-ga-ink' : 'bg-ga-yellow'}`} />
 )
 
-// [labelKey, anchor id] — nhãn đọc từ landing.nav.<labelKey>.
-const NAV_LINKS = [
-  ['interview', 'interview'],
-  ['pathways', 'pathways'],
-  ['exam', 'exam'],
-  ['centers', 'centers'],
-] as const
-
-// Footer legal/support links — [labelKey, href]. Route to the standalone pages.
-const FOOTER_LINKS = [
-  ['about', '/about'],
-  ['privacy', '/privacy'],
-  ['terms', '/terms'],
-  ['support', '/support'],
-] as const
-
 const EXAM_DE = ['Lesen', 'Hören', 'Schreiben', 'Sprechen']
 const PATHWAY_COLORS = ['var(--ga-yellow)', 'var(--ga-red)', 'var(--ga-blue)', 'var(--ga-violet)', 'var(--ga-green)']
-/**
- * Đích của mọi CTA "học thử / miễn phí" cho HỌC VIÊN.
- *
- * QA 2026-09-01 (F-13): CTA học viên phải vào phễu value-first `/v2/onboarding` (trang công khai,
- * ba thứ tiếng, có quick win và event PostHog) chứ không thả khách lạ thẳng vào form đăng ký.
- * Phễu tự đưa khách sang `/v2/register` ở bước cuối. CTA B2B ("Nhận tư vấn…") giữ `/v2/register`:
- * phễu này dành cho học viên, không dành cho trung tâm.
- */
-const START_HREF = '/v2/onboarding'
 /**
  * Bảng giá TẠM ẨN (owner yêu cầu 17/09/2026; giá theo nước chốt ở đợt 3). Giữ nguyên JSX, catalog
  * `landing.pricing.*` và điểm đo `pricing_plan_N` để bật lại chỉ cần lật cờ này.
@@ -100,7 +84,6 @@ export function GaLanding() {
   const centerPoints = raw<string[]>('partners.centers.points')
   const faqs = raw<Faq[]>('faq.items')
 
-  const [menuOpen, setMenuOpen] = React.useState(false)
   const { trackEvent } = useTracking()
   /**
    * Điểm vào của phễu (G5): mọi CTA phễu bắn `landing_cta_clicked` kèm VỊ TRÍ trên trang — nhãn đổi
@@ -125,82 +108,8 @@ export function GaLanding() {
 
   return (
     <div className="min-h-screen overflow-x-clip scroll-smooth bg-ga-bg font-ga-ui text-ga-ink">
-      {/* S1 — Nav */}
-      <header className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between gap-2 px-5 sm:px-8 md:h-[78px] xl:px-[60px]">
-          <GaLogo size={26} className="shrink-0 md:hidden" />
-          <GaLogo className="hidden shrink-0 md:inline-flex" />
-          <nav aria-label={t('nav.mainAria')} className="hidden gap-7 lg:flex xl:gap-9">
-            {NAV_LINKS.map(([key, id]) => (
-              <a key={id} href={`#${id}`} className="whitespace-nowrap text-[14.5px] font-medium text-ga-muted transition-colors hover:text-ga-ink">
-                {t(`nav.${key}`)}
-              </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2 sm:gap-4 md:gap-5">
-            <span className="hidden sm:inline-flex"><LanguageToggle /></span>
-            <Link href="/v2/login" className="hidden text-[14.5px] font-semibold text-ga-ink hover:opacity-80 sm:block">
-              {t('header.login')}
-            </Link>
-            {/* h-11 (44px) ở mọi bề ngang — mức tối thiểu 44pt của Apple HIG cho nút chuyển đổi chính. */}
-            <GaBtn asChild variant="ink" size="lg" className="h-11 px-3.5 text-[13px] sm:px-6 sm:text-[14.5px]">
-              <Link href={START_HREF} onClick={() => trackCta('header')}>
-                <YellowSq />
-                <span className="sm:hidden">{t('header.tryShort')}</span>
-                <span className="hidden sm:inline">{t('header.tryFree')}</span>
-              </Link>
-            </GaBtn>
-            <button
-              type="button"
-              onClick={() => setMenuOpen((o) => !o)}
-              aria-expanded={menuOpen}
-              aria-controls="ga-mobile-menu"
-              aria-label={menuOpen ? t('header.closeMenu') : t('header.openMenu')}
-              className="flex h-11 w-11 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                {menuOpen ? (
-                  <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.8" />
-                ) : (
-                  <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.8" />
-                )}
-              </svg>
-            </button>
-          </div>
-        </div>
-        {/* Overlay (absolute) so opening/closing never shifts the page — anchor jumps stay accurate. */}
-        {menuOpen && (
-          <div id="ga-mobile-menu" className="absolute inset-x-0 top-full border-y border-ga-border bg-ga-bg shadow-[0_16px_40px_rgba(22,21,19,0.1)] lg:hidden">
-            <div className="flex flex-col px-5 pb-5 sm:px-8">
-              {NAV_LINKS.map(([key, id]) => (
-                <a
-                  key={id}
-                  href={`#${id}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="border-b border-ga-border py-3.5 text-[15px] font-medium text-ga-ink"
-                >
-                  {t(`nav.${key}`)}
-                </a>
-              ))}
-              <Link
-                href="/v2/login"
-                onClick={() => setMenuOpen(false)}
-                className="border-b border-ga-border py-3.5 text-[15px] font-semibold text-ga-ink sm:hidden"
-              >
-                {t('header.login')}
-              </Link>
-              <div className="flex items-center justify-between border-b border-ga-border py-3.5 sm:hidden">
-                <LanguageToggle />
-              </div>
-              <GaBtn asChild variant="ink" size="lg" className="mt-5 w-full">
-                <Link href={START_HREF} onClick={() => { trackCta('mobile_menu'); setMenuOpen(false) }}>
-                  <YellowSq />{t('header.tryFree')}
-                </Link>
-              </GaBtn>
-            </div>
-          </div>
-        )}
-      </header>
+      {/* S1 — Nav (dùng chung với trang Về chúng tôi) */}
+      <LandingHeader />
 
       {/* QA 13/08: landmark <main> để VoiceOver/rotor có "nội dung chính" mà nhảy tới. */}
       <main>
@@ -233,12 +142,21 @@ export function GaLanding() {
             ))}
           </div>
         </div>
-        <OccupationExplorer
-          startHref={START_HREF}
-          onStart={() => trackCta('occupation_explorer')}
-          onSelect={trackOccupation}
-        />
+        {/* Khối vàng lệch phía sau, cùng mô-típ ô vuông vàng của logo. */}
+        <div className="relative">
+          <div aria-hidden className="absolute -right-3 -top-3 hidden h-[78%] w-[86%] bg-ga-yellow sm:block lg:-right-5 lg:-top-5" />
+          <div className="relative">
+            <OccupationExplorer
+              startHref={START_HREF}
+              onStart={() => trackCta('occupation_explorer')}
+              onSelect={trackOccupation}
+            />
+          </div>
+        </div>
       </section>
+
+      {/* Dàn người phỏng vấn — hình vẽ đúng như trong phòng phỏng vấn */}
+      <CastSection />
 
       {/* S4 — Hành trình sang Đức */}
       <section id="pathways" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
@@ -492,43 +410,23 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* S10 — Founder + CTA cuối */}
-      <section className="bg-ga-ink text-ga-bg">
+      {/* S10 — Vì sao có myDeutschFlow (ảnh + câu trích + lối sang Về chúng tôi), rồi CTA cuối */}
+      <FounderBand />
+      <section className="bg-ga-yellow">
         <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-14 sm:px-8 md:py-[72px] lg:px-[60px] min-[1240px]:grid-cols-[1fr_auto] min-[1240px]:gap-[60px]">
           <div>
-            <GaCap className="mb-[18px] text-ga-subtle">{t('cta.cap')}</GaCap>
-            <h2 className="text-balance font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:leading-[1.1]">{t('cta.title')}</h2>
-            <p className="mt-4 max-w-[620px] text-ga-body text-ga-subtle">
-              {t('founder.line')}{' '}
-              <Link href="/about" className="text-ga-bg underline">{t('founder.link')}</Link>
-            </p>
+            <GaCap className="mb-[18px] text-ga-ink">{t('cta.cap')}</GaCap>
+            <h2 className="text-balance font-ga-display text-ga-h1 font-medium leading-[1.12] text-ga-ink lg:text-ga-display">{t('cta.title')}</h2>
           </div>
-          <GaBtn asChild variant="yellow" size="lg" className="w-full justify-self-start sm:w-auto">
-            <Link href={START_HREF} onClick={() => trackCta('footer_cta')}><YellowSq dark />{t('cta.button')}</Link>
+          <GaBtn asChild variant="ink" size="lg" className="w-full justify-self-start sm:w-auto">
+            <Link href={START_HREF} onClick={() => trackCta('footer_cta')}><YellowSq />{t('cta.button')}</Link>
           </GaBtn>
         </div>
       </section>
 
       </main>
 
-      {/* Site footer — brand + legal/support links */}
-      <footer className="border-t border-ga-border bg-ga-bg">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between md:py-12 lg:px-[60px]">
-          <GaLogo />
-          <nav aria-label={t('footer.legalAria')} className="flex flex-wrap items-center gap-x-7 gap-y-2">
-            {FOOTER_LINKS.map(([key, href]) => (
-              <Link
-                key={href}
-                href={href}
-                className="text-[14px] font-medium text-ga-muted transition-colors hover:text-ga-ink"
-              >
-                {t(`footer.${key}`)}
-              </Link>
-            ))}
-          </nav>
-          <p className="text-[12.5px] text-ga-faint">© {new Date().getFullYear()} myDeutschFlow</p>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   )
 }

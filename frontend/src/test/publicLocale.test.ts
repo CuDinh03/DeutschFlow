@@ -36,9 +36,11 @@ describe('publicLocale — hàm thuần', () => {
     expect(localizedHref('de', '/trung-tam')).toBe('/de/trung-tam/')
   })
 
-  it('chỉ trang chủ được bật ngôn ngữ theo URL ở đợt này', () => {
+  it('chỉ trang đã dịch bằng catalog mới được bật ngôn ngữ theo URL', () => {
     expect(isLocalizedPublicPath('/')).toBe(true)
-    expect(isLocalizedPublicPath('/about/')).toBe(false)
+    // 19/10/2026: trang Về chúng tôi chuyển sang catalog v2.landing.about ba thứ tiếng.
+    expect(isLocalizedPublicPath('/about/')).toBe(true)
+    expect(isLocalizedPublicPath('/luyen-thi/')).toBe(false)
     expect(isLocalizedPublicPath('/v2/login/')).toBe(false)
   })
 
@@ -78,7 +80,13 @@ describe('middleware — ngôn ngữ theo URL', () => {
   })
 
   it('trang chưa dịch không bị rewrite theo tiền tố', async () => {
-    const res = await middleware(req('/en/about/'))
+    const res = await middleware(req('/en/luyen-thi/'))
     expect(res.headers.get('x-middleware-rewrite')).toBeNull()
+  })
+
+  it('/en/about/ render trang Về chúng tôi bằng tiếng Anh', async () => {
+    const res = await middleware(req('/en/about/'))
+    expect(res.headers.get('x-middleware-rewrite')).toBe('https://app.test/about/')
+    expect(res.headers.get(`x-middleware-request-${LOCALE_HEADER}`)).toBe('en')
   })
 })

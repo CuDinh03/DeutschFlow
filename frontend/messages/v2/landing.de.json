@@ -10,6 +10,7 @@
       "pathways": "Wege nach Deutschland",
       "exam": "Prüfungstraining",
       "centers": "Für Sprachschulen",
+      "about": "Über uns",
       "mainAria": "Hauptnavigation"
     },
     "header": {
@@ -155,13 +156,129 @@
       ]
     },
     "founder": {
-      "line": "myDeutschFlow entsteht aus eigener Erfahrung beim Deutschlernen: als das Werkzeug, das dabei gefehlt hat.",
+      "cap": "Warum es myDeutschFlow gibt",
+      "quote": "Ich lerne selbst Deutsch und bereite mich auf Vorstellungsgespräche vor. Jede Funktion entsteht aus einem echten Bedarf, nicht aus Vermutungen.",
+      "name": "Đinh Huy Cự",
+      "role": "Gründer von myDeutschFlow",
+      "photoAlt": "Đinh Huy Cự, Gründer von myDeutschFlow",
       "link": "Zur Geschichte"
     },
     "cta": {
       "cap": "Heute anfangen",
       "title": "Bereit für Ihr deutsches Vorstellungsgespräch?",
       "button": "Kostenlos testen"
+    },
+    "cast": {
+      "cap": "Ihre Interviewer",
+      "title": "Für jeden Beruf eine Person aus der Branche.",
+      "sub": "Küche, Restaurant, Hotel, Arztpraxis, Werkstatt, Büro. Gibt es für Ihren Beruf noch keine eigene Person, fragt die KI trotzdem gezielt zu dem Beruf, den Sie wählen.",
+      "soonCap": "Demnächst",
+      "soon": [
+        {
+          "name": "Pflege",
+          "de": "Pflege",
+          "note": "Ein eigener Fragenkatalog wird gerade erstellt und geprüft."
+        },
+        {
+          "name": "Bau",
+          "de": "Bau",
+          "note": "Ein eigener Fragenkatalog wird gerade erstellt und geprüft."
+        }
+      ]
+    },
+    "about": {
+      "meta": {
+        "title": "Über uns · myDeutschFlow",
+        "description": "myDeutschFlow ist ein Projekt von Đinh Huy Cự, einem Softwareentwickler, der sich selbst Deutsch beibringt und das Trainingstool für Vorstellungsgespräche baut, das er selbst gebraucht hat."
+      },
+      "hero": {
+        "cap": "Über uns · Unsere Geschichte",
+        "titleLead": "Angefangen hat es mit jemandem,",
+        "titleEm": "der Deutsch lernt.",
+        "sub": "myDeutschFlow ist ein Projekt von Đinh Huy Cự, einem Softwareentwickler, der sich selbst Deutsch beibringt, um in Deutschland zu arbeiten, und genau das Werkzeug baut, das er selbst braucht.",
+        "readOn": "Weiterlesen",
+        "photoAlt": "Đinh Huy Cự, Gründer von myDeutschFlow, im grauen Anzug"
+      },
+      "chapterLabel": "Kapitel {n}",
+      "ch1": {
+        "name": "Die Lücke",
+        "title": "Lernmaterial gibt es reichlich. Einen Ort, um ein Vorstellungsgespräch im eigenen Beruf zu üben, kaum.",
+        "body": [
+          "Wie viele andere lerne ich Deutsch nicht für eine Prüfung zum Spaß, sondern um auf Deutsch zu leben, zu arbeiten und Vorstellungsgespräche zu bestehen.",
+          "Unterwegs habe ich gemerkt: Vietnamesische Deutschlernende haben viel Material, aber kaum einen Ort, an dem sie Sprechen und Vorstellungsgespräche für ihren Beruf sicher üben können, mit fachlichem Feedback und mit einem Verständnis dafür, wie in Deutschland eingestellt wird."
+        ]
+      },
+      "quote": "Jede Funktion entsteht aus einem echten Bedarf, nicht aus Vermutungen.",
+      "ch2": {
+        "name": "Selbst gebaut",
+        "title": "Also habe ich das Werkzeug gebaut, das ich gebraucht habe.",
+        "body": "Eine KI spielt eine Arbeitgeberin oder einen Arbeitgeber in Deutschland, fragt zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können. Dazu ein Tag-für-Tag-Lernweg A1–B1 und Probeprüfungen im Format von Goethe und telc. Für jeden Beruf gibt es eine Person aus der Branche."
+      },
+      "timeline": {
+        "name": "Schritt für Schritt",
+        "title": "Eine Person, ein Schritt nach dem anderen.",
+        "solo": "Hinter dem Projekt steht kein Team. Von der ersten Codezeile bis heute baue ich myDeutschFlow allein, in über 1.600 Commits.",
+        "items": [
+          {
+            "date": "12. April 2026",
+            "title": "Die erste Codezeile",
+            "body": "Der Tag, an dem ich beschlossen habe, myDeutschFlow selbst zu bauen, und die ersten Codezeilen geschrieben habe."
+          },
+          {
+            "date": "31. Mai 2026",
+            "title": "Aufs Handy",
+            "body": "Start der App für iOS und Android, damit Sie überall sprechen üben können."
+          },
+          {
+            "date": "18. Oktober 2026",
+            "title": "Für jeden Beruf, jedes Land",
+            "body": "Geöffnet für Lernende aus jedem Land, für Sprachschulen und für Arbeitgeber in Deutschland."
+          }
+        ]
+      },
+      "ch3": {
+        "name": "Wachsen",
+        "title": "Angefangen bei Vietnamesinnen und Vietnamesen. Gedacht für alle, die nach Deutschland gehen.",
+        "body": "Diese Lücke betrifft nicht nur Lernende aus Vietnam. Wer für Arbeit oder Ausbildung nach Deutschland kommt, muss Vorstellungsgespräche im eigenen Beruf auf Deutsch üben. Deshalb ist myDeutschFlow für drei Gruppen da, in jedem Beruf und aus jedem Land.",
+        "groups": [
+          {
+            "name": "Lernende",
+            "body": "Vorstellungsgespräche im eigenen Beruf üben, Sprechprüfungen vorbereiten, Grundlagen bis B1."
+          },
+          {
+            "name": "Sprachschulen",
+            "body": "Sprechaufgaben für die ganze Klasse, die KI bewertet vor, Lehrkräfte bestätigen die Noten für Schreibaufgaben."
+          },
+          {
+            "name": "Arbeitgeber in Deutschland",
+            "body": "Hören, wie eine Bewerberin oder ein Bewerber Deutsch spricht, bevor Sie einstellen."
+          }
+        ],
+        "soon": "Demnächst"
+      },
+      "values": {
+        "cap": "Was mir wichtig ist",
+        "items": [
+          {
+            "title": "Aus eigener Erfahrung",
+            "body": "Ich lerne selbst Deutsch und bereite mich auf Vorstellungsgespräche vor. Jede Funktion entsteht aus einem echten Bedarf, nicht aus Vermutungen."
+          },
+          {
+            "title": "Ehrlichkeit",
+            "body": "Keine leeren Versprechen. Was funktioniert, wird so beschrieben; was noch nicht fertig ist, ist klar als in Arbeit gekennzeichnet."
+          },
+          {
+            "title": "Zuhören",
+            "body": "Hinter dem Projekt steht eine Person. Ich lese und beantworte jede E-Mail, und Ihr Feedback formt das Produkt direkt."
+          }
+        ]
+      },
+      "signoff": {
+        "line": "Wenn Sie auch auf dem Weg nach Deutschland sind, hoffe ich, dass myDeutschFlow Ihnen so hilft, wie es mir hilft.",
+        "contact": "Schreiben Sie mir:",
+        "photoAlt": "Porträt von Đinh Huy Cự",
+        "cta": "Kostenlos testen"
+      }
     },
     "footer": {
       "about": "Über uns",
