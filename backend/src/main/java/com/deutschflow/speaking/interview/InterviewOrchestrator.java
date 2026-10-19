@@ -113,7 +113,7 @@ public class InterviewOrchestrator {
                     ? null
                     : state.getTopicsCovered().get(state.getTopicsCovered().size() - 1);
             Optional<InterviewQuestionDef> adaptiveQ = registry.pickChallengeFollowUp(
-                    persona, phase, lastTopic, state.getAskedQuestionIds());
+                    persona, position, phase, lastTopic, state.getAskedQuestionIds());
             if (adaptiveQ.isPresent()) {
                 question = adaptiveQ;
                 directive = InterviewDirectiveType.PROBE_SPECIFIC;

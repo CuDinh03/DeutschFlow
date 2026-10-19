@@ -109,7 +109,7 @@ public class PersonaInterviewRegistry {
             if (!dbRows.isEmpty()) {
                 Optional<InterviewQuestion> fresh = pickByDifficulty(dbRows, asked, target);
                 if (fresh.isPresent()) {
-                    return fresh.map(this::toQuestionDef);
+                    return fresh.map(q -> toQuestionDef(q, position));
                 }
                 // All DB questions exhausted — fall through to static bank
             }
@@ -159,6 +159,16 @@ public class PersonaInterviewRegistry {
             InterviewPhase phase,
             String lastTopicKey,
             List<String> askedIds) {
+        return pickChallengeFollowUp(persona, null, phase, lastTopicKey, askedIds);
+    }
+
+    /** Như trên, kèm vị trí để thay cụm "für diese Position" trong câu lấy từ DB. */
+    public Optional<InterviewQuestionDef> pickChallengeFollowUp(
+            SpeakingPersona persona,
+            String position,
+            InterviewPhase phase,
+            String lastTopicKey,
+            List<String> askedIds) {
         if (questionRepository == null) return Optional.empty();
         // Prefer same topic if available, else any un-asked question for this phase
         List<InterviewQuestion> candidates = questionRepository
@@ -170,17 +180,32 @@ public class PersonaInterviewRegistry {
                 .or(() -> candidates.stream()
                         .filter(q -> !askedIds.contains(q.getId()))
                         .findFirst())
-                .map(this::toQuestionDef);
+                .map(q -> toQuestionDef(q, position));
     }
 
-    private InterviewQuestionDef toQuestionDef(InterviewQuestion q) {
+    /**
+     * Câu seed trong DB (V187, V271) được render với vị trí mặc định nên chứa nguyên cụm
+     * "für diese Position". Bank trong bộ nhớ thì ghép thẳng vị trí ("für Kellner/in"). Trước
+     * 19/10/2026 nhánh DB trả nguyên văn, nên ứng viên Kellner/in nghe "für diese Position" trong
+     * khi trang chủ hiện "für Kellner/in". Thay ở đây để hai nhánh nói cùng một câu.
+     */
+    static String withPosition(String questionDe, String position) {
+        if (questionDe == null || position == null || position.isBlank()) {
+            return questionDe;
+        }
+        return questionDe.replace(SEEDED_POSITION_PHRASE, "für " + position.trim());
+    }
+
+    private static final String SEEDED_POSITION_PHRASE = "für diese Position";
+
+    private InterviewQuestionDef toQuestionDef(InterviewQuestion q, String position) {
         InterviewPhase phase;
         try {
             phase = InterviewPhase.valueOf(q.getPhase());
         } catch (IllegalArgumentException e) {
             phase = InterviewPhase.HARD_SKILLS;
         }
-        return new InterviewQuestionDef(q.getId(), phase, q.getTopicKey(), q.getQuestionDe());
+        return new InterviewQuestionDef(q.getId(), phase, q.getTopicKey(), withPosition(q.getQuestionDe(), position));
     }
 
     /**
