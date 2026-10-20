@@ -129,6 +129,26 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
     }
 
     /** Worker @Scheduled(2s) cũng chạy nền trong context IT — chờ trạng thái đích thay vì đoán ai xử job trước. */
+    /**
+     * Phiên RESULTS CHƯA có nghĩa job đã COMPLETED: {@code AiJobWorker.runJob} để handler commit phiên
+     * trước, rồi {@code saveCompleted} mới ghi job COMPLETED ở transaction riêng bằng entity trong bộ
+     * nhớ. Test sửa job ngay sau khi thấy RESULTS thì có thể bị {@code saveCompleted} ghi đè thành
+     * COMPLETED (đỏ ngẫu nhiên trên CI 20/10/2026, cả trên main). Đợi job COMPLETED rồi mới sửa.
+     */
+    private void awaitJobCompleted(long jobId) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (System.currentTimeMillis() < deadline) {
+            String status = jdbcTemplate.queryForObject("SELECT status FROM ai_jobs WHERE id = ?", String.class, jobId);
+            if (AiJob.STATUS_COMPLETED.equals(status)) {
+                return;
+            }
+            Thread.sleep(150);
+        }
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM ai_jobs WHERE id = ?", String.class, jobId))
+                .as("job %d phải COMPLETED trước khi test sửa dữ liệu", jobId)
+                .isEqualTo(AiJob.STATUS_COMPLETED);
+    }
+
     private void awaitState(long sessionId, String expected) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 20_000;
         while (System.currentTimeMillis() < deadline) {
@@ -265,6 +285,7 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
         llmHealthy();
         ExamSessionView a = mockWithOneTurnToGrading();
         awaitState(a.id(), SpeakingExamSession.STATE_RESULTS); // worker nền chấm xong phiên A trước đã
+        awaitJobCompleted(a.gradingJobId());
         jdbcTemplate.update("UPDATE ai_jobs SET status = 'FAILED', error_msg = 'IT: gia lap job chet' WHERE id = ?",
                 a.gradingJobId());
         jdbcTemplate.update("UPDATE speaking_exam_sessions SET state = 'GRADING', updated_at = NOW() - make_interval(mins => 10) WHERE id = ?", a.id());
@@ -274,6 +295,7 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
         // (B) di chứng persist không-atomic: GRADING + job COMPLETED + result đã ghi → phải về RESULTS.
         ExamSessionView b = mockWithOneTurnToGrading();
         awaitState(b.id(), SpeakingExamSession.STATE_RESULTS);
+        awaitJobCompleted(b.gradingJobId());
         jdbcTemplate.update("UPDATE speaking_exam_sessions SET state = 'GRADING', updated_at = NOW() - make_interval(mins => 10) WHERE id = ?", b.id());
 
         // (C) GRADING + job PENDING — sweep không được đụng: cả hai query của sweep chỉ xét status
@@ -286,6 +308,7 @@ class ExamGradingFailurePathIntegrationTest extends AbstractPostgresIntegrationT
         // vẫn thật: job PENDING quá hạn nằm chờ expirer đêm đánh FAILED, sweep CHƯA được vớt phiên.
         ExamSessionView c = mockWithOneTurnToGrading();
         awaitState(c.id(), SpeakingExamSession.STATE_RESULTS);
+        awaitJobCompleted(c.gradingJobId());
         jdbcTemplate.update("UPDATE ai_jobs SET status = 'PENDING', updated_at = NOW(), created_at = NOW() - make_interval(days => 30) WHERE id = ?",
                 c.gradingJobId());
         jdbcTemplate.update("UPDATE speaking_exam_sessions SET state = 'GRADING', updated_at = NOW() - make_interval(mins => 10) WHERE id = ?", c.id());
