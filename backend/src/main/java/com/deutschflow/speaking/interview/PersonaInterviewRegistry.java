@@ -316,6 +316,47 @@ public class PersonaInterviewRegistry {
                     {"Live-Moderation", "Skript und Improvisation"},
                     {"Publikumsreaktion", "Professionelles Auftreten"},
             };
+            // Người tuyển dụng theo nơi làm việc (đợt 2c) — seed DB ở V336.
+            case HOFFMANN -> new String[][] {
+                    {"Gästeorientierung", "Hygiene und HACCP"},
+                    {"Stoßzeiten und Tempo", "Zusammenarbeit Küche und Service"},
+                    {"Schicht- und Wochenendarbeit", "Beschwerden von Gästen"},
+            };
+            case KRUEGER -> new String[][] {
+                    {"Umgang mit Patienten und Angehörigen", "Hygiene und Infektionsschutz"},
+                    {"Dokumentation und Übergabe", "Notfälle und Prioritäten"},
+                    {"Schichtdienst und Belastung", "Anerkennung und Weiterbildung"},
+            };
+            case BRANDT -> new String[][] {
+                    {"Arbeitssicherheit und Schutzausrüstung", "Werkzeuge und Material"},
+                    {"Pläne und Aufträge", "Qualität und Abnahme"},
+                    {"Termindruck und Wetter", "Umgang mit Kunden"},
+            };
+            case WAGNER -> new String[][] {
+                    {"Arbeitssicherheit", "Maschinen und Anlagen"},
+                    {"Qualitätskontrolle", "Störungen und Fehlersuche"},
+                    {"Schichtarbeit", "Technische Unterlagen"},
+            };
+            case YILMAZ -> new String[][] {
+                    {"Sicherheit und Vorschriften", "Lager- und Lieferprozesse"},
+                    {"Pünktlichkeit und Planung", "Fahrzeuge und Berechtigungen"},
+                    {"Kontakt mit Kunden", "Schichtarbeit und Belastung"},
+            };
+            case SCHULZ -> new String[][] {
+                    {"Kundenberatung", "Kasse und Genauigkeit"},
+                    {"Reklamation", "Warenpflege und Inventur"},
+                    {"Teamarbeit", "Stoßzeiten im Laden"},
+            };
+            case BECKER -> new String[][] {
+                    {"Fachkenntnisse für die Position", "Arbeitsorganisation"},
+                    {"Kommunikation mit Kunden und Kollegen", "Digitale Werkzeuge"},
+                    {"Teamarbeit im Büro", "Lernbereitschaft und Weiterbildung"},
+            };
+            case RICHTER -> new String[][] {
+                    {"Pädagogische Haltung", "Umgang mit Eltern"},
+                    {"Kinderschutz", "Teamarbeit im Kollegium"},
+                    {"Konflikte in der Gruppe", "Dokumentation und Beobachtung"},
+            };
             default -> new String[][] {
                     {"Teamarbeit für " + pos, "Problemlösung und Verantwortung"},
                     {"Kommunikation", "Organisation und Weiterentwicklung"},

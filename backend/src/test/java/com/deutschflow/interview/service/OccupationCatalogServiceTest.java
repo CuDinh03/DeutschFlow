@@ -24,15 +24,20 @@ class OccupationCatalogServiceTest {
     private OccupationRepository repository;
 
     private static Occupation occ(String code, String de, String persona, String legacyPos, String aliases) {
+        return occ(code, de, "gastro", persona, legacyPos, aliases);
+    }
+
+    private static Occupation occ(String code, String de, String workplace, String persona, String legacyPos,
+                                  String aliases) {
         return Occupation.builder()
                 .code(code).nameDe(de).nameEn(code + " en").nameVi(code + " vi")
-                .workplace("gastro").aliases(aliases)
+                .workplace(workplace).aliases(aliases)
                 .legacyPersonaCode(persona).legacyPositionDe(legacyPos)
                 .build();
     }
 
     private static final Occupation KELLNER = occ("kellner", "Kellner/in", "NIKLAS", "Kellner/in", "kellner, bồi bàn ,kellner,");
-    private static final Occupation PFLEGE = occ("pflegefachkraft", "Pflegefachmann/-frau", null, null, "y tá,điều dưỡng viên");
+    private static final Occupation PFLEGE = occ("pflegefachkraft", "Pflegefachmann/-frau", "pflege", null, null, "y tá,điều dưỡng viên");
 
     @Test
     void list_marksCuratedAndGeneral_andSplitsAliases() {
@@ -64,12 +69,14 @@ class OccupationCatalogServiceTest {
     }
 
     @Test
-    void detail_general_usesDefaultPersonaAndOccupationName() {
+    void detail_general_usesWorkplaceInterviewerAndOccupationName() {
         when(repository.findByActiveTrueOrderBySortRankAscCodeAsc()).thenReturn(List.of(KELLNER, PFLEGE));
 
         OccupationDetailDto detail = new OccupationCatalogService(repository).detail("pflegefachkraft").orElseThrow();
 
-        assertThat(detail.personaCode()).isEqualTo("DEFAULT");
+        // Đợt 2c: nghề dùng bộ chung nhận người tuyển dụng của nhóm nơi làm việc, câu hỏi vẫn là bộ chung.
+        assertThat(detail.personaCode()).isEqualTo("KRUEGER");
+        assertThat(detail.occupation().questionSet()).isEqualTo(OccupationDto.GENERAL);
         assertThat(detail.interviewPosition()).isEqualTo("Pflegefachmann/-frau");
         assertThat(detail.sampleQuestions().get(0).questionDe()).contains("relevante Erfahrung für Pflegefachmann/-frau");
         assertThat(detail.sampleQuestions().get(1).questionDe())
@@ -88,13 +95,24 @@ class OccupationCatalogServiceTest {
 
     @Test
     void unknownLegacyPersona_fallsBackToGeneral() {
-        Occupation broken = occ("ghost", "Geist/in", "NOT_A_PERSONA", "Geist/in", null);
+        Occupation broken = occ("ghost", "Geist/in", "NOT_A_WORKPLACE", "NOT_A_PERSONA", "Geist/in", null);
         when(repository.findByActiveTrueOrderBySortRankAscCodeAsc()).thenReturn(List.of(broken));
 
         OccupationCatalogService service = new OccupationCatalogService(repository);
 
         assertThat(service.list().get(0).questionSet()).isEqualTo(OccupationDto.GENERAL);
         assertThat(service.detail("ghost").orElseThrow().personaCode()).isEqualTo("DEFAULT");
+    }
+
+    @Test
+    void unknownLegacyPersona_inKnownWorkplace_getsWorkplaceInterviewer() {
+        Occupation broken = occ("ghost", "Geist/in", "bau", "NOT_A_PERSONA", "Geist/in", null);
+        when(repository.findByActiveTrueOrderBySortRankAscCodeAsc()).thenReturn(List.of(broken));
+
+        OccupationCatalogService service = new OccupationCatalogService(repository);
+
+        assertThat(service.list().get(0).questionSet()).isEqualTo(OccupationDto.GENERAL);
+        assertThat(service.detail("ghost").orElseThrow().personaCode()).isEqualTo("BRANDT");
     }
 
     @Test

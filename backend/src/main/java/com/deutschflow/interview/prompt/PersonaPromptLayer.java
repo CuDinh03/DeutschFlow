@@ -1,5 +1,6 @@
 package com.deutschflow.interview.prompt;
 
+import com.deutschflow.speaking.persona.SpeakingPersona;
 import org.springframework.stereotype.Component;
 
 /**
@@ -50,6 +51,13 @@ public class PersonaPromptLayer implements InterviewPromptLayer {
     private void appendPersonaDomainFocus(StringBuilder sb, String code, String level, String pos, String industry) {
         if (code == null) {
             sb.append("Fokus: allgemeine Interviewfragen zur Position \"").append(pos).append("\".\n");
+            return;
+        }
+        // Đợt 2c: người tuyển dụng theo nơi làm việc — nghề là tham số, trọng tâm theo nhóm.
+        String workplaceFocus = SpeakingPersona.fromApi(code).workplaceInterviewFocus();
+        if (workplaceFocus != null) {
+            sb.append("Fokus — ").append(workplaceFocus).append(" Prüfe alles konkret für die Position \"")
+                    .append(pos).append("\".\n");
             return;
         }
         switch (code.toUpperCase()) {

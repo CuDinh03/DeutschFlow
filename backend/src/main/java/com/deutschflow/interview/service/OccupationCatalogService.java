@@ -74,8 +74,20 @@ public class OccupationCatalogService {
                 toDto(o), persona.name(), position, sampleQuestions(persona, position)));
     }
 
-    /** Nhân vật có bộ câu hỏi viết tay cho nghề, hoặc DEFAULT (bộ chung). */
+    /**
+     * Nhân vật có bộ câu hỏi viết tay cho nghề; nghề dùng bộ chung nhận người tuyển dụng của nhóm
+     * nơi làm việc (đợt 2c); không có nhóm hợp lệ thì DEFAULT.
+     */
     static SpeakingPersona personaFor(Occupation o) {
+        SpeakingPersona curated = curatedPersona(o);
+        if (curated != null) {
+            return curated;
+        }
+        return SpeakingPersona.forWorkplace(o.getWorkplace()).orElse(SpeakingPersona.DEFAULT);
+    }
+
+    /** Nhân vật cũ có bộ câu hỏi viết tay cho nghề, hoặc {@code null}. */
+    private static SpeakingPersona curatedPersona(Occupation o) {
         if (o.getLegacyPersonaCode() != null) {
             try {
                 return SpeakingPersona.valueOf(o.getLegacyPersonaCode());
@@ -84,7 +96,7 @@ public class OccupationCatalogService {
                         o.getCode(), o.getLegacyPersonaCode());
             }
         }
-        return SpeakingPersona.DEFAULT;
+        return null;
     }
 
     /** Chuỗi vị trí gửi lên phiên: nhãn cũ nếu có (phiên cũ khớp lại được), không thì tên nghề. */
@@ -103,7 +115,7 @@ public class OccupationCatalogService {
     }
 
     private OccupationDto toDto(Occupation o) {
-        boolean curated = personaFor(o) != SpeakingPersona.DEFAULT;
+        boolean curated = curatedPersona(o) != null;
         return new OccupationDto(o.getCode(), o.getNameDe(), o.getNameEn(), o.getNameVi(), o.getWorkplace(),
                 splitAliases(o.getAliases()), curated ? OccupationDto.CURATED : OccupationDto.GENERAL);
     }
