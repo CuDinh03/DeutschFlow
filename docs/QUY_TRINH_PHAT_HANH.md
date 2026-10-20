@@ -11,7 +11,7 @@
 
 ## 0. Luật cứng (đọc kể cả khi vội)
 
-1. **Production không còn chạy trên AWS.** Frontend và backend chạy trên máy chủ tự host `deutschflow-srv` (VM Ubuntu, sau Cloudflare Tunnel). `amplify.yml`, `deploy-backend.sh`, `cleanup-deploy.sh` ở gốc repo và job "Deploy to EC2" trong `backend-ci.yml` là **di sản AWS — không dùng, không "sửa cho chạy"** (script cũ ghi đè env của máy chủ bằng env EC2 cũ ⇒ mất DB, chết mọi phiên đăng nhập).
+1. **Production không còn chạy trên AWS.** Frontend và backend chạy trên máy chủ tự host `deutschflow-srv` (VM Ubuntu, sau Cloudflare Tunnel). `amplify.yml` và job "Deploy to EC2" trong `backend-ci.yml` đã gỡ. `deploy-backend.sh`, `cleanup-deploy.sh` ở gốc repo là **di sản AWS — đã chặn bằng `exit 1`, không dùng, không "sửa cho chạy"** (script cũ ghi đè env của máy chủ bằng env EC2 cũ ⇒ mất DB, chết mọi phiên đăng nhập).
 2. **Merge vào `main` KHÔNG tự deploy.** Không còn Amplify tự build. Muốn lên web phải chạy script deploy trên máy chủ (§5, §6).
 3. **Deploy production (frontend, backend, OTA mobile) chỉ khi owner ra lệnh trực tiếp** trong phiên làm việc. "Merge đi" không có nghĩa là "deploy đi" — hỏi lại nếu chưa rõ.
 4. **`main` được bảo vệ**: chỉ nhận thay đổi qua Pull Request, CI phải xanh. Không push thẳng, không force-push.
@@ -42,7 +42,7 @@ GitHub ──► CI (frontend-ci, backend-ci, mobile-ci, security-ci); KHÔNG de
 | Thành phần | Ở đâu | Ghi chú |
 |---|---|---|
 | Repo trên máy chủ | `/srv/deutschflow/repo` (clone nông) | Script deploy tự `fetch` + `reset --hard` về nhánh deploy |
-| Script deploy | `deploy/self-host/` (trên nhánh tự host, §2) | Xem `deploy/self-host/README.md` |
+| Script deploy | `deploy/self-host/` | Xem `deploy/self-host/README.md` |
 | Env backend | `/srv/deutschflow/env/backend.env` | Nguồn chân lý nằm trên máy chủ |
 | Build args frontend | `/srv/deutschflow/env/frontend-build.env` + JWT public key | Nhúng lúc build |
 | Secret | `/home/deploy/secrets/` | Không bao giờ rời máy chủ (trừ bản sao khoá backup owner tự cất) |
@@ -55,16 +55,16 @@ Kết nối SSH, IP, đường dẫn khoá: xem tài liệu vận hành local (`
 
 ## 2. Nhánh nào đang được deploy — KIỂM TRƯỚC MỖI LẦN
 
-| | Hiện tại (20/10/2026) | Sau khi PR tự host được merge |
-|---|---|---|
-| Nguồn code của máy chủ | nhánh **`feat/tu-host-r2`** (chưa merge vào `main`) | `main` |
-| Lệnh deploy | `deploy/self-host/deploy-*-vm.sh` (mặc định nhánh hiện tại của repo trên máy chủ) | `DEPLOY_BRANCH=main deploy/self-host/deploy-*-vm.sh` |
+Code tự host (`feat/tu-host-r2`) đã vào `main` qua PR `chore/tu-host-r2-vao-main`. **Nguồn code của máy chủ là `main`.**
 
-Kiểm nhanh trên máy chủ: `git -C /srv/deutschflow/repo rev-parse --abbrev-ref HEAD` và `git -C /srv/deutschflow/repo log -1 --oneline`.
+| | Lệnh |
+|---|---|
+| Lần deploy **đầu tiên** sau khi PR tự host merge (repo máy chủ còn đứng ở `feat/tu-host-r2`) | `DEPLOY_BRANCH=main deploy/self-host/deploy-*-vm.sh` — `fetch_code` chạy `checkout -B main`, repo máy chủ chuyển hẳn sang `main` |
+| Các lần sau | `deploy/self-host/deploy-*-vm.sh` (mặc định nhánh hiện tại = `main`) |
 
-**Hệ quả khi máy chủ còn theo `feat/tu-host-r2`:** mọi thứ merge vào `main` chỉ lên web sau khi được gộp vào `feat/tu-host-r2` (hoặc sau khi PR tự host merge và chuyển sang deploy `main`). Gộp `main` vào `feat/tu-host-r2` phải xử lý xung đột ở máy dev, chạy test + build, rồi mới push — không gộp trên máy chủ.
+Kiểm nhanh trên máy chủ: `git -C /srv/deutschflow/repo rev-parse --abbrev-ref HEAD` (phải là `main`) và `git -C /srv/deutschflow/repo log -1 --oneline`.
 
-> Việc nên làm sớm: merge PR của `feat/tu-host-r2` vào `main`, đổi repo máy chủ sang `main`, xoá `amplify.yml` + hai script EC2 + job deploy EC2. Khi xong, sửa bảng trên và §0.1.
+**Không deploy từ nhánh khác `main`** trừ khi owner ra lệnh rõ (ví dụ thử một nhánh); deploy xong nhánh thử thì lần sau phải `DEPLOY_BRANCH=main` để quay về. `feat/tu-host-r2` không còn dùng.
 
 ---
 
