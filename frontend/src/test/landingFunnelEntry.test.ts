@@ -15,7 +15,13 @@ import { join } from 'node:path'
  * âm thầm tụt.
  */
 
-const LANDING = join(__dirname, '..', 'components', 'landing-v2', 'GaLanding.tsx')
+const LANDING_DIR = join(__dirname, '..', 'components', 'landing-v2')
+/**
+ * 19/10/2026 (làm mới trang công khai): header + menu mobile tách ra LandingHeader (dùng chung với
+ * trang Về chúng tôi), START_HREF chuyển sang links.ts. Đọc gộp các tệp để các chốt dưới vẫn phủ
+ * đủ mọi CTA của trang chủ.
+ */
+const LANDING_FILES = ['GaLanding.tsx', 'LandingHeader.tsx', 'links.ts']
 
 /** Bỏ chú thích để không bắt nhầm chính đoạn văn giải thích ở đầu tệp. */
 function stripComments(source: string): string {
@@ -23,10 +29,10 @@ function stripComments(source: string): string {
 }
 
 describe('trang chủ dẫn khách vào phễu onboarding', () => {
-  const code = stripComments(readFileSync(LANDING, 'utf8'))
+  const code = LANDING_FILES.map((f) => stripComments(readFileSync(join(LANDING_DIR, f), 'utf8'))).join('\n')
 
   it('điểm vào của CTA học viên là /v2/onboarding', () => {
-    expect(code).toMatch(/const START_HREF = '\/v2\/onboarding'/)
+    expect(code).toMatch(/export const START_HREF = '\/v2\/onboarding'/)
   })
 
   it('CTA học viên dùng START_HREF chứ không hard-code /v2/register', () => {
@@ -47,7 +53,8 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
   it('CTA B2B KHÔNG bị đẩy vào phễu học viên', () => {
     // Gói "Giáo viên" và nút tư vấn trung tâm phục vụ trung tâm, không phải người học.
     expect(code).toMatch(/\{ href: '\/v2\/register', highlight: false \}/)
-    expect(code).toMatch(/href="\/v2\/register"><YellowSq \/>\{t\('teachers\.ctaConsult'\)\}/)
+    // 19/10/2026 (đợt 1 A+B+E): nút tư vấn trung tâm chuyển vào khối S7 `partners.centers`.
+    expect(code).toMatch(/href="\/v2\/register"><YellowSq \/>\{t\('partners\.centers\.ctaConsult'\)\}/)
   })
 
   it('chỉ còn đúng một href /v2/register hard-code trong JSX — nút tư vấn trung tâm', () => {

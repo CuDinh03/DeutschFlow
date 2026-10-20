@@ -158,7 +158,7 @@
     "media": {
       "loadDataError": "Could not load the media library.",
       "catWordImage": "Vocabulary image",
-      "catAiImage": "AI image (Bedrock)",
+      "catAiImage": "AI image",
       "catVideoScene": "Lesson video scene",
       "catPersona": "HR avatar",
       "catAvatar": "User avatar",

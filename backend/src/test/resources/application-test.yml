@@ -23,10 +23,11 @@ spring:
     init:
       mode: never
 
-aws:
+storage:
   s3:
+    endpoint: https://test-account.r2.cloudflarestorage.com
     bucket-name: deutschflow-test-media
-    region: ap-southeast-1
+    region: auto
     access-key: test-access-key
     secret-key: test-secret-key
 

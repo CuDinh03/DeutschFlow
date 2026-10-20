@@ -64,8 +64,10 @@ const GERMAN_ON_PURPOSE: readonly string[] = [
   'v2.adminOps.weeklySpeaking.promptPlaceholder',
   'v2.adminOps.weeklySpeaking.mandatoryPlaceholder',
   'v2.org.accept.displayNamePlaceholder',
-  'v2.landing.stats.1.l',
-  'v2.landing.pains.items.0.title',
+  // Trang chủ (đợt 1 A+B+E, 19/10/2026): câu trả lời mẫu có lỗi và câu đã sửa trong báo cáo mẫu —
+  // là câu tiếng Đức của người học, phải giữ nguyên ở mọi ngôn ngữ thì mới minh hoạ được lỗi.
+  'v2.landing.report.quote',
+  'v2.landing.report.fix',
 
   // (c) nhân vật người Đức (bản vi giữ nguyên nghề/nơi chốn)
   'v2.student.personas.emma.tag',
