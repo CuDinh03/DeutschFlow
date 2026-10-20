@@ -14,7 +14,8 @@ import { START_HREF } from './links'
  *
  * Trên trang chủ các mục trỏ neo trong trang (`#interview`…); ở trang khác chúng trỏ về trang chủ
  * ĐÚNG ngôn ngữ đang xem (`/en/#interview`). "Về chúng tôi" là trang riêng, đánh dấu
- * `aria-current` khi đang ở đó.
+ * `aria-current` khi đang ở đó. Trên trang `/phong-van` (đợt 2d), mục "Phỏng vấn theo nghề" trỏ về
+ * trang tổng các nghề và được đánh dấu là trang hiện tại.
  */
 
 const YellowSq = () => <span className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
@@ -27,7 +28,7 @@ const NAV_ANCHORS = [
   ['centers', 'centers'],
 ] as const
 
-export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about' }) {
+export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about' | 'interview' }) {
   const t = useTranslations('v2.landing')
   const raw = useLocale()
   const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
@@ -39,8 +40,11 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
   const { trackEvent } = useTracking()
   const trackCta = (placement: string) => trackEvent('landing_cta_clicked', { placement })
 
+  const interviewHref = localizedHref(locale, '/phong-van')
   const links = [
-    ...NAV_ANCHORS.map(([key, id]) => ({ key, href: anchor(id), active: false })),
+    ...NAV_ANCHORS.map(([key, id]) => (key === 'interview' && current === 'interview'
+      ? { key, href: interviewHref, active: true }
+      : { key, href: anchor(id), active: false })),
     { key: 'about', href: aboutHref, active: current === 'about' },
   ]
 

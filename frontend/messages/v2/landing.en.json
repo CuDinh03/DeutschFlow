@@ -39,7 +39,17 @@
       "cta": "Practise an interview for this role",
       "noMatchTitle": "No dedicated question set for “{query}” yet",
       "noMatchBody": "The AI can still interview you with the general question set (introduction, situations, job skills), adapted to the role you enter. Dedicated sets for more trades, including nursing and construction, are being written.",
-      "ctaGeneral": "Practise with the general question set"
+      "ctaGeneral": "Practise with the general question set",
+      "labels": {
+        "approved": "Reviewed",
+        "aiGenerated": "AI-generated",
+        "general": "General question set"
+      },
+      "termsCap": "Key terms for this job",
+      "viewPage": "Open the job page",
+      "loading": "Loading questions…",
+      "interviewerWorkplace": "Interviewer: {name} · {role}",
+      "sourceNoteLayer": "“Reviewed” questions have been checked by a person; “AI-generated” questions were written by AI for this job and are awaiting review. The AI asks in German and follows up on your answers."
     },
     "pathways": {
       "cap": "Pathways to Germany",
@@ -278,6 +288,56 @@
         "contact": "Write to me:",
         "photoAlt": "Portrait of Đinh Huy Cự",
         "cta": "Try it free"
+      }
+    },
+    "workplaces": {
+      "gastro": "Hospitality",
+      "pflege": "Health and care",
+      "bau": "Construction and trades",
+      "industrie": "Industry and engineering",
+      "logistik": "Logistics and transport",
+      "handel": "Retail",
+      "buero": "Office, IT and media",
+      "bildung": "Education and social work"
+    },
+    "interviewerRoles": {
+      "HOFFMANN": "Restaurant manager",
+      "KRUEGER": "Head of nursing",
+      "BRANDT": "Site manager and master craftsman",
+      "WAGNER": "Production manager",
+      "YILMAZ": "Warehouse manager",
+      "SCHULZ": "Store manager",
+      "BECKER": "HR officer",
+      "RICHTER": "Head of a daycare centre and school"
+    },
+    "occupationPages": {
+      "index": {
+        "meta": {
+          "title": "German job interview questions by occupation | myDeutschFlow",
+          "description": "See German interview questions for {count} occupations, then practise your answers with an AI interviewer for your job."
+        },
+        "cap": "Interview by trade",
+        "title": "German interview questions for your job",
+        "intro": "Pick your occupation to see the questions the AI will ask you. Every question is labelled: reviewed, AI-generated or general question set.",
+        "count": "{count} occupations",
+        "unavailable": "The list of occupations could not be loaded. Please try again in a few minutes."
+      },
+      "detail": {
+        "meta": {
+          "title": "{nameDe} interview questions in German | myDeutschFlow",
+          "description": "German job interview questions for {name} ({nameDe}), key terms and your interviewer. Practise your answers with AI for free."
+        },
+        "back": "All occupations",
+        "title": "Job interview: {nameDe}",
+        "subtitle": "{name} · {workplace}",
+        "interviewer": "Your interviewer",
+        "questionsCap": "Questions the AI will ask",
+        "moreCap": "More questions for this job",
+        "termsCap": "Key terms",
+        "termsEmpty": "Key terms for this job are being prepared.",
+        "labelsNote": "“Reviewed” questions have been checked by a person. “AI-generated” questions were written by AI for this job and are awaiting review. The “general question set” is used for every job, with your job title.",
+        "cta": "Practise this interview",
+        "ctaNote": "Free. The AI asks in German and shows what to improve after every answer."
       }
     },
     "footer": {

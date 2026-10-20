@@ -39,7 +39,17 @@
       "cta": "Gespräch für diese Position üben",
       "noMatchTitle": "Noch kein eigener Fragenkatalog für „{query}“",
       "noMatchBody": "Die KI kann Sie trotzdem interviewen: mit dem allgemeinen Fragenkatalog (Vorstellung, Situationen, Fachwissen), angepasst an die angegebene Position. Eigene Kataloge für weitere Berufe, darunter Pflege und Bau, werden gerade erstellt.",
-      "ctaGeneral": "Mit dem allgemeinen Katalog üben"
+      "ctaGeneral": "Mit dem allgemeinen Katalog üben",
+      "labels": {
+        "approved": "Geprüft",
+        "aiGenerated": "KI-erstellt",
+        "general": "Allgemeiner Fragenkatalog"
+      },
+      "termsCap": "Fachbegriffe dieses Berufs",
+      "viewPage": "Zur Berufsseite",
+      "loading": "Fragen werden geladen…",
+      "interviewerWorkplace": "Interviewer: {name} · {role}",
+      "sourceNoteLayer": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Die KI fragt auf Deutsch und hakt bei Ihren Antworten nach."
     },
     "pathways": {
       "cap": "Wege nach Deutschland",
@@ -278,6 +288,56 @@
         "contact": "Schreiben Sie mir:",
         "photoAlt": "Porträt von Đinh Huy Cự",
         "cta": "Kostenlos testen"
+      }
+    },
+    "workplaces": {
+      "gastro": "Gastronomie und Hotellerie",
+      "pflege": "Gesundheit und Pflege",
+      "bau": "Bau und Handwerk",
+      "industrie": "Industrie und Technik",
+      "logistik": "Logistik und Verkehr",
+      "handel": "Handel und Verkauf",
+      "buero": "Büro, IT und Medien",
+      "bildung": "Bildung und Soziales"
+    },
+    "interviewerRoles": {
+      "HOFFMANN": "Restaurantleiterin",
+      "KRUEGER": "Pflegedienstleitung",
+      "BRANDT": "Bauleiter und Handwerksmeister",
+      "WAGNER": "Produktionsleiter",
+      "YILMAZ": "Lagerleiter",
+      "SCHULZ": "Filialleiterin",
+      "BECKER": "Personalreferentin",
+      "RICHTER": "Kita- und Schulleitung"
+    },
+    "occupationPages": {
+      "index": {
+        "meta": {
+          "title": "Fragen im Vorstellungsgespräch nach Beruf | myDeutschFlow",
+          "description": "Typische Fragen im Vorstellungsgespräch für {count} Berufe – und Antworten üben mit einem KI-Interviewer für Ihren Beruf."
+        },
+        "cap": "Interview nach Beruf",
+        "title": "Fragen im Vorstellungsgespräch für Ihren Beruf",
+        "intro": "Wählen Sie Ihren Beruf und sehen Sie, welche Fragen die KI stellt. Jede Frage ist gekennzeichnet: geprüft, KI-erstellt oder allgemeiner Fragenkatalog.",
+        "count": "{count} Berufe",
+        "unavailable": "Die Berufsliste konnte nicht geladen werden. Bitte versuchen Sie es in ein paar Minuten erneut."
+      },
+      "detail": {
+        "meta": {
+          "title": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
+          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe}, Fachbegriffe und Ihr Interviewer. Antworten kostenlos mit KI üben."
+        },
+        "back": "Alle Berufe",
+        "title": "Vorstellungsgespräch: {nameDe}",
+        "subtitle": "{workplace}",
+        "interviewer": "Ihr Interviewer",
+        "questionsCap": "Diese Fragen stellt die KI",
+        "moreCap": "Weitere Fragen zu diesem Beruf",
+        "termsCap": "Fachbegriffe",
+        "termsEmpty": "Die Fachbegriffe zu diesem Beruf werden gerade erstellt.",
+        "labelsNote": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Der „allgemeine Fragenkatalog“ gilt für alle Berufe, mit Ihrer Berufsbezeichnung.",
+        "cta": "Dieses Gespräch üben",
+        "ctaNote": "Kostenlos. Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können."
       }
     },
     "footer": {

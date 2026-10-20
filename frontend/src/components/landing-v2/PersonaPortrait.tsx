@@ -18,6 +18,8 @@ import { SarahCharacter } from '@/components/speaking/characters/SarahCharacter'
 import { SchneiderCharacter } from '@/components/speaking/characters/SchneiderCharacter'
 import { ThomasCharacter } from '@/components/speaking/characters/ThomasCharacter'
 import { WeberCharacter } from '@/components/speaking/characters/WeberCharacter'
+import { WorkplaceInterviewerCharacter } from '@/components/speaking/characters/WorkplaceInterviewerCharacter'
+import { workplaceInterviewer } from '@/lib/workplaceInterviewers'
 
 /**
  * Chân dung người phỏng vấn trên trang công khai (làm mới hình ảnh 19/10/2026).
@@ -72,6 +74,36 @@ export function PersonaPortrait({
     >
       <div className="absolute inset-x-[6%] top-[4%] aspect-[280/500]">
         <Char className="block h-full w-full" />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Chân dung theo mã nhân vật của backend (`OccupationDetail.personaCode`): nhân vật cũ trong
+ * `personas.ts` hoặc người tuyển dụng theo nơi làm việc (đợt 2c). Mã khác (DEFAULT…) không vẽ gì.
+ */
+export function InterviewerPortrait({
+  personaCode,
+  className = '',
+  tint = 0.2,
+}: {
+  personaCode: string
+  className?: string
+  tint?: number
+}) {
+  const legacy = personaCode.toLowerCase() as PersonaId
+  if (CHARACTERS[legacy]) return <PersonaPortrait id={legacy} className={className} tint={tint} />
+  const w = workplaceInterviewer(personaCode)
+  if (!w) return null
+  return (
+    <div
+      aria-hidden
+      className={`relative aspect-square overflow-hidden ${className}`}
+      style={{ background: personaSoft(w.accent, tint) }}
+    >
+      <div className="absolute inset-x-[6%] top-[4%] aspect-[280/500]">
+        <WorkplaceInterviewerCharacter code={w.code} className="block h-full w-full" />
       </div>
     </div>
   )

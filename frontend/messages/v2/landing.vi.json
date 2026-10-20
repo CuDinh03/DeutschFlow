@@ -39,7 +39,17 @@
       "cta": "Luyện phỏng vấn vị trí này",
       "noMatchTitle": "Chưa có bộ câu hỏi riêng cho “{query}”",
       "noMatchBody": "AI vẫn phỏng vấn bạn được bằng bộ câu hỏi chung (giới thiệu, tình huống, chuyên môn), điều chỉnh theo vị trí bạn nhập. Bộ câu hỏi riêng cho nhiều nghề hơn, gồm điều dưỡng và xây dựng, đang được biên soạn.",
-      "ctaGeneral": "Luyện với bộ câu hỏi chung"
+      "ctaGeneral": "Luyện với bộ câu hỏi chung",
+      "labels": {
+        "approved": "Đã duyệt",
+        "aiGenerated": "AI tạo",
+        "general": "Bộ câu hỏi chung"
+      },
+      "termsCap": "Từ chuyên môn của nghề",
+      "viewPage": "Xem trang nghề",
+      "loading": "Đang tải câu hỏi…",
+      "interviewerWorkplace": "Người phỏng vấn: {name} · {role}",
+      "sourceNoteLayer": "Câu “Đã duyệt” đã qua người kiểm; câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. AI hỏi bằng tiếng Đức và hỏi tiếp dựa trên câu trả lời của bạn."
     },
     "pathways": {
       "cap": "Hành trình sang Đức",
@@ -278,6 +288,56 @@
         "contact": "Viết cho mình:",
         "photoAlt": "Ảnh chân dung Đinh Huy Cự",
         "cta": "Học thử miễn phí"
+      }
+    },
+    "workplaces": {
+      "gastro": "Nhà hàng, khách sạn",
+      "pflege": "Y tế, điều dưỡng",
+      "bau": "Xây dựng, thủ công",
+      "industrie": "Công nghiệp, kỹ thuật",
+      "logistik": "Kho vận, giao thông",
+      "handel": "Bán hàng",
+      "buero": "Văn phòng, IT, truyền thông",
+      "bildung": "Giáo dục, xã hội"
+    },
+    "interviewerRoles": {
+      "HOFFMANN": "Quản lý nhà hàng",
+      "KRUEGER": "Trưởng phòng điều dưỡng",
+      "BRANDT": "Chỉ huy công trường, thợ cả",
+      "WAGNER": "Quản đốc sản xuất",
+      "YILMAZ": "Trưởng kho",
+      "SCHULZ": "Cửa hàng trưởng",
+      "BECKER": "Chuyên viên nhân sự",
+      "RICHTER": "Hiệu trưởng trường, nhà trẻ"
+    },
+    "occupationPages": {
+      "index": {
+        "meta": {
+          "title": "Câu hỏi phỏng vấn xin việc tiếng Đức theo nghề | myDeutschFlow",
+          "description": "Xem câu hỏi phỏng vấn tiếng Đức cho {count} nghề, rồi luyện trả lời với AI phỏng vấn đúng nghề của bạn."
+        },
+        "cap": "Phỏng vấn theo nghề",
+        "title": "Câu hỏi phỏng vấn tiếng Đức cho nghề của bạn",
+        "intro": "Chọn nghề để xem câu hỏi mà AI sẽ hỏi bạn. Mỗi câu có nhãn rõ: đã duyệt, AI tạo hoặc bộ câu hỏi chung.",
+        "count": "{count} nghề",
+        "unavailable": "Chưa tải được danh sách nghề. Vui lòng thử lại sau ít phút."
+      },
+      "detail": {
+        "meta": {
+          "title": "Câu hỏi phỏng vấn {nameDe} bằng tiếng Đức | myDeutschFlow",
+          "description": "Câu hỏi phỏng vấn xin việc tiếng Đức cho nghề {name} ({nameDe}), từ chuyên môn và người phỏng vấn của bạn. Luyện trả lời miễn phí với AI."
+        },
+        "back": "Tất cả nghề",
+        "title": "Phỏng vấn xin việc: {nameDe}",
+        "subtitle": "{name} · {workplace}",
+        "interviewer": "Người phỏng vấn của bạn",
+        "questionsCap": "Câu hỏi AI sẽ hỏi",
+        "moreCap": "Thêm câu hỏi riêng cho nghề này",
+        "termsCap": "Từ chuyên môn",
+        "termsEmpty": "Từ chuyên môn của nghề này đang được soạn.",
+        "labelsNote": "Câu “Đã duyệt” đã qua người kiểm. Câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. “Bộ câu hỏi chung” dùng cho mọi nghề, kèm tên nghề của bạn.",
+        "cta": "Luyện phỏng vấn nghề này",
+        "ctaNote": "Miễn phí. AI hỏi bằng tiếng Đức và chỉ ra chỗ cần sửa sau mỗi câu trả lời."
       }
     },
     "footer": {
