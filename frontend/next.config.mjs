@@ -1,5 +1,6 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import { legacyV1Redirects } from './legacy-redirects.mjs';
+import { mediaRemotePatterns } from './media-origins.mjs';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -70,6 +71,9 @@ const securityHeaders = [
 const nextConfig = {
   trailingSlash: true,
 
+  // Gói tự đủ cho container (frontend/Dockerfile chép .next/standalone; chạy `node server.js`).
+  output: 'standalone',
+
   // Bộ kiểm chữ ký JWT của middleware — NHÚNG LÚC DỰNG, cố ý.
   //
   // Đo 07/09/2026: `process.env.JWT_RSA_PUBLIC_KEY` trong `src/middleware.ts` KHÔNG được Next
@@ -101,18 +105,8 @@ const nextConfig = {
 
   // Image optimization stays ON for the Amplify web/SSR build so <Image> is actually optimized. (P1-5)
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'deutschflow-media-storage.s3.ap-southeast-1.amazonaws.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'deutschflow-media-storage.s3.amazonaws.com',
-        pathname: '/**',
-      },
-    ],
+    // Kho media R2 (NEXT_PUBLIC_MEDIA_ORIGINS) — cùng nguồn với CSP trong middleware.ts.
+    remotePatterns: mediaRemotePatterns(),
   },
 
   async headers() {

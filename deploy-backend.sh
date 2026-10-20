@@ -19,6 +19,11 @@
 
 set -euo pipefail
 
+# ⛔ NGỪNG DÙNG (18/10/2026): EC2 đã bỏ, dự án không còn dùng AWS. Script này scp .env.production
+# cũ lên server (sẽ ghi đè env của VM) và cleanup xoá image :prev. Dùng deploy/self-host/*-vm.sh.
+echo "⛔ $(basename "$0") đã ngừng dùng (EC2/AWS). Dùng deploy/self-host/ — xem deploy/self-host/README.md" >&2
+exit 1
+
 # ── Cấu hình ──────────────────────────────────────────────────
 readonly PEM_KEY="/Users/dinhcu/Developer/DeutschFlow/deutschflow-key.pem"
 readonly EC2_HOST="ubuntu@35.175.232.152"
