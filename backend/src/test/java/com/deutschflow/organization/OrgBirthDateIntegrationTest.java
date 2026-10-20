@@ -2,6 +2,7 @@ package com.deutschflow.organization;
 
 import com.deutschflow.common.minor.MinorAudioBlockedException;
 import com.deutschflow.common.minor.MinorGate;
+import com.deutschflow.common.minor.MinorPolicy;
 import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.entity.NotificationOutbox;
 import com.deutschflow.notification.repository.NotificationOutboxRepository;
@@ -84,13 +85,13 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void typoLocksSpeaking_untilCenterFixesTheDate() throws Exception {
             Organization org = org();
             User owner = member(org, "OWNER", User.Role.OWNER);
-            User student = student(org, LocalDate.now().minusYears(14).minusDays(1));
+            User student = student(org, LocalDate.now(MinorPolicy.ZONE).minusYears(14).minusDays(1));
 
             assertThatThrownBy(() -> minorGate.assertAudioAllowed(student.getId()))
                     .as("14 tuổi chưa có phiếu đồng ý ⇒ giọng nói không đi đâu cả")
                     .isInstanceOf(MinorAudioBlockedException.class);
 
-            LocalDate corrected = LocalDate.now().minusYears(20).minusDays(1);
+            LocalDate corrected = LocalDate.now(MinorPolicy.ZONE).minusYears(20).minusDays(1);
             putBirthDate(owner, student, corrected.toString())
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.birthDate").value(corrected.toString()))
@@ -109,7 +110,7 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
             User owner = member(org, "OWNER", User.Role.OWNER);
             User student = student(org, null);
 
-            LocalDate dob = LocalDate.now().minusYears(17).minusDays(1);
+            LocalDate dob = LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1);
             putBirthDate(owner, student, dob.toString()).andExpect(status().isOk());
 
             assertThat(auditActions(student.getId())).containsExactly("student_birth_date_recorded");
@@ -120,10 +121,10 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void overwriteLeavesAuditWithoutRawValue() throws Exception {
             Organization org = org();
             User owner = member(org, "OWNER", User.Role.OWNER);
-            LocalDate wrong = LocalDate.now().minusYears(14).minusDays(1);
+            LocalDate wrong = LocalDate.now(MinorPolicy.ZONE).minusYears(14).minusDays(1);
             User student = student(org, wrong);
 
-            LocalDate corrected = LocalDate.now().minusYears(17).minusDays(1);
+            LocalDate corrected = LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1);
             putBirthDate(owner, student, corrected.toString()).andExpect(status().isOk());
 
             assertThat(auditActions(student.getId())).containsExactly("student_birth_date_updated");
@@ -143,7 +144,7 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void sameValueWritesNothing() throws Exception {
             Organization org = org();
             User owner = member(org, "OWNER", User.Role.OWNER);
-            LocalDate dob = LocalDate.now().minusYears(17).minusDays(1);
+            LocalDate dob = LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1);
             User student = student(org, dob);
 
             putBirthDate(owner, student, dob.toString())
@@ -166,9 +167,9 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void queuesNoticeToTheStudent() throws Exception {
             Organization org = org();
             User owner = member(org, "OWNER", User.Role.OWNER);
-            User student = student(org, LocalDate.now().minusYears(14).minusDays(1));
+            User student = student(org, LocalDate.now(MinorPolicy.ZONE).minusYears(14).minusDays(1));
 
-            LocalDate corrected = LocalDate.now().minusYears(17).minusDays(1);
+            LocalDate corrected = LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1);
             putBirthDate(owner, student, corrected.toString()).andExpect(status().isOk());
 
             List<NotificationOutbox> notices = birthDateNotices(student.getId());
@@ -189,11 +190,11 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void twoCorrectionsProduceTwoNotices() throws Exception {
             Organization org = org();
             User owner = member(org, "OWNER", User.Role.OWNER);
-            User student = student(org, LocalDate.now().minusYears(14).minusDays(1));
+            User student = student(org, LocalDate.now(MinorPolicy.ZONE).minusYears(14).minusDays(1));
 
-            putBirthDate(owner, student, LocalDate.now().minusYears(15).minusDays(1).toString())
+            putBirthDate(owner, student, LocalDate.now(MinorPolicy.ZONE).minusYears(15).minusDays(1).toString())
                     .andExpect(status().isOk());
-            putBirthDate(owner, student, LocalDate.now().minusYears(17).minusDays(1).toString())
+            putBirthDate(owner, student, LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1).toString())
                     .andExpect(status().isOk());
 
             assertThat(birthDateNotices(student.getId())).hasSize(2);
@@ -212,9 +213,9 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
             Organization mine = org();
             Organization theirs = org();
             User owner = member(mine, "OWNER", User.Role.OWNER);
-            User outsider = student(theirs, LocalDate.now().minusYears(17).minusDays(1));
+            User outsider = student(theirs, LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1));
 
-            putBirthDate(owner, outsider, LocalDate.now().minusYears(20).toString())
+            putBirthDate(owner, outsider, LocalDate.now(MinorPolicy.ZONE).minusYears(20).toString())
                     .andExpect(status().isNotFound());
             mockMvc.perform(get(path(outsider)).with(user(owner)))
                     .andExpect(status().isNotFound());
@@ -225,9 +226,9 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void teacherCannotWrite() throws Exception {
             Organization org = org();
             User teacher = member(org, "TEACHER", User.Role.TEACHER);
-            User student = student(org, LocalDate.now().minusYears(17).minusDays(1));
+            User student = student(org, LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1));
 
-            putBirthDate(teacher, student, LocalDate.now().minusYears(20).toString())
+            putBirthDate(teacher, student, LocalDate.now(MinorPolicy.ZONE).minusYears(20).toString())
                     .andExpect(status().isForbidden());
         }
 
@@ -236,13 +237,13 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void leftMemberGetsNotFound() throws Exception {
             Organization org = org();
             User owner = member(org, "OWNER", User.Role.OWNER);
-            User student = student(org, LocalDate.now().minusYears(17).minusDays(1));
+            User student = student(org, LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1));
             memberRepo.findByIdOrgIdAndIdUserId(org.getId(), student.getId()).ifPresent(m -> {
                 m.setStatus("LEFT");
                 memberRepo.save(m);
             });
 
-            putBirthDate(owner, student, LocalDate.now().minusYears(20).toString())
+            putBirthDate(owner, student, LocalDate.now(MinorPolicy.ZONE).minusYears(20).toString())
                     .andExpect(status().isNotFound());
         }
     }
@@ -258,10 +259,10 @@ class OrgBirthDateIntegrationTest extends AbstractPostgresIntegrationTest {
         void futureDateRejected() throws Exception {
             Organization org = org();
             User owner = member(org, "OWNER", User.Role.OWNER);
-            LocalDate dob = LocalDate.now().minusYears(17).minusDays(1);
+            LocalDate dob = LocalDate.now(MinorPolicy.ZONE).minusYears(17).minusDays(1);
             User student = student(org, dob);
 
-            putBirthDate(owner, student, LocalDate.now().plusDays(1).toString())
+            putBirthDate(owner, student, LocalDate.now(MinorPolicy.ZONE).plusDays(1).toString())
                     .andExpect(status().isBadRequest());
             assertThat(birthDateOf(student.getId())).isEqualTo(dob);
         }
