@@ -48,6 +48,14 @@ public class UserLearningProfile {
     @Column(name = "industry", length = 100)
     private String industry;
 
+    /** Nghề trong danh mục công khai (V334), chọn ở onboarding đợt 2e — không bắt buộc (V338). */
+    @Column(name = "occupation_code", length = 64)
+    private String occupationCode;
+
+    /** Ngày mốc: buổi phỏng vấn, kỳ thi hay ngày sang Đức — không bắt buộc (V338). */
+    @Column(name = "target_date")
+    private java.time.LocalDate targetDate;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "work_use_cases_json")
     private String workUseCasesJson;
