@@ -100,7 +100,15 @@
           "label": "TestDaF",
           "desc": "Für das Studium an der Universität"
         }
-      }
+      },
+      "occupationLabel": "Dein Beruf",
+      "occupationPlaceholder": "Beruf eingeben, z. B. Pflege, Koch…",
+      "occupationChange": "Ändern",
+      "occupationNoMatch": "„{query}“ ist noch nicht in der Liste – du kannst den Schritt überspringen; die KI nutzt dann den allgemeinen Fragenkatalog.",
+      "occupationHint": "Interviewer und Fragen passen dann zu diesem Beruf.",
+      "targetDateLabel": "Bis wann musst du bereit sein?",
+      "targetDateHint": "Monat des Vorstellungsgesprächs, der Prüfung oder des Umzugs – optional.",
+      "targetDateClear": "Datum entfernen"
     },
     "orgLite": {
       "cap": "Lernende der Sprachschule",

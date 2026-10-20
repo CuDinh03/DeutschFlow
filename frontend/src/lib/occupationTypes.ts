@@ -55,3 +55,18 @@ export function occupationName(o: Pick<OccupationSummary, 'nameDe' | 'nameEn' | 
 export function isOccupationCode(v: string): boolean {
   return /^[a-z0-9_]{1,64}$/.test(v)
 }
+
+/** So khớp không phân biệt hoa thường, dấu tiếng Việt và umlaut tiếng Đức. */
+export function foldText(s: string): string {
+  // Khối dấu kết hợp U+0300–U+036F sau NFD; "đ" không tách dấu nên thay tay.
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase()
+}
+
+/** Tìm nghề theo tên Đức/Việt/Anh và tên gọi khác; giữ thứ tự danh mục (nghề phổ biến trước). */
+export function searchOccupations(list: OccupationSummary[], query: string, limit: number): OccupationSummary[] {
+  const q = foldText(query.trim())
+  if (!q) return []
+  return list
+    .filter((o) => [o.nameDe, o.nameVi, o.nameEn, ...o.aliases].some((f) => foldText(f).includes(q)))
+    .slice(0, limit)
+}

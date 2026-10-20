@@ -6,7 +6,7 @@
  * đếm theo nhánh (W-13). Các ca Đợt 0/1/2/5 giữ nguyên ý nghĩa, chỉ đổi đường bấm.
  */
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -15,10 +15,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const pushMock = vi.fn();
 
 // `refresh` is required too: GaAuthShell renders LanguageToggle, which calls router.refresh().
+const { searchParamsRef } = vi.hoisted(() => ({ searchParamsRef: { current: "" } }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
-  // Đợt 4 PR-3: lối `?placement=1` — mặc định không có tham số.
-  useSearchParams: () => new URLSearchParams(),
+  // Đợt 4 PR-3: lối `?placement=1`; đợt 2e: `?occupation=` — mặc định không có tham số.
+  useSearchParams: () => new URLSearchParams(searchParamsRef.current),
 }));
 
 // Trả về chính KEY cho cả t() lẫn t.rich(); t.has trả true. Mọi truy vấn tìm theo KEY.
@@ -297,6 +298,7 @@ describe("V2OnboardingPage — A0 lối tắt (không placement; Đợt 4 PR-2: 
         goalType: "WORK", targetLevel: "B1", currentLevel: "A0", motivation: "JOB",
         industry: null, examType: null,
         sessionsPerWeek: 5, minutesPerSession: 15, dailyGoalMinutes: 15, learningSpeed: "NORMAL",
+        occupationCode: null, targetDate: null,
       });
     });
   });
@@ -875,5 +877,63 @@ describe("V2OnboardingPage — Đợt 5: học viên trung tâm đi bản rút g
     await waitFor(() => expect(api.get).toHaveBeenCalledWith("/onboarding/context"));
     expect(screen.getByText("goal.heading")).toBeInTheDocument();
     expect(screen.queryByTestId("org-lite-wizard")).not.toBeInTheDocument();
+  });
+});
+
+// ─── Đợt 2e A+B+E (21/10/2026): hỏi nghề trong danh mục + ngày mốc ────────────
+
+const ALTENPFLEGER = {
+  code: "altenpfleger", nameDe: "Altenpfleger/in", nameEn: "Geriatric nurse", nameVi: "Điều dưỡng người cao tuổi",
+  workplace: "pflege", aliases: ["pflegeheim"], questionSet: "GENERAL",
+};
+
+describe("V2OnboardingPage — đợt 2e: nghề + ngày mốc", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    searchParamsRef.current = "";
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === "/public/occupations") return Promise.resolve({ data: [ALTENPFLEGER] });
+      if (url === "/public/occupations/altenpfleger") return Promise.resolve({ data: { occupation: ALTENPFLEGER } });
+      return Promise.resolve({ data: { hasPlan: true } });
+    });
+  });
+
+  afterEach(() => {
+    searchParamsRef.current = "";
+    vi.mocked(api.get).mockResolvedValue({ data: { hasPlan: true } });
+  });
+
+  it("danh mục tải được → tìm nghề theo tên gọi khác, chọn, đặt ngày mốc → payload có mã nghề, industry suy ra và ngày", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await advance(user, 3);
+    await user.type(await screen.findByLabelText("focus.occupationLabel"), "pflegeheim");
+    await user.click(screen.getByRole("radio", { name: /Altenpfleger\/in/ }));
+    expect(screen.getByText("focus.occupationHint")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("focus.targetDateLabel"), { target: { value: "2027-03" } });
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({
+        occupationCode: "altenpfleger", industry: "Pflege", targetDate: "2027-03-01",
+      }));
+    });
+  });
+
+  it("?occupation=altenpfleger → điền sẵn nghề (bước nghề hiện nghề đã chọn), bắn onboarding_occupation_prefilled", async () => {
+    searchParamsRef.current = "occupation=altenpfleger";
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await waitFor(() => expect(trackEventMock).toHaveBeenCalledWith("onboarding_occupation_prefilled", { occupation: "altenpfleger" }));
+    await advance(user, 3);
+    expect(await screen.findByText("focus.occupationHint")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({
+        motivation: "JOB", occupationCode: "altenpfleger", industry: "Pflege",
+      }));
+    });
   });
 });

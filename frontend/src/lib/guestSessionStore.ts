@@ -13,6 +13,9 @@ export interface GuestAnswers {
   targetLevel?: string
   industry?: string | null
   examType?: string | null
+  /** Đợt 2e: nghề + ngày mốc — server phát lại vào hồ sơ khi claim. */
+  occupationCode?: string | null
+  targetDate?: string | null
   dailyGoalMinutes?: number
   sessionsPerWeek?: number
   minutesPerSession?: number
