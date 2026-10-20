@@ -44,6 +44,14 @@ describe('publicLocale — hàm thuần', () => {
     expect(isLocalizedPublicPath('/v2/login/')).toBe(false)
   })
 
+  it('20/10/2026: /phong-van và mọi trang nghề bên dưới được dịch theo tiền tố', () => {
+    expect(isLocalizedPublicPath('/phong-van/')).toBe(true)
+    expect(isLocalizedPublicPath('/phong-van/kellner/')).toBe(true)
+    // Chỉ khớp đúng đoạn đường: "/phong-vanxyz" không phải trang nghề.
+    expect(isLocalizedPublicPath('/phong-vanxyz/')).toBe(false)
+    expect(localizedHref('en', '/phong-van/kellner')).toBe('/en/phong-van/kellner/')
+  })
+
   it('bảng hreflang đủ ba ngôn ngữ và x-default trỏ bản tiếng Việt', () => {
     expect(hreflangAlternates('/')).toEqual({ vi: '/', en: '/en/', de: '/de/', 'x-default': '/' })
   })
@@ -82,6 +90,12 @@ describe('middleware — ngôn ngữ theo URL', () => {
   it('trang chưa dịch không bị rewrite theo tiền tố', async () => {
     const res = await middleware(req('/en/luyen-thi/'))
     expect(res.headers.get('x-middleware-rewrite')).toBeNull()
+  })
+
+  it('/de/phong-van/maurer/ render trang nghề bằng tiếng Đức', async () => {
+    const res = await middleware(req('/de/phong-van/maurer/'))
+    expect(res.headers.get('x-middleware-rewrite')).toBe('https://app.test/phong-van/maurer/')
+    expect(res.headers.get(`x-middleware-request-${LOCALE_HEADER}`)).toBe('de')
   })
 
   it('/en/about/ render trang Về chúng tôi bằng tiếng Anh', async () => {

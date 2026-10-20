@@ -16,6 +16,7 @@
  * Chỉ thêm một đường vào PUBLIC_LOCALIZED_PATHS khi trang đó THẬT SỰ đọc chữ từ catalog ba thứ tiếng.
  * Trang còn viết cứng tiếng Việt (/luyen-thi, /privacy, …) mà gắn tiền tố thì `/en/luyen-thi/` vẫn ra
  * tiếng Việt — tệ hơn không có. `/about` vào danh sách ngày 19/10/2026 khi trang chuyển sang catalog.
+ * `/phong-van` (trang tổng + từng nghề) vào PUBLIC_LOCALIZED_PREFIXES ngày 20/10/2026 (đợt 2d).
  *
  * Module thuần (không import Next) để dùng được ở middleware (edge), server và client.
  */
@@ -35,6 +36,9 @@ export const LOCALE_HEADER = 'x-df-locale'
  * So khớp luôn qua normalizePath vì next.config đặt `trailingSlash: true`.
  */
 export const PUBLIC_LOCALIZED_PATHS: ReadonlySet<string> = new Set(['/', '/about'])
+
+/** Nhóm trang công khai đã dịch theo tiền tố: chính tiền tố và mọi đường con (`/phong-van/kellner`). */
+export const PUBLIC_LOCALIZED_PREFIXES: readonly string[] = ['/phong-van']
 
 export function isPublicLocale(v: string | null | undefined): v is PublicLocale {
   return (PUBLIC_LOCALES as readonly string[]).includes(v ?? '')
@@ -56,7 +60,9 @@ export function splitLocalePrefix(pathname: string): { locale: PublicLocale | nu
 }
 
 export function isLocalizedPublicPath(pathname: string): boolean {
-  return PUBLIC_LOCALIZED_PATHS.has(normalizePath(pathname))
+  const path = normalizePath(pathname)
+  return PUBLIC_LOCALIZED_PATHS.has(path)
+    || PUBLIC_LOCALIZED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
 }
 
 /** Đường có tiền tố cho một ngôn ngữ, luôn có dấu "/" cuối (khớp `trailingSlash: true`). */
