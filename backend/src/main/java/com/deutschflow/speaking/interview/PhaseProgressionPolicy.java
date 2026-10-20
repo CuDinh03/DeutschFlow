@@ -26,6 +26,25 @@ public final class PhaseProgressionPolicy {
     /** Đợt E3 (10/08): STAR là tầng đánh giá hành vi quan trọng nhất — không được rời trước 2 lượt. */
     static final int MIN_STAR_TURNS = 2;
 
+    /** Đợt 2b (19/10/2026): phiên theo nghề hỏi ít nhất chừng này câu HARD_SKILLS (lớp nghề). */
+    static final int MIN_OCCUPATION_HARD_TURNS = 3;
+
+    /**
+     * Phiên theo nghề: goalMet sớm không được đẩy khỏi HARD_SKILLS khi chưa đủ
+     * {@link #MIN_OCCUPATION_HARD_TURNS} lượt — lời hứa "mỗi phiên có ít nhất 3 câu theo nghề".
+     * Trần theo lượt vẫn thắng (HARD_SKILLS kéo tới lượt 9, nên trần không bao giờ cắt ngang 3 lượt).
+     */
+    public static InterviewPhase holdOccupationHardSkills(InterviewPhase resolved, int currentPhaseNumber,
+                                                          int userTurn, int hardTurnsSoFar) {
+        if (clampPhaseNumber(currentPhaseNumber) == InterviewPhase.HARD_SKILLS.number()
+                && resolved.number() > InterviewPhase.HARD_SKILLS.number()
+                && hardTurnsSoFar < MIN_OCCUPATION_HARD_TURNS
+                && InterviewPhase.fromUserTurn(userTurn).number() <= InterviewPhase.HARD_SKILLS.number()) {
+            return InterviewPhase.HARD_SKILLS;
+        }
+        return resolved;
+    }
+
     public static InterviewPhase resolve(int currentPhaseNumber, int userTurn, boolean currentGoalMet) {
         return resolve(currentPhaseNumber, userTurn, currentGoalMet, MIN_STAR_TURNS);
     }

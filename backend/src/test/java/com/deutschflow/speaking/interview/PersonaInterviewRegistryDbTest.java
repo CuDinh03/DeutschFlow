@@ -168,6 +168,52 @@ class PersonaInterviewRegistryDbTest {
         assertThat(result).isEmpty();
     }
 
+    // ── 19/10/2026 (đợt 2a A+B+E): câu seed DB nói đúng vị trí như bank ───────────
+
+    @Test
+    void pickQuestion_dbRowSeededWithDefaultPosition_isRenderedWithActualPosition() {
+        InterviewQuestion seeded = dbQuestion("niklas_guest", "NIKLAS", "HARD_SKILLS", "gast",
+                "Wie behandeln Sie einen unzufriedenen Gast? STAR-Beispiel für diese Position.");
+        when(questionRepository.findByPersonaCodeAndPhaseAndActiveTrue("NIKLAS", "HARD_SKILLS"))
+                .thenReturn(List.of(seeded));
+
+        PersonaInterviewRegistry registry = new PersonaInterviewRegistry(questionRepository);
+        Optional<InterviewQuestionDef> result = registry.pickQuestion(
+                SpeakingPersona.NIKLAS, "Kellner/in", InterviewPhase.HARD_SKILLS,
+                InterviewSessionState.initial(1, "Gast"));
+
+        assertThat(result).isPresent();
+        // Trùng nguyên văn với InterviewQuestionBank khi có vị trí — đúng câu trang chủ hiện.
+        assertThat(result.get().questionDe())
+                .isEqualTo("Wie behandeln Sie einen unzufriedenen Gast? STAR-Beispiel für Kellner/in.");
+    }
+
+    @Test
+    void withPosition_keepsTextWhenPositionBlank_andOnlyTouchesTheSeededPhrase() {
+        String seeded = "Welche Hygienemaßnahmen sind für diese Position kritisch?";
+        assertThat(PersonaInterviewRegistry.withPosition(seeded, null)).isEqualTo(seeded);
+        assertThat(PersonaInterviewRegistry.withPosition(seeded, "  ")).isEqualTo(seeded);
+        assertThat(PersonaInterviewRegistry.withPosition(seeded, " Koch/Köchin "))
+                .isEqualTo("Welche Hygienemaßnahmen sind für Koch/Köchin kritisch?");
+        assertThat(PersonaInterviewRegistry.withPosition("Was erwarten Sie von dieser Position?", "Koch/Köchin"))
+                .isEqualTo("Was erwarten Sie von dieser Position?");
+    }
+
+    @Test
+    void pickChallengeFollowUp_withPosition_rendersSeededPhrase() {
+        InterviewQuestion q = dbQuestion("q-unfall", "MAX", "HARD_SKILLS", "sicherheit",
+                "Beschreiben Sie einen Unfall und Ihre Maßnahmen für diese Position.");
+        when(questionRepository.findByPersonaCodeAndPhaseAndActiveTrue("MAX", "HARD_SKILLS"))
+                .thenReturn(List.of(q));
+
+        PersonaInterviewRegistry registry = new PersonaInterviewRegistry(questionRepository);
+        Optional<InterviewQuestionDef> followUp = registry.pickChallengeFollowUp(
+                SpeakingPersona.MAX, "Maschinenbediener/in", InterviewPhase.HARD_SKILLS, "sicherheit", List.of());
+
+        assertThat(followUp).isPresent();
+        assertThat(followUp.get().questionDe()).endsWith("für Maschinenbediener/in.");
+    }
+
     // ── helper ────────────────────────────────────────────────────────────────
 
     private static InterviewQuestion dbQuestion(String id, String code, String phase,

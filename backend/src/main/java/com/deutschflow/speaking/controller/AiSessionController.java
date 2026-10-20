@@ -116,7 +116,8 @@ public class AiSessionController {
                 request.sessionMode(),
                 request.interviewPosition(),
                 request.experienceLevel(),
-                request.assignmentId());
+                request.assignmentId(),
+                request.occupationCode());
     }
 
     @PostMapping("/transcribe")

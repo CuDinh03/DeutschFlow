@@ -87,6 +87,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final SpeakingChatIdempotencyService chatIdempotencyService;
     /** Cổng sở hữu cho mối nối phiên ↔ dòng bài tập (Đ9): chặn IDOR ngay ở đường tạo phiên. */
     private final com.deutschflow.teacher.service.SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard;
+    /** Đợt 2b: mã nghề → nhân vật + vị trí của phiên phỏng vấn. Null trong unit test cũ. */
+    private final com.deutschflow.interview.service.OccupationSessionResolver occupationSessionResolver;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -113,7 +115,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             ChatCompletionService chatCompletionService,
             SpeakingStreamService speakingStreamService,
             SpeakingChatIdempotencyService chatIdempotencyService,
-            com.deutschflow.teacher.service.SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard) {
+            com.deutschflow.teacher.service.SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard,
+            com.deutschflow.interview.service.OccupationSessionResolver occupationSessionResolver) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -139,13 +142,14 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.speakingStreamService = speakingStreamService;
         this.chatIdempotencyService = chatIdempotencyService;
         this.speakingAssignmentLinkGuard = speakingAssignmentLinkGuard;
+        this.occupationSessionResolver = occupationSessionResolver;
     }
 
     @Override
     public AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String personaRaw,
                                               String responseSchemaRaw, String sessionModeRaw,
                                               String interviewPosition, String experienceLevel,
-                                              Long assignmentId) {
+                                              Long assignmentId, String occupationCode) {
         Instant start = Instant.now();
         boolean failed = false;
         AiSpeakingSession session = null;
@@ -168,10 +172,24 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             if (sessionMode == SpeakingSessionMode.INTERVIEW) {
                 resolved = com.deutschflow.speaking.util.SpeakingCefrSupport.floorAtBand(resolved, "B1");
             }
+            // Đợt 2b (19/10/2026): phỏng vấn theo nghề — nhân vật/vị trí để trống thì lấy theo danh mục.
+            var occupation = resolveSessionOccupation(sessionMode, occupationCode);
+            if (occupation.isPresent()) {
+                if (personaRaw == null || personaRaw.isBlank()) {
+                    personaRaw = occupation.get().personaCode();
+                    persona = SpeakingPersona.fromApi(personaRaw);
+                }
+                if (interviewPosition == null || interviewPosition.isBlank()) {
+                    interviewPosition = occupation.get().interviewPosition();
+                }
+            }
             validateCreateSessionRequest(sessionMode, interviewPosition, experienceLevel, personaRaw, responseSchemaRaw);
             session = buildSpeakingSession(userId, topic, resolved, persona, responseSchema,
-                    sessionMode, interviewPosition, experienceLevel, assignmentId);
+                    sessionMode, interviewPosition, experienceLevel, assignmentId,
+                    occupation.map(com.deutschflow.interview.service.OccupationSessionResolver.SessionOccupation::code)
+                            .orElse(null));
             session = sessionRepository.save(session);
+            occupation.ifPresent(occupationSessionResolver::prepareContent);
 
             if (sessionMode == SpeakingSessionMode.INTERVIEW) {
                 String promptVariant = interviewDomainCoordinator.onSessionCreated(session);
@@ -241,6 +259,17 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         throw new ConflictException("Vui lòng chờ vài giây trước khi tạo phiên mới.");
     }
 
+    /** Chỉ phỏng vấn mới theo nghề; mã lạ → 400 (không lặng lẽ rơi về phiên chung). */
+    private Optional<com.deutschflow.interview.service.OccupationSessionResolver.SessionOccupation>
+            resolveSessionOccupation(SpeakingSessionMode sessionMode, String occupationCode) {
+        if (sessionMode != SpeakingSessionMode.INTERVIEW || occupationCode == null || occupationCode.isBlank()
+                || occupationSessionResolver == null) {
+            return Optional.empty();
+        }
+        return Optional.of(occupationSessionResolver.resolve(occupationCode)
+                .orElseThrow(() -> new com.deutschflow.common.exception.BadRequestException("Unknown occupationCode.")));
+    }
+
     private void validateCreateSessionRequest(SpeakingSessionMode sessionMode,
                                               String interviewPosition,
                                               String experienceLevel,
@@ -278,7 +307,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                                                    SpeakingSessionMode sessionMode,
                                                    String interviewPosition,
                                                    String experienceLevel,
-                                                   Long assignmentId) {
+                                                   Long assignmentId,
+                                                   String occupationCode) {
         AiSpeakingSession session = AiSpeakingSession.builder()
                 .userId(userId)
                 .topic(topic)
@@ -288,12 +318,16 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 .sessionMode(sessionMode.name())
                 .interviewPosition(sessionMode == SpeakingSessionMode.INTERVIEW ? interviewPosition : null)
                 .experienceLevel(sessionMode == SpeakingSessionMode.INTERVIEW ? experienceLevel : null)
+                .occupationCode(occupationCode)
                 .assignmentId(assignmentId)
                 .status(SessionStatus.ACTIVE)
                 .messageCount(0)
                 .build();
         if (sessionMode == SpeakingSessionMode.INTERVIEW) {
             InterviewSessionState initialState = interviewOrchestrator.ensureState(null, persona, interviewPosition);
+            if (initialState != null) {
+                initialState.setOccupationCode(occupationCode);
+            }
             session.setInterviewStateJson(interviewStateCodec.encode(initialState));
         }
         return session;
