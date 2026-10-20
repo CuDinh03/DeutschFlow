@@ -3,6 +3,7 @@ package com.deutschflow.interview.controller;
 import com.deutschflow.interview.dto.OccupationDetailDto;
 import com.deutschflow.interview.dto.OccupationDto;
 import com.deutschflow.interview.service.OccupationCatalogService;
+import com.deutschflow.interview.service.OccupationPublicService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,7 @@ public class PublicOccupationController {
     static final CacheControl CACHE = CacheControl.maxAge(Duration.ofMinutes(10)).cachePublic();
 
     private final OccupationCatalogService catalogService;
+    private final OccupationPublicService publicService;
 
     @GetMapping
     public ResponseEntity<List<OccupationDto>> list() {
@@ -37,7 +39,7 @@ public class PublicOccupationController {
 
     @GetMapping("/{code}")
     public ResponseEntity<OccupationDetailDto> detail(@PathVariable String code) {
-        return catalogService.detail(code)
+        return publicService.detail(code)
                 .map(d -> ResponseEntity.ok().cacheControl(CACHE).body(d))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

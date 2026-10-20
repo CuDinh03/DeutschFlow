@@ -70,8 +70,10 @@ public class OccupationCatalogService {
         }
         SpeakingPersona persona = personaFor(o);
         String position = positionFor(o);
+        // Lớp nghề và từ chuyên môn do OccupationPublicService ghép thêm (đợt 2d).
         return Optional.of(new OccupationDetailDto(
-                toDto(o), persona.name(), position, sampleQuestions(persona, position)));
+                toDto(o), persona.name(), position, sampleQuestions(persona, position),
+                curatedPersona(o) != null, List.of(), List.of()));
     }
 
     /**
@@ -108,9 +110,9 @@ public class OccupationCatalogService {
         List<InterviewQuestionDef> bank = InterviewQuestionBank.forPersona(persona, position);
         List<SampleQuestion> out = new ArrayList<>();
         bank.stream().filter(q -> q.phase() == InterviewPhase.INTRO).findFirst()
-                .ifPresent(q -> out.add(new SampleQuestion(q.phase().name(), q.questionDe())));
+                .ifPresent(q -> out.add(new SampleQuestion(q.phase().name(), q.questionDe(), OccupationDetailDto.SOURCE_BANK)));
         bank.stream().filter(q -> q.phase() == InterviewPhase.HARD_SKILLS).limit(SAMPLE_HARD_SKILLS)
-                .forEach(q -> out.add(new SampleQuestion(q.phase().name(), q.questionDe())));
+                .forEach(q -> out.add(new SampleQuestion(q.phase().name(), q.questionDe(), OccupationDetailDto.SOURCE_BANK)));
         return List.copyOf(out);
     }
 
