@@ -15,10 +15,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public interface AiSpeakingService {
 
+    default AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String persona,
+                                               String responseSchema, String sessionMode,
+                                               String interviewPosition, String experienceLevel,
+                                               Long assignmentId) {
+        return createSession(userId, topic, cefrLevel, persona, responseSchema, sessionMode,
+                interviewPosition, experienceLevel, assignmentId, null);
+    }
+
+    /** {@code occupationCode} (đợt 2b): mã nghề cho phỏng vấn theo nghề; null = không theo nghề. */
     AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String persona,
                                        String responseSchema, String sessionMode,
                                        String interviewPosition, String experienceLevel,
-                                       Long assignmentId);
+                                       Long assignmentId, String occupationCode);
 
     /**
      * Runs one blocking chat turn. {@code clientTurnId} (nullable) is an idempotency key: a retry

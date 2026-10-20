@@ -8,6 +8,7 @@ import com.deutschflow.interview.entity.InterviewExperimentAssignment;
 import com.deutschflow.interview.service.*;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
+import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -37,11 +38,15 @@ public class InterviewController {
     private final InterviewAnalyticsQueryService analyticsQueryService;
     private final AiSpeakingSessionRepository sessionRepository;
 
-    /** List all active interview-capable personas. */
+    /**
+     * List all active interview-capable personas the learner can pick. Người tuyển dụng theo nơi
+     * làm việc (đợt 2c) chỉ đến qua mã nghề, nên không trả ở đây: bản app cũ chưa biết mã của họ.
+     */
     @GetMapping("/personas")
     public ResponseEntity<List<InterviewPersonaDto>> listPersonas() {
         List<InterviewPersonaDto> personas = personaRegistryService.listActive()
                 .stream()
+                .filter(p -> !SpeakingPersona.fromApi(p.getCode()).isWorkplaceInterviewer())
                 .map(InterviewPersonaDto::from)
                 .toList();
         return ResponseEntity.ok(personas);
