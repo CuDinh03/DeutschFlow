@@ -26,5 +26,7 @@ public record PersonalProfileResponse(
         String role,
         LocalDate birthDate,
         boolean birthDateLocked,
-        String notificationTimezone
+        String notificationTimezone,
+        /** Giờ nhắc học 0–23 theo notificationTimezone; null = chưa chọn (Đợt 6). */
+        Integer reminderHourLocal
 ) {}

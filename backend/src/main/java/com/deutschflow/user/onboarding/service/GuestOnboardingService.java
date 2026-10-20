@@ -205,7 +205,9 @@ public class GuestOnboardingService {
                 minutesPerSession,
                 str(a.get("learningSpeed")),
                 str(a.get("motivation")),
-                dailyGoalMinutes);
+                dailyGoalMinutes,
+                "CERT".equals(goalType) ? null : str(a.get("occupationCode")),
+                dateOrNull(a.get("targetDate")));
         learningPlanService.saveProfileAndGeneratePlan(user, req, platform);
     }
 
@@ -261,6 +263,16 @@ public class GuestOnboardingService {
 
     }
 
+
+    /** Ngày mốc "yyyy-MM-dd" trong snapshot khách (đợt 2e); sai định dạng → null, không làm hỏng việc nhận hồ sơ. */
+    private static java.time.LocalDate dateOrNull(Object o) {
+        if (!(o instanceof String s) || s.isBlank()) return null;
+        try {
+            return java.time.LocalDate.parse(s.trim());
+        } catch (java.time.format.DateTimeParseException ignored) {
+            return null;
+        }
+    }
 
     private static Integer intOrNull(Object o) {
         if (o instanceof Number n) return n.intValue();
