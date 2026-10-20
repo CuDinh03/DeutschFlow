@@ -3,6 +3,7 @@ package com.deutschflow.interview.controller;
 import com.deutschflow.interview.dto.OccupationDetailDto;
 import com.deutschflow.interview.dto.OccupationDto;
 import com.deutschflow.interview.service.OccupationCatalogService;
+import com.deutschflow.interview.service.OccupationPublicService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,9 @@ class PublicOccupationControllerTest {
     @Mock
     private OccupationCatalogService service;
 
+    @Mock
+    private OccupationPublicService publicService;
+
     private MockMvc mvc;
 
     private static final OccupationDto KELLNER = new OccupationDto("kellner", "Kellner/in", "Waiter / waitress",
@@ -34,7 +38,7 @@ class PublicOccupationControllerTest {
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new PublicOccupationController(service)).build();
+        mvc = MockMvcBuilders.standaloneSetup(new PublicOccupationController(service, publicService)).build();
     }
 
     @Test
@@ -51,19 +55,26 @@ class PublicOccupationControllerTest {
 
     @Test
     void detail_returnsSampleQuestions() throws Exception {
-        when(service.detail("kellner")).thenReturn(Optional.of(new OccupationDetailDto(KELLNER, "NIKLAS", "Kellner/in",
-                List.of(new OccupationDetailDto.SampleQuestion("HARD_SKILLS", "Frage")))));
+        when(publicService.detail("kellner")).thenReturn(Optional.of(new OccupationDetailDto(KELLNER, "NIKLAS",
+                "Kellner/in", List.of(new OccupationDetailDto.SampleQuestion("HARD_SKILLS", "Frage", "BANK")),
+                true, List.of(), List.of(new OccupationDetailDto.Term("die Bestellung", "order", "đơn gọi món",
+                        null, "AI_GENERATED")))));
 
         mvc.perform(get("/api/public/occupations/kellner"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.personaCode").value("NIKLAS"))
                 .andExpect(jsonPath("$.interviewPosition").value("Kellner/in"))
-                .andExpect(jsonPath("$.sampleQuestions[0].questionDe").value("Frage"));
+                .andExpect(header().string("Cache-Control", containsString("public")))
+                .andExpect(jsonPath("$.sampleQuestions[0].questionDe").value("Frage"))
+                .andExpect(jsonPath("$.sampleQuestions[0].source").value("BANK"))
+                .andExpect(jsonPath("$.reviewed").value(true))
+                .andExpect(jsonPath("$.terms[0].meaningVi").value("đơn gọi món"))
+                .andExpect(jsonPath("$.terms[0].status").value("AI_GENERATED"));
     }
 
     @Test
     void detail_unknownCode_is404() throws Exception {
-        when(service.detail("astronaut")).thenReturn(Optional.empty());
+        when(publicService.detail("astronaut")).thenReturn(Optional.empty());
 
         mvc.perform(get("/api/public/occupations/astronaut")).andExpect(status().isNotFound());
     }
