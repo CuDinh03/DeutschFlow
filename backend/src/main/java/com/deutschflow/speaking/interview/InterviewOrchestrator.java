@@ -1,5 +1,6 @@
 package com.deutschflow.speaking.interview;
 
+import com.deutschflow.interview.entity.OccupationQuestion;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
@@ -66,6 +67,10 @@ public class InterviewOrchestrator {
                 || PhaseProgressionPolicy.deterministicGoalMet(currentPhase, state);
         InterviewPhase phase = PhaseProgressionPolicy.resolve(state.getPhase(), userTurn, goalMet,
                 state.getStarTurns());
+        if (state.getOccupationCode() != null) {
+            phase = PhaseProgressionPolicy.holdOccupationHardSkills(phase, state.getPhase(), userTurn,
+                    state.getHardSkillsTurns());
+        }
         InterviewAnswerAnalysis analysis = analyzer.analyze(userMessage, phase, experienceLevel);
 
         boolean userAskedClosingQuestions = phase == InterviewPhase.CLOSING
@@ -105,7 +110,12 @@ public class InterviewOrchestrator {
 
         // ── Variant C: adaptive follow-up ────────────────────────────────────
         boolean isVariantC = "variant_c".equalsIgnoreCase(promptVariant);
-        if (isVariantC && analysis.weakAnswer()
+        // Đợt 2b: câu lớp nghề không bị câu đào sâu của nhân vật thay chỗ — mỗi lượt HARD_SKILLS của
+        // phiên theo nghề phải là một câu theo nghề.
+        boolean occupationalQuestion = question
+                .map(q -> q.id().startsWith(OccupationQuestion.ID_PREFIX))
+                .orElse(false);
+        if (isVariantC && analysis.weakAnswer() && !occupationalQuestion
                 && directive != InterviewDirectiveType.CLOSING_ASK
                 && directive != InterviewDirectiveType.CLOSING_ANSWER
                 && !lastWasClosingAskOrAnswer) {
@@ -113,7 +123,7 @@ public class InterviewOrchestrator {
                     ? null
                     : state.getTopicsCovered().get(state.getTopicsCovered().size() - 1);
             Optional<InterviewQuestionDef> adaptiveQ = registry.pickChallengeFollowUp(
-                    persona, phase, lastTopic, state.getAskedQuestionIds());
+                    persona, position, phase, lastTopic, state.getAskedQuestionIds());
             if (adaptiveQ.isPresent()) {
                 question = adaptiveQ;
                 directive = InterviewDirectiveType.PROBE_SPECIFIC;

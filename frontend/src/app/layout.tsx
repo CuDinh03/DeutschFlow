@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Newsreader, Be_Vietnam_Pro } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
-import { getLocale } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { messagesForV2Areas } from '@/i18n/pickV2Messages'
 import { Toaster } from '@/components/ui/sonner'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
@@ -51,23 +51,36 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: 'DeutschFlow — Learn German with AI',
-  description: 'Learn German with color-coded grammar, AI speaking coach, and spaced repetition',
-  icons: {
-    icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-    ],
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
-  },
-  manifest: '/manifest.json',
-  openGraph: {
-    title: 'DeutschFlow',
-    description: 'Learn German with AI',
-    images: ['/icon.svg'],
-  },
+/**
+ * Metadata gốc — áp cho mọi trang không tự khai (trang chủ `/` và /v2 không khai riêng).
+ *
+ * 18/10/2026 (đợt 0, định hướng A+B+E): trước là chuỗi cứng tiếng Anh "DeutschFlow — Learn German
+ * with AI" cho MỌI locale, trong khi catalog `v2.landing.meta` đã có title/description ba thứ tiếng
+ * mà không ai đọc. Nay đọc catalog theo locale của request, thương hiệu thống nhất "myDeutschFlow".
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('v2.landing.meta')
+  const title = t('title')
+  const description = t('description')
+  return {
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    icons: {
+      icon: [
+        { url: '/icon.svg', type: 'image/svg+xml' },
+      ],
+      shortcut: '/icon.svg',
+      apple: '/icon.svg',
+    },
+    manifest: '/manifest.json',
+    openGraph: {
+      title,
+      description,
+      siteName: 'myDeutschFlow',
+      images: ['/icon.svg'],
+    },
+  }
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

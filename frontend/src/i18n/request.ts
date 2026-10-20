@@ -1,5 +1,6 @@
 import { getRequestConfig } from 'next-intl/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { LOCALE_HEADER } from '@/lib/publicLocale'
 
 const SUPPORTED = new Set(['vi', 'en', 'de'])
 
@@ -14,11 +15,18 @@ export default getRequestConfig(async () => {
   // KHÔNG đọc cookie nào → cookie `locale` bị bỏ qua server-side (đổi ngôn ngữ không có tác dụng);
   // đọc ở đây sửa bug đó. Thứ tự: cookie → NEXT_PUBLIC_MOBILE_LOCALE → 'vi'. try/catch an toàn nếu
   // cookies() bị gọi trong ngữ cảnh tĩnh (Next chuyển sang dynamic) → fallback mặc định.
+  //
+  // 19/10/2026 (đợt 1 A+B+E): trang công khai có URL theo ngôn ngữ (`/en/`, `/de/`). Middleware
+  // rewrite chúng về đường gốc và gắn header LOCALE_HEADER — header này THẮNG cookie, để URL tiếng
+  // Anh luôn ra tiếng Anh kể cả khi trình duyệt còn cookie `locale=vi`. Xem src/lib/publicLocale.ts.
   let locale = 'vi'
   try {
+    const urlLocale = headers().get(LOCALE_HEADER) ?? ''
     const cookieLocale = cookies().get('locale')?.value ?? ''
     const envLocale = process.env.NEXT_PUBLIC_MOBILE_LOCALE ?? ''
-    locale = SUPPORTED.has(cookieLocale) ? cookieLocale : SUPPORTED.has(envLocale) ? envLocale : 'vi'
+    locale = SUPPORTED.has(urlLocale)
+      ? urlLocale
+      : SUPPORTED.has(cookieLocale) ? cookieLocale : SUPPORTED.has(envLocale) ? envLocale : 'vi'
   } catch {
     locale = 'vi'
   }

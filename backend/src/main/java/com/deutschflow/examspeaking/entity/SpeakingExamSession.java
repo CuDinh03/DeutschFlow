@@ -27,13 +27,26 @@ public class SpeakingExamSession {
     public static final String MODE_MOCK = "MOCK";
 
     public static final String STATE_PREP = "PREP";
+    /**
+     * Đang thi một Teil. Chuyển Teil đi thẳng IN_PART → IN_PART trong cùng giao dịch (lời chuyển phần
+     * của Prüfer + mở Teil kế), nên KHÔNG có trạng thái nghỉ giữa hai phần. Hằng {@code BETWEEN} có từ
+     * Đợt 0 (V277 còn ghi trong chú thích cột) chưa từng được gán ở bất kỳ commit nào ⇒ đã gỡ 07/10/2026;
+     * cột {@code state} là VARCHAR không CHECK nên không có dòng cũ nào mang giá trị đó.
+     */
     public static final String STATE_IN_PART = "IN_PART";
-    public static final String STATE_BETWEEN = "BETWEEN";
     public static final String STATE_DONE = "DONE";
     public static final String STATE_GRADING = "GRADING";
     public static final String STATE_RESULTS = "RESULTS";
     /** Chấm nền thất bại (job FAILED/mồ côi) — client thấy lỗi thật + được chấm lại, không kẹt GRADING. */
     public static final String STATE_GRADING_FAILED = "GRADING_FAILED";
+    /**
+     * DÀNH SẴN cho "bỏ dở phiên" — CHƯA có đường nào ghi trạng thái này (07/10/2026). Giữ lại có chủ đích:
+     * web ({@code ExamRoom}) và mobile ({@code speaking-exam-room}) đã có màn hiển thị ABORTED trong bản
+     * đang phát hành, và {@link #isTerminal()} đã coi nó là terminal ⇒ khi nối writer (job quét phiên
+     * PREP/IN_PART bỏ dở, hoặc endpoint huỷ) thì không phải phát hành client. Hiện phiên PREP/IN_PART
+     * bị bỏ vẫn mở vô thời hạn: quay lại phòng là nói tiếp (DRILL) hoặc bị đẩy qua từng Teil đã quá giờ
+     * (MOCK, {@code assertAcceptsTurn}) rồi đóng/chấm như phiên thường.
+     */
     public static final String STATE_ABORTED = "ABORTED";
 
     /** Lý do phiên ở GRADING_FAILED — client hiện đúng thông điệp (F-08: hết quota ≠ job chết). */

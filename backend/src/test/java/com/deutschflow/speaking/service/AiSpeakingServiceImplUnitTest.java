@@ -1,6 +1,9 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.interview.service.OccupationSessionResolver;
+import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.AiParseOutcome;
 import com.deutschflow.speaking.ai.AiParseStatus;
@@ -68,6 +71,7 @@ class AiSpeakingServiceImplUnitTest {
     @Mock SpeakingStreamService speakingStreamService;
     @Mock SpeakingChatIdempotencyService chatIdempotencyService;
     @Mock com.deutschflow.teacher.service.SpeakingAssignmentLinkGuard speakingAssignmentLinkGuard;
+    @Mock OccupationSessionResolver occupationSessionResolver;
 
     @InjectMocks
     AiSpeakingServiceImpl service;
@@ -149,5 +153,38 @@ class AiSpeakingServiceImplUnitTest {
 
         verify(sessionTurnGuard, times(1)).tryAcquire(7L);
         verify(sessionTurnGuard, times(1)).release(7L);
+    }
+
+    // ── Đợt 2b (19/10/2026): phỏng vấn theo nghề ──
+
+    @Test
+    @DisplayName("mã nghề lạ → 400, không tạo phiên chung thay thế")
+    void unknownOccupationCodeIsRejected() {
+        when(occupationSessionResolver.resolve("khong-co")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createSession(1L, null, "B1", null, null, "INTERVIEW",
+                null, "1-2Y", null, "khong-co"))
+                .isInstanceOf(BadRequestException.class);
+        verify(sessionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("mã nghề → nhân vật + vị trí lấy theo danh mục, phiên ghi occupation_code, kích sinh lớp nghề")
+    void occupationCodeFillsPersonaPositionAndIsStoredOnTheSession() {
+        var kellner = new OccupationSessionResolver.SessionOccupation("kellner", "NIKLAS", "Kellner/in", true);
+        when(occupationSessionResolver.resolve("kellner")).thenReturn(Optional.of(kellner));
+        // Dừng ngay sau khi lưu phiên — phần chào hỏi đã có test riêng.
+        when(interviewDomainCoordinator.onSessionCreated(any())).thenThrow(new IllegalStateException("stop"));
+
+        assertThatThrownBy(() -> service.createSession(1L, null, "B1", null, null, "INTERVIEW",
+                null, "1-2Y", null, "kellner"))
+                .isInstanceOf(IllegalStateException.class);
+
+        org.mockito.ArgumentCaptor<AiSpeakingSession> saved = org.mockito.ArgumentCaptor.forClass(AiSpeakingSession.class);
+        verify(sessionRepository).save(saved.capture());
+        assertThat(saved.getValue().getPersona()).isEqualTo("NIKLAS");
+        assertThat(saved.getValue().getInterviewPosition()).isEqualTo("Kellner/in");
+        assertThat(saved.getValue().getOccupationCode()).isEqualTo("kellner");
+        verify(occupationSessionResolver).prepareContent(kellner);
     }
 }

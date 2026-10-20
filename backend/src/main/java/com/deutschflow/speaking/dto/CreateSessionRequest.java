@@ -16,5 +16,10 @@ public record CreateSessionRequest(
         @Size(max = 100) String interviewPosition,
         /** Interview mode only: candidate experience level (e.g. "0-6M", "6-12M", "1-2Y", "3Y", "5Y"). */
         @Size(max = 20) String experienceLevel,
-        Long assignmentId
+        Long assignmentId,
+        /**
+         * Interview mode only (đợt 2b, 19/10/2026): mã nghề trong {@code GET /api/public/occupations}.
+         * Có mã thì phiên dùng lớp câu hỏi theo nghề; persona/interviewPosition để trống sẽ lấy theo nghề.
+         */
+        @Size(max = 64) String occupationCode
 ) {}
