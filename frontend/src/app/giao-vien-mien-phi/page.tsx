@@ -5,22 +5,22 @@ import { Gift, Check, FileText, ScanLine, Award, Share2, Sparkles, GraduationCap
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://mydeutschflow.com').replace(/\/+$/, '')
 
 export const metadata: Metadata = {
-  title: 'Gói miễn phí cho giáo viên tiếng Đức — Chấm bài AI không giới hạn | DeutschFlow',
+  title: 'Gói miễn phí cho giáo viên tiếng Đức — Chấm bài viết bằng AI | myDeutschFlow',
   description:
-    'Giáo viên tiếng Đức tự do: chấm bài viết bằng AI không giới hạn, cấp chứng nhận đồng thương hiệu, '
-    + 'chia sẻ kết quả qua Zalo — hoàn toàn miễn phí. Đăng ký dạy với DeutschFlow.',
+    'Giáo viên tiếng Đức tự do: chấm bài viết bằng AI, cấp chứng nhận xác thực online cho học viên, '
+    + 'chia sẻ kết quả qua Zalo — miễn phí. Đăng ký dạy với myDeutschFlow.',
   alternates: { canonical: `${SITE_URL}/giao-vien-mien-phi/` },
   openGraph: {
-    title: 'Dạy tiếng Đức với AI — Miễn phí cho giáo viên tự do | DeutschFlow',
-    description: 'Chấm bài viết AI không giới hạn + chứng nhận đồng thương hiệu + chia sẻ Zalo. Miễn phí.',
+    title: 'Dạy tiếng Đức với AI — Miễn phí cho giáo viên tự do | myDeutschFlow',
+    description: 'Chấm bài viết bằng AI + chứng nhận xác thực online + chia sẻ Zalo. Miễn phí.',
     url: `${SITE_URL}/giao-vien-mien-phi/`,
     type: 'website',
   },
 }
 
 const FREE = [
-  { icon: <InfinityIcon size={18} />, title: 'Chấm bài viết (Schreiben) không giới hạn', desc: 'AI chấm điểm + nhận xét chi tiết cho mọi bài viết của học viên — không giới hạn số lượt.' },
-  { icon: <Award size={18} />, title: 'Chứng nhận đồng thương hiệu', desc: 'Cấp chứng nhận hoàn thành cho học viên, gắn tên/logo của bạn — in được, xác thực công khai.' },
+  { icon: <InfinityIcon size={18} />, title: 'Chấm bài viết (Schreiben) bằng AI', desc: 'AI chấm nháp điểm + nhận xét chi tiết cho bài viết của học viên, bạn xem lại và chốt. Không áp hạn mức ngày như chấm ảnh hay tạo bài giảng.' },
+  { icon: <Award size={18} />, title: 'Chứng nhận xác thực online', desc: 'Cấp chứng nhận hoàn thành cho học viên, ghi tên người cấp — in được, xác thực công khai bằng đường link.' },
   { icon: <Share2 size={18} />, title: 'Chia sẻ kết quả qua Zalo', desc: 'Mỗi bài chấm tạo một report đẹp để chia sẻ — học viên tự hào, bạn được lan toả.' },
   { icon: <GraduationCap size={18} />, title: 'Công cụ luyện thi đầy đủ', desc: 'Từ vựng, ngữ pháp, luyện nói AI, mock exam Goethe/telc — sẵn cho lớp của bạn.' },
 ]
@@ -43,7 +43,7 @@ export default function FreeTeacherLandingPage() {
             Dạy tiếng Đức với AI —<br />miễn phí cho giáo viên tự do
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">
-            Chấm bài viết không giới hạn, cấp chứng nhận mang thương hiệu của bạn, và chia sẻ kết quả —
+            Chấm bài viết bằng AI, cấp chứng nhận xác thực online cho học viên, và chia sẻ kết quả —
             không mất phí, không cần thẻ tín dụng.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -100,7 +100,7 @@ export default function FreeTeacherLandingPage() {
         <section className="mt-12 rounded-3xl bg-gradient-to-br from-emerald-800 to-emerald-950 p-8 text-center text-white">
           <h2 className="text-2xl font-black">Bắt đầu trong 2 phút</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-emerald-100">
-            Đăng ký tài khoản giáo viên, tạo lớp, và để AI lo phần chấm bài. Hoàn toàn miễn phí.
+            Đăng ký tài khoản giáo viên, tạo lớp, và để AI chấm nháp, bạn chốt điểm. Miễn phí.
           </p>
           <Link
             href="/v2/register"
@@ -111,7 +111,7 @@ export default function FreeTeacherLandingPage() {
         </section>
 
         <p className="mt-8 text-center text-xs text-slate-400">
-          DeutschFlow — nền tảng luyện thi tiếng Đức Goethe/telc với AI.
+          myDeutschFlow — luyện phỏng vấn và thi tiếng Đức với AI.
         </p>
       </div>
     </main>

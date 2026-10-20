@@ -21,9 +21,11 @@ import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE, pwStrength } from '../
 // động lực → nhịp học → quick win/placement → mentor). Trước đây chỗ này đá sang
 // /onboarding của v1 — chính là deep-link ngược cuối cùng của luồng đăng ký.
 //
-// Field map (Option-1): the proto's Họ/Tên → real `displayName` (joined); the
-// backend ALSO requires `phoneNumber` (VN format) + `locale`, so those are added
-// in proto style rather than omitted (can't drop a required field).
+// Field map (Option-1): the proto's Họ/Tên → real `displayName` (joined).
+// 18/10/2026 (đợt 0): `phoneNumber` KHÔNG bắt buộc ở backend (RegisterRequest: `^$|` + AuthService
+// lưu NULL khi trống, App Store 5.1.1(v)) — form trước bắt buộc chặt hơn backend, làm khách bỏ dở ở
+// bước đăng ký. Nay ô số điện thoại là tuỳ chọn, chỉ kiểm định dạng khi có nhập. Ô chọn `locale` đã gỡ:
+// gửi đúng ngôn ngữ đang hiển thị (khách đổi bằng LanguageToggle trên header nếu muốn).
 //
 // Chuỗi hiển thị: next-intl ('v2.auth.register.…') — /register legacy có 3 thứ tiếng, bản v2 này
 // hard-code tiếng Việt, nên phải dịch trước khi xoá v1 (nếu không, EN/DE mất bản dịch).
@@ -52,7 +54,7 @@ export default function V2RegisterPage() {
   // Mặc định ô "ngôn ngữ" = ngôn ngữ ĐANG hiển thị, không phải 'vi' cứng. GaAuthShell nay có
   // LanguageToggle, nên khách EN/DE đổi giao diện rồi đăng ký: nếu vẫn gửi locale='vi' thì tài khoản
   // bị ghim tiếng Việt, và ngay dòng dưới ta lại ghi đè cookie `locale=vi` → giao diện lật về tiếng
-  // Việt ngay sau khi đăng ký. Người dùng vẫn đổi được bằng tay ở select.
+  // Việt ngay sau khi đăng ký. Muốn ngôn ngữ khác thì đổi bằng LanguageToggle trên header.
   const initialLocale = useLocale()
   const [f, setF] = useState({ first: '', last: '', email: '', phone: '', pw: '', locale: initialLocale })
   const [errs, setErrs] = useState<FieldErrors>({})
@@ -68,11 +70,10 @@ export default function V2RegisterPage() {
     if (!f.last.trim()) e.last = t('register.givenNameRequired')
     if (!f.email.trim()) e.email = t('register.emailRequired')
     else if (!EMAIL_RE.test(f.email)) e.email = t('register.emailInvalid')
-    if (!f.phone.trim()) e.phone = t('register.phoneRequired')
-    // Chuẩn hoá TRƯỚC khi kiểm (F-07/F-08): `0912 345 678` và `+84912345678` là cách người dùng
-    // thật vẫn gõ — và cũng là cách autofill trình duyệt chèn. Backend vốn đã `.trim()`, nên form
-    // không được phép chặt hơn backend.
-    else if (!isValidVnPhone(f.phone)) e.phone = t('register.phoneInvalid')
+    // Số điện thoại tuỳ chọn: chỉ kiểm khi có nhập. Chuẩn hoá TRƯỚC khi kiểm (F-07/F-08):
+    // `0912 345 678` và `+84912345678` là cách người dùng thật vẫn gõ — và cũng là cách autofill
+    // trình duyệt chèn. Backend vốn đã `.trim()`, nên form không được phép chặt hơn backend.
+    if (f.phone.trim() && !isValidVnPhone(f.phone)) e.phone = t('register.phoneInvalid')
     if (!f.pw) e.pw = t('register.passwordRequired')
     else if (f.pw.length < 8) e.pw = t('register.passwordTooShort')
     setErrs(e)
@@ -85,8 +86,9 @@ export default function V2RegisterPage() {
       const displayName = `${f.first.trim()} ${f.last.trim()}`.trim()
       const { data } = await api.post('/auth/register', {
         email: f.email.trim(),
-        // Gửi đúng giá trị ĐÃ chuẩn hoá — cùng chuỗi mà isValidVnPhone() vừa chấp nhận.
-        phoneNumber: normalizeVnPhone(f.phone),
+        // Gửi đúng giá trị ĐÃ chuẩn hoá — cùng chuỗi mà isValidVnPhone() vừa chấp nhận. Bỏ trống thì
+        // gửi chuỗi rỗng: backend coi rỗng là "không có" và lưu NULL.
+        phoneNumber: f.phone.trim() ? normalizeVnPhone(f.phone) : '',
         password: f.pw,
         displayName,
         locale: f.locale,
@@ -176,7 +178,6 @@ export default function V2RegisterPage() {
           onChange={(v) => set('phone', v)}
           error={errs.phone}
           hint={t('register.phoneHint')}
-          required
         />
         <GaField
           name="new-password"
@@ -202,21 +203,6 @@ export default function V2RegisterPage() {
             </div>
           </div>
         )}
-
-        {/* Locale — backend stores it on the account; mirrors the legacy register select. */}
-        <div className="mb-4">
-          <label className="ga-ui mb-[7px] block text-[13px] font-semibold text-ga-ink">{t('register.localeLabel')}</label>
-          <select
-            value={f.locale}
-            onChange={(e) => set('locale', e.target.value)}
-            className="ga-ui block w-full rounded-ga border border-ga-line bg-ga-card px-[15px] py-3 text-[15px] text-ga-ink outline-none"
-          >
-            {/* Tên ngôn ngữ luôn viết bằng chính ngôn ngữ đó (endonym) — không dịch. */}
-            <option value="vi">🇻🇳 Tiếng Việt</option>
-            <option value="en">🇬🇧 English</option>
-            <option value="de">🇩🇪 Deutsch</option>
-          </select>
-        </div>
 
         <GaBtn type="submit" variant="yellow" size="lg" className="mb-3.5 mt-1.5 w-full" loading={loading} disabled={loading}>
           {loading ? t('register.submitting') : t('register.submit')}
