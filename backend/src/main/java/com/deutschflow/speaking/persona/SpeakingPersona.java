@@ -2,7 +2,9 @@ package com.deutschflow.speaking.persona;
 
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
 
+import java.util.Arrays;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * AI Speaking tutor personas (Module 10). Stored on {@code ai_speaking_sessions.persona} as enum name.
@@ -68,6 +70,19 @@ public enum SpeakingPersona {
     FELIX,     // Bürokaufmann (Azubi), A1-A2
     MIA,       // Social-Media-Assistentin, A1-A2
 
+    // ── Người tuyển dụng theo nơi làm việc (đợt 2c A+B+E, 20/10/2026) ──
+    // Phỏng vấn mọi nghề dùng bộ câu hỏi chung trong nhóm nơi làm việc (occupation.workplace);
+    // nghề là tham số (interviewPosition). Nghề có bộ viết tay vẫn dùng nhân vật cũ.
+    // Không phải mentor: không có trong FixedMentorResolver, không trả ở /interviews/personas.
+    HOFFMANN,  // gastro — Restaurantleiterin
+    KRUEGER,   // pflege — Pflegedienstleitung
+    BRANDT,    // bau — Bauleiter
+    WAGNER,    // industrie — Produktionsleiter / Meister
+    YILMAZ,    // logistik — Lagerleiter
+    SCHULZ,    // handel — Filialleiterin
+    BECKER,    // buero — Personalreferentin (HR)
+    RICHTER,   // bildung — Kita-/Schulleitung
+
     // ── Special Vietnamese tutors (LESSON mode) ──
     TUAN,      // "Anh bạn học nghề"
     LAN,       // "Chị đi trước"
@@ -114,7 +129,96 @@ public enum SpeakingPersona {
             case JULIA -> "Produktionshelferin in der Fertigung";
             case FELIX -> "Bürokaufmann in der Ausbildung";
             case MIA -> "Social-Media-Assistentin";
+            case HOFFMANN, KRUEGER, BRANDT, WAGNER, YILMAZ, SCHULZ, BECKER, RICHTER ->
+                    workplaceProfile(this).role();
         };
+    }
+
+    /**
+     * Nhóm nơi làm việc ({@code occupation.workplace}) của người tuyển dụng; {@code null} với mọi
+     * nhân vật khác (nhân vật cũ giữ nguyên, phiên cũ không đổi).
+     */
+    public String workplace() {
+        return switch (this) {
+            case HOFFMANN -> "gastro";
+            case KRUEGER -> "pflege";
+            case BRANDT -> "bau";
+            case WAGNER -> "industrie";
+            case YILMAZ -> "logistik";
+            case SCHULZ -> "handel";
+            case BECKER -> "buero";
+            case RICHTER -> "bildung";
+            default -> null;
+        };
+    }
+
+    public boolean isWorkplaceInterviewer() {
+        return workplace() != null;
+    }
+
+    /** Người tuyển dụng của một nhóm nơi làm việc. */
+    public static Optional<SpeakingPersona> forWorkplace(String workplace) {
+        if (workplace == null) {
+            return Optional.empty();
+        }
+        String w = workplace.trim().toLowerCase(Locale.ROOT);
+        return Arrays.stream(values()).filter(p -> w.equals(p.workplace())).findFirst();
+    }
+
+    /**
+     * Vai, bối cảnh trò chuyện và trọng tâm phỏng vấn của người tuyển dụng. Vai viết đủ rộng để
+     * hợp với mọi nghề trong nhóm (nhóm "bau" có cả Friseur, Kfz; "pflege" có cả Arzt, Apotheker).
+     */
+    private record WorkplaceProfile(String role, String scene, String interviewFocus) {}
+
+    private static WorkplaceProfile workplaceProfile(SpeakingPersona p) {
+        return switch (p) {
+            case HOFFMANN -> new WorkplaceProfile(
+                    "Restaurantleiterin und Personalverantwortliche in einem Hotelbetrieb",
+                    "Restaurant, Hotel, Küche, Service, Schichtplan, Gäste",
+                    "Gastgewerbe: Gästeorientierung, Hygiene und HACCP, Zusammenarbeit von Küche und Service, "
+                            + "Tempo in Stoßzeiten, Schicht- und Wochenendarbeit.");
+            case KRUEGER -> new WorkplaceProfile(
+                    "Pflegedienstleitung und Personalverantwortliche in einem Klinikverbund",
+                    "Station, Patienten, Bewohner, Übergabe, Pflegedokumentation, Schicht",
+                    "Gesundheit und Pflege: Umgang mit Patienten und Angehörigen, Hygiene, Dokumentation, Übergabe, "
+                            + "Notfälle, Schichtdienst, Anerkennung der Berufsqualifikation.");
+            case BRANDT -> new WorkplaceProfile(
+                    "Bauleiter und Handwerksmeister, der Fachkräfte für Bau und Handwerk einstellt",
+                    "Baustelle, Werkstatt, Werkzeug, Material, Auftrag, Kunde",
+                    "Bau und Handwerk: Arbeitssicherheit und Schutzausrüstung, Werkzeuge und Material, Pläne und "
+                            + "Aufträge lesen, Qualität der Arbeit, Termindruck, Umgang mit Kunden.");
+            case WAGNER -> new WorkplaceProfile(
+                    "Produktionsleiter und Meister in einem Industriebetrieb",
+                    "Halle, Maschine, Anlage, Schicht, Qualität, Wartung",
+                    "Industrie und Technik: Arbeitssicherheit, Maschinen und Anlagen, Qualitätskontrolle, Störungen, "
+                            + "technische Unterlagen, Schichtarbeit.");
+            case YILMAZ -> new WorkplaceProfile(
+                    "Lagerleiter und Personalverantwortlicher in einem Logistik- und Verkehrsunternehmen",
+                    "Lager, Palette, Stapler, Lieferschein, Tour, Fahrplan",
+                    "Logistik und Verkehr: Sicherheit, Pünktlichkeit, Lager- und Lieferprozesse, Fahrzeuge und "
+                            + "Berechtigungen, Kontakt mit Kunden und Fahrgästen, Schichtarbeit.");
+            case SCHULZ -> new WorkplaceProfile(
+                    "Filialleiterin im Einzelhandel",
+                    "Filiale, Kasse, Kunden, Ware, Regal, Inventur",
+                    "Handel und Verkauf: Kundenberatung, Kasse, Warenpflege, Reklamationen, Inventur, Teamarbeit.");
+            case BECKER -> new WorkplaceProfile(
+                    "Personalreferentin (HR) in einem mittelständischen Unternehmen",
+                    "Büro, Team, Projekt, Termin, Kunde, Besprechung",
+                    "Büro, IT und Dienstleistung: Fachkenntnisse der Position, Arbeitsorganisation, Kommunikation "
+                            + "mit Kunden und Kollegen, digitale Werkzeuge, Lernbereitschaft.");
+            case RICHTER -> new WorkplaceProfile(
+                    "Leiter einer Kita und Schule, verantwortlich für pädagogisches Personal",
+                    "Kita, Schule, Kinder, Eltern, Gruppe, Team",
+                    "Bildung und Soziales: pädagogische Haltung, Umgang mit Kindern, Jugendlichen und Eltern, "
+                            + "Kinderschutz, Teamarbeit, Dokumentation, Anerkennung von Abschlüssen.");
+            default -> throw new IllegalArgumentException("Not a workplace interviewer: " + p);
+        };
+    }
+
+    /** Trọng tâm phỏng vấn của người tuyển dụng; {@code null} với nhân vật khác. */
+    public String workplaceInterviewFocus() {
+        return isWorkplaceInterviewer() ? workplaceProfile(this).interviewFocus() : null;
     }
 
     /** Human-readable name for use in prompts. */
@@ -142,6 +246,14 @@ public enum SpeakingPersona {
             case JULIA -> "Julia";
             case FELIX -> "Felix";
             case MIA -> "Mia";
+            case HOFFMANN -> "Frau Hoffmann";
+            case KRUEGER -> "Frau Krüger";
+            case BRANDT -> "Herr Brandt";
+            case WAGNER -> "Herr Wagner";
+            case YILMAZ -> "Herr Yılmaz";
+            case SCHULZ -> "Frau Schulz";
+            case BECKER -> "Frau Becker";
+            case RICHTER -> "Herr Richter";
             case TUAN -> "Tuấn";
             case LAN -> "Lan";
             case MINH -> "Minh";
@@ -181,6 +293,8 @@ public enum SpeakingPersona {
                     "Büro, Termin, Telefon, E-Mail, Ordner, Kollege", userLevel);
             case MIA -> einstiegSection("Mia", "Social-Media-Assistentin",
                     "Foto, Video, Beitrag, Kommentar, Kanal, Termin", userLevel);
+            case HOFFMANN, KRUEGER, BRANDT, WAGNER, YILMAZ, SCHULZ, BECKER, RICHTER ->
+                    arbeitgeberSection(this, userLevel);
             case TUAN -> tuanSection(userLevel);
             case LAN -> lanSection(userLevel);
             case MINH -> minhSection(userLevel);
@@ -219,6 +333,8 @@ public enum SpeakingPersona {
             case NIKLAS, NINA -> serviceGreeting(this, t, industry, weakPointsStr);
             case HANNIE -> hannieGreeting(t, industry, weakPointsStr);
             case JONAS, MARIE, TIM, JULIA, FELIX, MIA -> einstiegGreeting(this, t, weakPointsStr);
+            case HOFFMANN, KRUEGER, BRANDT, WAGNER, YILMAZ, SCHULZ, BECKER, RICHTER ->
+                    arbeitgeberGreeting(this, t, weakPointsStr);
             case TUAN -> specialViGreeting("Tuấn", "mình", "bạn", t);
             case LAN -> specialViGreeting("chị Lan", "chị", "em", t);
             case MINH -> specialViGreeting("Minh", "mình", "bạn", t);
@@ -247,6 +363,8 @@ public enum SpeakingPersona {
             case JONAS -> lukasInterviewGreeting(pos, industry, weakPointsStr);
             case FELIX -> emmaInterviewGreeting(pos, industry, weakPointsStr);
             case MIA -> hannieInterviewGreeting(pos, industry, weakPointsStr);
+            case HOFFMANN, KRUEGER, BRANDT, WAGNER, YILMAZ, SCHULZ, BECKER, RICHTER ->
+                    arbeitgeberInterviewGreeting(p, pos, industry, weakPointsStr);
             // Special personas do not support INTERVIEW mode — fall back to default
             case TUAN, LAN, MINH -> defaultInterviewGreeting(pos, industry, weakPointsStr);
         };
@@ -531,6 +649,45 @@ public enum SpeakingPersona {
                   einfache Folgefrage — nie mehrere auf einmal.
                 - Lob & feedback (Vietnamesisch): sehr ermutigend; kleine Fortschritte ausdrücklich loben.
                 """.formatted(name, role, name, role, vocab, userLevel);
+    }
+
+    /**
+     * Khuôn cho người tuyển dụng theo nơi làm việc khi dùng ngoài phỏng vấn (trò chuyện như
+     * với người phụ trách ở chỗ làm). Phỏng vấn đi qua {@link #arbeitgeberInterviewGreeting}.
+     */
+    private static String arbeitgeberSection(SpeakingPersona p, String userLevel) {
+        WorkplaceProfile w = workplaceProfile(p);
+        return """
+                PERSONA (%s — %s):
+                - Rolle: Du bist %s, %s in Deutschland. Freundlich, klar, Sie-Form.
+                - Stimmung: professionell, interessiert an der Person und ihrer Erfahrung.
+                - Szenario-Anker: %s.
+                - ai_speech_de: klares Deutsch passend zu User_Level (%s); immer EINE Folgefrage.
+                - Lob & feedback (Vietnamesisch): sachlich, ermutigend.
+                """.formatted(p.displayName(), w.role(), p.displayName(), w.role(), w.scene(), userLevel);
+    }
+
+    private static String arbeitgeberGreeting(SpeakingPersona p, String topic, String weakPointsStr) {
+        return """
+                COMMUNICATION MODE — Gespräch mit %s (%s) am Arbeitsplatz.
+                Begrüße höflich auf Deutsch (JSON ai_speech_de), Sie-Form.
+                Thema: "%s". Grammatik kurz: "%s".
+                Stelle eine offene Frage — wie beim Kennenlernen im Betrieb.
+                KEIN Interview. Die suggestions sollen kurze, natürliche Antworten sein.
+                WICHTIG: NUR JSON.
+                """.formatted(p.displayName(), p.communicationRole(), topic, weakPointsStr);
+    }
+
+    private static String arbeitgeberInterviewGreeting(SpeakingPersona p, String position, String industry,
+                                                       String weakPointsStr) {
+        WorkplaceProfile w = workplaceProfile(p);
+        return """
+                Bewerbungsgespräch.
+                Du bist %s, %s. Position: "%s". Profil: "%s". Grammatik: "%s".
+                Fokus: %s
+                Begrüße höflich-professionell, stelle dich kurz vor und frage nach Erfahrung und Motivation für genau diese Position.
+                WICHTIG: NUR JSON.
+                """.formatted(p.displayName(), w.role(), position, industry, weakPointsStr, w.interviewFocus());
     }
 
     // ── Special Vietnamese Tutor Sections ───

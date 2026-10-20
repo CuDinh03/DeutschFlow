@@ -64,6 +64,15 @@ public class XttsPersonaVoiceResolver {
         m.put(SpeakingPersona.MARIE, "de-anna_women");
         m.put(SpeakingPersona.JULIA, "de-emma_women");
         m.put(SpeakingPersona.MIA, "de-emma_women");
+        // Người tuyển dụng theo nơi làm việc (đợt 2c)
+        m.put(SpeakingPersona.HOFFMANN, "de-emma_women");
+        m.put(SpeakingPersona.KRUEGER, "de-anna_women");
+        m.put(SpeakingPersona.BRANDT, "de-klaus_man");
+        m.put(SpeakingPersona.WAGNER, "de-klaus_man");
+        m.put(SpeakingPersona.YILMAZ, "de-lukas_man");
+        m.put(SpeakingPersona.SCHULZ, "de-emma_women");
+        m.put(SpeakingPersona.BECKER, "de-anna_women");
+        m.put(SpeakingPersona.RICHTER, "de-lukas_man");
         // TUAN / LAN / MINH: intentionally unmapped (Vietnamese tutors → on-device, Phase 1)
         return m;
     }

@@ -51,6 +51,10 @@ public class AiSpeakingSession {
     @Column(name = "interview_position", length = 100)
     private String interviewPosition;
 
+    /** Interview mode (đợt 2b, V335): mã nghề trong bảng {@code occupation}; null = phiên không theo nghề. */
+    @Column(name = "occupation_code", length = 64)
+    private String occupationCode;
+
     /** Interview mode: candidate experience level (e.g. "0-6M", "1-2Y", "5Y"). */
     @Column(name = "experience_level", length = 20)
     private String experienceLevel;
