@@ -27,6 +27,9 @@ export interface OnboardingDraft {
   targetLevel: string
   industry: string | null
   examType: string | null
+  /** Đợt 2e: nghề + ngày mốc. Vắng mặt ở draft cũ = null. */
+  occupationCode?: string | null
+  targetDate?: string | null
   /** Đợt 4 (18/09): phút/ngày như mobile — thay `weeklyTarget` của bản cũ. */
   dailyGoalMinutes: number
   /**
@@ -93,6 +96,8 @@ export function readOnboardingDraft(): OnboardingDraft | null {
       ...((PATH_CHOICES as readonly string[]).includes(d.pathChoice as string)
         ? { pathChoice: d.pathChoice as OnboardingDraft['pathChoice'] }
         : {}),
+      ...(typeof d.occupationCode === 'string' && d.occupationCode ? { occupationCode: d.occupationCode } : {}),
+      ...(typeof d.targetDate === 'string' && d.targetDate ? { targetDate: d.targetDate } : {}),
     }
   } catch {
     return null
