@@ -2,6 +2,7 @@ package com.deutschflow.user.dto;
 
 import jakarta.validation.constraints.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public record OnboardingProfileRequest(
@@ -41,6 +42,13 @@ public record OnboardingProfileRequest(
         /** Daily study-goal in minutes (e.g. 5/10/15/20) — the streak anchor. Optional. */
         @Min(value = 5, message = "dailyGoalMinutes must be >= 5")
         @Max(value = 120, message = "dailyGoalMinutes must be <= 120")
-        Integer dailyGoalMinutes
+        Integer dailyGoalMinutes,
+
+        /** Mã nghề trong danh mục công khai (đợt 2e). Optional; mã không có trong danh mục → bỏ qua. */
+        @Pattern(regexp = "^[a-z0-9_]{1,64}$", message = "occupationCode is invalid")
+        String occupationCode,
+
+        /** Ngày mốc (yyyy-MM-dd) — phỏng vấn, kỳ thi, ngày sang Đức. Optional; ngày đã qua → bỏ qua. */
+        LocalDate targetDate
 ) {}
 

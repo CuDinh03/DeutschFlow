@@ -21,5 +21,8 @@ public record LearningProfileResponse(
         String onboardingType,
         String upsellOptInAt,
         String motivation,
-        Integer dailyGoalMinutes
+        Integer dailyGoalMinutes,
+        String occupationCode,
+        /** yyyy-MM-dd hoặc null. */
+        String targetDate
 ) {}
