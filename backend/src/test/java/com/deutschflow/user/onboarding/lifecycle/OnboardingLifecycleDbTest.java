@@ -23,7 +23,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Đợt 6 §4.7 trên Postgres thật (V333): sổ {@code lifecycle_sends} chốt "một lần", thông báo vào
+ * Đợt 6 §4.7 trên Postgres thật (V337): sổ {@code lifecycle_sends} chốt "một lần", thông báo vào
  * {@code user_notifications}, giờ nhắc ghi qua {@code AuthService.updateProfile}, và
  * {@code DailyNotificationJob.hasLifecycleSendToday} thấy dòng sổ đó (điểm nối để bỏ nhắc chuỗi).
  */

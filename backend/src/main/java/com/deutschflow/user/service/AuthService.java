@@ -285,7 +285,7 @@ public class AuthService {
             user.setNotificationTimezone(zone);
         }
         if (req.reminderHourLocal() != null) {
-            // -1 = bỏ giờ nhắc (về mặc định 18h); 0–23 = giờ theo notificationTimezone (Đợt 6, V333).
+            // -1 = bỏ giờ nhắc (về mặc định 18h); 0–23 = giờ theo notificationTimezone (Đợt 6, V337).
             user.setReminderHourLocal(req.reminderHourLocal() < 0 ? null : req.reminderHourLocal());
         }
         userRepository.save(user);

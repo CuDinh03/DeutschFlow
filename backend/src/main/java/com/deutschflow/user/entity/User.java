@@ -57,7 +57,7 @@ public class User implements UserDetails {
     private String notificationTimezone = "Asia/Ho_Chi_Minh";
 
     /**
-     * Giờ nhắc học 0–23 theo {@code notificationTimezone} (Đợt 6 onboarding 19/09/2026, V333).
+     * Giờ nhắc học 0–23 theo {@code notificationTimezone} (Đợt 6 onboarding 19/09/2026, V337).
      * NULL = chưa chọn ⇒ nhắc chuỗi 18h như cũ. Mobile ghi 20 khi bật sheet nhắc học; web ghi ở checklist/Hồ sơ.
      */
     @Column(name = "reminder_hour_local")

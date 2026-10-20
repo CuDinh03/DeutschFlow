@@ -1,5 +1,5 @@
 -- ============================================================
--- V333: Đợt 6 kế hoạch onboarding 17/09/2026 (§4.7) — giờ nhắc theo người dùng + sổ gửi lifecycle
+-- V337: Đợt 6 kế hoạch onboarding 17/09/2026 (§4.7) — giờ nhắc theo người dùng + sổ gửi lifecycle
 --
 -- (1) users.reminder_hour_local — giờ nhắc học (0–23, theo notification_timezone của người dùng).
 --     NULL = chưa chọn ⇒ DailyNotificationJob giữ 18h như trước. Mobile ghi 20 khi bật sheet nhắc
@@ -8,7 +8,7 @@
 --     OnboardingLifecycleService INSERT … ON CONFLICT DO NOTHING rồi mới chèn thông báo; job chạy
 --     lại giờ sau không gửi trùng. Ngày có tin lifecycle thì STREAK_REMINDER 18h bị bỏ (luật hợp nhất).
 --
--- Ràng buộc thứ tự: V332 (ngân hàng placement) đã áp trên prod 19/09; file này là V333.
+-- Ràng buộc thứ tự: V332 (ngân hàng placement) đã áp trên prod 19/09; file này là V337.
 -- ============================================================
 
 ALTER TABLE users

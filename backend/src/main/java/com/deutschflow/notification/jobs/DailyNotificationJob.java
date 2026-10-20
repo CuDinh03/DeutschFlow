@@ -61,7 +61,7 @@ public class DailyNotificationJob {
                         tz = ZoneId.of("Asia/Ho_Chi_Minh");
                     }
                     int currentHour = ZonedDateTime.now(tz).getHour();
-                    // Đợt 6 (V333): giờ nhắc chuỗi = users.reminder_hour_local nếu người dùng đã chọn, không thì 18h;
+                    // Đợt 6 (V337): giờ nhắc chuỗi = users.reminder_hour_local nếu người dùng đã chọn, không thì 18h;
                     // ngày đã có tin lifecycle (lifecycle_sends) thì bỏ nhắc chuỗi — luật hợp nhất §4.7.
                     int streakHour = streakHourFor(row.get("reminder_hour_local"));
                     if (currentHour == REVIEW_DUE_HOUR) sendReviewDueIfNeeded(userId);
