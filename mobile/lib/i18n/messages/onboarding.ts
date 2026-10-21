@@ -21,9 +21,9 @@ export const onboardingMessages = defineMessages(
     },
     announce: {
       motivation: 'Bước 1 trên 4: Vì sao bạn học tiếng Đức?',
-      levels: 'Bước 2 trên 4: Bạn đang ở đâu, và muốn tới đâu?',
-      rhythm: 'Bước 3 trên 4: Mỗi ngày bao nhiêu phút?',
-      focus: 'Bước 4 trên 4: Lĩnh vực hoặc kỳ thi của bạn.',
+      levels: 'Bước 3 trên 4: Bạn đang ở đâu, và muốn tới đâu?',
+      rhythm: 'Bước 4 trên 4: Mỗi ngày bao nhiêu phút?',
+      focus: 'Bước 2 trên 4: Lĩnh vực hoặc kỳ thi của bạn.',
     },
     goal: {
       cap: 'Bước 1 / 4 · Mục tiêu',
@@ -40,7 +40,7 @@ export const onboardingMessages = defineMessages(
       hobby: { label: 'Sở thích', desc: 'Học cho chính mình' },
     },
     level: {
-      cap: 'Bước 2 / 4 · Trình độ',
+      cap: 'Bước 3 / 4 · Trình độ',
       title: 'Bạn đang ở đâu — và muốn tới đâu?',
       current: 'Hiện tại',
       target: 'Mục tiêu',
@@ -50,7 +50,7 @@ export const onboardingMessages = defineMessages(
       estimateFallback: 'Lộ trình sẽ được dựng riêng cho chặng này của bạn.',
     },
     rhythm: {
-      cap: 'Bước 3 / 4 · Nhịp học',
+      cap: 'Bước 4 / 4 · Nhịp học',
       title: 'Mỗi ngày bao nhiêu phút?',
       sub: 'Chuỗi ngày học (streak) tính theo mức này — chọn mức bạn giữ được lâu dài.',
       goal5: 'Tranh thủ',
@@ -64,10 +64,10 @@ export const onboardingMessages = defineMessages(
       reminderGuest: 'Bật sau khi tạo tài khoản — đổi giờ được trong Cài đặt.',
     },
     focus: {
-      workCap: 'Bước 4 / 4 · Lĩnh vực',
+      workCap: 'Bước 2 / 4 · Lĩnh vực',
       workTitle: 'Bạn sẽ dùng tiếng Đức ở đâu?',
       workSub: 'Không bắt buộc — giúp chọn mentor và tình huống luyện nói sát nghề.',
-      examCap: 'Bước 4 / 4 · Kỳ thi',
+      examCap: 'Bước 2 / 4 · Kỳ thi',
       examTitle: 'Bạn nhắm kỳ thi nào?',
       examSub: 'Không bắt buộc — đề luyện và dạng bài sẽ bám theo format kỳ thi này.',
       occupationLabel: 'Nghề của bạn',
@@ -140,9 +140,9 @@ export const onboardingMessages = defineMessages(
       },
       announce: {
         motivation: 'Step 1 of 4: Why are you learning German?',
-        levels: 'Step 2 of 4: Where are you now, and where do you want to go?',
-        rhythm: 'Step 3 of 4: How many minutes a day?',
-        focus: 'Step 4 of 4: Your field or your exam.',
+        levels: 'Step 3 of 4: Where are you now, and where do you want to go?',
+        rhythm: 'Step 4 of 4: How many minutes a day?',
+        focus: 'Step 2 of 4: Your field or your exam.',
       },
       goal: {
         cap: 'Step 1 / 4 · Goal',
@@ -159,7 +159,7 @@ export const onboardingMessages = defineMessages(
         hobby: { label: 'Hobby', desc: 'Learning for yourself' },
       },
       level: {
-        cap: 'Step 2 / 4 · Level',
+        cap: 'Step 3 / 4 · Level',
         title: 'Where are you now — and where do you want to go?',
         current: 'Current',
         target: 'Target',
@@ -169,7 +169,7 @@ export const onboardingMessages = defineMessages(
         estimateFallback: 'Your roadmap will be built just for this stretch.',
       },
       rhythm: {
-        cap: 'Step 3 / 4 · Pace',
+        cap: 'Step 4 / 4 · Pace',
         title: 'How many minutes a day?',
         sub: 'Your streak is counted against this — pick a level you can keep up long term.',
         goal5: 'Quick',
@@ -183,10 +183,10 @@ export const onboardingMessages = defineMessages(
         reminderGuest: 'Turns on after you create an account — change the time in Settings.',
       },
       focus: {
-        workCap: 'Step 4 / 4 · Field',
+        workCap: 'Step 2 / 4 · Field',
         workTitle: 'Where will you use German?',
         workSub: 'Optional — helps pick a mentor and job-specific speaking scenarios.',
-        examCap: 'Step 4 / 4 · Exam',
+        examCap: 'Step 2 / 4 · Exam',
         examTitle: 'Which exam are you aiming for?',
         examSub: 'Optional — practice tests and task types will follow this exam format.',
         occupationLabel: 'Your occupation',
@@ -258,9 +258,9 @@ export const onboardingMessages = defineMessages(
       },
       announce: {
         motivation: 'Schritt 1 von 4: Warum lernst du Deutsch?',
-        levels: 'Schritt 2 von 4: Wo stehst du, und wohin willst du?',
-        rhythm: 'Schritt 3 von 4: Wie viele Minuten pro Tag?',
-        focus: 'Schritt 4 von 4: Dein Fachgebiet oder deine Prüfung.',
+        levels: 'Schritt 3 von 4: Wo stehst du, und wohin willst du?',
+        rhythm: 'Schritt 4 von 4: Wie viele Minuten pro Tag?',
+        focus: 'Schritt 2 von 4: Dein Fachgebiet oder deine Prüfung.',
       },
       goal: {
         cap: 'Schritt 1 / 4 · Ziel',
@@ -277,7 +277,7 @@ export const onboardingMessages = defineMessages(
         hobby: { label: 'Hobby', desc: 'Lernen für mich selbst' },
       },
       level: {
-        cap: 'Schritt 2 / 4 · Niveau',
+        cap: 'Schritt 3 / 4 · Niveau',
         title: 'Wo stehst du – und wohin willst du?',
         current: 'Aktuell',
         target: 'Ziel',
@@ -287,7 +287,7 @@ export const onboardingMessages = defineMessages(
         estimateFallback: 'Dein Lernweg wird genau für diese Etappe erstellt.',
       },
       rhythm: {
-        cap: 'Schritt 3 / 4 · Lernrhythmus',
+        cap: 'Schritt 4 / 4 · Lernrhythmus',
         title: 'Wie viele Minuten pro Tag?',
         sub: 'Deine Lernserie (Streak) richtet sich danach – wähle ein Pensum, das du dauerhaft schaffst.',
         goal5: 'Zwischendurch',
@@ -301,10 +301,10 @@ export const onboardingMessages = defineMessages(
         reminderGuest: 'Wird nach dem Erstellen deines Kontos aktiviert – die Uhrzeit änderst du in den Einstellungen.',
       },
       focus: {
-        workCap: 'Schritt 4 / 4 · Fachgebiet',
+        workCap: 'Schritt 2 / 4 · Fachgebiet',
         workTitle: 'Wo wirst du Deutsch brauchen?',
         workSub: 'Optional – hilft bei der Wahl des Mentors und berufsnaher Sprechsituationen.',
-        examCap: 'Schritt 4 / 4 · Prüfung',
+        examCap: 'Schritt 2 / 4 · Prüfung',
         examTitle: 'Welche Prüfung hast du im Blick?',
         examSub: 'Optional – Übungstests und Aufgabentypen folgen dem Format dieser Prüfung.',
         occupationLabel: 'Dein Beruf',

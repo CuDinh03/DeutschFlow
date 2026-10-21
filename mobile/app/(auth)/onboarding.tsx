@@ -54,8 +54,8 @@ import { onboardingMessages, type OnboardingMessageKey } from '@/lib/i18n/messag
 // first practice session.
 //
 // UI v2 (design 2026-09-02, docs/design/onboarding-mobile-v2): form một trang
-// cuộn dài → wizard 4 bước (mục tiêu → trình độ → nhịp học → lĩnh vực/kỳ thi)
-// với mentor reveal ở bước cuối. Logic submit/draft/resume/analytics GIỮ NGUYÊN
+// cuộn dài → wizard 4 bước; K2 (21/10/2026) đổi thứ tự thành mục tiêu → nghề/kỳ thi + ngày mốc
+// → trình độ → nhịp học, với mentor reveal ở bước cuối (nhịp). Logic submit/draft/resume/analytics GIỮ NGUYÊN
 // — chỉ trình bày đổi; quyết định bước nằm ở lib/onboardingSteps.ts (có test).
 
 type GoalType = 'WORK' | 'CERT'
@@ -181,7 +181,7 @@ export default function OnboardingScreen() {
     AccessibilityInfo.announceForAccessibility(t(STEP_ANNOUNCEMENTS[ONBOARDING_STEP_IDS[step]]))
   }, [step, t])
 
-  // Danh mục nghề tải khi tới bước 4 của nhánh đi làm; lỗi/chưa có endpoint → giữ sáu ngành cũ.
+  // Danh mục nghề tải khi tới bước nghề (bước 2) của nhánh đi làm; lỗi/chưa có endpoint → giữ sáu ngành cũ.
   useEffect(() => {
     if (stepId !== 'focus' || goalType !== 'WORK' || occupationCatalog) return
     let active = true
@@ -544,7 +544,7 @@ export default function OnboardingScreen() {
   }
 
   const focusIsWork = goalType === 'WORK'
-  const showSkip = isLastStep && (focusIsWork ? !industry && !occupationCode : !examType) && !targetDate
+  const showSkip = stepId === 'focus' && (focusIsWork ? !industry && !occupationCode : !examType) && !targetDate
   const locale = getDeviceLocale()
   const selectedOccupation = occupationCatalog?.find((o) => o.code === occupationCode) ?? null
   const occupationResults = occupationCatalog ? searchOccupations(occupationCatalog, occupationQuery, 6) : []
@@ -684,6 +684,7 @@ export default function OnboardingScreen() {
                   </ThemedText>
                 </View>
               </Card>
+              {mentor ? <MentorRevealCard mentor={mentor} /> : null}
             </>
           )}
 
@@ -798,7 +799,6 @@ export default function OnboardingScreen() {
                   </View>
                 ) : null}
               </View>
-              {mentor ? <MentorRevealCard mentor={mentor} /> : null}
             </>
           )}
         </MotiView>
