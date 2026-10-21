@@ -2,7 +2,7 @@
 // that use the parametrized IllustratedPersonaCharacter on web (thomas/sarah/hannie/
 // minh) fall through to the parametrized PersonaCharacter — matching web exactly.
 
-import type { PersonaId } from '@/lib/personas'
+import { WORKPLACE_INTERVIEWERS, isWorkplaceInterviewerId, type StagePersonaId } from '@/lib/workplaceInterviewers'
 import { personaVariants } from '@/lib/personaVariants'
 import { PersonaCharacter, type PersonaExpression } from './PersonaCharacter'
 import { LukasCharacter, type CharExpression } from './characters/LukasCharacter'
@@ -21,13 +21,17 @@ import { TuanCharacter } from './characters/TuanCharacter'
 import { LanCharacter } from './characters/LanCharacter'
 
 interface PersonaAvatarProps {
-  personaId: PersonaId
+  personaId: StagePersonaId
   expression?: string
   isTalking?: boolean
   paused?: boolean
 }
 
 export function PersonaAvatar({ personaId, expression = 'neutral', isTalking = false, paused = false }: PersonaAvatarProps) {
+  // K3: người tuyển dụng theo nơi làm việc — khung tham số như web (WorkplaceInterviewerCharacter).
+  if (isWorkplaceInterviewerId(personaId)) {
+    return <PersonaCharacter variant={WORKPLACE_INTERVIEWERS[personaId].variant} expression={expression as PersonaExpression} isTalking={isTalking} paused={paused} />
+  }
   switch (personaId) {
     case 'lukas':
       return <LukasCharacter expression={expression as CharExpression} isTalking={isTalking} paused={paused} />

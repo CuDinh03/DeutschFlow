@@ -54,7 +54,8 @@ import { DEFAULT_BAND } from '@/lib/learnerBand'
 import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
 import { MessageBubble } from '@/components/speaking/MessageBubble'
 import { ScreenHeader } from '@/components/speaking/ScreenHeader'
-import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
+import { PERSONA_TOKENS } from '@/lib/personas'
+import { resolveStagePersona } from '@/lib/workplaceInterviewers'
 import {
   reactionFor,
   emptyConversationReport,
@@ -338,9 +339,8 @@ export default function SpeakingScreen() {
   }
   const userTurns = messages.filter((m) => m.role === 'user').length
 
-  const personaCode = session?.persona?.toLowerCase()
-  const personaId: PersonaId =
-    personaCode && personaCode in PERSONA_TOKENS ? (personaCode as PersonaId) : 'lukas'
+  // K3: người tuyển dụng theo nơi làm việc (KRUEGER…) có hình riêng; mã lạ vẫn về Lukas.
+  const personaId = resolveStagePersona(session?.persona)
 
   function scrollToEnd() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }))

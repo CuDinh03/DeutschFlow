@@ -4,7 +4,7 @@
 
 import { View } from 'react-native'
 import { MotiView } from 'moti'
-import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
+import { stagePersonaInfo, type StagePersonaId } from '@/lib/workplaceInterviewers'
 import { space, useTheme } from '@/lib/theme'
 import { ThemedText } from '@/components/ui'
 import { PersonaBubbleAvatar } from './PersonaBubbleAvatar'
@@ -13,7 +13,7 @@ export type StageState = 'idle' | 'listening' | 'thinking' | 'speaking'
 export type Reaction = 'praise' | 'approve' | 'wrong' | 'offtopic' | null
 
 interface PersonaStageProps {
-  personaId: PersonaId
+  personaId: StagePersonaId
   stage: StageState
   reaction: Reaction
 }
@@ -21,7 +21,7 @@ interface PersonaStageProps {
 export function PersonaStage({ personaId, stage, reaction }: PersonaStageProps) {
   const theme = useTheme()
   const c = theme.colors
-  const token = PERSONA_TOKENS[personaId]
+  const token = stagePersonaInfo(personaId)
 
   const expression =
     reaction === 'praise' ? 'laughing'
