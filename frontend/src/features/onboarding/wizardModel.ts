@@ -3,8 +3,10 @@ import type { GuestAnswers } from '@/lib/guestSessionStore'
 /**
  * Mô hình bước của wizard onboarding web — Đợt 4 (kế hoạch 17/09/2026 §4.4 W1–W4, gap W-18).
  *
- * Thứ tự và trường KHỚP mobile (`mobile/lib/onboardingSteps.ts`, UI v2 #463): mục tiêu → trình độ
- * (A0 chọn sẵn + thẻ hành trình) → nhịp (`dailyGoalMinutes` 5/10/15/20) → lĩnh vực/kỳ thi + mentor.
+ * Thứ tự và trường KHỚP mobile (`mobile/lib/onboardingSteps.ts`): mục tiêu → nghề/kỳ thi + ngày mốc
+ * → trình độ (A0 chọn sẵn + thẻ hành trình) → nhịp (`dailyGoalMinutes` 5/10/15/20) + mentor.
+ * Thứ tự A+B+E (quyết định 18/10/2026, K2 21/10): hành trình → nghề → ngày mốc → trình độ → nhịp →
+ * thử một câu (TASTE) → đăng ký (AUTH_GATE). Mentor reveal ở bước CUỐI vì cần đủ nghề + trình độ.
  * `weeklyTarget` của bản cũ bỏ hẳn: `sessionsPerWeek`/`minutesPerSession` là hằng 5×15 như mobile,
  * `learningSpeed` NORMAL — hai client gửi cùng một hợp đồng (spec §5.1 `OnboardingAnswers`).
  *
@@ -12,7 +14,7 @@ import type { GuestAnswers } from '@/lib/guestSessionStore'
  * trình và hình dạng payload không nằm trong JSX.
  */
 
-export const WIZARD_STEP_IDS = ['motivation', 'level', 'rhythm', 'focus'] as const
+export const WIZARD_STEP_IDS = ['motivation', 'focus', 'level', 'rhythm'] as const
 export type WizardStepId = (typeof WIZARD_STEP_IDS)[number]
 export const WIZARD_STEP_COUNT = WIZARD_STEP_IDS.length
 

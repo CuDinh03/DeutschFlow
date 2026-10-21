@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { DAILY_GOAL_OPTIONS } from "../wizardModel";
 import { cardCls, headingCls, subCls, tileCls } from "./stepStyles";
@@ -9,11 +9,16 @@ interface Props {
   value: number;
   onChange: (minutes: number) => void;
   currentLevel: string;
+  /** Thẻ mentor reveal do trang cha dựng (cần preview API + upsell theo gói). */
+  mentorCard?: ReactNode;
   headingRef: RefObject<HTMLHeadingElement>;
 }
 
-/** Bước 3 — "Mỗi ngày bao nhiêu phút?" (`dailyGoalMinutes`, neo của streak — khớp mobile). */
-export function RhythmStep({ value, onChange, currentLevel, headingRef }: Props) {
+/**
+ * Bước 4 (cuối) — "Mỗi ngày bao nhiêu phút?" (`dailyGoalMinutes`, neo của streak — khớp mobile).
+ * Mentor reveal nằm ở cuối bước này — đỉnh cảm xúc của phễu, lúc đã biết nghề + trình độ.
+ */
+export function RhythmStep({ value, onChange, currentLevel, mentorCard, headingRef }: Props) {
   const t = useTranslations("v2.onboarding");
   return (
     <fieldset className={cardCls}>
@@ -34,6 +39,7 @@ export function RhythmStep({ value, onChange, currentLevel, headingRef }: Props)
         ? <div className="rounded-ga border border-ga-green bg-ga-green-soft p-3"><p className="text-ga-caption text-ga-ink">{t.rich("pace.noteA0", { b: (chunks) => <strong>{chunks}</strong> })}</p></div>
         : <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3"><p className="text-ga-caption text-ga-ink">{t.rich("pace.notePlacement", { b: (chunks) => <strong>{chunks}</strong> })}</p></div>
       }
+      {mentorCard}
     </fieldset>
   );
 }
