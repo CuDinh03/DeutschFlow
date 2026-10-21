@@ -33,11 +33,11 @@ describe('W10 — checklist tuần đầu (trạng thái từ server)', () => {
     expect(c.hiddenReason).toBe('no_row')
   })
 
-  it('A0 vừa claim, chưa làm gì ⇒ ba mục: Ngày 1 · chặng đầu · nói thử, chưa tích ô nào', () => {
+  it('A0 vừa claim, chưa làm gì ⇒ bốn mục: Ngày 1 · chặng đầu · nói thử · giờ nhắc, chưa tích ô nào', () => {
     const c = buildStarterChecklist(progress({}), { level: 'A0', now: NOW })
     expect(c.visible).toBe(true)
-    expect(c.items.map((i) => i.key)).toEqual(['first_lesson', 'roadmap_node', 'mock_exam'])
-    expect(c.items.map((i) => i.href)).toEqual([BEGINNER_ROUTE, ROADMAP_ROUTE, MOCK_EXAM_ROUTE])
+    expect(c.items.map((i) => i.key)).toEqual(['first_lesson', 'roadmap_node', 'mock_exam', 'reminder'])
+    expect(c.items.slice(0, 3).map((i) => i.href)).toEqual([BEGINNER_ROUTE, ROADMAP_ROUTE, MOCK_EXAM_ROUTE])
     expect(c.doneCount).toBe(0)
   })
 
@@ -65,19 +65,27 @@ describe('W10 — checklist tuần đầu (trạng thái từ server)', () => {
       activatedAt: '2026-09-18T09:00:00Z',
     })
     const c = buildStarterChecklist(p, { level: 'A2', now: NOW })
-    expect(c.items.map((i) => i.done)).toEqual([true, true, false])
+    expect(c.items.map((i) => i.done)).toEqual([true, true, false, false])
     expect(c.doneCount).toBe(2)
     expect(c.visible).toBe(true)
   })
 
-  it('đủ ba ô ⇒ ẩn (all_done)', () => {
+  it('đủ ba bài + đã đặt giờ nhắc ⇒ ẩn (all_done); thiếu giờ nhắc thì vẫn hiện', () => {
     const p = progress({
       completedActivities: ['FIRST_LESSON:BEGINNER_SESSION', 'FIRST_LESSON:ROADMAP_NODE', 'FIRST_LESSON:MOCK_EXAM'],
       activatedAt: '2026-09-19T09:00:00Z',
     })
-    const c = buildStarterChecklist(p, { level: 'A0', now: NOW })
+    const c = buildStarterChecklist(p, { level: 'A0', reminderHourLocal: 20, now: NOW })
     expect(c.visible).toBe(false)
     expect(c.hiddenReason).toBe('all_done')
+    const still = buildStarterChecklist(p, { level: 'A0', reminderHourLocal: null, now: NOW })
+    expect(still.visible).toBe(true)
+    expect(still.items[3]).toMatchObject({ key: 'reminder', done: false })
+  })
+
+  it('mục giờ nhắc tích khi reminderHourLocal là số (kể cả 0)', () => {
+    expect(buildStarterChecklist(progress({}), { level: 'A0', reminderHourLocal: 0, now: NOW }).items[3].done).toBe(true)
+    expect(buildStarterChecklist(progress({}), { level: 'A0', reminderHourLocal: undefined, now: NOW }).items[3].done).toBe(false)
   })
 
   it(`quá ${STARTER_WINDOW_DAYS} ngày kể từ activatedAt ⇒ ẩn (expired); đúng 7 ngày vẫn hiện`, () => {

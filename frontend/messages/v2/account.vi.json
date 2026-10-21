@@ -92,7 +92,11 @@
       "confirmDeleteDesc": "Thao tác này không thể hoàn tác.",
       "confirmDeleteDetail1": "Toàn bộ tiến độ, bài nộp, điểm và tin nhắn của bạn sẽ bị xoá.",
       "confirmDeleteDetail2": "Gói đăng ký đang chạy KHÔNG tự huỷ — hãy huỷ trong App Store trước khi xoá.",
-      "confirmDeleteDetail3": "Bạn sẽ bị đăng xuất ngay và tài khoản không khôi phục lại được."
+      "confirmDeleteDetail3": "Bạn sẽ bị đăng xuất ngay và tài khoản không khôi phục lại được.",
+      "fieldReminderHour": "Giờ nhắc học",
+      "reminderHourHint": "Một thông báo mỗi ngày vào giờ này (theo múi giờ ở trên). Để trống = nhắc lúc 18:00 khi bạn chưa học.",
+      "reminderHourNone": "Mặc định (18:00)",
+      "reminderHourAt": "{hour}:00"
     },
     "payment": {
       "title": "Nâng cấp gói",

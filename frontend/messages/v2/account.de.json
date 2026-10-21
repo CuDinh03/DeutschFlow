@@ -92,7 +92,11 @@
       "confirmDeleteDesc": "Das lässt sich nicht rückgängig machen.",
       "confirmDeleteDetail1": "Ihr gesamter Fortschritt, Einreichungen, Bewertungen und Nachrichten werden gelöscht.",
       "confirmDeleteDetail2": "Ein laufendes Abo wird NICHT automatisch gekündigt — kündigen Sie es zuerst im App Store.",
-      "confirmDeleteDetail3": "Sie werden sofort abgemeldet; das Konto lässt sich nicht wiederherstellen."
+      "confirmDeleteDetail3": "Sie werden sofort abgemeldet; das Konto lässt sich nicht wiederherstellen.",
+      "fieldReminderHour": "Uhrzeit der Lernerinnerung",
+      "reminderHourHint": "Eine Benachrichtigung pro Tag zu dieser Uhrzeit (in der Zeitzone oben). Leer lassen = Standarderinnerung um 18:00 Uhr, wenn du noch nicht gelernt hast.",
+      "reminderHourNone": "Standard (18:00 Uhr)",
+      "reminderHourAt": "{hour}:00 Uhr"
     },
     "payment": {
       "title": "Tarif upgraden",

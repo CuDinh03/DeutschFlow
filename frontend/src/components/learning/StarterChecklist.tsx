@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, BookOpen, CheckCircle2, Map, Mic, Target } from 'lucide-react'
+import { ArrowRight, BellRing, BookOpen, CheckCircle2, Map, Mic, Target } from 'lucide-react'
 import api from '@/lib/api'
-import { getMyLearningProfile } from '@/lib/profileApi'
+import { getMyLearningProfile, updateProfile } from '@/lib/profileApi'
 import { useTracking } from '@/hooks/useTracking'
-import { GaCap, GaProgress } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaProgress } from '@/components/ui-v2'
 import {
+  DEFAULT_REMINDER_HOUR,
+  REMINDER_HOURS,
   buildStarterChecklist,
   type OnboardingProgress,
   type StarterChecklist as StarterChecklistModel,
@@ -19,9 +21,13 @@ import {
  * W10 — Checklist tuần đầu trên dashboard (`HOME_WEEK1`, Đợt 4 PR-3 19/09/2026).
  *
  * Tự tải, tự ẩn: `GET /onboarding/progress` (trạng thái tích ô — nguồn thật, đồng bộ mobile) +
- * `GET /onboarding/me/profile` (trình độ, để mục đầu là Ngày 1 hay Kiểm tra đầu vào). Không có hàng
- * progress / lỗi tải / đã xong / quá 7 ngày ⇒ render null, dashboard không đổi gì. Luật ở
- * `features/onboarding/starterChecklist.ts` (có test); đây chỉ là vỏ.
+ * `GET /onboarding/me/profile` (trình độ, để mục đầu là Ngày 1 hay Kiểm tra đầu vào) +
+ * `GET /profile/me` (giờ nhắc đã đặt chưa — W11, Đợt 6). Không có hàng progress / lỗi tải / đã xong /
+ * quá 7 ngày ⇒ render null, dashboard không đổi gì. Luật ở `features/onboarding/starterChecklist.ts`
+ * (có test); đây chỉ là vỏ.
+ *
+ * W11 (Đợt 6): mục "Đặt giờ nhắc" mở ô chọn giờ ngay tại chỗ → `PATCH /profile/me {reminderHourLocal}`;
+ * server dùng giờ này cho nhắc chuỗi + lifecycle. Không xin Notification API trình duyệt (G-5).
  */
 
 const ICON: Record<StarterItemKey, typeof BookOpen> = {
@@ -29,23 +35,57 @@ const ICON: Record<StarterItemKey, typeof BookOpen> = {
   placement: Target,
   roadmap_node: Map,
   mock_exam: Mic,
+  reminder: BellRing,
 }
 
 export function StarterChecklist() {
   const t = useTranslations('v2.student.dashboard.starter')
   const { trackEvent } = useTracking()
   const [model, setModel] = useState<StarterChecklistModel | null>(null)
+  const [progress, setProgress] = useState<OnboardingProgress | null>(null)
+  const [level, setLevel] = useState<string | null>(null)
+  const [reminderHour, setReminderHour] = useState<number>(DEFAULT_REMINDER_HOUR)
+  const [savedHour, setSavedHour] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [reminderError, setReminderError] = useState(false)
+  const aliveRef = useRef(true)
 
   useEffect(() => {
     let alive = true
-    Promise.allSettled([api.get<OnboardingProgress>('/onboarding/progress'), getMyLearningProfile()])
-      .then(([p, profile]) => {
-        if (!alive || p.status !== 'fulfilled') return
-        const level = profile.status === 'fulfilled' ? profile.value?.currentLevel : null
-        setModel(buildStarterChecklist(p.value.data, { level }))
-      })
-    return () => { alive = false }
+    aliveRef.current = true
+    Promise.allSettled([
+      api.get<OnboardingProgress>('/onboarding/progress'),
+      getMyLearningProfile(),
+      api.get<{ reminderHourLocal?: number | null }>('/profile/me'),
+    ]).then(([p, profile, me]) => {
+      if (!alive || p.status !== 'fulfilled') return
+      const lv = profile.status === 'fulfilled' ? profile.value?.currentLevel ?? null : null
+      const hour = me.status === 'fulfilled' && typeof me.value.data?.reminderHourLocal === 'number' ? me.value.data.reminderHourLocal : null
+      setProgress(p.value.data)
+      setLevel(lv)
+      setSavedHour(hour)
+      if (hour !== null) setReminderHour(hour)
+      setModel(buildStarterChecklist(p.value.data, { level: lv, reminderHourLocal: hour }))
+    })
+    return () => { alive = false; aliveRef.current = false }
   }, [])
+
+  async function saveReminder() {
+    if (saving) return
+    setSaving(true)
+    setReminderError(false)
+    try {
+      await updateProfile({ reminderHourLocal: reminderHour })
+      trackEvent('onboarding_reminder_hour_set', { hour: reminderHour, surface: 'starter_checklist' })
+      if (!aliveRef.current) return
+      setSavedHour(reminderHour)
+      setModel(buildStarterChecklist(progress, { level, reminderHourLocal: reminderHour }))
+    } catch {
+      if (aliveRef.current) setReminderError(true)
+    } finally {
+      if (aliveRef.current) setSaving(false)
+    }
+  }
 
   if (!model || !model.visible) return null
   const total = model.items.length
@@ -78,7 +118,44 @@ export function StarterChecklist() {
                   <CheckCircle2 size={16} />
                 </span>
                 <span className="ga-ui min-w-0 flex-1 text-ga-small text-ga-muted line-through">{label}</span>
-                <span className="text-ga-caption text-ga-green">{t('done')}</span>
+                <span className="text-ga-caption text-ga-green">
+                  {item.key === 'reminder' && savedHour !== null
+                    ? t('reminderHour', { hour: String(savedHour).padStart(2, '0') })
+                    : t('done')}
+                </span>
+              </li>
+            )
+          }
+          if (item.key === 'reminder') {
+            return (
+              <li key={item.key} className="py-3" data-testid="starter-item-reminder" data-done="false">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-ga-pill border border-ga-line bg-ga-bg text-ga-muted" aria-hidden="true">
+                    <Icon size={15} />
+                  </span>
+                  <span className="ga-ui min-w-0 flex-1 text-ga-small font-bold text-ga-ink">{label}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 pl-11">
+                  <label className="ga-ui text-ga-caption text-ga-muted" htmlFor="starter-reminder-hour">{t('reminderLabel')}</label>
+                  <select
+                    id="starter-reminder-hour"
+                    data-testid="starter-reminder-hour"
+                    className="h-9 rounded-ga border border-ga-line bg-ga-card px-2 text-ga-small text-ga-ink"
+                    value={reminderHour}
+                    onChange={(e) => setReminderHour(Number(e.target.value))}
+                    disabled={saving}
+                  >
+                    {REMINDER_HOURS.map((h) => (
+                      <option key={h} value={h}>{t('reminderHour', { hour: String(h).padStart(2, '0') })}</option>
+                    ))}
+                  </select>
+                  <GaBtn variant="primary" size="sm" loading={saving} onClick={saveReminder} data-testid="starter-reminder-save">
+                    {t('reminderSave')}
+                  </GaBtn>
+                </div>
+                {reminderError && (
+                  <p className="mt-1 pl-11 text-ga-caption text-ga-red" role="alert">{t('reminderError')}</p>
+                )}
               </li>
             )
           }
