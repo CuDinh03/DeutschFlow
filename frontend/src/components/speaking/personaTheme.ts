@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { workplaceInterviewer } from "@/lib/workplaceInterviewers";
 
 export type SpeakingPersonaVisualId =
   | "DEFAULT"
@@ -68,6 +69,18 @@ export function getPersonaV2VisualTokens(id: SpeakingPersonaVisualId): PersonaV2
         border: "rgba(34,211,238,0.22)",
       };
   }
+}
+
+/**
+ * Màu persona theo mã thô của phiên — gồm cả người tuyển dụng theo nơi làm việc (K3b), vốn không có
+ * trong `SpeakingPersonaVisualId` (normalize sẽ đưa về DEFAULT, sai màu).
+ */
+export function speakingPersonaVisualTokens(raw: string | null | undefined): PersonaV2VisualTokens {
+  const w = workplaceInterviewer(raw);
+  if (w) {
+    return { accent: w.accent, glow: `${w.accent}59`, bubble: w.accent, border: `${w.accent}40` };
+  }
+  return getPersonaV2VisualTokens(normalizeSpeakingPersona(raw));
 }
 
 export function normalizeSpeakingPersona(raw: string | null | undefined): SpeakingPersonaVisualId {

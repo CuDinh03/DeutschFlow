@@ -129,6 +129,12 @@ describe("companionFromPersonaId", () => {
     expect(companionFromPersonaId("", "B1")).toBeNull();
   });
 
+  it("K3b: người tuyển dụng theo nơi làm việc (KRUEGER) dựng được companion, không bị chặn khôi phục", async () => {
+    const { companionFromPersonaId } = await import("@/lib/speaking/resumeSession");
+    const c = companionFromPersonaId("KRUEGER", "B1");
+    expect(c).toMatchObject({ id: "krueger", name: "Frau Krüger", voiceId: "KRUEGER", personality: "Pflegedienstleitung" });
+  });
+
   it("thiếu cefrLevel thì rơi về B1 chứ không để undefined lọt vào engine", async () => {
     const { companionFromPersonaId } = await import("@/lib/speaking/resumeSession");
     expect(companionFromPersonaId("emma", null)?.cefrLevel).toBe("B1");

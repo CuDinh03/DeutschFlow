@@ -394,6 +394,13 @@
         "tooSoon": "Vui lòng chờ vài giây trước khi tạo phiên mới.",
         "server": "Máy chủ đang gặp sự cố. Vui lòng thử lại sau.",
         "generic": "Không thể tạo phiên luyện nói. Vui lòng thử lại!"
+      },
+      "occupation": {
+        "cap": "Phỏng vấn theo nghề của bạn",
+        "interviewer": "Người phỏng vấn: {name}",
+        "hint": "Câu hỏi theo đúng nghề bạn chọn. Đổi nghề trong Hồ sơ học tập.",
+        "start": "Bắt đầu phỏng vấn",
+        "or": "Hoặc chọn người phỏng vấn khác bên dưới"
       }
     },
     "personas": {

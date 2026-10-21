@@ -1,5 +1,6 @@
 import type { AiMessage } from "@/lib/aiSpeakingApi";
 import { PERSONA_TOKENS } from "@/lib/personas";
+import { workplaceInterviewer } from "@/lib/workplaceInterviewers";
 import type { ChatMessage } from "@/stores/useChatStore";
 import type { AiCompanion } from "@/types/ai-speaking";
 
@@ -78,7 +79,19 @@ export function companionFromPersonaId(
 ): AiCompanion | null {
   if (!persona) return null;
   const token = PERSONA_TOKENS[persona.toLowerCase() as keyof typeof PERSONA_TOKENS];
-  if (!token) return null;
+  if (!token) {
+    // K3b: người tuyển dụng theo nơi làm việc (phiên theo nghề) — không có trong PERSONA_TOKENS.
+    const w = workplaceInterviewer(persona);
+    if (!w) return null;
+    return {
+      id: w.code.toLowerCase(),
+      name: w.name,
+      avatarUrl: "/companions/default.png",
+      voiceId: w.code,
+      personality: w.role,
+      cefrLevel: cefrLevel ?? "B1",
+    };
+  }
 
   return {
     id: token.id,

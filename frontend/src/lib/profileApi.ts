@@ -80,6 +80,10 @@ export interface LearningProfileData {
   levelSource: string | null;          // SELF | PLACEMENT — provenance of currentLevel
   onboardingType: string | null;       // archetype O1-O5 the learner was routed through
   upsellOptInAt: string | null;        // when the learner opted in to PRO-upgrade emails (iOS handoff)
+  /** Đợt 2e: mã nghề trong danh mục công khai (null = chưa chọn / ngoài danh mục). */
+  occupationCode?: string | null;
+  /** Đợt 2e: ngày mốc `yyyy-MM-dd` hoặc null. */
+  targetDate?: string | null;
 }
 
 /** Onboarding routing decision for the (platform, level) cell of the design §4 matrix. */

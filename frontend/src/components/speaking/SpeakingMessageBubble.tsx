@@ -13,8 +13,8 @@ import { SpeakingPersonaMiniAvatar } from "./SpeakingPersonaMiniAvatar";
 import { SpeakingFeedbackCompact } from "@/components/features/ai-speaking/SpeakingFeedbackCompact";
 import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 import {
-  getPersonaV2VisualTokens,
   normalizeSpeakingPersona,
+  speakingPersonaVisualTokens,
   personaActionChipClasses,
   type PersonaV2VisualTokens,
 } from "./personaTheme";
@@ -61,7 +61,7 @@ export function SpeakingMessageBubble({
   // Warm paper only — the dark chat shell is gone, so there is a single appearance.
   const L = SPEAKING_LIGHT;
   const pid = normalizeSpeakingPersona(personaId ?? undefined);
-  const v2Tokens = personaV2Tokens ?? getPersonaV2VisualTokens(pid);
+  const v2Tokens = personaV2Tokens ?? speakingPersonaVisualTokens(personaId);
   // Persona hue, darkened for text / tinted for fills (lib/personaPaper).
   const accentInk = personaInk(v2Tokens.accent);
   const actionChips = isV2 ? parseActionChips(msg.action ?? undefined) : [];
