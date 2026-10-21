@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useMemo, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { occupationApi } from "@/lib/occupationApi";
 import { occupationName, searchOccupations, type OccupationSummary } from "@/lib/occupationTypes";
@@ -19,8 +19,6 @@ interface Props {
   /** Đợt 2e: chọn/bỏ nghề trong danh mục công khai — trang cha suy `industry` từ nhóm nơi làm việc. */
   onChangeOccupation: (occupation: OccupationSummary | null) => void;
   onChangeTargetDate: (date: string | null) => void;
-  /** Thẻ mentor reveal do trang cha dựng (cần preview API + upsell theo gói). */
-  mentorCard?: ReactNode;
   headingRef: RefObject<HTMLHeadingElement>;
 }
 
@@ -35,13 +33,13 @@ function currentMonth(): string {
 }
 
 /**
- * Bước 4 — nghề (WORK) hoặc kỳ thi (CERT), KHÔNG bắt buộc như mobile: bấm lại để bỏ chọn.
+ * Bước 2 — nghề (WORK) hoặc kỳ thi (CERT), KHÔNG bắt buộc như mobile: bấm lại để bỏ chọn.
  * Đợt 2e: WORK hỏi nghề trong danh mục công khai (~150 nghề); danh mục chưa tải được thì giữ sáu ngành
- * cũ. Cả hai nhánh hỏi thêm ngày mốc theo tháng. Mentor reveal nằm ở cuối bước — đỉnh cảm xúc của phễu.
+ * cũ. Cả hai nhánh hỏi thêm ngày mốc theo tháng. Mentor reveal đã chuyển sang bước cuối (nhịp) ở K2.
  */
 export function FocusStep({
   goalType, industry, examType, occupationCode, targetDate, locale,
-  onChangeIndustry, onChangeExam, onChangeOccupation, onChangeTargetDate, mentorCard, headingRef,
+  onChangeIndustry, onChangeExam, onChangeOccupation, onChangeTargetDate, headingRef,
 }: Props) {
   const t = useTranslations("v2.onboarding");
   const isWork = goalType === "WORK";
@@ -154,7 +152,6 @@ export function FocusStep({
           )}
         </div>
       </div>
-      {mentorCard}
     </fieldset>
   );
 }

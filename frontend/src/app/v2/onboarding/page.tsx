@@ -166,7 +166,7 @@ function V2OnboardingFunnel() {
     } catch { /* mentor preview is non-blocking */ }
   }, [isGuest, goalType, industry, currentLevel]);
 
-  // Mentor reveal sống ở bước 4 (và cổng tài khoản): xem trước cập nhật theo lĩnh vực đang chọn.
+  // Mentor reveal sống ở bước cuối — nhịp (và cổng tài khoản): lúc này đã biết nghề + trình độ (K2).
   useEffect(() => {
     if (step >= WIZARD_STEP_COUNT) void fetchMentor();
   }, [step, fetchMentor]);
@@ -468,12 +468,13 @@ function V2OnboardingFunnel() {
       trackOnboardingStep('Select Goal', 1, { motivation, goalType });
       trackEvent('onboarding_motivation_selected', { motivation, goalType });
     }
-    if (step === 2) trackOnboardingStep('Select Level', 2, { currentLevel, targetLevel });
-    if (step === 3) {
-      trackOnboardingStep('Select Target', 3, { dailyGoalMinutes });
+    // Tên sự kiện giữ nguyên; số bước là vị trí thật trong thứ tự hiện hành (K2 đổi thứ tự 21/10/2026).
+    if (stepId === 'level') trackOnboardingStep('Select Level', step, { currentLevel, targetLevel });
+    if (stepId === 'rhythm') {
+      trackOnboardingStep('Select Target', step, { dailyGoalMinutes });
       trackEvent('onboarding_daily_goal_set', { minutes: dailyGoalMinutes });
     }
-    if (step === 4) trackOnboardingStep('Select Focus', 4, { goalType, industry, examType, targetLevel, occupationCode, hasTargetDate: !!targetDate });
+    if (stepId === 'focus') trackOnboardingStep('Select Focus', step, { goalType, industry, examType, targetLevel, occupationCode, hasTargetDate: !!targetDate });
 
     if (!isLastWizardStep) { setStep((s) => s + 1); return; }
 
@@ -597,7 +598,7 @@ function V2OnboardingFunnel() {
 
           {stepId === "rhythm" && (
             <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
-              <RhythmStep value={dailyGoalMinutes} onChange={(m) => patch({ dailyGoalMinutes: m })} currentLevel={currentLevel} headingRef={headingRef} />
+              <RhythmStep value={dailyGoalMinutes} onChange={(m) => patch({ dailyGoalMinutes: m })} currentLevel={currentLevel} mentorCard={mentorCard} headingRef={headingRef} />
             </motion.div>
           )}
 
@@ -614,7 +615,6 @@ function V2OnboardingFunnel() {
                 onChangeExam={(e) => patch({ examType: e })}
                 onChangeOccupation={(o) => patch({ occupationCode: o?.code ?? null, industry: o ? industryForOccupation(o) : null })}
                 onChangeTargetDate={(d) => patch({ targetDate: d })}
-                mentorCard={mentorCard}
                 headingRef={headingRef}
               />
             </motion.div>

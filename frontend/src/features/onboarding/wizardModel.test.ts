@@ -16,8 +16,8 @@ import {
 } from './wizardModel'
 
 describe('thứ tự bước', () => {
-  it('mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi — đúng thứ tự mobile UI v2', () => {
-    expect(WIZARD_STEP_IDS).toEqual(['motivation', 'level', 'rhythm', 'focus'])
+  it('mục tiêu → nghề/kỳ thi + ngày mốc → trình độ → nhịp — thứ tự A+B+E (K2), khớp mobile', () => {
+    expect(WIZARD_STEP_IDS).toEqual(['motivation', 'focus', 'level', 'rhythm'])
   })
 
   it('progressbar: người đã đăng nhập 4 bước; khách A0 thêm quick win + cổng tài khoản = 6; khách A1+ thêm Chọn đường = 7', () => {
