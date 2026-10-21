@@ -117,7 +117,7 @@ function ProfileBody() {
   const [timezone, setTimezone] = useState('Asia/Ho_Chi_Minh')
   // Đợt 6 (W11): '' = chưa chọn (server NULL ⇒ 18:00 mặc định); số = giờ 0–23.
   const [reminderHour, setReminderHour] = useState<number | ''>('')
-  // Chỉ gửi reminderHourLocal khi /profile/me đã tải được: tải lỗi mà vẫn Lưu thì -1 sẽ xoá giờ đã đặt (review #701).
+  // Chỉ gửi reminderHourLocal khi /profile/me đã tải được: tải lỗi mà vẫn Lưu thì -1 sẽ xoá giờ đã đặt (review PR 701).
   const [reminderLoaded, setReminderLoaded] = useState(false)
   const [savingInfo, setSavingInfo] = useState(false)
 

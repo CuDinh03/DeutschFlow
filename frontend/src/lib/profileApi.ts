@@ -37,7 +37,7 @@ export interface PersonalProfileData {
   /** true = đã có ngày sinh ⇒ chỉ đọc, muốn sửa phải qua trung tâm/hỗ trợ. */
   birthDateLocked: boolean;
   notificationTimezone: string | null;
-  /** Giờ nhắc học 0–23 theo múi giờ; null = chưa chọn (Đợt 6, V333). */
+  /** Giờ nhắc học 0–23 theo múi giờ; null = chưa chọn (Đợt 6, V337). */
   reminderHourLocal: number | null;
 }
 
