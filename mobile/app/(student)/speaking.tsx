@@ -357,11 +357,13 @@ export default function SpeakingScreen() {
         topic: args.topic,
         cefrLevel: args.cefrLevel,
         // N2: bài giao gửi 'DEFAULT' (gia sư trung tính, như web) dù stage vẽ một persona có sẵn.
-        persona: args.backendPersona ?? args.persona.id.toUpperCase(),
+        // K3b: phỏng vấn theo nghề không gửi persona — backend chọn theo occupationCode.
+        persona: args.backendPersona ?? args.persona?.id.toUpperCase() ?? null,
         sessionMode: args.sessionMode,
         interviewPosition: args.interviewPosition ?? null,
         experienceLevel: args.experienceLevel ?? null,
         assignmentId: args.assignmentId ?? null,
+        occupationCode: args.occupationCode ?? null,
       })
       const greeting = created.initialAiMessage?.aiSpeechDe ?? 'Hallo! Erzählen Sie mir von sich.'
       // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi luyện nói" khi tạo phiên thành công.

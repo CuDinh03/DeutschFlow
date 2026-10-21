@@ -19,6 +19,8 @@ export function useLearnerLevel(options: { enabled?: boolean } = {}) {
   return {
     currentLevel: q.data?.currentLevel ?? null,
     targetLevel: q.data?.targetLevel ?? null,
+    /** K3b: nghề đã chọn ở onboarding — màn Nói mở thẻ "Phỏng vấn theo nghề của bạn". */
+    occupationCode: q.data?.occupationCode ?? null,
     settled: !enabled || q.isSuccess || q.isError,
   }
 }

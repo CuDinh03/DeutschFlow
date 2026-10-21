@@ -19,6 +19,19 @@ export async function fetchOccupations(): Promise<OccupationSummary[]> {
   return Array.isArray(data) ? data : []
 }
 
+/** Phần của `GET /api/public/occupations/{code}` mà app cần để mở phỏng vấn theo nghề (K3b). */
+export interface OccupationInterviewInfo {
+  occupation: OccupationSummary
+  /** Mã SpeakingPersona sẽ phỏng vấn nghề này (nhân vật viết tay hoặc người tuyển dụng theo nơi làm việc). */
+  personaCode: string
+  interviewPosition: string
+}
+
+export async function fetchOccupationInterviewInfo(code: string): Promise<OccupationInterviewInfo> {
+  const { data } = await api.get<OccupationInterviewInfo>(`/public/occupations/${encodeURIComponent(code)}`)
+  return data
+}
+
 /** So khớp không phân biệt hoa thường, dấu tiếng Việt và umlaut tiếng Đức. */
 export function foldText(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase()
