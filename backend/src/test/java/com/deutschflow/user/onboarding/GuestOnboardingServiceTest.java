@@ -195,6 +195,38 @@ class GuestOnboardingServiceTest {
     }
 
     @Test
+    @DisplayName("Đợt 2e: nghề + ngày mốc trong snapshot khách đi tới hồ sơ; ngày sai định dạng thành null")
+    void claimReplaysOccupationAndTargetDate() {
+        User u = user(45L);
+        Map<String, Object> answers = new LinkedHashMap<>();
+        answers.put("targetLevel", "B1");
+        answers.put("goalType", "WORK");
+        answers.put("occupationCode", "altenpfleger");
+        answers.put("targetDate", "2027-03-01");
+
+        when(sessionRepository.claim(eq(SID), eq(45L), any())).thenReturn(1);
+        when(sessionRepository.findById(SID))
+                .thenReturn(Optional.of(session(45L, Instant.now().plusSeconds(3600), answers)));
+        when(progressRepository.findById(45L)).thenReturn(Optional.empty());
+        when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.claim(u, SID.toString(), "WEB");
+
+        ArgumentCaptor<OnboardingProfileRequest> captor =
+                ArgumentCaptor.forClass(OnboardingProfileRequest.class);
+        verify(learningPlanService).saveProfileAndGeneratePlan(eq(u), captor.capture(), eq("WEB"));
+        assertThat(captor.getValue().occupationCode()).isEqualTo("altenpfleger");
+        assertThat(captor.getValue().targetDate()).isEqualTo(java.time.LocalDate.of(2027, 3, 1));
+
+        answers.put("targetDate", "mai nhé");
+        org.mockito.Mockito.clearInvocations(learningPlanService);
+        when(sessionRepository.claim(eq(SID), eq(45L), any())).thenReturn(1);
+        service.claim(u, SID.toString(), "WEB");
+        verify(learningPlanService).saveProfileAndGeneratePlan(eq(u), captor.capture(), eq("WEB"));
+        assertThat(captor.getValue().targetDate()).isNull();
+    }
+
+    @Test
     @DisplayName("B-8: answers có minutesPerSession thì dùng đúng giá trị client gửi")
     void claimReplaysExplicitCadence() {
         User u = user(44L);

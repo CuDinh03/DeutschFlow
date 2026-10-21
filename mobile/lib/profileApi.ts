@@ -75,6 +75,8 @@ export interface PersonalProfile {
   /** true = đã ghi ⇒ chỉ đọc; muốn sửa phải qua trung tâm hoặc hỗ trợ. */
   birthDateLocked: boolean
   notificationTimezone: string | null
+  /** Giờ nhắc học đã ghi trên server; null = chưa (Đợt 6). */
+  reminderHourLocal: number | null
 }
 
 export const profileApi = {
@@ -83,7 +85,8 @@ export const profileApi = {
 
   me: async (): Promise<PersonalProfile> => (await api.get<PersonalProfile>('/profile/me')).data,
 
-  update: async (patch: { displayName?: string; phoneNumber?: string }) =>
+  /** `reminderHourLocal`: 0–23 theo múi giờ máy; -1 = bỏ (Đợt 6, V333) — server dùng cho nhắc chuỗi + lifecycle. */
+  update: async (patch: { displayName?: string; phoneNumber?: string; reminderHourLocal?: number }) =>
     (await api.patch('/profile/me', patch)).data,
 
   /**

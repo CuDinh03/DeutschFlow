@@ -60,6 +60,13 @@ export const STUDENT_NOTIFICATION_TYPES = [
   'SYSTEM_MAINTENANCE',
   'BIRTH_DATE_UPDATED',
   'REPORT_ISSUED',
+  // Đợt 6 onboarding (19/09/2026 §4.7): lifecycle tuần đầu + trial — mỗi (user, key) một lần.
+  'ONBOARDING_D0_WELCOME',
+  'ONBOARDING_D1_NEXT_LESSON',
+  'ONBOARDING_D3_CHECKIN',
+  'ONBOARDING_D7_SUMMARY',
+  'TRIAL_ENDING_SOON',
+  'TRIAL_ENDED',
 ] as const
 
 export function notificationTypeLabel(type: string): string {
@@ -72,6 +79,18 @@ export function notificationTypeLabel(type: string): string {
       return 'Ôn tập hôm nay'
     case 'STREAK_REMINDER':
       return 'Chuỗi học tập'
+    case 'ONBOARDING_D0_WELCOME':
+      return 'Bạn đã bắt đầu rồi!'
+    case 'ONBOARDING_D1_NEXT_LESSON':
+      return 'Bài tiếp theo chỉ 5 phút'
+    case 'ONBOARDING_D3_CHECKIN':
+      return 'Ngày thứ ba của bạn'
+    case 'ONBOARDING_D7_SUMMARY':
+      return 'Tuần đầu đã xong'
+    case 'TRIAL_ENDING_SOON':
+      return 'PRO miễn phí sắp hết'
+    case 'TRIAL_ENDED':
+      return 'Thời gian dùng thử đã kết thúc'
     case 'NEW_ASSIGNMENT':
     case 'NEW_CLASS_ASSIGNMENT':
       return 'Bài tập mới'
@@ -148,6 +167,14 @@ export function notificationIconKey(type: string): NotificationIconKey {
       return 'review'
     case 'STREAK_REMINDER':
       return 'streak'
+    case 'ONBOARDING_D0_WELCOME':
+    case 'ONBOARDING_D1_NEXT_LESSON':
+    case 'ONBOARDING_D3_CHECKIN':
+    case 'ONBOARDING_D7_SUMMARY':
+      return 'streak'
+    case 'TRIAL_ENDING_SOON':
+    case 'TRIAL_ENDED':
+      return 'plan'
     case 'NEW_ASSIGNMENT':
     case 'NEW_CLASS_ASSIGNMENT':
       return 'assignment'

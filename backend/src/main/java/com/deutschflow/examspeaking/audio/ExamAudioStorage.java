@@ -1,6 +1,6 @@
 package com.deutschflow.examspeaking.audio;
 
-import com.deutschflow.config.AwsS3Properties;
+import com.deutschflow.config.S3StorageProperties;
 import com.deutschflow.media.service.S3StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +31,7 @@ public class ExamAudioStorage {
     private static final Duration PLAYBACK_TTL = Duration.ofHours(1);
 
     private final S3StorageService s3;
-    private final AwsS3Properties s3Props;
+    private final S3StorageProperties s3Props;
 
     public boolean isEnabled() {
         return s3Props.isConfigured();

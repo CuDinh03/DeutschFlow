@@ -117,10 +117,48 @@
       "rejectPlaceholder": "Rejection reason (optional)…",
       "reject": "Reject"
     },
+    "occupationReview": {
+      "title": "Review occupation questions",
+      "subtitle": "{count} occupations listed",
+      "hint": "AI writes 6 professional-skills questions and 6 job terms for every occupation that uses the general question set. “AI-generated” questions are still asked in sessions; rejected ones are never asked again. A German teacher reviews the language; for the first 10 occupations, someone working in that job in Germany reads them too.",
+      "refresh": "Refresh",
+      "loadError": "Could not load the review queue",
+      "emptyQueue": "Nothing in this status.",
+      "status": {
+        "AI_GENERATED": "AI-generated",
+        "APPROVED": "Reviewed",
+        "REJECTED": "Rejected"
+      },
+      "difficulty": {
+        "BEGINNER": "Easy",
+        "INTERMEDIATE": "Medium",
+        "ADVANCED": "Hard"
+      },
+      "field": {
+        "termDe": "German term",
+        "meaningVi": "Vietnamese meaning",
+        "meaningEn": "English meaning",
+        "exampleDe": "Example sentence"
+      },
+      "sessions": "{count} sessions chose it",
+      "questions": "Professional-skills questions",
+      "terms": "Job terms",
+      "approve": "Approve",
+      "reject": "Reject",
+      "edit": "Edit",
+      "saveApprove": "Save and approve",
+      "cancel": "Cancel",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "notePlaceholder": "Note (optional)…",
+      "generate": "Generate more",
+      "generatePlaceholder": "Occupation code, e.g. maurer",
+      "generated": "Generated {questions} questions and {terms} new terms"
+    },
     "media": {
       "loadDataError": "Could not load the media library.",
       "catWordImage": "Vocabulary image",
-      "catAiImage": "AI image (Bedrock)",
+      "catAiImage": "AI image",
       "catVideoScene": "Lesson video scene",
       "catPersona": "HR avatar",
       "catAvatar": "User avatar",

@@ -45,8 +45,11 @@ export function GaAuthShell({
             tức là mọi máy hẹp hơn (360px của phần lớn Android, 320px máy cũ) đều hỏng, và 375px
             thì chỉ cần người dùng phóng to cỡ chữ là hỏng theo.
             Dưới 390px chỉ hiện dấu hiệu thương hiệu — vẫn là link về trang chủ, vẫn giữ nguyên
-            aria-label. Từ 390px (iPhone 14/15/16 trở lên) chữ hiện lại đầy đủ, còn dư ~16px. */}
-        <Link href="/" aria-label="DeutschFlow" className="inline-flex min-w-0 shrink">
+            aria-label.
+            QA 18/10/2026: ở đúng 390px vẫn đè — LanguageToggle (~135px) + "← Trang chủ" (~85px) +
+            logo 161px + đệm vượt 390px, ô "VI" che chữ "Flow". Dưới `sm` ẩn link "Trang chủ"
+            (logo đã là link về trang chủ), header còn ~340px nên hở ~50px. */}
+        <Link href="/" aria-label="myDeutschFlow" className="inline-flex min-w-0 shrink">
           <GaLogo className="max-[389px]:hidden" />
           <GaLogo markOnly className="hidden max-[389px]:inline-flex" />
         </Link>
@@ -58,7 +61,7 @@ export function GaAuthShell({
           {showBackToLanding && (
             <Link
               href="/"
-              className="ga-ui inline-flex min-h-11 items-center whitespace-nowrap text-[13.5px] text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
+              className="ga-ui hidden min-h-11 items-center whitespace-nowrap text-[13.5px] text-ga-muted transition-colors hover:text-ga-ink sm:inline-flex lg:min-h-0"
             >
               {t('shell.backHome')}
             </Link>

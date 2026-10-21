@@ -40,8 +40,27 @@ export function goalTypeFor(motivation: string): GoalType {
   return MOTIVATIONS.find((m) => m.value === motivation)?.goal ?? 'WORK'
 }
 
-/** Cùng danh sách với mobile (`INDUSTRIES` trong onboarding.tsx) — nhãn ở catalog `focus.industry.<mã>`. */
+/**
+ * Cùng danh sách với mobile (`INDUSTRIES` trong onboarding.tsx) — nhãn ở catalog `focus.industry.<mã>`.
+ * Đợt 2e: web hỏi NGHỀ (danh mục công khai); sáu ngành này chỉ còn là đường lùi khi danh mục chưa tải được.
+ */
 export const INDUSTRIES = ['IT', 'Pflege', 'Gastronomie', 'Verkauf', 'Tourismus', 'Technik'] as const
+
+/**
+ * `industry` gửi kèm khi người học chọn nghề — backend vẫn chọn mentor theo `industry` (IndustryFamily
+ * so khớp từ khoá), nên quy nhóm nơi làm việc về đúng từ khoá họ ngành mentor đang hiểu. Nghề IT trong
+ * nhóm văn phòng nhận "IT" để mentor là Jonas/Lukas chứ không phải Felix/Emma.
+ */
+const WORKPLACE_INDUSTRY: Record<string, string> = {
+  gastro: 'Gastronomie', pflege: 'Pflege', bau: 'Technik', industrie: 'Technik',
+  logistik: 'Technik', handel: 'Verkauf', buero: 'Büro', bildung: 'Bildung',
+}
+const IT_NAME = /entwickl|informatik|devops|software|daten|it-support|it-/i
+
+export function industryForOccupation(o: { workplace: string; nameDe: string }): string | null {
+  if (o.workplace === 'buero' && IT_NAME.test(o.nameDe)) return 'IT'
+  return WORKPLACE_INDUSTRY[o.workplace] ?? null
+}
 export const EXAMS = ['GOETHE', 'TELC', 'TESTDAF'] as const
 
 export interface WizardAnswers {
@@ -52,6 +71,10 @@ export interface WizardAnswers {
   /** Không bắt buộc (như mobile): null = chưa chọn/bỏ qua. */
   industry: string | null
   examType: string | null
+  /** Đợt 2e: mã nghề trong danh mục công khai (null = chưa chọn / dùng sáu ngành dự phòng). */
+  occupationCode: string | null
+  /** Đợt 2e: ngày mốc `yyyy-MM-dd` (ô chọn tháng → ngày 01), không bắt buộc. */
+  targetDate: string | null
 }
 
 export const DEFAULT_ANSWERS: WizardAnswers = {
@@ -61,6 +84,8 @@ export const DEFAULT_ANSWERS: WizardAnswers = {
   dailyGoalMinutes: DEFAULT_DAILY_GOAL_MINUTES,
   industry: null,
   examType: null,
+  occupationCode: null,
+  targetDate: null,
 }
 
 /**
@@ -102,6 +127,9 @@ export function profilePayloadFrom(a: WizardAnswers) {
     minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
     dailyGoalMinutes: a.dailyGoalMinutes,
     learningSpeed: 'NORMAL' as const,
+    // Đợt 2e — mobile chưa gửi hai trường này; backend coi vắng mặt là null.
+    occupationCode: goalType === 'WORK' ? a.occupationCode : null,
+    targetDate: a.targetDate,
   }
 }
 
@@ -117,6 +145,8 @@ export function guestAnswersFrom(a: WizardAnswers, pathChoice: GuestAnswers['pat
     industry: p.industry,
     examType: p.examType,
     dailyGoalMinutes: p.dailyGoalMinutes,
+    occupationCode: p.occupationCode,
+    targetDate: p.targetDate,
     sessionsPerWeek: p.sessionsPerWeek,
     minutesPerSession: p.minutesPerSession,
     learningSpeed: p.learningSpeed,

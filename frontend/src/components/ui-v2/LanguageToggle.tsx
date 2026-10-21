@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
+import { isLocalizedPublicPath, isPublicLocale, localizedHref, splitLocalePrefix } from '@/lib/publicLocale'
 
 const LOCALES: ReadonlyArray<{ code: string; label: string }> = [
   { code: 'vi', label: 'VI' },
@@ -32,6 +33,14 @@ export function LanguageToggle() {
       document.cookie = `locale=${code};path=/;max-age=31536000;SameSite=Lax`
       if (getAccessToken()) {
         await api.patch('/auth/me/locale', { locale: code })
+      }
+      // Trang công khai đã dịch có URL riêng theo ngôn ngữ (`/`, `/en/`, `/de/` — đợt 1 A+B+E):
+      // chuyển hẳn sang URL đó. Tải lại toàn trang chứ không router.push, vì layout gốc (giữ
+      // NextIntlClientProvider) không render lại khi điều hướng mềm nên chữ sẽ kẹt ở ngôn ngữ cũ.
+      const { path } = splitLocalePrefix(window.location.pathname)
+      if (isPublicLocale(code) && isLocalizedPublicPath(path)) {
+        window.location.assign(localizedHref(code, path) + window.location.search + window.location.hash)
+        return
       }
       router.refresh()
     } catch {

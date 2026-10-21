@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { mediaOrigins, mediaRemotePatterns } from '../../media-origins.mjs'
 
 /**
  * E5 đường 1 (owner chọn 08/09/2026) — siết bản **Report-Only** để soak E3 đo được HOST.
@@ -18,10 +19,8 @@ import { fileURLToPath } from 'node:url'
 const ORIGINAL_ENV = { ...process.env }
 const PAGE_URL = 'https://mydeutschflow.com/privacy/'
 
-const S3_HOSTS = [
-  'https://deutschflow-media-storage.s3.ap-southeast-1.amazonaws.com',
-  'https://deutschflow-media-storage.s3.amazonaws.com',
-]
+// Kho media là Cloudflare R2 (rời AWS) — host lấy từ NEXT_PUBLIC_MEDIA_ORIGINS lúc dựng.
+const R2_ORIGIN = 'https://acct123.r2.cloudflarestorage.com'
 
 async function reportOnlyPolicy(env: Record<string, string | undefined> = {}): Promise<string> {
   vi.resetModules()
@@ -46,6 +45,7 @@ function directive(policy: string, name: string): string {
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_BACKEND_URL = 'https://api.mydeutschflow.com/api'
+  process.env.NEXT_PUBLIC_MEDIA_ORIGINS = R2_ORIGIN
 })
 
 afterEach(() => {
@@ -67,13 +67,26 @@ describe('CSP Report-Only — đủ chặt để soak nói được về host', 
     }
   })
 
-  it('học liệu S3 được nêu đích danh ở img/media/frame (nếu thiếu, mở PDF/audio giáo trình là vi phạm giả)', async () => {
+  it('kho media R2 được nêu đích danh ở img/media/frame/connect (thiếu là mở PDF/audio hay PUT tệp bị chặn)', async () => {
     const policy = await reportOnlyPolicy()
 
-    for (const name of ['img-src', 'media-src', 'frame-src']) {
-      for (const host of S3_HOSTS) {
-        expect(directive(policy, name), `${name} thiếu ${host}`).toContain(host)
-      }
+    for (const name of ['img-src', 'media-src', 'frame-src', 'connect-src']) {
+      expect(directive(policy, name).split(/\s+/), `${name} thiếu ${R2_ORIGIN}`).toContain(R2_ORIGIN)
+    }
+  })
+
+  it('không còn host AWS nào (S3/CloudFront) trong chính sách', async () => {
+    const policy = await reportOnlyPolicy({ NEXT_PUBLIC_CLOUDFRONT_URL: 'https://d123.cloudfront.net' })
+
+    expect(policy).not.toContain('amazonaws.com')
+    expect(policy).not.toContain('cloudfront.net')
+  })
+
+  it('NEXT_PUBLIC_MEDIA_ORIGINS trống thì các directive vẫn hợp lệ, không sinh nguồn rỗng', async () => {
+    const policy = await reportOnlyPolicy({ NEXT_PUBLIC_MEDIA_ORIGINS: undefined })
+
+    for (const name of ['img-src', 'media-src', 'frame-src', 'connect-src']) {
+      expect(directive(policy, name), name).not.toMatch(/\s{2,}|\s$/)
     }
   })
 
@@ -118,13 +131,6 @@ describe('CSP Report-Only — đủ chặt để soak nói được về host', 
     expect(scriptSrc).toMatch(/'nonce-[^']+'/)
   })
 
-  it('CLOUDFRONT nếu được đặt thì có mặt ở img/media/connect/frame', async () => {
-    const policy = await reportOnlyPolicy({ NEXT_PUBLIC_CLOUDFRONT_URL: 'https://d123.cloudfront.net' })
-
-    for (const name of ['img-src', 'media-src', 'connect-src', 'frame-src']) {
-      expect(directive(policy, name), name).toContain('https://d123.cloudfront.net')
-    }
-  })
 })
 
 describe('Đối chiếu chéo với next.config.mjs', () => {
@@ -135,12 +141,22 @@ describe('Đối chiếu chéo với next.config.mjs', () => {
     'utf8',
   )
 
-  it('danh sách host S3 khớp `images.remotePatterns` — hai nơi không được trôi khỏi nhau', () => {
-    // `[...iter]` làm tsc đỏ TS2802 với target hiện tại — dùng Array.from (bẫy đã trả giá).
-    const hostnames = Array.from(nextConfig.matchAll(/hostname:\s*'([^']+)'/g)).map((m) => m[1])
+  it('`images.remotePatterns` lấy từ cùng module với CSP — hai nơi không được trôi khỏi nhau', () => {
+    expect(nextConfig).toContain("from './media-origins.mjs'")
+    expect(nextConfig).toContain('remotePatterns: mediaRemotePatterns()')
+    // Không còn hostname chép tay nào (trước đây là hai host S3).
+    expect(nextConfig).not.toMatch(/hostname:\s*'/)
+  })
 
-    expect(hostnames.length).toBeGreaterThan(0)
-    expect(new Set(hostnames)).toEqual(new Set(S3_HOSTS.map((h) => h.replace('https://', ''))))
+  it('mediaOrigins: chỉ nhận https, bỏ mục hỏng, bỏ đường dẫn, khử trùng', () => {
+    expect(
+      mediaOrigins(` ${R2_ORIGIN}/deutschflow-media/ , http://evil.test, không-phải-url, ${R2_ORIGIN}`),
+    ).toEqual([R2_ORIGIN])
+    expect(mediaOrigins('')).toEqual([])
+    expect(mediaOrigins(' , ')).toEqual([])
+    expect(mediaRemotePatterns(R2_ORIGIN)).toEqual([
+      { protocol: 'https', hostname: 'acct123.r2.cloudflarestorage.com', pathname: '/**' },
+    ])
   })
 
   it('`CSP_ENFORCE` được khai báo trong `env` — không khai thì kill-switch E4 vô tác dụng trên Amplify', () => {

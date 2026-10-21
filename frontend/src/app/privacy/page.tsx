@@ -4,7 +4,7 @@ import { LegalDocGa } from '@/components/legal/LegalDocGa'
 import { PRIVACY } from '@/content/legal/privacy'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy · DeutschFlow',
+  title: 'Privacy Policy · myDeutschFlow',
   description: 'DeutschFlow Privacy Policy / Chính sách quyền riêng tư / Datenschutzerklärung.',
 }
 

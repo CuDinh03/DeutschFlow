@@ -90,13 +90,13 @@ export default function V2AdminAiConfigPage() {
   ]
 
   // "Model đang dùng" — đọc từ cấu hình runtime thật (env: app.ai.*) thay vì hardcode Claude/Bedrock.
-  // Ảnh giữ nhãn tĩnh vì thực sự dùng AWS Bedrock. [labelKey, giá trị kỹ thuật].
+  // Sinh ảnh hiện chưa có nhà cung cấp (đã gỡ AWS Bedrock khi rời AWS). [labelKey, giá trị kỹ thuật].
   const models: [string, string][] = [
     ['modelProvider', data.chatProvider ?? '—'],
     ['modelSpeaking', data.chatModel ?? '—'],
     ['modelGrading', data.gradingModel ?? '—'],
     ['modelStt', data.sttModel ?? '—'],
-    ['modelImage', 'AWS Bedrock'],
+    ['modelImage', '—'],
   ]
 
   return (

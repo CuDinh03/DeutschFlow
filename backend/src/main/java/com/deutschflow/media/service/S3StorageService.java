@@ -132,9 +132,12 @@ public class S3StorageService {
             java.net.URI ours = java.net.URI.create(bucketContext.publicObjectUrl(""));
             if (uri.getHost() == null || !uri.getHost().equalsIgnoreCase(ours.getHost())) return null;
 
+            // Path-style: R2 serves every bucket of the account from one host, so the bucket in the
+            // path is what tells our URL apart from another bucket's (e.g. the backup bucket).
+            String prefix = ours.getPath() == null || ours.getPath().isEmpty() ? "/" : ours.getPath();
             String path = uri.getPath();
-            if (path == null || path.length() <= 1) return null;
-            String key = java.net.URLDecoder.decode(path.substring(1), java.nio.charset.StandardCharsets.UTF_8);
+            if (path == null || !path.startsWith(prefix) || path.length() <= prefix.length()) return null;
+            String key = java.net.URLDecoder.decode(path.substring(prefix.length()), java.nio.charset.StandardCharsets.UTF_8);
             // A key that walks upward is never one of ours.
             return key.contains("..") ? null : key;
         } catch (IllegalArgumentException e) {

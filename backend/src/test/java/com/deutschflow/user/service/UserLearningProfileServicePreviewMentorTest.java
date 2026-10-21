@@ -42,7 +42,7 @@ class UserLearningProfileServicePreviewMentorTest {
     void setUp() {
         service = new UserLearningProfileService(
                 profileRepository, storedLearningPlanSupport, objectMapper,
-                quotaService, new FixedMentorResolver(), onboardingTypeResolver);
+                quotaService, new FixedMentorResolver(), onboardingTypeResolver, null);
     }
 
     private User user() {

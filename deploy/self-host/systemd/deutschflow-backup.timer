@@ -1,0 +1,10 @@
+[Unit]
+Description=DeutschFlow — backup DB hằng ngày 03:00 giờ VN (20:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 20:00:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
