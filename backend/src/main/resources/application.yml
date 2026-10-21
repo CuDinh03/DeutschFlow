@@ -458,6 +458,10 @@ app:
       # niên; mất throttle là mất lớp chống dò token, nên "đóng cửa" đúng hơn "mở cửa".
       fail-closed-paths: ${APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PATHS:/api/public/report-issues/}
       fail-closed-per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PER_MINUTE:20}
+      # Danh mục nghề /api/public/occupations/** (nghiệm thu prod 21/10/2026): ngân sách RIÊNG, rộng.
+      # Trang nghề render phía server ⇒ mọi khách chung MỘT IP của frontend ⇒ chung suất 30/phút
+      # là bot quét sitemap đủ làm 429 ⇒ trang nghề 404. Chỉ đọc, Cache-Control 10′.
+      catalog-per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_CATALOG_PER_MINUTE:300}
     # Mở rộng throttle sang các đường permitAll NẰM NGOÀI /api/public/ mà trước đây không có lớp
     # rate-limit ứng dụng nào (chỉ dựa vào nginx): onboarding preview (khách xem mentor) + media
     # by-tag (landing, chạm DB). Defense in depth đối xứng với bind-localhost: nếu cổng backend lại
@@ -465,7 +469,9 @@ app:
     # riêng để không chặn oan lớp học sau NAT / landing tải nhiều media. KHÔNG gồm /api/auth (có
     # limiter riêng), webhook (bên thứ ba gọi), /actuator/health (uptime monitor).
     unauth-rate-limit:
-      paths: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:/api/onboarding/preview/,/api/v2/media/by-tag}
+      # Phải khớp nguyên văn mặc định trong @Value của filter — giá trị ở đây THẮNG @Value; trước 21/10
+      # thiếu /api/onboarding/guest-session ⇒ phiên khách không bị throttle dù test filter xanh.
+      paths: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:/api/onboarding/preview/,/api/onboarding/guest-session,/api/v2/media/by-tag}
       per-minute: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE:120}
 
   # Phiếu đánh giá gửi gia đình (R1/R9): gốc URL web để in "Xác thực tại …/phieu/{token}" lên PDF.

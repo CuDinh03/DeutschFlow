@@ -164,7 +164,11 @@
     "detailsCap": "Chi tiết kỹ thuật",
     "digestLabel": "Mã lỗi",
     "noMessage": "Không có thông báo lỗi.",
-    "reload": "Tải lại trang"
+    "reload": "Tải lại trang",
+    "notFoundTitle": "Không tìm thấy trang này",
+    "notFoundDesc": "Đường dẫn có thể đã đổi hoặc gõ nhầm. Bạn có thể về trang chủ hoặc chọn nghề để xem câu hỏi phỏng vấn.",
+    "notFoundHome": "Về trang chủ",
+    "notFoundOccupations": "Phỏng vấn theo nghề"
   },
   "ui": {
     "openNav": "Mở menu điều hướng",

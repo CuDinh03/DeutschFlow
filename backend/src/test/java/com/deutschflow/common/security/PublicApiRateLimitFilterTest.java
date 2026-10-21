@@ -28,6 +28,7 @@ class PublicApiRateLimitFilterTest {
     private static final String EXTRA_PATHS = "/api/onboarding/preview/,/api/v2/media/by-tag";
     private static final String FAIL_CLOSED_PATHS = "/api/public/report-issues/";
     private static final int FAIL_CLOSED_LIMIT = 20;
+    private static final int CATALOG_LIMIT = 300;
     private static final String REPORT_URI = "/api/public/report-issues/0123456789abcdef0123456789abcdef01234567";
 
     @Mock
@@ -39,7 +40,7 @@ class PublicApiRateLimitFilterTest {
     private PublicApiRateLimitFilter filter(boolean enabled) {
         return new PublicApiRateLimitFilter(
                 new ClientIpResolver(1), redis, enabled, LIMIT, EXTRA_PATHS, EXTRA_LIMIT,
-                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT);
+                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT, CATALOG_LIMIT);
     }
 
     private MockHttpServletRequest req(String method, String uri, String ip) {
@@ -146,6 +147,47 @@ class PublicApiRateLimitFilterTest {
         assertThat(chain.getRequest()).isNull();
     }
 
+    // ── Danh mục nghề: trang nghề render phía server, mọi khách chung một IP ──────────
+
+    @Test
+    @DisplayName("danh mục nghề dùng ngân sách RIÊNG (khoá rl:catalog:) — quá cap public 30 vẫn đi tiếp")
+    void catalogPath_ownGenerousBudget() throws Exception {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(org.mockito.ArgumentMatchers.startsWith("rl:catalog:")))
+                .thenReturn((long) EXTRA_LIMIT + 5);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        filter(true).doFilterInternal(req("GET", "/api/public/occupations/kellner", "203.0.113.5"), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(chain.getRequest()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("danh mục nghề vượt cap riêng → 429 (vẫn có trần, không bỏ throttle)")
+    void catalogPath_overItsBudget_blocked() throws Exception {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(org.mockito.ArgumentMatchers.startsWith("rl:catalog:")))
+                .thenReturn((long) CATALOG_LIMIT + 1);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        filter(true).doFilterInternal(req("GET", "/api/public/occupations", "203.0.113.5"), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(429);
+        assertThat(chain.getRequest()).isNull();
+    }
+
+    @Test
+    @DisplayName("chỉ đúng /api/public/occupations và con của nó là danh mục — tiền tố giống tên không được nới")
+    void catalogPrefix_isExact() {
+        assertThat(PublicApiRateLimitFilter.isCatalogPath("/api/public/occupations")).isTrue();
+        assertThat(PublicApiRateLimitFilter.isCatalogPath("/api/public/occupations/koch")).isTrue();
+        assertThat(PublicApiRateLimitFilter.isCatalogPath("/api/public/occupationsX")).isFalse();
+        assertThat(PublicApiRateLimitFilter.isCatalogPath("/api/public/free-grade")).isFalse();
+    }
+
     @Test
     @DisplayName("Redis ném exception → fail-open, request vẫn đi tiếp")
     void redisDown_failOpen() throws Exception {
@@ -164,7 +206,7 @@ class PublicApiRateLimitFilterTest {
     void noRedisBean_failOpen() throws Exception {
         PublicApiRateLimitFilter noRedis = new PublicApiRateLimitFilter(
                 new ClientIpResolver(1), null, true, LIMIT, EXTRA_PATHS, EXTRA_LIMIT,
-                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT);
+                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT, CATALOG_LIMIT);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
@@ -197,7 +239,7 @@ class PublicApiRateLimitFilterTest {
     void reportPath_noRedisBean_failClosed503() throws Exception {
         PublicApiRateLimitFilter noRedis = new PublicApiRateLimitFilter(
                 new ClientIpResolver(1), null, true, LIMIT, EXTRA_PATHS, EXTRA_LIMIT,
-                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT);
+                FAIL_CLOSED_PATHS, FAIL_CLOSED_LIMIT, CATALOG_LIMIT);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();

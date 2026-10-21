@@ -1,12 +1,24 @@
 'use client'
 
+import '@/styles/galerie.css'
+import Link from 'next/link'
 import { useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
+import { useLocale, useTranslations } from 'next-intl'
+import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { useTracking } from '@/hooks/useTracking'
+import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 
+/**
+ * Trang 404 chung (cả mã nghề lạ ở `/phong-van/[nghe]`).
+ *
+ * Nghiệm thu prod 21/10/2026: bản trước viết cứng tiếng Đức, giao diện tối cũ, nút "Zurück" chữ trắng
+ * trên nền trắng. Nay theo Galerie, chữ đọc từ `v2.error` (lõi chrome — mọi provider đều có) ba thứ
+ * tiếng. Bỏ nút "quay lại": vào thẳng URL hỏng thì lịch sử trống, nút đó không đi đâu cả.
+ */
 export default function NotFound() {
-  const router = useRouter()
+  const t = useTranslations('v2.error')
+  const raw = useLocale()
+  const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
   const { trackEvent } = useTracking()
   const sent = useRef(false)
 
@@ -29,34 +41,22 @@ export default function NotFound() {
   }, [trackEvent])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      <div className="text-center space-y-6">
+    <div className="ga-scope flex min-h-screen items-center justify-center bg-ga-bg px-4 py-10">
+      <div className="w-full max-w-md space-y-5 rounded-ga border border-ga-line bg-ga-card p-6 lg:p-8">
+        <p aria-hidden className="font-ga-display text-[56px] font-medium leading-none text-ga-ink">
+          404
+        </p>
         <div className="space-y-2">
-          <h1 className="text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-            404
-          </h1>
-          <h2 className="text-3xl font-semibold text-white">
-            Seite nicht gefunden
-          </h2>
-          <p className="text-gray-400 text-lg max-w-md mx-auto">
-            Die Seite, die Sie suchen, existiert nicht oder wurde verschoben.
-          </p>
+          <h1 className="font-ga-display text-[24px] font-medium text-ga-ink">{t('notFoundTitle')}</h1>
+          <p className="ga-ui text-[14px] leading-relaxed text-ga-muted">{t('notFoundDesc')}</p>
         </div>
-
-        <div className="flex gap-4 justify-center pt-4">
-          <Button
-            onClick={() => router.back()}
-            variant="outline"
-            className="text-white border-white hover:bg-white hover:text-black"
-          >
-            Zurück
-          </Button>
-          <Button
-            onClick={() => router.push('/')}
-            className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
-          >
-            Zur Startseite
-          </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <GaBtn asChild variant="ink" size="lg">
+            <Link href={localizedHref(locale, '/')}>{t('notFoundHome')}</Link>
+          </GaBtn>
+          <GaBtn asChild variant="ghost" size="lg">
+            <Link href={localizedHref(locale, '/phong-van')}>{t('notFoundOccupations')}</Link>
+          </GaBtn>
         </div>
       </div>
     </div>

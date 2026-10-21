@@ -49,18 +49,28 @@ import java.util.List;
  * lạm dụng; ở đây token trong URL là bí mật DUY NHẤT bảo vệ điểm số của một trẻ vị thành niên, mất
  * throttle là mất lớp chống dò token — "đóng cửa vài phút" rẻ hơn "mở cửa vài phút".
  *
+ * <p><b>Danh mục nghề (nghiệm thu prod 21/10/2026):</b> {@code /api/public/occupations/**} dùng ngân sách
+ * RIÊNG, rộng (mặc định 300/phút, khoá {@code rl:catalog:}). Trang {@code /phong-van/[nghe]} render phía
+ * server: frontend gọi backend từ MỘT IP cho MỌI khách ⇒ chung suất 30/phút của cây public, bot quét
+ * sitemap nhanh là hết suất ⇒ 429 ⇒ trang nghề 404 hàng loạt. Đường này chỉ đọc, không gọi AI, có
+ * {@code Cache-Control} 10′, nên nới rộng không mở thêm bề mặt lạm dụng đáng kể. Prefix cố định trong
+ * code (không qua env) để cấu hình máy chủ không vô tình gỡ mất.
+ *
  * <p>Cấu hình qua env: {@code APP_SECURITY_PUBLIC_RATE_LIMIT_PER_MINUTE} (mặc định 30),
  * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_ENABLED} (mặc định true),
  * {@code APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS} (CSV prefix),
  * {@code APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE} (mặc định 120),
  * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PATHS} (CSV prefix) và
- * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PER_MINUTE} (mặc định 20).
+ * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PER_MINUTE} (mặc định 20),
+ * {@code APP_SECURITY_PUBLIC_RATE_LIMIT_CATALOG_PER_MINUTE} (mặc định 300).
  */
 @Component
 @Slf4j
 public class PublicApiRateLimitFilter extends OncePerRequestFilter {
 
     private static final String PUBLIC_PREFIX = "/api/public/";
+    /** Danh mục nghề công khai — ngân sách riêng, xem Javadoc lớp. */
+    static final String CATALOG_PREFIX = "/api/public/occupations";
     /** Redis chết trên nhánh fail-closed: khách chờ chừng này giây rồi thử lại. */
     static final int UNAVAILABLE_RETRY_AFTER_SECONDS = 30;
 
@@ -76,6 +86,7 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
     private final int extraPerMinute;
     private final List<String> failClosedPrefixes;
     private final int failClosedPerMinute;
+    private final int catalogPerMinute;
     private volatile boolean redisDownWarned = false;
 
     public PublicApiRateLimitFilter(
@@ -86,7 +97,8 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
             @Value("${app.security.unauth-rate-limit.paths:/api/onboarding/preview/,/api/onboarding/guest-session,/api/v2/media/by-tag}") String extraPathsCsv,
             @Value("${app.security.unauth-rate-limit.per-minute:120}") int extraPerMinute,
             @Value("${app.security.public-rate-limit.fail-closed-paths:/api/public/report-issues/}") String failClosedPathsCsv,
-            @Value("${app.security.public-rate-limit.fail-closed-per-minute:20}") int failClosedPerMinute) {
+            @Value("${app.security.public-rate-limit.fail-closed-per-minute:20}") int failClosedPerMinute,
+            @Value("${app.security.public-rate-limit.catalog-per-minute:300}") int catalogPerMinute) {
         this.clientIpResolver = clientIpResolver;
         this.redis = redis;
         this.enabled = enabled;
@@ -95,6 +107,7 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
         this.extraPrefixes = splitPrefixes(extraPathsCsv);
         this.failClosedPrefixes = splitPrefixes(failClosedPathsCsv);
         this.failClosedPerMinute = Math.max(1, failClosedPerMinute);
+        this.catalogPerMinute = Math.max(1, catalogPerMinute);
     }
 
     private static List<String> splitPrefixes(String csv) {
@@ -112,6 +125,11 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
             }
         }
         return false;
+    }
+
+    /** true nếu URI là danh mục nghề ({@code /api/public/occupations} hoặc con của nó). */
+    static boolean isCatalogPath(String uri) {
+        return uri.equals(CATALOG_PREFIX) || uri.startsWith(CATALOG_PREFIX + "/");
     }
 
     /** true nếu URI khớp một trong các prefix unauth mở rộng. */
@@ -139,9 +157,10 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String uri = request.getRequestURI();
         boolean failClosed = isFailClosedPath(uri);
-        boolean extra = !failClosed && isExtraPath(uri);
-        String keyPrefix = failClosed ? "rl:report:" : extra ? "rl:unauth:" : "rl:public:";
-        int limit = failClosed ? failClosedPerMinute : extra ? extraPerMinute : perMinute;
+        boolean catalog = !failClosed && isCatalogPath(uri);
+        boolean extra = !failClosed && !catalog && isExtraPath(uri);
+        String keyPrefix = failClosed ? "rl:report:" : catalog ? "rl:catalog:" : extra ? "rl:unauth:" : "rl:public:";
+        int limit = failClosed ? failClosedPerMinute : catalog ? catalogPerMinute : extra ? extraPerMinute : perMinute;
 
         Decision decision = decide(clientIpResolver.resolve(request), keyPrefix, limit, failClosed);
         if (decision == Decision.LIMITED) {

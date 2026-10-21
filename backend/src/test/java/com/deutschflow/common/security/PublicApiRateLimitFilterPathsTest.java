@@ -4,6 +4,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -25,7 +30,7 @@ class PublicApiRateLimitFilterPathsTest {
 
     private static PublicApiRateLimitFilter filterWithDefaults() {
         return new PublicApiRateLimitFilter(
-                new ClientIpResolver(1), null, true, 30, DEFAULT_PATHS, 120, DEFAULT_FAIL_CLOSED_PATHS, 20);
+                new ClientIpResolver(1), null, true, 30, DEFAULT_PATHS, 120, DEFAULT_FAIL_CLOSED_PATHS, 20, 300);
     }
 
     private static boolean isRateLimited(String uri) {
@@ -50,6 +55,28 @@ class PublicApiRateLimitFilterPathsTest {
         assertThat(isRateLimited("/api/onboarding/preview/mentor")).isTrue();
         assertThat(isRateLimited("/api/v2/media/by-tag")).isTrue();
         assertThat(isRateLimited("/api/public/anything")).isTrue();
+    }
+
+    @Test
+    @DisplayName("mặc định trong application.yml khớp nguyên văn @Value — yml THẮNG @Value nên lệch là mất chặn")
+    void ymlDefaultMatchesValueDefault() throws Exception {
+        // 21/10/2026: yml thiếu /api/onboarding/guest-session trong khi @Value có ⇒ test trên vẫn xanh
+        // mà prod không throttle phiên khách. Khoá hai nguồn lại với nhau.
+        String yml;
+        try (InputStream in = getClass().getResourceAsStream("/application.yml")) {
+            assertThat(in).as("application.yml trên classpath").isNotNull();
+            yml = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        Matcher m = Pattern.compile(Pattern.quote("${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:") + "([^}]*)}").matcher(yml);
+        assertThat(m.find()).as("khoá APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS trong application.yml").isTrue();
+        assertThat(m.group(1)).isEqualTo(DEFAULT_PATHS);
+    }
+
+    @Test
+    @DisplayName("danh mục nghề vẫn nằm dưới filter — nới ngân sách, không gỡ throttle")
+    void occupationCatalogIsRateLimited() {
+        assertThat(isRateLimited("/api/public/occupations")).isTrue();
+        assertThat(isRateLimited("/api/public/occupations/kellner")).isTrue();
     }
 
     @Test
