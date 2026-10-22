@@ -468,6 +468,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const interviewPhaseKey = useChatStore((s) => s.interviewPhaseKey);
   const streamErrorMessage = useChatStore((s) => s.streamErrorMessage);
   const interviewHintKey = useChatStore((s) => s.interviewHintKey);
+  const sessionId = useChatStore((s) => s.sessionId);
 
   // ─── Guard: redirect if no companion (after all hooks) ─────
   if (!selectedCompanion) {
@@ -678,6 +679,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
                 onAiSpeak={msg.role === "ai" ? handleSpeak : undefined}
                 onUserErrorsClick={msg.role === "user" && msg.errors?.length ? openCopilot : undefined}
                 aiChatBusy={streamStatus === "streaming" || streamStatus === "processing"}
+                sessionId={sessionId}
               />
             ))}
 

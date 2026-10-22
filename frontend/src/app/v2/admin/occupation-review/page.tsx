@@ -11,13 +11,20 @@ import { GaPageHdr, GaBtn } from '@/components/ui-v2'
 // Duyệt lớp câu hỏi theo nghề (admin) — đợt 2b định hướng A + B + E.
 // GET /admin/occupations/review-queue?status=…; POST /admin/occupations/questions/{id}/review,
 //   /admin/occupations/terms/{id}/review {status, …sửa lời, note}; POST /admin/occupations/{code}/generate.
+// K4 (22/10/2026): câu hỏi có bản dịch Việt/Anh (sửa được khi duyệt); POST /admin/occupations/translations/backfill
+//   dịch bù câu sinh trước V339, mỗi lượt ≤10 nghề — nút gọi lặp tới khi hết hoặc một lượt không dịch được câu nào.
 // Thứ tự nghề do backend xếp: nghề được chọn nhiều trước, rồi Điều dưỡng / Xây dựng (quyết định 6).
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Status = 'AI_GENERATED' | 'APPROVED' | 'REJECTED'
 type Decision = 'APPROVED' | 'REJECTED'
 
-interface QuestionItem { id: string; topicKey: string; questionDe: string; difficulty: string; status: Status; sourceModel?: string }
+interface QuestionItem {
+  id: string; topicKey: string; questionDe: string; questionVi?: string | null; questionEn?: string | null
+  difficulty: string; status: Status; sourceModel?: string
+}
+type QuestionEdit = Pick<QuestionItem, 'questionDe' | 'questionVi' | 'questionEn'>
+interface BackfillResult { occupations: number; translated: number; remaining: number }
 interface TermItem { id: number; termDe: string; meaningEn: string; meaningVi: string; exampleDe?: string | null; status: Status; sourceModel?: string }
 interface ReviewOccupation {
   code: string
@@ -31,6 +38,8 @@ interface ReviewOccupation {
 interface ReviewBody {
   status: Decision
   questionDe?: string
+  questionVi?: string
+  questionEn?: string
   termDe?: string
   meaningEn?: string
   meaningVi?: string
@@ -59,6 +68,7 @@ export default function V2AdminOccupationReviewPage() {
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [genCode, setGenCode] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [backfilling, setBackfilling] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,12 +89,17 @@ export default function V2AdminOccupationReviewPage() {
 
   const dropEmpty = (list: ReviewOccupation[]) => list.filter((o) => o.questions.length > 0 || o.terms.length > 0)
 
-  const reviewQuestion = async (code: string, q: QuestionItem, decision: Decision, edited?: string) => {
+  const reviewQuestion = async (code: string, q: QuestionItem, decision: Decision, edited?: Partial<QuestionEdit>) => {
     const key = `q:${q.id}`
     setBusyKey(key)
     try {
       const body: ReviewBody = { status: decision, note: notes[key] || undefined }
-      if (edited !== undefined && edited.trim() !== q.questionDe) body.questionDe = edited.trim()
+      if (edited) {
+        for (const f of ['questionDe', 'questionVi', 'questionEn'] as const) {
+          const v = edited[f]?.trim()
+          if (v && v !== (q[f] ?? '')) body[f] = v
+        }
+      }
       const { data } = await api.post<QuestionItem>(`/admin/occupations/questions/${encodeURIComponent(q.id)}/review`, body)
       setItems((prev) => dropEmpty(prev.map((o) => (o.code !== code ? o
         : { ...o, questions: applyResult(o.questions, (x) => x.id === q.id, data) }))))
@@ -127,6 +142,24 @@ export default function V2AdminOccupationReviewPage() {
     finally { setGenerating(false) }
   }
 
+  // Dịch bù theo lô (backend cắt 10 nghề/lượt); dừng khi hết câu thiếu hoặc một lượt không dịch thêm được (AI lỗi).
+  const backfill = async () => {
+    setBackfilling(true)
+    let translated = 0
+    try {
+      let r: BackfillResult
+      do {
+        r = (await api.post<BackfillResult>('/admin/occupations/translations/backfill')).data
+        translated += r.translated
+      } while (r.remaining > 0 && r.translated > 0)
+      toast.success(translated === 0 && r.remaining === 0
+        ? t('backfillNone')
+        : t('backfillDone', { translated, remaining: r.remaining }))
+      void load()
+    } catch (e: unknown) { toast.error(apiMessage(e)) }
+    finally { setBackfilling(false) }
+  }
+
   const startEdit = (key: string, fields: Record<string, string>) => {
     setEditKey(key)
     setDraft(fields)
@@ -150,7 +183,12 @@ export default function V2AdminOccupationReviewPage() {
         accent
         title={t('title')}
         subtitle={t('subtitle', { count: items.length })}
-        right={<GaBtn variant="ghost" size="sm" onClick={load}>{t('refresh')}</GaBtn>}
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <GaBtn variant="ghost" size="sm" loading={backfilling} onClick={backfill}>{t('backfill')}</GaBtn>
+            <GaBtn variant="ghost" size="sm" onClick={load}>{t('refresh')}</GaBtn>
+          </div>
+        }
       />
 
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
@@ -208,11 +246,28 @@ export default function V2AdminOccupationReviewPage() {
                         return (
                           <li key={q.id} className="border border-ga-line p-3">
                             {editing ? (
-                              <textarea value={draft.questionDe ?? ''} onChange={(e) => setDraft({ ...draft, questionDe: e.target.value })}
-                                rows={2} maxLength={400} aria-label={t('questions')}
-                                className="ga-ui w-full border border-ga-line bg-ga-bg px-3 py-2 text-ga-body text-ga-ink outline-none focus:border-ga-accent" />
+                              <div className="flex flex-col gap-2">
+                                {(['questionDe', 'questionVi', 'questionEn'] as const).map((f) => (
+                                  <label key={f} className="ga-ui flex flex-col gap-1 text-ga-eyebrow text-ga-subtle">
+                                    {t(`field.${f}`)}
+                                    <textarea value={draft[f] ?? ''} onChange={(e) => setDraft({ ...draft, [f]: e.target.value })}
+                                      rows={2} maxLength={f === 'questionDe' ? 400 : 600}
+                                      className="w-full border border-ga-line bg-ga-bg px-3 py-2 text-ga-body text-ga-ink outline-none focus:border-ga-accent" />
+                                  </label>
+                                ))}
+                              </div>
                             ) : (
-                              <p lang="de" className="text-ga-body text-ga-ink">{q.questionDe}</p>
+                              <>
+                                <p lang="de" className="text-ga-body text-ga-ink">{q.questionDe}</p>
+                                {q.questionVi || q.questionEn ? (
+                                  <>
+                                    {q.questionVi && <p lang="vi" className="ga-ui mt-1 text-ga-small text-ga-muted">{q.questionVi}</p>}
+                                    {q.questionEn && <p lang="en" className="ga-ui mt-0.5 text-ga-small text-ga-muted">{q.questionEn}</p>}
+                                  </>
+                                ) : (
+                                  <p className="ga-ui mt-1 text-ga-caption italic text-ga-subtle">{t('noTranslation')}</p>
+                                )}
+                              </>
                             )}
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               {statusChip(q.status)}
@@ -225,14 +280,16 @@ export default function V2AdminOccupationReviewPage() {
                                 {editing ? (
                                   <>
                                     {actionBtn(t('saveApprove'), busy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />, 'var(--ga-green)',
-                                      () => reviewQuestion(o.code, q, 'APPROVED', draft.questionDe), busy || !(draft.questionDe ?? '').trim())}
+                                      () => reviewQuestion(o.code, q, 'APPROVED', draft), busy || !(draft.questionDe ?? '').trim())}
                                     {actionBtn(t('cancel'), null, 'var(--ga-muted)', () => setEditKey(null), busy)}
                                   </>
                                 ) : (
                                   <>
                                     {q.status !== 'APPROVED' && actionBtn(t('approve'), busy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />, 'var(--ga-green)',
                                       () => reviewQuestion(o.code, q, 'APPROVED'), busy)}
-                                    {actionBtn(t('edit'), <Pencil size={12} />, 'var(--ga-accent)', () => startEdit(key, { questionDe: q.questionDe }), busy)}
+                                    {actionBtn(t('edit'), <Pencil size={12} />, 'var(--ga-accent)', () => startEdit(key, {
+                                      questionDe: q.questionDe, questionVi: q.questionVi ?? '', questionEn: q.questionEn ?? '',
+                                    }), busy)}
                                     {q.status !== 'REJECTED' && actionBtn(t('reject'), <XCircle size={12} />, 'var(--ga-red)',
                                       () => reviewQuestion(o.code, q, 'REJECTED'), busy)}
                                   </>

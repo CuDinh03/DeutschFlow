@@ -37,6 +37,8 @@ export interface AdaptiveMetaBubble {
 
 export interface AiMessageBubble {
   id: number;
+  /** Id tin nhắn phía backend cho nút "Dịch" (K4); `id` ở trên chỉ là thứ tự hiển thị. */
+  serverMessageId?: number;
   role: "USER" | "ASSISTANT";
   userText?: string;
   aiSpeechDe?: string;

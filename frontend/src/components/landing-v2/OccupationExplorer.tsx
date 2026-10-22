@@ -15,6 +15,7 @@ import {
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import { InterviewerPortrait, PersonaPortrait } from './PersonaPortrait'
 import { QualityLabel } from './QualityLabel'
+import { QuestionTranslation } from './QuestionTranslation'
 import { interviewerInfo } from './interviewerInfo'
 import {
   COMMON_INTRO_QUESTION,
@@ -342,6 +343,7 @@ function RemoteResult({
               <span className="shrink-0 font-ga-display text-ga-body-lg font-semibold text-ga-gold">{i + 1}</span>
               <div className="min-w-0">
                 <span lang="de" className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q.questionDe}“</span>
+                <QuestionTranslation q={q} locale={locale} className="mt-0.5 text-ga-small" />
                 <div className="mt-1"><QualityLabel kind={kind} text={t(`labels.${kind}`)} /></div>
               </div>
             </li>

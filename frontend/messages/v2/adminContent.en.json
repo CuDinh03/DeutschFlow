@@ -138,7 +138,10 @@
         "termDe": "German term",
         "meaningVi": "Vietnamese meaning",
         "meaningEn": "English meaning",
-        "exampleDe": "Example sentence"
+        "exampleDe": "Example sentence",
+        "questionDe": "German question",
+        "questionVi": "Vietnamese translation",
+        "questionEn": "English translation"
       },
       "sessions": "{count} sessions chose it",
       "questions": "Professional-skills questions",
@@ -153,7 +156,11 @@
       "notePlaceholder": "Note (optional)…",
       "generate": "Generate more",
       "generatePlaceholder": "Occupation code, e.g. maurer",
-      "generated": "Generated {questions} questions and {terms} new terms"
+      "generated": "Generated {questions} questions and {terms} new terms",
+      "noTranslation": "No translation yet",
+      "backfill": "Translate missing questions",
+      "backfillDone": "Translated {translated} questions, {remaining} still missing",
+      "backfillNone": "All questions already have translations"
     },
     "media": {
       "loadDataError": "Could not load the media library.",

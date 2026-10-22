@@ -39,7 +39,10 @@ const DETAIL: OccupationDetail = {
   personaCode: 'KRUEGER',
   interviewPosition: 'Altenpfleger/in',
   sampleQuestions: [
-    { phase: 'INTRO', questionDe: 'Bitte stellen Sie sich kurz vor.', source: 'BANK' },
+    {
+      phase: 'INTRO', questionDe: 'Bitte stellen Sie sich kurz vor.', source: 'BANK',
+      questionVi: 'Mời bạn giới thiệu ngắn về bản thân.', questionEn: 'Please introduce yourself briefly.',
+    },
     { phase: 'HARD_SKILLS', questionDe: 'Wie dokumentieren Sie eine Übergabe?', source: 'APPROVED' },
     { phase: 'HARD_SKILLS', questionDe: 'Wie reagieren Sie bei einem Sturz?', source: 'AI_GENERATED' },
   ],
@@ -76,6 +79,9 @@ describe('OccupationExplorer — danh mục nghề công khai', () => {
     expect(screen.getByText('Đã duyệt')).toBeTruthy()
     expect(screen.getAllByText('AI tạo').length).toBeGreaterThan(0)
     expect(screen.getByText('die Übergabe')).toBeTruthy()
+    // K4: bản dịch theo ngôn ngữ trang dưới câu tiếng Đức; câu chưa dịch chỉ có tiếng Đức.
+    expect(screen.getByText('Mời bạn giới thiệu ngắn về bản thân.').getAttribute('lang')).toBe('vi')
+    expect(screen.queryByText('Please introduce yourself briefly.')).toBeNull()
     expect(screen.getByRole('link', { name: 'Xem trang nghề' }).getAttribute('href')).toBe('/phong-van/altenpfleger/')
   })
 

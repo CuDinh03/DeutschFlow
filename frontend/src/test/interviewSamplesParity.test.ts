@@ -13,8 +13,9 @@ const BANK = join(__dirname, '..', '..', '..', 'backend', 'src', 'main', 'java',
 
 function bankText(): string {
   return readFileSync(BANK, 'utf8')
-    .replace(/"\s*\+\s*pos\s*\+\s*"/g, '{pos}') // "… für " + pos + " …"  → "… für {pos} …"
-    .replace(/"\s*\+\s*pos\s*\+?\s*\)/g, '{pos}")') // "… für " + pos)       → "… für {pos}")
+    // K4 (22/10/2026): bank chèn vị trí theo ngôn ngữ — tiếng Đức là `pos.de()`; `pos.vi()`/`pos.en()` bỏ qua.
+    .replace(/"\s*\+\s*pos(?:\.de\(\))?\s*\+\s*"/g, '{pos}') // "… für " + pos.de() + " …"  → "… für {pos} …"
+    .replace(/"\s*\+\s*pos(?:\.de\(\))?\s*\+?\s*\)/g, '{pos}")') // "… für " + pos.de())       → "… für {pos}")
     .replace(/"\s*\+\s*\r?\n\s*"/g, '') // chuỗi bẻ dòng
 }
 

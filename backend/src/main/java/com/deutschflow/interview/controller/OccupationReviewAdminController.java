@@ -3,6 +3,7 @@ package com.deutschflow.interview.controller;
 import com.deutschflow.interview.dto.OccupationContentReviewRequest;
 import com.deutschflow.interview.dto.OccupationReviewDto;
 import com.deutschflow.interview.entity.OccupationContentStatus;
+import com.deutschflow.interview.service.OccupationQuestionTranslator;
 import com.deutschflow.interview.service.OccupationReviewService;
 import com.deutschflow.user.entity.User;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ import java.util.List;
 public class OccupationReviewAdminController {
 
     private final OccupationReviewService reviewService;
+    private final OccupationQuestionTranslator questionTranslator;
 
     @GetMapping("/review-queue")
     public List<OccupationReviewDto> queue(
@@ -48,5 +50,12 @@ public class OccupationReviewAdminController {
     @PostMapping("/{code}/generate")
     public OccupationReviewDto generate(@PathVariable String code, @AuthenticationPrincipal User actor) {
         return reviewService.generate(code, actor);
+    }
+
+    /** K4: dịch bù câu lớp nghề sinh trước V339, mỗi lượt tối đa 10 nghề; gọi lại tới khi remaining = 0. */
+    @PostMapping("/translations/backfill")
+    public OccupationQuestionTranslator.BackfillResult backfillTranslations(
+            @RequestParam(defaultValue = "10") int limit) {
+        return questionTranslator.backfill(limit);
     }
 }

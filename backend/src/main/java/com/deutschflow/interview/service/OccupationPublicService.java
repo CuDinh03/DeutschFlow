@@ -51,7 +51,8 @@ public class OccupationPublicService {
                 .filter(q -> q.getStatus() != OccupationContentStatus.REJECTED)
                 .filter(q -> InterviewPhase.HARD_SKILLS.name().equals(q.getPhase()))
                 .sorted(Comparator.comparing(OccupationQuestion::getStatus, APPROVED_FIRST))
-                .map(q -> new LayerQuestion(q.getQuestionDe(), q.getDifficulty(), q.getStatus().name()))
+                .map(q -> new LayerQuestion(q.getQuestionDe(), q.getQuestionVi(), q.getQuestionEn(),
+                        q.getDifficulty(), q.getStatus().name()))
                 .toList();
         List<Term> terms = termRepository.findByOccupationCodeOrderByIdAsc(code).stream()
                 .filter(t -> t.getStatus() != OccupationContentStatus.REJECTED)
@@ -77,7 +78,8 @@ public class OccupationPublicService {
         List<SampleQuestion> out = new ArrayList<>();
         bank.stream().filter(q -> InterviewPhase.INTRO.name().equals(q.phase())).findFirst().ifPresent(out::add);
         layer.stream().limit(SAMPLE_LAYER_QUESTIONS)
-                .forEach(q -> out.add(new SampleQuestion(InterviewPhase.HARD_SKILLS.name(), q.questionDe(), q.status())));
+                .forEach(q -> out.add(new SampleQuestion(InterviewPhase.HARD_SKILLS.name(), q.questionDe(),
+                        q.questionVi(), q.questionEn(), q.status())));
         return List.copyOf(out);
     }
 }

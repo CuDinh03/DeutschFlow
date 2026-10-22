@@ -38,6 +38,7 @@ export function aiMessagesToChatMessages(messages: AiMessage[]): ChatMessage[] {
       id: String(m.id),
       role: "ai",
       contentDe: m.aiSpeechDe ?? "",
+      serverMessageId: m.id,
       feedback: {
         errors,
         explanationVi: m.explanationVi ?? "",

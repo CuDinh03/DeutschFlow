@@ -63,6 +63,7 @@ export function loadSpeakingSessionIntoStore({
     id: String(init.messageId || Date.now()),
     role: "ai",
     contentDe: init.aiSpeechDe,
+    serverMessageId: init.messageId || undefined,
     feedback: {
       errors: init.errors || [],
       explanationVi: init.explanationVi || "",

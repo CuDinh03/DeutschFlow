@@ -309,7 +309,10 @@
       "contextLevel": "Trình độ",
       "contextElapsed": "Đã nói",
       "contextNoGoal": "Hội thoại tự do — nói về điều bạn muốn",
-      "feedbackEmptyHint": "Phản hồi sẽ xuất hiện ở đây sau lượt nói đầu tiên của bạn."
+      "feedbackEmptyHint": "Phản hồi sẽ xuất hiện ở đây sau lượt nói đầu tiên của bạn.",
+      "translate": "Dịch",
+      "hideTranslation": "Ẩn bản dịch",
+      "translateFailed": "Chưa dịch được, bấm để thử lại"
     },
     "continueToSettings": "Tiếp tục tới cài đặt",
     "backToModeAndPersona": "Quay lại chọn chế độ & nhân vật",

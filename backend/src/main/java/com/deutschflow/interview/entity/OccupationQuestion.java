@@ -38,6 +38,14 @@ public class OccupationQuestion {
     @Column(name = "question_de", nullable = false, columnDefinition = "TEXT")
     private String questionDe;
 
+    /** Bản dịch tiếng Việt (V339); {@code null} = chưa dịch. */
+    @Column(name = "question_vi", columnDefinition = "TEXT")
+    private String questionVi;
+
+    /** Bản dịch tiếng Anh (V339); {@code null} = chưa dịch. */
+    @Column(name = "question_en", columnDefinition = "TEXT")
+    private String questionEn;
+
     @Column(name = "difficulty", nullable = false, length = 20)
     @Builder.Default
     private String difficulty = "INTERMEDIATE";

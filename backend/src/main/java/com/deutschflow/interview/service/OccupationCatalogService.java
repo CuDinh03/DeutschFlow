@@ -110,10 +110,15 @@ public class OccupationCatalogService {
         List<InterviewQuestionDef> bank = InterviewQuestionBank.forPersona(persona, position);
         List<SampleQuestion> out = new ArrayList<>();
         bank.stream().filter(q -> q.phase() == InterviewPhase.INTRO).findFirst()
-                .ifPresent(q -> out.add(new SampleQuestion(q.phase().name(), q.questionDe(), OccupationDetailDto.SOURCE_BANK)));
+                .ifPresent(q -> out.add(sample(q)));
         bank.stream().filter(q -> q.phase() == InterviewPhase.HARD_SKILLS).limit(SAMPLE_HARD_SKILLS)
-                .forEach(q -> out.add(new SampleQuestion(q.phase().name(), q.questionDe(), OccupationDetailDto.SOURCE_BANK)));
+                .forEach(q -> out.add(sample(q)));
         return List.copyOf(out);
+    }
+
+    private static SampleQuestion sample(InterviewQuestionDef q) {
+        return new SampleQuestion(q.phase().name(), q.questionDe(), q.questionVi(), q.questionEn(),
+                OccupationDetailDto.SOURCE_BANK);
     }
 
     private OccupationDto toDto(Occupation o) {

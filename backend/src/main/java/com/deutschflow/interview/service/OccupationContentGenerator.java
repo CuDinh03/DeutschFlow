@@ -44,6 +44,8 @@ public class OccupationContentGenerator {
     static final int MIN_QUESTIONS = 3;
 
     private static final int MAX_QUESTION_CHARS = 400;
+    /** Bản dịch dài hơn câu gốc một chút (tiếng Việt thường dài hơn tiếng Đức). */
+    static final int MAX_TRANSLATION_CHARS = 600;
     private static final int MAX_TOPIC_CHARS = 80;
 
     private final OpenAiChatClient chatClient;
@@ -110,13 +112,14 @@ public class OccupationContentGenerator {
 
     static final String SYSTEM_PROMPT = """
             You write content for a German job-interview practice app. Return ONLY valid JSON, no markdown:
-            {"questions":[{"questionDe":"...","topicKey":"...","difficulty":"BEGINNER|INTERMEDIATE|ADVANCED"}],
+            {"questions":[{"questionDe":"...","questionVi":"...","questionEn":"...","topicKey":"...","difficulty":"BEGINNER|INTERMEDIATE|ADVANCED"}],
              "terms":[{"termDe":"...","meaningEn":"...","meaningVi":"...","exampleDe":"..."}]}
             Questions: exactly 6 professional-skills (Fachkompetenz) questions that a real employer in Germany
             asks a candidate for THIS occupation. Formal "Sie". Each asks about concrete experience or a concrete
             work situation typical of this occupation, under 30 words, never a yes/no question. Never ask about
             salary, religion, health, age, origin, family or pregnancy (AGG). Exactly 2 BEGINNER, 2 INTERMEDIATE,
-            2 ADVANCED. topicKey: short lowercase snake_case label of the skill.
+            2 ADVANCED. topicKey: short lowercase snake_case label of the skill. questionVi: natural Vietnamese
+            translation of questionDe (polite "bạn"); questionEn: natural English translation.
             Terms: exactly 6 job-specific German terms a candidate should use in this interview; nouns with
             article ("die Wundversorgung"). meaningEn in English, meaningVi in Vietnamese, exampleDe one short
             sentence a candidate could say in the interview.
@@ -147,6 +150,8 @@ public class OccupationContentGenerator {
                     .occupationCode(occupationCode)
                     .topicKey(topicKey(q.path("topicKey").asText("")))
                     .questionDe(text)
+                    .questionVi(translation(q.path("questionVi").asText("")))
+                    .questionEn(translation(q.path("questionEn").asText("")))
                     .difficulty(difficulty(q.path("difficulty").asText("")))
                     .sourceModel(truncate(model, 80))
                     .build());
@@ -177,7 +182,13 @@ public class OccupationContentGenerator {
         return new Generated(questions, terms);
     }
 
-    private static String clean(String s) {
+    /** Bản dịch thiếu hoặc quá dài → {@code null} (câu vẫn dùng được, trang chỉ hiện tiếng Đức). */
+    static String translation(String raw) {
+        String t = clean(raw);
+        return t.isEmpty() || t.length() > MAX_TRANSLATION_CHARS ? null : t;
+    }
+
+    static String clean(String s) {
         return s == null ? "" : s.strip().replaceAll("\\s+", " ");
     }
 

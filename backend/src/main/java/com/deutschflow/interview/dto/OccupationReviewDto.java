@@ -16,11 +16,12 @@ public record OccupationReviewDto(
         List<QuestionItem> questions,
         List<TermItem> terms
 ) {
-    public record QuestionItem(String id, String topicKey, String questionDe, String difficulty,
-                               String status, String sourceModel) {
+    /** {@code questionVi}/{@code questionEn}: bản dịch (V339), {@code null} = chưa dịch. */
+    public record QuestionItem(String id, String topicKey, String questionDe, String questionVi, String questionEn,
+                               String difficulty, String status, String sourceModel) {
         public static QuestionItem from(OccupationQuestion q) {
-            return new QuestionItem(q.getId(), q.getTopicKey(), q.getQuestionDe(), q.getDifficulty(),
-                    q.getStatus().name(), q.getSourceModel());
+            return new QuestionItem(q.getId(), q.getTopicKey(), q.getQuestionDe(), q.getQuestionVi(),
+                    q.getQuestionEn(), q.getDifficulty(), q.getStatus().name(), q.getSourceModel());
         }
     }
 

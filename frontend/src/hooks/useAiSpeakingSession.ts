@@ -190,6 +190,7 @@ export function useAiSpeakingSession(opts: {
           updateLastMessage({
             contentDe: meta.aiSpeechDe,
             isStreaming: false,
+            serverMessageId: meta.messageId || undefined,
             feedback: {
               errors,
               explanationVi: meta.explanationVi || "",

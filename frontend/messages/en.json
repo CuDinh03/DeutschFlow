@@ -309,7 +309,10 @@
       "contextLevel": "Level",
       "contextElapsed": "Speaking for",
       "contextNoGoal": "Free conversation — talk about what you like",
-      "feedbackEmptyHint": "Feedback appears here after your first spoken turn."
+      "feedbackEmptyHint": "Feedback appears here after your first spoken turn.",
+      "translate": "Translate",
+      "hideTranslation": "Hide translation",
+      "translateFailed": "Couldn't translate, tap to retry"
     },
     "continueToSettings": "Continue to settings",
     "backToModeAndPersona": "Back to mode & companion",
