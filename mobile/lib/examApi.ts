@@ -69,6 +69,8 @@ export const NONE_OF_THEM = 'x'
 
 export interface ExamObjGroup {
   title: string
+  /** Số Teil trong đề (LT2: tra chiến thuật Teil). Vắng khi seed không đánh số. */
+  teilNo?: number
   /** Hướng dẫn của Teil (instruction_vi, fallback instruction_de). */
   instruction?: string
   /** Bài đọc chung của Teil (teil.text hoặc teil.context trong seed) — hiện MỘT lần đầu nhóm. */
@@ -169,6 +171,8 @@ export interface ParsedExam {
   groups: ExamObjGroup[]
   skippedSections: string[]
   blocks?: ExamBlock[]
+  /** Khoá gốc `format` của `sections_json` (`TELC` …) — LT2 tra chiến thuật theo nhà tổ chức × bậc. */
+  format?: string
 }
 
 /** Tên phần thi trong đề → tên người đọc được. Mã phần không được lộ ra giao diện. */
@@ -329,6 +333,12 @@ export function budgetRowDetail(row: TeilLoss): string {
   return `${formatPoints(row.earned ?? 0)}/${formatPoints(row.max)} điểm`
 }
 
+/** Teil có chiến thuật cho một dòng (LT2): dòng cả phần Viết = Teil 1, dòng cả phần Nói = ba Teil. */
+export function strategyTeile(row: Pick<TeilLoss, 'section' | 'teil'>): number[] {
+  if (row.teil != null) return [row.teil]
+  return row.section === 'SPRECHEN' ? [1, 2, 3] : [1]
+}
+
 /** Mục tiêu chọn sẵn: mức cao nhất còn trong ngân sách; vượt hết thì mức thấp nhất. */
 export function defaultTarget(targets: GradeTarget[]): string | null {
   if (targets.length === 0) return null
@@ -456,11 +466,14 @@ export function parseExamSections(sectionsJson: string): ParsedExam {
   const sections: ExamSectionView[] = []
   const skipped = new Set<string>()
   let blocks: ExamBlock[] | undefined
+  let format: string | undefined
   try {
     const root = JSON.parse(sectionsJson) as {
       sections?: Record<string, unknown>[]
       blocks?: Record<string, unknown>[]
+      format?: unknown
     }
+    if (typeof root.format === 'string') format = root.format
     if (Array.isArray(root.blocks)) {
       blocks = root.blocks
         .filter((b) => typeof b.minutes === 'number')
@@ -513,6 +526,7 @@ export function parseExamSections(sectionsJson: string): ParsedExam {
     groups: sections.flatMap((sec) => sec.groups),
     skippedSections: [...skipped],
     blocks,
+    format,
   }
 }
 
@@ -648,6 +662,7 @@ function parseObjectiveTeil(teil: Record<string, unknown>): ExamObjGroup | null 
     .map((e) => ({ label: typeof e.label === 'string' ? e.label : undefined, situation: String(e.situation), answer: String(e.answer) }))
   return {
     title,
+    teilNo: typeof teil.teil === 'number' ? teil.teil : undefined,
     instruction,
     // Teil ghép: context đã thành lựa chọn — không lặp lại thành bài đọc.
     passage: usedMatchingContext ? undefined : teilPassage,

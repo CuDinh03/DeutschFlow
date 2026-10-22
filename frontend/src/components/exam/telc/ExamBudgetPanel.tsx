@@ -3,13 +3,26 @@
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { defaultTarget, type ExamBudget, type TeilLoss } from './examBudget'
+import { TeilStrategy } from '@/components/exam/strategy/TeilStrategy'
+
+/** Đề đang xem — để dòng điểm mất mở được chiến thuật Teil đó (LT2). */
+export interface StrategyExam {
+  provider: string
+  level: string
+}
+
+/** Teil có chiến thuật cho một dòng: dòng cả phần Viết = Teil 1, dòng cả phần Nói = ba Teil. */
+export function strategyTeile(row: Pick<TeilLoss, 'section' | 'teil'>): number[] {
+  if (row.teil != null) return [row.teil]
+  return row.section === 'SPRECHEN' ? [1, 2, 3] : [1]
+}
 
 /**
  * Khối "Ngân sách điểm" trên màn kết quả đề telc (LT1, 22/10/2026): điểm đã mất theo Teil (xếp theo
  * điểm, kèm trọng số câu) và mục tiêu xếp loại người học chọn → được mất tối đa bao nhiêu điểm, kèm
  * một cách chia ví dụ. Đề Goethe không có `budget` nên không thấy khối này.
  */
-export function ExamBudgetPanel({ budget }: { budget: ExamBudget }) {
+export function ExamBudgetPanel({ budget, strategyExam }: { budget: ExamBudget; strategyExam?: StrategyExam }) {
   const t = useTranslations('v2.student.mockExamRun')
   const tParts = useTranslations('v2.student.examResult.parts')
   const locale = useLocale()
@@ -33,7 +46,14 @@ export function ExamBudgetPanel({ budget }: { budget: ExamBudget }) {
       </div>
       <ul className="mb-6 space-y-2.5">
         {budget.losses.map((row) => (
-          <LossRow key={`${row.section}-${row.teil ?? 'all'}`} row={row} label={rowLabel(row)} fmt={fmt} />
+          <LossRow
+            key={`${row.section}-${row.teil ?? 'all'}`}
+            row={row}
+            label={rowLabel(row)}
+            fmt={fmt}
+            strategyExam={strategyExam}
+            partLabel={part(row.section)}
+          />
         ))}
       </ul>
 
@@ -94,7 +114,19 @@ export function ExamBudgetPanel({ budget }: { budget: ExamBudget }) {
   }
 }
 
-function LossRow({ row, label, fmt }: { row: TeilLoss; label: string; fmt: (n: number) => string }) {
+function LossRow({
+  row,
+  label,
+  fmt,
+  strategyExam,
+  partLabel,
+}: {
+  row: TeilLoss
+  label: string
+  fmt: (n: number) => string
+  strategyExam?: StrategyExam
+  partLabel: string
+}) {
   const t = useTranslations('v2.student.mockExamRun')
   const lostShare = !row.pending && row.max > 0 ? Math.min(1, (row.lost ?? 0) / row.max) : 0
 
@@ -127,6 +159,18 @@ function LossRow({ row, label, fmt }: { row: TeilLoss; label: string; fmt: (n: n
         <div className="h-full bg-ga-red" style={{ width: `${Math.round(lostShare * 100)}%` }} />
       </div>
       <p className="ga-ui mt-1 text-ga-caption text-ga-muted">{detail}</p>
+      {/* LT2: dòng đã mất điểm mở thẳng chiến thuật của Teil đó. */}
+      {strategyExam && !row.pending && (row.lost ?? 0) > 0 && strategyTeile(row).map((n) => (
+        <TeilStrategy
+          key={n}
+          provider={strategyExam.provider}
+          level={strategyExam.level}
+          section={row.section}
+          teil={n}
+          hideComingSoon
+          summaryLabel={t('budgetStrategy', { label: row.teil != null || row.section !== 'SPRECHEN' ? label : `${partLabel} · Teil ${n}` })}
+        />
+      ))}
     </li>
   )
 }

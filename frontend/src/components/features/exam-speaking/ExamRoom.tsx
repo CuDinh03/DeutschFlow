@@ -12,6 +12,7 @@ import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnR
 import { GaBtn, GaCap, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { StimulusCard } from './StimulusCard'
+import { TeilStrategy } from '@/components/exam/strategy/TeilStrategy'
 import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
 import { ExamTranscript } from './ExamTranscript'
@@ -467,6 +468,10 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
                         </span>
                       )}
                     </div>
+                    {/* LT2: chiến thuật Teil — đọc trong giờ chuẩn bị, thu gọn mặc định. */}
+                    <div className="mb-3">
+                      <TeilStrategy provider={session.provider} level={session.level} section="SPRECHEN" teil={m.teilNo} />
+                    </div>
                     <div className={m.choiceRequired ? 'grid gap-3 md:grid-cols-2' : ''}>
                       {m.stimuli.map((stim, idx) => (
                         <div key={idx} className="relative">
@@ -526,6 +531,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
                 <p className="ga-ui mt-1 text-[13px] text-ga-muted">
                   {t('step', { i: session.directive.stepIndex + 1, n: session.directive.stepCount })}
                 </p>
+                <TeilStrategy provider={session.provider} level={session.level} section="SPRECHEN" teil={session.directive.teilNo} />
               </div>
               <StimulusCard stimulus={session.directive.stimulus} stepIndex={session.directive.stepIndex} candidateAction={session.directive.candidateAction} />
               <div className="rounded-ga bg-ga-yellow-soft p-3">
