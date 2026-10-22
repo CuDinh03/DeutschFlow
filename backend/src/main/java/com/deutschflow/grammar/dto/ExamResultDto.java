@@ -33,4 +33,19 @@ public record ExamResultDto(
          * của mọi đề đang chạy không đổi một byte nào.
          */
         @JsonInclude(JsonInclude.Include.NON_EMPTY)
-        List<ExamScoringService.Gate> gates) {}
+        List<ExamScoringService.Gate> gates,
+        /**
+         * LT1 (22/10/2026): ngân sách điểm — điểm đã mất theo Teil + mục tiêu xếp loại. Chỉ có với
+         * đề khai {@code pass_rule} (telc); {@code NON_NULL} ⇒ đề Goethe không đổi một byte nào.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        ExamBudgetDto budget) {
+
+    /** Không kèm ngân sách điểm (đề Goethe / dữ liệu cũ). */
+    public ExamResultDto(long id, Long examId, String title, Date startedAt, Date finishedAt, Integer totalScore,
+                         Boolean passed, String status, String detailedScoresJson, String weakAreas,
+                         List<ExamScoringService.Gate> gates) {
+        this(id, examId, title, startedAt, finishedAt, totalScore, passed, status, detailedScoresJson, weakAreas,
+                gates, null);
+    }
+}

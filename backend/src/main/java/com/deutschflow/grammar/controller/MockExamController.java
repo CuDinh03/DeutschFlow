@@ -66,6 +66,8 @@ public class MockExamController {
     @Autowired private com.deutschflow.grammar.service.MockExamPackService packService;
     // Cổng Nói của đề telc — điểm 75 đến từ module luyện thi nói, không nằm trong đề giấy
     @Autowired private com.deutschflow.grammar.service.MockExamOralGateService oralGateService;
+    // LT1: ngân sách điểm trên màn kết quả đề nhiều cổng — hàm thuần, cùng idiom tiêm riêng
+    @Autowired private com.deutschflow.grammar.service.ExamBudgetService budgetService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                ExamGenerationService generationService,
@@ -471,6 +473,7 @@ public class MockExamController {
                        a.total_score, a.passed, a.status,
                        a.detailed_scores_json::text AS detailed_scores_json,
                        a.weak_areas::text AS weak_areas,
+                       a.answers_submitted_json::text AS answers_submitted_json,
                        e.sections_json::text AS sections_json, e.cefr_level,
                        e.total_points, e.pass_points
                 FROM mock_exam_attempts a
@@ -494,9 +497,32 @@ public class MockExamController {
                     (String) row.get("status"),
                     (String) row.get("detailed_scores_json"),
                     (String) row.get("weak_areas"),
-                    snapshot.gates()));
+                    snapshot.gates(),
+                    budget(row, snapshot.gates())));
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /** LT1: ngân sách điểm; {@code null} với đề Goethe hoặc khi dữ liệu không đọc được (màn kết quả vẫn mở). */
+    @SuppressWarnings("unchecked")
+    private com.deutschflow.grammar.dto.ExamBudgetDto budget(Map<String, Object> row,
+                                                             List<ExamScoringService.Gate> gates) {
+        try {
+            Map<String, Object> structure = om.readValue((String) row.get("sections_json"), Map.class);
+            String detailedJson = (String) row.get("detailed_scores_json");
+            Map<String, Object> detailed = detailedJson == null ? Map.of() : om.readValue(detailedJson, Map.class);
+            String answersJson = (String) row.get("answers_submitted_json");
+            Map<String, String> answers = new HashMap<>();
+            if (answersJson != null && !answersJson.isBlank() && !"null".equals(answersJson)) {
+                for (Map.Entry<String, Object> e : ((Map<String, Object>) om.readValue(answersJson, Map.class)).entrySet()) {
+                    if (e.getValue() != null) answers.put(e.getKey(), e.getValue().toString());
+                }
+            }
+            return budgetService.compute(structure, answers, detailed, gates, (String) row.get("cefr_level"));
+        } catch (Exception e) {
+            log.warn("[MockExam] Không tính được ngân sách điểm cho bài {}: {}", row.get("id"), e.getMessage());
+            return null;
         }
     }
 

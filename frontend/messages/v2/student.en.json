@@ -1045,7 +1045,35 @@
       "writingSubject": "Subject",
       "writingPointsOrder": "The points below are printed out of order, as on the real exam paper. Choose a sensible order yourself.",
       "writingPlaceholder": "Write your reply e-mail here…",
-      "passageGlossary": "Glossary"
+      "passageGlossary": "Glossary",
+      "budgetTitle": "Points budget",
+      "budgetHint": "Based on the full {total}-point scale (written + oral). Ranked by points lost, not by wrong answers, because items carry different weights.",
+      "budgetLostTitle": "Points lost by Teil",
+      "budgetLostTotal": "Lost {lost}/{total} points",
+      "budgetLostPending": "not counting parts still being scored",
+      "budgetRowTeil": "{part} · Teil {n}",
+      "budgetRowItems": "{correct}/{items} correct · {perItem} points each",
+      "budgetRowItemsMixed": "{correct}/{items} correct",
+      "budgetRowScore": "{earned}/{max} points",
+      "budgetRowNone": "No points lost",
+      "budgetRowPendingWriting": "Writing is still being scored",
+      "budgetRowPendingSpeaking": "Speaking exam not taken yet",
+      "budgetRowPendingOther": "No score for this part yet",
+      "budgetTargetTitle": "Target grade",
+      "budgetTargetHint": "Pick the grade you are aiming for to see how many points you can afford to lose.",
+      "budgetTargetAllowance": "To get {grade} ({min}/{total} points or more), you can lose at most {maxLoss} points.",
+      "budgetTargetLeft": "This attempt lost {lost} points, leaving {left} points to spare.",
+      "budgetTargetOver": "This attempt lost {lost} points, {over} points over budget.",
+      "budgetTargetExample": "One way to split it (still passing both 60 % thresholds):",
+      "budgetTargetShare": "{part}: lose at most {n}",
+      "grades": {
+        "SEHR_GUT": "sehr gut (very good)",
+        "GUT": "gut (good)",
+        "BEFRIEDIGEND": "befriedigend (satisfactory)",
+        "AUSREICHEND": "ausreichend (pass)"
+      },
+      "gateMarginAbove": "{n} points above the threshold",
+      "gateMarginBelow": "{n} points short of the threshold"
     },
     "grammarPractice": {
       "title": "Grammar practice",
@@ -2164,6 +2192,7 @@
     "examResult": {
       "parts": {
         "LESEN": "Reading",
+        "SPRACHBAUSTEINE": "Language elements",
         "HOEREN": "Listening",
         "SCHREIBEN": "Writing",
         "SPRECHEN": "Speaking"

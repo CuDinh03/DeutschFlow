@@ -1045,7 +1045,35 @@
       "writingSubject": "Chủ đề",
       "writingPointsOrder": "Các ý dưới đây in không theo thứ tự — như tờ đề thật. Bạn tự sắp thứ tự hợp lý khi viết.",
       "writingPlaceholder": "Viết E-Mail trả lời của bạn vào đây…",
-      "passageGlossary": "Chú thích từ khó"
+      "passageGlossary": "Chú thích từ khó",
+      "budgetTitle": "Ngân sách điểm",
+      "budgetHint": "Tính trên thang {total} điểm của cả kỳ thi (phần viết + phần nói). Xếp theo số điểm đã mất chứ không theo số câu sai, vì mỗi câu nặng nhẹ khác nhau.",
+      "budgetLostTitle": "Điểm đã mất theo Teil",
+      "budgetLostTotal": "Đã mất {lost}/{total} điểm",
+      "budgetLostPending": "chưa gồm phần chưa chấm",
+      "budgetRowTeil": "{part} · Teil {n}",
+      "budgetRowItems": "{correct}/{items} câu đúng · {perItem} điểm/câu",
+      "budgetRowItemsMixed": "{correct}/{items} câu đúng",
+      "budgetRowScore": "{earned}/{max} điểm",
+      "budgetRowNone": "Không mất điểm",
+      "budgetRowPendingWriting": "Bài viết đang chờ chấm",
+      "budgetRowPendingSpeaking": "Chưa thi Nói",
+      "budgetRowPendingOther": "Chưa có điểm phần này",
+      "budgetTargetTitle": "Mục tiêu xếp loại",
+      "budgetTargetHint": "Chọn mức bạn muốn đạt để biết được mất tối đa bao nhiêu điểm.",
+      "budgetTargetAllowance": "Để đạt {grade} (từ {min}/{total} điểm), bạn được mất tối đa {maxLoss} điểm.",
+      "budgetTargetLeft": "Bài này đã mất {lost} điểm, còn dư {left} điểm.",
+      "budgetTargetOver": "Bài này đã mất {lost} điểm, vượt ngân sách {over} điểm.",
+      "budgetTargetExample": "Một cách chia ví dụ (vẫn qua cả hai ngưỡng 60 %):",
+      "budgetTargetShare": "{part}: mất tối đa {n}",
+      "grades": {
+        "SEHR_GUT": "sehr gut (rất giỏi)",
+        "GUT": "gut (giỏi)",
+        "BEFRIEDIGEND": "befriedigend (khá)",
+        "AUSREICHEND": "ausreichend (đạt)"
+      },
+      "gateMarginAbove": "Cao hơn ngưỡng {n} điểm",
+      "gateMarginBelow": "Còn thiếu {n} điểm để qua ngưỡng"
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",
@@ -2164,6 +2192,7 @@
     "examResult": {
       "parts": {
         "LESEN": "Đọc hiểu",
+        "SPRACHBAUSTEINE": "Ngữ pháp – từ vựng",
         "HOEREN": "Nghe hiểu",
         "SCHREIBEN": "Viết",
         "SPRECHEN": "Nói"

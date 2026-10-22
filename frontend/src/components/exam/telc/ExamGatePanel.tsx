@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { Check, Clock, X } from 'lucide-react'
 import { pendingGates, type ExamGate } from './examGates'
+import { gateMargin } from './examBudget'
 
 /** Nhãn của từng cổng; cổng lạ dùng nhãn chung chứ không in khoá máy ra màn hình. */
 const GATE_LABEL: Record<string, string> = {
@@ -59,6 +60,16 @@ export function ExamGatePanel({ gates }: { gates: ExamGate[] }) {
                     ? t('gateScore', { raw: gate.raw, max: gate.max, min: gate.min })
                     : t('gateThresholdOnly', { min: gate.min, max: gate.max })}
                 </p>
+                {/* LT1: khoảng cách tới ngưỡng — "đỗ" sát nút và "đỗ" dư dả là hai tình huống ôn khác nhau. */}
+                {(() => {
+                  const margin = gateMargin(gate)
+                  if (margin === null) return null
+                  return (
+                    <p className={`ga-ui text-ga-caption font-semibold ${margin >= 0 ? 'text-ga-green' : 'text-ga-red'}`}>
+                      {margin >= 0 ? t('gateMarginAbove', { n: margin }) : t('gateMarginBelow', { n: -margin })}
+                    </p>
+                  )
+                })()}
                 {gate.achievedAt && (
                   <p className="ga-ui mt-0.5 text-ga-caption text-ga-subtle">
                     {t('gateFromSession', {

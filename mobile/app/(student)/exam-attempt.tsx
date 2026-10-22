@@ -19,7 +19,8 @@ import {
   ProgressBar,
   SelectableRow,
 GaGlyph } from '@/components/ui'
-import { attemptTotalScore, finishPayload, parseExamSections, skippedSectionsLabel, gateVerdict, gateLabel, NONE_OF_THEM, type AttemptResultDto, type ExamGate, type ExamObjItem, type ExamObjGroup, itemChoices } from '@/lib/examApi'
+import { attemptTotalScore, finishPayload, parseExamSections, skippedSectionsLabel, gateVerdict, gateLabel, gateMargin, NONE_OF_THEM, type AttemptResultDto, type ExamBudget, type ExamGate, type ExamObjItem, type ExamObjGroup, itemChoices } from '@/lib/examApi'
+import { ExamBudgetCard } from '@/components/exam/ExamBudgetCard'
 import { ExamAudio } from '@/components/exam/ExamAudio'
 import { HoerenGate, type HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { TelcGapText } from '@/components/exam/TelcGapText'
@@ -45,6 +46,7 @@ export default function ExamAttemptScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [score, setScore] = useState<number | null>(null)
   const [gates, setGates] = useState<ExamGate[] | undefined>(undefined)
+  const [budget, setBudget] = useState<ExamBudget | undefined>(undefined)
   // Pha cổng nghi thức từng Teil nghe (đề telc) — khoá theo phần + Teil, sống suốt bài thi.
   const [hoerenPhases, setHoerenPhases] = useState<Record<string, HoerenGatePhase>>({})
   // Bài ĐÃ nộp lên server (202 nhận job) — kể cả khi poll điểm sau đó quá hạn.
@@ -139,6 +141,7 @@ export default function ExamAttemptScreen() {
       const total = attemptTotalScore(res.data)
       trackFeatureAction('mock_exam', 'completed', { score: total })
       setGates(res.data.gates)
+      setBudget(res.data.budget)
       setScore(total)
     } catch (e) {
       if (e instanceof AsyncJobTimeoutError) {
@@ -239,6 +242,16 @@ export default function ExamAttemptScreen() {
                         ? `Cần ${gate.min}/${gate.max} điểm`
                         : `${gate.raw}/${gate.max} điểm · cần ${gate.min}`}
                     </ThemedText>
+                    {(() => {
+                      // LT1: khoảng cách tới ngưỡng — đỗ sát nút và đỗ dư dả là hai tình huống ôn khác nhau.
+                      const margin = gateMargin(gate)
+                      if (margin === null) return null
+                      return (
+                        <ThemedText variant="caption" style={{ color: margin >= 0 ? c.success : c.danger }}>
+                          {margin >= 0 ? `Cao hơn ngưỡng ${margin} điểm` : `Còn thiếu ${-margin} điểm để qua ngưỡng`}
+                        </ThemedText>
+                      )
+                    })()}
                   </View>
                   <ThemedText
                     variant="bodyStrong"
@@ -257,6 +270,8 @@ export default function ExamAttemptScreen() {
               ) : null}
             </Card>
           ) : null}
+
+          {budget ? <ExamBudgetCard budget={budget} /> : null}
 
           <View style={{ gap: space[2] }}>
             <Button

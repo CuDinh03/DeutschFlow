@@ -1045,7 +1045,35 @@
       "writingSubject": "Betreff",
       "writingPointsOrder": "Die Punkte stehen wie in der echten Prüfung nicht in der richtigen Reihenfolge. Überlegen Sie sich selbst eine passende Reihenfolge.",
       "writingPlaceholder": "Schreiben Sie hier Ihre Antwort-E-Mail…",
-      "passageGlossary": "Worterklärungen"
+      "passageGlossary": "Worterklärungen",
+      "budgetTitle": "Punktebudget",
+      "budgetHint": "Berechnet auf der gesamten Skala von {total} Punkten (schriftlich + mündlich). Sortiert nach verlorenen Punkten, nicht nach falschen Antworten – die Aufgaben sind unterschiedlich gewichtet.",
+      "budgetLostTitle": "Verlorene Punkte pro Teil",
+      "budgetLostTotal": "{lost}/{total} Punkte verloren",
+      "budgetLostPending": "ohne noch nicht bewertete Teile",
+      "budgetRowTeil": "{part} · Teil {n}",
+      "budgetRowItems": "{correct}/{items} richtig · {perItem} Punkte pro Aufgabe",
+      "budgetRowItemsMixed": "{correct}/{items} richtig",
+      "budgetRowScore": "{earned}/{max} Punkte",
+      "budgetRowNone": "Keine Punkte verloren",
+      "budgetRowPendingWriting": "Schreiben wird noch bewertet",
+      "budgetRowPendingSpeaking": "Mündliche Prüfung noch nicht abgelegt",
+      "budgetRowPendingOther": "Für diesen Teil gibt es noch keine Punkte",
+      "budgetTargetTitle": "Zielprädikat",
+      "budgetTargetHint": "Wähle dein Ziel und sieh, wie viele Punkte du höchstens verlieren darfst.",
+      "budgetTargetAllowance": "Für {grade} (ab {min}/{total} Punkten) darfst du höchstens {maxLoss} Punkte verlieren.",
+      "budgetTargetLeft": "Dieser Versuch hat {lost} Punkte verloren – {left} Punkte Spielraum.",
+      "budgetTargetOver": "Dieser Versuch hat {lost} Punkte verloren – {over} Punkte über dem Budget.",
+      "budgetTargetExample": "Eine mögliche Aufteilung (beide 60-%-Grenzen bleiben bestanden):",
+      "budgetTargetShare": "{part}: höchstens {n} verlieren",
+      "grades": {
+        "SEHR_GUT": "sehr gut",
+        "GUT": "gut",
+        "BEFRIEDIGEND": "befriedigend",
+        "AUSREICHEND": "ausreichend"
+      },
+      "gateMarginAbove": "{n} Punkte über der Grenze",
+      "gateMarginBelow": "Es fehlen {n} Punkte bis zur Grenze"
     },
     "grammarPractice": {
       "title": "Grammatiktraining",
@@ -2164,6 +2192,7 @@
     "examResult": {
       "parts": {
         "LESEN": "Leseverstehen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
         "HOEREN": "Hörverstehen",
         "SCHREIBEN": "Schreiben",
         "SPRECHEN": "Sprechen"

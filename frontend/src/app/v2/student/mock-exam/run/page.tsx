@@ -27,6 +27,8 @@ import { ExamShell, type ExamSaveState } from '@/components/exam/ExamShell'
 import { ExamRecoveryPanel, ExamTaking, SECTION_COLOR, type ActiveExamData } from './ExamTaking'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { ExamGatePanel } from '@/components/exam/telc/ExamGatePanel'
+import { ExamBudgetPanel } from '@/components/exam/telc/ExamBudgetPanel'
+import type { ExamBudget } from '@/components/exam/telc/examBudget'
 import { gateVerdict, type ExamGate } from '@/components/exam/telc/examGates'
 
 /**
@@ -69,6 +71,8 @@ interface MockAttempt {
   sections_json?: string
   /** Ngưỡng đỗ độc lập của đề nhiều cổng (telc). Vắng mặt với mọi đề Goethe. */
   gates?: ExamGate[]
+  /** LT1: ngân sách điểm (chỉ ở `/result`, đề telc). */
+  budget?: ExamBudget
 }
 
 interface SectionScore {
@@ -748,6 +752,8 @@ function MockExamRunner() {
                 <ExamGatePanel gates={selectedAttempt.gates} />
               )}
 
+              {selectedAttempt.budget && <ExamBudgetPanel budget={selectedAttempt.budget} />}
+
               {(() => {
                 let detailedScores: Record<string, SectionScore> = {}
                 if (selectedAttempt.detailed_scores_json) {
@@ -877,6 +883,11 @@ function MockExamRunner() {
                               onClick={() => {
                                 setSelectedAttempt(att)
                                 setView('result')
+                                // Danh sách lịch sử không có cổng/ngân sách điểm (tính lúc đọc) — lấy
+                                // bản đầy đủ từ /result, giữ bản danh sách nếu lỗi.
+                                api.get<MockAttempt>(`/mock-exams/attempts/${att.id}/result`)
+                                  .then((r) => setSelectedAttempt((cur) => (cur?.id === att.id ? { ...cur, ...r.data } : cur)))
+                                  .catch(() => {})
                               }}
                               className="ga-ui inline-flex min-h-10 items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-accent transition-colors hover:bg-ga-surface lg:min-h-0"
                             >

@@ -246,6 +246,98 @@ export interface AttemptResultDto {
   passed?: boolean | null
   /** Vắng mặt với mọi đề Goethe (backend đánh NON_EMPTY). */
   gates?: ExamGate[]
+  /** LT1: ngân sách điểm — chỉ đề telc (backend đánh NON_NULL). */
+  budget?: ExamBudget
+}
+
+// ─── LT1 (22/10/2026): ngân sách điểm ───────────────────────────────────────
+// Backend (ExamBudgetService) tính sẵn; app chỉ hiển thị. Bản sinh đôi kiểu + `defaultTarget` ở
+// `frontend/src/components/exam/telc/examBudget.ts` — hai bên phải cùng một luật.
+
+export interface TeilLoss {
+  section: string
+  /** Vắng mặt khi cả phần là một dòng (Viết, Nói). */
+  teil?: number
+  max: number
+  earned?: number
+  lost?: number
+  pointPerItem?: number
+  items?: number
+  correct?: number
+  pending: boolean
+}
+
+export interface GradeTarget {
+  grade: string
+  minPoints: number
+  maxLoss: number
+  /** maxLoss − lost; âm = đã vượt ngân sách. */
+  remaining: number
+  example: { section: string; max: number; maxLoss: number }[]
+}
+
+export interface ExamBudget {
+  totalMax: number
+  earned: number
+  lost: number
+  pending: boolean
+  losses: TeilLoss[]
+  targets: GradeTarget[]
+}
+
+const BUDGET_PART: Record<string, string> = {
+  LESEN: 'Đọc hiểu',
+  SPRACHBAUSTEINE: 'Ngữ pháp – từ vựng',
+  HOEREN: 'Nghe hiểu',
+  SCHREIBEN: 'Viết',
+  SPRECHEN: 'Nói',
+}
+
+const GRADE_LABEL: Record<string, string> = {
+  SEHR_GUT: 'sehr gut (rất giỏi)',
+  GUT: 'gut (giỏi)',
+  BEFRIEDIGEND: 'befriedigend (khá)',
+  AUSREICHEND: 'ausreichend (đạt)',
+}
+
+export const budgetPartLabel = (section: string): string => BUDGET_PART[section] ?? 'Phần khác'
+
+export const gradeLabel = (grade: string): string => GRADE_LABEL[grade] ?? grade
+
+/** "Nghe hiểu · Teil 1" / "Viết". */
+export function budgetRowLabel(row: Pick<TeilLoss, 'section' | 'teil'>): string {
+  return row.teil != null ? `${budgetPartLabel(row.section)} · Teil ${row.teil}` : budgetPartLabel(row.section)
+}
+
+/** Điểm kiểu Việt: 2,5 — bỏ số 0 thừa. */
+export function formatPoints(n: number): string {
+  return String(Math.round(n * 100) / 100).replace('.', ',')
+}
+
+/** Dòng phụ của một Teil: số câu đúng + trọng số, hoặc lý do chưa có điểm. */
+export function budgetRowDetail(row: TeilLoss): string {
+  if (row.pending) {
+    if (row.section === 'SPRECHEN') return 'Chưa thi Nói'
+    if (row.section === 'SCHREIBEN') return 'Bài viết đang chờ chấm'
+    return 'Chưa có điểm phần này'
+  }
+  if (row.items != null && row.correct != null) {
+    return row.pointPerItem != null
+      ? `${row.correct}/${row.items} câu đúng · ${formatPoints(row.pointPerItem)} điểm/câu`
+      : `${row.correct}/${row.items} câu đúng`
+  }
+  return `${formatPoints(row.earned ?? 0)}/${formatPoints(row.max)} điểm`
+}
+
+/** Mục tiêu chọn sẵn: mức cao nhất còn trong ngân sách; vượt hết thì mức thấp nhất. */
+export function defaultTarget(targets: GradeTarget[]): string | null {
+  if (targets.length === 0) return null
+  return (targets.find((t) => t.remaining >= 0) ?? targets[targets.length - 1]).grade
+}
+
+/** Khoảng cách tới ngưỡng của cổng đã có điểm: dương = dư, âm = thiếu; cổng chưa thi → null. */
+export function gateMargin(gate: Pick<ExamGate, 'raw' | 'min' | 'status'>): number | null {
+  return gate.status === 'PENDING' ? null : gate.raw - gate.min
 }
 
 export type GateVerdict = 'PASSED' | 'FAILED' | 'INCOMPLETE'
