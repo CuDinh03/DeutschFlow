@@ -932,6 +932,7 @@ export default function SpeakingScreen() {
               active={isLastAssistant && stage === 'speaking'}
               onUseSuggestion={onUseSuggestion}
               onRetry={msg.status === 'failed' ? () => void retryTurn(msg.id) : undefined}
+              sessionId={session?.id}
             />
           )
         })}
