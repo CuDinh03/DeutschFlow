@@ -346,6 +346,177 @@
       "terms": "Terms of use",
       "support": "Support",
       "legalAria": "Legal links"
+    },
+    "schools": {
+      "meta": {
+        "title": "For language schools and training providers · myDeutschFlow",
+        "description": "Students practise speaking German every day between classes, the AI drafts a grade, teachers read and confirm. For language schools, vocational schools and agencies that prepare people for Germany."
+      },
+      "hero": {
+        "cap": "For schools · Training providers",
+        "title": "Students practise speaking every day between classes.",
+        "titleEm": "Teachers just listen and confirm.",
+        "sub": "One place for language schools, vocational schools and agencies that prepare people for Germany to assign speaking and writing tasks, let the AI draft a grade, and have teachers read and confirm it.",
+        "cta": "Book a 20-minute demo",
+        "ctaTeacher": "I'm an independent teacher"
+      },
+      "problem": {
+        "cap": "The problem",
+        "title": "Speaking is the skill that gets the least practice.",
+        "items": [
+          {
+            "title": "In class, each student speaks for a few minutes",
+            "body": "Twenty students and a ninety-minute lesson: most of each student’s time is spent listening to others."
+          },
+          {
+            "title": "Nobody listens outside class",
+            "body": "Students practising at home don’t know what they get wrong, and teachers have no time to listen to each one."
+          },
+          {
+            "title": "Weaknesses show up too late",
+            "body": "Students who are weak at speaking are often found out just before the exam, or in the interview with the employer."
+          }
+        ]
+      },
+      "loop": {
+        "cap": "How it works",
+        "title": "Five steps, and the teacher has the final say.",
+        "ready": "Available",
+        "soon": "Coming soon",
+        "steps": [
+          {
+            "name": "Assign",
+            "body": "Teachers assign writing or speaking tasks to the whole class or to individual students. For speaking, a topic is enough — the conversation script is prepared for you.",
+            "state": "ready"
+          },
+          {
+            "name": "Students work on their phones",
+            "body": "Students speak and write in the app, whenever it suits them, outside class.",
+            "state": "ready"
+          },
+          {
+            "name": "The AI drafts a grade",
+            "body": "The AI grades against the task’s criteria and points out what to fix. Students don’t see the draft grade.",
+            "state": "ready"
+          },
+          {
+            "name": "The teacher reads and confirms",
+            "body": "Writing: the teacher reads the work and confirms the grade. Speaking: the teacher reads what the student said before confirming — this part is being finished.",
+            "state": "partial",
+            "partial": "Writing: available · Speaking: coming soon"
+          },
+          {
+            "name": "Reports for families",
+            "body": "Mid-term and end-of-term reports, as a PDF or a link, in Vietnamese, English or German.",
+            "state": "ready"
+          }
+        ]
+      },
+      "demos": {
+        "cap": "In the demo",
+        "title": "Three things you can see in a minute.",
+        "items": [
+          {
+            "name": "Grading photos of handwritten work",
+            "body": "Take a photo of a student’s handwritten text. The AI reads it and drafts a grade; the teacher edits and confirms."
+          },
+          {
+            "name": "One topic, one speaking task for the whole class",
+            "body": "Type a topic and a conversation script is built; the whole class practises on their phones."
+          },
+          {
+            "name": "Family reports in three languages",
+            "body": "Issue reports in Vietnamese, English or German; families open them by link or as a PDF."
+          }
+        ]
+      },
+      "pricing": {
+        "cap": "Cost",
+        "title": "Priced per active student.",
+        "body": "Schools pay per active student per month, with usage limits stated as numbers. A short paid pilot is available, and its fee is credited to the contract if you continue. We share exact prices in the demo."
+      },
+      "data": {
+        "cap": "Student data",
+        "title": "Minors need a guardian’s consent.",
+        "items": [
+          "Work and recordings from students under the age limit are only sent to the AI with a guardian’s consent. Schools record consent in the system.",
+          "Students only see a grade after the teacher confirms it.",
+          "What is stored, for how long and how it is deleted is set out in the privacy policy."
+        ],
+        "privacyLink": "Read the privacy policy"
+      },
+      "teacher": {
+        "cap": "Independent teachers",
+        "title": "Teaching on your own? Start for free.",
+        "body": "Independent teachers create classes, assign work, let the AI draft grades for writing and confirm them. AI features that use a lot of resources have daily limits:",
+        "limits": [
+          {
+            "name": "Grading photos of handwritten work",
+            "limit": "5 per day"
+          },
+          {
+            "name": "Creating PowerPoint lessons with AI",
+            "limit": "2 per day"
+          }
+        ],
+        "note": "Teachers who belong to a school use the school’s limits.",
+        "cta": "Create a teacher account"
+      },
+      "setup": {
+        "cap": "Getting started",
+        "title": "Up and running in three steps.",
+        "steps": [
+          {
+            "name": "Open your school, invite teachers",
+            "body": "Your school is opened after the demo. You invite teachers by email."
+          },
+          {
+            "name": "Import your students",
+            "body": "Import from a CSV file; each student gets a link to activate their account."
+          },
+          {
+            "name": "Assign the first task",
+            "body": "Teachers create a class and assign the first speaking or writing task."
+          }
+        ]
+      },
+      "form": {
+        "cap": "Book a demo",
+        "title": "Book a 20-minute demo.",
+        "sub": "Leave your details and we’ll get in touch to find a time. Fields marked * are required.",
+        "name": "Your name",
+        "organization": "School or organisation",
+        "country": "Country",
+        "countryPlaceholder": "e.g. India",
+        "studentCount": "Active students",
+        "studentCountPick": "Choose",
+        "studentCounts": {
+          "LT20": "Under 20",
+          "S20_50": "20 – 50",
+          "S50_200": "50 – 200",
+          "GT200": "Over 200"
+        },
+        "channel": "Contact me via",
+        "channels": {
+          "EMAIL": "Email",
+          "ZALO": "Zalo",
+          "WHATSAPP": "WhatsApp",
+          "PHONE": "Phone"
+        },
+        "contactEmail": "Email",
+        "contactPhone": "Phone number",
+        "message": "What would you like to see in the demo?",
+        "optional": "optional",
+        "consent": "We only use these details to contact you about the demo.",
+        "submit": "Send request",
+        "submitting": "Sending…",
+        "successTitle": "Request received.",
+        "successBody": "We’ll contact you via {channel} to schedule the demo.",
+        "errorRequired": "Please fill in all fields marked *.",
+        "errorContact": "That email or number doesn’t look right.",
+        "errorRateLimit": "You’ve sent several requests today. We’ll be in touch soon.",
+        "errorGeneric": "Couldn’t send. Please try again, or write to us at {email}."
+      }
     }
   }
 }

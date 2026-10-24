@@ -4,7 +4,7 @@
 import { jwtVerify, decodeProtectedHeader, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { mediaOrigins } from '../media-origins.mjs'
-import { LOCALE_HEADER, isLocalizedPublicPath, localizedHref, splitLocalePrefix } from '@/lib/publicLocale'
+import { LOCALE_HEADER, isLocalizedPublicPath, localizedHref, publicHref, slugPageFor, splitLocalePrefix } from '@/lib/publicLocale'
 
 type Role = 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
 
@@ -327,6 +327,27 @@ export async function middleware(request: NextRequest) {
   // Header ngôn ngữ chỉ do middleware gắn — xoá bản khách tự gửi để URL luôn quyết định ngôn ngữ.
   requestHeaders.delete(LOCALE_HEADER)
   const { locale: urlLocale, path: unprefixedPath } = splitLocalePrefix(pathname)
+  // Trang mỗi ngôn ngữ một slug (đợt 3a): `/en/schools/` → render `/trung-tam/` bằng tiếng Anh.
+  const slugPage = slugPageFor(urlLocale ?? 'vi', urlLocale ? unprefixedPath : pathname)
+  if (urlLocale && slugPage) {
+    requestHeaders.set(LOCALE_HEADER, urlLocale)
+    const target = request.nextUrl.clone()
+    target.pathname = `${slugPage}/`
+    return secure(NextResponse.rewrite(target, { request: { headers: requestHeaders } }))
+  }
+  if (!urlLocale && slugPage) {
+    // Như trang thường: cookie EN mà mở bản tiếng Việt → sang URL tiếng Anh. Cookie chọn một ngôn ngữ
+    // trang CHƯA có (DE của trang trung tâm) → ở lại và ép tiếng Việt, để URL `/trung-tam/` luôn ra
+    // đúng một ngôn ngữ (không render chữ Đức dưới canonical tiếng Việt).
+    const cookieLocale = request.cookies.get('locale')?.value
+    const cookieHref = cookieLocale === 'en' || cookieLocale === 'de' ? publicHref(cookieLocale, slugPage) : null
+    if (cookieHref) {
+      const target = new URL(cookieHref, request.url)
+      target.search = request.nextUrl.search
+      return redirectTo(target)
+    }
+    requestHeaders.set(LOCALE_HEADER, 'vi')
+  }
   if (urlLocale && isLocalizedPublicPath(unprefixedPath)) {
     // `/en/` → render trang `/` bằng tiếng Anh; URL trên trình duyệt giữ nguyên `/en/`.
     requestHeaders.set(LOCALE_HEADER, urlLocale)

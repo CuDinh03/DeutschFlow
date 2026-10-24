@@ -3,8 +3,9 @@
 import * as React from 'react'
 import { useTracking } from '@/hooks/useTracking'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { GaBtn, GaCap } from '@/components/ui-v2'
+import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicHref } from '@/lib/publicLocale'
 import { GaShot } from './GaShot'
 import { OccupationExplorer } from './OccupationExplorer'
 import { CastSection } from './CastSection'
@@ -71,6 +72,10 @@ const H2 = 'font-ga-display text-[32px] font-medium tracking-[-0.015em] text-ga-
 export function GaLanding() {
   const t = useTranslations('v2.landing')
   const raw = <T,>(key: string): T => t.raw(key) as T
+  const rawLocale = useLocale()
+  const locale = isPublicLocale(rawLocale) ? rawLocale : DEFAULT_PUBLIC_LOCALE
+  // Trang trung tâm (đợt 3a). Chưa có bản tiếng Đức → người xem bản DE sang bản tiếng Anh.
+  const centersHref = publicHref(locale, '/trung-tam') ?? publicHref('en', '/trung-tam') ?? '/trung-tam/'
 
   const examParts = raw<ExamPart[]>('exam.parts')
   const plans = raw<Plan[]>('pricing.plans')
@@ -333,10 +338,10 @@ export function GaLanding() {
               </ul>
               <div className="mt-auto flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-                  <Link href="/v2/register"><YellowSq />{t('partners.centers.ctaConsult')}</Link>
+                  <Link href={`${centersHref}#dat-lich`}><YellowSq />{t('partners.centers.ctaConsult')}</Link>
                 </GaBtn>
                 <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-                  <Link href="/giao-vien-mien-phi">{t('partners.centers.ctaFree')}</Link>
+                  <Link href={`${centersHref}#giao-vien`}>{t('partners.centers.ctaFree')}</Link>
                 </GaBtn>
               </div>
             </div>

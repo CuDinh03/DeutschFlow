@@ -107,8 +107,14 @@ describe('GaLanding — menu mobile', () => {
 
     // 19/10/2026 (đợt 1 A+B+E): khối giáo viên gộp vào S7 "Trung tâm và nhà tuyển dụng".
     // Không có nút giả làm video ("Xem demo 90 giây" đã bị gỡ từ P0.2).
-    expect(screen.getByRole('link', { name: /Nhận tư vấn cho trung tâm/ })).toHaveAttribute('href', '/v2/register')
-    expect(screen.getByRole('link', { name: 'Gói miễn phí cho giáo viên' })).toHaveAttribute('href', '/giao-vien-mien-phi')
+    // 24/10/2026 (đợt 3a): hai nút dẫn sang trang trung tâm — form đặt lịch demo và khối giáo viên tự
+    // do (trang /giao-vien-mien-phi cũ đã gộp vào đó, 301).
+    expect(screen.getByRole('link', { name: /Nhận tư vấn cho trung tâm/ })).toHaveAttribute('href', '/trung-tam/#dat-lich')
+    expect(screen.getByRole('link', { name: 'Gói miễn phí cho giáo viên' })).toHaveAttribute('href', '/trung-tam/#giao-vien')
+    // Mục menu "Cho trung tâm" cũng sang trang riêng thay vì neo trên trang chủ.
+    for (const link of screen.getAllByRole('link', { name: 'Cho trung tâm' })) {
+      expect(link).toHaveAttribute('href', '/trung-tam/')
+    }
     expect(screen.queryByText('Xem demo 90 giây')).not.toBeInTheDocument()
   })
 

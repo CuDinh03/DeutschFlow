@@ -346,6 +346,177 @@
       "terms": "Nutzungsbedingungen",
       "support": "Support",
       "legalAria": "Rechtliche Links"
+    },
+    "schools": {
+      "meta": {
+        "title": "Für Sprachschulen und Bildungsträger · myDeutschFlow",
+        "description": "Lernende üben jeden Tag außerhalb des Unterrichts Deutsch sprechen, die KI erstellt eine Vorbewertung, Lehrkräfte lesen nach und bestätigen. Für Sprachschulen, Berufsschulen und Vermittlungsagenturen."
+      },
+      "hero": {
+        "cap": "Für Schulen · Bildungsträger",
+        "title": "Lernende üben jeden Tag außerhalb des Unterrichts.",
+        "titleEm": "Lehrkräfte hören nur noch zu und bestätigen.",
+        "sub": "Ein Ort, an dem Sprachschulen, Berufsschulen und Agenturen, die Menschen auf Deutschland vorbereiten, Sprech- und Schreibaufgaben vergeben, die KI vorbewerten lassen und Lehrkräfte nachlesen und bestätigen.",
+        "cta": "Demo (20 Minuten) buchen",
+        "ctaTeacher": "Ich unterrichte selbstständig"
+      },
+      "problem": {
+        "cap": "Das Problem",
+        "title": "Sprechen wird am wenigsten geübt.",
+        "items": [
+          {
+            "title": "Im Unterricht spricht jede Person nur wenige Minuten",
+            "body": "Zwanzig Lernende, neunzig Minuten Unterricht: Die meiste Zeit hören sie anderen zu."
+          },
+          {
+            "title": "Außerhalb des Unterrichts hört niemand zu",
+            "body": "Wer zu Hause übt, weiß nicht, was falsch ist, und Lehrkräfte haben keine Zeit, allen einzeln zuzuhören."
+          },
+          {
+            "title": "Schwächen zeigen sich zu spät",
+            "body": "Schwächen beim Sprechen fallen oft erst kurz vor der Prüfung auf oder im Vorstellungsgespräch."
+          }
+        ]
+      },
+      "loop": {
+        "cap": "So funktioniert es",
+        "title": "Fünf Schritte, das letzte Wort hat die Lehrkraft.",
+        "ready": "Verfügbar",
+        "soon": "Demnächst",
+        "steps": [
+          {
+            "name": "Aufgabe vergeben",
+            "body": "Lehrkräfte vergeben Schreib- oder Sprechaufgaben an die ganze Klasse oder einzelne Lernende. Für Sprechaufgaben genügt ein Thema – das Gesprächsskript wird vorbereitet.",
+            "state": "ready"
+          },
+          {
+            "name": "Lernende arbeiten am Handy",
+            "body": "Lernende sprechen und schreiben in der App, wann es ihnen passt.",
+            "state": "ready"
+          },
+          {
+            "name": "Die KI bewertet vor",
+            "body": "Die KI bewertet nach den Kriterien der Aufgabe und zeigt, was zu verbessern ist. Lernende sehen die Vorbewertung nicht.",
+            "state": "ready"
+          },
+          {
+            "name": "Die Lehrkraft liest und bestätigt",
+            "body": "Schreiben: Die Lehrkraft liest den Text und bestätigt die Note. Sprechen: Die Lehrkraft liest vor dem Bestätigen, was gesagt wurde – dieser Teil wird gerade fertiggestellt.",
+            "state": "partial",
+            "partial": "Schreiben: verfügbar · Sprechen: demnächst"
+          },
+          {
+            "name": "Berichte für Familien",
+            "body": "Zwischen- und Abschlussberichte als PDF oder Link, auf Vietnamesisch, Englisch oder Deutsch.",
+            "state": "ready"
+          }
+        ]
+      },
+      "demos": {
+        "cap": "In der Demo",
+        "title": "Drei Dinge, die Sie in einer Minute sehen.",
+        "items": [
+          {
+            "name": "Handschriftliche Texte per Foto bewerten",
+            "body": "Foto aufnehmen, die KI liest den Text und bewertet vor, die Lehrkraft korrigiert und bestätigt."
+          },
+          {
+            "name": "Ein Thema, eine Sprechaufgabe für die ganze Klasse",
+            "body": "Thema eingeben, das Gesprächsskript entsteht; die Klasse übt am Handy."
+          },
+          {
+            "name": "Berichte für Familien in drei Sprachen",
+            "body": "Berichte auf Vietnamesisch, Englisch oder Deutsch, per Link oder als PDF."
+          }
+        ]
+      },
+      "pricing": {
+        "cap": "Kosten",
+        "title": "Abgerechnet pro aktivem Lernenden.",
+        "body": "Schulen zahlen pro aktivem Lernenden und Monat, mit Nutzungsgrenzen in Zahlen. Ein kurzer kostenpflichtiger Pilot ist möglich; die Gebühr wird bei Weiterführung auf den Vertrag angerechnet. Konkrete Preise nennen wir in der Demo."
+      },
+      "data": {
+        "cap": "Daten der Lernenden",
+        "title": "Minderjährige brauchen die Einwilligung der Erziehungsberechtigten.",
+        "items": [
+          "Arbeiten und Aufnahmen Minderjähriger werden nur mit Einwilligung der Erziehungsberechtigten an die KI übermittelt. Schulen erfassen die Einwilligung im System.",
+          "Lernende sehen eine Note erst, nachdem die Lehrkraft sie bestätigt hat.",
+          "Welche Daten gespeichert werden, wie lange und wie sie gelöscht werden, steht in der Datenschutzerklärung."
+        ],
+        "privacyLink": "Datenschutzerklärung lesen"
+      },
+      "teacher": {
+        "cap": "Selbstständige Lehrkräfte",
+        "title": "Sie unterrichten allein? Kostenlos starten.",
+        "body": "Selbstständige Lehrkräfte legen Klassen an, vergeben Aufgaben, lassen die KI Schreibaufgaben vorbewerten und bestätigen selbst. Aufwendige KI-Funktionen haben ein Tageslimit:",
+        "limits": [
+          {
+            "name": "Handschriftliche Texte per Foto bewerten",
+            "limit": "5 pro Tag"
+          },
+          {
+            "name": "PowerPoint-Lektionen mit KI erstellen",
+            "limit": "2 pro Tag"
+          }
+        ],
+        "note": "Lehrkräfte einer Schule nutzen die Limits der Schule.",
+        "cta": "Konto für Lehrkräfte anlegen"
+      },
+      "setup": {
+        "cap": "Start",
+        "title": "In drei Schritten startklar.",
+        "steps": [
+          {
+            "name": "Schule eröffnen, Lehrkräfte einladen",
+            "body": "Ihre Schule wird nach der Demo eröffnet. Lehrkräfte laden Sie per E-Mail ein."
+          },
+          {
+            "name": "Lernende importieren",
+            "body": "Import per CSV-Datei; alle Lernenden erhalten einen Link zur Aktivierung."
+          },
+          {
+            "name": "Erste Aufgabe vergeben",
+            "body": "Lehrkräfte legen eine Klasse an und vergeben die erste Sprech- oder Schreibaufgabe."
+          }
+        ]
+      },
+      "form": {
+        "cap": "Demo buchen",
+        "title": "Demo (20 Minuten) buchen.",
+        "sub": "Hinterlassen Sie Ihre Angaben, wir melden uns für einen Termin. Felder mit * sind Pflichtfelder.",
+        "name": "Ihr Name",
+        "organization": "Schule oder Organisation",
+        "country": "Land",
+        "countryPlaceholder": "z. B. Vietnam",
+        "studentCount": "Aktive Lernende",
+        "studentCountPick": "Bitte wählen",
+        "studentCounts": {
+          "LT20": "Unter 20",
+          "S20_50": "20 – 50",
+          "S50_200": "50 – 200",
+          "GT200": "Über 200"
+        },
+        "channel": "Kontakt über",
+        "channels": {
+          "EMAIL": "E-Mail",
+          "ZALO": "Zalo",
+          "WHATSAPP": "WhatsApp",
+          "PHONE": "Telefon"
+        },
+        "contactEmail": "E-Mail",
+        "contactPhone": "Telefonnummer",
+        "message": "Was möchten Sie in der Demo sehen?",
+        "optional": "optional",
+        "consent": "Wir verwenden diese Angaben nur, um Sie wegen der Demo zu kontaktieren.",
+        "submit": "Anfrage senden",
+        "submitting": "Wird gesendet…",
+        "successTitle": "Anfrage erhalten.",
+        "successBody": "Wir melden uns über {channel}, um die Demo zu vereinbaren.",
+        "errorRequired": "Bitte füllen Sie alle Felder mit * aus.",
+        "errorContact": "Die E-Mail-Adresse oder Nummer scheint nicht zu stimmen.",
+        "errorRateLimit": "Sie haben heute bereits mehrere Anfragen gesendet. Wir melden uns bald.",
+        "errorGeneric": "Senden fehlgeschlagen. Bitte erneut versuchen oder an {email} schreiben."
+      }
     }
   }
 }

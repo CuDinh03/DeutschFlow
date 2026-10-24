@@ -5,6 +5,8 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.marketing.dto.GrowthStatsDto;
 import com.deutschflow.marketing.dto.MarketingLeadDto;
+import com.deutschflow.marketing.dto.SchoolDemoRequestDto;
+import com.deutschflow.marketing.service.SchoolDemoRequestService;
 import com.deutschflow.marketing.dto.TeacherClusterDto;
 import com.deutschflow.marketing.service.LeadMagnetService;
 import com.deutschflow.marketing.service.TeacherClusterService;
@@ -30,6 +32,7 @@ public class AdminMarketingLeadController {
 
     private final LeadMagnetService leadMagnetService;
     private final TeacherClusterService teacherClusterService;
+    private final SchoolDemoRequestService schoolDemoRequestService;
     private final AuditLogService auditLogService;
 
     /** GET /api/admin/marketing/stats — số liệu phễu tăng trưởng (lead magnet + report). */
@@ -51,6 +54,20 @@ public class AdminMarketingLeadController {
                 "MARKETING_LEAD", null,
                 Map.of("days", days, "limit", limit, "returnedCount", leads.size()));
         return leads;
+    }
+
+    /** GET /api/admin/marketing/demo-requests?days=30&limit=200 — yêu cầu đặt lịch demo từ trang trung tâm (đợt 3a). */
+    @GetMapping("/demo-requests")
+    public List<SchoolDemoRequestDto> listDemoRequests(
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(defaultValue = "200") int limit,
+            @AuthenticationPrincipal User actor) {
+        List<SchoolDemoRequestDto> rows = schoolDemoRequestService.listRecent(days, limit);
+        // Cùng loại truy xuất PII như /leads (tên + liên hệ của người lạ) ⇒ cùng vết audit.
+        auditLogService.log("admin.marketing.demo_requests.read", AuditActor.of(actor),
+                "MARKETING_LEAD", null,
+                Map.of("days", days, "limit", limit, "returnedCount", rows.size()));
+        return rows;
     }
 
     /**
