@@ -87,6 +87,8 @@ public class TeacherService {
     private final com.deutschflow.organization.service.OrgGuard orgGuard;
     /** Ký lại link file bài nộp — bucket private nên URL trần đã lưu không mở được. */
     private final SubmissionFileUrlResolver submissionFileUrlResolver;
+    /** Lượt nói của phiên — để giáo viên đọc lại bài nói của học viên (đợt 3b). */
+    private final com.deutschflow.speaking.repository.AiSpeakingMessageRepository speakingMessageRepository;
 
     /** Tên lớp: bắt buộc, tối đa {@value #MAX_CLASS_NAME_LENGTH} ký tự (cột DB là varchar(255)). */
     private static final int MAX_CLASS_NAME_LENGTH = 255;
@@ -1223,20 +1225,60 @@ public class TeacherService {
         return speakingSessionRepository.findByUserIdOrderByStartedAtDesc(studentId)
                 .stream()
                 .filter(s -> s.getAssignmentId() == null || assignmentIds.contains(s.getAssignmentId()))
-                .map(this::toTeacherSpeakingSessionDto)
+                .map(s -> toTeacherSpeakingSessionDto(s, null))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Cùng luật với {@link #getStudentSpeakingSessions}: giáo viên chỉ đụng được phiên mình thấy ở danh sách —
+     * luyện tự do của học viên lớp mình, hoặc phiên gắn bài của lớp mình. Phiên gắn bài của lớp KHÁC mang điểm
+     * và nhận xét của giáo viên lớp đó, nên trả 404 như thể không tồn tại (trước đây evaluate chỉ kiểm "có
+     * chung một lớp" và chấm đè được lên phiên ấy).
+     */
+    private com.deutschflow.speaking.entity.AiSpeakingSession loadTeacherVisibleSpeakingSession(Long teacherId, Long sessionId) {
+        com.deutschflow.speaking.entity.AiSpeakingSession session = speakingSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException("Session không tồn tại"));
+        Set<Long> assignmentIds = new HashSet<>(sharedAssignmentIds(teacherId, session.getUserId()));
+        if (session.getAssignmentId() != null && !assignmentIds.contains(session.getAssignmentId())) {
+            throw new NotFoundException("Session không tồn tại");
+        }
+        return session;
+    }
+
+    /**
+     * Một phiên nói kèm lời học viên. Transcript chỉ mở cho phiên gắn bài do lớp của giáo viên giao: đó là
+     * bài nộp, giáo viên cần đọc để chốt điểm. Phiên luyện tự do là việc riêng của học viên — giáo viên vẫn
+     * thấy chỉ số như ở danh sách, nhưng không đọc được nội dung.
+     */
+    @Transactional(readOnly = true)
+    public TeacherSpeakingSessionDto getSpeakingSessionDetail(Long teacherId, Long sessionId) {
+        com.deutschflow.speaking.entity.AiSpeakingSession session = loadTeacherVisibleSpeakingSession(teacherId, sessionId);
+        List<TeacherSpeakingTranscriptLineDto> transcript = session.getAssignmentId() == null
+                ? null
+                : speakingMessageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId()).stream()
+                        .map(this::toTranscriptLine)
+                        .collect(Collectors.toList());
+        return toTeacherSpeakingSessionDto(session, transcript);
     }
 
     @Transactional
     public TeacherSpeakingSessionDto evaluateSpeakingSession(Long teacherId, Long sessionId, TeacherSessionEvaluationRequest req) {
-        com.deutschflow.speaking.entity.AiSpeakingSession session = speakingSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new NotFoundException("Session không tồn tại"));
+        com.deutschflow.speaking.entity.AiSpeakingSession session = loadTeacherVisibleSpeakingSession(teacherId, sessionId);
 
-        boolean hasAccess = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .anyMatch(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), session.getUserId()));
+        // Phiên phỏng vấn có báo cáo chấm riêng (interview_report_json, nhiều tầng). Điểm tay đè lên đó
+        // không hiện ở báo cáo nhưng vẫn lọt vào điểm trung bình bài nói và báo học viên "bài đã chấm" —
+        // hai con số mâu thuẫn cho cùng một phiên. Chặn hẳn.
+        if ("INTERVIEW".equals(session.getSessionMode())) {
+            throw new ConflictException("Phiên phỏng vấn đã có báo cáo chấm riêng, giáo viên không chấm đè điểm lên phiên này");
+        }
 
-        if (!hasAccess) {
-            throw new ConflictException("Học viên không thuộc lớp của bạn");
+        // Cùng thang và cùng luật với evaluateAssignment: điểm chốt bắt buộc, 0–100 — điểm ngoài thang
+        // làm hỏng trung bình bài nói (avgScore* trong AiSpeakingSessionRepository).
+        if (req.teacherScore() == null) {
+            throw new BadRequestException("Thiếu điểm khi chốt bài (0–100)");
+        }
+        if (req.teacherScore() < 0 || req.teacherScore() > 100) {
+            throw new BadRequestException("Điểm phải trong khoảng 0–100");
         }
 
         // F-QA-01: reviewedAt được đặt ở mọi lần giáo viên lưu đánh giá — còn null nghĩa là lần
@@ -1246,7 +1288,7 @@ public class TeacherService {
         session.setTeacherScore(req.teacherScore());
         session.setTeacherFeedback(req.teacherFeedback());
         session.setReviewedAt(java.time.LocalDateTime.now());
-        TeacherSpeakingSessionDto result = toTeacherSpeakingSessionDto(speakingSessionRepository.save(session));
+        TeacherSpeakingSessionDto result = toTeacherSpeakingSessionDto(speakingSessionRepository.save(session), null);
 
         // Notify the student that their speaking session has been graded.
         //
@@ -1411,13 +1453,24 @@ public class TeacherService {
                 a.getCurriculumItemId(), recipientCount);
     }
 
-    private TeacherSpeakingSessionDto toTeacherSpeakingSessionDto(com.deutschflow.speaking.entity.AiSpeakingSession s) {
+    private TeacherSpeakingSessionDto toTeacherSpeakingSessionDto(
+            com.deutschflow.speaking.entity.AiSpeakingSession s, List<TeacherSpeakingTranscriptLineDto> transcript) {
         return new TeacherSpeakingSessionDto(
                 s.getId(), s.getUserId(), s.getTopic(), s.getCefrLevel(), s.getStatus().name(),
                 s.getMessageCount(), s.getAiScore(), s.getAiFeedback(),
                 s.getTeacherScore(), s.getTeacherFeedback(),
-                s.getStartedAt(), s.getEndedAt(), s.getReviewedAt()
+                s.getStartedAt(), s.getEndedAt(), s.getReviewedAt(),
+                s.getSessionMode(), s.getAssignmentId(), transcript
         );
+    }
+
+    private TeacherSpeakingTranscriptLineDto toTranscriptLine(com.deutschflow.speaking.entity.AiSpeakingMessage m) {
+        boolean user = m.getRole() == com.deutschflow.speaking.entity.AiSpeakingMessage.MessageRole.USER;
+        return new TeacherSpeakingTranscriptLineDto(
+                m.getRole().name(),
+                user ? m.getUserText() : m.getAiSpeechDe(),
+                user ? m.getCorrection() : null,
+                m.getCreatedAt());
     }
 
     private StudentAssignmentDto toStudentAssignmentDto(StudentAssignment a) {

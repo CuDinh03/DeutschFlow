@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Sparkles, AlertCircle, Mic, BookOpen } from 'lucide-react'
+import { ArrowLeft, Sparkles, AlertCircle, Mic, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
 import {
@@ -17,6 +17,9 @@ import {
 // Plumbing reused 1:1 (zero backend): GET /v2/teacher/students/{id}/{assignments,speaking-sessions}
 //   (rẻ, load khi mở) + GET /v2/teacher/classes/{cid}/students/{sid}/comprehensive-report
 //   (sinh AI advisory qua LLM — tốn token → LAZY, chỉ khi mở tab "Phân tích AI").
+// Đợt 3b: phiên gắn bài của lớp mở được lời học viên — GET /v2/teacher/speaking-sessions/{id}, LAZY khi
+//   bấm "Xem lời học viên". Phiên luyện tự do không có nút: nội dung là của riêng học viên (backend cũng
+//   trả transcript = null).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VIOLET = '#7C56C8'
@@ -34,7 +37,12 @@ interface Report {
 interface SpeakingSession {
   id: number; topic: string; cefrLevel: string; status: string; messageCount: number
   aiScore: number | null; teacherScore: number | null; startedAt: string
+  sessionMode: string | null; assignmentId: number | null
 }
+interface TranscriptLine {
+  role: 'USER' | 'ASSISTANT'; text: string | null; correction: string | null; createdAt: string
+}
+interface SpeakingDetail { transcript: TranscriptLine[] | null }
 interface AssignmentRow {
   id: number; assignmentId: number; status: string; teacherScore: number | null
   topic: string | null; assignmentType: string | null; submittedAt: string | null
@@ -188,14 +196,7 @@ function StudentReport() {
               ) : (
                 <div className="border border-ga-line bg-ga-card">
                   {speaking.map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-3 px-4 py-[13px] lg:gap-4 lg:px-[18px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold text-ga-ink">{s.topic || t('speakingFallback')}</p>
-                        <p className="ga-ui text-[12px] text-ga-muted">{s.cefrLevel} · {fmt(s.startedAt)} · {statusLabel(s.status)}</p>
-                      </div>
-                      <span className="shrink-0 text-[12px] text-ga-muted">{t('aiPrefix')} {score(s.aiScore)}</span>
-                      <span className="w-[64px] shrink-0 text-right text-[13.5px] font-semibold text-ga-ink">{score(s.teacherScore)}</span>
-                    </div>
+                    <SpeakingRow key={s.id} s={s} first={i === 0} statusLabel={statusLabel} />
                   ))}
                 </div>
               )}
@@ -224,6 +225,91 @@ function StudentReport() {
           </TkTabs>
         </div>
       </div>
+    </div>
+  )
+}
+
+function SpeakingRow({ s, first, statusLabel }: {
+  s: SpeakingSession; first: boolean; statusLabel: (status: string) => string
+}) {
+  const t = useTranslations('v2.teacher.studentDetail')
+  const [open, setOpen] = useState(false)
+  const [lines, setLines] = useState<TranscriptLine[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // Chỉ phiên gắn bài của lớp mới đọc được lời học viên — khớp luật backend.
+  const canRead = s.assignmentId != null
+  const tag = s.sessionMode === 'INTERVIEW' ? t('tagInterview') : canRead ? t('tagAssigned') : t('tagFreePractice')
+
+  const fetchTranscript = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.get<SpeakingDetail>(`/v2/teacher/speaking-sessions/${s.id}`)
+      setLines(res.data.transcript ?? [])
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [s.id])
+
+  const toggle = () => {
+    const next = !open
+    setOpen(next)
+    if (next && lines == null && !loading) void fetchTranscript()
+  }
+
+  return (
+    <div style={{ borderTop: first ? 'none' : '1px solid var(--ga-line)' }}>
+      <div className="flex items-center gap-3 px-4 py-[13px] lg:gap-4 lg:px-[18px]">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-semibold text-ga-ink">{s.topic || t('speakingFallback')}</p>
+          <p className="ga-ui text-[12px] text-ga-muted">{tag} · {s.cefrLevel} · {fmt(s.startedAt)} · {statusLabel(s.status)}</p>
+          {canRead && (
+            <GaBtn variant="ghost" size="sm" className="mt-1.5" onClick={toggle} aria-expanded={open}>
+              {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {open ? t('transcriptHide') : t('transcriptShow')}
+            </GaBtn>
+          )}
+        </div>
+        <span className="shrink-0 text-[12px] text-ga-muted">{t('aiPrefix')} {score(s.aiScore)}</span>
+        <span className="w-[64px] shrink-0 text-right text-[13.5px] font-semibold text-ga-ink">{score(s.teacherScore)}</span>
+      </div>
+
+      {open && (
+        <div className="border-t border-ga-line px-4 pb-4 pt-3 lg:px-[18px]">
+          {loading ? (
+            <p className="ga-ui text-ga-small text-ga-muted">{t('transcriptLoading')}</p>
+          ) : error ? (
+            <ErrorBanner message={error} onRetry={() => void fetchTranscript()} />
+          ) : !lines || lines.length === 0 ? (
+            <p className="ga-ui text-ga-small text-ga-muted">{t('transcriptEmpty')}</p>
+          ) : (
+            <>
+              <p className="ga-ui mb-3 text-ga-caption text-ga-muted">{t('transcriptNote')}</p>
+              <ol className="flex flex-col gap-2.5">
+                {lines.map((l, i) => (
+                  <li key={i} className="text-ga-body">
+                    <span
+                      className="ga-ui mr-2 text-ga-eyebrow uppercase text-ga-muted"
+                      style={l.role === 'USER' ? { color: VIOLET } : undefined}
+                    >
+                      {l.role === 'USER' ? t('transcriptStudent') : t('transcriptAi')}
+                    </span>
+                    <span lang="de" className="break-words text-ga-ink">{l.text || '—'}</span>
+                    {l.correction && (
+                      <span lang="de" className="ga-ui mt-0.5 block break-words text-ga-caption text-ga-muted">
+                        {t('transcriptCorrection', { text: l.correction })}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
