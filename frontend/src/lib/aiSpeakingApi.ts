@@ -503,6 +503,8 @@ export const aiSpeakingApi = {
     interviewPosition?: string | null,
     experienceLevel?: ExperienceLevel | string | null,
     assignmentId?: number | null,
+    /** K3b (21/10/2026): phỏng vấn theo nghề — để trống persona + interviewPosition, backend chọn theo nghề. */
+    occupationCode?: string | null,
   ) =>
     // Trần riêng cho tạo phiên (default 8s quá ngắn): backend worst-case khi Groq nghẽn ≈ 30s
     // (semaphore 10s + deadline 20s, audit speaking 24/07 R-B1) — 40s chừa headroom mạng.
@@ -515,6 +517,7 @@ export const aiSpeakingApi = {
       interviewPosition: interviewPosition ?? null,
       experienceLevel: experienceLevel ?? null,
       assignmentId: assignmentId ?? null,
+      occupationCode: occupationCode ?? null,
     }, { timeout: 40000 }),
 
   chat: (sessionId: number, userMessage: string) =>

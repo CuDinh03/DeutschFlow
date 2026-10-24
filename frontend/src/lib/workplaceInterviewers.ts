@@ -14,17 +14,19 @@ export interface WorkplaceInterviewer {
   workplace: Workplace
   /** Màu nền chân dung (hex, như `accent` trong personas.ts). */
   accent: string
+  /** Chức danh tiếng Đức (khớp `role_title` của V336) — dòng vai trò trong phiên nói. */
+  role: string
 }
 
 export const WORKPLACE_INTERVIEWERS: readonly WorkplaceInterviewer[] = [
-  { code: 'HOFFMANN', name: 'Frau Hoffmann', workplace: 'gastro', accent: '#C2410C' },
-  { code: 'KRUEGER', name: 'Frau Krüger', workplace: 'pflege', accent: '#0D9488' },
-  { code: 'BRANDT', name: 'Herr Brandt', workplace: 'bau', accent: '#EA580C' },
-  { code: 'WAGNER', name: 'Herr Wagner', workplace: 'industrie', accent: '#1E3A8A' },
-  { code: 'YILMAZ', name: 'Herr Yılmaz', workplace: 'logistik', accent: '#065F46' },
-  { code: 'SCHULZ', name: 'Frau Schulz', workplace: 'handel', accent: '#BE185D' },
-  { code: 'BECKER', name: 'Frau Becker', workplace: 'buero', accent: '#334155' },
-  { code: 'RICHTER', name: 'Herr Richter', workplace: 'bildung', accent: '#4D7C0F' },
+  { code: 'HOFFMANN', name: 'Frau Hoffmann', workplace: 'gastro', accent: '#C2410C', role: 'Restaurantleiterin' },
+  { code: 'KRUEGER', name: 'Frau Krüger', workplace: 'pflege', accent: '#0D9488', role: 'Pflegedienstleitung' },
+  { code: 'BRANDT', name: 'Herr Brandt', workplace: 'bau', accent: '#EA580C', role: 'Bauleiter' },
+  { code: 'WAGNER', name: 'Herr Wagner', workplace: 'industrie', accent: '#1E3A8A', role: 'Produktionsleiter' },
+  { code: 'YILMAZ', name: 'Herr Yılmaz', workplace: 'logistik', accent: '#065F46', role: 'Lagerleiter' },
+  { code: 'SCHULZ', name: 'Frau Schulz', workplace: 'handel', accent: '#BE185D', role: 'Filialleiterin' },
+  { code: 'BECKER', name: 'Frau Becker', workplace: 'buero', accent: '#334155', role: 'Personalreferentin (HR)' },
+  { code: 'RICHTER', name: 'Herr Richter', workplace: 'bildung', accent: '#4D7C0F', role: 'Kita-/Schulleitung' },
 ]
 
 export function workplaceInterviewer(code: string | null | undefined): WorkplaceInterviewer | undefined {

@@ -394,6 +394,13 @@
         "tooSoon": "Please wait a few seconds before starting a new session.",
         "server": "The server is having trouble. Please try again later.",
         "generic": "Couldn't create the speaking session. Please try again!"
+      },
+      "occupation": {
+        "cap": "Interview for your occupation",
+        "interviewer": "Interviewer: {name}",
+        "hint": "Questions for the occupation you picked. Change it in your learning profile.",
+        "start": "Start interview",
+        "or": "Or pick another interviewer below"
       }
     },
     "personas": {

@@ -3,7 +3,7 @@
 import { Target } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { AdaptiveMeta } from "@/lib/aiSpeakingApi";
-import { getPersonaV2VisualTokens, normalizeSpeakingPersona } from "@/components/speaking/personaTheme";
+import { speakingPersonaVisualTokens } from "@/components/speaking/personaTheme";
 import { personaInk, personaSoft } from "@/lib/personaPaper";
 
 interface Props {
@@ -24,7 +24,7 @@ export function SpeakingAdaptiveBar({ adaptive, repairBlocking, personaId }: Pro
 
   if (!hasFocus && !repairBlocking) return null;
 
-  const rawAccent = getPersonaV2VisualTokens(normalizeSpeakingPersona(personaId ?? undefined)).accent;
+  const rawAccent = speakingPersonaVisualTokens(personaId).accent;
   // On paper the persona hue only carries text once darkened to AA (lib/personaPaper).
   const accent = personaInk(rawAccent);
 

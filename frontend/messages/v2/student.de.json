@@ -394,6 +394,13 @@
         "tooSoon": "Bitte warte ein paar Sekunden, bevor du eine neue Sitzung startest.",
         "server": "Der Server hat gerade Probleme. Bitte versuche es später noch einmal.",
         "generic": "Die Sprechsitzung konnte nicht erstellt werden. Bitte versuche es noch einmal!"
+      },
+      "occupation": {
+        "cap": "Vorstellungsgespräch für deinen Beruf",
+        "interviewer": "Interviewer/in: {name}",
+        "hint": "Fragen passend zu deinem Beruf. Ändern kannst du ihn im Lernprofil.",
+        "start": "Gespräch starten",
+        "or": "Oder wähle unten eine andere Person"
       }
     },
     "personas": {

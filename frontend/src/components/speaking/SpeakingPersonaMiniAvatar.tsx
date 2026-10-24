@@ -21,6 +21,7 @@ import { SarahCharacter } from "./characters/SarahCharacter";
 import { HannieCharacter } from "./characters/HannieCharacter";
 import { MinhCharacter } from "./characters/MinhCharacter";
 import { normalizeSpeakingPersona, type SpeakingPersonaVisualId } from "./personaTheme";
+import { WorkplaceInterviewerCharacter, hasWorkplaceInterviewerCharacter } from "./characters/WorkplaceInterviewerCharacter";
 
 interface Props {
   personaId: string | null | undefined;
@@ -38,6 +39,10 @@ export function SpeakingPersonaMiniAvatar({ personaId, chatBusy, className }: Pr
   const exprKlaus = chatBusy ? ("talking" as const) : ("neutral" as const);
 
   const inner = (pid: SpeakingPersonaVisualId) => {
+    // K3b: người tuyển dụng theo nơi làm việc — trước đây rơi về DEFAULT ⇒ vẽ mặt Lukas.
+    if (personaId && hasWorkplaceInterviewerCharacter(personaId)) {
+      return <WorkplaceInterviewerCharacter code={personaId} expression={chatBusy ? "talking" : "neutral"} isTalking={chatBusy} className="block h-[200px] w-[200px] max-w-none" />;
+    }
     if (pid === "EMMA") return <EmmaCharacter expression={exprEmma} className="block h-[200px] w-[200px] max-w-none" />;
     if (pid === "KLAUS") return <KlausCharacter expression={exprKlaus} className="block h-[200px] w-[200px] max-w-none" />;
     if (pid === "ANNA") return <AnnaCharacter expression={chatBusy ? "talking" : "idle"} className="block h-[200px] w-[200px] max-w-none" />;

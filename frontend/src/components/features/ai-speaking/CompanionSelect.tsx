@@ -23,6 +23,9 @@ import { toast } from "sonner";
 import { spring } from "@/lib/motion";
 import { useStatusBarStyle } from "@/lib/statusBar";
 import { lightImpact, mediumImpact } from "@/lib/haptics";
+import { isOccupationCode } from "@/lib/occupationTypes";
+import { OccupationInterviewCard } from "./OccupationInterviewCard";
+import { EXPERIENCE_LEVELS } from "./experienceLevels";
 
 
 // Nhãn tra catalog v2.student.companionSelect lúc render (không gọi hook ngoài component).
@@ -30,15 +33,6 @@ const MODE_TABS = [
   { mode: "COMMUNICATION" as SpeakingSessionMode, labelKey: "modes.communication", icon: MessageCircle },
   { mode: "INTERVIEW" as SpeakingSessionMode, labelKey: "modes.interview", icon: Briefcase },
   { mode: "LESSON" as SpeakingSessionMode, labelKey: "modes.lesson", icon: GraduationCap },
-];
-
-// `id` là giá trị gửi API (experienceLevel) — giữ nguyên, chỉ nhãn đi qua catalog.
-const EXPERIENCE_LEVELS = [
-  { id: "0-6M", labelKey: "experience.upTo6Months" },
-  { id: "6-12M", labelKey: "experience.sixTo12Months" },
-  { id: "1-2Y", labelKey: "experience.oneToTwoYears" },
-  { id: "3Y", labelKey: "experience.threeYears" },
-  { id: "5Y", labelKey: "experience.fivePlusYears" },
 ];
 
 export interface CompanionSelectProps {
@@ -91,6 +85,10 @@ export function CompanionSelect({
   const [lockedNudge, setLockedNudge] = useState(false);
   // Lesson-specific state
   const [lessonScenario, setLessonScenario] = useState<string | null>(null);
+  // K3b: nghề cho thẻ "Phỏng vấn theo nghề của bạn" — `?occupation=` (trang nghề) thắng hồ sơ.
+  const urlOccupation = searchParams.get('occupation');
+  const [profileOccupation, setProfileOccupation] = useState<string | null>(null);
+  const occupationCode = urlOccupation && isOccupationCode(urlOccupation) ? urlOccupation : profileOccupation;
 
   useEffect(() => {
     const topic = searchParams.get('topic')
@@ -109,6 +107,7 @@ export function CompanionSelect({
   useEffect(() => {
     getMyLearningProfile()
       .then((p) => {
+        if (p.occupationCode) setProfileOccupation(p.occupationCode)
         if (cefrFromUrlRef.current || !p.currentLevel) return
         const clamped = p.currentLevel === 'A0' ? 'A1'
           : ['A1', 'A2', 'B1', 'B2'].includes(p.currentLevel) ? p.currentLevel
@@ -125,7 +124,8 @@ export function CompanionSelect({
   const urlModeAppliedRef = useRef(false);
   useEffect(() => {
     if (urlModeAppliedRef.current) return;
-    const m = (searchParams.get('mode') ?? '').toUpperCase();
+    // `?occupation=` không kèm mode ⇒ mở thẳng tab Phỏng vấn, nơi có thẻ phỏng vấn theo nghề.
+    const m = (searchParams.get('mode') ?? (searchParams.get('occupation') ? 'INTERVIEW' : '')).toUpperCase();
     if (m !== 'INTERVIEW' && m !== 'LESSON') return;
     urlModeAppliedRef.current = true;
     setSessionMode(m as SpeakingSessionMode);
@@ -346,6 +346,18 @@ export function CompanionSelect({
           </div>
         )}
 
+        {sessionMode === "INTERVIEW" && occupationCode && (
+          <div className="px-5 pb-3 space-y-2">
+            <OccupationInterviewCard
+              occupationCode={occupationCode}
+              cefrLevel={cefrLevel}
+              chatHref={chatHref}
+              quotaBlocked={quotaBlocked}
+            />
+            <p className="ga-ui text-xs text-ga-subtle">{tc("occupation.or")}</p>
+          </div>
+        )}
+
         {/* ── Group Tabs ── */}
         <div className="px-4 pb-3">
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
@@ -480,7 +492,7 @@ export function CompanionSelect({
                       }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      {tc(exp.labelKey)}
+                      {tc(exp.labelId)}
                     </motion.button>
                   ))}
                 </div>
