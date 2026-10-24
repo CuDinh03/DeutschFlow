@@ -273,6 +273,19 @@ export const speakingApi = {
   },
 
   /**
+   * K4 (22/10/2026): dịch một câu của trợ lý theo yêu cầu. Backend lưu bản dịch nên bấm lại / mở lại
+   * phiên không gọi AI lần nữa.
+   */
+  translateMessage: (sessionId: number, messageId: number, lang: 'vi' | 'en' = 'vi') =>
+    api
+      .post<{ messageId: number; lang: string; text: string }>(
+        `/ai-speaking/sessions/${sessionId}/messages/${messageId}/translation`,
+        null,
+        { params: { lang }, timeout: 30_000 },
+      )
+      .then((r) => r.data.text),
+
+  /**
    * Submit a text answer (typed, or a transcript) and get the next AI turn.
    * 45s, not the 15s default (audit R-M2): một lượt LLM khi Groq nghẽn có thể mất tới ~30s
    * phía backend (semaphore 10s + deadline 20s); 15s cũ làm client timeout TRƯỚC server —

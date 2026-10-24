@@ -5,6 +5,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Pill } from '@/components/ui'
 import { RevealText } from '@/components/speaking/RevealText'
 import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
+import { MessageTranslation } from '@/components/speaking/MessageTranslation'
 import { usableSuggestions, type ChatTurn } from '@/lib/speakingChat'
 import type { StagePersonaId } from '@/lib/workplaceInterviewers'
 
@@ -14,6 +15,7 @@ export const MessageBubble = memo(function MessageBubble({
   active = false,
   onUseSuggestion,
   onRetry,
+  sessionId,
 }: {
   turn: ChatTurn
   personaId: StagePersonaId
@@ -21,6 +23,8 @@ export const MessageBubble = memo(function MessageBubble({
   onUseSuggestion?: (text: string) => void
   /** MB-3: có mặt khi user turn ở trạng thái 'failed' — bấm để gửi lại (giữ nguyên câu). */
   onRetry?: () => void
+  /** Phiên hiện tại — có thì câu trợ lý (đã có id backend) hiện nút "Dịch" (K4). */
+  sessionId?: number | null
 }) {
   const { colors } = useTheme()
   const isUser = turn.role === 'user'
@@ -53,6 +57,10 @@ export const MessageBubble = memo(function MessageBubble({
           <RevealText text={turn.content} active={active} variant="body" color="primary" />
         )}
       </View>
+
+      {!isUser && sessionId && fb?.messageId && turn.content.trim() ? (
+        <MessageTranslation sessionId={sessionId} messageId={fb.messageId} />
+      ) : null}
 
       {isUser && turn.status === 'failed' && onRetry ? (
         <Pressable

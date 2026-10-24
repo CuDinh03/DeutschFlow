@@ -165,6 +165,8 @@ export function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
         role: 'assistant',
         content: m.aiSpeechDe,
         feedback: {
+          // K4: id tin nhắn backend — nút "Dịch" dưới bong bóng cần nó (bản dịch đã lưu trả lại ngay).
+          messageId: m.id,
           aiSpeechDe: m.aiSpeechDe,
           feedback: m.assistantFeedback,
           action: m.assistantAction,
