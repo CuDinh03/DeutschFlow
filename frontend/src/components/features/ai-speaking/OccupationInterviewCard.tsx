@@ -116,7 +116,7 @@ export function OccupationInterviewCard({ occupationCode, cefrLevel, chatHref, q
                 experience === exp.id ? "border-ga-ink bg-ga-yellow-soft text-ga-ink" : "border-ga-line bg-ga-card text-ga-muted hover:text-ga-ink"
               }`}
             >
-              {tc(exp.labelKey)}
+              {tc(exp.labelId)}
             </button>
           ))}
         </div>

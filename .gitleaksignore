@@ -27,3 +27,10 @@ b6668bd82ee38ceab0375de949048aad464a0eb3:frontend/src/components/features/ai-spe
 # CẢ LỊCH SỬ nhánh nên commit cũ vẫn nằm trong dải quét — chỉ tắt được bằng fingerprint.
 654a9f98fe0cd9d791871486c6848c210b6bc2cd:.gitleaksignore:generic-api-key:16
 654a9f98fe0cd9d791871486c6848c210b6bc2cd:.gitleaksignore:generic-api-key:17
+
+# Cùng mảng mức kinh nghiệm ở trên, nay tách ra tệp riêng experienceLevels.ts (K3b, commit ec53f1c7,
+# 21/10/2026) — vẫn là mã gửi API + khoá catalog dịch, đã mở đúng hai dòng ngày 25/10/2026. Commit
+# kế tiếp đổi tên trường (labelKey → labelId) nên code mới không còn bị chấm, nhưng ec53f1c7 vẫn nằm
+# trong dải quét của PR #720.
+ec53f1c7dfa929e8e7a5bc55e2d197370cb4060a:frontend/src/components/features/ai-speaking/experienceLevels.ts:generic-api-key:4
+ec53f1c7dfa929e8e7a5bc55e2d197370cb4060a:frontend/src/components/features/ai-speaking/experienceLevels.ts:generic-api-key:5

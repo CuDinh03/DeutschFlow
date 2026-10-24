@@ -492,7 +492,7 @@ export function CompanionSelect({
                       }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      {tc(exp.labelKey)}
+                      {tc(exp.labelId)}
                     </motion.button>
                   ))}
                 </div>
