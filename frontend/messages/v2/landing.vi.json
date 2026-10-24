@@ -346,6 +346,177 @@
       "terms": "Điều khoản sử dụng",
       "support": "Hỗ trợ",
       "legalAria": "Liên kết pháp lý"
+    },
+    "schools": {
+      "meta": {
+        "title": "Cho trung tâm và đơn vị đào tạo · myDeutschFlow",
+        "description": "Học viên luyện nói tiếng Đức mỗi ngày ngoài giờ, AI chấm nháp, giáo viên đọc lại và chốt điểm. Dành cho trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức."
+      },
+      "hero": {
+        "cap": "Cho trung tâm · Đơn vị đào tạo",
+        "title": "Học viên luyện nói mỗi ngày ngoài giờ.",
+        "titleEm": "Giáo viên chỉ cần nghe và chốt.",
+        "sub": "Một chỗ để trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức giao bài nói, bài viết cho học viên, để AI chấm nháp, rồi giáo viên đọc lại và chốt điểm.",
+        "cta": "Đặt lịch demo 20 phút",
+        "ctaTeacher": "Tôi là giáo viên tự do"
+      },
+      "problem": {
+        "cap": "Vấn đề",
+        "title": "Phần Nói là phần được luyện ít nhất.",
+        "items": [
+          {
+            "title": "Trên lớp, mỗi người chỉ nói vài phút",
+            "body": "Lớp hai mươi người, buổi học chín mươi phút: phần lớn thời gian mỗi học viên là ngồi nghe người khác nói."
+          },
+          {
+            "title": "Ngoài giờ không ai nghe",
+            "body": "Học viên tự luyện ở nhà không biết mình nói sai chỗ nào, còn giáo viên không có giờ nghe từng người."
+          },
+          {
+            "title": "Điểm yếu lộ ra quá muộn",
+            "body": "Học viên yếu phần Nói thường chỉ lộ ra sát kỳ thi, hoặc ngay trong buổi phỏng vấn với bên tuyển dụng."
+          }
+        ]
+      },
+      "loop": {
+        "cap": "Vòng học",
+        "title": "Năm bước, giáo viên giữ quyền chốt.",
+        "ready": "Có",
+        "soon": "Sắp có",
+        "steps": [
+          {
+            "name": "Giao bài",
+            "body": "Giáo viên giao bài viết hoặc bài nói cho cả lớp hay từng người. Bài nói chỉ cần gõ chủ đề, kịch bản hội thoại được dựng sẵn.",
+            "state": "ready"
+          },
+          {
+            "name": "Học viên làm trên điện thoại",
+            "body": "Học viên nói và viết ngay trong app, vào lúc nào tiện, ngoài giờ học.",
+            "state": "ready"
+          },
+          {
+            "name": "AI chấm nháp",
+            "body": "AI chấm theo tiêu chí của đề và chỉ ra chỗ cần sửa. Điểm nháp chưa đến tay học viên.",
+            "state": "ready"
+          },
+          {
+            "name": "Giáo viên đọc và chốt",
+            "body": "Bài viết: giáo viên đọc bài và chốt điểm. Bài nói: giáo viên đọc lại lời học viên trước khi chốt — phần này đang hoàn thiện.",
+            "state": "partial",
+            "partial": "Bài viết: có · Bài nói: sắp có"
+          },
+          {
+            "name": "Phiếu gửi gia đình",
+            "body": "Phiếu đánh giá giữa kỳ và cuối kỳ, tải PDF hoặc gửi đường link, bằng tiếng Việt, Anh hoặc Đức.",
+            "state": "ready"
+          }
+        ]
+      },
+      "demos": {
+        "cap": "Trong buổi demo",
+        "title": "Ba việc xem được trong một phút.",
+        "items": [
+          {
+            "name": "Chấm ảnh bài viết tay",
+            "body": "Chụp bài viết tay của học viên. AI đọc chữ và chấm nháp, giáo viên sửa rồi chốt."
+          },
+          {
+            "name": "Giao bài nói cho cả lớp bằng một chủ đề",
+            "body": "Gõ một chủ đề, hệ thống dựng kịch bản hội thoại; cả lớp vào nói trên điện thoại."
+          },
+          {
+            "name": "Phiếu gửi gia đình ba thứ tiếng",
+            "body": "Phát hành phiếu đánh giá bằng tiếng Việt, Anh hoặc Đức; gia đình mở bằng đường link hoặc tệp PDF."
+          }
+        ]
+      },
+      "pricing": {
+        "cap": "Chi phí",
+        "title": "Tính theo học viên đang học.",
+        "body": "Trung tâm trả theo số học viên đang học mỗi tháng, với hạn mức sử dụng ghi rõ bằng số. Có gói chạy thử ngắn hạn; phí chạy thử được trừ vào hợp đồng nếu trung tâm dùng tiếp. Báo giá cụ thể trong buổi demo."
+      },
+      "data": {
+        "cap": "Dữ liệu học viên",
+        "title": "Học viên chưa đủ tuổi cần người giám hộ đồng ý.",
+        "items": [
+          "Bài làm và bản ghi âm của học viên chưa đủ tuổi chỉ được gửi cho AI khi có đồng ý của người giám hộ. Trung tâm ghi nhận đồng ý ngay trong hệ thống.",
+          "Học viên chỉ thấy điểm sau khi giáo viên chốt.",
+          "Dữ liệu nào được lưu, giữ bao lâu và xoá thế nào được nêu trong Chính sách quyền riêng tư."
+        ],
+        "privacyLink": "Đọc Chính sách quyền riêng tư"
+      },
+      "teacher": {
+        "cap": "Giáo viên tự do",
+        "title": "Dạy một mình? Bắt đầu miễn phí.",
+        "body": "Giáo viên tự do tạo lớp, giao bài, để AI chấm nháp bài viết rồi tự chốt điểm. Các tính năng AI tốn nhiều tài nguyên có hạn mức mỗi ngày:",
+        "limits": [
+          {
+            "name": "Chấm ảnh bài viết tay",
+            "limit": "5 lượt mỗi ngày"
+          },
+          {
+            "name": "Tạo bài giảng PowerPoint bằng AI",
+            "limit": "2 lượt mỗi ngày"
+          }
+        ],
+        "note": "Giáo viên thuộc một trung tâm dùng hạn mức của trung tâm.",
+        "cta": "Đăng ký tài khoản giáo viên"
+      },
+      "setup": {
+        "cap": "Bắt đầu",
+        "title": "Triển khai trong ba bước.",
+        "steps": [
+          {
+            "name": "Mở trung tâm, mời giáo viên",
+            "body": "Trung tâm được mở sau buổi demo. Bạn mời giáo viên bằng email."
+          },
+          {
+            "name": "Nhập danh sách học viên",
+            "body": "Nhập từ tệp CSV; mỗi học viên nhận một đường link để kích hoạt tài khoản."
+          },
+          {
+            "name": "Giao bài đầu tiên",
+            "body": "Giáo viên tạo lớp và giao bài nói hoặc bài viết đầu tiên."
+          }
+        ]
+      },
+      "form": {
+        "cap": "Đặt lịch demo",
+        "title": "Đặt lịch demo 20 phút.",
+        "sub": "Để lại thông tin, chúng tôi sẽ liên hệ để hẹn giờ. Các ô có dấu * là bắt buộc.",
+        "name": "Tên của bạn",
+        "organization": "Trung tâm hoặc đơn vị",
+        "country": "Nước",
+        "countryPlaceholder": "Ví dụ: Việt Nam",
+        "studentCount": "Số học viên đang học",
+        "studentCountPick": "Chọn",
+        "studentCounts": {
+          "LT20": "Dưới 20",
+          "S20_50": "20 – 50",
+          "S50_200": "50 – 200",
+          "GT200": "Trên 200"
+        },
+        "channel": "Liên hệ qua",
+        "channels": {
+          "EMAIL": "Email",
+          "ZALO": "Zalo",
+          "WHATSAPP": "WhatsApp",
+          "PHONE": "Điện thoại"
+        },
+        "contactEmail": "Email",
+        "contactPhone": "Số điện thoại",
+        "message": "Bạn muốn xem gì trong buổi demo?",
+        "optional": "không bắt buộc",
+        "consent": "Chúng tôi chỉ dùng thông tin này để liên hệ về buổi demo.",
+        "submit": "Gửi yêu cầu",
+        "submitting": "Đang gửi…",
+        "successTitle": "Đã nhận yêu cầu.",
+        "successBody": "Chúng tôi sẽ liên hệ qua {channel} để hẹn giờ demo.",
+        "errorRequired": "Vui lòng điền đủ các ô có dấu *.",
+        "errorContact": "Email hoặc số liên hệ chưa đúng.",
+        "errorRateLimit": "Bạn đã gửi nhiều yêu cầu hôm nay. Chúng tôi sẽ liên hệ lại sớm.",
+        "errorGeneric": "Chưa gửi được. Vui lòng thử lại, hoặc viết cho chúng tôi tại {email}."
+      }
     }
   }
 }

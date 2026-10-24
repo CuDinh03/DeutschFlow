@@ -8,7 +8,7 @@ import { absoluteUrl } from '@/lib/siteUrl'
  * còn trang nào trên đĩa nhưng vẫn là redirect 308 sống trong `next.config.mjs` — giữ lại để
  * crawler không lần theo backlink cũ rồi bò tiếp vào khu vực riêng tư qua đường vòng.
  *
- * Trang marketing/SEO đều nằm ở gốc (`/`, `/luyen-thi`, `/free-grade`, `/giao-vien-mien-phi`,
+ * Trang marketing/SEO đều nằm ở gốc (`/`, `/luyen-thi`, `/free-grade`, `/trung-tam`, `/en/schools`,
  * `/teachers`, …) nên không bị các luật này chạm tới — xem `sitemap.ts`.
  *
  * `/phieu/` (PR-R3, thiết kế 10/09/2026 §3.5.3) là trang CÔNG KHAI nhưng không phải trang công cộng:

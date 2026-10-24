@@ -72,6 +72,53 @@ export function localizedHref(locale: PublicLocale, path: string): string {
   return locale === DEFAULT_PUBLIC_LOCALE ? tail : `/${locale}${tail}`
 }
 
+/**
+ * Trang công khai mà mỗi ngôn ngữ có slug RIÊNG (đợt 3a, 24/10/2026): `/trung-tam/` (vi) ↔ `/en/schools/` (en).
+ * Khoá = đường gốc (bản tiếng Việt, cũng là thư mục trang trong `src/app`). Giá trị = đường KHÔNG tiền tố
+ * của từng ngôn ngữ đã có bản. Ngôn ngữ vắng mặt = chưa có bản đó: tiếng Đức của trang trung tâm chờ
+ * việc pháp lý (Impressum) — `/de/schools/` hay `/de/trung-tam/` đều 404, không rơi về bản khác.
+ *
+ * Không dùng PUBLIC_LOCALIZED_PATHS cho các trang này: danh sách đó ngầm hiểu cùng một slug cho cả ba
+ * ngôn ngữ (`/about` ↔ `/en/about`), nên sẽ mở nhầm `/en/trung-tam/` và `/de/trung-tam/`.
+ */
+export const PUBLIC_LOCALIZED_SLUGS: Readonly<Record<string, Partial<Record<PublicLocale, string>>>> = {
+  '/trung-tam': { vi: '/trung-tam', en: '/schools' },
+}
+
+/** Đường gốc của trang slug-riêng mà (ngôn ngữ, đường không tiền tố) trỏ tới; null nếu không phải. */
+export function slugPageFor(locale: PublicLocale, path: string): string | null {
+  const clean = normalizePath(path)
+  for (const [page, slugs] of Object.entries(PUBLIC_LOCALIZED_SLUGS)) {
+    if (slugs[locale] === clean) return page
+  }
+  return null
+}
+
+/**
+ * Href của một trang công khai (theo đường gốc) ở ngôn ngữ `locale`, tính cả trang slug riêng; luôn có
+ * dấu "/" cuối. null khi trang chưa có bản ngôn ngữ đó, hoặc không phải trang công khai đã dịch.
+ */
+export function publicHref(locale: PublicLocale, page: string): string | null {
+  const clean = normalizePath(page)
+  const slugs = PUBLIC_LOCALIZED_SLUGS[clean]
+  if (slugs) {
+    const slug = slugs[locale]
+    return slug ? localizedHref(locale, slug) : null
+  }
+  return isLocalizedPublicPath(clean) ? localizedHref(locale, clean) : null
+}
+
+/** Bảng hreflang chỉ gồm các ngôn ngữ trang thật sự có; x-default trỏ bản tiếng Việt. */
+export function publicAlternates(page: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const l of PUBLIC_LOCALES) {
+    const href = publicHref(l, page)
+    if (href) out[l] = href
+  }
+  out['x-default'] = publicHref(DEFAULT_PUBLIC_LOCALE, page) ?? localizedHref(DEFAULT_PUBLIC_LOCALE, page)
+  return out
+}
+
 /** Bảng hreflang cho metadata/sitemap của một đường công khai đã dịch. */
 export function hreflangAlternates(path: string): Record<string, string> {
   return {

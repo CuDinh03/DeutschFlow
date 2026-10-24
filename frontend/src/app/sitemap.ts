@@ -1,7 +1,15 @@
 import type { MetadataRoute } from 'next'
 import { GERMAN_EXAMS } from '@/data/germanExams'
 import { absoluteUrl } from '@/lib/siteUrl'
-import { PUBLIC_LOCALES, PUBLIC_LOCALIZED_PATHS, hreflangAlternates, localizedHref } from '@/lib/publicLocale'
+import {
+  PUBLIC_LOCALES,
+  PUBLIC_LOCALIZED_PATHS,
+  PUBLIC_LOCALIZED_SLUGS,
+  hreflangAlternates,
+  localizedHref,
+  publicAlternates,
+  publicHref,
+} from '@/lib/publicLocale'
 import { fetchOccupations } from '@/lib/occupationServer'
 
 /** Một mục cho mỗi ngôn ngữ, mục nào cũng kèm đủ bảng hreflang (đợt 1 A+B+E, xem src/lib/publicLocale.ts). */
@@ -17,6 +25,17 @@ function localizedEntries(path: string, priority: number): MetadataRoute.Sitemap
   }))
 }
 
+/** Trang mỗi ngôn ngữ một slug (đợt 3a): chỉ ngôn ngữ đã có bản, hreflang đúng các bản đó. */
+function slugEntries(page: string, priority: number): MetadataRoute.Sitemap {
+  const languages = Object.fromEntries(
+    Object.entries(publicAlternates(page)).map(([lang, href]) => [lang, absoluteUrl(href)]),
+  )
+  return PUBLIC_LOCALES.flatMap((locale) => {
+    const href = publicHref(locale, page)
+    return href ? [{ url: absoluteUrl(href), changeFrequency: 'monthly' as const, priority, alternates: { languages } }] : []
+  })
+}
+
 /**
  * Sitemap — chỉ liệt kê các trang công khai, có thể index (marketing/SEO).
  * Trang sau đăng nhập (admin/teacher/student/org) cố ý KHÔNG đưa vào.
@@ -25,6 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const localizedPages: MetadataRoute.Sitemap = [
     ...Array.from(PUBLIC_LOCALIZED_PATHS).flatMap((path) => localizedEntries(path, path === '/' ? 1 : 0.8)),
     ...localizedEntries('/phong-van', 0.9),
+    ...Object.keys(PUBLIC_LOCALIZED_SLUGS).flatMap((page) => slugEntries(page, 0.8)),
   ]
 
   // Trang nghề (đợt 2d): chỉ nghề có bộ câu hỏi viết tay — chắc chắn "Đã duyệt" mà không cần gọi
@@ -39,7 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...localizedPages,
     { url: absoluteUrl('/luyen-thi/'), changeFrequency: 'weekly', priority: 0.9 },
     { url: absoluteUrl('/free-grade/'), changeFrequency: 'monthly', priority: 0.8 },
-    { url: absoluteUrl('/giao-vien-mien-phi/'), changeFrequency: 'monthly', priority: 0.8 },
+    // `/giao-vien-mien-phi/` đã gộp vào trang trung tâm (đợt 3a, 301 trong next.config) — không liệt kê.
   ]
 
   const examPages: MetadataRoute.Sitemap = GERMAN_EXAMS.map((e) => ({

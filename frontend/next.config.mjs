@@ -131,6 +131,9 @@ const nextConfig = {
       { source: '/register', destination: '/v2/register', permanent: true },
       // Dashboard học viên legacy: v2 đã có bản đầy đủ và không nơi nào trong /v2 trỏ ngược về đây.
       { source: '/dashboard', destination: '/v2/student/dashboard', permanent: true },
+      // Đợt 3a (24/10/2026): trang gói giáo viên miễn phí gộp vào trang trung tâm, khối "Giáo viên tự
+      // do". 301 (không phải 308 như các dòng trên) vì phương án ghi rõ 301 cho máy tìm kiếm chuyển hạng.
+      { source: '/giao-vien-mien-phi', destination: '/trung-tam/#giao-vien', statusCode: 301 },
 
       // Phần còn lại của cây v1. Từ Đợt 3 các trang đích v1 KHÔNG CÒN TỒN TẠI trên đĩa, nên bảng
       // này là thứ DUY NHẤT giữ cho bookmark/lịch sử/backlink cũ không rơi vào 404 — đừng xoá entry

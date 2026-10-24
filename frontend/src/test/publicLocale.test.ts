@@ -6,6 +6,9 @@ import {
   hreflangAlternates,
   isLocalizedPublicPath,
   localizedHref,
+  publicAlternates,
+  publicHref,
+  slugPageFor,
   splitLocalePrefix,
 } from '@/lib/publicLocale'
 
@@ -102,5 +105,73 @@ describe('middleware — ngôn ngữ theo URL', () => {
     const res = await middleware(req('/en/about/'))
     expect(res.headers.get('x-middleware-rewrite')).toBe('https://app.test/about/')
     expect(res.headers.get(`x-middleware-request-${LOCALE_HEADER}`)).toBe('en')
+  })
+})
+
+/**
+ * Đợt 3a (24/10/2026): trang trung tâm có slug RIÊNG mỗi ngôn ngữ — `/trung-tam/` (vi) ↔ `/en/schools/` (en),
+ * chưa có bản tiếng Đức (chờ Impressum).
+ */
+describe('publicLocale — trang mỗi ngôn ngữ một slug', () => {
+  it('quy URL về trang gốc chỉ khi đúng cặp ngôn ngữ + slug', () => {
+    expect(slugPageFor('vi', '/trung-tam/')).toBe('/trung-tam')
+    expect(slugPageFor('en', '/schools/')).toBe('/trung-tam')
+    expect(slugPageFor('en', '/trung-tam/')).toBeNull()
+    expect(slugPageFor('vi', '/schools/')).toBeNull()
+    expect(slugPageFor('de', '/schools/')).toBeNull()
+    expect(slugPageFor('de', '/trung-tam/')).toBeNull()
+  })
+
+  it('href theo ngôn ngữ: có bản thì trả đường, chưa có thì null; trang thường giữ cách cũ', () => {
+    expect(publicHref('vi', '/trung-tam')).toBe('/trung-tam/')
+    expect(publicHref('en', '/trung-tam')).toBe('/en/schools/')
+    expect(publicHref('de', '/trung-tam')).toBeNull()
+    expect(publicHref('de', '/about')).toBe('/de/about/')
+    expect(publicHref('en', '/luyen-thi')).toBeNull()
+  })
+
+  it('hreflang chỉ gồm ngôn ngữ có bản, x-default là bản tiếng Việt', () => {
+    expect(publicAlternates('/trung-tam')).toEqual({ vi: '/trung-tam/', en: '/en/schools/', 'x-default': '/trung-tam/' })
+    expect(publicAlternates('/about')).toEqual(hreflangAlternates('/about'))
+  })
+
+  it('trang slug riêng không bị coi là trang cùng-slug (tránh mở nhầm /en/trung-tam/)', () => {
+    expect(isLocalizedPublicPath('/trung-tam/')).toBe(false)
+  })
+})
+
+describe('middleware — trang trung tâm', () => {
+  it('/en/schools/ render trang trung tâm bằng tiếng Anh', async () => {
+    const res = await middleware(req('/en/schools/'))
+    expect(res.headers.get('location')).toBeNull()
+    expect(res.headers.get('x-middleware-rewrite')).toBe('https://app.test/trung-tam/')
+    expect(res.headers.get(`x-middleware-request-${LOCALE_HEADER}`)).toBe('en')
+  })
+
+  it('/de/schools/, /de/trung-tam/ và /en/trung-tam/ không được rewrite (→ 404)', async () => {
+    for (const path of ['/de/schools/', '/de/trung-tam/', '/en/trung-tam/']) {
+      const res = await middleware(req(path))
+      expect(res.headers.get('x-middleware-rewrite'), path).toBeNull()
+    }
+  })
+
+  it('/trung-tam/ không cookie → tiếng Việt, ép header vi', async () => {
+    const res = await middleware(req('/trung-tam/'))
+    expect(res.headers.get('location')).toBeNull()
+    expect(res.headers.get(`x-middleware-request-${LOCALE_HEADER}`)).toBe('vi')
+  })
+
+  it('/trung-tam/ với cookie en → chuyển sang /en/schools/ (giữ query)', async () => {
+    const res = await middleware(req('/trung-tam/?utm_source=zalo', { cookie: 'locale=en' }))
+    expect(res.status).toBe(307)
+    const loc = new URL(res.headers.get('location') ?? '')
+    expect(loc.pathname).toBe('/en/schools/')
+    expect(loc.search).toBe('?utm_source=zalo')
+  })
+
+  it('/trung-tam/ với cookie de (chưa có bản tiếng Đức) → ở lại, render tiếng Việt', async () => {
+    const res = await middleware(req('/trung-tam/', { cookie: 'locale=de' }))
+    expect(res.headers.get('location')).toBeNull()
+    expect(res.headers.get(`x-middleware-request-${LOCALE_HEADER}`)).toBe('vi')
   })
 })

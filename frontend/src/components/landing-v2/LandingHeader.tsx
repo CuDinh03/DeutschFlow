@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { GaLogo, GaBtn } from '@/components/ui-v2'
 import { LanguageToggle } from '@/components/ui-v2/LanguageToggle'
 import { useTracking } from '@/hooks/useTracking'
-import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
+import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref, publicHref } from '@/lib/publicLocale'
 import { START_HREF } from './links'
 
 /**
@@ -15,7 +15,8 @@ import { START_HREF } from './links'
  * Trên trang chủ các mục trỏ neo trong trang (`#interview`…); ở trang khác chúng trỏ về trang chủ
  * ĐÚNG ngôn ngữ đang xem (`/en/#interview`). "Về chúng tôi" là trang riêng, đánh dấu
  * `aria-current` khi đang ở đó. Trên trang `/phong-van` (đợt 2d), mục "Phỏng vấn theo nghề" trỏ về
- * trang tổng các nghề và được đánh dấu là trang hiện tại.
+ * trang tổng các nghề và được đánh dấu là trang hiện tại. "Cho trung tâm" trỏ trang trung tâm riêng
+ * (đợt 3a: `/trung-tam/`, `/en/schools/`); ngôn ngữ chưa có bản (tiếng Đức) thì vẫn về neo trên trang chủ.
  */
 
 const YellowSq = () => <span className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
@@ -28,7 +29,7 @@ const NAV_ANCHORS = [
   ['centers', 'centers'],
 ] as const
 
-export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about' | 'interview' }) {
+export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about' | 'interview' | 'centers' }) {
   const t = useTranslations('v2.landing')
   const raw = useLocale()
   const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
@@ -41,10 +42,13 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
   const trackCta = (placement: string) => trackEvent('landing_cta_clicked', { placement })
 
   const interviewHref = localizedHref(locale, '/phong-van')
+  const centersHref = publicHref(locale, '/trung-tam')
   const links = [
-    ...NAV_ANCHORS.map(([key, id]) => (key === 'interview' && current === 'interview'
-      ? { key, href: interviewHref, active: true }
-      : { key, href: anchor(id), active: false })),
+    ...NAV_ANCHORS.map(([key, id]) => {
+      if (key === 'interview' && current === 'interview') return { key, href: interviewHref, active: true }
+      if (key === 'centers' && centersHref) return { key, href: centersHref, active: current === 'centers' }
+      return { key, href: anchor(id), active: false }
+    }),
     { key: 'about', href: aboutHref, active: current === 'about' },
   ]
 
