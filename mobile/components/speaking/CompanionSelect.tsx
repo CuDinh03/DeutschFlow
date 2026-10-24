@@ -26,9 +26,14 @@ import { PersonaAvatar } from '@/components/speaking/PersonaAvatar'
 import { speakingApi, type SpeakingSessionMode } from '@/lib/speakingApi'
 import { practiceBand } from '@/lib/learnerBand'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
+import { fetchOccupationInterviewInfo, occupationName } from '@/lib/occupations'
+import { WORKPLACE_INTERVIEWERS, isWorkplaceInterviewerId, resolveStagePersona } from '@/lib/workplaceInterviewers'
+import { PERSONA_TOKENS } from '@/lib/personas'
+import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 
 export interface StartArgs {
-  persona: PersonaToken
+  /** Không có khi phỏng vấn theo nghề (K3b) — backend chọn người phỏng vấn theo `occupationCode`. */
+  persona?: PersonaToken
   sessionMode: SpeakingSessionMode
   topic: string
   cefrLevel: string
@@ -38,6 +43,8 @@ export interface StartArgs {
   assignmentId?: number | null
   /** N2: mã persona gửi backend thay cho persona.id (bài giao dùng 'DEFAULT' = gia sư trung tính như web). */
   backendPersona?: string
+  /** K3b: phỏng vấn theo nghề — mã nghề trong danh mục công khai. */
+  occupationCode?: string
 }
 
 interface CompanionSelectProps {
@@ -98,7 +105,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
   // (getMyLearningProfile → clamp). Trước 17/09/2026 khởi tạo cứng 'B1' nên tài khoản A0 mở phiên
   // hội thoại B1 — backend không kẹp lại band client gửi (ChatPrepService.resolveSessionLevel).
   const [cefrPick, setCefrPick] = useState<string | null>(null)
-  const { currentLevel } = useLearnerLevel()
+  const { currentLevel, occupationCode } = useLearnerLevel()
   const cefr = cefrPick ?? practiceBand(currentLevel)
 
   // Backend personas carry `difficulty` → used to lock ADVANCED ones for free users.
@@ -233,6 +240,15 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
         })}
       </SpotlightTarget>
       </SpotlightScrollHostProvider>
+
+      {mode === 'INTERVIEW' && occupationCode ? (
+        <OccupationInterviewCard
+          occupationCode={occupationCode}
+          cefr={cefr}
+          starting={starting}
+          onStart={onStart}
+        />
+      ) : null}
 
       {/* Group chips */}
       <ScrollView
@@ -471,6 +487,83 @@ function PersonaCard({
         ) : null}
       </MotiView>
     </Pressable>
+  )
+}
+
+/**
+ * K3b (21/10/2026): "Phỏng vấn theo nghề của bạn" — nghề lấy từ hồ sơ (onboarding 2e). Trước K3b không
+ * client nào gửi `occupationCode` ⇒ lớp câu hỏi theo nghề (2b) và 8 người tuyển dụng (2c) không tới
+ * người học. Nghề không tải được ⇒ thẻ ẩn, màn cũ giữ nguyên. Gương web `OccupationInterviewCard`.
+ */
+function OccupationInterviewCard({
+  occupationCode,
+  cefr,
+  starting,
+  onStart,
+}: {
+  occupationCode: string
+  cefr: string
+  starting: boolean
+  onStart: (args: StartArgs) => void
+}) {
+  const theme = useTheme()
+  const [experience, setExperience] = useState<string>('1-2Y')
+  const { data: info } = useQuery({
+    queryKey: ['occupation-interview', occupationCode],
+    queryFn: () => fetchOccupationInterviewInfo(occupationCode),
+    staleTime: 600_000,
+    retry: 1,
+  })
+  if (!info) return null
+
+  const stageId = resolveStagePersona(info.personaCode)
+  const interviewer = isWorkplaceInterviewerId(stageId) ? WORKPLACE_INTERVIEWERS[stageId] : PERSONA_TOKENS[stageId]
+  const accent = interviewer.accent
+
+  return (
+    <View
+      style={{
+        marginHorizontal: space[5],
+        marginTop: space[4],
+        padding: space[4],
+        borderRadius: radius.xl,
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.textPrimary,
+        gap: space[3],
+      }}
+    >
+      <ThemedText variant="label" color="muted">Phỏng vấn theo nghề của bạn</ThemedText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <PersonaBubbleAvatar personaId={stageId} size={52} ringColor={accent} paused />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <ThemedText variant="bodyStrong" numberOfLines={2}>{info.occupation.nameDe}</ThemedText>
+          <ThemedText variant="caption" color="muted" numberOfLines={1}>{occupationName(info.occupation, 'vi')}</ThemedText>
+          <ThemedText variant="caption" color="muted" numberOfLines={1}>Người phỏng vấn: {interviewer.name}</ThemedText>
+        </View>
+      </View>
+      <ConfigGroup label="Kinh nghiệm">
+        {EXPERIENCE.map((e) => (
+          <ChoiceChip key={e.id} label={e.label} active={experience === e.id} accent={accent} onPress={() => setExperience(e.id)} />
+        ))}
+      </ConfigGroup>
+      <Button
+        label="Bắt đầu phỏng vấn"
+        loading={starting}
+        onPress={() =>
+          onStart({
+            sessionMode: 'INTERVIEW',
+            topic: info.interviewPosition,
+            cefrLevel: cefr,
+            experienceLevel: experience,
+            occupationCode,
+          })
+        }
+      />
+      <ThemedText variant="caption" color="muted">
+        Câu hỏi theo đúng nghề bạn chọn. Hoặc chọn người phỏng vấn khác bên dưới.
+      </ThemedText>
+    </View>
   )
 }
 

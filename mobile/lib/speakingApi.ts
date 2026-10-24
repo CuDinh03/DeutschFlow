@@ -46,8 +46,11 @@ export interface CreateSessionParams {
   /** Free-text topic: scenario (LESSON), position (INTERVIEW), or "Alltag" (COMMUNICATION). */
   topic: string
   cefrLevel: string
-  /** Backend persona code — UPPERCASE of the local persona id (e.g. "LUKAS"). */
-  persona: string
+  /**
+   * Backend persona code — UPPERCASE of the local persona id (e.g. "LUKAS"). null khi phỏng vấn theo
+   * nghề (K3b): backend chọn người phỏng vấn theo `occupationCode`.
+   */
+  persona: string | null
   sessionMode: SpeakingSessionMode
   interviewPosition?: string | null
   experienceLevel?: string | null
@@ -57,6 +60,11 @@ export interface CreateSessionParams {
    * kết thúc để ghi điểm AI + đẩy bài sang chờ giáo viên. Gương web aiSpeakingApi.createSession.
    */
   assignmentId?: number | null
+  /**
+   * K3b (21/10/2026): phỏng vấn theo nghề — mã trong `GET /api/public/occupations`. Có mã thì để trống
+   * persona + interviewPosition, backend chọn theo nghề và dùng lớp câu hỏi của nghề.
+   */
+  occupationCode?: string | null
 }
 
 /** Mirrors `InterviewPersonaDto`. Identified by `code` (not a numeric id). */
@@ -231,6 +239,7 @@ export const speakingApi = {
           interviewPosition: params.interviewPosition ?? null,
           experienceLevel: params.experienceLevel ?? null,
           assignmentId: params.assignmentId ?? null,
+          occupationCode: params.occupationCode ?? null,
         },
         // Backend worst-case khi Groq nghẽn ≈ 30s (semaphore 10s + deadline 20s) — chừa headroom.
         { timeout: 40_000 },

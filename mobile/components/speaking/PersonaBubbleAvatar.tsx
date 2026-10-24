@@ -4,11 +4,11 @@
 
 import { View } from 'react-native'
 import { useTheme } from '@/lib/theme'
-import type { PersonaId } from '@/lib/personas'
+import type { StagePersonaId } from '@/lib/workplaceInterviewers'
 import { PersonaAvatar } from './PersonaAvatar'
 
 interface PersonaBubbleAvatarProps {
-  personaId: PersonaId
+  personaId: StagePersonaId
   size?: number
   expression?: string
   isTalking?: boolean

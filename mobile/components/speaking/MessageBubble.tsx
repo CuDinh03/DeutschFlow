@@ -6,7 +6,7 @@ import { ThemedText, Pill } from '@/components/ui'
 import { RevealText } from '@/components/speaking/RevealText'
 import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 import { usableSuggestions, type ChatTurn } from '@/lib/speakingChat'
-import type { PersonaId } from '@/lib/personas'
+import type { StagePersonaId } from '@/lib/workplaceInterviewers'
 
 export const MessageBubble = memo(function MessageBubble({
   turn,
@@ -16,7 +16,7 @@ export const MessageBubble = memo(function MessageBubble({
   onRetry,
 }: {
   turn: ChatTurn
-  personaId: PersonaId
+  personaId: StagePersonaId
   active?: boolean
   onUseSuggestion?: (text: string) => void
   /** MB-3: có mặt khi user turn ở trạng thái 'failed' — bấm để gửi lại (giữ nguyên câu). */

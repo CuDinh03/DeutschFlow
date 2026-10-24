@@ -54,7 +54,8 @@ import { DEFAULT_BAND } from '@/lib/learnerBand'
 import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
 import { MessageBubble } from '@/components/speaking/MessageBubble'
 import { ScreenHeader } from '@/components/speaking/ScreenHeader'
-import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
+import { PERSONA_TOKENS } from '@/lib/personas'
+import { resolveStagePersona } from '@/lib/workplaceInterviewers'
 import {
   reactionFor,
   emptyConversationReport,
@@ -338,9 +339,8 @@ export default function SpeakingScreen() {
   }
   const userTurns = messages.filter((m) => m.role === 'user').length
 
-  const personaCode = session?.persona?.toLowerCase()
-  const personaId: PersonaId =
-    personaCode && personaCode in PERSONA_TOKENS ? (personaCode as PersonaId) : 'lukas'
+  // K3: người tuyển dụng theo nơi làm việc (KRUEGER…) có hình riêng; mã lạ vẫn về Lukas.
+  const personaId = resolveStagePersona(session?.persona)
 
   function scrollToEnd() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }))
@@ -357,11 +357,13 @@ export default function SpeakingScreen() {
         topic: args.topic,
         cefrLevel: args.cefrLevel,
         // N2: bài giao gửi 'DEFAULT' (gia sư trung tính, như web) dù stage vẽ một persona có sẵn.
-        persona: args.backendPersona ?? args.persona.id.toUpperCase(),
+        // K3b: phỏng vấn theo nghề không gửi persona — backend chọn theo occupationCode.
+        persona: args.backendPersona ?? args.persona?.id.toUpperCase() ?? null,
         sessionMode: args.sessionMode,
         interviewPosition: args.interviewPosition ?? null,
         experienceLevel: args.experienceLevel ?? null,
         assignmentId: args.assignmentId ?? null,
+        occupationCode: args.occupationCode ?? null,
       })
       const greeting = created.initialAiMessage?.aiSpeechDe ?? 'Hallo! Erzählen Sie mir von sich.'
       // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi luyện nói" khi tạo phiên thành công.

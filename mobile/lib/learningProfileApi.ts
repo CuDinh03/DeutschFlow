@@ -25,6 +25,10 @@ export interface LearningProfile {
   upsellOptInAt: string | null
   motivation: string | null
   dailyGoalMinutes: number | null
+  /** Đợt 2e: mã nghề trong danh mục công khai (null = chưa chọn). K3b dùng để mở phỏng vấn theo nghề. */
+  occupationCode?: string | null
+  /** Đợt 2e: ngày mốc `yyyy-MM-dd` hoặc null. */
+  targetDate?: string | null
 }
 
 /** Khoá cache react-query — onboarding POST xong phải invalidate để màn Nói/Thi đọc trình độ mới. */
