@@ -26,6 +26,7 @@ import { isExamTtsMuted, setExamTtsMuted, speakExamSequence, stopExamTts } from 
 import { trackFeatureAction } from '@/lib/analytics'
 import { examParentHref } from '@/lib/examSpeakingNav'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
+import { TeilStrategyCard } from '@/components/exam/TeilStrategyCard'
 
 const GRADING_POLL_MS = 3000
 
@@ -501,6 +502,8 @@ export default function SpeakingExamRoomScreen() {
           {(session.prepMaterials ?? []).map((m) => (
             <View key={m.teilNo} style={{ gap: space[2] }}>
               <Caption>{`Teil ${m.teilNo} · ${m.title}`}</Caption>
+              {/* LT2: chiến thuật Teil — đọc trong giờ chuẩn bị, thu gọn mặc định. */}
+              <TeilStrategyCard provider={session.provider} level={session.level} section="SPRECHEN" teil={m.teilNo} />
               <Card style={{ gap: space[3] }}>
                 {m.choiceRequired && (
                   <ThemedText variant="caption" color="secondary">Chọn 1 chủ đề cho phần này:</ThemedText>
@@ -581,6 +584,9 @@ export default function SpeakingExamRoomScreen() {
       {inPart && (
         <View style={{ flex: 1 }}>
           <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[4], gap: space[3] }}>
+            {inPart && d ? (
+              <TeilStrategyCard provider={session.provider} level={session.level} section="SPRECHEN" teil={d.teilNo} />
+            ) : null}
             {inPart && d && (
               <Card style={{ gap: space[2] }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>

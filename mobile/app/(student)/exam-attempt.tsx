@@ -21,6 +21,7 @@ import {
 GaGlyph } from '@/components/ui'
 import { attemptTotalScore, finishPayload, isAttemptAlreadyFinished, parseExamSections, skippedSectionsLabel, gateVerdict, gateLabel, gateMargin, NONE_OF_THEM, type AttemptResultDto, type ExamBudget, type ExamGate, type ExamObjItem, type ExamObjGroup, itemChoices } from '@/lib/examApi'
 import { ExamBudgetCard } from '@/components/exam/ExamBudgetCard'
+import { TeilStrategyCard } from '@/components/exam/TeilStrategyCard'
 import { ExamAudio } from '@/components/exam/ExamAudio'
 import { HoerenGate, type HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { TelcGapText } from '@/components/exam/TelcGapText'
@@ -37,7 +38,7 @@ import { PARENT_OF } from '@/lib/screenParents'
 export default function ExamAttemptScreen() {
   const theme = useTheme()
   const c = theme.colors
-  const params = useLocalSearchParams<{ examId: string; attemptId: string; title?: string }>()
+  const params = useLocalSearchParams<{ examId: string; attemptId: string; title?: string; level?: string }>()
   const examId = Number(params.examId)
   const attemptId = Number(params.attemptId)
 
@@ -286,7 +287,9 @@ export default function ExamAttemptScreen() {
             </Card>
           ) : null}
 
-          {budget ? <ExamBudgetCard budget={budget} /> : null}
+          {budget ? (
+            <ExamBudgetCard budget={budget} strategyExam={{ provider: parsed?.format, level: params.level }} />
+          ) : null}
 
           <View style={{ gap: space[2] }}>
             <Button
@@ -371,6 +374,8 @@ export default function ExamAttemptScreen() {
                 return (
                 <View key={gi} style={{ gap: space[3] }}>
                   <Caption>{group.title}</Caption>
+                  {/* LT2: chiến thuật Teil, thu gọn mặc định. */}
+                  <TeilStrategyCard provider={parsed.format} level={params.level} section={section.name} teil={group.teilNo} />
                   {group.instruction ? (
                     <ThemedText variant="body" color="secondary">
                       {group.instruction}
@@ -474,6 +479,7 @@ export default function ExamAttemptScreen() {
               {section.writing.map((task) => (
                 <Card key={task.answerKey} style={{ gap: space[3] }}>
                   {task.instruction ? <ThemedText variant="title">{task.instruction}</ThemedText> : null}
+                  <TeilStrategyCard provider={parsed.format} level={params.level} section={section.name} teil={task.teil} />
                   {/* Đề telc in nguyên văn E-Mail của bạn (Von/Betreff/thân thư); có nó thì dòng prompt là thừa. */}
                   {task.stimulus ? (
                     <View style={{ gap: space[2], borderWidth: 1.5, borderColor: c.borderStrong, borderRadius: radius.md, padding: space[3] }}>

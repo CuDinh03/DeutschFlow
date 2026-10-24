@@ -1,0 +1,539 @@
+{
+  "provider": "TELC",
+  "level": "B1",
+  "note": "LT2 (22/10/2026) — chiến thuật từng Teil, AI soạn nháp, tự viết (không chép sách/đề/file Fahrplan). reviewed=false ⇒ học viên thấy 'Sắp có'; admin/giáo viên thấy bản nháp để duyệt. Duyệt xong đổi reviewed=true.",
+  "teile": [
+    {
+      "section": "LESEN",
+      "teil": 1,
+      "points": 25,
+      "reviewed": false,
+      "vi": {
+        "title": "Đọc hiểu Teil 1 — ghép tiêu đề",
+        "format": "5 đoạn văn ngắn, 10 tiêu đề (a–j); mỗi đoạn hợp đúng một tiêu đề, 5 tiêu đề còn lại là mồi nhử. 5 câu × 5 điểm.",
+        "steps": [
+          "Đọc lướt 10 tiêu đề trước, gạch chân từ khoá chính của mỗi tiêu đề (ai? làm gì? chuyện gì thay đổi?).",
+          "Đọc từng đoạn để nắm ý chính, không dừng lại ở từ lạ. Tự tóm đoạn bằng một câu ngắn.",
+          "So câu tóm tắt của bạn với tiêu đề — chọn tiêu đề nói đúng ý CHÍNH của cả đoạn.",
+          "Làm đoạn dễ trước, đoạn khó sau; tiêu đề đã dùng thì gạch đi để thu hẹp lựa chọn."
+        ],
+        "traps": [
+          "Tiêu đề lặp lại đúng một từ trong đoạn nhưng nói về chuyện khác — trùng từ không có nghĩa là đúng.",
+          "Tiêu đề chỉ khớp một chi tiết nhỏ, không phải ý chính của cả đoạn.",
+          "Hai tiêu đề cùng chủ đề (vd. cùng nói về nhà ở) nhưng khác hướng: một nói tăng, một nói giảm."
+        ],
+        "fixes": [
+          { "cause": "Chọn theo từ trùng", "fix": "Trước khi chọn, tự hỏi: tiêu đề này có tóm được CẢ đoạn không, hay chỉ một câu?" },
+          { "cause": "Mất thời gian ở một đoạn khó", "fix": "Đặt giới hạn khoảng 3 phút mỗi đoạn; bỏ qua rồi quay lại khi số tiêu đề còn lại đã ít đi." }
+        ]
+      },
+      "en": {
+        "title": "Reading Teil 1 — matching headlines",
+        "format": "5 short texts, 10 headlines (a–j); each text matches exactly one headline, the other 5 are distractors. 5 items × 5 points.",
+        "steps": [
+          "Skim all 10 headlines first and underline the key idea of each (who? what? what changed?).",
+          "Read each text for its main idea without stopping at unknown words. Sum it up for yourself in one short sentence.",
+          "Compare your summary with the headlines — pick the one that matches the MAIN idea of the whole text.",
+          "Do the easy texts first; cross out used headlines to narrow the choice."
+        ],
+        "traps": [
+          "A headline repeats a word from the text but is about something else — a shared word does not mean a match.",
+          "A headline matches only a small detail, not the main idea of the text.",
+          "Two headlines share a topic (e.g. housing) but point in opposite directions: one says rising, the other falling."
+        ],
+        "fixes": [
+          { "cause": "Choosing by matching words", "fix": "Before choosing, ask: does this headline sum up the WHOLE text, or just one sentence?" },
+          { "cause": "Losing time on one hard text", "fix": "Allow about 3 minutes per text; skip and come back once fewer headlines are left." }
+        ]
+      }
+    },
+    {
+      "section": "LESEN",
+      "teil": 2,
+      "points": 25,
+      "reviewed": false,
+      "vi": {
+        "title": "Đọc hiểu Teil 2 — bài dài, trắc nghiệm a/b/c",
+        "format": "Một bài báo hoặc bài viết dài hơn, 5 câu hỏi trắc nghiệm a/b/c về chi tiết. 5 câu × 5 điểm.",
+        "steps": [
+          "Đọc 5 câu hỏi trước (chưa đọc đáp án) để biết cần tìm thông tin gì.",
+          "Câu hỏi thường đi theo thứ tự bài: tìm đoạn chứa thông tin của câu 1, rồi câu 2…",
+          "Đọc kỹ đoạn đó, rồi mới so với ba đáp án; loại đáp án sai trước.",
+          "Chọn đáp án mà bài viết NÓI RÕ, không phải đáp án bạn thấy hợp lý theo hiểu biết riêng."
+        ],
+        "traps": [
+          "Đáp án dùng đúng từ của bài nhưng đổi nghĩa (đổi chủ thể, đổi thời gian, thêm 'nicht', 'nur', 'immer').",
+          "Đáp án đúng về đời thực nhưng bài không nói tới.",
+          "Hai đáp án đều 'gần đúng' — chỉ một đáp án khớp hoàn toàn với câu trong bài."
+        ],
+        "fixes": [
+          { "cause": "Bỏ sót từ phủ định hoặc giới hạn", "fix": "Khi so đáp án, khoanh các từ nicht, kein, nur, erst, schon, fast, nie trong cả bài lẫn đáp án." },
+          { "cause": "Trả lời bằng hiểu biết riêng", "fix": "Với mỗi đáp án chọn, chỉ ra được dòng nào trong bài chứng minh nó." }
+        ]
+      },
+      "en": {
+        "title": "Reading Teil 2 — long text, multiple choice a/b/c",
+        "format": "One longer article, 5 multiple-choice questions (a/b/c) on details. 5 items × 5 points.",
+        "steps": [
+          "Read the 5 questions first (not the options yet) so you know what to look for.",
+          "Questions usually follow the order of the text: find the paragraph for question 1, then question 2…",
+          "Read that paragraph carefully, then compare the three options; eliminate wrong ones first.",
+          "Pick the option the text STATES, not the one that sounds reasonable from your own knowledge."
+        ],
+        "traps": [
+          "An option uses the text's own words but changes the meaning (different person, different time, an added 'nicht', 'nur', 'immer').",
+          "An option is true in real life but the text does not say it.",
+          "Two options look 'almost right' — only one matches the text completely."
+        ],
+        "fixes": [
+          { "cause": "Missing a negation or limiting word", "fix": "When comparing, circle nicht, kein, nur, erst, schon, fast, nie in both the text and the options." },
+          { "cause": "Answering from general knowledge", "fix": "For every answer you choose, point to the line in the text that proves it." }
+        ]
+      }
+    },
+    {
+      "section": "LESEN",
+      "teil": 3,
+      "points": 25,
+      "reviewed": false,
+      "vi": {
+        "title": "Đọc hiểu Teil 3 — tình huống và mẩu rao vặt",
+        "format": "10 tình huống, 12 mẩu rao vặt (a–l); có tình huống không hợp mẩu nào (đáp án x). 10 câu × 2,5 điểm.",
+        "steps": [
+          "Với mỗi tình huống, gạch chân điều kiện bắt buộc: ai cần, cần gì, khi nào, ở đâu, giá bao nhiêu.",
+          "Đọc lướt 12 mẩu và ghi bên cạnh mỗi mẩu một chữ: nó bán/cung cấp gì.",
+          "Ghép từng tình huống: mẩu phải thoả MỌI điều kiện, không chỉ đúng chủ đề.",
+          "Không tìm được mẩu thoả hết điều kiện thì chọn x — đừng ép một mẩu 'gần đúng'."
+        ],
+        "traps": [
+          "Mẩu đúng chủ đề nhưng sai một điều kiện: giờ mở cửa, độ tuổi, ngày, ngân sách, chỉ cuối tuần.",
+          "Hai mẩu cùng loại dịch vụ, chỉ khác một chi tiết nhỏ quyết định đúng sai.",
+          "Sợ chọn x nên ép một mẩu vào — đề thật luôn có tình huống không có mẩu nào hợp."
+        ],
+        "fixes": [
+          { "cause": "Ghép theo chủ đề, bỏ qua điều kiện", "fix": "Đánh số các điều kiện trong tình huống (1, 2, 3) rồi tick từng điều kiện trên mẩu rao vặt." },
+          { "cause": "Câu chỉ 2,5 điểm mà tốn nhiều thời gian", "fix": "Teil này nhiều câu nhưng nhẹ điểm — làm nhanh, để dành thời gian cho Teil 1–2 (5 điểm/câu)." }
+        ]
+      },
+      "en": {
+        "title": "Reading Teil 3 — situations and small ads",
+        "format": "10 situations, 12 ads (a–l); some situations match no ad (answer x). 10 items × 2.5 points.",
+        "steps": [
+          "For each situation, underline the hard conditions: who needs it, what, when, where, how much.",
+          "Skim the 12 ads and note one word next to each: what it offers.",
+          "Match each situation: the ad must meet EVERY condition, not just the topic.",
+          "If no ad meets all conditions, choose x — do not force an 'almost right' ad."
+        ],
+        "traps": [
+          "An ad fits the topic but fails one condition: opening hours, age, date, budget, weekends only.",
+          "Two ads offer the same kind of service and differ in one small, decisive detail.",
+          "Being afraid of x and forcing an ad — the real exam always has a situation with no matching ad."
+        ],
+        "fixes": [
+          { "cause": "Matching by topic and ignoring conditions", "fix": "Number the conditions in the situation (1, 2, 3) and tick each one off on the ad." },
+          { "cause": "Spending too long on 2.5-point items", "fix": "This Teil has many items but light weights — work fast and save time for Teile 1–2 (5 points each)." }
+        ]
+      }
+    },
+    {
+      "section": "SPRACHBAUSTEINE",
+      "teil": 1,
+      "points": 15,
+      "reviewed": false,
+      "vi": {
+        "title": "Ngữ pháp – từ vựng Teil 1 — chọn a/b/c điền chỗ trống",
+        "format": "Một bức thư hoặc e-mail có 10 chỗ trống, mỗi chỗ chọn một trong ba từ. Chủ yếu kiểm tra ngữ pháp. 10 chỗ × 1,5 điểm.",
+        "steps": [
+          "Đọc cả câu chứa chỗ trống, cả câu trước và sau — ngữ pháp thường phụ thuộc vào phần đứng xa.",
+          "Xác định chỗ trống cần loại từ gì: giới từ, liên từ, đại từ quan hệ, đuôi tính từ, động từ chia.",
+          "Kiểm tra vị trí động từ: sau weil/dass/obwohl động từ đứng cuối; sau deshalb/trotzdem động từ đứng thứ hai.",
+          "Đọc lại cả câu với đáp án đã chọn để nghe xem có tự nhiên không."
+        ],
+        "traps": [
+          "Ba đáp án cùng nghĩa nhưng khác cách dùng: weil / denn / deshalb; wenn / als / ob.",
+          "Giới từ đi với cách (Kasus) cố định: mit + Dativ, für + Akkusativ, wegen + Genitiv.",
+          "Động từ đi với giới từ cố định: sich freuen auf / über, warten auf, sich interessieren für."
+        ],
+        "fixes": [
+          { "cause": "Nhầm liên từ và trạng từ nối câu", "fix": "Học theo nhóm vị trí động từ: weil, dass, wenn, obwohl (cuối câu) — deshalb, trotzdem, dann (thứ hai) — und, aber, denn (không đổi)." },
+          { "cause": "Không thuộc giới từ đi kèm động từ", "fix": "Ôn mỗi ngày 5 cặp động từ + giới từ thường gặp ở B1, kèm một câu ví dụ." }
+        ]
+      },
+      "en": {
+        "title": "Language elements Teil 1 — choose a/b/c for each gap",
+        "format": "A letter or e-mail with 10 gaps, three options per gap. Mostly tests grammar. 10 gaps × 1.5 points.",
+        "steps": [
+          "Read the whole sentence with the gap, plus the sentences before and after — grammar often depends on words further away.",
+          "Decide what kind of word is missing: preposition, conjunction, relative pronoun, adjective ending, verb form.",
+          "Check verb position: after weil/dass/obwohl the verb goes to the end; after deshalb/trotzdem it comes second.",
+          "Reread the sentence with your choice and check that it sounds natural."
+        ],
+        "traps": [
+          "Three options with the same meaning but different use: weil / denn / deshalb; wenn / als / ob.",
+          "Prepositions with a fixed case: mit + dative, für + accusative, wegen + genitive.",
+          "Verbs with a fixed preposition: sich freuen auf / über, warten auf, sich interessieren für."
+        ],
+        "fixes": [
+          { "cause": "Mixing up conjunctions and linking adverbs", "fix": "Learn them by verb position: weil, dass, wenn, obwohl (end) — deshalb, trotzdem, dann (second) — und, aber, denn (no change)." },
+          { "cause": "Not knowing verb + preposition pairs", "fix": "Review 5 common B1 verb + preposition pairs a day, each with an example sentence." }
+        ]
+      }
+    },
+    {
+      "section": "SPRACHBAUSTEINE",
+      "teil": 2,
+      "points": 15,
+      "reviewed": false,
+      "vi": {
+        "title": "Ngữ pháp – từ vựng Teil 2 — hộp 15 từ",
+        "format": "Một đoạn văn có 10 chỗ trống, hộp 15 từ (a–o); mỗi từ dùng tối đa một lần, 5 từ thừa. Kiểm tra từ vựng và từ nối. 10 chỗ × 1,5 điểm.",
+        "steps": [
+          "Đọc hết đoạn văn một lượt trước khi điền để hiểu nội dung.",
+          "Phân loại 15 từ: danh từ, động từ, giới từ, trạng từ, liên từ.",
+          "Với mỗi chỗ trống, đoán loại từ cần điền rồi chỉ xét các từ cùng loại trong hộp.",
+          "Điền chỗ chắc chắn trước, gạch từ đã dùng; cuối cùng đọc lại cả đoạn."
+        ],
+        "traps": [
+          "Từ đúng nghĩa nhưng sai loại từ hoặc sai hình thức (danh từ số nhiều, động từ chưa chia).",
+          "Dùng một từ hai lần vì quên gạch — mỗi từ chỉ được dùng một lần.",
+          "Cụm cố định: một chỗ trống chỉ hợp với một từ vì đi thành cụm (zum Beispiel, auf jeden Fall, in der Nähe)."
+        ],
+        "fixes": [
+          { "cause": "Điền theo cảm giác nghĩa", "fix": "Luôn xác định loại từ trước — chỉ riêng bước này đã loại được hơn nửa hộp từ." },
+          { "cause": "Không nhận ra cụm cố định", "fix": "Ghi sổ các cụm cố định gặp khi đọc, ôn theo cụm chứ không theo từ đơn." }
+        ]
+      },
+      "en": {
+        "title": "Language elements Teil 2 — box of 15 words",
+        "format": "A text with 10 gaps and a box of 15 words (a–o); each word at most once, 5 are left over. Tests vocabulary and linking words. 10 gaps × 1.5 points.",
+        "steps": [
+          "Read the whole text once before filling anything in.",
+          "Sort the 15 words: nouns, verbs, prepositions, adverbs, conjunctions.",
+          "For each gap, decide which word class fits, then only consider words of that class.",
+          "Fill in the sure gaps first and cross out used words; finally reread the whole text."
+        ],
+        "traps": [
+          "A word with the right meaning but the wrong class or form (plural noun, unconjugated verb).",
+          "Using a word twice because you forgot to cross it out — each word may be used once only.",
+          "Fixed phrases: a gap fits only one word because it belongs to a set phrase (zum Beispiel, auf jeden Fall, in der Nähe)."
+        ],
+        "fixes": [
+          { "cause": "Filling in by meaning alone", "fix": "Always decide the word class first — that alone rules out more than half the box." },
+          { "cause": "Not recognising fixed phrases", "fix": "Keep a notebook of fixed phrases you meet while reading and review them as phrases, not single words." }
+        ]
+      }
+    },
+    {
+      "section": "HOEREN",
+      "teil": 1,
+      "points": 25,
+      "reviewed": false,
+      "vi": {
+        "title": "Nghe hiểu Teil 1 — 5 tin ngắn, đúng/sai, nghe một lần",
+        "format": "5 mẩu tin hoặc thông báo ngắn trên đài, mỗi mẩu một câu đúng/sai. Chỉ nghe MỘT lần. 5 câu × 5 điểm — Teil nặng điểm nhất mỗi câu của phần Nghe.",
+        "steps": [
+          "Dùng thời gian đọc trước để đọc cả 5 câu và gạch chân từ khoá (ai, ở đâu, con số, thời gian).",
+          "Nghe ý chính của mẩu tin — câu hỏi hỏi về điều quan trọng nhất, không hỏi chi tiết vụn.",
+          "Quyết định ngay sau mỗi mẩu tin; không nghĩ lại câu trước khi mẩu sau đã bắt đầu.",
+          "Không chắc thì vẫn chọn một đáp án — để trống chắc chắn mất 5 điểm."
+        ],
+        "traps": [
+          "Từ trong câu hỏi được nói trong bài nhưng với ý ngược lại hoặc ở thì khác (đã xảy ra / sẽ xảy ra).",
+          "Con số và thời gian nghe gần giống: fünfzehn / fünfzig, Dienstag / Donnerstag.",
+          "Mẩu tin nói nhiều chi tiết thật, nhưng câu hỏi hỏi đúng chi tiết bị thay đổi một chút."
+        ],
+        "fixes": [
+          { "cause": "Chỉ nghe một lần nên hoảng", "fix": "Luyện nghe tin ngắn mỗi ngày (bản tin đài 1–2 phút) và tự tóm ý chính trong 1 câu, không tua lại." },
+          { "cause": "Nhầm số và ngày", "fix": "Ôn riêng cặp số dễ nhầm (-zehn / -zig) và tên các ngày trong tuần bằng nghe chép chính tả." }
+        ]
+      },
+      "en": {
+        "title": "Listening Teil 1 — 5 short news items, true/false, heard once",
+        "format": "5 short radio news items or announcements, one true/false statement each. Heard ONCE only. 5 items × 5 points — the heaviest per item in Listening.",
+        "steps": [
+          "Use the reading time to read all 5 statements and underline key words (who, where, numbers, times).",
+          "Listen for the main point — the statement is about the most important fact, not a small detail.",
+          "Decide right after each item; do not reconsider the last one while the next has started.",
+          "If unsure, still choose an answer — a blank is a guaranteed loss of 5 points."
+        ],
+        "traps": [
+          "A word from the statement is spoken in the recording but with the opposite meaning or a different tense (has happened / will happen).",
+          "Numbers and times that sound alike: fünfzehn / fünfzig, Dienstag / Donnerstag.",
+          "The item gives many true details, and the statement changes exactly one of them slightly."
+        ],
+        "fixes": [
+          { "cause": "Panicking because you only hear it once", "fix": "Listen to a short news bulletin (1–2 minutes) daily and sum up the main point in one sentence without rewinding." },
+          { "cause": "Confusing numbers and days", "fix": "Drill the easily confused number pairs (-zehn / -zig) and weekdays with short dictations." }
+        ]
+      }
+    },
+    {
+      "section": "HOEREN",
+      "teil": 2,
+      "points": 25,
+      "reviewed": false,
+      "vi": {
+        "title": "Nghe hiểu Teil 2 — bài phỏng vấn/hội thoại dài, đúng/sai, nghe hai lần",
+        "format": "Một cuộc phỏng vấn hoặc hội thoại dài, 10 câu đúng/sai theo thứ tự bài. Nghe hai lần. 10 câu × 2,5 điểm.",
+        "steps": [
+          "Đọc 10 câu trước, gạch chân điều mỗi câu khẳng định (ai làm gì, vì sao, khi nào).",
+          "Lần nghe thứ nhất: đánh dấu đáp án tạm và đánh dấu '?' ở câu chưa chắc.",
+          "Lần nghe thứ hai: chỉ tập trung vào các câu có dấu '?'.",
+          "Bám theo thứ tự: nếu đã nghe sang ý của câu 5 thì câu 4 đã qua — đừng chờ nữa."
+        ],
+        "traps": [
+          "Người nói nhắc tới một ý rồi tự sửa lại ('eigentlich… aber dann…') — đáp án theo ý cuối cùng.",
+          "Câu hỏi nói về người này nhưng trong bài là ý kiến của người khác (người phỏng vấn, bạn bè của người nói).",
+          "Từ đồng nghĩa: bài nói 'nicht besonders gern', câu hỏi viết 'mag es nicht' — phải nhận ra cùng nghĩa."
+        ],
+        "fixes": [
+          { "cause": "Lạc mất vị trí trong bài", "fix": "Khi nghe, dùng bút chỉ theo câu hỏi đang chờ; mất dấu thì nhảy sang câu kế tiếp, lần nghe hai sẽ bù." },
+          { "cause": "Bỏ qua lời tự sửa", "fix": "Luyện nhận ra các từ báo hiệu đổi ý: aber, eigentlich, doch, stattdessen, zuerst … dann." }
+        ]
+      },
+      "en": {
+        "title": "Listening Teil 2 — long interview/conversation, true/false, heard twice",
+        "format": "One longer interview or conversation, 10 true/false statements in the order of the recording. Heard twice. 10 items × 2.5 points.",
+        "steps": [
+          "Read all 10 statements first and underline what each one claims (who does what, why, when).",
+          "First listening: mark a provisional answer and put '?' next to unsure items.",
+          "Second listening: focus only on the items marked '?'.",
+          "Follow the order: once the recording has moved on to item 5's topic, item 4 is over — don't keep waiting."
+        ],
+        "traps": [
+          "The speaker mentions something and then corrects it ('eigentlich… aber dann…') — the answer follows the final version.",
+          "The statement is about one person, but in the recording it is someone else's opinion (the interviewer, a friend).",
+          "Synonyms: the recording says 'nicht besonders gern', the statement says 'mag es nicht' — you must see they mean the same."
+        ],
+        "fixes": [
+          { "cause": "Losing your place in the recording", "fix": "Keep your pen on the statement you are waiting for; if lost, move to the next one — the second listening fills the gap." },
+          { "cause": "Missing a self-correction", "fix": "Practise spotting change-of-mind signals: aber, eigentlich, doch, stattdessen, zuerst … dann." }
+        ]
+      }
+    },
+    {
+      "section": "HOEREN",
+      "teil": 3,
+      "points": 25,
+      "reviewed": false,
+      "vi": {
+        "title": "Nghe hiểu Teil 3 — thông báo ngắn, đúng/sai, nghe hai lần",
+        "format": "5 thông báo ngắn (hộp thư thoại, nhà ga, cửa hàng, bệnh viện…), mỗi thông báo một câu đúng/sai. Nghe hai lần. 5 câu × 5 điểm.",
+        "steps": [
+          "Đọc câu hỏi và đoán loại thông tin cần nghe: giờ, số sân ga, số điện thoại, việc phải làm.",
+          "Lần nghe thứ nhất: nắm tình huống (ai gọi cho ai, vì sao).",
+          "Lần nghe thứ hai: kiểm tra đúng chi tiết mà câu hỏi nhắc tới.",
+          "Chú ý thông tin bị thay đổi: 'nicht mehr', 'statt', 'verschoben', 'fällt aus'."
+        ],
+        "traps": [
+          "Thông báo nói giờ cũ rồi giờ mới — câu hỏi kiểm tra giờ mới.",
+          "Lời nhắn có hai việc, câu hỏi hỏi việc người nghe phải làm, không phải việc người nói sẽ làm.",
+          "Tên địa điểm hoặc số được nói nhanh, kèm tiếng ồn nền như ở nhà ga thật."
+        ],
+        "fixes": [
+          { "cause": "Nghe được chi tiết nhưng nhầm người làm", "fix": "Với mỗi câu hỏi, gạch chân chủ ngữ (ich / Sie / wir) và nghe xem ai sẽ làm việc đó." },
+          { "cause": "Mất điểm vì thông tin bị thay đổi", "fix": "Luyện nghe các thông báo nhà ga và lời nhắn điện thoại, ghi lại riêng 'trước' và 'sau khi đổi'." }
+        ]
+      },
+      "en": {
+        "title": "Listening Teil 3 — short announcements, true/false, heard twice",
+        "format": "5 short announcements (voicemail, station, shop, clinic…), one true/false statement each. Heard twice. 5 items × 5 points.",
+        "steps": [
+          "Read the statement and predict the kind of information you need: a time, a platform, a phone number, a task.",
+          "First listening: get the situation (who is calling whom, and why).",
+          "Second listening: check exactly the detail the statement mentions.",
+          "Watch for changed information: 'nicht mehr', 'statt', 'verschoben', 'fällt aus'."
+        ],
+        "traps": [
+          "The announcement gives the old time and then the new one — the statement tests the new one.",
+          "A message contains two tasks; the statement asks what the LISTENER must do, not what the speaker will do.",
+          "Place names or numbers spoken fast, with background noise like a real station."
+        ],
+        "fixes": [
+          { "cause": "Getting the detail but the wrong person", "fix": "For each statement, underline the subject (ich / Sie / wir) and listen for who will actually do it." },
+          { "cause": "Losing points on changed information", "fix": "Practise with station announcements and phone messages, noting 'before' and 'after the change' separately." }
+        ]
+      }
+    },
+    {
+      "section": "SCHREIBEN",
+      "teil": 1,
+      "points": 45,
+      "reviewed": false,
+      "vi": {
+        "title": "Viết — thư/e-mail trả lời, 4 ý bắt buộc",
+        "format": "Trả lời một bức thư hoặc e-mail, nói tới 4 ý được cho sẵn (in không theo thứ tự). Chấm 3 tiêu chí: hoàn thành nhiệm vụ, cách trình bày giao tiếp, độ chính xác ngôn ngữ — tổng 45 điểm, phần nặng điểm nhất của đề viết.",
+        "steps": [
+          "Đọc thư gốc: ai viết, quan hệ thế nào (bạn bè → du; công việc/cơ quan → Sie).",
+          "Sắp xếp 4 ý theo thứ tự hợp lý rồi lập dàn ý ngắn: mỗi ý 2–3 câu.",
+          "Viết đủ khung thư: lời chào, câu mở (cảm ơn/lý do viết), 4 ý, câu kết, lời chào cuối, tên.",
+          "Nối câu bằng weil, deshalb, außerdem, aber, trotzdem để bài liền mạch.",
+          "Dành 3–4 phút cuối soát lỗi: vị trí động từ, đuôi tính từ, du/Sie nhất quán."
+        ],
+        "traps": [
+          "Bỏ sót một trong 4 ý — mất điểm 'hoàn thành nhiệm vụ' dù phần còn lại viết tốt.",
+          "Lẫn du và Sie trong cùng bài, hoặc lời chào không hợp với người nhận.",
+          "Viết rất dài nhưng nhiều lỗi — dài không được thêm điểm, lỗi thì bị trừ ở tiêu chí chính xác."
+        ],
+        "fixes": [
+          { "cause": "Thiếu ý", "fix": "Đánh số 4 ý trên đề, viết xong tick từng số; không đủ 4 tick thì chưa nộp." },
+          { "cause": "Không có khung thư", "fix": "Học thuộc 2 bộ mở–kết: thân mật (Liebe/Lieber …, Viele Grüße) và trang trọng (Sehr geehrte Damen und Herren, Mit freundlichen Grüßen)." },
+          { "cause": "Lỗi ngữ pháp lặp lại", "fix": "Viết câu ngắn, đúng cấu trúc bạn chắc chắn; xem lỗi hay gặp của mình ở mục Ôn yếu điểm." }
+        ]
+      },
+      "en": {
+        "title": "Writing — reply letter/e-mail, 4 required points",
+        "format": "Reply to a letter or e-mail covering 4 given points (printed in random order). Three criteria: task completion, communicative design, linguistic accuracy — 45 points in total, the heaviest part of the written exam.",
+        "steps": [
+          "Read the original message: who wrote it and how you relate (friends → du; work/authorities → Sie).",
+          "Put the 4 points in a sensible order and make a short plan: 2–3 sentences per point.",
+          "Write the full letter frame: greeting, opening line (thanks/reason for writing), the 4 points, closing line, sign-off, name.",
+          "Link sentences with weil, deshalb, außerdem, aber, trotzdem so the text flows.",
+          "Keep the last 3–4 minutes for checking: verb position, adjective endings, consistent du/Sie."
+        ],
+        "traps": [
+          "Leaving out one of the 4 points — you lose task-completion points even if the rest is good.",
+          "Mixing du and Sie in one letter, or a greeting that doesn't fit the recipient.",
+          "Writing a lot with many mistakes — length earns nothing, mistakes cost accuracy points."
+        ],
+        "fixes": [
+          { "cause": "A missing point", "fix": "Number the 4 points on the task sheet and tick each one after writing; no submission without 4 ticks." },
+          { "cause": "No letter frame", "fix": "Memorise two opening/closing sets: informal (Liebe/Lieber …, Viele Grüße) and formal (Sehr geehrte Damen und Herren, Mit freundlichen Grüßen)." },
+          { "cause": "Repeated grammar mistakes", "fix": "Write short sentences with structures you are sure of; check your frequent errors in the weaknesses review." }
+        ]
+      }
+    },
+    {
+      "section": "SPRECHEN",
+      "teil": 1,
+      "points": 15,
+      "reviewed": false,
+      "vi": {
+        "title": "Nói Teil 1 — làm quen với bạn thi",
+        "format": "Hai thí sinh hỏi và kể về bản thân theo gợi ý trên thẻ (tên, quê, nơi học tiếng Đức, công việc, sở thích…). Khoảng 3 phút. 15 điểm.",
+        "steps": [
+          "Hỏi lần lượt theo các gợi ý trên thẻ, nhưng như một cuộc trò chuyện thật, không đọc danh sách.",
+          "Trả lời mỗi câu bằng 2–3 câu: thông tin + một chi tiết hoặc lý do.",
+          "Phản hồi điều bạn thi vừa nói ('Ach, interessant! Ich war auch schon …') trước khi hỏi tiếp.",
+          "Chuẩn bị sẵn câu trả lời cho câu hỏi thêm của giám khảo ở cuối Teil (vd. kế hoạch, nghề nghiệp)."
+        ],
+        "traps": [
+          "Chỉ đặt câu hỏi mà không phản hồi — trở thành phỏng vấn một chiều, mất điểm tương tác.",
+          "Trả lời một từ ('Ja.', 'Hanoi.') — không đủ để giám khảo chấm khả năng diễn đạt.",
+          "Học thuộc một đoạn giới thiệu dài và đọc liền một mạch — nghe không tự nhiên và không trả lời đúng câu được hỏi."
+        ],
+        "fixes": [
+          { "cause": "Câu trả lời quá ngắn", "fix": "Tập công thức 'trả lời + weil … / zum Beispiel …' cho mỗi gợi ý trên thẻ." },
+          { "cause": "Không biết phản hồi", "fix": "Thuộc 5–6 câu phản hồi ngắn: Das klingt toll. / Wirklich? / Das kenne ich auch. / Und wie gefällt dir das?" }
+        ]
+      },
+      "en": {
+        "title": "Speaking Teil 1 — getting to know your partner",
+        "format": "The two candidates ask and tell each other about themselves using prompts on a card (name, hometown, where you learned German, job, hobbies…). About 3 minutes. 15 points.",
+        "steps": [
+          "Go through the card prompts, but as a real conversation, not by reading a list.",
+          "Answer each question with 2–3 sentences: the fact plus a detail or a reason.",
+          "React to what your partner just said ('Ach, interessant! Ich war auch schon …') before asking the next question.",
+          "Have answers ready for the examiner's extra question at the end of the Teil (e.g. plans, career)."
+        ],
+        "traps": [
+          "Only asking and never reacting — it turns into a one-way interview and costs interaction points.",
+          "One-word answers ('Ja.', 'Hanoi.') — not enough for the examiner to rate your range.",
+          "Reciting a memorised self-introduction in one go — it sounds unnatural and doesn't answer the actual question."
+        ],
+        "fixes": [
+          { "cause": "Answers too short", "fix": "Practise 'answer + weil … / zum Beispiel …' for every prompt on the card." },
+          { "cause": "Not knowing how to react", "fix": "Learn 5–6 short reactions: Das klingt toll. / Wirklich? / Das kenne ich auch. / Und wie gefällt dir das?" }
+        ]
+      }
+    },
+    {
+      "section": "SPRECHEN",
+      "teil": 2,
+      "points": 30,
+      "reviewed": false,
+      "vi": {
+        "title": "Nói Teil 2 — trao đổi về một chủ đề (hai ý kiến trái chiều)",
+        "format": "Mỗi người có một ý kiến của một nhân vật về cùng chủ đề. Kể lại ý kiến đó, kể trải nghiệm của mình, nói quan điểm của mình và phản hồi bạn thi. Khoảng 6 phút. 30 điểm.",
+        "steps": [
+          "Trong thời gian chuẩn bị, tóm ý kiến trên thẻ thành 2–3 ý chính bằng lời của bạn.",
+          "Mở đầu: 'Auf meinem Blatt steht die Meinung von …, sie/er meint, dass …'.",
+          "Kể một trải nghiệm thật của bạn liên quan đến chủ đề (ở Việt Nam hoặc ở Đức).",
+          "Nói rõ quan điểm của bạn và lý do; rồi hỏi ý kiến bạn thi và phản hồi: đồng ý một phần, không đồng ý, hỏi thêm."
+        ],
+        "traps": [
+          "Đọc nguyên văn đoạn trích trên thẻ thay vì kể lại bằng lời của mình.",
+          "Chỉ nói phần của mình rồi im lặng — Teil này chấm cả cách bạn trao đổi với bạn thi.",
+          "Nêu quan điểm mà không có lý do hay ví dụ."
+        ],
+        "fixes": [
+          { "cause": "Không biết diễn đạt đồng ý/không đồng ý", "fix": "Thuộc các mẫu: Da hast du recht, aber … / Das sehe ich anders, weil … / Ich bin nicht ganz sicher, ob …" },
+          { "cause": "Bí ý khi kể trải nghiệm", "fix": "Chuẩn bị trước 1 câu chuyện ngắn cho các chủ đề hay gặp: nhà ở, giao thông, mua sắm, sức khoẻ, công việc, mạng xã hội." }
+        ]
+      },
+      "en": {
+        "title": "Speaking Teil 2 — discussing a topic (two opposing opinions)",
+        "format": "Each candidate gets one person's opinion on the same topic. Report that opinion, share your own experience, give your view and react to your partner. About 6 minutes. 30 points.",
+        "steps": [
+          "During preparation, reduce the opinion on your sheet to 2–3 main points in your own words.",
+          "Start with: 'Auf meinem Blatt steht die Meinung von …, sie/er meint, dass …'.",
+          "Tell a real experience of your own related to the topic.",
+          "State your view with reasons; then ask your partner's opinion and react: partly agree, disagree, ask a follow-up."
+        ],
+        "traps": [
+          "Reading the quote on the sheet word for word instead of reporting it in your own words.",
+          "Saying your part and then falling silent — this Teil also rates how you exchange with your partner.",
+          "Giving an opinion without a reason or an example."
+        ],
+        "fixes": [
+          { "cause": "Not knowing how to agree/disagree", "fix": "Learn: Da hast du recht, aber … / Das sehe ich anders, weil … / Ich bin nicht ganz sicher, ob …" },
+          { "cause": "Running out of ideas for an experience", "fix": "Prepare one short story for frequent topics: housing, transport, shopping, health, work, social media." }
+        ]
+      }
+    },
+    {
+      "section": "SPRECHEN",
+      "teil": 3,
+      "points": 30,
+      "reviewed": false,
+      "vi": {
+        "title": "Nói Teil 3 — cùng nhau lên kế hoạch",
+        "format": "Hai người cùng lên kế hoạch cho một việc (buổi tiệc, chuyến đi…) theo bốn bước: quyết định việc cần làm → đề xuất có lý do → phản hồi đề xuất của bạn thi → thống nhất ai làm việc gì. Khoảng 6 phút. 30 điểm.",
+        "steps": [
+          "Đi qua các gợi ý trên thẻ theo thứ tự; mỗi gợi ý: đề xuất + lý do.",
+          "Phản hồi từng đề xuất của bạn thi: nhận lời, đưa phương án khác, hoặc hỏi lại.",
+          "Không cần thắng cuộc tranh luận — mục tiêu là cùng đi tới một kế hoạch.",
+          "Kết thúc bằng phân công rõ ràng: 'Also, ich kaufe … und du kümmerst dich um …'."
+        ],
+        "traps": [
+          "Một người nói hết, người kia chỉ 'Ja, gut' — cả hai đều mất điểm tương tác.",
+          "Bỏ quên bước cuối: chưa thống nhất ai làm việc gì thì nhiệm vụ chưa hoàn thành.",
+          "Đề xuất không có lý do ('Wir machen das am Samstag.' mà không nói vì sao)."
+        ],
+        "fixes": [
+          { "cause": "Không biết đề xuất và phản hồi", "fix": "Thuộc cặp mẫu: Wie wäre es mit …? / Ich schlage vor, dass … — Gute Idee! / Lieber …, weil … / Was hältst du davon, wenn …?" },
+          { "cause": "Quên phân công", "fix": "Khi còn khoảng 1 phút, chủ động tóm tắt kế hoạch và chia việc." }
+        ]
+      },
+      "en": {
+        "title": "Speaking Teil 3 — planning something together",
+        "format": "The two candidates plan something together (a party, a trip…) in four steps: decide what needs doing → make suggestions with reasons → react to your partner's suggestions → agree on who does what. About 6 minutes. 30 points.",
+        "steps": [
+          "Work through the prompts on the card in order; for each one: a suggestion plus a reason.",
+          "React to each of your partner's suggestions: accept, offer an alternative, or ask back.",
+          "You don't need to win the argument — the goal is to reach a plan together.",
+          "Finish with a clear split of tasks: 'Also, ich kaufe … und du kümmerst dich um …'."
+        ],
+        "traps": [
+          "One person does all the talking and the other only says 'Ja, gut' — both lose interaction points.",
+          "Forgetting the last step: without agreeing who does what, the task is not complete.",
+          "Suggestions without reasons ('Wir machen das am Samstag.' without saying why)."
+        ],
+        "fixes": [
+          { "cause": "Not knowing how to suggest and respond", "fix": "Learn pairs: Wie wäre es mit …? / Ich schlage vor, dass … — Gute Idee! / Lieber …, weil … / Was hältst du davon, wenn …?" },
+          { "cause": "Forgetting to split the tasks", "fix": "With about one minute left, take the lead: sum up the plan and divide the tasks." }
+        ]
+      }
+    }
+  ]
+}

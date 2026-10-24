@@ -1074,7 +1074,8 @@
         "AUSREICHEND": "ausreichend"
       },
       "gateMarginAbove": "{n} Punkte über der Grenze",
-      "gateMarginBelow": "Es fehlen {n} Punkte bis zur Grenze"
+      "gateMarginBelow": "Es fehlen {n} Punkte bis zur Grenze",
+      "budgetStrategy": "Strategie: {label}"
     },
     "grammarPractice": {
       "title": "Grammatiktraining",
@@ -2299,6 +2300,14 @@
       "note": "Ein Upgrade schaltet diesen Bereich nicht frei – nur das Zentrum oder die erziehungsberechtigte Person kann ihn wieder öffnen. Alles, was keine Aufnahme braucht, funktioniert weiterhin.",
       "contact": "Zentrum kontaktieren",
       "dismiss": "Verstanden"
+    },
+    "examStrategy": {
+      "summary": "Strategie für diesen Teil",
+      "draft": "Entwurf — nicht geprüft",
+      "comingSoon": "Strategie für diesen Teil: kommt bald.",
+      "steps": "Vorgehen",
+      "traps": "Typische Fallen",
+      "fixes": "Punktverlust durch… → Abhilfe"
     }
   }
 }

@@ -1074,7 +1074,8 @@
         "AUSREICHEND": "ausreichend (đạt)"
       },
       "gateMarginAbove": "Cao hơn ngưỡng {n} điểm",
-      "gateMarginBelow": "Còn thiếu {n} điểm để qua ngưỡng"
+      "gateMarginBelow": "Còn thiếu {n} điểm để qua ngưỡng",
+      "budgetStrategy": "Chiến thuật: {label}"
     },
     "grammarPractice": {
       "title": "Luyện ngữ pháp",
@@ -2299,6 +2300,14 @@
       "note": "Nâng cấp gói không mở được phần này — chỉ trung tâm hoặc người giám hộ mới mở lại được. Bạn vẫn dùng được mọi phần không cần ghi âm.",
       "contact": "Liên hệ trung tâm",
       "dismiss": "Đã hiểu"
+    },
+    "examStrategy": {
+      "summary": "Chiến thuật cho Teil này",
+      "draft": "Nháp — chưa duyệt",
+      "comingSoon": "Chiến thuật cho Teil này: sắp có.",
+      "steps": "Các bước làm",
+      "traps": "Bẫy hay gặp",
+      "fixes": "Mất điểm vì… → chữa bằng…"
     }
   }
 }

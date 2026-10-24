@@ -9,6 +9,7 @@ import { TelcTeilBody } from '@/components/exam/telc/TelcTeilBody'
 import { telcTeilType } from '@/components/exam/telc/telcTeil'
 import { DialogueAudioPlayer } from '@/components/exam/DialogueAudioPlayer'
 import { HoerenGate } from '@/components/exam/HoerenGate'
+import { TeilStrategy } from '@/components/exam/strategy/TeilStrategy'
 import { ReadingPassage, isRichPassage } from '@/components/exam/telc/ReadingPassage'
 import { WritingStimulus } from '@/components/exam/telc/WritingStimulus'
 import {
@@ -122,6 +123,10 @@ export interface ExamSection {
 
 export interface ActiveExamData {
   sections: ExamSection[]
+  /** Khoá gốc của `sections_json` (`TELC` …) — LT2 tra chiến thuật theo nhà tổ chức × bậc. */
+  format?: string
+  /** Bậc của đề (`cefr_level` ở hàng đề, không nằm trong `sections_json`). */
+  level?: string
 }
 
 /** Section accent — Galerie palette (legacy used its own indigo/sky/emerald/amber set). */
@@ -307,6 +312,9 @@ export function ExamTaking({
           <div className="border-b border-ga-line bg-ga-surface px-4 py-3 lg:px-6">
             <h2 className="ga-ui text-ga-h3 text-ga-ink">{t('teil', { n: teil.teil })}</h2>
             <p className="ga-ui mt-1 break-words text-ga-small text-ga-muted">{teil.instruction_vi || teil.instruction_de}</p>
+            {typeof teil.teil === 'number' && (
+              <TeilStrategy provider={data.format} level={data.level} section={currentSection.name} teil={teil.teil} />
+            )}
           </div>
 
           <div className="p-4 lg:p-6">

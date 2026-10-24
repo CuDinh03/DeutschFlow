@@ -1074,7 +1074,8 @@
         "AUSREICHEND": "ausreichend (pass)"
       },
       "gateMarginAbove": "{n} points above the threshold",
-      "gateMarginBelow": "{n} points short of the threshold"
+      "gateMarginBelow": "{n} points short of the threshold",
+      "budgetStrategy": "Strategy: {label}"
     },
     "grammarPractice": {
       "title": "Grammar practice",
@@ -2299,6 +2300,14 @@
       "note": "Upgrading a plan cannot unlock this — only the centre or the guardian can reopen it. Everything that does not need a recording still works.",
       "contact": "Contact the centre",
       "dismiss": "Got it"
+    },
+    "examStrategy": {
+      "summary": "Strategy for this Teil",
+      "draft": "Draft — not reviewed",
+      "comingSoon": "Strategy for this Teil: coming soon.",
+      "steps": "Steps",
+      "traps": "Common traps",
+      "fixes": "Losing points because… → fix"
     }
   }
 }

@@ -467,7 +467,8 @@ function MockExamRunner() {
         submittedByTimerRef.current = false
         draftBaseVersionRef.current = draft?.version ?? 0
         setActiveAttemptId(attempt.id)
-        setActiveExamData(sections)
+        // LT2: bậc của đề để tra chiến thuật từng Teil (deep link trước khi danh sách đề tải xong ⇒ không có).
+        setActiveExamData({ ...sections, level: exams.find((e) => e.id === examId)?.cefr_level })
         setCurrentSectionIdx(restoredSection)
         setTimeLeft(remaining)
         setAnswers(restoredAnswers)
@@ -485,7 +486,7 @@ function MockExamRunner() {
         setLoading(false)
       }
     },
-    [t, trackFeatureAction],
+    [t, trackFeatureAction, exams],
   )
 
   // Deep link from the pack catalog: enter the exam directly. Guarded by a ref so React's
@@ -767,7 +768,15 @@ function MockExamRunner() {
                 <ExamGatePanel gates={selectedAttempt.gates} />
               )}
 
-              {selectedAttempt.budget && <ExamBudgetPanel budget={selectedAttempt.budget} />}
+              {selectedAttempt.budget && (() => {
+                const exam = exams.find((e) => e.id === selectedAttempt.exam_id)
+                return (
+                  <ExamBudgetPanel
+                    budget={selectedAttempt.budget}
+                    strategyExam={exam ? { provider: exam.exam_format, level: exam.cefr_level } : undefined}
+                  />
+                )
+              })()}
 
               {(() => {
                 let detailedScores: Record<string, SectionScore> = {}

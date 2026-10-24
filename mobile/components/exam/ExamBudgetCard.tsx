@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, ProgressBar, SelectableChip, ThemedText } from '@/components/ui'
+import { TeilStrategyCard } from '@/components/exam/TeilStrategyCard'
 import {
   budgetPartLabel,
   budgetRowDetail,
@@ -9,6 +10,7 @@ import {
   defaultTarget,
   formatPoints,
   gradeLabel,
+  strategyTeile,
   type ExamBudget,
 } from '@/lib/examApi'
 
@@ -17,7 +19,14 @@ import {
  * `frontend/src/components/exam/telc/ExamBudgetPanel.tsx`: điểm đã mất theo Teil (xếp theo điểm,
  * kèm trọng số câu) + mục tiêu xếp loại → được mất tối đa bao nhiêu điểm, một cách chia ví dụ.
  */
-export function ExamBudgetCard({ budget }: { budget: ExamBudget }) {
+export function ExamBudgetCard({
+  budget,
+  strategyExam,
+}: {
+  budget: ExamBudget
+  /** LT2: đề đang xem — dòng đã mất điểm mở thẳng chiến thuật của Teil đó. */
+  strategyExam?: { provider?: string; level?: string }
+}) {
   const { colors: c } = useTheme()
   const [grade, setGrade] = useState<string | null>(() => defaultTarget(budget.targets))
   const target = budget.targets.find((x) => x.grade === grade) ?? null
@@ -59,6 +68,19 @@ export function ExamBudgetCard({ budget }: { budget: ExamBudget }) {
               <ThemedText variant="caption" color="muted">
                 {budgetRowDetail(row)}
               </ThemedText>
+              {strategyExam && !row.pending && lost > 0
+                ? strategyTeile(row).map((n) => (
+                    <TeilStrategyCard
+                      key={n}
+                      provider={strategyExam.provider}
+                      level={strategyExam.level}
+                      section={row.section}
+                      teil={n}
+                      hideComingSoon
+                      summaryLabel={`Chiến thuật: ${budgetRowLabel({ section: row.section, teil: n })}`}
+                    />
+                  ))
+                : null}
             </View>
           )
         })}

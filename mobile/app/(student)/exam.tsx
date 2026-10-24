@@ -75,7 +75,7 @@ export default function ExamScreen() {
               router.push({
                 // Route exists; typed-route union regenerates on next `expo start`.
                 pathname: '/(student)/exam-attempt',
-                params: { examId: String(variant.id), attemptId: String(res.id), title: variant.title },
+                params: { examId: String(variant.id), attemptId: String(res.id), title: variant.title, level: variant.cefrLevel },
               } as unknown as Href),
             onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
           })
