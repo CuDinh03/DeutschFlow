@@ -157,6 +157,9 @@ class TeacherServiceTest {
     @Mock
     private com.deutschflow.organization.repository.OrgMemberRepository orgMemberRepository;
 
+    @Mock
+    private com.deutschflow.speaking.repository.AiSpeakingMessageRepository speakingMessageRepository;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -204,7 +207,8 @@ class TeacherServiceTest {
                 // Bucket private ⇒ link file bài nộp phải được ký lại. Truyền resolver THẬT với
                 // S3 mock: objectKeyFromOwnUrl trả null ⇒ resolve() nhả nguyên URL đã lưu, tức
                 // đúng hành vi các test này vốn khẳng định.
-                new SubmissionFileUrlResolver(mock(S3StorageService.class))
+                new SubmissionFileUrlResolver(mock(S3StorageService.class)),
+                speakingMessageRepository
         );
     }
 
@@ -1689,5 +1693,127 @@ class TeacherServiceTest {
 
         verify(userNotificationService, never()).onAssignmentGraded(any(), anyString(), any(), any(), any());
         verify(userNotificationService).onAssignmentRegraded(eq(200L), eq("SPEAKING"), eq(30L), eq(85), eq("besser"));
+    }
+
+    // ─── Đợt 3b: chặn chấm đè + giáo viên đọc lời học viên ─────────────────────────────────────
+
+    /**
+     * Phiên id=30 của học viên 200; giáo viên 1 dạy lớp 10 có học viên đó, lớp 10 đã giao bài id=50.
+     * Không stub save/thông báo: các ca từ chối phải dừng TRƯỚC khi ghi gì.
+     */
+    private com.deutschflow.speaking.entity.AiSpeakingSession stubVisibleSession(Long assignmentId, String sessionMode) {
+        com.deutschflow.speaking.entity.AiSpeakingSession session =
+                com.deutschflow.speaking.entity.AiSpeakingSession.builder()
+                        .id(30L).userId(200L).topic("Vorstellung").cefrLevel("B1")
+                        .assignmentId(assignmentId).sessionMode(sessionMode)
+                        .startedAt(LocalDateTime.now().minusHours(1))
+                        .build();
+        when(speakingSessionRepository.findById(30L)).thenReturn(Optional.of(session));
+        when(classTeacherRepository.findByIdTeacherId(1L))
+                .thenReturn(List.of(ClassTeacher.builder().id(new ClassTeacherId(10L, 1L)).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(10L, 200L)).thenReturn(true);
+        when(assignmentRepository.findByClassIdIn(List.of(10L)))
+                .thenReturn(List.of(ClassAssignment.builder().id(50L).classId(10L).topic("Bài nói 1").build()));
+        return session;
+    }
+
+    @Test
+    @DisplayName("3b: evaluate phiên phỏng vấn → 409, không ghi điểm, không báo học viên")
+    void evaluateSpeakingSession_interviewSession_isRejectedWithoutWriting() {
+        stubVisibleSession(null, "INTERVIEW");
+
+        assertThrows(ConflictException.class, () -> teacherService.evaluateSpeakingSession(
+                1L, 30L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(40, "đè")));
+
+        verify(speakingSessionRepository, never()).save(any());
+        verifyNoInteractions(userNotificationService);
+    }
+
+    @Test
+    @DisplayName("3b: evaluate phiên gắn bài của LỚP KHÁC → 404, dù giáo viên có chung một lớp với học viên")
+    void evaluateSpeakingSession_otherClassesAssignment_isNotFound() {
+        stubVisibleSession(99L, "COMMUNICATION");
+
+        assertThrows(NotFoundException.class, () -> teacherService.evaluateSpeakingSession(
+                1L, 30L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(90, "đè")));
+
+        verify(speakingSessionRepository, never()).save(any());
+        verifyNoInteractions(userNotificationService);
+    }
+
+    @Test
+    @DisplayName("3b: evaluate với điểm thiếu hoặc ngoài 0–100 → 400, không ghi")
+    void evaluateSpeakingSession_missingOrOutOfRangeScore_isRejected() {
+        stubVisibleSession(50L, "COMMUNICATION");
+
+        assertThrows(BadRequestException.class, () -> teacherService.evaluateSpeakingSession(
+                1L, 30L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(null, "chỉ nhận xét")));
+        assertThrows(BadRequestException.class, () -> teacherService.evaluateSpeakingSession(
+                1L, 30L, new com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest(234, "quá thang")));
+
+        verify(speakingSessionRepository, never()).save(any());
+        verifyNoInteractions(userNotificationService);
+    }
+
+    @Test
+    @DisplayName("3b: chi tiết phiên gắn bài của lớp mình → có transcript đúng thứ tự, kèm câu sửa của lượt học viên")
+    void getSpeakingSessionDetail_ownAssignment_includesTranscript() {
+        stubVisibleSession(50L, "COMMUNICATION");
+        LocalDateTime t0 = LocalDateTime.now().minusMinutes(10);
+        when(speakingMessageRepository.findBySessionIdOrderByCreatedAtAsc(30L)).thenReturn(List.of(
+                com.deutschflow.speaking.entity.AiSpeakingMessage.builder()
+                        .sessionId(30L).role(com.deutschflow.speaking.entity.AiSpeakingMessage.MessageRole.ASSISTANT)
+                        .aiSpeechDe("Erzählen Sie etwas über sich.").createdAt(t0).build(),
+                com.deutschflow.speaking.entity.AiSpeakingMessage.builder()
+                        .sessionId(30L).role(com.deutschflow.speaking.entity.AiSpeakingMessage.MessageRole.USER)
+                        .userText("Ich bin Pflegerin seit drei Jahre.")
+                        .correction("Ich bin seit drei Jahren Pflegerin.").createdAt(t0.plusMinutes(1)).build()));
+
+        com.deutschflow.teacher.dto.TeacherSpeakingSessionDto dto = teacherService.getSpeakingSessionDetail(1L, 30L);
+
+        assertEquals("COMMUNICATION", dto.sessionMode());
+        assertEquals(50L, dto.assignmentId());
+        assertEquals(2, dto.transcript().size());
+        assertEquals("ASSISTANT", dto.transcript().get(0).role());
+        assertEquals("Erzählen Sie etwas über sich.", dto.transcript().get(0).text());
+        assertNull(dto.transcript().get(0).correction());
+        assertEquals("USER", dto.transcript().get(1).role());
+        assertEquals("Ich bin Pflegerin seit drei Jahre.", dto.transcript().get(1).text());
+        assertEquals("Ich bin seit drei Jahren Pflegerin.", dto.transcript().get(1).correction());
+    }
+
+    @Test
+    @DisplayName("3b: chi tiết phiên luyện tự do → có chỉ số, KHÔNG có transcript, không đọc bảng tin nhắn")
+    void getSpeakingSessionDetail_freePractice_hasNoTranscript() {
+        stubVisibleSession(null, "COMMUNICATION");
+
+        com.deutschflow.teacher.dto.TeacherSpeakingSessionDto dto = teacherService.getSpeakingSessionDetail(1L, 30L);
+
+        assertEquals(30L, dto.id());
+        assertNull(dto.transcript());
+        verifyNoInteractions(speakingMessageRepository);
+    }
+
+    @Test
+    @DisplayName("3b: chi tiết phiên gắn bài của lớp khác → 404, không lộ transcript")
+    void getSpeakingSessionDetail_otherClassesAssignment_isNotFound() {
+        stubVisibleSession(99L, "COMMUNICATION");
+
+        assertThrows(NotFoundException.class, () -> teacherService.getSpeakingSessionDetail(1L, 30L));
+
+        verifyNoInteractions(speakingMessageRepository);
+    }
+
+    @Test
+    @DisplayName("3b: chi tiết khi học viên không thuộc lớp nào của giáo viên → 409 như danh sách")
+    void getSpeakingSessionDetail_studentNotInTeachersClass_isRejected() {
+        when(speakingSessionRepository.findById(30L)).thenReturn(Optional.of(
+                com.deutschflow.speaking.entity.AiSpeakingSession.builder()
+                        .id(30L).userId(200L).startedAt(LocalDateTime.now()).build()));
+        when(classTeacherRepository.findByIdTeacherId(1L)).thenReturn(List.of());
+
+        assertThrows(ConflictException.class, () -> teacherService.getSpeakingSessionDetail(1L, 30L));
+
+        verifyNoInteractions(speakingMessageRepository);
     }
 }

@@ -224,6 +224,14 @@ public class TeacherController {
         return ResponseEntity.ok(teacherService.getStudentAssignments(user.getId(), studentId));
     }
 
+    /** Chi tiết một phiên nói, kèm lời học viên khi đó là bài do lớp của giáo viên giao (đợt 3b). */
+    @GetMapping("/speaking-sessions/{sessionId}")
+    public ResponseEntity<TeacherSpeakingSessionDto> getSpeakingSessionDetail(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long sessionId) {
+        return ResponseEntity.ok(teacherService.getSpeakingSessionDetail(user.getId(), sessionId));
+    }
+
     @PostMapping("/speaking-sessions/{sessionId}/evaluate")
     public ResponseEntity<TeacherSpeakingSessionDto> evaluateSpeakingSession(
             @AuthenticationPrincipal User user,
