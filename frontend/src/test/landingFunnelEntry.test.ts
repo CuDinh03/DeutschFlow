@@ -54,12 +54,14 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
     // Gói "Giáo viên" và nút tư vấn trung tâm phục vụ trung tâm, không phải người học.
     expect(code).toMatch(/\{ href: '\/v2\/register', highlight: false \}/)
     // 19/10/2026 (đợt 1 A+B+E): nút tư vấn trung tâm chuyển vào khối S7 `partners.centers`.
-    expect(code).toMatch(/href="\/v2\/register"><YellowSq \/>\{t\('partners\.centers\.ctaConsult'\)\}/)
+    // 24/10/2026 (đợt 3a): nút đó dẫn tới form đặt lịch demo trên trang trung tâm — vẫn ngoài phễu học viên.
+    expect(code).toMatch(/href=\{`\$\{centersHref\}#dat-lich`\}><YellowSq \/>\{t\('partners\.centers\.ctaConsult'\)\}/)
+    expect(code).not.toMatch(/href=\{START_HREF\}><YellowSq \/>\{t\('partners\.centers/)
   })
 
-  it('chỉ còn đúng một href /v2/register hard-code trong JSX — nút tư vấn trung tâm', () => {
+  it('không còn href /v2/register hard-code trong JSX (đợt 3a: CTA trung tâm sang trang trung tâm)', () => {
     const hardCoded = code.match(/href="\/v2\/register"/g) ?? []
-    expect(hardCoded).toHaveLength(1)
+    expect(hardCoded).toHaveLength(0)
   })
 
   /**
