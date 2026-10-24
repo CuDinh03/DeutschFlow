@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+import { isAttemptAlreadyFinished } from '@/lib/mockExamFinish'
 import { ArrowLeft, BookOpen, Check, ChevronRight, Clock, Loader2, Play, Send, Trophy, X, AlertCircle } from 'lucide-react'
 import api, { httpStatus, isAxiosErr } from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
@@ -257,8 +258,22 @@ function MockExamRunner() {
           examId: activeAttemptId,
           totalScore: finished.data?.total_score,
         })
-      } catch {
-        toast.error(t('submitError'))
+      } catch (err) {
+        if (isAttemptAlreadyFinished(err)) {
+          // 409 ATTEMPT_NOT_IN_PROGRESS (#704): bài đã nộp và chấm (bấm hai lần, tab khác, hết giờ) —
+          // hiện kết quả có sẵn thay vì báo lỗi khiến học viên tưởng phải nộp lại.
+          try {
+            const finished = await api.get<MockAttempt>(`/mock-exams/attempts/${activeAttemptId}/result`)
+            setSelectedAttempt(finished.data)
+            setView('result')
+            await load()
+            toast.info(t('alreadySubmitted'))
+          } catch {
+            toast.error(t('submitError'))
+          }
+        } else {
+          toast.error(t('submitError'))
+        }
       } finally {
         setSubmitting(false)
         submittingRef.current = false

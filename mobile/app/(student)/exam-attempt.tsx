@@ -19,7 +19,7 @@ import {
   ProgressBar,
   SelectableRow,
 GaGlyph } from '@/components/ui'
-import { attemptTotalScore, finishPayload, parseExamSections, skippedSectionsLabel, gateVerdict, gateLabel, NONE_OF_THEM, type AttemptResultDto, type ExamGate, type ExamObjItem, type ExamObjGroup, itemChoices } from '@/lib/examApi'
+import { attemptTotalScore, finishPayload, isAttemptAlreadyFinished, parseExamSections, skippedSectionsLabel, gateVerdict, gateLabel, NONE_OF_THEM, type AttemptResultDto, type ExamGate, type ExamObjItem, type ExamObjGroup, itemChoices } from '@/lib/examApi'
 import { ExamAudio } from '@/components/exam/ExamAudio'
 import { HoerenGate, type HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { TelcGapText } from '@/components/exam/TelcGapText'
@@ -148,6 +148,20 @@ export default function ExamAttemptScreen() {
           'Bài của bạn đã nộp thành công nhưng chấm đang lâu hơn bình thường. Điểm sẽ hiện trong Lịch sử thi ít phút nữa.',
           [{ text: 'Đã hiểu', onPress: () => router.navigate(PARENT_OF['exam-attempt']) }],
         )
+      } else if (isAttemptAlreadyFinished(e)) {
+        // 409 ATTEMPT_NOT_IN_PROGRESS (#704): bài đã được chấm — hiện kết quả có sẵn, đừng để học viên
+        // tưởng lỗi rồi nộp lại.
+        try {
+          const res = await api.get<AttemptResultDto>(`/mock-exams/attempts/${attemptId}/result`)
+          setGates(res.data.gates)
+          setScore(attemptTotalScore(res.data))
+        } catch {
+          Alert.alert(
+            'Bài đã nộp',
+            'Bài thi này đã được nộp và chấm. Xem điểm trong Lịch sử thi.',
+            [{ text: 'Đã hiểu', onPress: () => router.navigate(PARENT_OF['exam-attempt']) }],
+          )
+        }
       } else if (e instanceof AsyncJobFailedError) {
         Alert.alert('Chấm bài thất bại', 'Hệ thống chấm gặp lỗi. Bạn hãy thử nộp lại.')
       } else {

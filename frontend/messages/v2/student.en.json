@@ -988,6 +988,7 @@
       "startError": "Could not start the exam.",
       "noContent": "This exam has no content yet. Please try again later.",
       "submitError": "Submit failed. Please try again.",
+      "alreadySubmitted": "This exam was already submitted and graded — here is the result.",
       "reviewError": "Could not load the answer key. Please try again.",
       "back": "Back",
       "backToResult": "Back to result",
