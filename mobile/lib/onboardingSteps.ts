@@ -3,8 +3,11 @@
 // Tách thuần để khoá bằng test — bài học F-1 (2026-08-20): quyết định luồng nằm
 // rải trong JSX thì không test nào bắt được khi nó lặng lẽ đổi nghĩa. Ở đây:
 // thứ tự bước, điều kiện rời bước, và ước lượng hành trình.
+//
+// K2 A+B+E (21/10/2026, khớp web `wizardModel.ts`): hành trình → nghề/kỳ thi + ngày mốc →
+// trình độ → nhịp (+ mentor reveal ở bước cuối, lúc đã biết nghề + trình độ).
 
-export const ONBOARDING_STEP_IDS = ['motivation', 'levels', 'rhythm', 'focus'] as const
+export const ONBOARDING_STEP_IDS = ['motivation', 'focus', 'levels', 'rhythm'] as const
 export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number]
 
 export const TOTAL_ONBOARDING_STEPS = ONBOARDING_STEP_IDS.length

@@ -1,6 +1,6 @@
 package com.deutschflow.examspeaking.audio;
 
-import com.deutschflow.config.AwsS3Properties;
+import com.deutschflow.config.S3StorageProperties;
 import com.deutschflow.media.service.S3StorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,9 +18,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 class ExamAudioStorageTest {
 
-    private AwsS3Properties props(boolean configured) {
-        AwsS3Properties p = new AwsS3Properties();
+    private S3StorageProperties props(boolean configured) {
+        S3StorageProperties p = new S3StorageProperties();
         if (configured) {
+            p.setEndpoint("https://acct.r2.cloudflarestorage.com");
             p.setBucketName("bucket");
             p.setAccessKey("ak");
             p.setSecretKey("sk");

@@ -35,23 +35,27 @@ import static org.mockito.Mockito.when;
  */
 class PersonaTopicPoolParityTest {
 
-    private static final String MIGRATION =
-            "db/migration/V187__seed_persona_topic_pools.sql";
+    /** V187 seeds the 15 original personas; V336 the 8 workplace interviewers (đợt 2c). */
+    private static final List<String> MIGRATIONS = List.of(
+            "db/migration/V187__seed_persona_topic_pools.sql",
+            "db/migration/V336__workplace_interviewers.sql");
 
-    /** The 15 interview-capable personas — those with an explicit (non-default) topicPools branch. */
+    /** The 23 interview-capable personas — those with an explicit (non-default) topicPools branch. */
     private static final List<SpeakingPersona> INTERVIEW_PERSONAS = List.of(
             SpeakingPersona.LUKAS, SpeakingPersona.EMMA, SpeakingPersona.ANNA, SpeakingPersona.KLAUS,
             SpeakingPersona.WEBER, SpeakingPersona.SARAH, SpeakingPersona.SCHNEIDER,
             SpeakingPersona.LENA, SpeakingPersona.THOMAS, SpeakingPersona.PETRA,
             SpeakingPersona.MAX, SpeakingPersona.OLIVER, SpeakingPersona.NIKLAS,
-            SpeakingPersona.NINA, SpeakingPersona.HANNIE);
+            SpeakingPersona.NINA, SpeakingPersona.HANNIE,
+            SpeakingPersona.HOFFMANN, SpeakingPersona.KRUEGER, SpeakingPersona.BRANDT, SpeakingPersona.WAGNER,
+            SpeakingPersona.YILMAZ, SpeakingPersona.SCHULZ, SpeakingPersona.BECKER, SpeakingPersona.RICHTER);
 
     @Test
     void migrationSeedsTopicPoolsForAllInterviewPersonas() {
         Map<String, String> seeded = parseSeededPools();
         for (SpeakingPersona persona : INTERVIEW_PERSONAS) {
             assertThat(seeded)
-                    .as("V187 must seed topic_pools_json for %s", persona.name())
+                    .as("V187/V336 must seed topic_pools_json for %s", persona.name())
                     .containsKey(persona.name());
         }
     }
@@ -92,9 +96,10 @@ class PersonaTopicPoolParityTest {
         return new PersonaRegistryService(repo, new ObjectMapper());
     }
 
-    /** Extracts {@code code -> topic_pools_json} from the V187 UPDATE statements. */
+    /** Extracts {@code code -> topic_pools_json} from the V187/V336 UPDATE statements. */
     private static Map<String, String> parseSeededPools() {
-        String sql = readMigration();
+        String sql = MIGRATIONS.stream().map(PersonaTopicPoolParityTest::readMigration)
+                .collect(java.util.stream.Collectors.joining("\n"));
         Pattern p = Pattern.compile(
                 "topic_pools_json\\s*=\\s*'(.+?)'::jsonb\\s+WHERE\\s+code\\s*=\\s*'([A-Z]+)'");
         Map<String, String> result = new HashMap<>();
@@ -102,12 +107,12 @@ class PersonaTopicPoolParityTest {
         while (m.find()) {
             result.put(m.group(2), m.group(1));
         }
-        assertThat(result).as("parsed at least the 15 interview personas from V187").hasSizeGreaterThanOrEqualTo(15);
+        assertThat(result).as("parsed at least the 23 interview personas from V187/V336").hasSizeGreaterThanOrEqualTo(23);
         return result;
     }
 
-    private static String readMigration() {
-        try (InputStream is = PersonaTopicPoolParityTest.class.getClassLoader().getResourceAsStream(MIGRATION)) {
+    private static String readMigration(String migration) {
+        try (InputStream is = PersonaTopicPoolParityTest.class.getClassLoader().getResourceAsStream(migration)) {
             if (is != null) {
                 return new String(is.readAllBytes(), StandardCharsets.UTF_8);
             }
@@ -115,9 +120,9 @@ class PersonaTopicPoolParityTest {
             // fall through to filesystem
         }
         try {
-            return Files.readString(Path.of("src/main/resources/" + MIGRATION), StandardCharsets.UTF_8);
+            return Files.readString(Path.of("src/main/resources/" + migration), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new UncheckedIOException("Cannot read " + MIGRATION, e);
+            throw new UncheckedIOException("Cannot read " + migration, e);
         }
     }
 }

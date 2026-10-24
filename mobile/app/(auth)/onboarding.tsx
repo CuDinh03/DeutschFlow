@@ -27,7 +27,8 @@ import {
 } from '@/lib/onboardingSteps'
 import { useTourStore } from '@/stores/useTourStore'
 import { useBlockBackNavigation } from '@/hooks/useBlockBackNavigation'
-import { BrandMark, Button, Caption, Card, Icon, Pill, Screen, SelectableChip, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
+import { BrandMark, Button, Caption, Card, Icon, Pill, Screen, SelectableChip, SelectableRow, TextField, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
+import { fetchOccupations, industryForOccupation, occupationName, searchOccupations, targetMonths, type OccupationSummary } from '@/lib/occupations'
 import { MentorMonogram } from '@/components/onboarding/MentorMonogram'
 import { StepHeader } from '@/components/onboarding/StepHeader'
 import {
@@ -53,8 +54,8 @@ import { onboardingMessages, type OnboardingMessageKey } from '@/lib/i18n/messag
 // first practice session.
 //
 // UI v2 (design 2026-09-02, docs/design/onboarding-mobile-v2): form một trang
-// cuộn dài → wizard 4 bước (mục tiêu → trình độ → nhịp học → lĩnh vực/kỳ thi)
-// với mentor reveal ở bước cuối. Logic submit/draft/resume/analytics GIỮ NGUYÊN
+// cuộn dài → wizard 4 bước; K2 (21/10/2026) đổi thứ tự thành mục tiêu → nghề/kỳ thi + ngày mốc
+// → trình độ → nhịp học, với mentor reveal ở bước cuối (nhịp). Logic submit/draft/resume/analytics GIỮ NGUYÊN
 // — chỉ trình bày đổi; quyết định bước nằm ở lib/onboardingSteps.ts (có test).
 
 type GoalType = 'WORK' | 'CERT'
@@ -121,6 +122,11 @@ export default function OnboardingScreen() {
   const [targetLevel, setTargetLevel] = useState<string | null>(null)
   const [industry, setIndustry] = useState<string | null>(null)
   const [examType, setExamType] = useState<string | null>(null)
+  // Đợt 2e A+B+E: nghề trong danh mục công khai + ngày mốc (`yyyy-MM-01`), đều không bắt buộc.
+  const [occupationCode, setOccupationCode] = useState<string | null>(null)
+  const [targetDate, setTargetDate] = useState<string | null>(null)
+  const [occupationCatalog, setOccupationCatalog] = useState<OccupationSummary[] | null>(null)
+  const [occupationQuery, setOccupationQuery] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [mentor, setMentor] = useState<OnboardingMentor | null>(null)
   // Value-first auth inversion: a guest runs the funnel before signing up.
@@ -174,6 +180,16 @@ export default function OnboardingScreen() {
     if (step === 0) return
     AccessibilityInfo.announceForAccessibility(t(STEP_ANNOUNCEMENTS[ONBOARDING_STEP_IDS[step]]))
   }, [step, t])
+
+  // Danh mục nghề tải khi tới bước nghề (bước 2) của nhánh đi làm; lỗi/chưa có endpoint → giữ sáu ngành cũ.
+  useEffect(() => {
+    if (stepId !== 'focus' || goalType !== 'WORK' || occupationCatalog) return
+    let active = true
+    fetchOccupations()
+      .then((list) => { if (active && list.length) setOccupationCatalog(list) })
+      .catch(() => { /* giữ sáu ngành dự phòng */ })
+    return () => { active = false }
+  }, [stepId, goalType, occupationCatalog])
 
   // Live mentor preview — updates as the learner picks goal / level / industry.
   useEffect(() => {
@@ -249,6 +265,8 @@ export default function OnboardingScreen() {
           minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
           dailyGoalMinutes: parseInt(draft.dailyGoal, 10),
           learningSpeed: 'NORMAL',
+          occupationCode: draft.goalType === 'WORK' ? draft.occupationCode ?? null : null,
+          targetDate: draft.targetDate ?? null,
         })
         // Cờ đặt NGAY khi hồ sơ đã lưu — trước cửa sổ dễ vỡ (màn wow). Phase D gate
         // trên (profile_done || first_sentence) nên thoát app giữa chừng không còn
@@ -295,6 +313,7 @@ export default function OnboardingScreen() {
         if (active) {
           setMotivation(draft.motivation); setGoalType(draft.goalType); setCurrentLevel(draft.currentLevel)
           setTargetLevel(draft.targetLevel); setIndustry(draft.industry); setExamType(draft.examType); setDailyGoal(draft.dailyGoal)
+          setOccupationCode(draft.occupationCode ?? null); setTargetDate(draft.targetDate ?? null)
           setResuming(false)
           Alert.alert(t('alert.notSavedYet'), apiMessage(e))
         }
@@ -336,6 +355,8 @@ export default function OnboardingScreen() {
         minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
         dailyGoalMinutes: parseInt(dailyGoal, 10),
         learningSpeed: 'NORMAL',
+        occupationCode: goalType === 'WORK' ? occupationCode : null,
+        targetDate,
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       void useTourStore.getState().markDone('profile_done')   // xem ghi chú F-2 ở nhánh resume-draft
@@ -453,6 +474,8 @@ export default function OnboardingScreen() {
       motivation, goalType, currentLevel, targetLevel: targetLevel ?? undefined,
       industry: goalType === 'WORK' ? industry : null,
       examType: goalType === 'CERT' ? examType : null,
+      occupationCode: goalType === 'WORK' ? occupationCode : null,
+      targetDate,
       dailyGoalMinutes: parseInt(dailyGoal, 10),
       sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
       minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
@@ -465,7 +488,7 @@ export default function OnboardingScreen() {
     if (!targetLevel) return
     // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
     void syncGuestSession('AUTH_GATE', { ...guestAnswersSnapshot(), pathChoice })
-    await saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoal, pathChoice })
+    await saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoal, pathChoice, occupationCode, targetDate })
     captureEvent('onboarding_signup_prompted', { motivation, goalType })
     router.push('/(auth)/register')
   }
@@ -521,7 +544,11 @@ export default function OnboardingScreen() {
   }
 
   const focusIsWork = goalType === 'WORK'
-  const showSkip = isLastStep && (focusIsWork ? !industry : !examType)
+  const showSkip = stepId === 'focus' && (focusIsWork ? !industry && !occupationCode : !examType) && !targetDate
+  const locale = getDeviceLocale()
+  const selectedOccupation = occupationCatalog?.find((o) => o.code === occupationCode) ?? null
+  const occupationResults = occupationCatalog ? searchOccupations(occupationCatalog, occupationQuery, 6) : []
+  const months = targetMonths(new Date(), 18)
   const estimate = journeyEstimate(currentLevel, targetLevel)
 
   return (
@@ -657,6 +684,7 @@ export default function OnboardingScreen() {
                   </ThemedText>
                 </View>
               </Card>
+              {mentor ? <MentorRevealCard mentor={mentor} /> : null}
             </>
           )}
 
@@ -669,17 +697,61 @@ export default function OnboardingScreen() {
                     title={t('focus.workTitle')}
                     sub={t('focus.workSub')}
                   />
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
-                    {INDUSTRIES.map((it) => (
-                      <IndustryTile
-                        key={it.value}
-                        label={t(it.label)}
-                        glyph={it.glyph}
-                        selected={industry === it.value}
-                        onPress={() => pick(() => setIndustry(industry === it.value ? null : it.value))}
-                      />
-                    ))}
-                  </View>
+                  {occupationCatalog ? (
+                    selectedOccupation ? (
+                      <Card>
+                        <ThemedText variant="bodyStrong">{selectedOccupation.nameDe}</ThemedText>
+                        {locale !== 'de' ? <Caption>{occupationName(selectedOccupation, locale)}</Caption> : null}
+                        <Caption style={{ marginTop: space[2] }}>{t('focus.occupationHint')}</Caption>
+                        <View style={{ marginTop: space[3], alignSelf: 'flex-start' }}>
+                          <Button
+                            label={t('focus.occupationChange')}
+                            variant="secondary"
+                            fullWidth={false}
+                            onPress={() => pick(() => { setOccupationCode(null); setIndustry(null); setOccupationQuery('') })}
+                          />
+                        </View>
+                      </Card>
+                    ) : (
+                      <View style={{ gap: space[3] }}>
+                        <TextField
+                          label={t('focus.occupationLabel')}
+                          placeholder={t('focus.occupationPlaceholder')}
+                          value={occupationQuery}
+                          onChangeText={setOccupationQuery}
+                          autoCorrect={false}
+                          autoCapitalize="none"
+                        />
+                        {occupationResults.map((o) => (
+                          <SelectableRow
+                            key={o.code}
+                            label={o.nameDe}
+                            role="radio"
+                            selected={false}
+                            onPress={() => pick(() => { setOccupationCode(o.code); setIndustry(industryForOccupation(o)) })}
+                          >
+                            <ThemedText variant="bodyStrong">{o.nameDe}</ThemedText>
+                            {locale !== 'de' ? <Caption>{occupationName(o, locale)}</Caption> : null}
+                          </SelectableRow>
+                        ))}
+                        {occupationQuery.trim() && occupationResults.length === 0 ? (
+                          <Caption>{t('focus.occupationNoMatch', { query: occupationQuery.trim() })}</Caption>
+                        ) : null}
+                      </View>
+                    )
+                  ) : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
+                      {INDUSTRIES.map((it) => (
+                        <IndustryTile
+                          key={it.value}
+                          label={t(it.label)}
+                          glyph={it.glyph}
+                          selected={industry === it.value}
+                          onPress={() => pick(() => setIndustry(industry === it.value ? null : it.value))}
+                        />
+                      ))}
+                    </View>
+                  )}
                 </>
               ) : (
                 <>
@@ -702,7 +774,31 @@ export default function OnboardingScreen() {
                   </View>
                 </>
               )}
-              {mentor ? <MentorRevealCard mentor={mentor} /> : null}
+              {/* Ngày mốc theo tháng — cả nhánh đi làm lẫn thi. Nhãn số MM/yyyy để không phụ thuộc Intl. */}
+              <View style={{ gap: space[2], marginTop: space[5] }}>
+                <ThemedText variant="bodyStrong">{t('focus.targetDateLabel')}</ThemedText>
+                <Caption>{t('focus.targetDateHint')}</Caption>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2] }}>
+                  {months.map((m) => {
+                    const label = `${String(m.month).padStart(2, '0')}/${m.year}`
+                    return (
+                      <SelectableChip
+                        key={m.value}
+                        label={label}
+                        selected={targetDate === m.value}
+                        onPress={() => pick(() => setTargetDate(targetDate === m.value ? null : m.value))}
+                      >
+                        <ThemedText variant="label">{label}</ThemedText>
+                      </SelectableChip>
+                    )
+                  })}
+                </ScrollView>
+                {targetDate ? (
+                  <View style={{ alignSelf: 'flex-start' }}>
+                    <Button label={t('focus.targetDateClear')} variant="secondary" fullWidth={false} onPress={() => setTargetDate(null)} />
+                  </View>
+                ) : null}
+              </View>
             </>
           )}
         </MotiView>

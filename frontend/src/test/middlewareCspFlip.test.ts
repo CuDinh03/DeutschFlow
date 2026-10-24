@@ -66,14 +66,16 @@ describe('middleware — kill-switch CSP_ENFORCE (gate E4)', () => {
   })
 
   it('chính sách strict khai đủ 4 directive mà bản floor không có', async () => {
-    const res = await runMiddleware({ CSP_ENFORCE: '1' })
+    const media = 'https://acct123.r2.cloudflarestorage.com'
+    const res = await runMiddleware({ CSP_ENFORCE: '1', NEXT_PUBLIC_MEDIA_ORIGINS: media })
     const csp = res.headers.get('content-security-policy') ?? ''
 
     // worker-src: dưới strict-dynamic, `new Worker()` rơi về script-src nơi 'self' bị bỏ qua → chết.
     expect(csp).toContain("worker-src 'self' blob:")
-    // frame-src/media-src: material reader nhúng S3 presigned; thiếu là chặn thật ngày bật enforce.
-    expect(csp).toContain("frame-src 'self' https:")
-    expect(csp).toContain("media-src 'self' blob: data: https:")
+    // frame-src/media-src: material reader nhúng R2 presigned; thiếu là chặn thật ngày bật enforce.
+    // (Bản cũ kiểm chuỗi con "… https:" — chỉ xanh nhờ host S3 tình cờ bắt đầu bằng "https://".)
+    expect(csp).toContain(`frame-src 'self' ${media}`)
+    expect(csp).toContain(`media-src 'self' blob: data: ${media}`)
     // nonce phải có, nếu không mọi inline script của Next chết ngay khi enforce.
     expect(csp).toMatch(/script-src [^;]*'nonce-[^']+'/)
   })

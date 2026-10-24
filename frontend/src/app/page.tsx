@@ -1,4 +1,7 @@
 import '@/styles/galerie.css'
+import type { Metadata } from 'next'
+import { getLocale } from 'next-intl/server'
+import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import HomeClient from './HomeClient'
 
 /**
@@ -14,6 +17,31 @@ import HomeClient from './HomeClient'
  * the auth/native routing lives in the client child (HomeClient).
  */
 export const dynamic = 'force-dynamic'
+
+/**
+ * Canonical + hreflang (đợt 1 A+B+E): `/` (vi), `/en/`, `/de/` là ba bản của cùng một trang.
+ * Title/description lấy từ layout gốc (catalog `v2.landing.meta` theo locale của request).
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const raw = await getLocale()
+  const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
+  return {
+    alternates: {
+      canonical: localizedHref(locale, '/'),
+      languages: hreflangAlternates('/'),
+    },
+    // `openGraph` của trang THAY HẲN bản của layout (Next không gộp sâu) — khai lại site_name/ảnh,
+    // còn og:title/og:description Next tự lấy từ title/description của layout.
+    openGraph: {
+      locale: OG_LOCALE[locale],
+      url: localizedHref(locale, '/'),
+      siteName: 'myDeutschFlow',
+      images: ['/icon.svg'],
+    },
+  }
+}
+
+const OG_LOCALE = { vi: 'vi_VN', en: 'en_US', de: 'de_DE' } as const
 
 export default function HomePage() {
   return (

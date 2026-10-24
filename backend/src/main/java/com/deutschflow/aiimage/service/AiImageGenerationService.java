@@ -25,7 +25,7 @@ import java.util.UUID;
 @Slf4j
 public class AiImageGenerationService {
 
-    /** Trần số ảnh / request — Bedrock Stable Image đắt; DTO đã @Max nhưng clamp phòng thủ thêm. */
+    /** Trần số ảnh / request — sinh ảnh AI đắt; DTO đã @Max nhưng clamp phòng thủ thêm. */
     private static final int MAX_IMAGES_PER_REQUEST = 4;
     /** Token-tương-đương cho 1 ảnh sinh — để trừ vào pool token org như các tính năng AI đắt khác (PPTX/grade-image). */
     private static final long IMAGE_GEN_ESTIMATED_TOKENS_PER_IMAGE = 15_000L;
@@ -39,7 +39,7 @@ public class AiImageGenerationService {
 
     /**
      * KHÔNG mở @Transactional quanh vòng lặp (audit S-8/P-16): mỗi {@code provider.generate()} là
-     * lời gọi Bedrock chậm — giữ Hikari connection suốt vòng lặp sẽ cạn pool. {@code registerGeneratedAsset}
+     * lời gọi nhà cung cấp ảnh chậm — giữ Hikari connection suốt vòng lặp sẽ cạn pool. {@code registerGeneratedAsset}
      * tự commit từng asset độc lập.
      */
     public AiImageGenerateResponse generate(AiImageGenerateRequest request, User user) {
@@ -52,7 +52,7 @@ public class AiImageGenerationService {
                     "Tính năng tạo ảnh AI chưa được cấu hình trên môi trường hiện tại.", null);
         }
 
-        // Clamp số ảnh (Bedrock đắt) và gate pool token cấp-org TRƯỚC khi đốt tiền (audit P-16).
+        // Clamp số ảnh (sinh ảnh đắt) và gate pool token cấp-org TRƯỚC khi đốt tiền (audit P-16).
         // assertOrgPoolAvailable là no-op với giáo viên B2C / org chưa cấu hình pool.
         int count = Math.min(Math.max(1, request.count()), MAX_IMAGES_PER_REQUEST);
         orgPoolGuard.assertOrgPoolAvailable(
@@ -83,7 +83,7 @@ public class AiImageGenerationService {
         }
 
         // B2B-COGS (audit H-1): tính năng gate pool TRƯỚC nhưng trước đây KHÔNG trừ pool → org
-        // metered sinh ảnh Bedrock "miễn phí". Trừ token-tương-đương theo số ảnh thực sinh (best-effort).
+        // metered sinh ảnh AI "miễn phí". Trừ token-tương-đương theo số ảnh thực sinh (best-effort).
         recordImageGenUsage(user, provider, assets.size());
 
         return new AiImageGenerateResponse(provider.getClass().getSimpleName(), finalPrompt, assets);

@@ -3,6 +3,7 @@ package com.deutschflow.user.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.interview.repository.OccupationRepository;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.user.dto.LearningProfileResponse;
 import com.deutschflow.user.dto.OnboardingMentorResponse;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +38,10 @@ public class UserLearningProfileService {
     private final QuotaService quotaService;
     private final FixedMentorResolver fixedMentorResolver;
     private final OnboardingTypeResolver onboardingTypeResolver;
+    private final OccupationRepository occupationRepository;
+
+    /** Ngày mốc xa hơn mức này coi như nhập nhầm. */
+    static final int MAX_TARGET_DATE_YEARS = 10;
 
     public UserLearningProfile upsertProfile(User user, OnboardingProfileRequest req, String platform) {
         if (req.sessionsPerWeek() == null || req.minutesPerSession() == null) {
@@ -75,6 +81,11 @@ public class UserLearningProfileService {
         // and the daily-goal streak anchor. Both optional and lenient — invalid motivation → null.
         profile.setMotivation(parseMotivationOrNull(req.motivation()));
         profile.setDailyGoalMinutes(req.dailyGoalMinutes());
+
+        // Đợt 2e: nghề + ngày mốc, đều không bắt buộc và dễ dãi như motivation — mã nghề lạ hay ngày
+        // đã qua thì bỏ qua thay vì làm hỏng cả lần lưu hồ sơ.
+        profile.setOccupationCode(knownOccupationOrNull(req.occupationCode()));
+        profile.setTargetDate(plausibleTargetDateOrNull(req.targetDate(), LocalDate.now()));
 
         // Deterministically assign the fixed mentor from the freshly-set profile + subscription tier.
         // Onboarding's currentLevel is self-declared, so record provenance as SELF; the placement-test
@@ -274,7 +285,24 @@ public class UserLearningProfileService {
                 p.getOnboardingType(),
                 p.getUpsellOptInAt() != null ? p.getUpsellOptInAt().toString() : null,
                 p.getMotivation() != null ? p.getMotivation().name() : null,
-                p.getDailyGoalMinutes()
+                p.getDailyGoalMinutes(),
+                p.getOccupationCode(),
+                p.getTargetDate() != null ? p.getTargetDate().toString() : null
         );
+    }
+
+    private String knownOccupationOrNull(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        String c = code.trim();
+        return occupationRepository.existsById(c) ? c : null;
+    }
+
+    static LocalDate plausibleTargetDateOrNull(LocalDate date, LocalDate today) {
+        if (date == null || date.isBefore(today) || date.isAfter(today.plusYears(MAX_TARGET_DATE_YEARS))) {
+            return null;
+        }
+        return date;
     }
 }

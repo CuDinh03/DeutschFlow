@@ -1,12 +1,12 @@
 /**
  * Tests for the Galerie 2.0 onboarding wizard (/src/app/v2/onboarding/page.tsx).
  *
- * Đợt 4 (18/09/2026): wizard đổi thứ tự khớp mobile — mục tiêu → trình độ → nhịp (phút/ngày) →
- * lĩnh vực/kỳ thi + mentor (W-18), lựa chọn là `role=radio` trong `radiogroup` (W-12), progressbar
- * đếm theo nhánh (W-13). Các ca Đợt 0/1/2/5 giữ nguyên ý nghĩa, chỉ đổi đường bấm.
+ * Đợt 4 (18/09/2026): lựa chọn là `role=radio` trong `radiogroup` (W-12), progressbar đếm theo nhánh
+ * (W-13). K2 A+B+E (21/10/2026): thứ tự mục tiêu → nghề/kỳ thi + ngày mốc → trình độ → nhịp + mentor,
+ * khớp mobile. Các ca Đợt 0/1/2/5 giữ nguyên ý nghĩa, chỉ đổi đường bấm.
  */
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -15,10 +15,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const pushMock = vi.fn();
 
 // `refresh` is required too: GaAuthShell renders LanguageToggle, which calls router.refresh().
+const { searchParamsRef } = vi.hoisted(() => ({ searchParamsRef: { current: "" } }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
-  // Đợt 4 PR-3: lối `?placement=1` — mặc định không có tham số.
-  useSearchParams: () => new URLSearchParams(),
+  // Đợt 4 PR-3: lối `?placement=1`; đợt 2e: `?occupation=` — mặc định không có tham số.
+  useSearchParams: () => new URLSearchParams(searchParamsRef.current),
 }));
 
 // Trả về chính KEY cho cả t() lẫn t.rich(); t.has trả true. Mọi truy vấn tìm theo KEY.
@@ -178,19 +179,29 @@ describe("V2OnboardingPage — điều hướng giữa các bước (thứ tự 
     vi.mocked(getOnboardingRoute).mockResolvedValue(ZERO_ROUTE);
   });
 
-  it("mục tiêu → trình độ → nhịp → lĩnh vực; Quay lại trả về bước trước", async () => {
+  it("mục tiêu → lĩnh vực → trình độ → nhịp; Quay lại trả về bước trước", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
     await advance(user, 1);
-    expect(screen.getByText("level.heading")).toBeInTheDocument();
+    expect(screen.getByText("focus.industryHeading")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /nav\.back/i }));
     expect(screen.getByText("goal.heading")).toBeInTheDocument();
 
     await advance(user, 2);
-    expect(screen.getByText("rhythm.heading")).toBeInTheDocument();
+    expect(screen.getByText("level.heading")).toBeInTheDocument();
     await advance(user, 1);
-    expect(screen.getByText("focus.industryHeading")).toBeInTheDocument();
+    expect(screen.getByText("rhythm.heading")).toBeInTheDocument();
+  });
+
+  it("K2: mentor reveal ở bước cuối (nhịp), không ở bước nghề", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await advance(user, 1);
+    expect(screen.queryByText("pace.mentorLabel")).not.toBeInTheDocument();
+    await advance(user, 2);
+    expect(await screen.findByText("pace.mentorLabel")).toBeInTheDocument();
+    expect(screen.getByText("Anna")).toBeInTheDocument();
   });
 
   it("W-12: đổi bước thì focus về h1 của bước mới", async () => {
@@ -198,15 +209,15 @@ describe("V2OnboardingPage — điều hướng giữa các bước (thứ tự 
     render(<V2OnboardingPage />);
     await advance(user, 1);
     await waitFor(() => {
-      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1, name: "level.heading" }));
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1, name: "focus.industryHeading" }));
     });
   });
 
-  it("chọn EXAM → bước 4 hỏi kỳ thi thay vì lĩnh vực", async () => {
+  it("chọn EXAM → bước 2 hỏi kỳ thi thay vì lĩnh vực", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
     await user.click(screen.getByRole("radio", { name: /goal\.EXAM/i }));
-    await advance(user, 3);
+    await advance(user, 1);
     expect(screen.getByText("focus.examHeading")).toBeInTheDocument();
     expect(screen.getByText("focus.exam.TELC.label")).toBeInTheDocument();
   });
@@ -221,7 +232,7 @@ describe("V2OnboardingPage — bước trình độ", () => {
   it("5 mức A0..B2, A0 chọn sẵn; chọn A1 đánh dấu viền gold + aria-checked", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
-    await advance(user, 1);
+    await advance(user, 2);
 
     ["A0", "A1", "A2", "B1", "B2"].forEach((code) => {
       expect(screen.getByText(`level.${code}.label`)).toBeInTheDocument();
@@ -237,7 +248,7 @@ describe("V2OnboardingPage — bước trình độ", () => {
   it("thẻ hành trình: A0→B1 có số thật, cặp khác câu chung; đổi mục tiêu sang B2", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
-    await advance(user, 1);
+    await advance(user, 2);
     expect(screen.getByText("level.journey")).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "B2" }));
@@ -297,6 +308,7 @@ describe("V2OnboardingPage — A0 lối tắt (không placement; Đợt 4 PR-2: 
         goalType: "WORK", targetLevel: "B1", currentLevel: "A0", motivation: "JOB",
         industry: null, examType: null,
         sessionsPerWeek: 5, minutesPerSession: 15, dailyGoalMinutes: 15, learningSpeed: "NORMAL",
+        occupationCode: null, targetDate: null,
       });
     });
   });
@@ -304,10 +316,10 @@ describe("V2OnboardingPage — A0 lối tắt (không placement; Đợt 4 PR-2: 
   it("nhịp 20 phút + lĩnh vực Pflege → payload mang đúng, bắn onboarding_daily_goal_set{20}", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
-    await advance(user, 2);
-    await user.click(screen.getByRole("radio", { name: /rhythm\.m20/i }));
     await advance(user, 1);
     await user.click(screen.getByRole("radio", { name: /focus\.industry\.Pflege/i }));
+    await advance(user, 2);
+    await user.click(screen.getByRole("radio", { name: /rhythm\.m20/i }));
     await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
 
     await waitFor(() => {
@@ -320,8 +332,9 @@ describe("V2OnboardingPage — A0 lối tắt (không placement; Đợt 4 PR-2: 
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
     await user.click(screen.getByRole("radio", { name: /goal\.EXAM/i }));
-    await advance(user, 3);
+    await advance(user, 1);
     await user.click(screen.getByRole("radio", { name: /focus\.exam\.TELC/i }));
+    await advance(user, 2);
     await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
 
     await waitFor(() => {
@@ -379,9 +392,9 @@ describe("V2OnboardingPage — Đợt 0: 409 là lỗi, mất mạng /route khô
     vi.mocked(getOnboardingRoute).mockRejectedValue(new Error("network"));
     render(<V2OnboardingPage />);
 
-    await advance(user, 1);
+    await advance(user, 2);
     await user.click(screen.getByRole("radio", { name: /level\.A1\.label/i }));
-    await advance(user, 3);
+    await advance(user, 2);
 
     await waitFor(() => {
       expect(screen.getByTestId("path-choice")).toBeInTheDocument();
@@ -539,10 +552,10 @@ describe("V2OnboardingPage — khách: quick win rồi cổng tài khoản (W-13
   it("khách A1+: progressbar 7 bước; sau quick win là Chọn đường (I-9); chọn nói thử → cổng tài khoản; draft + phiên mang pathChoice", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
-    await advance(user, 1);
+    await advance(user, 2);
     await user.click(screen.getByRole("radio", { name: /level\.B1\.label/i }));
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "7");
-    await advance(user, 3);
+    await advance(user, 2);
     expect(screen.getByText("quickWin.heading")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Guten Morgen/ }));
@@ -606,9 +619,9 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
 
-    await advance(user, 1);
+    await advance(user, 2);
     await user.click(screen.getByRole("radio", { name: /level\.A1\.label/i }));
-    await advance(user, 3);
+    await advance(user, 2);
 
     await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "4");
@@ -628,9 +641,9 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
   it("chọn 'Nói thử 3 phút' → /v2/onboarding/mock-exam (W5b nối trang mồ côi)", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
-    await advance(user, 1);
+    await advance(user, 2);
     await user.click(screen.getByRole("radio", { name: /level\.B1\.label/i }));
-    await advance(user, 3);
+    await advance(user, 2);
     await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
 
     await user.click(screen.getByRole("radio", { name: /pathChoice\.mockExam/i }));
@@ -644,9 +657,9 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
   it("chọn 'Bỏ qua' (fixture C5) → dashboard (HOME_WEEK1), bắn onboarding_placement_skipped", async () => {
     const user = userEvent.setup();
     render(<V2OnboardingPage />);
-    await advance(user, 1);
+    await advance(user, 2);
     await user.click(screen.getByRole("radio", { name: /level\.A2\.label/i }));
-    await advance(user, 3);
+    await advance(user, 2);
     await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
 
     await user.click(screen.getByRole("radio", { name: /pathChoice\.skip/i }));
@@ -664,9 +677,9 @@ describe("V2OnboardingPage — non-A0 level triggers placement test flow", () =>
       return { data: {} };
     });
     render(<V2OnboardingPage />);
-    await advance(user, 1);
+    await advance(user, 2);
     await user.click(screen.getByRole("radio", { name: /level\.A1\.label/i }));
-    await advance(user, 3);
+    await advance(user, 2);
     await waitFor(() => expect(screen.getByTestId("path-choice")).toBeInTheDocument());
     await user.click(screen.getByRole("radio", { name: /pathChoice\.placement/i }));
     await user.click(screen.getByRole("button", { name: /pathChoice\.continue/i }));
@@ -719,7 +732,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(screen.getByText("focus.industryHeading")).toBeInTheDocument();
+      expect(screen.getByText("rhythm.heading")).toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
@@ -730,7 +743,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     render(<V2OnboardingPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("focus.industryHeading")).toBeInTheDocument();
+      expect(screen.getByText("rhythm.heading")).toBeInTheDocument();
     }, { timeout: 5000 });
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
 
@@ -756,7 +769,7 @@ describe("V2OnboardingPage — resume từ draft sau đăng ký", () => {
     expect(clearOnboardingDraft).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(screen.getByText("focus.industryHeading")).toBeInTheDocument();
+      expect(screen.getByText("rhythm.heading")).toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
@@ -875,5 +888,65 @@ describe("V2OnboardingPage — Đợt 5: học viên trung tâm đi bản rút g
     await waitFor(() => expect(api.get).toHaveBeenCalledWith("/onboarding/context"));
     expect(screen.getByText("goal.heading")).toBeInTheDocument();
     expect(screen.queryByTestId("org-lite-wizard")).not.toBeInTheDocument();
+  });
+});
+
+// ─── Đợt 2e A+B+E (21/10/2026): hỏi nghề trong danh mục + ngày mốc ────────────
+
+const ALTENPFLEGER = {
+  code: "altenpfleger", nameDe: "Altenpfleger/in", nameEn: "Geriatric nurse", nameVi: "Điều dưỡng người cao tuổi",
+  workplace: "pflege", aliases: ["pflegeheim"], questionSet: "GENERAL",
+};
+
+describe("V2OnboardingPage — đợt 2e: nghề + ngày mốc", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    searchParamsRef.current = "";
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === "/public/occupations") return Promise.resolve({ data: [ALTENPFLEGER] });
+      if (url === "/public/occupations/altenpfleger") return Promise.resolve({ data: { occupation: ALTENPFLEGER } });
+      return Promise.resolve({ data: { hasPlan: true } });
+    });
+  });
+
+  afterEach(() => {
+    searchParamsRef.current = "";
+    vi.mocked(api.get).mockResolvedValue({ data: { hasPlan: true } });
+  });
+
+  it("danh mục tải được → tìm nghề theo tên gọi khác, chọn, đặt ngày mốc → payload có mã nghề, industry suy ra và ngày", async () => {
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await advance(user, 1);
+    await user.type(await screen.findByLabelText("focus.occupationLabel"), "pflegeheim");
+    await user.click(screen.getByRole("radio", { name: /Altenpfleger\/in/ }));
+    expect(screen.getByText("focus.occupationHint")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("focus.targetDateLabel"), { target: { value: "2027-03" } });
+    await advance(user, 2);
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({
+        occupationCode: "altenpfleger", industry: "Pflege", targetDate: "2027-03-01",
+      }));
+    });
+  });
+
+  it("?occupation=altenpfleger → điền sẵn nghề (bước nghề hiện nghề đã chọn), bắn onboarding_occupation_prefilled", async () => {
+    searchParamsRef.current = "occupation=altenpfleger";
+    const user = userEvent.setup();
+    render(<V2OnboardingPage />);
+    await waitFor(() => expect(trackEventMock).toHaveBeenCalledWith("onboarding_occupation_prefilled", { occupation: "altenpfleger" }));
+    await advance(user, 1);
+    expect(await screen.findByText("focus.occupationHint")).toBeInTheDocument();
+    await advance(user, 2);
+    await user.click(screen.getByRole("button", { name: /nav\.startRoadmap/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/onboarding/profile", expect.objectContaining({
+        motivation: "JOB", occupationCode: "altenpfleger", industry: "Pflege",
+      }));
+    });
   });
 });

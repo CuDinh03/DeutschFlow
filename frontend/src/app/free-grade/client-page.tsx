@@ -100,7 +100,7 @@ export default function FreeGradeClientPage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-300">
             <span className="inline-flex items-center gap-2"><Clock size={16} className="text-[#FFCE00]" /> Kết quả tức thì</span>
-            <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-[#FFCE00]" /> Chuẩn Goethe/telc</span>
+            <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-[#FFCE00]" /> Theo tiêu chí Goethe/telc</span>
             <span className="inline-flex items-center gap-2"><CheckCircle2 size={16} className="text-[#FFCE00]" /> Miễn phí, không cần tài khoản</span>
           </div>
         </div>
@@ -222,13 +222,13 @@ export default function FreeGradeClientPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-base font-bold text-slate-800">Bạn sẽ nhận được gì?</h2>
               <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                <Bullet>Điểm số theo thang 100, quy chiếu chuẩn Goethe/telc.</Bullet>
+                <Bullet>Điểm số theo thang 100, tham chiếu tiêu chí chấm Goethe/telc (mô phỏng, không liên kết với hai tổ chức này).</Bullet>
                 <Bullet>Nhận xét cụ thể về ngữ pháp, từ vựng, cấu trúc câu.</Bullet>
                 <Bullet>Gợi ý cách cải thiện để lên điểm bài thi thật.</Bullet>
               </ul>
               <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                <span className="font-semibold text-slate-800">Là giáo viên?</span> DeutschFlow chấm cả lớp
-                tự động, theo dõi tiến độ và mức sẵn sàng thi của từng học viên.
+                <span className="font-semibold text-slate-800">Là giáo viên?</span> myDeutschFlow chấm nháp cả lớp
+                để bạn chốt điểm, theo dõi tiến độ và mức sẵn sàng thi của từng học viên.
               </div>
             </div>
           )}
@@ -263,7 +263,7 @@ function ResultCard({ result }: { result: FreeGradeResult }) {
         href="/v2/register"
         className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
       >
-        Luyện thi không giới hạn với DeutschFlow <ArrowRight size={16} />
+        Luyện thi tiếp với myDeutschFlow <ArrowRight size={16} />
       </Link>
       <p className="px-1 text-center text-xs text-slate-400">{result.message}</p>
     </div>

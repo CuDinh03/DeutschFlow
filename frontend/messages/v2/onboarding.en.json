@@ -100,7 +100,15 @@
           "label": "TestDaF",
           "desc": "For university study"
         }
-      }
+      },
+      "occupationLabel": "Your occupation",
+      "occupationPlaceholder": "Type a job, e.g. nurse, Koch…",
+      "occupationChange": "Change",
+      "occupationNoMatch": "“{query}” is not in the list yet — you can skip this; the AI will use the general question set.",
+      "occupationHint": "Your interviewer and questions will match this job.",
+      "targetDateLabel": "When do you need to be ready?",
+      "targetDateHint": "Month of your interview, exam or move to Germany — optional.",
+      "targetDateClear": "Clear date"
     },
     "orgLite": {
       "cap": "Centre learner",

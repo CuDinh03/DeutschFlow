@@ -25,10 +25,13 @@ import {
   canLeaveStep,
   goalTypeFor,
   guestAnswersFrom,
+  industryForOccupation,
   profilePayloadFrom,
   totalStepsFor,
   type WizardAnswers,
 } from "@/features/onboarding/wizardModel";
+import { occupationApi } from "@/lib/occupationApi";
+import { isOccupationCode } from "@/lib/occupationTypes";
 import { nextAfterProfile, guestNeedsPathChoice, ROADMAP_ROUTE, DASHBOARD_ROUTE, type PostProfileContext } from "@/features/onboarding/postProfileRoute";
 import type { PathChoice } from "@/features/onboarding/machine";
 import { celebrateHref, readFirstCompletion } from "@/features/onboarding/celebrate";
@@ -121,7 +124,7 @@ function V2OnboardingFunnel() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState<WizardAnswers>(DEFAULT_ANSWERS);
-  const { motivation, currentLevel, targetLevel, dailyGoalMinutes, industry, examType } = answers;
+  const { motivation, currentLevel, targetLevel, dailyGoalMinutes, industry, examType, occupationCode, targetDate } = answers;
   const goalType = goalTypeFor(motivation);
   const patch = useCallback((p: Partial<WizardAnswers>) => setAnswers((a) => ({ ...a, ...p })), []);
 
@@ -163,7 +166,7 @@ function V2OnboardingFunnel() {
     } catch { /* mentor preview is non-blocking */ }
   }, [isGuest, goalType, industry, currentLevel]);
 
-  // Mentor reveal sống ở bước 4 (và cổng tài khoản): xem trước cập nhật theo lĩnh vực đang chọn.
+  // Mentor reveal sống ở bước cuối — nhịp (và cổng tài khoản): lúc này đã biết nghề + trình độ (K2).
   useEffect(() => {
     if (step >= WIZARD_STEP_COUNT) void fetchMentor();
   }, [step, fetchMentor]);
@@ -297,6 +300,7 @@ function V2OnboardingFunnel() {
     const restored: WizardAnswers = {
       motivation: d.motivation, currentLevel: d.currentLevel, targetLevel: d.targetLevel,
       industry: d.industry, examType: d.examType, dailyGoalMinutes: d.dailyGoalMinutes,
+      occupationCode: d.occupationCode ?? null, targetDate: d.targetDate ?? null,
     };
     setAnswers(restored);
     setResuming(true);
@@ -342,6 +346,8 @@ function V2OnboardingFunnel() {
           industry: a.industry ?? prev.industry,
           examType: a.examType ?? prev.examType,
           dailyGoalMinutes: a.dailyGoalMinutes ?? prev.dailyGoalMinutes,
+          occupationCode: a.occupationCode ?? prev.occupationCode,
+          targetDate: a.targetDate ?? prev.targetDate,
         }));
         trackEvent('onboarding_completed', { level, goal: a.goalType, industry: a.industry });
         trackEvent('onboarding_profile_saved', { level, goal: a.goalType, industry: a.industry, resumed: true, via: 'claim' });
@@ -362,6 +368,8 @@ function V2OnboardingFunnel() {
   const resumeStartedRef = useRef(false);
   const searchParams = useSearchParams();
   const retakePlacement = searchParams.get('placement') === '1';
+  // Đợt 2e: `?occupation=<mã>` từ nút "Luyện phỏng vấn nghề này" (trang /phong-van, ô tìm nghề trang chủ).
+  const occupationParam = searchParams.get('occupation');
 
   /**
    * `?placement=1` (W10 → W-1): người đã có hồ sơ quay lại làm Kiểm tra đầu vào từ checklist tuần
@@ -397,14 +405,31 @@ function V2OnboardingFunnel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Điền sẵn nghề khi đến từ trang nghề: chọn mục tiêu "đi làm" + mã nghề, rồi suy `industry` (mentor)
+  // từ nhóm nơi làm việc. Mã lạ hay danh mục chưa có endpoint → bỏ qua, phễu chạy như thường.
+  useEffect(() => {
+    if (!occupationParam || !isOccupationCode(occupationParam)) return;
+    let alive = true;
+    Promise.resolve()
+      .then(() => occupationApi.detail(occupationParam))
+      .then((d) => {
+        if (!alive || !d?.occupation?.code) return;
+        patch({ motivation: 'JOB', occupationCode: d.occupation.code, industry: industryForOccupation(d.occupation) });
+        trackEvent('onboarding_occupation_prefilled', { occupation: d.occupation.code });
+      })
+      .catch(() => { /* mã không có trong danh mục */ });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [occupationParam]);
+
   /** Guest signup gate: stash the funnel answers, then send the guest to /v2/register to save them. */
   const handleGuestSignup = useCallback(() => {
     // Server trước (claim sẽ phát lại từ đây), draft sau (đường lùi khi server hỏng).
     void syncGuestSession('AUTH_GATE', guestAnswersFrom(answers, pathChoice));
-    saveOnboardingDraft({ motivation, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, goalType, pathChoice });
+    saveOnboardingDraft({ motivation, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, goalType, pathChoice, occupationCode, targetDate });
     trackEvent('onboarding_signup_prompted', { motivation, goalType, currentLevel, pathChoice });
     router.push("/v2/register");
-  }, [answers, motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, pathChoice, router, trackEvent]);
+  }, [answers, motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoalMinutes, pathChoice, occupationCode, targetDate, router, trackEvent]);
 
   /** Khách vừa giải quick win: A1+ sang Chọn đường (fixture T3/T4), A0 thẳng cổng tài khoản (T1/T2). */
   const afterQuickWin = useCallback(() => {
@@ -443,12 +468,13 @@ function V2OnboardingFunnel() {
       trackOnboardingStep('Select Goal', 1, { motivation, goalType });
       trackEvent('onboarding_motivation_selected', { motivation, goalType });
     }
-    if (step === 2) trackOnboardingStep('Select Level', 2, { currentLevel, targetLevel });
-    if (step === 3) {
-      trackOnboardingStep('Select Target', 3, { dailyGoalMinutes });
+    // Tên sự kiện giữ nguyên; số bước là vị trí thật trong thứ tự hiện hành (K2 đổi thứ tự 21/10/2026).
+    if (stepId === 'level') trackOnboardingStep('Select Level', step, { currentLevel, targetLevel });
+    if (stepId === 'rhythm') {
+      trackOnboardingStep('Select Target', step, { dailyGoalMinutes });
       trackEvent('onboarding_daily_goal_set', { minutes: dailyGoalMinutes });
     }
-    if (step === 4) trackOnboardingStep('Select Focus', 4, { goalType, industry, examType, targetLevel });
+    if (stepId === 'focus') trackOnboardingStep('Select Focus', step, { goalType, industry, examType, targetLevel, occupationCode, hasTargetDate: !!targetDate });
 
     if (!isLastWizardStep) { setStep((s) => s + 1); return; }
 
@@ -572,7 +598,7 @@ function V2OnboardingFunnel() {
 
           {stepId === "rhythm" && (
             <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading}>
-              <RhythmStep value={dailyGoalMinutes} onChange={(m) => patch({ dailyGoalMinutes: m })} currentLevel={currentLevel} headingRef={headingRef} />
+              <RhythmStep value={dailyGoalMinutes} onChange={(m) => patch({ dailyGoalMinutes: m })} currentLevel={currentLevel} mentorCard={mentorCard} headingRef={headingRef} />
             </motion.div>
           )}
 
@@ -582,9 +608,13 @@ function V2OnboardingFunnel() {
                 goalType={goalType}
                 industry={industry}
                 examType={examType}
+                occupationCode={occupationCode}
+                targetDate={targetDate}
+                locale={locale}
                 onChangeIndustry={(i) => patch({ industry: i })}
                 onChangeExam={(e) => patch({ examType: e })}
-                mentorCard={mentorCard}
+                onChangeOccupation={(o) => patch({ occupationCode: o?.code ?? null, industry: o ? industryForOccupation(o) : null })}
+                onChangeTargetDate={(d) => patch({ targetDate: d })}
                 headingRef={headingRef}
               />
             </motion.div>

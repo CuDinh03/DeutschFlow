@@ -7,7 +7,7 @@ import {
 
 describe('onboardingSteps', () => {
   test('thứ tự bước khoá cứng: motivation → levels → rhythm → focus', () => {
-    expect(ONBOARDING_STEP_IDS).toEqual(['motivation', 'levels', 'rhythm', 'focus'])
+    expect(ONBOARDING_STEP_IDS).toEqual(['motivation', 'focus', 'levels', 'rhythm'])
     expect(TOTAL_ONBOARDING_STEPS).toBe(4)
   })
 

@@ -54,6 +54,25 @@ public class NotificationContentRenderer {
             case STREAK_REMINDER -> new RenderedContent(
                     "🔥 Chuỗi học tập",
                     nonBlankOr(str(p, "message"), "Đừng quên học hôm nay!"));
+            // Đợt 6 lifecycle: thân tin nằm trong payload.message (service viết theo mốc), tiêu đề cố định.
+            case ONBOARDING_D0_WELCOME -> new RenderedContent(
+                    "Bạn đã bắt đầu rồi!",
+                    nonBlankOr(str(p, "message"), "Bài đầu tiên xong — đặt giờ nhắc để giữ nhịp mỗi ngày."));
+            case ONBOARDING_D1_NEXT_LESSON -> new RenderedContent(
+                    "Bài tiếp theo chỉ 5 phút",
+                    nonBlankOr(str(p, "message"), "Một bài ngắn hôm nay là đủ để giữ đà."));
+            case ONBOARDING_D3_CHECKIN -> new RenderedContent(
+                    "Ngày thứ ba của bạn",
+                    nonBlankOr(str(p, "message"), "Quay lại 5 phút hôm nay là chuỗi vẫn còn."));
+            case ONBOARDING_D7_SUMMARY -> new RenderedContent(
+                    "Tuần đầu đã xong",
+                    nonBlankOr(str(p, "message"), "Từ giờ lộ trình dẫn đường — học đều là đủ."));
+            case TRIAL_ENDING_SOON -> new RenderedContent(
+                    "PRO miễn phí sắp hết",
+                    nonBlankOr(str(p, "message"), "Sau đó tài khoản về gói mặc định; bài đã học vẫn giữ nguyên."));
+            case TRIAL_ENDED -> new RenderedContent(
+                    "Thời gian dùng thử đã kết thúc",
+                    nonBlankOr(str(p, "message"), "Tài khoản về gói mặc định. Nâng cấp khi bạn sẵn sàng."));
             case NEW_ASSIGNMENT -> new RenderedContent(
                     "📝 Bài tập mới",
                     "Thầy/Cô " + nonBlankOr(str(p, "teacherName"), "giáo viên") + " vừa giao bài tập "

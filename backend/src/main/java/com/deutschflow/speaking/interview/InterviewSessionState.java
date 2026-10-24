@@ -23,6 +23,10 @@ public class InterviewSessionState {
     private List<String> askedQuestionIds = new ArrayList<>();
     private String lastDirectiveType;
     private String sessionTopicFocus;
+    /** Đợt 2b (19/10/2026): mã nghề của phiên (bảng occupation) — bật lớp câu hỏi theo nghề. JSON cũ → null. */
+    private String occupationCode;
+    /** Đợt 2b: số lượt đã ở HARD_SKILLS — phiên theo nghề giữ HARD_SKILLS đủ 3 lượt. JSON cũ → 0. */
+    private int hardSkillsTurns;
 
     public static InterviewSessionState initial(int seed, String sessionTopicFocus) {
         InterviewSessionState s = new InterviewSessionState();
@@ -99,6 +103,22 @@ public class InterviewSessionState {
         return sessionTopicFocus;
     }
 
+    public String getOccupationCode() {
+        return occupationCode;
+    }
+
+    public void setOccupationCode(String occupationCode) {
+        this.occupationCode = occupationCode;
+    }
+
+    public int getHardSkillsTurns() {
+        return hardSkillsTurns;
+    }
+
+    public void setHardSkillsTurns(int hardSkillsTurns) {
+        this.hardSkillsTurns = hardSkillsTurns;
+    }
+
     public void applyAfterTurn(InterviewTurnPlan plan, InterviewAnswerAnalysis analysis) {
         userTurn = plan.userTurn();
         phase = plan.phase().number();
@@ -126,6 +146,9 @@ public class InterviewSessionState {
         }
         if (plan.phase() == InterviewPhase.STAR_SOFT) {
             starTurns++;
+        }
+        if (plan.phase() == InterviewPhase.HARD_SKILLS) {
+            hardSkillsTurns++;
         }
     }
 

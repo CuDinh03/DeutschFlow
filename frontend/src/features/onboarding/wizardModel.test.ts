@@ -9,14 +9,15 @@ import {
   canLeaveStep,
   goalTypeFor,
   guestAnswersFrom,
+  industryForOccupation,
   journeyEstimate,
   profilePayloadFrom,
   totalStepsFor,
 } from './wizardModel'
 
 describe('thứ tự bước', () => {
-  it('mục tiêu → trình độ → nhịp → lĩnh vực/kỳ thi — đúng thứ tự mobile UI v2', () => {
-    expect(WIZARD_STEP_IDS).toEqual(['motivation', 'level', 'rhythm', 'focus'])
+  it('mục tiêu → nghề/kỳ thi + ngày mốc → trình độ → nhịp — thứ tự A+B+E (K2), khớp mobile', () => {
+    expect(WIZARD_STEP_IDS).toEqual(['motivation', 'focus', 'level', 'rhythm'])
   })
 
   it('progressbar: người đã đăng nhập 4 bước; khách A0 thêm quick win + cổng tài khoản = 6; khách A1+ thêm Chọn đường = 7', () => {
@@ -69,7 +70,18 @@ describe('profilePayloadFrom', () => {
       minutesPerSession: 15,
       dailyGoalMinutes: 15,
       learningSpeed: 'NORMAL',
+      occupationCode: null,
+      targetDate: null,
     })
+  })
+
+  it('đợt 2e: WORK gửi mã nghề + ngày mốc; CERT bỏ mã nghề nhưng giữ ngày mốc (ngày thi)', () => {
+    const work = profilePayloadFrom({ ...DEFAULT_ANSWERS, occupationCode: 'altenpfleger', targetDate: '2027-03-01' })
+    expect(work.occupationCode).toBe('altenpfleger')
+    expect(work.targetDate).toBe('2027-03-01')
+    const cert = profilePayloadFrom({ ...DEFAULT_ANSWERS, motivation: 'EXAM', occupationCode: 'altenpfleger', targetDate: '2027-03-01' })
+    expect(cert.occupationCode).toBeNull()
+    expect(cert.targetDate).toBe('2027-03-01')
   })
 
   it('WORK gửi industry, không gửi examType; CERT ngược lại', () => {
@@ -103,6 +115,18 @@ describe('guestAnswersFrom', () => {
       sessionsPerWeek: 5,
       minutesPerSession: 15,
       learningSpeed: 'NORMAL',
+      occupationCode: null,
+      targetDate: null,
     })
+  })
+})
+
+describe('industryForOccupation', () => {
+  it('quy nhóm nơi làm việc về từ khoá họ ngành mentor; nghề IT trong nhóm văn phòng thành IT', () => {
+    expect(industryForOccupation({ workplace: 'pflege', nameDe: 'Altenpfleger/in' })).toBe('Pflege')
+    expect(industryForOccupation({ workplace: 'gastro', nameDe: 'Koch/Köchin' })).toBe('Gastronomie')
+    expect(industryForOccupation({ workplace: 'buero', nameDe: 'Backend-Entwickler/in' })).toBe('IT')
+    expect(industryForOccupation({ workplace: 'buero', nameDe: 'Buchhalter/in' })).toBe('Büro')
+    expect(industryForOccupation({ workplace: 'weltraum', nameDe: 'Astronaut/in' })).toBeNull()
   })
 })

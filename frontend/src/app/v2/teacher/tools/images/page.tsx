@@ -14,7 +14,7 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 //   { prompt, preset, style, size, count } → { provider, finalPrompt, assets: MediaAsset[] }.
 //   Generated assets are persisted to the S3 media library by the service, so the proto's
 //   "Lưu vào thư viện" is relabeled "Tải xuống" (already saved). Ratio → size map.
-// Generation needs the image provider (Bedrock) configured (prod); locally it surfaces
+// Generation needs an image provider configured (none since leaving AWS); locally it surfaces
 // the real error state. preset/style/size are free-form (prompt-builder interpolates them).
 // ─────────────────────────────────────────────────────────────────────────────
 
