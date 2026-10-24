@@ -988,6 +988,7 @@
       "startError": "Prüfung konnte nicht gestartet werden.",
       "noContent": "Diese Prüfung hat noch keinen Inhalt. Bitte später erneut versuchen.",
       "submitError": "Abgabe fehlgeschlagen. Bitte erneut versuchen.",
+      "alreadySubmitted": "Diese Prüfung wurde bereits abgegeben und bewertet – hier ist das Ergebnis.",
       "reviewError": "Lösungen konnten nicht geladen werden. Bitte erneut versuchen.",
       "back": "Zurück",
       "backToResult": "Zurück zum Ergebnis",

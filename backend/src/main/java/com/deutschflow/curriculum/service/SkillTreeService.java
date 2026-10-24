@@ -1,6 +1,8 @@
 package com.deutschflow.curriculum.service;
 
 import com.deutschflow.common.async.AsyncJob;
+import com.deutschflow.common.async.AsyncJobDispatch;
+import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -28,7 +30,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
@@ -358,9 +359,8 @@ public class SkillTreeService {
 
         // ── PHA 2: Cache MISS → LLM generation trên thread riêng (KHÔNG giữ DB connection) ──
         AsyncJob job = asyncJobService.createJob("GENERATE_SATELLITE", userId);
-        CompletableFuture.runAsync(() ->
-                generateContentAsync(userId, nodeId, prep.node(), job.getId()), aiExecutor
-        );
+        AsyncJobDispatch.runOrFail(asyncJobService, job.getId(), aiExecutor, () ->
+                generateContentAsync(userId, nodeId, prep.node(), job.getId()));
         return Map.of("jobId", job.getId().toString(), "status", "ACCEPTED");
     }
 
@@ -553,9 +553,15 @@ public class SkillTreeService {
             for (Map<String, Object> leaf : leavesToGenerate) {
                 long leafId = ((Number) leaf.get("id")).longValue();
                 AsyncJob job = asyncJobService.createJob("PREFETCH_SATELLITE", userId);
-                CompletableFuture.runAsync(() ->
-                        generateContentAsync(userId, leafId, leaf, job.getId()), aiExecutor
-                );
+                try {
+                    AsyncJobDispatch.runOrFail(asyncJobService, job.getId(), aiExecutor, () ->
+                            generateContentAsync(userId, leafId, leaf, job.getId()));
+                } catch (AiServiceException busy) {
+                    // Sinh trước là việc NGẦM: executor đầy thì bỏ lượt này (job đã FAILED), không được
+                    // làm hỏng request nộp bài đang gọi tới đây.
+                    log.warn("[SkillTree] Pre-fetch skipped — aiExecutor đầy, user={}, nextLeaf={}", userId, leafId);
+                    continue;
+                }
                 log.info("[SkillTree] Pre-fetch triggered for user={}, nextLeaf={}", userId, leafId);
             }
         }

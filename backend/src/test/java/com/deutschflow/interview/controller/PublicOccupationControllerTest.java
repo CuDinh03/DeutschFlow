@@ -56,7 +56,8 @@ class PublicOccupationControllerTest {
     @Test
     void detail_returnsSampleQuestions() throws Exception {
         when(publicService.detail("kellner")).thenReturn(Optional.of(new OccupationDetailDto(KELLNER, "NIKLAS",
-                "Kellner/in", List.of(new OccupationDetailDto.SampleQuestion("HARD_SKILLS", "Frage", "BANK")),
+                "Kellner/in", List.of(new OccupationDetailDto.SampleQuestion("HARD_SKILLS", "Frage", "Câu hỏi",
+                        "Question", "BANK")),
                 true, List.of(), List.of(new OccupationDetailDto.Term("die Bestellung", "order", "đơn gọi món",
                         null, "AI_GENERATED")))));
 
@@ -67,6 +68,8 @@ class PublicOccupationControllerTest {
                 .andExpect(header().string("Cache-Control", containsString("public")))
                 .andExpect(jsonPath("$.sampleQuestions[0].questionDe").value("Frage"))
                 .andExpect(jsonPath("$.sampleQuestions[0].source").value("BANK"))
+                .andExpect(jsonPath("$.sampleQuestions[0].questionVi").value("Câu hỏi"))
+                .andExpect(jsonPath("$.sampleQuestions[0].questionEn").value("Question"))
                 .andExpect(jsonPath("$.reviewed").value(true))
                 .andExpect(jsonPath("$.terms[0].meaningVi").value("đơn gọi món"))
                 .andExpect(jsonPath("$.terms[0].status").value("AI_GENERATED"));

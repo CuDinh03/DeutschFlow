@@ -988,6 +988,7 @@
       "startError": "Không thể bắt đầu thi.",
       "noContent": "Đề thi chưa có nội dung chi tiết. Vui lòng thử lại sau.",
       "submitError": "Lỗi nộp bài. Vui lòng thử lại.",
+      "alreadySubmitted": "Bài này đã được nộp và chấm — đây là kết quả.",
       "reviewError": "Không thể tải đáp án. Vui lòng thử lại.",
       "back": "Quay lại",
       "backToResult": "Quay lại kết quả",

@@ -543,6 +543,16 @@ export const aiSpeakingApi = {
         lego_structure: s.legoStructure ?? '',
       }))),
 
+  /**
+   * K4 (22/10/2026): dịch một câu của trợ lý sang `vi`/`en` theo yêu cầu. Backend lưu bản dịch nên
+   * bấm lại / mở lại phiên không gọi AI lần nữa.
+   */
+  translateMessage: (sessionId: number, messageId: number, lang: 'vi' | 'en') =>
+    api.post<{ messageId: number; lang: string; text: string }>(
+      `/ai-speaking/sessions/${sessionId}/messages/${messageId}/translation`, null,
+      { params: { lang }, timeout: 30000 })
+      .then(r => r.data.text),
+
   transcribe: (audioBlob: Blob) => {
     const mime = String(audioBlob.type || '').toLowerCase()
     const ext =

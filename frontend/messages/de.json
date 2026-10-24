@@ -295,7 +295,10 @@
       "contextLevel": "Niveau",
       "contextElapsed": "Sprechzeit",
       "contextNoGoal": "Freies Gespräch — sprich worüber du möchtest",
-      "feedbackEmptyHint": "Die Rückmeldung erscheint hier nach deinem ersten Redebeitrag."
+      "feedbackEmptyHint": "Die Rückmeldung erscheint hier nach deinem ersten Redebeitrag.",
+      "translate": "Übersetzen",
+      "hideTranslation": "Übersetzung ausblenden",
+      "translateFailed": "Übersetzung fehlgeschlagen, erneut versuchen"
     },
     "personaDescLena": "Supermarktmitarbeiterin A1-A2: Einkaufen, Kasse, Produkte.",
     "personaDescThomas": "Bäcker A1-A2: Brot, Gebäck, Bäckerei.",

@@ -193,6 +193,16 @@ export function skippedSectionsLabel(names: string[]): string {
 }
 
 /**
+ * 409 `ATTEMPT_NOT_IN_PROGRESS` của POST /mock-exams/attempts/{id}/finish (PR #704): lượt thi đã được
+ * nộp và chấm (bấm nộp hai lần, nộp trên máy khác). KHÔNG phải lỗi để nộp lại — đọc `/result` và hiện
+ * luôn. Cùng hợp đồng với web (`frontend/src/lib/mockExamFinish.ts`).
+ */
+export function isAttemptAlreadyFinished(err: unknown): boolean {
+  const res = (err as { response?: { status?: number; data?: { error?: string } } } | null)?.response
+  return res?.status === 409 && res.data?.error === 'ATTEMPT_NOT_IN_PROGRESS'
+}
+
+/**
  * Thân POST /mock-exams/attempts/{id}/finish.
  *
  * App chỉ dựng được phần Đọc (xem `parseLesenItems`), nên phải NÓI cho server biết những phần học

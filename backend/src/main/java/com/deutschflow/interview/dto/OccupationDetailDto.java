@@ -27,11 +27,17 @@ public record OccupationDetailDto(
     /** Câu thuộc bộ câu hỏi của nhân vật (viết tay hoặc bộ chung). */
     public static final String SOURCE_BANK = "BANK";
 
-    /** @param source {@link #SOURCE_BANK}, {@code APPROVED} hoặc {@code AI_GENERATED} */
-    public record SampleQuestion(String phase, String questionDe, String source) {}
+    /**
+     * @param questionVi bản dịch tiếng Việt (K4), {@code null} = chưa dịch
+     * @param questionEn bản dịch tiếng Anh (K4), {@code null} = chưa dịch
+     * @param source     {@link #SOURCE_BANK}, {@code APPROVED} hoặc {@code AI_GENERATED}
+     */
+    public record SampleQuestion(String phase, String questionDe, String questionVi, String questionEn,
+                                 String source) {}
 
-    /** @param status {@code APPROVED} hoặc {@code AI_GENERATED} */
-    public record LayerQuestion(String questionDe, String difficulty, String status) {}
+    /** @param status {@code APPROVED} hoặc {@code AI_GENERATED}; bản dịch như {@link SampleQuestion} */
+    public record LayerQuestion(String questionDe, String questionVi, String questionEn, String difficulty,
+                                String status) {}
 
     /** @param status {@code APPROVED} hoặc {@code AI_GENERATED} */
     public record Term(String termDe, String meaningEn, String meaningVi, String exampleDe, String status) {}

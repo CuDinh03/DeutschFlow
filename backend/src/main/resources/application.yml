@@ -267,6 +267,15 @@ app:
     max-age-days: ${AI_JOBS_MAX_AGE_DAYS:7}
     expire-enabled: ${AI_JOBS_EXPIRE_ENABLED:true}
     expire-cron: ${AI_JOBS_EXPIRE_CRON:0 15 3 * * *}
+  # Job nền async_jobs (FINISH_EXAM, sinh bài luyện, giáo án, render video, phân tích giáo trình) chạy
+  # TRONG BỘ NHỚ backend — restart/deploy cắt ngang thì không ai ghi kết quả. StaleAsyncJobExpirer quét
+  # mỗi sweep-delay-ms và đánh FAILED job PENDING/PROCESSING không cập nhật quá stale-minutes (sàn 10′);
+  # loại chạy lâu khai ngưỡng riêng ở stale-minutes-by-type ("LOAI=phút,LOAI=phút").
+  async-jobs:
+    expire-enabled: ${ASYNC_JOBS_EXPIRE_ENABLED:true}
+    stale-minutes: ${ASYNC_JOBS_STALE_MINUTES:30}
+    stale-minutes-by-type: ${ASYNC_JOBS_STALE_MINUTES_BY_TYPE:CURRICULUM_IMPORT_PREVIEW=120,VIDEO_RENDER_VOCAB=120}
+    sweep-delay-ms: ${ASYNC_JOBS_SWEEP_DELAY_MS:300000}
   # DeutschFlow Galerie — sinh artwork SVG bằng Anthropic (plan mục 12). Tắt mặc định:
   # bật cần GALERIE_SVG_ENABLED=true VÀ ANTHROPIC_API_KEY trong môi trường (SDK tự đọc env).
   # Không bật thì endpoint generate trả 503 AI_NOT_CONFIGURED, phần còn lại của pipeline vẫn chạy.
@@ -458,6 +467,10 @@ app:
       # niên; mất throttle là mất lớp chống dò token, nên "đóng cửa" đúng hơn "mở cửa".
       fail-closed-paths: ${APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PATHS:/api/public/report-issues/}
       fail-closed-per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_FAIL_CLOSED_PER_MINUTE:20}
+      # Danh mục nghề /api/public/occupations/** (nghiệm thu prod 21/10/2026): ngân sách RIÊNG, rộng.
+      # Trang nghề render phía server ⇒ mọi khách chung MỘT IP của frontend ⇒ chung suất 30/phút
+      # là bot quét sitemap đủ làm 429 ⇒ trang nghề 404. Chỉ đọc, Cache-Control 10′.
+      catalog-per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_CATALOG_PER_MINUTE:300}
     # Mở rộng throttle sang các đường permitAll NẰM NGOÀI /api/public/ mà trước đây không có lớp
     # rate-limit ứng dụng nào (chỉ dựa vào nginx): onboarding preview (khách xem mentor) + media
     # by-tag (landing, chạm DB). Defense in depth đối xứng với bind-localhost: nếu cổng backend lại
@@ -465,7 +478,9 @@ app:
     # riêng để không chặn oan lớp học sau NAT / landing tải nhiều media. KHÔNG gồm /api/auth (có
     # limiter riêng), webhook (bên thứ ba gọi), /actuator/health (uptime monitor).
     unauth-rate-limit:
-      paths: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:/api/onboarding/preview/,/api/v2/media/by-tag}
+      # Phải khớp nguyên văn mặc định trong @Value của filter — giá trị ở đây THẮNG @Value; trước 21/10
+      # thiếu /api/onboarding/guest-session ⇒ phiên khách không bị throttle dù test filter xanh.
+      paths: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PATHS:/api/onboarding/preview/,/api/onboarding/guest-session,/api/v2/media/by-tag}
       per-minute: ${APP_SECURITY_UNAUTH_RATE_LIMIT_PER_MINUTE:120}
 
   # Phiếu đánh giá gửi gia đình (R1/R9): gốc URL web để in "Xác thực tại …/phieu/{token}" lên PDF.

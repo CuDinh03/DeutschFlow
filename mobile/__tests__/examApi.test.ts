@@ -61,7 +61,7 @@ describe('attemptTotalScore (F-10a soát 02/09)', () => {
 // ── AC-MOBFIX-03 (06/09): sanitizer backend (từ 06/2026) strip `correct` và sinh `type`
 // (MULTIPLE_CHOICE / RICHTIG_FALSCH / MATCHING); options trong seed là OBJECT {A,B,C}.
 // Parser cũ chỉ nhận options MẢNG hoặc `correct` richtig/falsch → 0 nhóm → mọi đề "Chưa hỗ trợ trên app".
-import { itemChoices, parseLesenItems, parseMatchingContext } from '@/lib/examApi'
+import { itemChoices, isAttemptAlreadyFinished, parseLesenItems, parseMatchingContext } from '@/lib/examApi'
 
 const SANITIZED = JSON.stringify({
   sections: [
@@ -223,5 +223,15 @@ describe('skippedSectionsLabel — nói bằng lời, không phơi mã phần', 
 
   it('không có phần nào thì trả chuỗi rỗng', () => {
     expect(skippedSectionsLabel([])).toBe('')
+  })
+})
+
+describe('isAttemptAlreadyFinished (409 của /finish, PR #704)', () => {
+  it('chỉ nhận đúng 409 ATTEMPT_NOT_IN_PROGRESS', () => {
+    expect(isAttemptAlreadyFinished({ response: { status: 409, data: { error: 'ATTEMPT_NOT_IN_PROGRESS' } } })).toBe(true)
+    expect(isAttemptAlreadyFinished({ response: { status: 409, data: { error: 'OTHER' } } })).toBe(false)
+    expect(isAttemptAlreadyFinished({ response: { status: 500, data: { error: 'ATTEMPT_NOT_IN_PROGRESS' } } })).toBe(false)
+    expect(isAttemptAlreadyFinished(new Error('Network Error'))).toBe(false)
+    expect(isAttemptAlreadyFinished(null)).toBe(false)
   })
 })

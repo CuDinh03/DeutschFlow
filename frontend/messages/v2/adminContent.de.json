@@ -138,7 +138,10 @@
         "termDe": "Deutscher Begriff",
         "meaningVi": "Bedeutung (Vietnamesisch)",
         "meaningEn": "Bedeutung (Englisch)",
-        "exampleDe": "Beispielsatz"
+        "exampleDe": "Beispielsatz",
+        "questionDe": "Deutsche Frage",
+        "questionVi": "Vietnamesische Übersetzung",
+        "questionEn": "Englische Übersetzung"
       },
       "sessions": "{count} Sitzungen gewählt",
       "questions": "Fachfragen",
@@ -153,7 +156,11 @@
       "notePlaceholder": "Notiz (optional)…",
       "generate": "Mehr erzeugen",
       "generatePlaceholder": "Berufscode, z. B. maurer",
-      "generated": "{questions} Fragen und {terms} neue Begriffe erzeugt"
+      "generated": "{questions} Fragen und {terms} neue Begriffe erzeugt",
+      "noTranslation": "Noch keine Übersetzung",
+      "backfill": "Fehlende Übersetzungen erstellen",
+      "backfillDone": "{translated} Fragen übersetzt, {remaining} fehlen noch",
+      "backfillNone": "Alle Fragen sind bereits übersetzt"
     },
     "media": {
       "loadDataError": "Die Medienbibliothek konnte nicht geladen werden.",

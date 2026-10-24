@@ -51,6 +51,7 @@ public class AiSessionController {
 
     private final AiSpeakingService aiSpeakingService;
     private final com.deutschflow.speaking.service.SpeakingSuggestionService speakingSuggestionService;
+    private final com.deutschflow.speaking.service.SpeakingMessageTranslationService messageTranslationService;
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
@@ -161,6 +162,20 @@ public class AiSessionController {
 
     /** Envelope cho {@link #suggestions} — cùng hình dạng SuggestionDto với response lượt chat. */
     public record SpeakingSuggestionsResponse(java.util.List<AiSpeakingChatResponse.SuggestionDto> suggestions) {}
+
+    /**
+     * K4 (22/10/2026): dịch một câu của trợ lý sang {@code vi}/{@code en} theo yêu cầu. Bản đã lưu trả
+     * ngay; lần đầu dùng chung bucket CHAT + quota ví như gợi ý trả lời.
+     */
+    @PostMapping("/sessions/{id}/messages/{messageId}/translation")
+    public com.deutschflow.speaking.service.SpeakingMessageTranslationService.TranslationDto translateMessage(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id,
+            @PathVariable Long messageId,
+            @RequestParam(defaultValue = "vi") String lang) {
+        return messageTranslationService.translate(user.getId(), id, messageId, lang,
+                () -> requireAiBudget(Bucket.CHAT, user.getId(), "Too many translation requests. Please slow down."));
+    }
 
     @PostMapping("/sessions/{id}/chat")
     public AiSpeakingChatResponse chat(

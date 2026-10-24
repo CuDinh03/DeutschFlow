@@ -164,7 +164,11 @@
     "detailsCap": "Technische Details",
     "digestLabel": "Fehlercode",
     "noMessage": "Keine Fehlermeldung.",
-    "reload": "Seite neu laden"
+    "reload": "Seite neu laden",
+    "notFoundTitle": "Diese Seite gibt es nicht",
+    "notFoundDesc": "Der Link hat sich vielleicht geändert oder ist vertippt. Zurück zur Startseite – oder wähle einen Beruf und sieh dir die Interviewfragen an.",
+    "notFoundHome": "Zur Startseite",
+    "notFoundOccupations": "Interviews nach Beruf"
   },
   "ui": {
     "openNav": "Navigationsmenü öffnen",
