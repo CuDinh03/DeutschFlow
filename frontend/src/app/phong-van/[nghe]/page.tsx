@@ -12,7 +12,8 @@ import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHre
  *
  * Chỉ trang `reviewed` (bộ viết tay, hoặc lớp nghề có ≥3 câu đã duyệt) được lập chỉ mục; trang có
  * câu AI tạo chưa duyệt để `noindex, follow` cho tới khi duyệt — tránh bị coi là nội dung mỏng tự
- * sinh (phương án landing, mục trang công khai). Mã nghề lạ → 404.
+ * sinh (phương án landing, mục trang công khai). Mã nghề lạ → 404; backend lỗi tạm (429/5xx) → 500,
+ * không phải 404 (xem `occupationServer`).
  */
 export const dynamic = 'force-dynamic'
 
