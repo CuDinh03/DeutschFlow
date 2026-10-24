@@ -23,6 +23,9 @@ import com.deutschflow.grammar.service.ExamScoringService;
 import com.deutschflow.grammar.service.MockExamDraftService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
@@ -255,13 +258,34 @@ public class MockExamController {
     /**
      * S-5: finishExam now returns 202 + jobId immediately (quota check stays synchronous for fail-fast).
      * Scoring + AI eval run on aiExecutor off the Tomcat thread; client polls GET /api/async-jobs/{jobId}.
+     *
+     * <p>Một lượt thi chỉ chấm MỘT lần: lượt không còn {@code IN_PROGRESS} bị trả 409 trước cả cổng
+     * quota — gọi lại /finish trên bài đã chấm từng chấm lại từ đầu (AI Viết, tốn quota) rồi ghi đè
+     * điểm và đỗ/trượt. Hai lần nộp đua nhau cùng qua được cổng này thì câu UPDATE có điều kiện trong
+     * {@link #processFinishExam} chặn lần về sau.
      */
     @PostMapping("/attempts/{attemptId}/finish")
-    public ResponseEntity<ExamFinishAcceptedDto> finishExam(
+    // Kiểu trả về là ResponseEntity<?> (thân 409 ATTEMPT_NOT_IN_PROGRESS khác kiểu với 202), nên phải khai
+    // tường minh schema của 202 — thiếu dòng này springdoc không còn sinh ExamFinishAcceptedDto cho
+    // client iOS (IosOpenApiContractTest.shouldTypeMockExamRound2aEndpoints).
+    @ApiResponse(responseCode = "202", content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = ExamFinishAcceptedDto.class)))
+    public ResponseEntity<?> finishExam(
             @PathVariable long attemptId,
             @RequestBody(required = false) Map<String, Object> body,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
+
+        List<String> statusRows = jdbcTemplate.queryForList(
+                "SELECT status FROM mock_exam_attempts WHERE id = ? AND user_id = ?",
+                String.class, attemptId, uid);
+        if (statusRows.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!"IN_PROGRESS".equals(statusRows.get(0))) {
+            return ResponseEntity.status(409).body(finishedConflictBody(attemptId, statusRows.get(0)));
+        }
 
         // Quota gate stays synchronous — fast DB read, propagates QuotaExceededException immediately
         quotaService.assertAllowed(uid, Instant.now(), EXAM_AI_ESTIMATED_TOKENS);
@@ -291,6 +315,16 @@ public class MockExamController {
                 job.getId().toString(),
                 AsyncJob.Status.PENDING.name(),
                 attemptId));
+    }
+
+    /** 409 của /finish: mã máy cho client rẽ nhánh + câu người đọc được cho đường hiện lỗi chung. */
+    private static Map<String, Object> finishedConflictBody(long attemptId, String status) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "ATTEMPT_NOT_IN_PROGRESS");
+        body.put("message", "Bài thi này đã được nộp và chấm rồi — xem điểm trong Lịch sử thi.");
+        body.put("attemptId", attemptId);
+        body.put("status", status);
+        return body;
     }
 
     /**
@@ -393,7 +427,9 @@ public class MockExamController {
         String detailedScoresJson = om.writeValueAsString(detailedScores);
         String weakAreasJson = om.writeValueAsString(weakAreas);
 
-        jdbcTemplate.update("""
+        // Chỉ ghi khi lượt thi còn IN_PROGRESS: lần nộp đua về sau thấy 0 hàng ⇒ job FAILED, kết quả
+        // của lần về trước giữ nguyên, và các bước sau chấm (phase, B1) không chạy lần hai.
+        int updated = jdbcTemplate.update("""
             UPDATE mock_exam_attempts
             SET status = 'COMPLETED',
                 finished_at = NOW(),
@@ -402,9 +438,13 @@ public class MockExamController {
                 detailed_scores_json = ?::jsonb,
                 weak_areas = ?::jsonb,
                 answers_submitted_json = ?::jsonb
-            WHERE id = ? AND user_id = ?
+            WHERE id = ? AND user_id = ? AND status = 'IN_PROGRESS'
             """, totalScore, totals.passed(), detailedScoresJson, weakAreasJson,
             om.writeValueAsString(answers), attemptId, uid);
+        if (updated == 0) {
+            throw new IllegalStateException("ATTEMPT_NOT_IN_PROGRESS: lượt thi " + attemptId
+                    + " đã được chấm bởi một lần nộp khác — giữ nguyên kết quả đó");
+        }
 
         log.info("[MockExam] Exam {} finished for user {} — {}/100 trên {} điểm chấm được, ngưỡng {}%, đỗ={}{}",
                 attemptId, uid, totalScore, totals.scoredMax(), passPercent, totals.passed(),
