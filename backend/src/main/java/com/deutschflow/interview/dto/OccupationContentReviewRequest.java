@@ -12,6 +12,8 @@ import jakarta.validation.constraints.Size;
 public record OccupationContentReviewRequest(
         @NotNull OccupationContentStatus status,
         @Size(max = 400) String questionDe,
+        @Size(max = 600) String questionVi,
+        @Size(max = 600) String questionEn,
         @Size(max = 120) String termDe,
         @Size(max = 200) String meaningEn,
         @Size(max = 200) String meaningVi,

@@ -16,6 +16,7 @@ export function chatMessageToBubble(msg: ChatMessage, index: number): AiMessageB
   return {
     id: index,
     role: "ASSISTANT",
+    serverMessageId: msg.serverMessageId,
     aiSpeechDe: msg.contentDe,
     isStreaming: msg.isStreaming,
     correction: fb?.correction ?? null,

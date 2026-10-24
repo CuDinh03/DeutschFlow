@@ -71,10 +71,14 @@ class OccupationReviewServiceTest {
 
         OccupationReviewDto.QuestionItem item = service.reviewQuestion("occ_x",
                 new OccupationContentReviewRequest(OccupationContentStatus.APPROVED,
-                        " Wie mauern Sie eine tragende Wand? ", null, null, null, null, ""), reviewer);
+                        " Wie mauern Sie eine tragende Wand? ", " Bạn xây một bức tường chịu lực thế nào? ", null,
+                        null, null, null, null, ""), reviewer);
 
         assertThat(item.status()).isEqualTo("APPROVED");
         assertThat(item.questionDe()).isEqualTo("Wie mauern Sie eine tragende Wand?");
+        // K4: người duyệt sửa bản dịch cùng lúc; ô để trống giữ nguyên bản dịch cũ.
+        assertThat(item.questionVi()).isEqualTo("Bạn xây một bức tường chịu lực thế nào?");
+        assertThat(item.questionEn()).isEqualTo("How do you build a load-bearing wall?");
         assertThat(q.getReviewedBy()).isEqualTo(42L);
         assertThat(q.getReviewedAt()).isNotNull();
         assertThat(q.getReviewNote()).isNull();
@@ -85,7 +89,8 @@ class OccupationReviewServiceTest {
     @Test
     void decisionMustBeApproveOrReject() {
         assertThatThrownBy(() -> service.reviewQuestion("occ_x",
-                new OccupationContentReviewRequest(OccupationContentStatus.AI_GENERATED, null, null, null, null, null, null),
+                new OccupationContentReviewRequest(OccupationContentStatus.AI_GENERATED, null, null, null, null, null,
+                        null, null, null),
                 null)).isInstanceOf(BadRequestException.class);
         verifyNoInteractions(questionRepository);
     }
@@ -106,7 +111,7 @@ class OccupationReviewServiceTest {
 
     private static OccupationQuestion q(String id, String code) {
         return OccupationQuestion.builder().id(id).occupationCode(code).topicKey("t")
-                .questionDe("Frage?").build();
+                .questionDe("Frage?").questionEn("How do you build a load-bearing wall?").build();
     }
 
     private static Occupation occ(String code, String workplace, int rank) {

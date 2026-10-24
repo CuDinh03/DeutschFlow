@@ -13,6 +13,8 @@ export interface ChatMessage {
   id: string;
   role: "user" | "ai";
   contentDe: string;
+  /** Id tin nhắn phía backend (`ai_speaking_messages.id`) — có sau khi lượt AI xong; nút "Dịch" (K4) cần nó. */
+  serverMessageId?: number;
   isStreaming?: boolean;
   /** Structured errors on the user's utterance (filled when AI responds). */
   errors?: ErrorItem[];

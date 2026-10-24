@@ -38,9 +38,10 @@ class OccupationPublicServiceTest {
     private OccupationPublicService service;
 
     private static final List<SampleQuestion> BANK = List.of(
-            new SampleQuestion("INTRO", "Bitte stellen Sie sich kurz vor.", "BANK"),
-            new SampleQuestion("HARD_SKILLS", "Welche Verantwortung hatten Sie zuletzt?", "BANK"),
-            new SampleQuestion("HARD_SKILLS", "Welche Werkzeuge nutzen Sie?", "BANK"));
+            new SampleQuestion("INTRO", "Bitte stellen Sie sich kurz vor.", "Mời bạn giới thiệu ngắn.",
+                    "Please introduce yourself briefly.", "BANK"),
+            new SampleQuestion("HARD_SKILLS", "Welche Verantwortung hatten Sie zuletzt?", null, null, "BANK"),
+            new SampleQuestion("HARD_SKILLS", "Welche Werkzeuge nutzen Sie?", null, null, "BANK"));
 
     private static OccupationDetailDto base(String code, String questionSet) {
         OccupationDto o = new OccupationDto(code, code + " de", code + " en", code + " vi", "bau", List.of(), questionSet);
@@ -50,7 +51,8 @@ class OccupationPublicServiceTest {
 
     private static OccupationQuestion q(String id, String text, OccupationContentStatus status) {
         return OccupationQuestion.builder().id(id).occupationCode("maurer").phase("HARD_SKILLS").topicKey("k")
-                .questionDe(text).difficulty("INTERMEDIATE").status(status).build();
+                .questionDe(text).questionVi(text + " (vi)").questionEn(text + " (en)")
+                .difficulty("INTERMEDIATE").status(status).build();
     }
 
     private static OccupationTerm t(String term, OccupationContentStatus status) {
@@ -76,6 +78,10 @@ class OccupationPublicServiceTest {
                 org.assertj.core.groups.Tuple.tuple("Bitte stellen Sie sich kurz vor.", "BANK"),
                 org.assertj.core.groups.Tuple.tuple("Geprüfte Frage", "APPROVED"),
                 org.assertj.core.groups.Tuple.tuple("KI-Frage 1", "AI_GENERATED"));
+        // K4: bản dịch đi theo câu, cả ở lớp nghề lẫn câu mẫu lấy từ lớp nghề.
+        assertThat(d.occupationQuestions().get(0).questionVi()).isEqualTo("Geprüfte Frage (vi)");
+        assertThat(d.sampleQuestions()).extracting(SampleQuestion::questionEn).containsExactly(
+                "Please introduce yourself briefly.", "Geprüfte Frage (en)", "KI-Frage 1 (en)");
         // Mới 1 câu đã duyệt → chưa đủ để trang được lập chỉ mục.
         assertThat(d.reviewed()).isFalse();
     }

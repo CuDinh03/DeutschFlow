@@ -10,6 +10,7 @@ import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { UserTextWithErrorSpans } from "./UserTextWithErrorSpans";
 import { parseActionChips } from "./actionChips";
 import { SpeakingPersonaMiniAvatar } from "./SpeakingPersonaMiniAvatar";
+import { MessageTranslation } from "./MessageTranslation";
 import { SpeakingFeedbackCompact } from "@/components/features/ai-speaking/SpeakingFeedbackCompact";
 import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 import {
@@ -37,6 +38,8 @@ export interface SpeakingMessageBubbleProps {
   onUserErrorsClick?: () => void;
   /** AI avatar animation while streaming / processing. */
   aiChatBusy?: boolean;
+  /** Phiên hiện tại — có thì câu trợ lý (đã có id backend) hiện nút "Dịch" (K4). */
+  sessionId?: number | null;
 }
 
 export function SpeakingMessageBubble({
@@ -51,6 +54,7 @@ export function SpeakingMessageBubble({
   onAiSpeak,
   onUserErrorsClick,
   aiChatBusy = false,
+  sessionId,
 }: SpeakingMessageBubbleProps) {
   const locale = useLocale();
   const t = useTranslations("speaking");
@@ -226,6 +230,9 @@ export function SpeakingMessageBubble({
                   />
                 )}
               </p>
+              {sessionId && msg.serverMessageId && !msg.isStreaming && msg.aiSpeechDe?.trim() ? (
+                <MessageTranslation sessionId={sessionId} messageId={msg.serverMessageId} />
+              ) : null}
               {isV2 && msg.explanationVi ? (
                 <p className="text-sm leading-relaxed" style={{ color: L.inkMuted }}>
                   <span className="text-[10px] font-bold uppercase tracking-wider block mb-1 opacity-70">

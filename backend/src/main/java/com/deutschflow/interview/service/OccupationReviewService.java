@@ -101,19 +101,30 @@ public class OccupationReviewService {
         requireDecision(req.status());
         OccupationQuestion q = questionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Occupation question not found: " + id));
-        String before = q.getQuestionDe();
+        List<String> before = text(q);
         if (hasText(req.questionDe())) {
             q.setQuestionDe(req.questionDe().strip());
+        }
+        if (hasText(req.questionVi())) {
+            q.setQuestionVi(req.questionVi().strip());
+        }
+        if (hasText(req.questionEn())) {
+            q.setQuestionEn(req.questionEn().strip());
         }
         applyDecision(req, actor, q::setStatus, q::setReviewedBy, q::setReviewedAt, q::setReviewNote);
         questionRepository.save(q);
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("occupation", q.getOccupationCode());
         meta.put("status", q.getStatus().name());
-        meta.put("edited", !before.equals(q.getQuestionDe()));
+        meta.put("edited", !before.equals(text(q)));
         auditLogService.log("admin.occupation.question.reviewed", AuditActor.of(actor),
                 "OCCUPATION_QUESTION", id, meta);
         return OccupationReviewDto.QuestionItem.from(q);
+    }
+
+    /** Câu gốc + hai bản dịch — so trước/sau để ghi audit "edited". */
+    private static List<String> text(OccupationQuestion q) {
+        return java.util.Arrays.asList(q.getQuestionDe(), q.getQuestionVi(), q.getQuestionEn());
     }
 
     @Transactional

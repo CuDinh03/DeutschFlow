@@ -138,7 +138,10 @@
         "termDe": "Từ tiếng Đức",
         "meaningVi": "Nghĩa tiếng Việt",
         "meaningEn": "Nghĩa tiếng Anh",
-        "exampleDe": "Câu ví dụ"
+        "exampleDe": "Câu ví dụ",
+        "questionDe": "Câu tiếng Đức",
+        "questionVi": "Bản dịch tiếng Việt",
+        "questionEn": "Bản dịch tiếng Anh"
       },
       "sessions": "{count} phiên đã chọn",
       "questions": "Câu hỏi chuyên môn",
@@ -153,7 +156,11 @@
       "notePlaceholder": "Ghi chú (tuỳ chọn)…",
       "generate": "Sinh thêm",
       "generatePlaceholder": "Mã nghề, vd. maurer",
-      "generated": "Đã sinh {questions} câu hỏi và {terms} từ mới"
+      "generated": "Đã sinh {questions} câu hỏi và {terms} từ mới",
+      "noTranslation": "Chưa có bản dịch",
+      "backfill": "Dịch câu còn thiếu",
+      "backfillDone": "Đã dịch {translated} câu, còn {remaining} câu chưa dịch",
+      "backfillNone": "Mọi câu đều đã có bản dịch"
     },
     "media": {
       "loadDataError": "Không thể tải thư viện media.",

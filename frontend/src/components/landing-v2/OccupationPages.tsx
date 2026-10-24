@@ -14,6 +14,7 @@ import { LandingHeader } from './LandingHeader'
 import { LandingFooter } from './LandingFooter'
 import { InterviewerPortrait } from './PersonaPortrait'
 import { QualityLabel } from './QualityLabel'
+import { QuestionTranslation } from './QuestionTranslation'
 import { interviewerInfo } from './interviewerInfo'
 import { START_HREF } from './links'
 
@@ -133,6 +134,7 @@ export async function OccupationDetailView({ detail }: { detail: OccupationDetai
                 <span className="shrink-0 font-ga-display text-ga-body-lg font-semibold text-ga-gold">{i + 1}</span>
                 <div className="min-w-0">
                   <p lang="de" className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q.questionDe}“</p>
+                  <QuestionTranslation q={q} locale={locale} className="mt-1 text-ga-body" />
                   <div className="mt-1.5">
                     <QualityLabel kind={label(q.source)} text={t(`explorer.labels.${label(q.source)}`)} />
                   </div>
@@ -147,7 +149,10 @@ export async function OccupationDetailView({ detail }: { detail: OccupationDetai
               <ul className="flex flex-col gap-3">
                 {more.map((q, i) => (
                   <li key={i} className="flex flex-col gap-1.5 border-b border-ga-border pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <p lang="de" className="min-w-0 text-ga-body text-ga-ink">„{q.questionDe}“</p>
+                    <div className="min-w-0">
+                      <p lang="de" className="text-ga-body text-ga-ink">„{q.questionDe}“</p>
+                      <QuestionTranslation q={q} locale={locale} className="mt-0.5 text-ga-small" />
+                    </div>
                     <QualityLabel kind={label(q.status)} text={t(`explorer.labels.${label(q.status)}`)} />
                   </li>
                 ))}

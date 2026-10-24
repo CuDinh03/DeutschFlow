@@ -58,6 +58,26 @@ class OccupationContentGeneratorTest {
     }
 
     @Test
+    void parseKeepsTranslationsAndDropsMissingOrOverlongOnes() throws Exception {
+        String json = """
+                {"questions":[
+                  {"questionDe":"Wie lagern Sie Medikamente?","questionVi":"  Bạn bảo quản   thuốc thế nào? ","questionEn":"How do you store medication?"},
+                  {"questionDe":"Wie dokumentieren Sie?","questionVi":"","questionEn":"%s"}],
+                 "terms":[]}
+                """.formatted("y".repeat(601));
+
+        OccupationContentGenerator.Generated g = generator.parse(json, "pflegefachkraft", "m");
+
+        assertThat(g.questions().get(0).getQuestionVi()).isEqualTo("Bạn bảo quản thuốc thế nào?");
+        assertThat(g.questions().get(0).getQuestionEn()).isEqualTo("How do you store medication?");
+        // Thiếu/quá dài → để trống, câu vẫn giữ (trang chỉ hiện tiếng Đức).
+        assertThat(g.questions().get(1).getQuestionDe()).isEqualTo("Wie dokumentieren Sie?");
+        assertThat(g.questions().get(1).getQuestionVi()).isNull();
+        assertThat(g.questions().get(1).getQuestionEn()).isNull();
+        assertThat(OccupationContentGenerator.SYSTEM_PROMPT).contains("questionVi").contains("questionEn");
+    }
+
+    @Test
     void parseKeepsSixCleanQuestionsAndNormalisesFields() throws Exception {
         String json = """
                 {"questions":[

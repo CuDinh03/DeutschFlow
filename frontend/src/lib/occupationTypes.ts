@@ -20,6 +20,23 @@ export interface OccupationSummary {
   questionSet: 'CURATED' | 'GENERAL'
 }
 
+/**
+ * Câu tiếng Đức kèm bản dịch (K4). Bản dịch tuỳ chọn: câu lớp nghề sinh trước V339 chưa dịch bù, và
+ * backend cũ chưa trả hai trường này.
+ */
+export interface QuestionText {
+  questionDe: string
+  questionVi?: string | null
+  questionEn?: string | null
+}
+
+/** Bản dịch hiện dưới câu tiếng Đức theo ngôn ngữ trang: vi → Việt, en → Anh, de → không có. */
+export function questionTranslation(q: QuestionText, locale: string): string | null {
+  if (locale === 'de') return null
+  const text = locale === 'en' ? q.questionEn : q.questionVi
+  return text?.trim() ? text : null
+}
+
 /** BANK = câu thuộc bộ câu hỏi của nhân vật; APPROVED / AI_GENERATED = câu lớp nghề. */
 export type QuestionSource = 'BANK' | 'APPROVED' | 'AI_GENERATED'
 export type ContentStatus = 'APPROVED' | 'AI_GENERATED'
@@ -29,10 +46,10 @@ export interface OccupationDetail {
   /** Mã SpeakingPersona — nhân vật sẽ phỏng vấn nghề này. */
   personaCode: string
   interviewPosition: string
-  sampleQuestions: { phase: string; questionDe: string; source: QuestionSource }[]
+  sampleQuestions: ({ phase: string; source: QuestionSource } & QuestionText)[]
   /** Có bộ viết tay hoặc ≥3 câu lớp nghề đã duyệt — chỉ khi đó trang nghề được lập chỉ mục. */
   reviewed: boolean
-  occupationQuestions: { questionDe: string; difficulty: string; status: ContentStatus }[]
+  occupationQuestions: ({ difficulty: string; status: ContentStatus } & QuestionText)[]
   terms: { termDe: string; meaningEn: string; meaningVi: string; exampleDe: string | null; status: ContentStatus }[]
 }
 

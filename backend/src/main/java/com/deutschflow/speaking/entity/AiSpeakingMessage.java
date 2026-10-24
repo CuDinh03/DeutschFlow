@@ -54,6 +54,14 @@ public class AiSpeakingMessage {
     @Column(name = "assistant_feedback", columnDefinition = "TEXT")
     private String assistantFeedback;
 
+    /** Bản dịch {@code aiSpeechDe} sang tiếng Việt, sinh khi học viên bấm "Dịch" (V340, K4). */
+    @Column(name = "translation_vi", columnDefinition = "TEXT")
+    private String translationVi;
+
+    /** Bản dịch {@code aiSpeechDe} sang tiếng Anh (V340, K4). */
+    @Column(name = "translation_en", columnDefinition = "TEXT")
+    private String translationEn;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
