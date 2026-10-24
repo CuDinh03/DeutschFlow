@@ -22,6 +22,9 @@ import com.deutschflow.grammar.service.ExamScoringService;
 import com.deutschflow.grammar.service.MockExamDraftService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
@@ -262,6 +265,12 @@ public class MockExamController {
      * {@link #processFinishExam} chặn lần về sau.
      */
     @PostMapping("/attempts/{attemptId}/finish")
+    // Kiểu trả về là ResponseEntity<?> (thân 409 ATTEMPT_NOT_IN_PROGRESS khác kiểu với 202), nên phải khai
+    // tường minh schema của 202 — thiếu dòng này springdoc không còn sinh ExamFinishAcceptedDto cho
+    // client iOS (IosOpenApiContractTest.shouldTypeMockExamRound2aEndpoints).
+    @ApiResponse(responseCode = "202", content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = ExamFinishAcceptedDto.class)))
     public ResponseEntity<?> finishExam(
             @PathVariable long attemptId,
             @RequestBody(required = false) Map<String, Object> body,
