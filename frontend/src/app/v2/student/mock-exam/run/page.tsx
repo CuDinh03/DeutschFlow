@@ -260,7 +260,7 @@ function MockExamRunner() {
         })
       } catch (err) {
         if (isAttemptAlreadyFinished(err)) {
-          // 409 ATTEMPT_NOT_IN_PROGRESS (#704): bài đã nộp và chấm (bấm hai lần, tab khác, hết giờ) —
+          // 409 ATTEMPT_NOT_IN_PROGRESS (PR 704): bài đã nộp và chấm (bấm hai lần, tab khác, hết giờ) —
           // hiện kết quả có sẵn thay vì báo lỗi khiến học viên tưởng phải nộp lại.
           try {
             const finished = await api.get<MockAttempt>(`/mock-exams/attempts/${activeAttemptId}/result`)
