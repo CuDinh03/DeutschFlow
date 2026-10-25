@@ -53,7 +53,7 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
   ]
 
   return (
-    <header className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-ga-border bg-[color-mix(in_srgb,var(--ga-bg)_92%,transparent)] backdrop-blur-md">
       <div className="flex h-16 items-center justify-between gap-2 px-5 sm:px-8 md:h-[78px] xl:px-[60px]">
         <Link href={homeHref} aria-label="myDeutschFlow" className="shrink-0 transition-opacity hover:opacity-80">
           <GaLogo size={26} className="md:hidden" />

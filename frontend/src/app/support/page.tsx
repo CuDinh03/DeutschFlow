@@ -28,7 +28,7 @@ export default function SupportPage() {
     <div className="ga-scope">
       <main className="min-h-screen bg-ga-bg font-ga-ui text-ga-ink">
         {/* Header — brand left, back-home right (mirrors the legal header) */}
-        <header className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
+        <header className="sticky top-0 z-50 border-b border-ga-border bg-[color-mix(in_srgb,var(--ga-bg)_92%,transparent)] backdrop-blur-md">
           <div className="mx-auto flex h-[68px] max-w-3xl items-center justify-between gap-4 px-5">
             <Link href="/" aria-label="myDeutschFlow" className="transition-opacity hover:opacity-80">
               <GaLogo size={30} />

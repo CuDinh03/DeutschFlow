@@ -401,9 +401,8 @@
           },
           {
             "name": "Die Lehrkraft liest und bestätigt",
-            "body": "Schreiben: Die Lehrkraft liest den Text und bestätigt die Note. Sprechen: Die Lehrkraft liest vor dem Bestätigen, was gesagt wurde – dieser Teil wird gerade fertiggestellt.",
-            "state": "partial",
-            "partial": "Schreiben: verfügbar · Sprechen: demnächst"
+            "body": "Schreiben: Die Lehrkraft liest den Text und bestätigt die Note. Zugewiesene Sprechaufgaben: Die Lehrkraft liest vor dem Bestätigen, was gesagt wurde.",
+            "state": "ready"
           },
           {
             "name": "Berichte für Familien",
