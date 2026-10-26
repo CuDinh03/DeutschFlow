@@ -14,6 +14,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -182,14 +183,22 @@ class MockExamPackGateIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("ba đề telc B1 nháp (V343–V345) đã nằm trong DB nhưng chưa mở cho học viên")
-    void seededTelcDrafts_areHiddenUntilReviewed() {
-        Integer drafts = jdbc.queryForObject("""
-            SELECT COUNT(*) FROM mock_exams
+    @DisplayName("telc B1: Set 2 đã duyệt (V346) và mở; Set 3–4 vẫn là nháp, chưa mở cho học viên")
+    void seededTelcDrafts_onlyReviewedSetIsOpen() {
+        List<String> drafts = jdbc.queryForList("""
+            SELECT title FROM mock_exams
             WHERE cefr_level = 'B1' AND exam_format = 'TELC'
               AND reviewed = FALSE AND is_active = FALSE
-            """, Integer.class);
-        assertThat(drafts).isEqualTo(3);
+            ORDER BY title
+            """, String.class);
+        assertThat(drafts).containsExactly("telc Deutsch B1 — Đề số 3", "telc Deutsch B1 — Đề số 4");
+
+        Long set2 = jdbc.queryForObject("""
+            SELECT id FROM mock_exams
+            WHERE exam_format = 'TELC' AND title = 'telc Deutsch B1 — Đề số 2'
+              AND reviewed = TRUE AND is_active = TRUE
+            """, Long.class);
+        assertThatCode(() -> service.assertExamReviewed(set2)).doesNotThrowAnyException();
     }
 
     @Test

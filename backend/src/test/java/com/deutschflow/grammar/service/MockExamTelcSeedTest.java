@@ -366,6 +366,19 @@ class MockExamTelcSeedTest {
         }
     }
 
+    @Test
+    @DisplayName("V346 duyệt đúng Set 2 (bật reviewed + is_active), không đụng Set 3–4")
+    void approvalMigration_opensOnlySet2() throws IOException {
+        String sql = Files.readString(MIGRATIONS.resolve("V346__duyet_de_telc_b1_set2.sql"));
+        assertThat(sql)
+                .contains("title = 'telc Deutsch B1 — Đề số 2'")
+                .contains("reviewed = TRUE")
+                .contains("is_active = TRUE")
+                .contains("AND reviewed = FALSE")
+                .doesNotContain("Đề số 3")
+                .doesNotContain("Đề số 4");
+    }
+
     // ── Đọc + Sprachbausteine (Gói A, 17/09/2026) ────────────────────────────────────────────────
     // Đo trên 10 Test Klett ZD + đề thật tái dựng: LV1 văn bản 55–110 từ, 5 tiêu đề thừa là „bóng";
     // LV2 370–520 từ có Vorspann, số dòng, chú thích, câu hỏi dạng Satzanfang KHÔNG theo thứ tự bài;
