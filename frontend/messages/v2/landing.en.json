@@ -401,9 +401,8 @@
           },
           {
             "name": "The teacher reads and confirms",
-            "body": "Writing: the teacher reads the work and confirms the grade. Speaking: the teacher reads what the student said before confirming — this part is being finished.",
-            "state": "partial",
-            "partial": "Writing: available · Speaking: coming soon"
+            "body": "Writing: the teacher reads the work and confirms the grade. Assigned speaking tasks: the teacher reads what the student said before confirming.",
+            "state": "ready"
           },
           {
             "name": "Reports for families",

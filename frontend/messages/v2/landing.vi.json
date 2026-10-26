@@ -401,9 +401,8 @@
           },
           {
             "name": "Giáo viên đọc và chốt",
-            "body": "Bài viết: giáo viên đọc bài và chốt điểm. Bài nói: giáo viên đọc lại lời học viên trước khi chốt — phần này đang hoàn thiện.",
-            "state": "partial",
-            "partial": "Bài viết: có · Bài nói: sắp có"
+            "body": "Bài viết: giáo viên đọc bài và chốt điểm. Bài nói được giao: giáo viên đọc lại lời học viên trước khi chốt.",
+            "state": "ready"
           },
           {
             "name": "Phiếu gửi gia đình",
