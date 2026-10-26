@@ -205,6 +205,8 @@ test-*.js
 # bằng `node scripts/generate-web-icons.mjs` (frontend/) mỗi khi logo đổi.
 !frontend/public/icon-192.png
 !frontend/public/icon-512.png
+# apple-touch-icon (iOS không dùng SVG) — cùng script sinh ra, cùng lý do mở lại.
+!frontend/public/apple-touch-icon.png
 
 # Scratch/temp scripts — thường chứa key hardcode, không commit
 scratch/

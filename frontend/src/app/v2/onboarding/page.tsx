@@ -12,7 +12,7 @@ import { getOnboardingRoute, getOnboardingMentor, getOnboardingMentorPreview, ty
 import { getAccessToken } from "@/lib/authSession";
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft, type OnboardingDraft } from "@/lib/onboardingDraft";
 import { MENTOR_META } from "@/lib/mentorMeta";
-import { useFeatureFlagEnabled } from "posthog-js/react";
+import { useFeatureFlagEnabled } from "@/lib/posthogClient";
 import { useLocale, useTranslations } from "next-intl";
 import { usePlanHelpers } from "@/contexts/PlanContext";
 import { claimGuestSession, ensureGuestSession, syncGuestSession, type GuestAnswers } from "@/features/onboarding/guestSession";

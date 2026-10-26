@@ -10,12 +10,27 @@ import { NativeAuthProvider } from '@/providers/NativeAuthProvider'
 import { MotionProvider } from '@/providers/MotionProvider'
 import { AuthRecoveryDialog } from '@/components/auth/AuthRecoveryDialog'
 import { MaintenanceOverlay } from '@/components/system/MaintenanceOverlay'
-import { SITE_URL } from '@/lib/siteUrl'
+import { DEFAULT_OG_IMAGE, SITE_URL } from '@/lib/siteUrl'
 import './globals.css'
 
+// ── Không preload font (đợt A tốc độ trang chủ, 26/10/2026) ──────────────────────────────────
+// Trước: cả ba họ preload đủ mọi subset → MỌI trang gửi 18 gợi ý preload (13 thành thẻ <link> trong
+// HTML, ~300KB) chen trước JS/CSS; trên 4G chậm chúng giành băng thông với chính tài nguyên vẽ
+// trang — tiêu đề trang chủ hiện ở 5,4 s. `display: 'swap'` + fallback chỉnh metric (next/font
+// `adjustFontFallback`, mặc định bật) cho chữ hiện ngay bằng font hệ thống rồi đổi êm, nên không
+// cần preload: trình duyệt tự tải đúng file trang dùng (theo `unicode-range` + weight) ngay khi
+// CSS dựng xong.
+//
+// Đã thử chỉ preload Newsreader (font h1): Next 14.2 đẩy gợi ý preload vào luồng RSC, và các gợi
+// ý nằm ở đầu luồng KHÔNG thành thẻ <link> trong HTML (đo trên bản main: 5/18 gợi ý rơi mất) —
+// 4 gợi ý Newsreader rơi trọn, chỉ còn chạy khi JS khởi động, tức muộn hơn chính CSS. Nên tắt hẳn
+// cho rõ ràng thay vì để một preload chỉ có trên giấy.
+
+// Inter chỉ còn cho cây legacy (body ngoài `.ga-scope`).
 const inter = Inter({
   subsets: ['latin', 'latin-ext', 'vietnamese'],
   display: 'swap',
+  preload: false,
   variable: '--font-inter',
 })
 
@@ -28,6 +43,7 @@ const newsreader = Newsreader({
   subsets: ['latin', 'latin-ext', 'vietnamese'],
   style: ['normal', 'italic'],
   display: 'swap',
+  preload: false,
   variable: '--font-newsreader',
 })
 // Be Vietnam Pro — UI sans DUY NHẤT của Galerie (D1: thay Instrument Sans vốn không có subset
@@ -37,6 +53,7 @@ const beVietnamPro = Be_Vietnam_Pro({
   subsets: ['latin', 'latin-ext', 'vietnamese'],
   weight: ['400', '500', '600'],
   display: 'swap',
+  preload: false,
   variable: '--font-be-vietnam-pro',
 })
 
@@ -66,19 +83,23 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(SITE_URL),
     title,
     description,
+    // `/favicon.ico` cho trình duyệt/công cụ tự xin đường dẫn cố định (từng 404); SVG cho trình
+    // duyệt hiện đại; iOS "Thêm vào màn hình chính" chỉ nhận PNG. Cả ba sinh từ public/icon.svg
+    // bằng `node scripts/generate-web-icons.mjs`.
     icons: {
       icon: [
+        { url: '/favicon.ico', sizes: '48x48' },
         { url: '/icon.svg', type: 'image/svg+xml' },
       ],
-      shortcut: '/icon.svg',
-      apple: '/icon.svg',
+      shortcut: '/favicon.ico',
+      apple: { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     },
     manifest: '/manifest.json',
     openGraph: {
       title,
       description,
       siteName: 'myDeutschFlow',
-      images: ['/icon.svg'],
+      images: [DEFAULT_OG_IMAGE],
     },
   }
 }
@@ -95,15 +116,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   //   - landing: trang chủ `/` (GaLanding) — 06/09/2026 dịch vi/en/de (F-I18N-02a).
   //   - base:nav: LanguageSwitcher ngay trong layout này (nhãn ngôn ngữ) — catalog gốc còn lại
   //     (`learn`, `speaking`) chỉ khu student cần, xem src/app/v2/student/layout.tsx.
-  const messages = await messagesForV2Areas(
-    'auth',
-    'onboarding',
-    'account',
-    'org.accept',
-    'landing',
-    'student.micGuide',
-    'base:nav',
-  )
+  const messages = await messagesForV2Areas('landing', 'base:nav')
 
   return (
     <html

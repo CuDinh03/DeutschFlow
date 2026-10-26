@@ -26,7 +26,10 @@ import V2AdminError from '@/app/v2/admin/error'
 import V2OrgError from '@/app/v2/org/error'
 
 const captureMock = vi.fn()
-vi.mock('posthog-js', () => ({ default: { __loaded: true, capture: (...a: unknown[]) => captureMock(...a) } }))
+// PostHog đi qua cửa tải động `@/lib/posthogClient` — giả lập trạng thái ĐÃ tải: task chạy ngay.
+vi.mock('@/lib/posthogClient', () => ({
+  withPostHog: (task: (ph: { capture: (...a: unknown[]) => void }) => void) => task({ capture: (...a: unknown[]) => captureMock(...a) }),
+}))
 
 type Boundary = typeof V2Error
 

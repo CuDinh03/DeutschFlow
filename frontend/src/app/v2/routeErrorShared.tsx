@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import posthog from 'posthog-js'
+import { withPostHog } from '@/lib/posthogClient'
 // Import THẲNG từ file component, không qua barrel `@/components/ui-v2`: barrel kéo theo cả
 // GaShell/GaSidebar/DataTable… vào chunk của thẻ lỗi. Một trang lỗi phải phụ thuộc vào càng ít
 // module càng tốt — nó là thứ chạy KHI mọi thứ khác đã hỏng.
@@ -44,17 +44,15 @@ export function RouteErrorCard({ error, reset, scope, frame = 'screen' }: RouteE
 
   useEffect(() => {
     console.error(`[${scope} route error]`, error)
-    if (posthog.__loaded) {
-      posthog.capture('client_route_error', {
-        scope,
-        message: error.message,
-        stack: error.stack,
-        digest: error.digest,
-        errorName: error.name,
-        staleChunk: stale,
-        path: typeof window !== 'undefined' ? window.location.pathname : undefined,
-      })
-    }
+    withPostHog((posthog) => posthog.capture('client_route_error', {
+      scope,
+      message: error.message,
+      stack: error.stack,
+      digest: error.digest,
+      errorName: error.name,
+      staleChunk: stale,
+      path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+    }))
   }, [error, scope, stale])
 
   return (

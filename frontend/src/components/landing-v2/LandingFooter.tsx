@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { GaLogo } from '@/components/ui-v2'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
+import { AppStoreFooterLink } from './AppDownload'
+
+const FOOTER_LINK = 'text-ga-body font-medium text-ga-muted transition-colors hover:text-ga-ink'
 
 /** Chân trang chung của trang công khai đã dịch. "Về chúng tôi" trỏ đúng bản ngôn ngữ đang xem. */
 export function LandingFooter() {
@@ -22,10 +25,11 @@ export function LandingFooter() {
         <GaLogo />
         <nav aria-label={t('footer.legalAria')} className="flex flex-wrap items-center gap-x-7 gap-y-2">
           {links.map(([key, href]) => (
-            <Link key={key} href={href} className="text-ga-body font-medium text-ga-muted transition-colors hover:text-ga-ink">
+            <Link key={key} href={href} className={FOOTER_LINK}>
               {t(`footer.${key}`)}
             </Link>
           ))}
+          <AppStoreFooterLink className={FOOTER_LINK} />
         </nav>
         <p className="text-ga-caption text-ga-faint">© {new Date().getFullYear()} myDeutschFlow</p>
       </div>

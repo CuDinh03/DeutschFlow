@@ -103,6 +103,21 @@
       "shotCap": "Real screen · A learner’s roadmap tree",
       "shotAlt": "A 30-day roadmap tree: the 12 finished stages have grown leaves, the stage in progress is a flower, and the panel on the right lists day 13’s four skills — listening, reading, speaking and writing."
     },
+    "app": {
+      "cap": "iPhone app",
+      "title": "Practise interviews right on your phone",
+      "sub": "On a break, on the way to work or just before the real interview: open the app and keep practising with the same account you use on the web.",
+      "points": [
+        "Interview and speaking-exam practice on your phone",
+        "Video lessons with German voice-over and bilingual subtitles",
+        "One account shared with the web version"
+      ],
+      "button": "Download on the App Store",
+      "newTab": "(opens in a new tab)",
+      "note": "Free to download · For iPhone, iOS 15.1 or later",
+      "heroLink": "Also available for iPhone",
+      "footer": "iPhone app"
+    },
     "exam": {
       "shotCap": "Real screen · Lesen exam room, clock running",
       "shotAlt": "The reading section of the Goethe B1 mock exam: 58 minutes left of the 65 allowed, a 2-of-4 progress bar, richtig/falsch questions in German and a note that answers are being saved.",
