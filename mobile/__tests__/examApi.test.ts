@@ -24,7 +24,15 @@ describe('mapExam', () => {
       cefrLevel: 'B1',
       totalQuestions: 60,
       timeLimitMinutes: 90,
+      comingSoon: false,
     })
+  })
+
+  it('đề nháp chờ duyệt (coming_soon) → comingSoon; backend cũ không gửi khoá → false', () => {
+    const base: RawMockExam = { id: 9, cefr_level: 'B1', title: 'telc Deutsch B1 — Đề số 2', time_limit_minutes: 150 }
+    expect(mapExam({ ...base, coming_soon: true }).comingSoon).toBe(true)
+    expect(mapExam({ ...base, coming_soon: false }).comingSoon).toBe(false)
+    expect(mapExam(base).comingSoon).toBe(false)
   })
 
   it('defaults totalQuestions to 0 when the backend omits it', () => {

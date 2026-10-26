@@ -628,6 +628,8 @@
       "examPoints": "{points} points",
       "examPass": "Pass: {points}",
       "start": "Start",
+      "comingSoon": "Coming soon",
+      "comingSoonHint": "Simulated exam awaiting content review — not available yet.",
       "noExams": "This pack has no exams yet."
     },
     "exam": {

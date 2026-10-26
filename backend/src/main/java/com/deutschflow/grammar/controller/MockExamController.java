@@ -97,14 +97,19 @@ public class MockExamController {
         catch (Exception e) { throw new RuntimeException("Cannot resolve user ID"); }
     }
 
+    /**
+     * {@code includeComingSoon=true} thêm đề nháp chờ duyệt (V342, {@code coming_soon=true}) để client
+     * mới hiện nhãn "Sắp có". Mặc định false: app cũ chưa biết khoá này thì không thấy đề nháp.
+     */
     @GetMapping
     public ResponseEntity<List<ExamSummaryDto>> listExams(
-            @RequestParam(defaultValue = "A1") String cefrLevel) {
+            @RequestParam(defaultValue = "A1") String cefrLevel,
+            @RequestParam(defaultValue = "false") boolean includeComingSoon) {
         var exams = jdbcTemplate.query("""
             SELECT id, cefr_level, exam_format, title, description_vi,
-                   total_points, pass_points, time_limit_minutes
+                   total_points, pass_points, time_limit_minutes, reviewed
             FROM mock_exams
-            WHERE cefr_level = ? AND is_active = TRUE
+            WHERE cefr_level = ? AND (is_active = TRUE OR (? AND reviewed = FALSE))
             ORDER BY id
             """, (rs, n) -> new ExamSummaryDto(
                 rs.getLong("id"),
@@ -114,8 +119,9 @@ public class MockExamController {
                 rs.getString("description_vi"),
                 (Integer) rs.getObject("total_points"),
                 (Integer) rs.getObject("pass_points"),
-                (Integer) rs.getObject("time_limit_minutes")),
-            cefrLevel);
+                (Integer) rs.getObject("time_limit_minutes"),
+                !rs.getBoolean("reviewed")),
+            cefrLevel, includeComingSoon);
         return ResponseEntity.ok(exams);
     }
 
@@ -125,6 +131,7 @@ public class MockExamController {
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
         packService.assertExamUnlocked(uid, examId);
+        packService.assertExamReviewed(examId);
 
         // Check active attempt — resume returns the FULL row incl. the autosaved draft (V285,
         // audit C-02): a fresh device must be able to rebuild position, answers and countdown
@@ -244,6 +251,7 @@ public class MockExamController {
             @AuthenticationPrincipal UserDetails principal) {
         // Đây là đường phát NỘI DUNG đề — phải qua cổng gói y như catalog bộ đề.
         packService.assertExamUnlocked(userId(principal), examId);
+        packService.assertExamReviewed(examId);
         try {
             var row = jdbcTemplate.queryForMap("""
                 SELECT sections_json::text AS sections_json

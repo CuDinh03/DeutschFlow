@@ -16,4 +16,6 @@ public record ExamSummaryDto(
         @JsonProperty("description_vi") String descriptionVi,
         @JsonProperty("total_points") Integer totalPoints,
         @JsonProperty("pass_points") Integer passPoints,
-        @JsonProperty("time_limit_minutes") Integer timeLimitMinutes) {}
+        @JsonProperty("time_limit_minutes") Integer timeLimitMinutes,
+        // V342: đề nháp chờ duyệt — chỉ có mặt khi client xin includeComingSoon=true
+        @JsonProperty("coming_soon") boolean comingSoon) {}

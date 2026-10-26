@@ -116,23 +116,32 @@ export default function V2StudentMockExamPage() {
                           {detail.exams.map((ex) => (
                             <div key={ex.id} className="flex flex-col gap-3 border border-ga-line bg-ga-card px-4 py-3 sm:flex-row sm:items-center">
                               <div className="min-w-0 flex-1">
-                                <p className="text-[14px] font-semibold text-ga-ink break-words">{ex.title}</p>
-                                <p className="ga-ui mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ga-muted">
-                                  {ex.timeLimitMinutes != null && (
-                                    <span className="inline-flex items-center gap-1">
-                                      <Clock size={12} aria-hidden /> {t('examTime', { minutes: ex.timeLimitMinutes })}
-                                    </span>
-                                  )}
-                                  {ex.totalPoints != null && <span>{t('examPoints', { points: ex.totalPoints })}</span>}
-                                  {ex.passPoints != null && <span>{t('examPass', { points: ex.passPoints })}</span>}
-                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-[14px] font-semibold text-ga-ink break-words">{ex.title}</p>
+                                  {ex.comingSoon && <TkBadge tone="yellow">{t('comingSoon')}</TkBadge>}
+                                </div>
+                                {ex.comingSoon ? (
+                                  <p className="ga-ui mt-0.5 text-ga-caption text-ga-muted">{t('comingSoonHint')}</p>
+                                ) : (
+                                  <p className="ga-ui mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ga-muted">
+                                    {ex.timeLimitMinutes != null && (
+                                      <span className="inline-flex items-center gap-1">
+                                        <Clock size={12} aria-hidden /> {t('examTime', { minutes: ex.timeLimitMinutes })}
+                                      </span>
+                                    )}
+                                    {ex.totalPoints != null && <span>{t('examPoints', { points: ex.totalPoints })}</span>}
+                                    {ex.passPoints != null && <span>{t('examPass', { points: ex.passPoints })}</span>}
+                                  </p>
+                                )}
                               </div>
-                              <a
-                                href={`/v2/student/mock-exam/run?examId=${ex.id}&level=${encodeURIComponent(p.cefrLevel ?? '')}`}
-                                className="ga-ui inline-flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-ga bg-ga-accent px-3.5 py-2.5 text-[12.5px] font-semibold text-ga-accent-ink sm:justify-start sm:py-2 lg:min-h-0"
-                              >
-                                {t('start')} <ArrowRight size={13} aria-hidden />
-                              </a>
+                              {!ex.comingSoon && (
+                                <a
+                                  href={`/v2/student/mock-exam/run?examId=${ex.id}&level=${encodeURIComponent(p.cefrLevel ?? '')}`}
+                                  className="ga-ui inline-flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-ga bg-ga-accent px-3.5 py-2.5 text-[12.5px] font-semibold text-ga-accent-ink sm:justify-start sm:py-2 lg:min-h-0"
+                                >
+                                  {t('start')} <ArrowRight size={13} aria-hidden />
+                                </a>
+                              )}
                             </div>
                           ))}
                         </div>

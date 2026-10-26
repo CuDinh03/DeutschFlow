@@ -11,12 +11,13 @@ public record MockExamPackDetailDto(
         String examFormat,
         List<PackExamDto> exams
 ) {
-    /** One exam within a pack. */
+    /** One exam within a pack. {@code comingSoon} = đề nháp chờ duyệt (V342): hiện "Sắp có", không làm được. */
     public record PackExamDto(
             Long id,
             String title,
             Integer totalPoints,
             Integer passPoints,
-            Integer timeLimitMinutes
+            Integer timeLimitMinutes,
+            boolean comingSoon
     ) {}
 }

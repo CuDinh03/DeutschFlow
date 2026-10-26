@@ -53,12 +53,15 @@ class MockExamPackControllerTest {
     void getPack_accessible_returnsDetail() throws Exception {
         when(mockExamPackService.getPack(anyLong(), eq(1L))).thenReturn(new MockExamPackDetailDto(
                 1L, "Goethe B1", "desc", "B1", "GOETHE",
-                List.of(new MockExamPackDetailDto.PackExamDto(10L, "Đề 1", 100, 60, 165))));
+                List.of(new MockExamPackDetailDto.PackExamDto(10L, "Đề 1", 100, 60, 165, false),
+                        new MockExamPackDetailDto.PackExamDto(11L, "Đề 2", 225, 135, 150, true))));
 
         mvc.perform(get("/api/mock-exams/packs/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cefrLevel").value("B1"))
-                .andExpect(jsonPath("$.exams[0].title").value("Đề 1"));
+                .andExpect(jsonPath("$.exams[0].title").value("Đề 1"))
+                .andExpect(jsonPath("$.exams[0].comingSoon").value(false))
+                .andExpect(jsonPath("$.exams[1].comingSoon").value(true));
     }
 
     @Test

@@ -11,6 +11,8 @@ export interface ExamVariant {
   totalQuestions: number
   timeLimitMinutes: number
   isRecommended?: boolean
+  /** Đề nháp chờ duyệt (V342): hiện "Sắp có", không bấm vào làm được. */
+  comingSoon: boolean
 }
 
 export interface RawMockExam {
@@ -19,6 +21,8 @@ export interface RawMockExam {
   title: string
   time_limit_minutes: number
   total_questions?: number
+  /** Chỉ có khi gọi kèm `includeComingSoon=true`; backend cũ không gửi. */
+  coming_soon?: boolean
 }
 
 export function mapExam(e: RawMockExam): ExamVariant {
@@ -28,6 +32,7 @@ export function mapExam(e: RawMockExam): ExamVariant {
     cefrLevel: e.cefr_level,
     totalQuestions: e.total_questions ?? 0,
     timeLimitMinutes: e.time_limit_minutes,
+    comingSoon: e.coming_soon === true,
   }
 }
 

@@ -111,7 +111,8 @@ class MockExamSeedContentTest {
             }
         }
 
-        assertThat(checked).as("số phần khách quan đã chấm thử").isEqualTo(37);
+        // 37 + 9: ba đề telc B1 nháp Set 2–4 (V343–V345), mỗi đề ba phần khách quan.
+        assertThat(checked).as("số phần khách quan đã chấm thử").isEqualTo(46);
         assertThat(problems).as("đề mới không đạt điểm tối đa dù đúng hết").isEmpty();
     }
 

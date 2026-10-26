@@ -628,6 +628,8 @@
       "examPoints": "{points} Punkte",
       "examPass": "Bestehen: {points}",
       "start": "Starten",
+      "comingSoon": "Demnächst",
+      "comingSoonHint": "Simulierte Prüfung, Inhalt wird noch geprüft – noch nicht verfügbar.",
       "noExams": "Dieses Paket enthält noch keine Prüfungen."
     },
     "exam": {
