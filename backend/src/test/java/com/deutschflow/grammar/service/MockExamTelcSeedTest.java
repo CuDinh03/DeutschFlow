@@ -366,17 +366,22 @@ class MockExamTelcSeedTest {
         }
     }
 
-    @Test
-    @DisplayName("V346 duyệt đúng Set 2 (bật reviewed + is_active), không đụng Set 3–4")
-    void approvalMigration_opensOnlySet2() throws IOException {
-        String sql = Files.readString(MIGRATIONS.resolve("V346__duyet_de_telc_b1_set2.sql"));
+    @ParameterizedTest(name = "{0} mở đúng Đề số {1}")
+    @org.junit.jupiter.params.provider.CsvSource({
+            "V346__duyet_de_telc_b1_set2.sql, 2",
+            "V347__duyet_de_telc_b1_set3.sql, 3"
+    })
+    @DisplayName("migration duyệt bật reviewed + is_active cho đúng một đề, không đụng đề khác")
+    void approvalMigration_opensExactlyOneSet(String file, int setNo) throws IOException {
+        String sql = Files.readString(MIGRATIONS.resolve(file));
         assertThat(sql)
-                .contains("title = 'telc Deutsch B1 — Đề số 2'")
+                .contains("title = 'telc Deutsch B1 — Đề số " + setNo + "'")
                 .contains("reviewed = TRUE")
                 .contains("is_active = TRUE")
-                .contains("AND reviewed = FALSE")
-                .doesNotContain("Đề số 3")
-                .doesNotContain("Đề số 4");
+                .contains("AND reviewed = FALSE");
+        for (int other = 1; other <= 4; other++) {
+            if (other != setNo) assertThat(sql).doesNotContain("Đề số " + other);
+        }
     }
 
     // ── Đọc + Sprachbausteine (Gói A, 17/09/2026) ────────────────────────────────────────────────

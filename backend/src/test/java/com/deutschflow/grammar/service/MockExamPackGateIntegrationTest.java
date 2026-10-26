@@ -183,22 +183,24 @@ class MockExamPackGateIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("telc B1: Set 2 đã duyệt (V346) và mở; Set 3–4 vẫn là nháp, chưa mở cho học viên")
-    void seededTelcDrafts_onlyReviewedSetIsOpen() {
+    @DisplayName("telc B1: Set 2–3 đã duyệt (V346, V347) và mở; Set 4 vẫn là nháp, chưa mở cho học viên")
+    void seededTelcDrafts_onlyReviewedSetsAreOpen() {
         List<String> drafts = jdbc.queryForList("""
             SELECT title FROM mock_exams
             WHERE cefr_level = 'B1' AND exam_format = 'TELC'
               AND reviewed = FALSE AND is_active = FALSE
             ORDER BY title
             """, String.class);
-        assertThat(drafts).containsExactly("telc Deutsch B1 — Đề số 3", "telc Deutsch B1 — Đề số 4");
+        assertThat(drafts).containsExactly("telc Deutsch B1 — Đề số 4");
 
-        Long set2 = jdbc.queryForObject("""
+        List<Long> opened = jdbc.queryForList("""
             SELECT id FROM mock_exams
-            WHERE exam_format = 'TELC' AND title = 'telc Deutsch B1 — Đề số 2'
+            WHERE exam_format = 'TELC'
+              AND title IN ('telc Deutsch B1 — Đề số 2', 'telc Deutsch B1 — Đề số 3')
               AND reviewed = TRUE AND is_active = TRUE
             """, Long.class);
-        assertThatCode(() -> service.assertExamReviewed(set2)).doesNotThrowAnyException();
+        assertThat(opened).hasSize(2);
+        opened.forEach(id -> assertThatCode(() -> service.assertExamReviewed(id)).doesNotThrowAnyException());
     }
 
     @Test
