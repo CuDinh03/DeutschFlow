@@ -4,18 +4,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,40 +30,49 @@ import static org.assertj.core.api.Assertions.assertThat;
  * đúng cho mọi đề (đáp án nằm trong lựa chọn, id không trùng, có giải thích). Còn phân bố điểm của
  * telc thì rất dễ lệch mà vẫn "hợp lệ" — đổi một Teil từ 10 câu xuống 8 vẫn ra JSON đúng, chỉ có
  * điều phần đó tụt từ 25 xuống 20 và tổng không còn là 225. Sai kiểu đó không ai thấy bằng mắt.
+ *
+ * <p>26/10/2026: mọi cổng cấu trúc chạy cho cả Set 1 (V325 + lớp ghi đè) và ba đề nháp Set 2–4
+ * (V343–V345, mỗi đề một câu INSERT trọn vẹn) — đề nháp phải đúng khuôn ngay từ lúc chờ duyệt.
  */
 @DisplayName("Bộ đề telc B1 — khớp bảng cấu trúc của đề thật")
 class MockExamTelcSeedTest {
 
     private static final ObjectMapper OM = new ObjectMapper();
-    private static final Path SEED =
-            Path.of("src/main/resources/db/migration/V325__mock_exam_telc_b1_set1.sql");
+    private static final Path MIGRATIONS = Path.of("src/main/resources/db/migration");
+    private static final Path SEED = MIGRATIONS.resolve("V325__mock_exam_telc_b1_set1.sql");
     /**
-     * Các migration sau V325 ghi đè TỪNG PHẦN của đề này bằng {@code jsonb_set(…, '{sections,N}', …)}
-     * (V327: Nghe; V328: Đọc + Sprachbausteine). Cổng này soi nội dung HIỆU LỰC (V325 + mọi lớp
-     * ghi đè, theo thứ tự số), vì soi V325 không thì đang soi một đề mà không học viên nào còn làm.
+     * Các migration sau V325 ghi đè TỪNG PHẦN của Set 1 bằng {@code jsonb_set(…, '{sections,N}', …)}
+     * (V327: Nghe; V328: Đọc + Sprachbausteine; V329: Viết). Cổng này soi nội dung HIỆU LỰC (V325 +
+     * mọi lớp ghi đè, theo thứ tự số), vì soi V325 không thì đang soi một đề mà không học viên nào
+     * còn làm. File đề trọn vẹn ({@code …_setN…}) không phải lớp ghi đè.
      */
-    private static final Pattern OVERLAY_FILE = Pattern.compile("V3\\d\\d__mock_exam_telc_b1_(?!set1).*\\.sql");
+    private static final Pattern OVERLAY_FILE = Pattern.compile("V3\\d\\d__mock_exam_telc_b1_(?!set\\d).*\\.sql");
+    private static final Pattern DRAFT_SET_FILE = Pattern.compile("V3\\d\\d__mock_exam_telc_b1_set[2-9].*\\.sql");
     private static final Pattern OVERLAY_BLOCK = Pattern.compile(
             "'\\{sections,(\\d+)}',\\s*\\$j\\$\\s*(\\{.*?})\\s*\\$j\\$::jsonb", Pattern.DOTALL);
+    private static final Pattern FULL_JSON = Pattern.compile("\\$j\\$\\s*(\\{.*?\"sections\".*?})\\s*\\$j\\$", Pattern.DOTALL);
 
-    private static Map<String, Object> exam;
+    /** Tên đề → nội dung hiệu lực. Set 1 đứng đầu. */
+    private static final Map<String, Map<String, Object>> EXAMS = new LinkedHashMap<>();
     /** Bản V325 nguyên gốc — để so đáp án trước/sau lớp ghi đè. */
     private static Map<String, Object> original;
+    private static final List<Path> draftFiles = new ArrayList<>();
 
     @BeforeAll
-    static void loadSeed() throws IOException {
-        Matcher m = Pattern.compile("\\$j\\$\\s*(\\{.*?\"sections\".*?})\\s*\\$j\\$", Pattern.DOTALL)
-                .matcher(Files.readString(SEED));
+    static void loadSeeds() throws IOException {
+        Matcher m = FULL_JSON.matcher(Files.readString(SEED));
         assertThat(m.find()).as("không trích được sections_json từ %s", SEED.getFileName()).isTrue();
         original = OM.readValue(m.group(1), Map.class);
-        exam = OM.readValue(m.group(1), Map.class);
+        Map<String, Object> set1 = OM.readValue(m.group(1), Map.class);
 
         @SuppressWarnings("unchecked")
-        List<Object> sections = new ArrayList<>((List<Object>) exam.get("sections"));
+        List<Object> sections = new ArrayList<>((List<Object>) set1.get("sections"));
         List<Path> overlays;
-        try (var files = Files.list(SEED.getParent())) {
-            overlays = files.filter(f -> OVERLAY_FILE.matcher(f.getFileName().toString()).matches())
-                    .sorted().toList();
+        try (var files = Files.list(MIGRATIONS)) {
+            List<Path> all = files.sorted().toList();
+            overlays = all.stream().filter(f -> OVERLAY_FILE.matcher(f.getFileName().toString()).matches()).toList();
+            draftFiles.clear();
+            all.stream().filter(f -> DRAFT_SET_FILE.matcher(f.getFileName().toString()).matches()).forEach(draftFiles::add);
         }
         assertThat(overlays).as("phải có ít nhất lớp V327").isNotEmpty();
         for (Path file : overlays) {
@@ -76,12 +89,32 @@ class MockExamTelcSeedTest {
             }
             assertThat(found).as("không trích được khối jsonb_set nào từ %s", file.getFileName()).isPositive();
         }
-        exam.put("sections", sections);
+        set1.put("sections", sections);
+        EXAMS.clear();
+        EXAMS.put("Set 1", set1);
+
+        for (Path file : draftFiles) {
+            Matcher dm = FULL_JSON.matcher(Files.readString(file));
+            assertThat(dm.find()).as("không trích được sections_json từ %s", file.getFileName()).isTrue();
+            EXAMS.put(file.getFileName().toString(), OM.readValue(dm.group(1), Map.class));
+        }
+    }
+
+    static Stream<String> exams() {
+        return EXAMS.keySet().stream();
     }
 
     @Test
+    @DisplayName("có đủ ba đề nháp Set 2–4")
+    void draftSets_arePresent() {
+        assertThat(draftFiles).as("V343–V345").hasSize(3);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("đúng 60 câu và đúng 225 điểm, chia theo đúng bảng §1.2")
-    void structure_matchesOfficialTable() {
+    void structure_matchesOfficialTable(String examName) {
+        Map<String, Object> exam = EXAMS.get(examName);
         // phần → (số câu, điểm mỗi câu) của từng Teil, theo đúng thứ tự trong đề.
         Map<String, List<int[]>> expected = new HashMap<>();
         expected.put("LESEN", List.of(new int[]{5, 50}, new int[]{5, 50}, new int[]{10, 25}));
@@ -125,9 +158,11 @@ class MockExamTelcSeedTest {
         assertThat(totalPoints).as("tổng điểm phần viết").isEqualTo(225);
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("hai ngưỡng đỗ độc lập, cổng Nói lấy điểm từ ngoài đề giấy")
-    void passRule_hasTwoIndependentGates() {
+    void passRule_hasTwoIndependentGates(String examName) {
+        Map<String, Object> exam = EXAMS.get(examName);
         Map<?, ?> passRule = (Map<?, ?>) exam.get("pass_rule");
         Map<?, ?> written = (Map<?, ?>) passRule.get("written");
         Map<?, ?> oral = (Map<?, ?>) passRule.get("oral");
@@ -147,19 +182,21 @@ class MockExamTelcSeedTest {
                 .doesNotContain("SPRECHEN");
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("số lần nghe đúng đề thật: Teil 1 một lần, Teil 2–3 hai lần")
-    void hoeren_playLimitsMatchRealExam() {
-        List<?> teile = teileOf("HOEREN");
+    void hoeren_playLimitsMatchRealExam(String examName) {
+        List<?> teile = teileOf(examName, "HOEREN");
         assertThat(((Map<?, ?>) teile.get(0)).get("max_plays")).isEqualTo(1);
         assertThat(((Map<?, ?>) teile.get(1)).get("max_plays")).isEqualTo(2);
         assertThat(((Map<?, ?>) teile.get(2)).get("max_plays")).isEqualTo(2);
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("Hörverstehen Teil 2 là hội thoại HAI người — không phải một giọng đọc liền")
-    void hoerenTeil2_isTwoSpeakerDialogue() {
-        Map<?, ?> teil2 = (Map<?, ?>) teileOf("HOEREN").get(1);
+    void hoerenTeil2_isTwoSpeakerDialogue(String examName) {
+        Map<?, ?> teil2 = (Map<?, ?>) teileOf(examName, "HOEREN").get(1);
         List<?> turns = (List<?>) teil2.get("audio_script");
 
         assertThat(turns).as("phải là mảng lượt nói").hasSizeGreaterThanOrEqualTo(6);
@@ -170,18 +207,20 @@ class MockExamTelcSeedTest {
                 .isTrue();
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("bốn khối thời gian 90 · nghỉ 20 · 30 · 30")
-    void blocks_matchRealExamTiming() {
-        List<?> blocks = (List<?>) exam.get("blocks");
+    void blocks_matchRealExamTiming(String examName) {
+        List<?> blocks = (List<?>) EXAMS.get(examName).get("blocks");
         assertThat(blocks.stream().map(b -> ((Map<?, ?>) b).get("minutes")).toList())
                 .isEqualTo(List.of(90, 20, 30, 30));
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("phần Viết có đúng bốn Leitpunkte — tiêu chí I chấm theo số ý này")
-    void schreiben_hasFourLeitpunkte() {
-        Map<?, ?> teil = (Map<?, ?>) teileOf("SCHREIBEN").get(0);
+    void schreiben_hasFourLeitpunkte(String examName) {
+        Map<?, ?> teil = (Map<?, ?>) teileOf(examName, "SCHREIBEN").get(0);
         assertThat((List<?>) teil.get("writing_points")).hasSize(4);
         assertThat(teil.get("prompt")).asString().isNotBlank();
     }
@@ -192,10 +231,11 @@ class MockExamTelcSeedTest {
     // „eine passende Reihenfolge", KHÔNG quy định số từ. V325 là thư khiếu nại không có văn bản
     // kích thích và đòi „circa 100 Wörter" — cổng này giữ cho không tụt lại.
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("phần Viết: E-Mail xưng du của bạn in trước, 60–140 từ; Leitpunkte xáo; Anweisung không ghi số từ")
-    void schreiben_isReplyToFriendsEmail() {
-        Map<?, ?> teil = (Map<?, ?>) teileOf("SCHREIBEN").get(0);
+    void schreiben_isReplyToFriendsEmail(String examName) {
+        Map<?, ?> teil = (Map<?, ?>) teileOf(examName, "SCHREIBEN").get(0);
         Map<?, ?> stimulus = (Map<?, ?>) teil.get("stimulus");
         assertThat(stimulus).as("phải có văn bản kích thích").isNotNull();
         assertThat(stimulus.get("type")).isEqualTo("EMAIL");
@@ -222,10 +262,11 @@ class MockExamTelcSeedTest {
     // đề có câu khung; Teil 2 = phỏng vấn radio 500–650 từ; Teil 3 = 5 bài 40–90 từ có câu dẫn tình
     // huống. Bản V325 chỉ bằng ¼–⅓ độ dài đó và Teil 1 sai thể loại — cổng này giữ cho không tụt lại.
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("Ansage nguyên văn và thời gian đọc câu hỏi: 30 s / 60 s / 0, một lần / hai lần")
-    void hoeren_hasAnsageAndReadingTime() {
-        List<?> teile = teileOf("HOEREN");
+    void hoeren_hasAnsageAndReadingTime(String examName) {
+        List<?> teile = teileOf(examName, "HOEREN");
         Map<?, ?> t1 = (Map<?, ?>) teile.get(0);
         Map<?, ?> t2 = (Map<?, ?>) teile.get(1);
         Map<?, ?> t3 = (Map<?, ?>) teile.get(2);
@@ -241,10 +282,11 @@ class MockExamTelcSeedTest {
         assertThat(t3.get("reading_seconds")).isEqualTo(0);
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("Teil 1 là năm LỜI KỂ cùng chủ đề, 60–110 từ, giọng nam nữ xen kẽ — không phải thông báo")
-    void hoerenTeil1_isFiveStatementsOfOneSurvey() {
-        Map<?, ?> t1 = (Map<?, ?>) teileOf("HOEREN").get(0);
+    void hoerenTeil1_isFiveStatementsOfOneSurvey(String examName) {
+        Map<?, ?> t1 = (Map<?, ?>) teileOf(examName, "HOEREN").get(0);
         List<?> items = (List<?>) t1.get("items");
         Set<String> speakers = items.stream()
                 .map(it -> String.valueOf(((Map<?, ?>) it).get("speaker"))).collect(Collectors.toSet());
@@ -262,10 +304,11 @@ class MockExamTelcSeedTest {
         }
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("Teil 2 là phỏng vấn radio ≥ 450 từ: chào thính giả, cảm ơn cuối, 10 mệnh đề")
-    void hoerenTeil2_isFullLengthRadioInterview() {
-        Map<?, ?> t2 = (Map<?, ?>) teileOf("HOEREN").get(1);
+    void hoerenTeil2_isFullLengthRadioInterview(String examName) {
+        Map<?, ?> t2 = (Map<?, ?>) teileOf(examName, "HOEREN").get(1);
         List<?> turns = (List<?>) t2.get("audio_script");
         int words = turns.stream().mapToInt(t -> wordCount(String.valueOf(((Map<?, ?>) t).get("text")))).sum();
         assertThat(words).as("tổng số từ hội thoại").isGreaterThanOrEqualTo(450);
@@ -274,10 +317,11 @@ class MockExamTelcSeedTest {
         assertThat((List<?>) t2.get("items")).hasSize(10);
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("Teil 3: mỗi bài có câu dẫn tình huống đọc trước và dài 40–110 từ")
-    void hoerenTeil3_hasSituationLeadInPerItem() {
-        Map<?, ?> t3 = (Map<?, ?>) teileOf("HOEREN").get(2);
+    void hoerenTeil3_hasSituationLeadInPerItem(String examName) {
+        Map<?, ?> t3 = (Map<?, ?>) teileOf(examName, "HOEREN").get(2);
         for (Object itemObj : (List<?>) t3.get("items")) {
             Map<?, ?> item = (Map<?, ?>) itemObj;
             assertThat(item.get("lead_in_de")).asString().as("câu dẫn của %s", item.get("id"))
@@ -292,7 +336,7 @@ class MockExamTelcSeedTest {
     @DisplayName("các lớp ghi đè giữ nguyên id và đáp án của V325 — trừ SB Teil 2 (hộp từ xếp lại theo bảng chữ cái)")
     void overlays_keepAnswerKeyOfV325() {
         Map<String, String> before = answerKey(original);
-        Map<String, String> after = answerKey(exam);
+        Map<String, String> after = answerKey(EXAMS.get("Set 1"));
         // SB2 là ngoại lệ có chủ ý (V328): hộp từ mới phải xếp theo bảng chữ cái như đề thật nên chữ
         // cái đáp án đi theo hộp. Mọi câu khác — 1–30 và 41–60 — phải y hệt.
         before.keySet().removeIf(id -> id.startsWith("SB2-"));
@@ -301,16 +345,56 @@ class MockExamTelcSeedTest {
         assertThat(after).hasSize(50);
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
+    @DisplayName("đề nháp dùng đúng bộ id câu của Set 1 — trình chạy, ngân sách điểm (LT1) và chiến thuật Teil (LT2) tra theo id/Teil")
+    void draftSets_useSameItemIdsAsSet1(String examName) {
+        assertThat(answerKey(EXAMS.get(examName)).keySet())
+                .isEqualTo(answerKey(EXAMS.get("Set 1")).keySet());
+    }
+
+    @Test
+    @DisplayName("đề nháp: INSERT với is_active = FALSE, reviewed = FALSE và mô tả ghi rõ MÔ PHỎNG, không liên kết telc")
+    void draftSets_areInsertedHiddenAndLabelledAsSimulation() throws IOException {
+        Pattern tail = Pattern.compile("\\$j\\$::jsonb,\\s*225,\\s*135,\\s*150,\\s*FALSE,\\s*FALSE\\);");
+        for (Path file : draftFiles) {
+            String sql = Files.readString(file);
+            assertThat(sql).as("%s: cột is_active, reviewed", file.getFileName()).contains("is_active, reviewed)");
+            assertThat(tail.matcher(sql).find()).as("%s: 225/135/150 và FALSE, FALSE", file.getFileName()).isTrue();
+            assertThat(sql).as("%s: mô tả", file.getFileName())
+                    .contains("MÔ PHỎNG").contains("không liên kết với telc");
+        }
+    }
+
+    @ParameterizedTest(name = "{0} mở đúng Đề số {1}")
+    @org.junit.jupiter.params.provider.CsvSource({
+            "V346__duyet_de_telc_b1_set2.sql, 2",
+            "V347__duyet_de_telc_b1_set3.sql, 3"
+    })
+    @DisplayName("migration duyệt bật reviewed + is_active cho đúng một đề, không đụng đề khác")
+    void approvalMigration_opensExactlyOneSet(String file, int setNo) throws IOException {
+        String sql = Files.readString(MIGRATIONS.resolve(file));
+        assertThat(sql)
+                .contains("title = 'telc Deutsch B1 — Đề số " + setNo + "'")
+                .contains("reviewed = TRUE")
+                .contains("is_active = TRUE")
+                .contains("AND reviewed = FALSE");
+        for (int other = 1; other <= 4; other++) {
+            if (other != setNo) assertThat(sql).doesNotContain("Đề số " + other);
+        }
+    }
+
     // ── Đọc + Sprachbausteine (Gói A, 17/09/2026) ────────────────────────────────────────────────
     // Đo trên 10 Test Klett ZD + đề thật tái dựng: LV1 văn bản 55–110 từ, 5 tiêu đề thừa là „bóng";
     // LV2 370–520 từ có Vorspann, số dòng, chú thích, câu hỏi dạng Satzanfang KHÔNG theo thứ tự bài;
     // LV3 luôn hai Beispiele (một ghép, một x); SB1 130–180 từ; SB2 hộp 15 TỪ CHỨC NĂNG viết HOA
     // xếp theo bảng chữ cái, thư trả lời một mẩu tin in ngay trên.
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("LV Teil 1: năm văn bản 55–130 từ, mười tiêu đề, không tiêu đề nào trùng chữ")
-    void lesenTeil1_textsAreFullLength() {
-        Map<?, ?> t1 = (Map<?, ?>) teileOf("LESEN").get(0);
+    void lesenTeil1_textsAreFullLength(String examName) {
+        Map<?, ?> t1 = (Map<?, ?>) teileOf(examName, "LESEN").get(0);
         assertThat(((Map<?, ?>) t1.get("headlines")).keySet()).hasSize(10);
         for (Object itemObj : (List<?>) t1.get("items")) {
             Map<?, ?> item = (Map<?, ?>) itemObj;
@@ -319,10 +403,11 @@ class MockExamTelcSeedTest {
         }
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("LV Teil 2: bài ≥ 350 từ có Vorspann, số dòng, chú thích; câu 6–10 là Satzanfang không theo thứ tự bài")
-    void lesenTeil2_isFullArticleWithSentenceStarts() {
-        Map<?, ?> t2 = (Map<?, ?>) teileOf("LESEN").get(1);
+    void lesenTeil2_isFullArticleWithSentenceStarts(String examName) {
+        Map<?, ?> t2 = (Map<?, ?>) teileOf(examName, "LESEN").get(1);
         assertThat(wordCount(String.valueOf(t2.get("context")))).isGreaterThanOrEqualTo(350);
         assertThat(t2.get("vorspann_de")).asString().isNotBlank();
         assertThat(t2.get("context_lines")).isEqualTo(Boolean.TRUE);
@@ -340,14 +425,17 @@ class MockExamTelcSeedTest {
             assertThat(((Map<?, ?>) item.get("options")).keySet().stream().map(String::valueOf).toList())
                     .containsExactlyInAnyOrder("a", "b", "c");
         }
-        // Câu đầu tiên trả lời ở CUỐI bài (Frau Özdemir về lý do bỏ) — thứ tự không theo bài.
-        assertThat(String.valueOf(((Map<?, ?>) items.get(0)).get("question"))).contains("hören");
+        if ("Set 1".equals(examName)) {
+            // Câu đầu tiên trả lời ở CUỐI bài (Frau Özdemir về lý do bỏ) — thứ tự không theo bài.
+            assertThat(String.valueOf(((Map<?, ?>) items.get(0)).get("question"))).contains("hören");
+        }
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("LV Teil 3: đúng hai Beispiele — một trỏ vào mẩu có thật, một là x")
-    void lesenTeil3_hasTwoExamples() {
-        Map<?, ?> t3 = (Map<?, ?>) teileOf("LESEN").get(2);
+    void lesenTeil3_hasTwoExamples(String examName) {
+        Map<?, ?> t3 = (Map<?, ?>) teileOf(examName, "LESEN").get(2);
         List<?> examples = (List<?>) t3.get("examples");
         Set<?> adKeys = ((Map<?, ?>) t3.get("ads")).keySet();
         assertThat(examples).hasSize(2);
@@ -360,10 +448,11 @@ class MockExamTelcSeedTest {
         assertThat(noneCount).as("đề thật: đúng hai tình huống không mẩu nào hợp").isEqualTo(2);
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exams")
     @DisplayName("SB Teil 1: thư 120–200 từ; SB Teil 2: hộp 15 từ chức năng viết HOA xếp theo bảng chữ cái, có mẩu tin kích thích")
-    void sprachbausteine_matchRealFormat() {
-        List<?> teile = teileOf("SPRACHBAUSTEINE");
+    void sprachbausteine_matchRealFormat(String examName) {
+        List<?> teile = teileOf(examName, "SPRACHBAUSTEINE");
         Map<?, ?> t1 = (Map<?, ?>) teile.get(0);
         Map<?, ?> t2 = (Map<?, ?>) teile.get(1);
         assertThat(wordCount(String.valueOf(t1.get("gapped_text")))).isBetween(120, 200);
@@ -409,8 +498,8 @@ class MockExamTelcSeedTest {
         return (int) java.util.Arrays.stream(text.trim().split("\\s+")).filter(w -> !w.isBlank()).count();
     }
 
-    private List<?> teileOf(String sectionName) {
-        for (Object sectionObj : (List<?>) exam.get("sections")) {
+    private static List<?> teileOf(String examName, String sectionName) {
+        for (Object sectionObj : (List<?>) EXAMS.get(examName).get("sections")) {
             Map<?, ?> section = (Map<?, ?>) sectionObj;
             if (sectionName.equals(section.get("name"))) return (List<?>) section.get("teile");
         }

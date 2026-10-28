@@ -1,5 +1,6 @@
 package com.deutschflow.grammar.service;
 
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.QuotaSnapshot;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -133,6 +135,72 @@ class MockExamPackGateIntegrationTest extends AbstractPostgresIntegrationTest {
         jdbc.update("UPDATE mock_exam_packs SET is_active = FALSE WHERE cefr_level = ?", LEVEL);
 
         assertThatCode(() -> service.assertExamUnlocked(UID, examId)).doesNotThrowAnyException();
+    }
+
+    // ─── Đề nháp chờ duyệt (V342) ────────────────────────────────────────────────────────────────
+
+    private long newDraftExam() {
+        long examId = newExam();
+        jdbc.update("UPDATE mock_exams SET reviewed = FALSE, is_active = FALSE WHERE id = ?", examId);
+        return examId;
+    }
+
+    @Test
+    @DisplayName("đề nháp chờ duyệt: gọi thẳng examId vẫn bị chặn 409, kể cả gói trả phí")
+    void draftExam_isBlockedEvenForPaidUser() {
+        long examId = newDraftExam();
+
+        assertThatThrownBy(() -> service.assertExamReviewed(examId))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("sắp có");
+    }
+
+    @Test
+    @DisplayName("đề đã duyệt và đề không tồn tại đi qua cổng duyệt")
+    void reviewedOrUnknownExam_passesReviewGate() {
+        long examId = newExam();
+
+        assertThatCode(() -> service.assertExamReviewed(examId)).doesNotThrowAnyException();
+        assertThatCode(() -> service.assertExamReviewed(-1L)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("bộ đề hiện đề nháp với comingSoon=true, đề đã tắt (không phải nháp) thì vẫn ẩn")
+    void packDetail_listsDraftAsComingSoon_hidesRetired() {
+        long live = newExam();
+        long draft = newDraftExam();
+        long retired = newExam();
+        jdbc.update("UPDATE mock_exams SET is_active = FALSE WHERE id = ?", retired);
+        newPack(true);
+        planIs("PRO");
+        Long packId = jdbc.queryForObject("SELECT id FROM mock_exam_packs WHERE cefr_level = ?", Long.class, LEVEL);
+
+        var exams = service.getPack(UID, packId).exams();
+
+        assertThat(exams).extracting(e -> e.id()).containsExactly(live, draft);
+        assertThat(exams.get(0).comingSoon()).isFalse();
+        assertThat(exams.get(1).comingSoon()).isTrue();
+    }
+
+    @Test
+    @DisplayName("telc B1: Set 2–3 đã duyệt (V346, V347) và mở; Set 4 vẫn là nháp, chưa mở cho học viên")
+    void seededTelcDrafts_onlyReviewedSetsAreOpen() {
+        List<String> drafts = jdbc.queryForList("""
+            SELECT title FROM mock_exams
+            WHERE cefr_level = 'B1' AND exam_format = 'TELC'
+              AND reviewed = FALSE AND is_active = FALSE
+            ORDER BY title
+            """, String.class);
+        assertThat(drafts).containsExactly("telc Deutsch B1 — Đề số 4");
+
+        List<Long> opened = jdbc.queryForList("""
+            SELECT id FROM mock_exams
+            WHERE exam_format = 'TELC'
+              AND title IN ('telc Deutsch B1 — Đề số 2', 'telc Deutsch B1 — Đề số 3')
+              AND reviewed = TRUE AND is_active = TRUE
+            """, Long.class);
+        assertThat(opened).hasSize(2);
+        opened.forEach(id -> assertThatCode(() -> service.assertExamReviewed(id)).doesNotThrowAnyException());
     }
 
     @Test

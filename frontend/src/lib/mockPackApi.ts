@@ -18,6 +18,8 @@ export interface PackExam {
   totalPoints: number | null
   passPoints: number | null
   timeLimitMinutes: number | null
+  /** Đề nháp chờ duyệt (V342): hiện "Sắp có", không có nút làm bài. Backend cũ không gửi ⇒ coi như false. */
+  comingSoon?: boolean
 }
 
 export interface MockExamPackDetail {

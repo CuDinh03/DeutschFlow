@@ -628,6 +628,8 @@
       "examPoints": "{points} điểm",
       "examPass": "Đạt: {points}",
       "start": "Bắt đầu",
+      "comingSoon": "Sắp có",
+      "comingSoonHint": "Đề mô phỏng đang chờ duyệt nội dung — chưa làm được.",
       "noExams": "Bộ đề này chưa có đề con."
     },
     "exam": {

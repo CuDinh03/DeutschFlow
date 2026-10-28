@@ -33,8 +33,11 @@ export default function ExamScreen() {
 
   const { data: variants = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['exam-variants', level],
+    // includeComingSoon: đề nháp chờ duyệt (V342) về kèm cờ để hiện "Sắp có" — app cũ không gửi cờ thì không thấy.
     queryFn: () =>
-      api.get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level } }).then((r) => r.data.map(mapExam)),
+      api
+        .get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level, includeComingSoon: true } })
+        .then((r) => r.data.map(mapExam)),
     enabled: hasProAccess && level != null,
     staleTime: 300_000,
   })
@@ -162,6 +165,7 @@ export default function ExamScreen() {
             <EmptyState glyph="thithu" title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
           ) : null}
           {variants.map((variant) => {
+            if (variant.comingSoon) return <ComingSoonExamCard key={variant.id} variant={variant} />
             const isRec = variant.isRecommended || variant.id === recommendedId
             return (
               <Card
@@ -200,6 +204,26 @@ export default function ExamScreen() {
         </Screen>
       )}
     </Screen>
+  )
+}
+
+// Đề nháp chờ duyệt (V342): hiện cho biết sắp có, nhưng không bấm vào làm được.
+function ComingSoonExamCard({ variant }: { variant: ExamVariant }) {
+  return (
+    <Card style={{ opacity: 0.7 }}>
+      <Pill label="Sắp có" tone="neutral" style={{ marginBottom: space[3] }} />
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+        <LevelBadge level={variant.cefrLevel} />
+        <View style={{ flex: 1 }}>
+          <ThemedText variant="title" style={{ marginBottom: space[2] }}>
+            {variant.title}
+          </ThemedText>
+          <ThemedText variant="caption" color="muted">
+            Đề mô phỏng đang chờ duyệt nội dung — chưa làm được.
+          </ThemedText>
+        </View>
+      </View>
+    </Card>
   )
 }
 

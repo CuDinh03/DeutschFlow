@@ -1,5 +1,6 @@
 package com.deutschflow.grammar.service;
 
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.QuotaSnapshot;
@@ -86,6 +87,20 @@ public class MockExamPackService {
     }
 
     /**
+     * Đề nháp chờ duyệt (V342: {@code reviewed = FALSE}) không mở được, kể cả khi gọi thẳng
+     * {@code examId}: catalog chỉ hiện nhãn "Sắp có", còn {@code /start} và {@code /questions} chặn ở
+     * đây. Đề không tồn tại thì cho qua — 404 vẫn là việc của đường gọi, như cổng gói ở trên.
+     */
+    @Transactional(readOnly = true)
+    public void assertExamReviewed(long examId) {
+        Integer drafts = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM mock_exams WHERE id = ? AND reviewed = FALSE", Integer.class, examId);
+        if (drafts != null && drafts > 0) {
+            throw new ConflictException("Đề này sắp có — nội dung đang chờ duyệt.");
+        }
+    }
+
+    /**
      * Paid = public tier PRO or ULTRA (covers PRO/ULTRA/INTERNAL). FREE, DEFAULT (expired trial),
      * PREMIUM, and null all resolve to tier DEFAULT → locked. Uses the READ-ONLY snapshot so this
      * read-only path never triggers subscription-reconciliation writes (which would fail in a
@@ -97,16 +112,19 @@ public class MockExamPackService {
         return tier != null && !TIER_DEFAULT.equals(tier);
     }
 
+    /** Đề đang dùng + đề nháp chờ duyệt (hiện "Sắp có", V342) của bộ. */
     private List<PackExamDto> examsOf(MockExamPack pack) {
         return jdbcTemplate.query(
-                "SELECT id, title, total_points, pass_points, time_limit_minutes FROM mock_exams "
-                        + "WHERE cefr_level = ? AND exam_format = ? AND is_active = TRUE ORDER BY id",
+                "SELECT id, title, total_points, pass_points, time_limit_minutes, reviewed FROM mock_exams "
+                        + "WHERE cefr_level = ? AND exam_format = ? AND (is_active = TRUE OR reviewed = FALSE) "
+                        + "ORDER BY id",
                 (rs, rowNum) -> new PackExamDto(
                         rs.getLong("id"),
                         rs.getString("title"),
                         (Integer) rs.getObject("total_points"),
                         (Integer) rs.getObject("pass_points"),
-                        (Integer) rs.getObject("time_limit_minutes")),
+                        (Integer) rs.getObject("time_limit_minutes"),
+                        !rs.getBoolean("reviewed")),
                 pack.getCefrLevel(), pack.getExamFormat());
     }
 }
