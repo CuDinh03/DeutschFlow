@@ -1,8 +1,15 @@
-import { usePostHog } from 'posthog-js/react'
 import { useEffect, useRef, useCallback } from 'react'
+import { usePostHogClient, withPostHog } from '@/lib/posthogClient'
 
+/**
+ * Đợt A 26/10/2026: không còn `usePostHog()` của posthog-js/react — thư viện giờ tải động (xem
+ * `@/lib/posthogClient`). Mọi lời gọi đi qua `withPostHog`: gọi trước lúc thư viện sẵn sàng thì
+ * xếp hàng, không mất sự kiện. Các callback không còn phụ thuộc instance nên identity bền suốt
+ * vòng đời component.
+ */
 export function useTracking() {
-  const posthog = usePostHog()
+  // Instance thô cho chỗ cần gọi thẳng (mock-exam). `null` cho tới khi thư viện tải xong.
+  const posthog = usePostHogClient()
 
   /**
    * Track a generic event.
@@ -11,32 +18,28 @@ export function useTracking() {
    * it in effect dependency arrays without re-running the effect every render.
    */
   const trackEvent = useCallback((eventName: string, properties?: Record<string, any>) => {
-    if (posthog) {
-      posthog.capture(eventName, properties)
-    }
-  }, [posthog])
+    withPostHog((ph) => ph.capture(eventName, properties))
+  }, [])
 
   /**
    * Identify a user after login/registration
    */
   const identifyUser = useCallback((userId: string, traits?: Record<string, any>) => {
-    if (posthog && userId && userId !== 'undefined') {
-      posthog.identify(userId, traits)
+    if (userId && userId !== 'undefined') {
+      withPostHog((ph) => ph.identify(userId, traits))
     }
-  }, [posthog])
+  }, [])
 
   /**
    * Track specific onboarding steps to analyze drop-off
    */
   const trackOnboardingStep = useCallback((stepName: string, stepNumber: number, data?: Record<string, any>) => {
-    if (posthog) {
-      posthog.capture('onboarding_step_completed', {
-        step_name: stepName,
-        step_number: stepNumber,
-        ...data,
-      })
-    }
-  }, [posthog])
+    withPostHog((ph) => ph.capture('onboarding_step_completed', {
+      step_name: stepName,
+      step_number: stepNumber,
+      ...data,
+    }))
+  }, [])
 
   /**
    * Track feature actions (started, completed, quit)
@@ -49,14 +52,12 @@ export function useTracking() {
     action: 'started' | 'resumed' | 'completed' | 'quit' | 'latency' | 'paywall_viewed' | 'checkout_started' | 'checkout_completed' | 'checkout_abandoned' | 'paywall_gate_viewed' | 'clicked',
     metadata?: Record<string, any>
   ) => {
-    if (posthog) {
-      posthog.capture(`feature_${feature}_${action}`, {
-        feature: feature,
-        action,
-        ...metadata,
-      })
-    }
-  }, [posthog])
+    withPostHog((ph) => ph.capture(`feature_${feature}_${action}`, {
+      feature: feature,
+      action,
+      ...metadata,
+    }))
+  }, [])
 
   return {
     trackEvent,
@@ -72,27 +73,22 @@ export function useTracking() {
  * Emits 'feature_ended' with duration_seconds when component unmounts
  */
 export function useFeatureTimeTracker(featureName: string, metadata?: Record<string, any>) {
-  const posthog = usePostHog()
   const startTime = useRef(Date.now())
 
   useEffect(() => {
     // Component mounted
-    if (posthog) {
-      posthog.capture('feature_started', { feature: featureName, ...metadata })
-    }
+    withPostHog((ph) => ph.capture('feature_started', { feature: featureName, ...metadata }))
     
     startTime.current = Date.now()
 
     // Component unmounted
     return () => {
       const durationSeconds = Math.round((Date.now() - startTime.current) / 1000)
-      if (posthog) {
-        posthog.capture('feature_ended', { 
-          feature: featureName, 
-          duration_seconds: durationSeconds,
-          ...metadata 
-        })
-      }
+      withPostHog((ph) => ph.capture('feature_ended', {
+        feature: featureName,
+        duration_seconds: durationSeconds,
+        ...metadata,
+      }))
     }
-  }, [posthog, featureName, metadata])
+  }, [featureName, metadata])
 }

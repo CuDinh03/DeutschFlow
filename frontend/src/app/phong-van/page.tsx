@@ -1,5 +1,6 @@
 import '@/styles/galerie.css'
 import type { Metadata } from 'next'
+import { DEFAULT_OG_IMAGE } from '@/lib/siteUrl'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { OccupationIndex } from '@/components/landing-v2/OccupationPages'
 import { fetchOccupations } from '@/lib/occupationServer'
@@ -33,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: OG_LOCALE[locale],
       url: localizedHref(locale, '/phong-van'),
       siteName: 'myDeutschFlow',
-      images: ['/icon.svg'],
+      images: [DEFAULT_OG_IMAGE],
     },
     // Chưa tải được danh mục thì trang chỉ còn một câu báo lỗi — không cho lập chỉ mục bản đó.
     robots: occupations ? undefined : { index: false, follow: true },

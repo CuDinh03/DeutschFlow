@@ -103,6 +103,21 @@
       "shotCap": "Ảnh thật · Cây lộ trình của học viên",
       "shotAlt": "Cây lộ trình 30 ngày: 12 chặng đã xong mọc thành lá, chặng đang học là bông hoa, bảng bên phải liệt kê bốn kỹ năng Nghe, Đọc, Nói, Viết của ngày 13."
     },
+    "app": {
+      "cap": "Ứng dụng iPhone",
+      "title": "Luyện phỏng vấn ngay trên điện thoại",
+      "sub": "Lúc nghỉ ca, trên đường đi hay ngay trước buổi phỏng vấn thật: mở app là luyện tiếp, với chính tài khoản bạn dùng trên web.",
+      "points": [
+        "Luyện phỏng vấn và thi Nói trên điện thoại",
+        "Video bài học lồng tiếng Đức, phụ đề song ngữ",
+        "Dùng chung một tài khoản với bản web"
+      ],
+      "button": "Tải trên App Store",
+      "newTab": "(mở trong thẻ mới)",
+      "note": "Miễn phí tải · Dành cho iPhone, iOS 15.1 trở lên",
+      "heroLink": "Có ứng dụng cho iPhone",
+      "footer": "Ứng dụng iPhone"
+    },
     "exam": {
       "shotCap": "Ảnh thật · Phòng thi Lesen, đồng hồ đang chạy",
       "shotAlt": "Màn làm bài thi thử Goethe B1 phần Đọc hiểu: đồng hồ còn 58 phút trên tổng 65, thanh tiến độ 2 trên 4 câu, các câu richtig/falsch bằng tiếng Đức và ghi chú bài đang được lưu.",

@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react'
 import { TriangleAlert } from 'lucide-react'
-import posthog from 'posthog-js'
+import { withPostHog } from '@/lib/posthogClient'
 
 export default function GlobalError({
   error,
@@ -16,15 +16,13 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('[global error]', error)
-    if (posthog.__loaded) {
-      posthog.capture('client_route_error', {
-        scope: 'global',
-        message: error.message,
-        stack: error.stack,
-        digest: error.digest,
-        path: typeof window !== 'undefined' ? window.location.pathname : undefined,
-      })
-    }
+    withPostHog((posthog) => posthog.capture('client_route_error', {
+      scope: 'global',
+      message: error.message,
+      stack: error.stack,
+      digest: error.digest,
+      path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+    }))
   }, [error])
 
   return (

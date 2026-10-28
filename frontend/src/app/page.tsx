@@ -2,6 +2,8 @@ import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import { getLocale } from 'next-intl/server'
 import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
+import { DEFAULT_OG_IMAGE } from '@/lib/siteUrl'
+import { IOS_APP_ID } from '@/components/landing-v2/links'
 import HomeClient from './HomeClient'
 
 /**
@@ -36,8 +38,11 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: OG_LOCALE[locale],
       url: localizedHref(locale, '/'),
       siteName: 'myDeutschFlow',
-      images: ['/icon.svg'],
+      images: [DEFAULT_OG_IMAGE],
     },
+    // Smart App Banner của Safari iOS: dải "Mở trong App Store" ở đầu trang, chỉ hiện trên iPhone/
+    // iPad, người xem tắt được. Chỉ khai ở trang chủ — không chen vào trang làm bài trên web.
+    itunes: { appId: IOS_APP_ID },
   }
 }
 

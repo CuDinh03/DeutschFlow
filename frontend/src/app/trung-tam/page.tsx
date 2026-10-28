@@ -1,5 +1,6 @@
 import '@/styles/galerie.css'
 import type { Metadata } from 'next'
+import { DEFAULT_OG_IMAGE } from '@/lib/siteUrl'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { SchoolsPage } from '@/components/landing-v2/SchoolsPage'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicAlternates, publicHref } from '@/lib/publicLocale'
@@ -34,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: OG_LOCALE[locale],
       url: canonical,
       siteName: 'myDeutschFlow',
-      images: ['/icon.svg'],
+      images: [DEFAULT_OG_IMAGE],
     },
   }
 }

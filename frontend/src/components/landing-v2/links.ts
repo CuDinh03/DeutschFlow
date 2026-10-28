@@ -10,3 +10,10 @@ export const START_HREF = '/v2/onboarding'
 
 /** Email liên hệ hiển thị trên trang công khai. */
 export const SUPPORT_EMAIL = 'support@mydeutschflow.com'
+
+/**
+ * Ứng dụng iOS trên App Store (Apple ID của app = `ascAppId` trong mobile/eas.json). Link không
+ * kèm mã nước: App Store tự mở đúng storefront của người xem (đã kiểm VN/DE/US 26/10/2026).
+ */
+export const IOS_APP_ID = '6785281013'
+export const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`

@@ -7,7 +7,7 @@ import api, { httpStatus } from "@/lib/api";
 import { getAccessToken, clearTokens, tokenCacheReady } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
 import { homeFor } from "@/lib/roleRouting";
-import posthog from "posthog-js";
+import { withPostHog } from "@/lib/posthogClient";
 
 // Bề mặt đăng nhập DUY NHẤT (xem middleware.ts + next.config redirect /login → /v2/login).
 // Trỏ thẳng vào đây thay vì "/login" để khỏi tốn một chặng redirect, và để hook không còn phụ
@@ -134,7 +134,7 @@ export function useStudentPracticeSession(options?: {
       
       // Track retention/habit milestone nếu streak tăng
       if (prevStreakRef.current !== null && newStreak > prevStreakRef.current) {
-        if (posthog.__loaded) posthog.capture('streak_extended', { streakDays: newStreak });
+        withPostHog((posthog) => posthog.capture('streak_extended', { streakDays: newStreak }));
       }
       prevStreakRef.current = newStreak;
 

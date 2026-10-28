@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { GaBtn, GaCap } from '@/components/ui-v2'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicHref } from '@/lib/publicLocale'
+import { AppDownloadBand, AppStoreHeroLink } from './AppDownload'
 import { GaShot } from './GaShot'
 import { OccupationExplorer } from './OccupationExplorer'
 import { CastSection } from './CastSection'
@@ -134,10 +135,11 @@ export function GaLanding() {
           <p className="mt-[26px] max-w-[520px] text-[18px] leading-[1.7] text-ga-muted">
             {t('hero.sub')}
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:gap-3.5">
+          <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:items-center sm:gap-6">
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
               <Link href={START_HREF} onClick={() => trackCta('hero')}><YellowSq />{t('hero.ctaStart')}</Link>
             </GaBtn>
+            <AppStoreHeroLink />
           </div>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
             {heroBullets.map((b) => (
@@ -276,6 +278,9 @@ export function GaLanding() {
           </div>
         </div>
       </section>
+
+      {/* Ứng dụng iPhone — ngay sau khối lộ trình, nơi vừa nhắc video bài học chỉ có trên app */}
+      <AppDownloadBand />
 
       {/* S6 — Thi Nói theo format thật */}
       <section id="exam" className={`${SECTION} scroll-mt-[78px]`}>

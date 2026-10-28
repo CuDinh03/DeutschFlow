@@ -103,6 +103,21 @@
       "shotCap": "Echter Screen · Lernpfad-Baum einer lernenden Person",
       "shotAlt": "Ein Lernpfad-Baum für 30 Tage: die 12 abgeschlossenen Etappen sind zu Blättern geworden, die laufende Etappe ist eine Blüte, und rechts stehen die vier Fertigkeiten von Tag 13 — Hören, Lesen, Sprechen und Schreiben."
     },
+    "app": {
+      "cap": "iPhone-App",
+      "title": "Vorstellungsgespräche direkt auf dem Handy üben",
+      "sub": "In der Pause, auf dem Weg zur Arbeit oder kurz vor dem echten Gespräch: App öffnen und weiterüben, mit demselben Konto wie im Web.",
+      "points": [
+        "Vorstellungsgespräche und mündliche Prüfung auf dem Handy üben",
+        "Videolektionen mit deutscher Vertonung und zweisprachigen Untertiteln",
+        "Ein Konto für App und Web"
+      ],
+      "button": "Im App Store laden",
+      "newTab": "(öffnet in neuem Tab)",
+      "note": "Kostenloser Download · Für iPhone ab iOS 15.1",
+      "heroLink": "Auch als iPhone-App",
+      "footer": "iPhone-App"
+    },
     "exam": {
       "shotCap": "Echter Screen · Prüfungsraum Lesen, Uhr läuft",
       "shotAlt": "Der Leseteil der Goethe-B1-Modellprüfung: noch 58 von 65 Minuten, Fortschrittsbalken 2 von 4, Richtig-Falsch-Aufgaben auf Deutsch und der Hinweis, dass gespeichert wird.",

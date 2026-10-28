@@ -88,7 +88,7 @@ vi.mock("@/lib/guestSessionStore", () => ({
   readGuestSessionCache: readCacheMock,
 }));
 
-vi.mock("posthog-js/react", () => ({
+vi.mock("@/lib/posthogClient", () => ({
   useFeatureFlagEnabled: vi.fn(() => false),
 }));
 
