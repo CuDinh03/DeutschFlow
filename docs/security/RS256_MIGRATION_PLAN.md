@@ -65,9 +65,9 @@ openssl rsa -pubout -in jwt_private.pem -out jwt_public.pem
 
 1. **Prep** — generate keypair; set `JWT_RSA_PRIVATE_KEY` + `JWT_RSA_PUBLIC_KEY` on backend, `JWT_RSA_PUBLIC_KEY` on Amplify (keep `JWT_SECRET` everywhere).
 2. **Deploy verifiers (accept both), still sign HS256** — backend `algorithm=HS256` but verify list includes the RSA public key; frontend middleware verifies HS256 **and** RS256. Issued tokens unchanged.
-3. **Flip issuer → RS256** — backend `app.jwt.algorithm=RS256`; new access/guest tokens are RS256. Old HS256 tokens (≤15 min) still verify on both sides.
+3. **Flip issuer → RS256** — backend `app.jwt.algorithm=RS256`; new access/guest tokens are RS256. Old HS256 tokens (≤15 min) still verify at the web edge; **the backend rejects them from this step on** (since 28/10/2026, PR #731 — `JwtService` drops HS256 keys whenever it signs RS256) and clients transparently refresh.
 4. **Wait out old tokens** — ≥15 min (access TTL) so all HS256 access tokens expire.
-5. **Drop HS256** — remove the HS256 secret from the backend verify list; remove `JWT_SECRET` from **backend and Amplify**; frontend verifies RS256 only. ✅ shared signing secret is gone.
+5. **Drop HS256** — backend already ignores HS256 under RS256 (PR #731); `deploy-backend-vm.sh` warns while `JWT_SECRET*` remains; remove `JWT_SECRET` from **backend and Amplify**; frontend verifies RS256 only. ✅ shared signing secret is gone.
 
 **Rollback (any time before step 5):** set `app.jwt.algorithm=HS256` and redeploy — old + new clients still verify because HS256 is still accepted. No user impact.
 
