@@ -167,7 +167,7 @@ public class OrgController {
         orgGuard.assertOrgAdmin(user.getId(), orgId);
         orgMembershipService.removeMember(orgId, userId, AuditActor.of(user));
         // Removed student loses the org-granted plan; web/Apple subs are left untouched.
-        orgEntitlementService.revokeStudent(userId);
+        orgEntitlementService.revokeStudentFromOrg(orgId, userId);
         return ResponseEntity.noContent().build();
     }
 
@@ -212,7 +212,7 @@ public class OrgController {
     public ResponseEntity<Void> leaveOrg(@AuthenticationPrincipal User user) {
         Long orgId = requireOrgId(user);
         orgMembershipService.selfLeave(orgId, AuditActor.of(user));
-        orgEntitlementService.revokeStudent(user.getId());
+        orgEntitlementService.revokeStudentFromOrg(orgId, user.getId());
         return ResponseEntity.noContent().build();
     }
 

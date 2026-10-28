@@ -31,6 +31,9 @@ for v in "${REQUIRED[@]}"; do grep -qE "^${v}=." "$ENV_FILE" || missing+=("$v");
 [ ${#missing[@]} -eq 0 ] || { error "backend.env thiếu/rỗng: ${missing[*]}"; exit 1; }
 if grep -qE '^AWS_' "$ENV_FILE"; then error "backend.env còn biến AWS_* — dự án đã bỏ AWS"; exit 1; fi
 if grep -q FIRSTBOOT_PLACEHOLDER "$ENV_FILE"; then error "backend.env còn khoá R2 giả"; exit 1; fi
+if grep -qE '^JWT_ALGORITHM=RS256' "$ENV_FILE" && grep -qE '^(JWT_SECRET|JWT_SECRET_PREVIOUS)=.' "$ENV_FILE"; then
+  warn "backend.env còn JWT_SECRET* dù ký RS256 — backend đã bỏ qua khi verify; gỡ khỏi backend.env và env frontend"
+fi
 if grep -qE '^(GOETHE_AUTO_IMPORT_ON_STARTUP|GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT|CEFR_CURATED_AUTO_IMPORT_STARTUP)=true' "$ENV_FILE"; then
   warn "cờ auto-import đang true — mỗi lần boot sẽ import lại (spike CPU)"
 fi

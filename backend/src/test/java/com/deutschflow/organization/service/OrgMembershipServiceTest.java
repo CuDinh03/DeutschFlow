@@ -593,6 +593,23 @@ class OrgMembershipServiceTest {
     }
 
     @Test
+    @DisplayName("Audit 28/10 #3: removeMember trên hàng REVOKED/LEFT cũ (cựu thành viên đã sang trung tâm khác) → 404, không đụng gì")
+    void removeMember_staleMembership_throwsNotFound_touchesNothing() {
+        for (String stale : new String[] { "REVOKED", "LEFT" }) {
+            OrgMember former = member("STUDENT", stale);
+            when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(former));
+
+            assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID, ACTOR))
+                    .isInstanceOf(NotFoundException.class);
+
+            assertThat(former.getStatus()).isEqualTo(stale);
+        }
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
+        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
+    }
+
+    @Test
     @DisplayName("removeMember refuses to revoke the OWNER (a MANAGER-authorized caller cannot seize control; last-owner protected)")
     void removeMember_ownerTarget_throwsBadRequest() {
         // C-2/H-5: DELETE /api/org/members/{id} is gated by assertOrgAdmin = {OWNER, MANAGER}, so a

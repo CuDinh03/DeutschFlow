@@ -114,6 +114,27 @@ class JwtServiceUnitTest {
     }
 
     @Test
+    void rs256IgnoresLeftoverHsSecretsForVerification() throws Exception {
+        // Audit 28/10 #1: RS256 với JWT_SECRET (+ PREVIOUS) còn sót trong env — ai giữ secret đó
+        // không được tự ký HS256 cho tài khoản bất kỳ.
+        KeyPair kp = rsaKeyPair();
+        String previous = SECRET_32_PLUS + "-previous";
+        JwtService rsWithLeftover = new JwtService(SECRET_32_PLUS, previous, 3_600_000L,
+                                                    "deutschflow-api", "deutschflow-app", false,
+                                                    "RS256", pkcs8Pem(kp), x509Pem(kp), "");
+        assertTrue(rsWithLeftover.isTokenValid(rsWithLeftover.generateAccessToken(student())),
+                "RS256 token vẫn phải hợp lệ");
+
+        for (String secret : new String[] { SECRET_32_PLUS, previous }) {
+            JwtService forger = new JwtService(secret, "", 3_600_000L,
+                                                "deutschflow-api", "deutschflow-app", false,
+                                                "HS256", "", "", "");
+            String forged = forger.generateAccessToken(student());
+            assertFalse(rsWithLeftover.isTokenValid(forged), "HS256 ký bằng secret sót phải bị từ chối");
+        }
+    }
+
+    @Test
     void hs256StillRequiresSecret() {
         // Guard: HS256 mode with no secret must still fail fast (regression check).
         assertThrows(IllegalStateException.class, () ->

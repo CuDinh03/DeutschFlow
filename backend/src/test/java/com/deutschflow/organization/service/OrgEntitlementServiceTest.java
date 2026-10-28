@@ -173,6 +173,27 @@ class OrgEntitlementServiceTest {
     // ------------------------------------------------------------------ revokeStudent
 
     @Test
+    @DisplayName("Audit 28/10 #3: revokeStudentFromOrg bỏ qua khi người dùng đang ACTIVE ở trung tâm khác")
+    void revokeStudentFromOrg_activeElsewhere_doesNotEndSubscription() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(USER_ID), eq(5L))).thenReturn(1);
+
+        service.revokeStudentFromOrg(5L, USER_ID);
+
+        verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
+        verify(subscriptionActivationService, never()).resumePausedIfAny(anyLong());
+    }
+
+    @Test
+    @DisplayName("revokeStudentFromOrg: không ACTIVE ở đâu khác → thu hồi như revokeStudent")
+    void revokeStudentFromOrg_notElsewhere_revokes() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(USER_ID), eq(5L))).thenReturn(0);
+
+        service.revokeStudentFromOrg(5L, USER_ID);
+
+        verify(jdbcTemplate).update(anyString(), any(Object[].class));
+    }
+
+    @Test
     @DisplayName("revokeStudent: runs UPDATE setting status=ENDED for user's ORG-sourced active subscription")
     void revokeStudent_runsEndedUpdate() {
         service.revokeStudent(USER_ID);
