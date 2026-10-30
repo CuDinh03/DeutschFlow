@@ -369,7 +369,8 @@ class MockExamTelcSeedTest {
     @ParameterizedTest(name = "{0} mở đúng Đề số {1}")
     @org.junit.jupiter.params.provider.CsvSource({
             "V346__duyet_de_telc_b1_set2.sql, 2",
-            "V347__duyet_de_telc_b1_set3.sql, 3"
+            "V347__duyet_de_telc_b1_set3.sql, 3",
+            "V348__duyet_de_telc_b1_set4.sql, 4"
     })
     @DisplayName("migration duyệt bật reviewed + is_active cho đúng một đề, không đụng đề khác")
     void approvalMigration_opensExactlyOneSet(String file, int setNo) throws IOException {
