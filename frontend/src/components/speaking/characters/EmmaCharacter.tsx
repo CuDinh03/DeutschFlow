@@ -82,7 +82,7 @@ function Eyes({ blinking, expression }: { blinking: boolean; expression: EmmaExp
       ) : (
         <g>
           <ellipse cx="113" cy="176" rx={17} ry={expression === "talking" ? 14 : 12} fill="white" />
-          <ellipse cx="115" cy="177" rx="8" ry="8" fill="#3A1A08" />
+          <ellipse className="ga-pupil" cx="115" cy="177" rx="8" ry="8" fill="#3A1A08" />
           <ellipse cx="118" cy="175" rx="3" ry="3" fill="white" />
           {/* Lash top */}
           <path d="M 96 170 C 106 163 122 163 132 170" fill="none" stroke="#2A1A08" strokeWidth="2.5" strokeLinecap="round" />
@@ -95,7 +95,7 @@ function Eyes({ blinking, expression }: { blinking: boolean; expression: EmmaExp
       ) : (
         <g>
           <ellipse cx="175" cy="176" rx={17} ry={expression === "talking" ? 14 : 12} fill="white" />
-          <ellipse cx="177" cy="177" rx="8" ry="8" fill="#3A1A08" />
+          <ellipse className="ga-pupil" cx="177" cy="177" rx="8" ry="8" fill="#3A1A08" />
           <ellipse cx="180" cy="175" rx="3" ry="3" fill="white" />
           {/* Lash top */}
           <path d="M 156 170 C 166 163 182 163 192 170" fill="none" stroke="#2A1A08" strokeWidth="2.5" strokeLinecap="round" />

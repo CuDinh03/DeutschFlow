@@ -5,6 +5,8 @@ import { useTracking } from '@/hooks/useTracking'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { GaBtn, GaCap } from '@/components/ui-v2'
+import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicHref } from '@/lib/publicLocale'
 import { AppDownloadBand, AppStoreHeroLink } from './AppDownload'
 import { GaShot } from './GaShot'
@@ -13,6 +15,7 @@ import { CastSection } from './CastSection'
 import { FounderBand } from './FounderBand'
 import { LandingFooter } from './LandingFooter'
 import { LandingHeader } from './LandingHeader'
+import { SentenceFix } from './SentenceFix'
 import { START_HREF } from './links'
 
 /**
@@ -42,6 +45,9 @@ const YellowSq = ({ dark = false }: { dark?: boolean }) => (
 )
 
 const EXAM_DE = ['Lesen', 'Hören', 'Schreiben', 'Sprechen']
+const EXAM_GLYPHS: GlyphName[] = ['doc', 'nghe', 'viet', 'noi']
+// Theo đúng thứ tự `learn.items` của catalog: lộ trình, ôn từ vựng, video, tiến độ.
+const LEARN_GLYPHS: GlyphName[] = ['lernweg', 'srs', 'video', 'thongke']
 const PATHWAY_COLORS = ['var(--ga-yellow)', 'var(--ga-red)', 'var(--ga-blue)', 'var(--ga-violet)', 'var(--ga-green)']
 /**
  * Bảng giá TẠM ẨN (owner yêu cầu 17/09/2026; giá theo nước chốt ở đợt 3). Giữ nguyên JSX, catalog
@@ -218,13 +224,15 @@ export function GaLanding() {
                 </div>
               ))}
             </div>
-            <div className="mb-4 bg-ga-bg p-4">
-              <GaCap className="mb-2 text-ga-subtle">{t('report.quoteCap')}</GaCap>
-              <p className="mb-3 font-ga-display text-ga-body-lg italic text-ga-ink">{t('report.quote')}</p>
-              <GaCap className="mb-2 text-ga-gold">{t('report.fixCap')}</GaCap>
-              <p className="mb-1 font-ga-display text-ga-body-lg italic text-ga-ink">{t('report.fix')}</p>
-              <p className="text-ga-small text-ga-muted">{t('report.fixWhy')}</p>
-            </div>
+            <SentenceFix
+              quoteCap={t('report.quoteCap')}
+              quote={t('report.quote')}
+              wrong={t('report.quoteWrong')}
+              fixCap={t('report.fixCap')}
+              fix={t('report.fix')}
+              right={t('report.fixRight')}
+              why={t('report.fixWhy')}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               {([[t('report.strengthsCap'), strengths], [t('report.gapsCap'), gaps]] as const).map(([cap, list]) => (
                 <div key={cap}>
@@ -262,6 +270,7 @@ export function GaLanding() {
           <div className="grid border border-ga-border sm:grid-cols-2 lg:grid-cols-4">
             {learnItems.map((it, i) => (
               <div key={it.name} className={`border-ga-border bg-ga-bg p-5 sm:p-6 ${i ? 'border-t sm:border-t-0' : ''} ${i % 2 ? 'sm:border-l' : ''} ${i >= 2 ? 'sm:border-t lg:border-t-0' : ''} ${i ? 'lg:border-l' : ''}`}>
+                <GaGlyphMark name={LEARN_GLYPHS[i]} size={32} draw="view" className="mb-3 block text-ga-ink" />
                 <div className="mb-2 text-ga-h3 text-ga-ink">{it.name}</div>
                 <p className="text-ga-small text-ga-muted">{it.desc}</p>
               </div>
@@ -290,6 +299,7 @@ export function GaLanding() {
         <div className="grid grid-cols-2 border border-ga-border md:grid-cols-4">
           {examParts.map((p, i) => (
             <div key={i} className={`border-ga-border bg-ga-card p-5 sm:p-[28px_26px] ${i ? (i % 2 ? 'border-l' : 'md:border-l') : ''} ${i >= 2 ? 'border-t md:border-t-0' : ''}`}>
+              <GaGlyphMark name={EXAM_GLYPHS[i]} size={32} draw="view" className="mb-3 block text-ga-ink" />
               <div className="mb-[3px] font-ga-display text-[24px] font-medium">{EXAM_DE[i]}</div>
               <div className="mb-4 text-[12.5px] text-ga-muted">{p.name} · {p.time}</div>
               <p className="text-[13.5px] leading-[1.65] text-ga-muted">{p.body}</p>

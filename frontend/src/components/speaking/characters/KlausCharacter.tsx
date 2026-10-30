@@ -61,9 +61,9 @@ function EyesKlaus({ blinking, expression }: { blinking: boolean; expression: Kl
   return (
     <g>
       <ellipse cx="125" cy="180" rx={squint ? 12 : 14} ry={squint ? 7 : 10} fill="white" />
-      <ellipse cx="127" cy="181" rx="6" ry={squint ? 5 : 6.5} fill="#1a1a24" />
+      <ellipse className="ga-pupil" cx="127" cy="181" rx="6" ry={squint ? 5 : 6.5} fill="#1a1a24" />
       <ellipse cx="165" cy="180" rx={squint ? 12 : 14} ry={squint ? 7 : 10} fill="white" />
-      <ellipse cx="167" cy="181" rx="6" ry={squint ? 5 : 6.5} fill="#1a1a24" />
+      <ellipse className="ga-pupil" cx="167" cy="181" rx="6" ry={squint ? 5 : 6.5} fill="#1a1a24" />
     </g>
   );
 }

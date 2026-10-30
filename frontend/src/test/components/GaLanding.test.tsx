@@ -138,8 +138,10 @@ describe('GaLanding — ô "Bạn làm nghề gì?" (đợt 1 A+B+E)', () => {
   it('mặc định hiện câu hỏi thật của vị trí đầu bếp, kể cả câu mở đầu dùng chung', () => {
     renderLanding()
 
-    expect(screen.getByText(/Nennen Sie einen HACCP-\/Hygiene-Vorfall in der Küche/)).toBeInTheDocument()
-    expect(screen.getByText(/relevante Erfahrung für Koch\/Köchin/)).toBeInTheDocument()
+    // Câu HACCP cũng là câu Klaus nói ở dàn người phỏng vấn, nên chỉ tìm trong ô ở hero.
+    const hero = within(document.getElementById('interview') as HTMLElement)
+    expect(hero.getByText(/Nennen Sie einen HACCP-\/Hygiene-Vorfall in der Küche/)).toBeInTheDocument()
+    expect(hero.getByText(/relevante Erfahrung für Koch\/Köchin/)).toBeInTheDocument()
   })
 
   it('tìm "kellner" (không phân biệt hoa thường) rồi chọn → hiện câu hỏi của nhân vật phục vụ', () => {
@@ -189,7 +191,7 @@ describe('GaLanding — làm mới hình ảnh 19/10/2026', () => {
     const cast = document.getElementById('cast')
     expect(cast).not.toBeNull()
     for (const name of ['Klaus', 'Niklas', 'Sarah', 'Max']) {
-      expect(within(cast as HTMLElement).getByText(name)).toBeTruthy()
+      expect(within(cast as HTMLElement).getByRole("button", { name: `Xem ${name} hỏi gì` })).toBeTruthy()
     }
     expect(within(cast as HTMLElement).getAllByText('Sắp có')).toHaveLength(2)
     expect(within(cast as HTMLElement).getByText('Điều dưỡng')).toBeTruthy()

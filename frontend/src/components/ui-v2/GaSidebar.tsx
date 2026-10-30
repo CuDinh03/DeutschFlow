@@ -9,6 +9,7 @@ import { useUserStore } from '@/stores/useUserStore'
 import { getOrgRole, logout } from '@/lib/authSession'
 import { GaLogo } from './GaLogo'
 import { GaIcon } from './GaIcon'
+import { GaNavIcon } from './GaNavIcon'
 import { useGaShellNav } from './GaShellNav'
 import { managerNav, ROLE_AREAS, resolveArea } from './nav'
 import type { RoleNav } from './nav'
@@ -133,14 +134,14 @@ export function GaSidebar({ nav }: GaSidebarProps) {
                   onClick={close}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 transition-colors lg:min-h-0',
+                    'group flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 transition-colors lg:min-h-0',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
                     active
                       ? 'bg-ga-accent-soft font-semibold text-ga-accent shadow-ga-selected-bar'
                       : 'font-medium text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
                   )}
                 >
-                  <GaIcon name={area.icon} size={18} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
+                  <GaNavIcon icon={area.icon} glyph={area.glyph} size={18} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
                   <span className="min-w-0 flex-1 truncate text-ga-body leading-tight">{areaLabel}</span>
                 </Link>
               )

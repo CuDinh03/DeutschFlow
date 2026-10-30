@@ -234,3 +234,70 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
 @media (prefers-reduced-motion: reduce) {
   .lt-breathe, .lt-pulse, .lt-bob, .lt-levelup-flash, .lt-sprout-sway { animation: none; }
 }
+
+/* Nhân vật nhìn theo con trỏ: useLookAtPointer đặt hai biến lên [data-ga-look], ở ngoài vùng đó đồng
+   tử đứng yên. Đơn vị là viewBox của nhân vật. Class này nằm trong mọi file characters/*. */
+.ga-pupil {
+  transform: translate(var(--ga-look-x, 0), var(--ga-look-y, 0));
+  transition: transform var(--ga-duration-fast) var(--ga-ease-out);
+}
+
+/* GaGlyphMark: nét mực vẽ lại rồi mảng vàng đặt xuống. pathLength=1 nên dash tính theo tỉ lệ. Chỉ đặt
+   dasharray trong lúc vẽ để glyph đứng yên không chịu sai số làm tròn của dash. */
+@media (prefers-reduced-motion: no-preference) {
+  .ga-glyph[data-drawing] .ga-glyph-ink {
+    stroke-dasharray: 1;
+    animation: gaGlyphDraw 700ms var(--ga-ease-out) both;
+  }
+  .ga-glyph[data-drawing] .ga-glyph-gold {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: gaGlyphPop var(--ga-duration-base) var(--ga-ease-ritual) 460ms both;
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .group:hover .ga-glyph-hover .ga-glyph-ink {
+    stroke-dasharray: 1;
+    animation: gaGlyphDraw var(--ga-duration-slow) var(--ga-ease-out) both;
+  }
+}
+@keyframes gaGlyphDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes gaGlyphPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+/* SentenceFix (báo cáo mẫu trang chủ): không có data-fix-step là trạng thái nghỉ, đủ mọi phần. Các
+   bước chỉ ẨN bằng opacity nên khối không đổi chiều cao trong lúc chạy. */
+.ga-fix-wrong {
+  text-decoration: underline wavy var(--ga-red) 1.5px;
+  text-underline-offset: 4px;
+  transition: text-decoration-color var(--ga-duration-base) var(--ga-ease-out);
+}
+.ga-fix-right {
+  background: linear-gradient(var(--ga-yellow), var(--ga-yellow)) no-repeat 0 88% / 100% 30%;
+}
+.ga-fix-line,
+.ga-fix-why {
+  transition: opacity var(--ga-duration-base) var(--ga-ease-out), transform var(--ga-duration-base) var(--ga-ease-out);
+}
+[data-fix-step='0'] .ga-fix-wrong { text-decoration-color: transparent; }
+[data-fix-step='0'] .ga-fix-line,
+[data-fix-step='1'] .ga-fix-line,
+[data-fix-step='0'] .ga-fix-why,
+[data-fix-step='1'] .ga-fix-why,
+[data-fix-step='2'] .ga-fix-why {
+  opacity: 0;
+  transform: translateY(6px);
+}
+[data-fix-step='2'] .ga-fix-right { animation: gaFixSweep var(--ga-duration-slow) var(--ga-ease-ritual) both; }
+@keyframes gaFixSweep {
+  from { background-size: 0 30%; }
+  to { background-size: 100% 30%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-pupil, .ga-fix-wrong, .ga-fix-line, .ga-fix-why { transition: none; }
+}

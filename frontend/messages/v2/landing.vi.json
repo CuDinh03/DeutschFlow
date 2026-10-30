@@ -80,6 +80,8 @@
       ],
       "quoteCap": "Bạn đã nói",
       "quote": "„Letztes Jahr ich habe in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
+      "quoteWrong": "ich habe",
+      "fixRight": "habe ich",
       "fixCap": "Nên nói",
       "fix": "„Letztes Jahr habe ich in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
       "fixWhy": "Câu mở đầu bằng trạng từ thời gian thì động từ chia đứng ở vị trí thứ hai.",
@@ -197,6 +199,8 @@
       "cap": "Người phỏng vấn của bạn",
       "title": "Mỗi nghề, một người phỏng vấn của đúng ngành đó.",
       "sub": "Bếp, nhà hàng, khách sạn, phòng khám, xưởng máy, văn phòng. Nghề chưa có người phỏng vấn riêng thì AI vẫn hỏi theo đúng nghề bạn chọn.",
+      "ask": "Xem {name} hỏi gì",
+      "hint": "Chọn một người để xem câu họ sẽ hỏi",
       "soonCap": "Sắp có",
       "soon": [
         {

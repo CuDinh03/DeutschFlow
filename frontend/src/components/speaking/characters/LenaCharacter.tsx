@@ -43,12 +43,12 @@ function Eyes({ blinking, expression }: { blinking: boolean; expression: LenaExp
   return (
     <g>
       <ellipse cx="113" cy="176" rx={16} ry={expression === "talking" ? 13 : 11} fill="white" />
-      <ellipse cx="115" cy="177" rx="7" ry="7" fill="#5D4037" />
-      <ellipse cx="118" cy="175" rx="2.5" ry="2.5" fill="white" />
+      <ellipse className="ga-pupil" cx="115" cy="177" rx="7" ry="7" fill="#5D4037" />
+      <ellipse className="ga-pupil" cx="118" cy="175" rx="2.5" ry="2.5" fill="white" />
       <path d="M 96 170 C 106 163 122 163 132 170" fill="none" stroke="#4E342E" strokeWidth="2.5" strokeLinecap="round" />
       <ellipse cx="175" cy="176" rx={16} ry={expression === "talking" ? 13 : 11} fill="white" />
-      <ellipse cx="177" cy="177" rx="7" ry="7" fill="#5D4037" />
-      <ellipse cx="180" cy="175" rx="2.5" ry="2.5" fill="white" />
+      <ellipse className="ga-pupil" cx="177" cy="177" rx="7" ry="7" fill="#5D4037" />
+      <ellipse className="ga-pupil" cx="180" cy="175" rx="2.5" ry="2.5" fill="white" />
       <path d="M 156 170 C 166 163 182 163 192 170" fill="none" stroke="#4E342E" strokeWidth="2.5" strokeLinecap="round" />
     </g>
   );

@@ -23,6 +23,8 @@ Tài liệu tự đứng cho bộ biểu tượng nhận diện của app iOS/An
 
 `lib/__tests__/galerieGlyphs.test.ts` kiểm tất cả luật trên cho từng glyph (một mảng màu, hình nằm trong lưới, tên hợp lệ, chỉ `xoa` dùng đỏ).
 
+**Web dùng chung bộ này (30/10/2026):** `frontend/src/lib/galerieGlyphs.json` là bản sao nguyên vẹn của `lib/galerieGlyphs.json`, vẽ bằng `GaGlyphMark` (`frontend/src/components/ui-v2/`). Thêm hoặc sửa glyph thì làm ở đây trước rồi chép sang web: `frontend/src/test/galerieGlyphs.test.ts` đỏ khi hai bản lệch nhau. Điều hướng web khai glyph trong `nav.ts` (trường `glyph`), mới có khu học viên và giáo viên.
+
 ## 3. Code nằm ở đâu
 
 | File | Vai trò |
