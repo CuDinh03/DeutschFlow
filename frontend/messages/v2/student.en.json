@@ -2317,6 +2317,64 @@
       "steps": "Steps",
       "traps": "Common traps",
       "fixes": "Losing points because… → fix"
+    },
+    "examPlan": {
+      "title": "Road to your exam date",
+      "subtitle": "A weekly plan that follows your exam date.",
+      "loading": "Loading your plan…",
+      "loadError": "Could not load your plan.",
+      "countdown": "{days} days until your exam",
+      "countdownToday": "Your exam is today",
+      "weekOf": "Week {week}/{total}",
+      "weekLabel": "Week {week}",
+      "weekProgress": "{done}/{total} tasks done this week",
+      "setupTitle": "Add your exam date to get a weekly plan",
+      "setupHint": "Enter the exact day so the countdown and weeks are accurate.",
+      "passedTitle": "Your exam date has passed",
+      "passedHint": "If you are retaking the exam, enter the new date to build a new plan.",
+      "unavailableTitle": "No plan for this exam yet",
+      "unavailableHint": "Weekly plans are available for telc B1. If that is your exam, choose telc and target B1 in your profile.",
+      "dateLabel": "Exam date",
+      "dateSave": "Save exam date",
+      "dateChange": "Change exam date",
+      "dateChangeNote": "Changing the date rebuilds the plan from today.",
+      "thisWeek": "This week",
+      "allWeeks": "Full plan",
+      "focus": "This week's focus",
+      "focusHint": "The written exam has no single-Teil practice yet. Read the strategy, then pay attention to this Teil when you do an exam.",
+      "teilLabel": "{section} · Teil {teil}",
+      "start": "Start",
+      "done": "Done",
+      "locked": "Paid plan required",
+      "comingSoon": "Coming soon",
+      "comingSoonExam": "The next full exam is coming soon. This week, focus on the speaking exam and your weak Teile.",
+      "optional": "Suggestion, not counted in progress",
+      "progressCount": "{done}/{target}",
+      "disclaimer": "This plan helps you organise your study. It is not a promise about your exam result.",
+      "phases": {
+        "ROADMAP": "Regular path",
+        "FOUNDATION": "Foundation",
+        "TEIL": "Teil practice",
+        "FULL": "Full exams"
+      },
+      "phaseHints": {
+        "ROADMAP": "Your exam is still far away, so follow your regular path this week. The exam plan starts in the last 18 weeks.",
+        "FOUNDATION": "Build up grammar on your path and get to know each task type.",
+        "TEIL": "Focus on the Teile that carry the most points and where you are weakest.",
+        "FULL": "One timed full exam and one speaking exam each week, then review by points budget."
+      },
+      "tasks": {
+        "DIAGNOSTIC_EXAM": "Take a diagnostic exam",
+        "FULL_EXAM": "Take a timed full exam",
+        "ORAL_MOCK": "Take a full speaking exam",
+        "ORAL_DRILL": "Practise speaking Teil {teil}",
+        "ROADMAP_NODES": "Complete {target} lessons on your path",
+        "WEAKNESS_REVIEW": "Review weak points and Redemittel"
+      },
+      "warnings": {
+        "LOW_WEEKLY_TIME": "A full exam week takes about 3 hours, and your current pace is {minutes} minutes a week. Set aside extra time for those weeks.",
+        "LEVEL_GAP": "The gap between your current level and your target is large for the time left. Consider adding study time or moving your exam date."
+      }
     }
   }
 }

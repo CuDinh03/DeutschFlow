@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -25,8 +25,10 @@ export default function SpeakingExamHubScreen() {
   const c = theme.colors
   const { hasProAccess } = usePlanStore()
   // Parity web 05/09: mobile trước đây khoá cứng Goethe — telc có đủ blueprint A1–B2 từ V277.
-  const [provider, setProvider] = useState<ExamProvider>('GOETHE')
-  const [level, setLevel] = useState<string | null>(null)
+  // LT3: lộ trình thi dẫn vào đây kèm hệ và cấp của kỳ thi, khỏi phải chọn lại.
+  const params = useLocalSearchParams<{ provider?: string; level?: string }>()
+  const [provider, setProvider] = useState<ExamProvider>(params.provider === 'TELC' ? 'TELC' : 'GOETHE')
+  const [level, setLevel] = useState<string | null>(params.level ?? null)
   // Vorbereitungszeit: 5′ rút gọn (mặc định) hoặc chuẩn thi thật theo blueprint (B1/B2).
   const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
   // Khoá đang mở phòng: 'MOCK' hoặc `DRILL-<teil>` — mỗi nút chỉ xoay khi đúng là nó đang mở.
