@@ -80,6 +80,8 @@
       ],
       "quoteCap": "You said",
       "quote": "„Letztes Jahr ich habe in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
+      "quoteWrong": "ich habe",
+      "fixRight": "habe ich",
       "fixCap": "Better",
       "fix": "„Letztes Jahr habe ich in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
       "fixWhy": "When a sentence starts with a time expression, the conjugated verb comes second.",
@@ -197,6 +199,8 @@
       "cap": "Your interviewers",
       "title": "One interviewer for every line of work.",
       "sub": "Kitchen, restaurant, hotel, medical practice, workshop, office. If your job has no dedicated interviewer yet, the AI still asks about the job you choose.",
+      "ask": "See what {name} asks",
+      "hint": "Pick someone to see a question they ask",
       "soonCap": "Coming soon",
       "soon": [
         {

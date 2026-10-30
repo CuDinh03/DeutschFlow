@@ -28,8 +28,11 @@ import { workplaceInterviewer } from '@/lib/workplaceInterviewers'
  * để khách thấy trên trang chủ đúng người sẽ phỏng vấn mình. Nền nhạt pha từ accent của nhân vật
  * (`personaSoft`), khung cắt lấy đầu và vai: SVG gốc 280×500 nên đặt trong khung tỉ lệ 280/500
  * rồi cắt phần dưới bằng ô cha `overflow-hidden`.
+ *
+ * `talking` bật miệng nói có sẵn của nhân vật. `data-ga-look` cho `useLookAtPointer` tìm nhân vật
+ * để mắt nhìn theo con trỏ; ngoài vùng có hook đó thì thuộc tính này không có tác dụng.
  */
-type CharComponent = React.ComponentType<{ className?: string }>
+type CharComponent = React.ComponentType<{ className?: string; isTalking?: boolean }>
 
 const CHARACTERS: Partial<Record<PersonaId, CharComponent>> = {
   anna: AnnaCharacter as CharComponent,
@@ -57,11 +60,13 @@ export function PersonaPortrait({
   id,
   className = '',
   tint = 0.2,
+  talking = false,
 }: {
   id: PersonaId
   className?: string
   /** Độ đậm của nền accent (0–1). */
   tint?: number
+  talking?: boolean
 }) {
   const Char = CHARACTERS[id]
   const accent = PERSONA_LIST.find((p) => p.id === id)?.accent
@@ -69,11 +74,12 @@ export function PersonaPortrait({
   return (
     <div
       aria-hidden
+      data-ga-look
       className={`relative aspect-square overflow-hidden ${className}`}
       style={accent ? { background: personaSoft(accent, tint) } : undefined}
     >
       <div className="absolute inset-x-[6%] top-[4%] aspect-[280/500]">
-        <Char className="block h-full w-full" />
+        <Char className="block h-full w-full" isTalking={talking} />
       </div>
     </div>
   )
@@ -87,23 +93,26 @@ export function InterviewerPortrait({
   personaCode,
   className = '',
   tint = 0.2,
+  talking = false,
 }: {
   personaCode: string
   className?: string
   tint?: number
+  talking?: boolean
 }) {
   const legacy = personaCode.toLowerCase() as PersonaId
-  if (CHARACTERS[legacy]) return <PersonaPortrait id={legacy} className={className} tint={tint} />
+  if (CHARACTERS[legacy]) return <PersonaPortrait id={legacy} className={className} tint={tint} talking={talking} />
   const w = workplaceInterviewer(personaCode)
   if (!w) return null
   return (
     <div
       aria-hidden
+      data-ga-look
       className={`relative aspect-square overflow-hidden ${className}`}
       style={{ background: personaSoft(w.accent, tint) }}
     >
       <div className="absolute inset-x-[6%] top-[4%] aspect-[280/500]">
-        <WorkplaceInterviewerCharacter code={w.code} className="block h-full w-full" />
+        <WorkplaceInterviewerCharacter code={w.code} className="block h-full w-full" isTalking={talking} />
       </div>
     </div>
   )

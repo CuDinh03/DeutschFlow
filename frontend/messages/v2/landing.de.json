@@ -80,6 +80,8 @@
       ],
       "quoteCap": "Sie haben gesagt",
       "quote": "„Letztes Jahr ich habe in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
+      "quoteWrong": "ich habe",
+      "fixRight": "habe ich",
       "fixCap": "Besser",
       "fix": "„Letztes Jahr habe ich in einem Restaurant in Hanoi gearbeitet und die Station allein organisiert.“",
       "fixWhy": "Beginnt der Satz mit einer Zeitangabe, steht das konjugierte Verb an zweiter Stelle.",
@@ -197,6 +199,8 @@
       "cap": "Ihre Interviewer",
       "title": "Für jeden Beruf eine Person aus der Branche.",
       "sub": "Küche, Restaurant, Hotel, Arztpraxis, Werkstatt, Büro. Gibt es für Ihren Beruf noch keine eigene Person, fragt die KI trotzdem gezielt zu dem Beruf, den Sie wählen.",
+      "ask": "Frage von {name} ansehen",
+      "hint": "Wählen Sie eine Person, um eine ihrer Fragen zu sehen",
       "soonCap": "Demnächst",
       "soon": [
         {

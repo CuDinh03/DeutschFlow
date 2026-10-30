@@ -2,6 +2,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { GaIcon } from './GaIcon'
+import { GaNavIcon } from './GaNavIcon'
 import { GaSidebarToggle } from './GaShellNav'
 import { TeacherPendingPill } from './TeacherPendingPill'
 import { NotificationBell } from './NotificationBell'
@@ -74,9 +75,9 @@ export function GaTopBar({ role }: GaTopBarProps) {
           <Link
             href={inbox.href}
             aria-label={t('messages')}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
+            className="group grid h-11 w-11 shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
           >
-            <GaIcon name={inbox.icon} size={20} />
+            <GaNavIcon icon={inbox.icon} glyph={inbox.glyph} size={20} />
           </Link>
         )}
 

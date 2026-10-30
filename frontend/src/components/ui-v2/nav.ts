@@ -15,6 +15,7 @@
  * Sửa nav ở đây là nguồn sự thật duy nhất cho cả 4 role bên dưới.
  */
 import { MARKETPLACE_ENABLED, TEACHER_AI_TOOLS_ENABLED } from '@/lib/features'
+import type { GlyphName } from '@/lib/galerieGlyphs'
 
 export type RoleId = 'teacher' | 'admin' | 'org' | 'student'
 
@@ -28,6 +29,8 @@ export interface NavItem {
   href: string
   /** Tên icon Material Symbols. */
   icon: string
+  /** Glyph Galerie thay cho `icon` (GaNavIcon). Bỏ trống = Lucide. */
+  glyph?: GlyphName
   /** Org nav: chỉ OWNER thấy (vd: tài chính/giấy phép). MANAGER (nhân sự) bị ẩn. */
   ownerOnly?: boolean
 }
@@ -439,6 +442,7 @@ export interface LocalGroup {
   /** Nhãn tiếng Việt — fallback khi thiếu khoá i18n. */
   label: string
   icon: string
+  glyph?: GlyphName
   items: NavItem[]
 }
 
@@ -473,6 +477,7 @@ export interface AreaNav {
   /** Landing của area. */
   href: string
   icon: string
+  glyph?: GlyphName
   /**
    * Prefix route thuộc area này — dùng để suy ra area đang active và local nav tương ứng.
    * Không cần liệt kê `href` (đã ngầm định). Prefix dài đặt trước để khớp chính xác hơn.
@@ -513,6 +518,7 @@ export const studentAreas: RoleAreas = {
       helper: 'Hôm nay',
       href: '/v2/student/dashboard',
       icon: 'dashboard',
+      glyph: 'heute',
       // `beginner` là luồng buổi học đầu tiên — thuộc điều phối hằng ngày, không phải một destination riêng.
       match: ['/v2/student/beginner'],
     },
@@ -522,6 +528,7 @@ export const studentAreas: RoleAreas = {
       helper: 'Học',
       href: '/v2/student/roadmap',
       icon: 'route',
+      glyph: 'lernweg',
       match: [
         '/v2/student/roadmap',
         '/v2/student/learn',
@@ -542,30 +549,32 @@ export const studentAreas: RoleAreas = {
       // nào bị bỏ: `localItems()` trải phẳng lại đúng 10 href, và `navAreaModel.test.ts` đo
       // reachability trên danh sách phẳng đó.
       local: [
-        { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
+        { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route', glyph: 'lernweg' },
         {
           id: 'wiederholen',
           label: 'Ôn tập',
           icon: 'repeat',
+          glyph: 'srs',
           items: [
-            { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat' },
+            { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat', glyph: 'srs' },
             // Sổ lỗi là ôn tập có chủ đích (ôn đúng chỗ đã sai), không phải tài liệu tra cứu —
             // nên nó thuộc nhóm ôn tập chứ không thuộc Thư viện.
-            { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
+            { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error', glyph: 'sualoi' },
           ],
         },
         {
           id: 'bibliothek',
           label: 'Thư viện',
           icon: 'library_books',
+          glyph: 'hoc',
           items: [
-            { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
-            { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
-            { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck' },
-            { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment' },
+            { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle', glyph: 'video' },
+            { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book', glyph: 'tuvung' },
+            { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck', glyph: 'nguphap' },
+            { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment', glyph: 'baigiao' },
           ],
         },
-        { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups' },
+        { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups', glyph: 'lophoc' },
         {
           id: 'entdecken',
           label: 'Khám phá',
@@ -583,13 +592,14 @@ export const studentAreas: RoleAreas = {
       helper: 'Luyện nói',
       href: '/v2/student/speaking',
       icon: 'mic',
+      glyph: 'speaking',
       match: ['/v2/student/interviews', '/v2/student/weekly-speaking', '/v2/student/tutor'],
       local: [
         // Interview đứng đầu: khắc phục mismatch giữa lời hứa homepage và sản phẩm (UX-04/IA-D4).
-        { id: 'interviews', label: 'AI Interview', href: '/v2/student/interviews', icon: 'forum' },
-        { id: 'speaking', label: 'Luyện nói AI', href: '/v2/student/speaking', icon: 'mic' },
-        { id: 'weekly-speaking', label: 'Speaking tuần', href: '/v2/student/weekly-speaking', icon: 'calendar_month' },
-        { id: 'speaking-history', label: 'Lịch sử luyện nói', href: '/v2/student/speaking/history', icon: 'history' },
+        { id: 'interviews', label: 'AI Interview', href: '/v2/student/interviews', icon: 'forum', glyph: 'phongvan' },
+        { id: 'speaking', label: 'Luyện nói AI', href: '/v2/student/speaking', icon: 'mic', glyph: 'speaking' },
+        { id: 'weekly-speaking', label: 'Speaking tuần', href: '/v2/student/weekly-speaking', icon: 'calendar_month', glyph: 'lich' },
+        { id: 'speaking-history', label: 'Lịch sử luyện nói', href: '/v2/student/speaking/history', icon: 'history', glyph: 'thoigian' },
         ...(MARKETPLACE_ENABLED
           ? [{ id: 'book-session', label: 'Gia sư 1:1', href: '/v2/student/tutor', icon: 'co_present' }]
           : []),
@@ -601,11 +611,12 @@ export const studentAreas: RoleAreas = {
       helper: 'Luyện thi',
       href: '/v2/student/exam',
       icon: 'school',
+      glyph: 'thithu',
       match: ['/v2/student/mock-exam', '/v2/student/assessment'],
       local: [
-        { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school' },
-        { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz' },
-        { id: 'b1-assessment', label: 'Đánh giá B1', href: '/v2/student/assessment', icon: 'fact_check' },
+        { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school', glyph: 'muctieu' },
+        { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz', glyph: 'thithu' },
+        { id: 'b1-assessment', label: 'Đánh giá B1', href: '/v2/student/assessment', icon: 'fact_check', glyph: 'capdo' },
       ],
     },
     {
@@ -614,6 +625,7 @@ export const studentAreas: RoleAreas = {
       helper: 'Tiến bộ',
       href: '/v2/student/progress',
       icon: 'trending_up',
+      glyph: 'thongke',
       match: [
         '/v2/student/stats',
         '/v2/student/achievements',
@@ -621,11 +633,11 @@ export const studentAreas: RoleAreas = {
         '/v2/student/certificates',
       ],
       local: [
-        { id: 'st-progress', label: 'Tiến độ', href: '/v2/student/progress', icon: 'checklist' },
-        { id: 'st-stats', label: 'Thống kê', href: '/v2/student/stats', icon: 'query_stats' },
-        { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events' },
-        { id: 'st-exercise-history', label: 'Lịch sử làm bài', href: '/v2/student/exercise-history', icon: 'history' },
-        { id: 'certificates', label: 'Chứng chỉ', href: '/v2/student/certificates', icon: 'workspace_premium' },
+        { id: 'st-progress', label: 'Tiến độ', href: '/v2/student/progress', icon: 'checklist', glyph: 'danghoc' },
+        { id: 'st-stats', label: 'Thống kê', href: '/v2/student/stats', icon: 'query_stats', glyph: 'thongke' },
+        { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events', glyph: 'xp' },
+        { id: 'st-exercise-history', label: 'Lịch sử làm bài', href: '/v2/student/exercise-history', icon: 'history', glyph: 'thoigian' },
+        { id: 'certificates', label: 'Chứng chỉ', href: '/v2/student/certificates', icon: 'workspace_premium', glyph: 'thinoi' },
       ],
     },
   ],
@@ -634,7 +646,7 @@ export const studentAreas: RoleAreas = {
     { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
     { id: 'welcome', label: 'Hướng dẫn', href: '/v2/student/welcome', icon: 'help' },
   ],
-  inbox: { id: 'st-messages', label: 'Tin nhắn', href: '/v2/student/messages', icon: 'chat' },
+  inbox: { id: 'st-messages', label: 'Tin nhắn', href: '/v2/student/messages', icon: 'chat', glyph: 'tinnhan' },
 }
 
 /**
@@ -648,20 +660,21 @@ export const teacherAreas: RoleAreas = {
   role: 'teacher',
   rootHref: '/v2/teacher',
   areas: [
-    { id: 'tHeute', label: 'Heute', helper: 'Hôm nay', href: '/v2/teacher', icon: 'dashboard', match: [] },
+    { id: 'tHeute', label: 'Heute', helper: 'Hôm nay', href: '/v2/teacher', icon: 'dashboard', glyph: 'heute', match: [] },
     {
       id: 'tKlassen',
       label: 'Klassen',
       helper: 'Lớp học',
       href: '/v2/teacher/schedule',
       icon: 'groups',
+      glyph: 'lophoc',
       match: ['/v2/teacher/classes', '/v2/teacher/tc-progress', '/v2/teacher/tc-checklist', '/v2/teacher/tc-reports', '/v2/teacher/objectives'],
       local: [
-        { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
-        { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
-        { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
-        { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
-        { id: 'objectives', label: 'Ma trận mục tiêu', href: '/v2/teacher/objectives', icon: 'target' },
+        { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule', glyph: 'lich' },
+        { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up', glyph: 'danghoc' },
+        { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist', glyph: 'baigiao' },
+        { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment', glyph: 'thongke' },
+        { id: 'objectives', label: 'Ma trận mục tiêu', href: '/v2/teacher/objectives', icon: 'target', glyph: 'muctieu' },
       ],
     },
     {
@@ -670,10 +683,11 @@ export const teacherAreas: RoleAreas = {
       helper: 'Chấm bài',
       href: '/v2/teacher/grading',
       icon: 'grading',
+      glyph: 'sualoi',
       match: ['/v2/teacher/grade-image'],
       local: [
-        { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
-        { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
+        { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading', glyph: 'sualoi' },
+        { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw', glyph: 'camera' },
       ],
     },
     {
@@ -682,18 +696,19 @@ export const teacherAreas: RoleAreas = {
       helper: 'Tài liệu',
       href: '/v2/teacher/materials',
       icon: 'menu_book',
+      glyph: 'hoc',
       match: ['/v2/teacher/media', '/v2/teacher/grammar-drafts', '/v2/teacher/tools'],
       local: [
-        { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
-        { id: 'tc-media', label: 'Thư viện ảnh', href: '/v2/teacher/media', icon: 'photo_library' },
-        { id: 'grammar-drafts', label: 'Bài tập ngữ pháp', href: '/v2/teacher/grammar-drafts', icon: 'quiz' },
+        { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book', glyph: 'hoc' },
+        { id: 'tc-media', label: 'Thư viện ảnh', href: '/v2/teacher/media', icon: 'photo_library', glyph: 'camera' },
+        { id: 'grammar-drafts', label: 'Bài tập ngữ pháp', href: '/v2/teacher/grammar-drafts', icon: 'quiz', glyph: 'nguphap' },
         // AI tools = phương thức TẠO trong Materialien, không phải product area (IA §8.1).
         ...(TEACHER_AI_TOOLS_ENABLED
-          ? [
-              { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck' },
-              { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
-              { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image' },
-            ]
+          ? ([
+              { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck', glyph: 'nguphap' },
+              { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description', glyph: 'baigiao' },
+              { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image', glyph: 'camera' },
+            ] satisfies NavItem[])
           : []),
       ],
     },
@@ -703,16 +718,17 @@ export const teacherAreas: RoleAreas = {
       helper: 'Báo cáo',
       href: '/v2/teacher/analytics',
       icon: 'monitoring',
+      glyph: 'thongke',
       match: ['/v2/teacher/tc-timesheet'],
       mobileInMore: true,
       local: [
-        { id: 'analytics', label: 'Phân tích giảng dạy', href: '/v2/teacher/analytics', icon: 'monitoring' },
-        { id: 'tc-timesheet', label: 'Chấm công', href: '/v2/teacher/tc-timesheet', icon: 'timer' },
+        { id: 'analytics', label: 'Phân tích giảng dạy', href: '/v2/teacher/analytics', icon: 'monitoring', glyph: 'thongke' },
+        { id: 'tc-timesheet', label: 'Chấm công', href: '/v2/teacher/tc-timesheet', icon: 'timer', glyph: 'thoigian' },
       ],
     },
   ],
   utility: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' }],
-  inbox: { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
+  inbox: { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat', glyph: 'tinnhan' },
 }
 
 /** Role nào đã chuyển sang area navigation; role vắng mặt vẫn dùng `ROLE_NAV` (sections). */

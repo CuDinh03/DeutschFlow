@@ -151,7 +151,7 @@ import { cn } from '@/lib/utils'
  * resolved to lucide-react glyphs so there is no icon-font / CSP dependency).
  * Color inherits via currentColor; decorative by default.
  *
- * ĐÂY LÀ NGUỒN DUY NHẤT của icon trong UI /v2. Không dùng emoji làm icon giao diện:
+ * Cùng với `GaGlyphMark` (biểu tượng nhận diện, bộ Galerie), đây là nguồn icon của UI /v2. Không dùng emoji làm icon giao diện:
  * emoji do font hệ điều hành vẽ nên mỗi máy một kiểu, luôn nhiều màu, không nhận
  * `currentColor` và không có nét đồng bộ với sidebar — đặt cạnh icon Lucide là lộ ngay.
  * Emoji CHỈ còn được giữ ở ba chỗ nó là NỘI DUNG chứ không phải icon: avatar mentor/persona,
