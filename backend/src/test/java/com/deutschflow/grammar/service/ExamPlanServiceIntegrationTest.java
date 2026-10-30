@@ -93,7 +93,9 @@ class ExamPlanServiceIntegrationTest extends AbstractPostgresIntegrationTest {
 
         assertThat(plan.status()).isEqualTo(ExamPlanService.STATUS_ACTIVE);
         assertThat(plan.totalWeeks()).isEqualTo(4);
-        assertThat(task(plan, 3, "FULL_EXAM").examId()).isEqualTo(telcExam());
+        // Đề đầu tiên dành cho đề chẩn đoán tuần 1, nên tuần đề full đầu tiên nhận đề kế tiếp.
+        assertThat(task(plan, 1, "DIAGNOSTIC_EXAM").examId()).isEqualTo(telcExam());
+        assertThat(task(plan, 3, "FULL_EXAM").examId()).isNotNull().isNotEqualTo(telcExam());
 
         Date start = jdbc.queryForObject("SELECT start_date FROM exam_plan_state WHERE user_id = ?", Date.class, UID);
         assertThat(start.toLocalDate()).isEqualTo(TODAY);
