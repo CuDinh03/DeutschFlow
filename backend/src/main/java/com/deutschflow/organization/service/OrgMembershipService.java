@@ -647,7 +647,11 @@ public class OrgMembershipService {
     }
 
     private String deactivate(Long orgId, Long userId, String status, AuditActor actor) {
+        // Audit 28/10 #3: chỉ gỡ được người ĐANG ACTIVE. Hàng REVOKED/LEFT cũ vẫn còn trong bảng; trước
+        // đây admin trung tâm A "gỡ lại" được cựu thành viên đã sang trung tâm B — đóng dấu vết lớp,
+        // cắt phiên và (qua controller) kết thúc gói do B trả, lặp vô hạn.
         OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
                 .orElseThrow(() -> new NotFoundException("Thành viên không tồn tại trong tổ chức."));
         // Owner-protection (mirrors selfLeave/changeRole): the OWNER is NEVER removed through the
         // admin member-remove path. Without this, a MANAGER — who also passes OrgGuard.assertOrgAdmin

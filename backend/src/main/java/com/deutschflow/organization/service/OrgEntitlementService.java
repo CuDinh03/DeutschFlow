@@ -108,6 +108,25 @@ public class OrgEntitlementService {
     }
 
     /**
+     * Thu hồi quyền lợi ORG khi người dùng thôi là thành viên của {@code orgId}. Bảng
+     * {@code user_subscriptions} không ghi trung tâm nào cấp, nên dựa vào bất biến "1 người – 1 trung
+     * tâm ACTIVE": nếu người này đang ACTIVE ở trung tâm KHÁC thì gói ORG hiện có là của trung tâm đó
+     * ⇒ không đụng (audit 28/10 #3).
+     */
+    @Transactional
+    public void revokeStudentFromOrg(Long orgId, Long userId) {
+        Integer elsewhere = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM org_members
+                WHERE user_id = ? AND status = 'ACTIVE' AND org_id <> ?
+                """, Integer.class, userId, orgId);
+        if (elsewhere != null && elsewhere > 0) {
+            log.warn("[ORG-ENT] Bỏ qua thu hồi cho userId={} từ org={} — đang ACTIVE ở trung tâm khác", userId, orgId);
+            return;
+        }
+        revokeStudent(userId);
+    }
+
+    /**
      * Ends the user's org-granted entitlement, then khôi phục gói cá nhân đang tạm dừng (nếu có).
      * Leaves web/Apple subscriptions untouched apart from resuming what this service itself paused.
      */

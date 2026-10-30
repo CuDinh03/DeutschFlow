@@ -288,7 +288,7 @@ class OrgControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(orgMembershipService, never()).removeMember(anyLong(), anyLong(), any());
-        verify(orgEntitlementService, never()).revokeStudent(anyLong());
+        verify(orgEntitlementService, never()).revokeStudentFromOrg(anyLong(), anyLong());
     }
 
     // ── POST /api/org/membership/leave — tự rời PHẢI thu hồi quyền lợi ORG (V-13) ──
@@ -302,7 +302,7 @@ class OrgControllerTest {
         verify(orgMembershipService).selfLeave(eq(10L), any(AuditActor.class));
         // Thiếu dòng này thì người tự rời vẫn giữ gói do trung tâm trả tới ~5 năm, và gói cá nhân
         // đang PAUSED không bao giờ được khôi phục (resumePausedIfAny nằm trong revokeStudent).
-        verify(orgEntitlementService).revokeStudent(1L);
+        verify(orgEntitlementService).revokeStudentFromOrg(10L, 1L);
     }
 
     @Test
@@ -315,7 +315,7 @@ class OrgControllerTest {
         mvc.perform(post("/api/org/membership/leave"))
                 .andExpect(status().isBadRequest());
 
-        verify(orgEntitlementService, never()).revokeStudent(anyLong());
+        verify(orgEntitlementService, never()).revokeStudentFromOrg(anyLong(), anyLong());
     }
 
     // ── POST /api/org/members/{userId}/transfer-ownership — OWNER-only (C-2 recovery) ──

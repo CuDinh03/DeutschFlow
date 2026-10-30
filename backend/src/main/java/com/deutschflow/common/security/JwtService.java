@@ -24,8 +24,8 @@ import java.util.Set;
  * JWT ký và verify token.
  *
  * <p><b>Multi-key + multi-algorithm verify</b> để xoay khóa/đổi thuật toán không gây outage:
- * verify list chứa cả khóa HS256 (primary + previous) lẫn RSA public key (current + previous), nên
- * token ký bằng bất kỳ khóa nào trong đó đều được chấp nhận.
+ * khi ký HS256, verify list chứa khóa HS256 (primary + previous) lẫn RSA public key (current + previous).
+ * Khi ký RS256, verify list CHỈ có RSA public key — secret HS256 còn sót bị bỏ qua (audit 28/10 #1).
  *
  * <p><b>HS256 → RS256 migration (S18):</b> mặc định {@code app.jwt.algorithm=HS256} (ký HS256) nhưng
  * vẫn verify được RS256 nếu {@code app.jwt.rsa-public-key} được cấu hình. Bật
@@ -43,7 +43,7 @@ public class JwtService {
     private final Key signingKey;
     private final String signingAlgorithm;
 
-    /** Khóa dùng khi verify: HS256 secret(s) + RSA public key(s). Token ký bằng bất kỳ khóa nào đều ok. */
+    /** Khóa dùng khi verify: RSA public key(s), cộng HS256 secret(s) chỉ khi ký HS256. */
     private final List<Key> verifyKeys;
 
     private final long accessTokenExpiryMs;
@@ -77,17 +77,26 @@ public class JwtService {
 
         this.verifyKeys = new ArrayList<>();
 
-        // HS256 secret(s) → verify list, only if configured. Dropping JWT_SECRET after the RS256
-        // cutover removes HS256 verification entirely, closing the symmetric-key forgery path (C2).
+        // HS256 secret(s) → verify list, only while signing HS256. Under RS256 a leftover JWT_SECRET
+        // (or one still shared with the web edge) must NOT verify: anyone holding it could mint a
+        // token for any account (audit 28/10 #1). Old HS256 access tokens (≤15 min) then fail and the
+        // client refreshes; rolling back to HS256 restores HS verification.
         SecretKey hsKey = null;
+        boolean hsVerify = !"RS256".equals(alg);
         if (hasHsSecret) {
             hsKey = Keys.hmacShaKeyFor(primary.getBytes(StandardCharsets.UTF_8));
-            this.verifyKeys.add(hsKey);
+            if (hsVerify) {
+                this.verifyKeys.add(hsKey);
+            }
         }
-        if (previous != null && !previous.isBlank()
-                && previous.getBytes(StandardCharsets.UTF_8).length >= 32) {
+        boolean hasPrevious = previous != null && !previous.isBlank()
+                && previous.getBytes(StandardCharsets.UTF_8).length >= 32;
+        if (hasPrevious && hsVerify) {
             this.verifyKeys.add(Keys.hmacShaKeyFor(previous.getBytes(StandardCharsets.UTF_8)));
             log.info("[JwtService] Previous HS256 secret loaded — zero-downtime key rotation enabled.");
+        }
+        if (!hsVerify && (hasHsSecret || hasPrevious)) {
+            log.warn("[JwtService] JWT_SECRET/JWT_SECRET_PREVIOUS set under RS256 — IGNORED for verification. Remove them from backend.env and the web edge.");
         }
 
         // RSA public key(s) → verify list, so RS256 tokens are accepted.
