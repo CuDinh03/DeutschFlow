@@ -69,11 +69,11 @@ function Eyes({ blinking, eyeColor, skin, mood }: { blinking: boolean; eyeColor:
   return (
     <g>
       <ellipse cx="125" cy="176" rx={rx} ry={ry} fill="white" />
-      <ellipse cx="126" cy="177" rx="6" ry="6" fill={eyeColor} />
-      <ellipse cx="128" cy="175" rx="2" ry="2" fill="white" />
+      <ellipse className="ga-pupil" cx="126" cy="177" rx="6" ry="6" fill={eyeColor} />
+      <ellipse className="ga-pupil" cx="128" cy="175" rx="2" ry="2" fill="white" />
       <ellipse cx="163" cy="176" rx={rx} ry={ry} fill="white" />
-      <ellipse cx="164" cy="177" rx="6" ry="6" fill={eyeColor} />
-      <ellipse cx="166" cy="175" rx="2" ry="2" fill="white" />
+      <ellipse className="ga-pupil" cx="164" cy="177" rx="6" ry="6" fill={eyeColor} />
+      <ellipse className="ga-pupil" cx="166" cy="175" rx="2" ry="2" fill="white" />
     </g>
   );
 }

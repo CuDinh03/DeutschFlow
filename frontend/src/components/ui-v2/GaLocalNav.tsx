@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { GaIcon } from './GaIcon'
+import { GaNavIcon } from './GaNavIcon'
 import { GaPopover, GaPopoverContent, GaPopoverTrigger } from './GaPopover'
 import {
   ROLE_AREAS,
@@ -45,7 +46,7 @@ function LocalLink({ item, active }: { item: NavItem; active: boolean }) {
   const t = useTranslations('v2')
   return (
     <Link href={item.href} aria-current={active ? 'page' : undefined} className={tabClass(active)}>
-      <GaIcon name={item.icon} size={16} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
+      <GaNavIcon icon={item.icon} glyph={item.glyph} size={16} className={active ? 'text-ga-accent' : 'text-ga-subtle'} />
       <span>{t.has(`nav.items.${item.id}`) ? t(`nav.items.${item.id}`) : item.label}</span>
     </Link>
   )
@@ -80,8 +81,9 @@ function LocalGroupTab({
           aria-current={activeItem ? 'true' : undefined}
           className={tabClass(Boolean(activeItem))}
         >
-          <GaIcon
-            name={group.icon}
+          <GaNavIcon
+            icon={group.icon}
+            glyph={group.glyph}
             size={16}
             className={activeItem ? 'text-ga-accent' : 'text-ga-subtle'}
           />
@@ -105,15 +107,16 @@ function LocalGroupTab({
                 aria-current={active ? 'page' : undefined}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  'flex min-h-11 items-center gap-3 rounded-ga px-3 text-ga-small transition-colors',
+                  'group flex min-h-11 items-center gap-3 rounded-ga px-3 text-ga-small transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
                   active
                     ? 'bg-ga-accent-soft font-semibold text-ga-accent'
                     : 'font-medium text-ga-ink hover:bg-ga-surface',
                 )}
               >
-                <GaIcon
-                  name={item.icon}
+                <GaNavIcon
+                  icon={item.icon}
+                  glyph={item.glyph}
                   size={18}
                   className={active ? 'text-ga-accent' : 'text-ga-subtle'}
                 />

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { GaIcon } from './GaIcon'
+import { GaNavIcon } from './GaNavIcon'
 import { useGaShellNav } from './GaShellNav'
 import { ROLE_AREAS, resolveArea, isImmersiveRoute, type RoleId } from './nav'
 
@@ -50,14 +51,14 @@ export function GaBottomNav({ role }: { role: RoleId }) {
             key={area.id}
             href={area.href}
             aria-current={isActive ? 'page' : undefined}
-            className={cn(itemClass, isActive ? 'font-semibold text-ga-accent' : 'font-medium text-ga-muted')}
+            className={cn('group', itemClass, isActive ? 'font-semibold text-ga-accent' : 'font-medium text-ga-muted')}
           >
             {/* Indicator ngoài màu: gạch trên khi đang chọn. */}
             <span
               aria-hidden
               className={cn('h-0.5 w-6 rounded-ga-pill', isActive ? 'bg-ga-accent' : 'bg-transparent')}
             />
-            <GaIcon name={area.icon} size={20} className={isActive ? 'text-ga-accent' : 'text-ga-subtle'} />
+            <GaNavIcon icon={area.icon} glyph={area.glyph} size={20} className={isActive ? 'text-ga-accent' : 'text-ga-subtle'} />
             <span className="max-w-full truncate">{t(`nav.areas.${area.id}`)}</span>
           </Link>
         )

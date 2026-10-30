@@ -14,6 +14,7 @@ import {
 } from '@/lib/occupationTypes'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import { InterviewerPortrait, PersonaPortrait } from './PersonaPortrait'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { QualityLabel } from './QualityLabel'
 import { QuestionTranslation } from './QuestionTranslation'
 import { interviewerInfo } from './interviewerInfo'
@@ -254,15 +255,36 @@ export function OccupationExplorer({
   )
 }
 
+/**
+ * Người phỏng vấn nói vài giây khi khách đổi sang nghề khác, như thể vừa đọc câu hỏi. Lần hiện đầu tiên
+ * lúc tải trang thì im, để nhân vật chỉ phản ứng với việc khách vừa làm.
+ */
+function useTalkBurst(key: string | undefined, ms = 2000) {
+  const calm = usePrefersReducedMotion()
+  const [talking, setTalking] = React.useState(false)
+  const last = React.useRef(key)
+  React.useEffect(() => {
+    if (!key || key === last.current) return
+    const first = last.current === undefined
+    last.current = key
+    if (first || calm) return
+    setTalking(true)
+    const id = setTimeout(() => setTalking(false), ms)
+    return () => clearTimeout(id)
+  }, [key, ms, calm])
+  return talking
+}
+
 /** Kết quả bằng dữ liệu tĩnh của đợt 1 — giữ nguyên khi chưa có danh mục backend. */
 function StaticResult({ position, startHref, onStart }: { position: Position; startHref: string; onStart: () => void }) {
   const t = useTranslations('v2.landing.explorer')
   const questions = [COMMON_INTRO_QUESTION, ...INTERVIEW_SAMPLES[position.persona]].map((q) => fillPosition(q, position.labelDe))
+  const talking = useTalkBurst(position.id)
   return (
     <div>
       <div className="mb-4 flex items-center gap-4">
         {/* Người sẽ phỏng vấn — đúng hình vẽ trong phòng phỏng vấn của app. */}
-        <PersonaPortrait id={position.persona} className="w-[72px] shrink-0 sm:w-[84px]" tint={0.24} />
+        <PersonaPortrait id={position.persona} className="w-[72px] shrink-0 sm:w-[84px]" tint={0.24} talking={talking} />
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-baseline gap-x-2">
             <span className="text-ga-h3 text-ga-ink">{position.labelDe}</span>
@@ -304,6 +326,7 @@ function RemoteResult({
 }) {
   const t = useTranslations('v2.landing.explorer')
   const tl = useTranslations('v2.landing')
+  const talking = useTalkBurst(detail && detail !== 'error' ? detail.occupation.code : undefined)
   if (!detail) return <p className="text-ga-body text-ga-muted">{t('loading')}</p>
   if (detail === 'error') {
     return (
@@ -319,7 +342,7 @@ function RemoteResult({
   return (
     <div>
       <div className="mb-4 flex items-center gap-4">
-        <InterviewerPortrait personaCode={detail.personaCode} className="w-[72px] shrink-0 sm:w-[84px]" tint={0.24} />
+        <InterviewerPortrait personaCode={detail.personaCode} className="w-[72px] shrink-0 sm:w-[84px]" tint={0.24} talking={talking} />
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-baseline gap-x-2">
             <span className="text-ga-h3 text-ga-ink">{o.nameDe}</span>

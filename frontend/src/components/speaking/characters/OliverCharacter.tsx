@@ -35,11 +35,11 @@ function Eyes({ blinking }: { blinking: boolean }) {
   return (
     <g>
       <ellipse cx="124" cy="176" rx="14" ry="10" fill="white" />
-      <ellipse cx="126" cy="177" rx="6" ry="6" fill="#4E342E" />
-      <ellipse cx="128" cy="175" rx="2" ry="2" fill="white" />
+      <ellipse className="ga-pupil" cx="126" cy="177" rx="6" ry="6" fill="#4E342E" />
+      <ellipse className="ga-pupil" cx="128" cy="175" rx="2" ry="2" fill="white" />
       <ellipse cx="164" cy="176" rx="14" ry="10" fill="white" />
-      <ellipse cx="166" cy="177" rx="6" ry="6" fill="#4E342E" />
-      <ellipse cx="168" cy="175" rx="2" ry="2" fill="white" />
+      <ellipse className="ga-pupil" cx="166" cy="177" rx="6" ry="6" fill="#4E342E" />
+      <ellipse className="ga-pupil" cx="168" cy="175" rx="2" ry="2" fill="white" />
     </g>
   );
 }
