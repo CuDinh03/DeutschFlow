@@ -11,13 +11,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Trợ giúp so khớp văn bản PDF: phải chịu được ngắt dòng mà KHÔNG nới lỏng phép kiểm.
  *
- * <p>Ca đầu tiên dựng lại đúng hình dạng lỗi đã quan sát trên CI 15/09/2026 (PR #661) — nhờ vậy
- * chứng minh được bản vá mà không phải chờ lỗi ngẫu nhiên tái hiện.
+ * <p>Văn bản mẫu dựng tay, chỉ kiểm riêng trợ giúp này. Nó không phải đỏ thật trên CI 15/09/2026
+ * (PR #661): ca đó là lỗi mất chữ trong PDF, xem {@link PdfTextAssert}.
  */
 @DisplayName("PdfTextAssert")
 class PdfTextAssertTest {
 
-    /** Đúng hình dạng đã quan sát: hai ký tự đầu của mã phiếu nằm ở dòng trước. */
+    /** Mã phiếu bị cắt đôi ở chỗ xuống dòng: hai ký tự đầu nằm ở dòng trước. */
     private static final String PDF_BI_GAY_DONG = """
             TT Phiếu ff
             e61285 DEUTSCHFLOW
@@ -33,7 +33,7 @@ class PdfTextAssertTest {
     }
 
     @Test
-    @DisplayName("HỒI QUY: cách so cũ đỏ đúng ở ca đó — đây chính là lỗi cần vá")
+    @DisplayName("phép so thẳng không thấy chuỗi bị ngắt dòng — lý do cần trợ giúp này")
     void plainContains_wouldHaveFailed_onTheSameText() {
         assertThat(PDF_BI_GAY_DONG)
                 .as("bằng chứng: phép so thẳng KHÔNG thấy chuỗi, dù mã phiếu có đủ trong PDF")
