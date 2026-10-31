@@ -389,9 +389,9 @@ export const studentNav: RoleNav = {
         // Lịch sử NỘP BÀI của lộ trình (GET /plan/me/attempts): tuần/buổi · lần thử · điểm · lỗi.
         // KHÁC 'st-progress' (tiến độ LỚP, do giáo viên cập nhật) — hai nguồn dữ liệu khác nhau.
         { id: 'st-exercise-history', label: 'Lịch sử làm bài', href: '/v2/student/exercise-history', icon: 'history' },
-        // Chứng chỉ CEFR của CHÍNH học viên (GET /certificates/me · POST /certificates/claim · PDF).
-        // KHÁC trang công khai /certificate/[token] (xác thực chứng chỉ, không cần đăng nhập).
-        { id: 'certificates', label: 'Chứng chỉ', href: '/v2/student/certificates', icon: 'workspace_premium' },
+        // Chứng nhận trung tâm cấp và ghi nhận thi thử của CHÍNH học viên (đợt 4A).
+        // KHÁC trang công khai /certificate/[token] (xác thực chứng nhận, không cần đăng nhập).
+        { id: 'certificates', label: 'Chứng nhận & thi thử', href: '/v2/student/certificates', icon: 'workspace_premium' },
         { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
         { id: 'notifications', label: 'Thông báo', href: '/v2/notifications', icon: 'notifications' },
         { id: 'profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
@@ -637,7 +637,7 @@ export const studentAreas: RoleAreas = {
         { id: 'st-stats', label: 'Thống kê', href: '/v2/student/stats', icon: 'query_stats', glyph: 'thongke' },
         { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events', glyph: 'xp' },
         { id: 'st-exercise-history', label: 'Lịch sử làm bài', href: '/v2/student/exercise-history', icon: 'history', glyph: 'thoigian' },
-        { id: 'certificates', label: 'Chứng chỉ', href: '/v2/student/certificates', icon: 'workspace_premium', glyph: 'thinoi' },
+        { id: 'certificates', label: 'Chứng nhận & thi thử', href: '/v2/student/certificates', icon: 'workspace_premium', glyph: 'thinoi' },
       ],
     },
   ],

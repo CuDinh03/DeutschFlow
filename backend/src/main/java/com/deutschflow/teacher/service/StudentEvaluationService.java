@@ -225,8 +225,10 @@ public class StudentEvaluationService {
      * Ảnh chụp đánh giá của MỘT học viên trong lớp — cùng phép tính với {@link #getEvaluation} nhưng
      * KHÔNG kiểm quyền: dành cho luồng đã tự kiểm ở nơi gọi. Không mở cho controller gọi thẳng.
      *
-     * <p>Hai điểm gọi hiện có, cả hai đều chứng minh quyền TRƯỚC khi vào đây:
+     * <p>Các điểm gọi hiện có, đều chứng minh quyền TRƯỚC khi vào đây:
      * <ul>
+     *   <li>{@code OrgCertificateService.issue} — sau khi chứng minh người cấp là giáo viên phụ trách
+     *       lớp và học viên thuộc lớp;</li>
      *   <li>{@code ReportPayloadBuilder} — sau khi {@code ReportIssueService} chứng minh người phát
      *       hành là giáo viên phụ trách lớp (PR-R2);</li>
      *   <li>{@code OrgStudentEvaluationService} — sau khi chứng minh người gọi là OWNER/MANAGER của

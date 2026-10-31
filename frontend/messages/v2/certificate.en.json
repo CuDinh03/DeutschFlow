@@ -1,0 +1,29 @@
+{
+  "certificate": {
+    "docTitle": "Course completion certificate",
+    "certifies": "This confirms that",
+    "completed": "has completed a German course at level",
+    "completedAtOrg": "at {org}",
+    "levelCaption": "Level of the course",
+    "scoreLabel": "Result in the course",
+    "issuedOn": "Issued on",
+    "code": "Certificate code",
+    "issuer": "Issued by",
+    "partnerTagline": "Training partner · DeutschFlow",
+    "platformTagline": "German speaking practice platform",
+    "disclaimer": "This document confirms that the learner completed a course run by the training provider. It is not a language certificate and does not replace an official exam.",
+    "validStrip": "Valid · Verify at {url}",
+    "scanHint": "Scan to check this document",
+    "revokedTitle": "This certificate has been revoked",
+    "revokedBody": "Certificate {code} is no longer valid. Printed or scanned copies no longer count. To have it reissued, contact {issuer}.",
+    "revokedStrip": "Revoked · No longer valid · Check at {url}",
+    "erasedTitle": "This document is no longer valid",
+    "erasedBody": "Document {code} issued by {issuer} is no longer valid. The holder's details are no longer shown.",
+    "print": "Print / Save as PDF",
+    "copyLink": "Copy verification link",
+    "copied": "Copied",
+    "issuedVia": "Issued via DeutschFlow",
+    "cta": "Practise speaking German with DeutschFlow",
+    "languageLabel": "Language"
+  }
+}

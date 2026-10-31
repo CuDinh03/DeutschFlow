@@ -76,7 +76,7 @@
       "game": "Spiel",
       "news": "Nachrichten",
       "b1-assessment": "B1-Einstufung",
-      "certificates": "Zertifikate",
+      "certificates": "Bescheinigungen & Probeprüfungen",
       "grammar-drafts": "Grammatikaufgaben",
       "exercises": "Übungsaufgaben",
       "org-timesheets": "Arbeitszeit",
@@ -273,6 +273,7 @@
       "SCHEDULE_CHANGE_REJECTED": "Terminänderung abgelehnt",
       "TIMESHEET_PERIOD_APPROVED": "Stundenzettel genehmigt",
       "TIMESHEET_PERIOD_RETURNED": "Stundenzettel zurückgegeben",
+      "CERTIFICATE_ISSUED": "Neue Bescheinigung",
       "BIRTH_DATE_UPDATED": "Geburtsdatum aktualisiert"
     }
   },

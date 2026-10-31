@@ -1,0 +1,29 @@
+{
+  "certificate": {
+    "docTitle": "Chứng nhận hoàn thành khoá học",
+    "certifies": "Xác nhận rằng",
+    "completed": "đã hoàn thành khoá học tiếng Đức trình độ",
+    "completedAtOrg": "tại {org}",
+    "levelCaption": "Trình độ của khoá học",
+    "scoreLabel": "Kết quả trong khoá học",
+    "issuedOn": "Ngày cấp",
+    "code": "Mã chứng nhận",
+    "issuer": "Người cấp",
+    "partnerTagline": "Đối tác đào tạo · DeutschFlow",
+    "platformTagline": "Nền tảng luyện nói tiếng Đức",
+    "disclaimer": "Giấy này xác nhận học viên đã hoàn thành khoá học do đơn vị đào tạo tổ chức. Đây không phải chứng chỉ ngôn ngữ và không thay cho kỳ thi chính thức.",
+    "validStrip": "Giấy còn hiệu lực · Xác thực tại {url}",
+    "scanHint": "Quét mã để kiểm tra giấy này",
+    "revokedTitle": "Chứng nhận này đã bị thu hồi",
+    "revokedBody": "Chứng nhận mã {code} không còn hiệu lực. Bản in hay bản chụp của nó không còn giá trị. Cần cấp lại, hãy liên hệ {issuer}.",
+    "revokedStrip": "Đã thu hồi · Không còn hiệu lực · Kiểm tra tại {url}",
+    "erasedTitle": "Giấy này không còn hiệu lực",
+    "erasedBody": "Giấy mã {code} do {issuer} cấp không còn hiệu lực. Thông tin của người được cấp không còn được hiển thị.",
+    "print": "In / Lưu PDF",
+    "copyLink": "Sao chép liên kết xác thực",
+    "copied": "Đã sao chép",
+    "issuedVia": "Cấp qua DeutschFlow",
+    "cta": "Luyện nói tiếng Đức với DeutschFlow",
+    "languageLabel": "Ngôn ngữ"
+  }
+}

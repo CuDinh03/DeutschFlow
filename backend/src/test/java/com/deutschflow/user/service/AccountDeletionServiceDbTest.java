@@ -81,6 +81,50 @@ class AccountDeletionServiceDbTest extends AbstractPostgresIntegrationTest {
         assertThat(userRepository.findById(other.getId())).isPresent();
     }
 
+    @Test
+    @DisplayName("xoá tài khoản ẩn danh chứng nhận: mất tên/điểm/nhận xét, giữ mã, hết hiệu lực (đợt 4A)")
+    void anonymizesIssuedCertificates() {
+        User learner = newUser(User.Role.STUDENT);
+        User teacher = newUser(User.Role.TEACHER);
+        String token = UUID.randomUUID().toString().replace("-", "");
+        jdbc.update("INSERT INTO org_certificates(verify_token, certificate_code, class_id, student_user_id, "
+                        + "student_name_snapshot, cefr_level, score, note, issued_by_user_id) "
+                        + "VALUES (?,?,?,?,?,?,?,?,?)",
+                token, "DF-B1-2026-TEST0001", 1L, learner.getId(), "Nguyễn Văn A", "B1", 88, "Tiến bộ", teacher.getId());
+
+        accountDeletionService.deleteAccount(learner.getId());
+
+        Map<String, Object> row = jdbc.queryForMap(
+                "SELECT student_name_snapshot, score, note, active, certificate_code FROM org_certificates "
+                        + "WHERE verify_token = ?", token);
+        assertThat(row.get("student_name_snapshot")).isEqualTo("");
+        assertThat(row.get("score")).isNull();
+        assertThat(row.get("note")).isNull();
+        assertThat(row.get("active")).isEqualTo(false);
+        assertThat(row.get("certificate_code")).isEqualTo("DF-B1-2026-TEST0001");
+    }
+
+    @Test
+    @DisplayName("giáo viên xoá tài khoản: giấy đã cấp còn hiệu lực nhưng bỏ tên người cấp (đợt 4A)")
+    void removesIssuerNameFromCertificates() {
+        User learner = newUser(User.Role.STUDENT);
+        User teacher = newUser(User.Role.TEACHER);
+        String token = UUID.randomUUID().toString().replace("-", "");
+        jdbc.update("INSERT INTO org_certificates(verify_token, certificate_code, class_id, student_user_id, "
+                        + "student_name_snapshot, cefr_level, issued_by_user_id, issued_by_name_snapshot) "
+                        + "VALUES (?,?,?,?,?,?,?,?)",
+                token, "DF-B1-2026-TEST0002", 2L, learner.getId(), "Nguyễn Văn A", "B1", teacher.getId(), "Cô Lan");
+
+        accountDeletionService.deleteAccount(teacher.getId());
+
+        Map<String, Object> row = jdbc.queryForMap(
+                "SELECT student_name_snapshot, issued_by_name_snapshot, active FROM org_certificates "
+                        + "WHERE verify_token = ?", token);
+        assertThat(row.get("issued_by_name_snapshot")).isNull();
+        assertThat(row.get("student_name_snapshot")).isEqualTo("Nguyễn Văn A");
+        assertThat(row.get("active")).isEqualTo(true);
+    }
+
     /**
      * Regression net: every non-cascading FK to {@code users(id)} on a "subject" column (a column
      * that identifies the account owner) MUST be cleared by {@link AccountDeletionService} before the

@@ -665,6 +665,27 @@ export async function importRoster(
   return res.data
 }
 
+/** GET /org/logo — URL đã ký của logo trung tâm, OWNER-only; null khi chưa có logo. */
+export async function getOrgLogo(): Promise<string | null> {
+  const res = await api.get<{ logoUrl?: string | null }>('/org/logo')
+  return res.data?.logoUrl ?? null
+}
+
+/** POST /org/logo — thay logo; máy chủ kiểm chữ ký tệp (PNG/JPEG/WebP) và trần 1 MB. */
+export async function uploadOrgLogo(file: File): Promise<string | null> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await api.post<{ logoUrl: string | null }>('/org/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data?.logoUrl ?? null
+}
+
+/** DELETE /org/logo — gỡ logo khỏi giấy cấp sau này; giấy đã cấp giữ bản chụp. */
+export async function removeOrgLogo(): Promise<void> {
+  await api.delete('/org/logo')
+}
+
 /** GET /org/students — full org-admin student roster (ACTIVE members, role STUDENT). */
 export async function listStudents(): Promise<OrgMember[]> {
   const res = await api.get<OrgMember[]>('/org/students')

@@ -5,13 +5,16 @@ import { Printer, Link2, Check } from 'lucide-react'
 
 interface CertificateActionsProps {
   verifyUrl: string
+  printLabel: string
+  copyLabel: string
+  copiedLabel: string
 }
 
 /**
  * Print + copy-link actions for the public certificate page. Hidden when printing
- * (the certificate card itself is the print artifact).
+ * (the certificate card itself is the print artifact). Nhãn đến từ trang vì ngôn ngữ nằm ở `?lang`.
  */
-export function CertificateActions({ verifyUrl }: CertificateActionsProps) {
+export function CertificateActions({ verifyUrl, printLabel, copyLabel, copiedLabel }: CertificateActionsProps) {
   const [copied, setCopied] = useState(false)
 
   async function copyLink() {
@@ -31,7 +34,7 @@ export function CertificateActions({ verifyUrl }: CertificateActionsProps) {
         onClick={() => window.print()}
         className="inline-flex items-center gap-2 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-800"
       >
-        <Printer size={16} /> In / Lưu PDF
+        <Printer size={16} /> {printLabel}
       </button>
       <button
         type="button"
@@ -39,7 +42,7 @@ export function CertificateActions({ verifyUrl }: CertificateActionsProps) {
         className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
       >
         {copied ? <Check size={16} className="text-emerald-600" /> : <Link2 size={16} />}
-        {copied ? 'Đã sao chép' : 'Sao chép liên kết xác thực'}
+        {copied ? copiedLabel : copyLabel}
       </button>
     </div>
   )
