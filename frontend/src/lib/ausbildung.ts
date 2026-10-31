@@ -1,31 +1,9 @@
 import type { Workplace } from '@/lib/occupationTypes'
-import type { PublicLocale } from '@/lib/publicLocale'
 
 /**
- * Phần học nghề (Ausbildung) giai đoạn 1: dữ liệu theo nghề và cổng hiển thị. Module thuần, dùng được ở
- * trang server lẫn component client.
- *
- * Nội dung là bản nháp AI soạn, nên theo luật nội dung của dự án phải có người duyệt trước khi mở. Chưa
- * duyệt thì `/hoc-nghe/` trả 404, không vào sitemap, không có mục trên menu, trang nghề không hiện khối
- * học nghề. Xem trước bằng `?ban-nhap=1`. Duyệt xong chỉ cần đổi AUSBILDUNG_CONTENT_REVIEWED thành true.
- * Bản nháp đọc để duyệt: plans/2026-10-31-hoc-nghe-nhap-de-duyet.md.
+ * Phần học nghề (Ausbildung) giai đoạn 1: dữ liệu theo nghề và doanh nghiệp. Cổng hiển thị nằm ở
+ * `@/lib/ausbildungGate`; component client trên mọi trang phải import từ đó, không import file này.
  */
-export const AUSBILDUNG_CONTENT_REVIEWED = false
-
-export const AUSBILDUNG_PAGE = '/hoc-nghe'
-export const DRAFT_PREVIEW_PARAM = 'ban-nhap'
-
-/** Trang chỉ có tiếng Việt và tiếng Anh: bản tiếng Đức chờ Impressum (việc riêng pháp lý). */
-export type AusbildungLocale = Extract<PublicLocale, 'vi' | 'en'>
-
-export function isAusbildungLocale(locale: string): locale is AusbildungLocale {
-  return locale === 'vi' || locale === 'en'
-}
-
-export function ausbildungVisible(preview: string | string[] | undefined): boolean {
-  if (AUSBILDUNG_CONTENT_REVIEWED) return true
-  return (Array.isArray(preview) ? preview[0] : preview) === '1'
-}
 
 export interface AusbildungOccupation {
   /** `occupation.code` trong danh mục nghề (V334). */

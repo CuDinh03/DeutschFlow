@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { GaLogo, GaBtn } from '@/components/ui-v2'
 import { LanguageToggle } from '@/components/ui-v2/LanguageToggle'
 import { useTracking } from '@/hooks/useTracking'
-import { AUSBILDUNG_CONTENT_REVIEWED, AUSBILDUNG_PAGE } from '@/lib/ausbildung'
+import { AUSBILDUNG_CONTENT_REVIEWED, AUSBILDUNG_PAGE } from '@/lib/ausbildungGate'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref, publicHref } from '@/lib/publicLocale'
 import { START_HREF } from './links'
 
@@ -18,7 +18,7 @@ import { START_HREF } from './links'
  * `aria-current` khi đang ở đó. Trên trang `/phong-van` (đợt 2d), mục "Phỏng vấn theo nghề" trỏ về
  * trang tổng các nghề và được đánh dấu là trang hiện tại. "Cho trung tâm" trỏ trang trung tâm riêng
  * (đợt 3a: `/trung-tam/`, `/en/schools/`); ngôn ngữ chưa có bản (tiếng Đức) thì vẫn về neo trên trang chủ.
- * "Học nghề" chỉ hiện sau khi nội dung được duyệt (`@/lib/ausbildung`) và ở ngôn ngữ đã có bản.
+ * "Học nghề" chỉ hiện sau khi nội dung được duyệt (`@/lib/ausbildungGate`) và ở ngôn ngữ đã có bản.
  */
 
 const YellowSq = () => <span className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />

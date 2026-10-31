@@ -7,7 +7,7 @@ import { OccupationDetailView } from '@/components/landing-v2/OccupationPages'
 import { fetchOccupationDetail } from '@/lib/occupationServer'
 import { occupationName } from '@/lib/occupationTypes'
 import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
-import { DRAFT_PREVIEW_PARAM, ausbildungVisible } from '@/lib/ausbildung'
+import { AUSBILDUNG_CONTENT_REVIEWED, DRAFT_PREVIEW_PARAM, ausbildungVisible } from '@/lib/ausbildungGate'
 
 /**
  * Phỏng vấn theo từng nghề — `/phong-van/[nghe]/` và bản `/en/`, `/de/` (đợt 2d A+B+E).
@@ -23,7 +23,7 @@ const OG_LOCALE = { vi: 'vi_VN', en: 'en_US', de: 'de_DE' } as const
 
 type Props = { params: { nghe: string }; searchParams?: Record<string, string | string[] | undefined> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const detail = await fetchOccupationDetail(params.nghe)
   if (!detail) return { robots: { index: false, follow: false } }
   const raw = await getLocale()
@@ -32,6 +32,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const o = detail.occupation
   const path = `/phong-van/${o.code}`
   const vars = { nameDe: o.nameDe, name: occupationName(o, locale) }
+  // Xem trước khối học nghề chưa duyệt: trang này không được vào chỉ mục dù nghề đã duyệt.
+  const draftBlock = !AUSBILDUNG_CONTENT_REVIEWED && ausbildungVisible(searchParams?.[DRAFT_PREVIEW_PARAM])
   return {
     title: t('title', vars),
     description: t('description', vars),
@@ -44,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: 'myDeutschFlow',
       images: [DEFAULT_OG_IMAGE],
     },
-    robots: detail.reviewed ? undefined : { index: false, follow: true },
+    robots: detail.reviewed && !draftBlock ? undefined : { index: false, follow: true },
   }
 }
 

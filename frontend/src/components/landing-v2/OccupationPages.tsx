@@ -11,7 +11,8 @@ import {
   type QuestionSource,
 } from '@/lib/occupationTypes'
 import { LandingHeader } from './LandingHeader'
-import { ausbildungOccupation, isAusbildungLocale } from '@/lib/ausbildung'
+import { ausbildungOccupation } from '@/lib/ausbildung'
+import { isAusbildungLocale } from '@/lib/ausbildungGate'
 import { AusbildungOccupationBlock } from './AusbildungPage'
 import { LandingFooter } from './LandingFooter'
 import { InterviewerPortrait } from './PersonaPortrait'
@@ -187,7 +188,7 @@ export async function OccupationDetailView({ detail, showTraining = false }: { d
           </p>
 
           {training && isAusbildungLocale(locale) && (
-            <AusbildungOccupationBlock training={training} locale={locale} preview={showTraining} />
+            <AusbildungOccupationBlock training={training} locale={locale} />
           )}
         </div>
 

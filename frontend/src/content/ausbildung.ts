@@ -1,4 +1,4 @@
-import type { AusbildungLocale } from '@/lib/ausbildung'
+import type { AusbildungLocale } from '@/lib/ausbildungGate'
 import type { Workplace } from '@/lib/occupationTypes'
 
 /**
@@ -76,6 +76,7 @@ export const AUSBILDUNG_SOURCES: readonly { label: string; url: string }[] = [
   { label: 'Deutsche Botschaft Hanoi: Visum zur Berufsausbildung', url: 'https://vietnam.diplo.de/vn-de/service/2306814-2306814' },
   { label: '§ 16a AufenthG', url: 'https://www.gesetze-im-internet.de/aufenthg_2004/__16a.html' },
   { label: '§ 17 AufenthG', url: 'https://www.gesetze-im-internet.de/aufenthg_2004/__17.html' },
+  { label: '§ 17 BBiG: Mindestvergütung', url: 'https://www.gesetze-im-internet.de/bbig_2005/__17.html' },
   { label: 'ausbildung.de: Ausbildung für Nicht-EU-Bürger', url: 'https://www.ausbildung.de/ratgeber/ausbildung-fuer-nicht-eu-buerger/' },
 ]
 
@@ -112,7 +113,7 @@ export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
           points: [
             'Cần chỗ học đã được doanh nghiệp nhận và chứng chỉ tiếng Đức.',
             'Được làm thêm tối đa 20 giờ mỗi tuần, ngoài giờ học nghề.',
-            'Điều luật này không đặt giới hạn tuổi 35. Người từ 45 tuổi có thể phải chứng minh an sinh tuổi già.',
+            'Điều luật này không đặt giới hạn tuổi 35.',
           ],
         },
         {
@@ -304,7 +305,7 @@ export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
           points: [
             'You need a confirmed place with a company and a German certificate.',
             'You may work up to 20 hours a week on top of your training.',
-            'This section sets no age limit of 35. Applicants aged 45 or over may need to show pension provision.',
+            'This section sets no age limit of 35.',
           ],
         },
         {

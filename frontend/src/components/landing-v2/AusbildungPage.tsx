@@ -7,13 +7,17 @@ import {
 } from '@/content/ausbildung'
 import {
   AUSBILDUNG_COMPANIES,
-  AUSBILDUNG_CONTENT_REVIEWED,
   AUSBILDUNG_OCCUPATIONS,
   ausbildungDeUrl,
   jobsucheUrl,
-  type AusbildungLocale,
   type AusbildungOccupation,
 } from '@/lib/ausbildung'
+import {
+  AUSBILDUNG_CONTENT_REVIEWED,
+  AUSBILDUNG_PAGE,
+  withDraftPreview,
+  type AusbildungLocale,
+} from '@/lib/ausbildungGate'
 import { WORKPLACES, occupationName, type OccupationSummary } from '@/lib/occupationTypes'
 import { localizedHref, publicHref } from '@/lib/publicLocale'
 import { AusbildungChecklist } from './AusbildungChecklist'
@@ -28,7 +32,7 @@ import { START_HREF } from './links'
  * Trang hướng dẫn kèm danh bạ doanh nghiệp, KHÔNG phải cổng tuyển dụng: không đăng tin, không nhận hồ
  * sơ, không làm trung gian. Người học bấm sang website của doanh nghiệp và ứng tuyển ở đó. Toàn bộ trang
  * công khai, miễn phí (`AUSBILDUNG_COMPANIES` nói rõ vì sao).
- * Cổng hiển thị và lý do xem `@/lib/ausbildung`; chữ ở `@/content/ausbildung`.
+ * Cổng hiển thị và lý do xem `@/lib/ausbildungGate`; chữ ở `@/content/ausbildung`.
  */
 
 const SECTION = 'mx-auto max-w-[1240px] px-5 py-12 sm:px-8 md:py-16 lg:px-[60px]'
@@ -59,23 +63,18 @@ function joinCatalog(occupations: OccupationSummary[] | null) {
 export function AusbildungPage({
   locale,
   occupations,
-  preview,
 }: {
   locale: AusbildungLocale
   occupations: OccupationSummary[] | null
-  preview: boolean
 }) {
   const c = AUSBILDUNG_COPY[locale]
   const trades = joinCatalog(occupations)
-  const tradeHref = (code: string) => {
-    const href = localizedHref(locale, `/phong-van/${code}`)
-    return preview && !AUSBILDUNG_CONTENT_REVIEWED ? `${href}?ban-nhap=1` : href
-  }
+  const tradeHref = (code: string) => withDraftPreview(localizedHref(locale, `/phong-van/${code}`))
 
   return (
     <div className="min-h-screen overflow-x-clip bg-ga-bg font-ga-ui text-ga-ink">
       <LandingHeader current="training" />
-      {preview && !AUSBILDUNG_CONTENT_REVIEWED && (
+      {!AUSBILDUNG_CONTENT_REVIEWED && (
         <p role="status" className="border-b border-ga-yellow bg-ga-yellow-soft px-5 py-2.5 text-center text-ga-small font-semibold text-ga-ink">
           {c.draftBanner}
         </p>
@@ -175,18 +174,21 @@ export function AusbildungPage({
                 const items = trades.filter((o) => o.workplace === w)
                 if (!items.length) return null
                 return (
-                  <ul key={w} className="grid gap-x-6 gap-y-1 border-t border-ga-border pt-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {items.map((o) => (
-                      <li key={o.code}>
-                        <Link href={tradeHref(o.code)} className="block min-h-11 py-2 hover:text-ga-navy">
-                          <span className="block text-ga-body font-semibold">{o.nameDe}</span>
-                          <span className="block text-ga-caption text-ga-muted">
-                            {occupationName(o, locale)} · {formatYears(o.training, locale)} {c.occupations.yearsUnit} · {c.occupations.levelPrefix} {o.training.level}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  <div key={w} className="border-t border-ga-border pt-3">
+                    {c.companies.groups[w] && <h3 className="mb-2 text-ga-h3 text-ga-ink">{c.companies.groups[w]}</h3>}
+                    <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {items.map((o) => (
+                        <li key={o.code}>
+                          <Link href={tradeHref(o.code)} className="block min-h-11 py-2 hover:text-ga-navy">
+                            <span className="block text-ga-body font-semibold">{o.nameDe}</span>
+                            <span className="block text-ga-caption text-ga-muted">
+                              {occupationName(o, locale)} · {formatYears(o.training, locale)} {c.occupations.yearsUnit} · {c.occupations.levelPrefix} {o.training.level}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )
               })}
             </div>
@@ -224,18 +226,20 @@ function formatYears(a: AusbildungOccupation, locale: AusbildungLocale): string 
 export function AusbildungOccupationBlock({
   training,
   locale,
-  preview,
 }: {
   training: AusbildungOccupation
   locale: AusbildungLocale
-  preview: boolean
 }) {
   const c = AUSBILDUNG_COPY[locale]
   const b = c.occupationBlock
-  const guide = publicHref(locale, '/hoc-nghe') ?? '/hoc-nghe/'
-  const guideHref = preview && !AUSBILDUNG_CONTENT_REVIEWED ? `${guide}?ban-nhap=1` : guide
+  const guideHref = withDraftPreview(publicHref(locale, AUSBILDUNG_PAGE) ?? `${AUSBILDUNG_PAGE}/`)
   return (
     <section aria-labelledby="ausbildung-block" className="mt-10 border border-ga-border bg-ga-card p-5">
+      {!AUSBILDUNG_CONTENT_REVIEWED && (
+        <p role="status" className="mb-3 border-l-2 border-ga-yellow pl-3 text-ga-small font-semibold text-ga-ink">
+          {c.draftBanner}
+        </p>
+      )}
       <h2 id="ausbildung-block" className="text-ga-h3 text-ga-ink">{b.cap}</h2>
       <dl className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>

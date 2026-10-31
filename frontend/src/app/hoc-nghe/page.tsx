@@ -10,7 +10,7 @@ import {
   DRAFT_PREVIEW_PARAM,
   ausbildungVisible,
   isAusbildungLocale,
-} from '@/lib/ausbildung'
+} from '@/lib/ausbildungGate'
 import { fetchOccupations } from '@/lib/occupationServer'
 import { DEFAULT_OG_IMAGE } from '@/lib/siteUrl'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicAlternates, publicHref } from '@/lib/publicLocale'
@@ -18,7 +18,7 @@ import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicAlternates, publicHref } f
 /**
  * Trang học nghề — `/hoc-nghe/` (vi) và `/en/vocational-training/` (en). Chưa có bản tiếng Đức (chờ
  * Impressum) nên hreflang chỉ gồm vi + en. `force-dynamic` như trang trung tâm: ngôn ngữ đến từ header
- * middleware gắn. Chưa duyệt nội dung thì 404, trừ khi xem trước bằng `?ban-nhap=1` (`@/lib/ausbildung`).
+ * middleware gắn. Chưa duyệt nội dung thì 404, trừ khi xem trước bằng `?ban-nhap=1` (`@/lib/ausbildungGate`).
  */
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +60,7 @@ export default async function AusbildungRoute({ searchParams }: Props) {
   const [locale, occupations] = await Promise.all([pageLocale(), fetchOccupations()])
   return (
     <div className="ga-scope">
-      <AusbildungPage locale={locale} occupations={occupations} preview />
+      <AusbildungPage locale={locale} occupations={occupations} />
     </div>
   )
 }

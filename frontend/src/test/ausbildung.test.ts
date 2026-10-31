@@ -4,24 +4,34 @@ import { describe, expect, it } from 'vitest'
 import { AUSBILDUNG_COPY } from '@/content/ausbildung'
 import {
   AUSBILDUNG_COMPANIES,
-  AUSBILDUNG_CONTENT_REVIEWED,
   AUSBILDUNG_OCCUPATIONS,
   ausbildungDeUrl,
   ausbildungOccupation,
-  ausbildungVisible,
   jobsucheUrl,
 } from '@/lib/ausbildung'
+import { AUSBILDUNG_CONTENT_REVIEWED, ausbildungVisible, withDraftPreview } from '@/lib/ausbildungGate'
 import { publicAlternates, publicHref, slugPageFor } from '@/lib/publicLocale'
 
 const FORBIDDEN = [/chắc chắn/i, /cam kết/i, /tỷ lệ đậu/i, /guaranteed/i, /tư vấn visa/i]
 
 describe('ausbildung — cổng nội dung', () => {
-  it('chưa duyệt: chỉ xem được bằng ?ban-nhap=1', () => {
-    expect(AUSBILDUNG_CONTENT_REVIEWED).toBe(false)
-    expect(ausbildungVisible(undefined)).toBe(false)
-    expect(ausbildungVisible('0')).toBe(false)
+  // Viết theo cờ, không chốt giá trị: đổi cờ sau khi duyệt không được làm đỏ test.
+  it('chưa duyệt thì chỉ xem được bằng ?ban-nhap=1, duyệt rồi thì ai cũng xem được', () => {
+    expect(ausbildungVisible(undefined)).toBe(AUSBILDUNG_CONTENT_REVIEWED)
+    expect(ausbildungVisible('0')).toBe(AUSBILDUNG_CONTENT_REVIEWED)
     expect(ausbildungVisible('1')).toBe(true)
     expect(ausbildungVisible(['1', '0'])).toBe(true)
+  })
+
+  it('link nội bộ giữ chế độ xem trước cho tới khi duyệt', () => {
+    const href = '/phong-van/koch/'
+    expect(withDraftPreview(href)).toBe(AUSBILDUNG_CONTENT_REVIEWED ? href : `${href}?ban-nhap=1`)
+  })
+
+  it('header có mặt trên mọi trang công khai không kéo dữ liệu học nghề vào bundle', () => {
+    const header = readFileSync(resolve(__dirname, '../components/landing-v2/LandingHeader.tsx'), 'utf8')
+    expect(header).toContain('@/lib/ausbildungGate')
+    expect(header).not.toMatch(/from '@\/lib\/ausbildung'/)
   })
 })
 
