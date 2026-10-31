@@ -7,6 +7,7 @@ import { OccupationDetailView } from '@/components/landing-v2/OccupationPages'
 import { fetchOccupationDetail } from '@/lib/occupationServer'
 import { occupationName } from '@/lib/occupationTypes'
 import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
+import { DRAFT_PREVIEW_PARAM, ausbildungVisible } from '@/lib/ausbildung'
 
 /**
  * Phỏng vấn theo từng nghề — `/phong-van/[nghe]/` và bản `/en/`, `/de/` (đợt 2d A+B+E).
@@ -20,7 +21,7 @@ export const dynamic = 'force-dynamic'
 
 const OG_LOCALE = { vi: 'vi_VN', en: 'en_US', de: 'de_DE' } as const
 
-type Props = { params: { nghe: string } }
+type Props = { params: { nghe: string }; searchParams?: Record<string, string | string[] | undefined> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const detail = await fetchOccupationDetail(params.nghe)
@@ -47,12 +48,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function OccupationPage({ params }: Props) {
+export default async function OccupationPage({ params, searchParams }: Props) {
   const detail = await fetchOccupationDetail(params.nghe)
   if (!detail) notFound()
   return (
     <div className="ga-scope">
-      <OccupationDetailView detail={detail} />
+      <OccupationDetailView detail={detail} showTraining={ausbildungVisible(searchParams?.[DRAFT_PREVIEW_PARAM])} />
     </div>
   )
 }

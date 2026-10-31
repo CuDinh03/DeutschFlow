@@ -11,6 +11,7 @@ import {
   publicHref,
 } from '@/lib/publicLocale'
 import { fetchOccupations } from '@/lib/occupationServer'
+import { AUSBILDUNG_CONTENT_REVIEWED, AUSBILDUNG_PAGE } from '@/lib/ausbildung'
 
 /** Một mục cho mỗi ngôn ngữ, mục nào cũng kèm đủ bảng hreflang (đợt 1 A+B+E, xem src/lib/publicLocale.ts). */
 function localizedEntries(path: string, priority: number): MetadataRoute.Sitemap {
@@ -44,7 +45,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const localizedPages: MetadataRoute.Sitemap = [
     ...Array.from(PUBLIC_LOCALIZED_PATHS).flatMap((path) => localizedEntries(path, path === '/' ? 1 : 0.8)),
     ...localizedEntries('/phong-van', 0.9),
-    ...Object.keys(PUBLIC_LOCALIZED_SLUGS).flatMap((page) => slugEntries(page, 0.8)),
+    // Trang học nghề chỉ vào sitemap sau khi nội dung được duyệt (`@/lib/ausbildung`).
+    ...Object.keys(PUBLIC_LOCALIZED_SLUGS)
+      .filter((page) => page !== AUSBILDUNG_PAGE || AUSBILDUNG_CONTENT_REVIEWED)
+      .flatMap((page) => slugEntries(page, 0.8)),
   ]
 
   // Trang nghề (đợt 2d): chỉ nghề có bộ câu hỏi viết tay — chắc chắn "Đã duyệt" mà không cần gọi

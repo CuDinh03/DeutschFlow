@@ -83,6 +83,7 @@ export function localizedHref(locale: PublicLocale, path: string): string {
  */
 export const PUBLIC_LOCALIZED_SLUGS: Readonly<Record<string, Partial<Record<PublicLocale, string>>>> = {
   '/trung-tam': { vi: '/trung-tam', en: '/schools' },
+  '/hoc-nghe': { vi: '/hoc-nghe', en: '/vocational-training' },
 }
 
 /** Đường gốc của trang slug-riêng mà (ngôn ngữ, đường không tiền tố) trỏ tới; null nếu không phải. */
