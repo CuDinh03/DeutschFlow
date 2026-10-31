@@ -37,6 +37,15 @@ export default function V2ExamSpeakingCatalogPage() {
   // Mặc định prep rút gọn 5′ (mục 4b kế hoạch); "chuẩn thi thật" = đúng Vorbereitungszeit của blueprint.
   const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
 
+  // LT3: lộ trình thi dẫn vào đây kèm ?provider=TELC&level=B1 để khỏi phải chọn lại hệ và cấp.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const wantedProvider = params.get('provider')
+    const wantedLevel = params.get('level')
+    if (wantedProvider === 'TELC' || wantedProvider === 'GOETHE') setProvider(wantedProvider)
+    if (wantedLevel && OPEN_LEVELS.has(wantedLevel)) setLevel(wantedLevel)
+  }, [])
+
   useEffect(() => {
     let alive = true
     setLoading(true)

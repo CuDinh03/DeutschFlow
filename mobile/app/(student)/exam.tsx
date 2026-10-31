@@ -3,7 +3,7 @@ import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
-import { router, type Href } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { Alert } from 'react-native'
 import api, { apiMessage } from '@/lib/api'
@@ -16,6 +16,7 @@ import { trackFeatureAction } from '@/lib/analytics'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
 import { pickBand } from '@/lib/learnerBand'
+import { ExamCountdownCard } from '@/components/exam/ExamCountdownCard'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
@@ -29,7 +30,10 @@ export default function ExamScreen() {
   // màn là thấy đề B1. `level` null tới khi hồ sơ trả lời (query đề chờ theo).
   const [pickedLevel, setLevel] = useState<string | null>(null)
   const { currentLevel, settled: levelSettled } = useLearnerLevel({ enabled: hasProAccess })
-  const level = pickedLevel ?? (levelSettled ? pickBand(currentLevel, EXAM_LEVELS) : null)
+  // LT3: lộ trình thi dẫn vào đây kèm cấp của kỳ thi, không theo trình độ hồ sơ.
+  const { level: planLevel } = useLocalSearchParams<{ level?: string }>()
+  const routeLevel = EXAM_LEVELS.find((lv) => lv === planLevel) ?? null
+  const level = pickedLevel ?? routeLevel ?? (levelSettled ? pickBand(currentLevel, EXAM_LEVELS) : null)
 
   const { data: variants = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['exam-variants', level],
@@ -90,6 +94,8 @@ export default function ExamScreen() {
   return (
     <Screen edges={['top']}>
       <AppHeader title="Thi thử Goethe" onBack={goBack} />
+
+      <ExamCountdownCard invite style={{ paddingHorizontal: space[5], paddingTop: space[2] }} />
 
       {hasProAccess ? (
         <View style={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[3], gap: space[2] }}>

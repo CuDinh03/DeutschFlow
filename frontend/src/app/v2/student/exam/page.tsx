@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight, BookOpen, ClipboardCheck, FileText, Headphones, Info, Mic, PenTool } from 'lucide-react'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { GaCap, GaCard, GaPageHdr } from '@/components/ui-v2'
+import { ExamCountdownCard } from '@/components/exam/plan/ExamCountdownCard'
 
 /**
  * Prüfung hub — `/v2/student/exam` (S-09, IA §6.3).
@@ -51,6 +52,10 @@ export default function V2StudentExamPage() {
             })}
           </p>
         )}
+
+        <div className="mb-[22px] empty:hidden">
+          <ExamCountdownCard invite />
+        </div>
 
         {/* ── 1. Prüfungssimulation — hành động chính ───────────────────────── */}
         <section aria-labelledby="sim-heading" className="mb-[22px]">

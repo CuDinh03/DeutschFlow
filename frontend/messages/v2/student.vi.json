@@ -2317,6 +2317,64 @@
       "steps": "Các bước làm",
       "traps": "Bẫy hay gặp",
       "fixes": "Mất điểm vì… → chữa bằng…"
+    },
+    "examPlan": {
+      "title": "Lộ trình tới ngày thi",
+      "subtitle": "Kế hoạch theo tuần, bám theo ngày thi của bạn.",
+      "loading": "Đang tải lộ trình…",
+      "loadError": "Chưa tải được lộ trình.",
+      "countdown": "Còn {days} ngày tới kỳ thi",
+      "countdownToday": "Hôm nay là ngày thi",
+      "weekOf": "Tuần {week}/{total}",
+      "weekLabel": "Tuần {week}",
+      "weekProgress": "Xong {done}/{total} việc tuần này",
+      "setupTitle": "Thêm ngày thi để có lộ trình theo tuần",
+      "setupHint": "Nhập đúng ngày thi để đếm ngược và chia tuần chính xác.",
+      "passedTitle": "Ngày thi đã qua",
+      "passedHint": "Nếu bạn thi lại, nhập ngày thi mới để lập lộ trình mới.",
+      "unavailableTitle": "Chưa có lộ trình cho kỳ thi này",
+      "unavailableHint": "Lộ trình theo tuần hiện có cho telc B1. Nếu đây là kỳ thi của bạn, hãy chọn telc và mục tiêu B1 trong hồ sơ.",
+      "dateLabel": "Ngày thi",
+      "dateSave": "Lưu ngày thi",
+      "dateChange": "Đổi ngày thi",
+      "dateChangeNote": "Đổi ngày thi sẽ tính lại kế hoạch từ hôm nay.",
+      "thisWeek": "Tuần này",
+      "allWeeks": "Cả kế hoạch",
+      "focus": "Trọng tâm tuần này",
+      "focusHint": "Đề giấy chưa có bài luyện riêng từng Teil. Đọc chiến thuật rồi để ý Teil này khi làm bài.",
+      "teilLabel": "{section} · Teil {teil}",
+      "start": "Bắt đầu",
+      "done": "Đã xong",
+      "locked": "Cần gói trả phí",
+      "comingSoon": "Sắp có",
+      "comingSoonExam": "Đề full tiếp theo sắp có, tuần này tập trung vào phiên thi Nói và Teil yếu.",
+      "optional": "Gợi ý, không tính vào tiến độ",
+      "progressCount": "{done}/{target}",
+      "disclaimer": "Lộ trình giúp sắp xếp việc học, không phải cam kết về kết quả thi.",
+      "phases": {
+        "ROADMAP": "Theo lộ trình",
+        "FOUNDATION": "Nền",
+        "TEIL": "Luyện từng Teil",
+        "FULL": "Đề full"
+      },
+      "phaseHints": {
+        "ROADMAP": "Ngày thi còn xa, nên tuần này học theo lộ trình thường. Kế hoạch thi bắt đầu ở 18 tuần cuối.",
+        "FOUNDATION": "Củng cố ngữ pháp trên lộ trình và làm quen từng dạng bài.",
+        "TEIL": "Tập trung vào Teil nặng điểm và đang yếu.",
+        "FULL": "Mỗi tuần một đề full bấm giờ và một phiên thi Nói, rồi xem lại theo ngân sách điểm."
+      },
+      "tasks": {
+        "DIAGNOSTIC_EXAM": "Làm đề chẩn đoán",
+        "FULL_EXAM": "Làm một đề full bấm giờ",
+        "ORAL_MOCK": "Thi thử Nói trọn bài",
+        "ORAL_DRILL": "Luyện Nói Teil {teil}",
+        "ROADMAP_NODES": "Hoàn thành {target} bài trên lộ trình",
+        "WEAKNESS_REVIEW": "Ôn yếu điểm và Redemittel"
+      },
+      "warnings": {
+        "LOW_WEEKLY_TIME": "Tuần đề full cần khoảng 3 giờ, còn nhịp hiện tại là {minutes} phút mỗi tuần. Hãy dành thêm thời gian cho các tuần đó.",
+        "LEVEL_GAP": "Khoảng cách từ trình độ hiện tại tới mục tiêu khá lớn so với thời gian còn lại. Hãy cân nhắc thêm giờ học hoặc dời ngày thi."
+      }
     }
   }
 }
