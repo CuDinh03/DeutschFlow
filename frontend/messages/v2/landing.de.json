@@ -10,6 +10,7 @@
       "pathways": "Wege nach Deutschland",
       "exam": "Prüfungstraining",
       "centers": "Für Sprachschulen",
+      "training": "Ausbildung",
       "about": "Über uns",
       "mainAria": "Hauptnavigation"
     },
@@ -59,7 +60,7 @@
       "examLabel": "Prüfung",
       "interviewLabel": "Im Gespräch geht es um",
       "items": [
-        { "name": "Ausbildung", "de": "Ausbildung", "who": "18–35 Jahre, Einstieg in einen Beruf oder Berufswechsel.", "level": "B1, manchmal B2", "exam": "Goethe oder telc B1", "interview": "Motivation, Pläne, Wissen über Beruf und Deutschland", "fit": "Bei myDeutschFlow: Interviews nach Beruf, Lernpfad A1–B1, Probeprüfung B1." },
+        { "name": "Ausbildung", "de": "Ausbildung", "who": "Einstieg in einen Beruf in Deutschland oder Berufswechsel.", "level": "B1, manchmal B2", "exam": "Goethe oder telc B1", "interview": "Motivation, Pläne, Wissen über Beruf und Deutschland", "fit": "Bei myDeutschFlow: Interviews nach Beruf, Lernpfad A1–B1, Probeprüfung B1." },
         { "name": "Anerkennung", "de": "Anerkennung", "who": "Mit Abschluss und Berufserfahrung: Gesundheit, Technik, Handwerk…", "level": "B1–B2, je nach Beruf und Bundesland", "exam": "Berufsbezogene Prüfungen wie telc Pflege, DTB", "interview": "Fachwissen, Situationen im Beruf, Abläufe", "fit": "Bei myDeutschFlow: Interviews nach Beruf. Berufsbezogene Prüfungen werden gerade erstellt." },
         { "name": "Jobsuche", "de": "Chancenkarte · Blaue Karte", "who": "Ingenieurinnen und Ingenieure, IT-Fachkräfte, Hochschulabsolventen.", "level": "Ab A1 oder B2 Englisch", "exam": "Je nach Arbeitgeber", "interview": "Fachwissen; Deutsch ist ein Vorteil", "fit": "Bei myDeutschFlow: Interviews für IT, Technik und Büro." },
         { "name": "Studium", "de": "Studium", "who": "Schülerinnen und Schüler, Studierende mit Studienziel Deutschland.", "level": "Meist B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Gespräche mit Hochschule und Visumstelle", "fit": "Bei myDeutschFlow: Sprechtraining, Probeprüfungen bis B2. Noch kein C1-Lernpfad." },
