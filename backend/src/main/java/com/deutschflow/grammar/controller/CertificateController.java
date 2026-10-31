@@ -96,7 +96,7 @@ public class CertificateController {
         try {
             byte[] pdfBytes = renderPdf(name, cefrLevel, score, code, issuedDate);
 
-            String filename = "DeutschFlow-Certificate-" + cefrLevel + "-" + code + ".pdf";
+            String filename = "DeutschFlow-Mock-Exam-Record-" + cefrLevel + "-" + code + ".pdf";
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
             headers.setContentDispositionFormData("attachment", filename);
@@ -216,7 +216,7 @@ public class CertificateController {
                 centerText(cs, bold, 28, "DEUTSCHFLOW", w, h - 120);
 
                 cs.setNonStrokingColor(0.1f, 0.1f, 0.1f);
-                centerText(cs, normal, 14, "CERTIFICATE OF ACHIEVEMENT", w, h - 150);
+                centerText(cs, normal, 14, "MOCK EXAM RECORD", w, h - 150);
 
                 cs.setStrokingColor(0.85f, 0.85f, 0.85f);
                 cs.setLineWidth(0.8f);
@@ -229,14 +229,14 @@ public class CertificateController {
                 centerText(cs, bold, 26, name, w, h - 260);
 
                 cs.setNonStrokingColor(0.4f, 0.4f, 0.4f);
-                centerText(cs, italic, 13, "has successfully passed the DeutschFlow", w, h - 295);
-                centerText(cs, italic, 13, "standardized proficiency assessment at level", w, h - 315);
+                centerText(cs, italic, 13, "has reached the pass mark in a DeutschFlow", w, h - 295);
+                centerText(cs, italic, 13, "practice mock exam at level", w, h - 315);
 
                 cs.setNonStrokingColor(0.24f, 0.27f, 0.98f);
                 centerText(cs, bold, 56, cefrLevel, w, h - 390);
 
                 cs.setNonStrokingColor(0.3f, 0.3f, 0.3f);
-                centerText(cs, normal, 13, "Exam Score: " + score + " / 100", w, h - 420);
+                centerText(cs, normal, 13, "Mock exam score: " + score + " / 100", w, h - 420);
 
                 cs.setStrokingColor(0.85f, 0.85f, 0.85f);
                 cs.moveTo(80, h - 450); cs.lineTo(w - 80, h - 450); cs.stroke();
@@ -245,7 +245,7 @@ public class CertificateController {
                 cs.beginText();
                 cs.setFont(normal, 10);
                 cs.newLineAtOffset(60, 80);
-                cs.showText("Certificate Code: " + code);
+                cs.showText("Record code: " + code);
                 cs.endText();
 
                 cs.beginText();
@@ -254,7 +254,7 @@ public class CertificateController {
                 cs.showText("Issued: " + issuedDate);
                 cs.endText();
 
-                centerText(cs, italic, 10, "This certificate is issued by DeutschFlow and is verified by the DeutschFlow platform.", w, 55);
+                centerText(cs, italic, 10, "Practice record only. Not a language certificate. Not affiliated with Goethe-Institut or telc.", w, 55);
             }
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

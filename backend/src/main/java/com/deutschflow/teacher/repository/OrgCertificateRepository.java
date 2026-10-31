@@ -18,6 +18,10 @@ public interface OrgCertificateRepository extends JpaRepository<OrgCertificate, 
 
     List<OrgCertificate> findByClassIdOrderByCreatedAtDesc(Long classId);
 
+    List<OrgCertificate> findByStudentUserIdOrderByCreatedAtDesc(Long studentUserId);
+
+    boolean existsByClassIdAndStudentUserIdAndCefrLevelAndActiveTrue(Long classId, Long studentUserId, String cefrLevel);
+
     /**
      * Chứng nhận theo id NHƯNG ép thuộc đúng trung tâm (DEC-20): giám đốc chỉ với tới chứng nhận
      * của trung tâm mình; id của trung tâm khác ⇒ rỗng ⇒ 404, không phải 403 — không để lộ là id

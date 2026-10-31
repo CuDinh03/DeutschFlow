@@ -95,6 +95,7 @@ class ReportIssueServiceTest {
     @Mock ReportPayloadBuilder payloadBuilder;
     @Mock AuditLogService auditLogService;
     @Mock NotificationOutboxRepository outboxRepository;
+    @Mock com.deutschflow.organization.service.OrgLogoService orgLogoService;
 
     @InjectMocks ReportIssueService service;
 

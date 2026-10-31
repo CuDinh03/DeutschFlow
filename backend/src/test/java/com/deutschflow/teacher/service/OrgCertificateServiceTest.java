@@ -3,6 +3,18 @@ package com.deutschflow.teacher.service;
 import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.minor.ConsentState;
+import com.deutschflow.common.minor.MinorLearnerService;
+import com.deutschflow.common.minor.MinorPolicy;
+import com.deutschflow.common.minor.ReportIssueBlockedException;
+import com.deutschflow.common.minor.StudentConsent;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.entity.NotificationOutbox;
+import com.deutschflow.notification.repository.NotificationOutboxRepository;
+import com.deutschflow.organization.service.OrgLogoService;
+import com.deutschflow.teacher.dto.StudentCertificateDto;
+import com.deutschflow.teacher.dto.StudentEvaluationDto;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.OrgReadOnlyException;
@@ -75,8 +87,28 @@ class OrgCertificateServiceTest {
     @Mock OrganizationRepository organizationRepository;
     @Mock OrgGuard orgGuard;
     @Mock AuditLogService auditLogService;
+    @Mock StudentEvaluationService studentEvaluationService;
+    @Mock OrgLogoService orgLogoService;
+    @Mock MinorLearnerService minorLearnerService;
+    @Mock NotificationOutboxRepository outboxRepository;
 
     @InjectMocks OrgCertificateService service;
+
+    /** Mặc định học viên đạt ngưỡng; logo trả nguyên. Ca chưa đạt tự đè lại. */
+    @org.junit.jupiter.api.BeforeEach
+    void defaults() {
+        org.mockito.Mockito.lenient().when(studentEvaluationService.evaluationOf(anyLong(), anyLong()))
+                .thenReturn(evaluation(true));
+        org.mockito.Mockito.lenient().when(minorLearnerService.statusOf(anyLong()))
+                .thenReturn(MinorPolicy.Status.ADULT);
+        org.mockito.Mockito.lenient().when(orgLogoService.viewUrl(any()))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    private StudentEvaluationDto evaluation(boolean eligible) {
+        return new StudentEvaluationDto(STUDENT_ID, "Nguyễn Văn A", "a@tt.vn", CLASS_ID, CLASS_NAME, null,
+                null, null, null, null, 80.0, 10, 9, 1, 0, eligible, null);
+    }
 
     /** A class stamped with the given org (audit M-7 co-brand source). */
     private void stubClassOrg(Long orgId) {
@@ -205,6 +237,123 @@ class OrgCertificateServiceTest {
         assertThatThrownBy(() -> service.issue(ISSUER, req("Z9", null, null)))
                 .isInstanceOf(BadRequestException.class);
         verify(teacherService, never()).assertPrimaryTeacherOfClass(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("issue: C1, C2 không còn hợp lệ — sổ lời hứa không nói quá B2 (đợt 4A)")
+    void issue_aboveB2_throwsBadRequest() {
+        assertThatThrownBy(() -> service.issue(ISSUER, req("C1", null, null)))
+                .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.issue(ISSUER, req("C2", null, null)))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @DisplayName("issue: chưa đạt ngưỡng trung tâm → 409, không ghi giấy, không báo học viên (đợt 4A)")
+    void issue_notEligible_conflict() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        when(studentEvaluationService.evaluationOf(CLASS_ID, STUDENT_ID)).thenReturn(evaluation(false));
+
+        assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
+                .isInstanceOf(ConflictException.class);
+        verify(certificateRepository, never()).save(any());
+        verify(outboxRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("issue: chưa rõ tuổi → chặn fail-closed, link công khai in tên học viên (đợt 4A)")
+    void issue_unknownAge_blocked() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        when(minorLearnerService.statusOf(STUDENT_ID)).thenReturn(MinorPolicy.Status.UNKNOWN);
+
+        assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
+                .isInstanceOf(ReportIssueBlockedException.class);
+        verify(certificateRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("issue: chưa thành niên, đồng ý đã thu hồi → chặn; đồng ý còn hiệu lực → qua cổng (đợt 4A)")
+    void issue_minorConsentGate() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        when(minorLearnerService.statusOf(STUDENT_ID)).thenReturn(MinorPolicy.Status.MINOR_CENTER_POLICY);
+        when(minorLearnerService.consentStatus(STUDENT_ID, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.REVOKED);
+
+        assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
+                .isInstanceOfSatisfying(ReportIssueBlockedException.class, e -> assertThat(e.getReason())
+                        .isEqualTo(ReportIssueBlockedException.Reason.GUARDIAN_REPORT_CONSENT_REVOKED));
+        verify(certificateRepository, never()).save(any());
+
+        when(minorLearnerService.consentStatus(STUDENT_ID, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.GRANTED);
+        User student = userMock("Nguyễn Văn A");
+        when(student.getId()).thenReturn(STUDENT_ID);
+        stubClassOrg(null);
+        when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+        when(certificateRepository.save(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(service.issue(ISSUER, req("B1", null, null)).active()).isTrue();
+    }
+
+    @Test
+    @DisplayName("issue: đã có giấy còn hiệu lực cùng lớp + trình độ → 409 (đợt 4A)")
+    void issue_duplicateActive_conflict() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        when(certificateRepository.existsByClassIdAndStudentUserIdAndCefrLevelAndActiveTrue(CLASS_ID, STUDENT_ID, "B1"))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
+                .isInstanceOf(ConflictException.class);
+        verify(certificateRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("issue: báo học viên qua outbox, payload không điểm, không nhận xét, không token (đợt 4A)")
+    void issue_notifiesStudentWithoutSecrets() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        User student = userMock("Nguyễn Văn A");
+        when(student.getId()).thenReturn(STUDENT_ID);
+        stubClassOrg(ORG_ID);
+        when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(
+                Organization.builder().name("Trung tâm ABC").slug("abc").build()));
+        when(certificateRepository.save(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CertificateDto dto = service.issue(ISSUER, req("B1", 88, "Tiến bộ rõ rệt"));
+
+        ArgumentCaptor<NotificationOutbox> sent = ArgumentCaptor.forClass(NotificationOutbox.class);
+        verify(outboxRepository).save(sent.capture());
+        NotificationOutbox n = sent.getValue();
+        assertThat(n.getNotificationType()).isEqualTo(NotificationType.CERTIFICATE_ISSUED);
+        assertThat(n.getRecipientId()).isEqualTo(STUDENT_ID);
+        assertThat(n.getPayload()).containsEntry("cefrLevel", "B1").containsEntry("orgName", "Trung tâm ABC")
+                .doesNotContainKeys("score", "note", "verifyToken");
+        assertThat(n.getPayload().toString()).doesNotContain(dto.verifyToken());
+    }
+
+    @Test
+    @DisplayName("listForStudent: giấy của chính học viên, gồm cả giấy đã thu hồi (đợt 4A)")
+    void listForStudent_returnsOwnCertificates() {
+        when(certificateRepository.findByStudentUserIdOrderByCreatedAtDesc(STUDENT_ID))
+                .thenReturn(List.of(orgCert(true), orgCert(false)));
+
+        List<StudentCertificateDto> rows = service.listForStudent(STUDENT_ID);
+
+        assertThat(rows).extracting(StudentCertificateDto::active).containsExactly(true, false);
+        assertThat(rows.get(0).verifyToken()).isEqualTo("tok");
+    }
+
+    @Test
+    @DisplayName("getByToken: tên trống = học viên đã xoá tài khoản → erased, không phải thu hồi thường (đợt 4A)")
+    void getByToken_erasedStudent_flagged() {
+        OrgCertificate erased = orgCert(false);
+        erased.setStudentNameSnapshot("");
+        when(certificateRepository.findByVerifyToken("tok")).thenReturn(Optional.of(erased));
+
+        CertificateDto dto = service.getByToken("tok");
+
+        assertThat(dto.erased()).isTrue();
+        assertThat(dto.active()).isFalse();
     }
 
     @Test

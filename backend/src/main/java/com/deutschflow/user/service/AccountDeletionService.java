@@ -72,6 +72,12 @@ public class AccountDeletionService {
         jdbc.update("UPDATE content_reports SET snapshot_body = NULL, details = NULL, "
                 + "content_purged_at = COALESCE(content_purged_at, now()) WHERE reported_user_id = ?", userId);
 
+        // Chứng nhận trung tâm cấp (V214, không có FK tới users, đợt 4A): link xác thực là công khai
+        // nên phải xoá tên, điểm, nhận xét của người vừa thực thi quyền xoá. GIỮ dòng và mã giấy để ai
+        // cầm bản in vẫn tra được "không còn hiệu lực". Tên trống = đã ẩn danh (CertificateDto.erased).
+        jdbc.update("UPDATE org_certificates SET student_name_snapshot = '', score = NULL, note = NULL, "
+                + "active = FALSE WHERE student_user_id = ?", userId);
+
         // Remaining FKs cascade (ON DELETE CASCADE) or set null on this delete.
         // NOTE (teacher/org offboarding — separate follow-up): authorship/audit columns on
         // materials/quiz/skill/org tables (created_by, teacher_id, invited_by, attached_by) use

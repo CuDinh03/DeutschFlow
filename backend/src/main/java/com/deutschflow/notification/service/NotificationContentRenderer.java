@@ -174,6 +174,13 @@ public class NotificationContentRenderer {
                             + nonBlankOr(str(p, "className"), "bạn đang học")
                             + " đã được phát hành cho gia đình. Bạn xem đúng bản đã gửi trong mục Đánh giá.");
 
+            // ── Chứng nhận hoàn thành khoá học (đợt 4A) — không emoji, không điểm ─
+            case CERTIFICATE_ISSUED -> new RenderedContent(
+                    "Bạn có chứng nhận mới",
+                    nonBlankOr(str(p, "orgName"), "Trung tâm của bạn")
+                            + " đã cấp chứng nhận hoàn thành khoá học " + nonBlankOr(str(p, "cefrLevel"), "").trim()
+                            + " cho bạn. Mở mục Chứng nhận để xem và chia sẻ.");
+
             // ── Ngày sinh do trung tâm đặt (Q-02/Q-05) — KHÔNG nhắc giá trị ──
             // Body này là body của push Expo, hiện nguyên văn trên màn hình khoá. Ngày sinh của một
             // học viên (thường là trẻ vị thành niên) không đi ra chỗ đó; nó nằm trong payload để
