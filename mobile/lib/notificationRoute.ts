@@ -70,6 +70,8 @@ export function resolveNotificationRoute(
       // đã gửi (đọc payload đã đóng băng), mà màn lớp thì hiển thị số liệu HIỆN TẠI — hai thứ có
       // thể khác nhau nếu giáo viên sửa điểm sau khi phát hành.
       return '/(student)/report-issues'
+    case 'CERTIFICATE_ISSUED':
+      return '/(student)/certificates'
 
     case 'REVIEW_DUE':
       return '/(student)/srs'
