@@ -26,6 +26,7 @@ import { gamificationApi } from '@/lib/gamificationApi'
 import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
 import { messagesApi } from '@/lib/messagesApi'
 import { TodayTasks } from '@/components/home/TodayTasks'
+import { ExamCountdownCard } from '@/components/exam/ExamCountdownCard'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -402,6 +403,9 @@ export default function DashboardScreen() {
               đến hạn + nói/từ vựng theo gợi ý. Thẻ Ôn SRS ngay dưới là "việc"
               thứ tư, giữ nguyên vì nó là mỏ neo tour (homeSrsCard). */}
           <TodayTasks />
+
+          {/* LT3: chỉ hiện với người có ngày thi và có kế hoạch cho kỳ thi đó. */}
+          <ExamCountdownCard style={{ marginHorizontal: space[5], marginTop: space[4] }} />
 
           {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
               tự biến mất vĩnh viễn khi hoàn thành đủ. */}

@@ -612,7 +612,7 @@ export const studentAreas: RoleAreas = {
       href: '/v2/student/exam',
       icon: 'school',
       glyph: 'thithu',
-      match: ['/v2/student/mock-exam', '/v2/student/assessment'],
+      match: ['/v2/student/mock-exam', '/v2/student/assessment', '/v2/student/exam-plan'],
       local: [
         { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school', glyph: 'muctieu' },
         { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz', glyph: 'thithu' },

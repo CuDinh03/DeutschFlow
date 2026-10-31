@@ -2326,6 +2326,64 @@
       "steps": "Vorgehen",
       "traps": "Typische Fallen",
       "fixes": "Punktverlust durch… → Abhilfe"
+    },
+    "examPlan": {
+      "title": "Dein Weg zum Prüfungstag",
+      "subtitle": "Ein Wochenplan, der sich nach deinem Prüfungstermin richtet.",
+      "loading": "Plan wird geladen…",
+      "loadError": "Der Plan konnte nicht geladen werden.",
+      "countdown": "Noch {days} Tage bis zur Prüfung",
+      "countdownToday": "Heute ist Prüfungstag",
+      "weekOf": "Woche {week}/{total}",
+      "weekLabel": "Woche {week}",
+      "weekProgress": "{done}/{total} Aufgaben diese Woche erledigt",
+      "setupTitle": "Prüfungstermin eintragen und Wochenplan erhalten",
+      "setupHint": "Trage den genauen Tag ein, damit Countdown und Wochen stimmen.",
+      "passedTitle": "Dein Prüfungstermin ist vorbei",
+      "passedHint": "Wenn du die Prüfung wiederholst, trage den neuen Termin ein, um einen neuen Plan zu erstellen.",
+      "unavailableTitle": "Für diese Prüfung gibt es noch keinen Plan",
+      "unavailableHint": "Wochenpläne gibt es für telc B1. Wenn das deine Prüfung ist, wähle telc und das Ziel B1 in deinem Profil.",
+      "dateLabel": "Prüfungstermin",
+      "dateSave": "Termin speichern",
+      "dateChange": "Termin ändern",
+      "dateChangeNote": "Bei einem neuen Termin wird der Plan ab heute neu berechnet.",
+      "thisWeek": "Diese Woche",
+      "allWeeks": "Gesamter Plan",
+      "focus": "Schwerpunkt dieser Woche",
+      "focusHint": "Für die schriftliche Prüfung gibt es noch keine Übung zu einzelnen Teilen. Lies die Strategie und achte in der nächsten Prüfung auf diesen Teil.",
+      "teilLabel": "{section} · Teil {teil}",
+      "start": "Starten",
+      "done": "Erledigt",
+      "locked": "Bezahlpaket nötig",
+      "comingSoon": "Kommt bald",
+      "comingSoonExam": "Die nächste Gesamtprüfung kommt bald. Konzentriere dich diese Woche auf die mündliche Prüfung und deine schwachen Teile.",
+      "optional": "Vorschlag, zählt nicht zum Fortschritt",
+      "progressCount": "{done}/{target}",
+      "disclaimer": "Der Plan hilft dir beim Organisieren des Lernens. Er ist kein Versprechen für dein Prüfungsergebnis.",
+      "phases": {
+        "ROADMAP": "Normaler Lernweg",
+        "FOUNDATION": "Grundlagen",
+        "TEIL": "Einzelne Teile",
+        "FULL": "Gesamtprüfungen"
+      },
+      "phaseHints": {
+        "ROADMAP": "Deine Prüfung ist noch weit weg, folge diese Woche deinem normalen Lernweg. Der Prüfungsplan beginnt in den letzten 18 Wochen.",
+        "FOUNDATION": "Festige die Grammatik auf deinem Lernweg und lerne jeden Aufgabentyp kennen.",
+        "TEIL": "Konzentriere dich auf die Teile mit vielen Punkten und deine Schwächen.",
+        "FULL": "Jede Woche eine Gesamtprüfung mit Zeitlimit und eine mündliche Prüfung, danach Auswertung nach Punktebudget."
+      },
+      "tasks": {
+        "DIAGNOSTIC_EXAM": "Einstufungsprüfung machen",
+        "FULL_EXAM": "Gesamtprüfung mit Zeitlimit machen",
+        "ORAL_MOCK": "Komplette mündliche Prüfung machen",
+        "ORAL_DRILL": "Sprechen Teil {teil} üben",
+        "ROADMAP_NODES": "{target} Lektionen auf dem Lernweg abschließen",
+        "WEAKNESS_REVIEW": "Schwächen und Redemittel wiederholen"
+      },
+      "warnings": {
+        "LOW_WEEKLY_TIME": "Eine Woche mit Gesamtprüfung braucht etwa 3 Stunden, dein aktuelles Tempo sind {minutes} Minuten pro Woche. Plane für diese Wochen mehr Zeit ein.",
+        "LEVEL_GAP": "Der Abstand zwischen deinem Niveau und dem Ziel ist für die verbleibende Zeit groß. Überlege, mehr zu lernen oder den Termin zu verschieben."
+      }
     }
   }
 }
