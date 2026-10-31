@@ -6,6 +6,7 @@ import {
   AUSBILDUNG_SOURCES,
 } from '@/content/ausbildung'
 import {
+  AUSBILDUNG_COMPANIES,
   AUSBILDUNG_CONTENT_REVIEWED,
   AUSBILDUNG_OCCUPATIONS,
   ausbildungDeUrl,
@@ -16,6 +17,7 @@ import {
 import { WORKPLACES, occupationName, type OccupationSummary } from '@/lib/occupationTypes'
 import { localizedHref, publicHref } from '@/lib/publicLocale'
 import { AusbildungChecklist } from './AusbildungChecklist'
+import { AusbildungCompanies } from './AusbildungCompanies'
 import { LandingFooter } from './LandingFooter'
 import { LandingHeader } from './LandingHeader'
 import { START_HREF } from './links'
@@ -23,8 +25,9 @@ import { START_HREF } from './links'
 /**
  * Trang học nghề (Ausbildung) giai đoạn 1 — `/hoc-nghe/` và `/en/vocational-training/`.
  *
- * Trang hướng dẫn, KHÔNG phải cổng tuyển dụng: không lưu tin tuyển hay doanh nghiệp, chỉ link sang
- * nơi có tin. Nối chỗ học với người học có thể bị coi là môi giới, cần luật sư trả lời trước giai đoạn 2.
+ * Trang hướng dẫn kèm danh bạ doanh nghiệp, KHÔNG phải cổng tuyển dụng: không đăng tin, không nhận hồ
+ * sơ, không làm trung gian. Người học bấm sang website của doanh nghiệp và ứng tuyển ở đó. Toàn bộ trang
+ * công khai, miễn phí (`AUSBILDUNG_COMPANIES` nói rõ vì sao).
  * Cổng hiển thị và lý do xem `@/lib/ausbildung`; chữ ở `@/content/ausbildung`.
  */
 
@@ -34,6 +37,7 @@ const YellowSq = () => <span className="inline-block h-[7px] w-[7px] shrink-0 bg
 
 const STEPS_ANCHOR = 'cac-buoc'
 const OCCUPATIONS_ANCHOR = 'nghe'
+const COMPANIES_ANCHOR = 'doanh-nghiep'
 
 function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -154,6 +158,12 @@ export function AusbildungPage({
           <p className="mt-6 border-l-2 border-ga-yellow pl-3 text-ga-body text-ga-muted">{c.find.warning}</p>
         </section>
 
+        <section id={COMPANIES_ANCHOR} className={`${SECTION} scroll-mt-24 border-t border-ga-border`}>
+          <h2 className={H2}>{c.companies.title}</h2>
+          <p className="mb-8 mt-4 max-w-[640px] text-ga-body-lg text-ga-muted">{c.companies.intro}</p>
+          <AusbildungCompanies copy={c.companies} companies={AUSBILDUNG_COMPANIES} />
+        </section>
+
         <section id={OCCUPATIONS_ANCHOR} className={`${SECTION} scroll-mt-24 border-t border-ga-border`}>
           <h2 className={H2}>{c.occupations.title}</h2>
           <p className="mt-4 max-w-[640px] text-ga-body-lg text-ga-muted">{c.occupations.intro}</p>
@@ -241,6 +251,7 @@ export function AusbildungOccupationBlock({
       <div className="mt-4 flex flex-col gap-2 text-ga-body sm:flex-row sm:flex-wrap sm:gap-x-6">
         <ExternalLink href={jobsucheUrl(training.searchDe)}>{b.findBa}</ExternalLink>
         <ExternalLink href={ausbildungDeUrl(training.searchDe)}>{b.findAusbildungDe}</ExternalLink>
+        <Link href={`${guideHref}#${COMPANIES_ANCHOR}`} className="underline underline-offset-2 hover:text-ga-navy">{b.companies}</Link>
         <Link href={guideHref} className="font-semibold underline underline-offset-2 hover:text-ga-navy">{b.guide}</Link>
       </div>
     </section>

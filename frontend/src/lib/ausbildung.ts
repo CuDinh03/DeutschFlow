@@ -1,3 +1,4 @@
+import type { Workplace } from '@/lib/occupationTypes'
 import type { PublicLocale } from '@/lib/publicLocale'
 
 /**
@@ -123,7 +124,59 @@ export function ausbildungOccupation(code: string): AusbildungOccupation | null 
   return BY_CODE.get(code) ?? null
 }
 
-/** Chỉ link sang kết quả tìm kiếm, không lưu tin tuyển: dữ liệu luôn mới và không vướng quyền dữ liệu. */
+export interface AusbildungCompany {
+  name: string
+  workplace: Workplace
+  /** Trang tuyển học nghề hoặc tuyển dụng trên CHÍNH website của doanh nghiệp. */
+  url: string
+}
+
+/**
+ * Danh bạ doanh nghiệp có đào tạo học nghề. Tự tổng hợp từ website công khai của từng doanh nghiệp: chỉ
+ * có tên và link, không chép tin tuyển, không dùng logo. Mọi link đã mở được ngày 31/10/2026 và có nội
+ * dung về Ausbildung. Các doanh nghiệp này không phải đối tác, và chưa xác nhận có nhận người ở nước ngoài.
+ *
+ * Danh bạ PHẢI miễn phí cho người học: § 296a SGB III chỉ cho thu phí Ausbildungsvermittlung từ phía
+ * doanh nghiệp, nên không đặt phần này sau gói trả phí.
+ */
+export const AUSBILDUNG_COMPANIES: readonly AusbildungCompany[] = [
+  { name: 'Dorint Hotels & Resorts', workplace: 'gastro', url: 'https://karriere.dorint.com/ausbildung/' },
+  { name: 'Maritim Hotels', workplace: 'gastro', url: 'https://karriere.maritim.de/de/' },
+  { name: 'Motel One', workplace: 'gastro', url: 'https://jobs.motel-one.com/de/' },
+  { name: "McDonald's Deutschland", workplace: 'gastro', url: 'https://karriere.mcdonalds.de/' },
+
+  { name: 'Charité – Universitätsmedizin Berlin', workplace: 'pflege', url: 'https://karriere.charite.de/ausbildung' },
+  { name: 'Vivantes', workplace: 'pflege', url: 'https://karriere.vivantes.de/' },
+  { name: 'Helios Kliniken', workplace: 'pflege', url: 'https://www.helios-gesundheit.de/karriere/einstiege/' },
+  { name: 'Asklepios Kliniken', workplace: 'pflege', url: 'https://www.asklepios.com/karriere' },
+  { name: 'Sana Kliniken', workplace: 'pflege', url: 'https://www.sana.de/karriere' },
+
+  { name: 'HOCHTIEF', workplace: 'bau', url: 'https://www.hochtief.de/karriere' },
+  { name: 'PORR Deutschland', workplace: 'bau', url: 'https://www.porr.de/karriere' },
+  { name: 'Ed. Züblin', workplace: 'bau', url: 'https://karriere.zueblin.de/' },
+
+  { name: 'Bosch', workplace: 'industrie', url: 'https://www.bosch.de/karriere/dein-einstieg/schuelerinnen-und-schueler/' },
+  { name: 'BMW Group', workplace: 'industrie', url: 'https://www.bmwgroup.jobs/de/de/schueler/ausbildung.html' },
+  { name: 'Mercedes-Benz Group', workplace: 'industrie', url: 'https://group.mercedes-benz.com/karriere/schueler/ausbildung/' },
+  { name: 'Volkswagen', workplace: 'industrie', url: 'https://www.volkswagen-karriere.de/de/einstiegsmoeglichkeiten/schueler/ausbildung.html' },
+  { name: 'BASF', workplace: 'industrie', url: 'https://karriere.basf.com/de/de/einstieg/schuelerinnen' },
+  { name: 'Liebherr', workplace: 'industrie', url: 'https://www.liebherr.com/de-de/karriere/karriere-3364204' },
+
+  { name: 'Deutsche Post DHL', workplace: 'logistik', url: 'https://careers.dhl.com/eu/de/ausbildung' },
+  { name: 'Deutsche Bahn', workplace: 'logistik', url: 'https://db.jobs/de-de/dein-einstieg/ausbildung' },
+
+  { name: 'REWE', workplace: 'handel', url: 'https://karriere.rewe.de/ausbildung' },
+  { name: 'ALDI SÜD', workplace: 'handel', url: 'https://karriere.aldi-sued.de/schueler/ausbildung' },
+  { name: 'Lidl', workplace: 'handel', url: 'https://jobs.lidl.de/' },
+  { name: 'Kaufland', workplace: 'handel', url: 'https://jobs.kaufland.de/' },
+  { name: 'dm-drogerie markt', workplace: 'handel', url: 'https://www.dm-jobs.de/' },
+  { name: 'ROSSMANN', workplace: 'handel', url: 'https://jobs.rossmann.de/' },
+
+  { name: 'Deutsche Telekom', workplace: 'buero', url: 'https://careers.telekom.com/de/pupils-in-Germany' },
+  { name: 'Sparkassen-Finanzgruppe', workplace: 'buero', url: 'https://www.sparkasse.de/karriere.html' },
+]
+
+/** Link sang kết quả tìm kiếm theo nghề: không lưu tin tuyển nên dữ liệu luôn mới và không vướng quyền dữ liệu. */
 export function jobsucheUrl(searchDe: string): string {
   return `https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=4&was=${encodeURIComponent(searchDe)}`
 }

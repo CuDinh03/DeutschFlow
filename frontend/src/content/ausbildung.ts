@@ -1,4 +1,5 @@
 import type { AusbildungLocale } from '@/lib/ausbildung'
+import type { Workplace } from '@/lib/occupationTypes'
 
 /**
  * Chữ của trang học nghề `/hoc-nghe/` (vi) và `/en/vocational-training/` (en).
@@ -39,6 +40,17 @@ export interface AusbildungCopy {
     portals: { name: string; body: string; url: string }[]
     warning: string
   }
+  companies: {
+    title: string
+    intro: string
+    all: string
+    /** Có `count` để người đọc biết bộ lọc đang hiện bao nhiêu nơi. */
+    count: string
+    open: string
+    filterLabel: string
+    note: string
+    groups: Partial<Record<Workplace, string>>
+  }
   occupations: { title: string; intro: string; unavailable: string; yearsUnit: string; levelPrefix: string }
   practice: { title: string; body: string; cta: string }
   /** Khối trên trang nghề `/phong-van/[nghe]/`. */
@@ -50,6 +62,7 @@ export interface AusbildungCopy {
     paid: string
     findBa: string
     findAusbildungDe: string
+    companies: string
     guide: string
   }
   disclaimer: string
@@ -214,12 +227,22 @@ export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
     },
     find: {
       title: 'Tìm chỗ học nghề ở đâu',
-      intro: 'myDeutschFlow không đăng tin tuyển và không nối bạn với doanh nghiệp. Hai trang dưới đây có tin thật, bằng tiếng Đức. Mở một nghề trong danh sách để tới thẳng kết quả của nghề đó.',
+      intro: 'Hai cổng dưới đây có tin tuyển theo từng nghề, bằng tiếng Đức. Mở một nghề trong danh sách bên dưới để tới thẳng kết quả của nghề đó. myDeutschFlow không đăng tin tuyển và không làm trung gian.',
       portals: [
         { name: 'Jobsuche của Bundesagentur für Arbeit', body: 'Cổng việc làm của cơ quan lao động liên bang Đức.', url: 'https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=4' },
         { name: 'ausbildung.de', body: 'Cổng tư nhân về học nghề, có mô tả nghề và tin tuyển.', url: 'https://www.ausbildung.de/' },
       ],
       warning: 'Đọc kỹ hợp đồng trước khi ký hoặc trả bất kỳ khoản phí nào, kể cả khi làm qua đơn vị trung gian.',
+    },
+    companies: {
+      title: 'Doanh nghiệp có đào tạo học nghề',
+      intro: 'Bấm vào doanh nghiệp để mở trang tuyển dụng trên chính website của họ, rồi tìm vị trí và ứng tuyển trực tiếp ở đó.',
+      all: 'Tất cả',
+      count: '{count} doanh nghiệp',
+      open: 'Mở trang tuyển dụng',
+      filterLabel: 'Lọc theo ngành',
+      note: 'myDeutschFlow tự tổng hợp danh sách này từ website công khai. Các doanh nghiệp không phải đối tác của chúng tôi. Chúng tôi chưa xác nhận từng nơi có nhận người đang ở nước ngoài, nên hãy hỏi trực tiếp trước khi chuẩn bị hồ sơ.',
+      groups: { gastro: 'Khách sạn, ăn uống', pflege: 'Y tế, điều dưỡng', bau: 'Xây dựng', industrie: 'Công nghiệp', logistik: 'Vận tải, kho vận', handel: 'Bán lẻ', buero: 'Văn phòng, ngân hàng' },
     },
     occupations: {
       title: 'Nghề có thể học',
@@ -241,6 +264,7 @@ export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
       paid: 'Có hợp đồng và lương học nghề',
       findBa: 'Tìm chỗ học trên Jobsuche',
       findAusbildungDe: 'Tìm trên ausbildung.de',
+      companies: 'Xem doanh nghiệp đào tạo',
       guide: 'Xem thủ tục và giấy tờ',
     },
     disclaimer:
@@ -395,12 +419,22 @@ export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
     },
     find: {
       title: 'Where to find a training place',
-      intro: 'myDeutschFlow does not post vacancies or connect you with companies. These two sites have real listings, in German. Open a trade below to go straight to its results.',
+      intro: 'These two portals list vacancies by trade, in German. Open a trade below to go straight to its results. myDeutschFlow does not post vacancies or act as an intermediary.',
       portals: [
         { name: 'Jobsuche by the Bundesagentur für Arbeit', body: 'The job portal of the German Federal Employment Agency.', url: 'https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=4' },
         { name: 'ausbildung.de', body: 'A private portal for vocational training, with trade profiles and listings.', url: 'https://www.ausbildung.de/' },
       ],
       warning: 'Read the contract carefully before you sign or pay any fee, including through an agency.',
+    },
+    companies: {
+      title: 'Companies that train apprentices',
+      intro: 'Open a company to go to the careers page on its own website, then find a position and apply directly there.',
+      all: 'All',
+      count: '{count} companies',
+      open: 'Open careers page',
+      filterLabel: 'Filter by sector',
+      note: 'myDeutschFlow compiled this list from public websites. These companies are not our partners. We have not confirmed that each one accepts applicants living abroad, so ask them directly before you prepare your documents.',
+      groups: { gastro: 'Hotels and food', pflege: 'Healthcare and nursing', bau: 'Construction', industrie: 'Industry', logistik: 'Transport and logistics', handel: 'Retail', buero: 'Office and banking' },
     },
     occupations: {
       title: 'Trades you can train in',
@@ -422,6 +456,7 @@ export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
       paid: 'Training contract with pay',
       findBa: 'Find a place on Jobsuche',
       findAusbildungDe: 'Search ausbildung.de',
+      companies: 'See training companies',
       guide: 'See steps and documents',
     },
     disclaimer:

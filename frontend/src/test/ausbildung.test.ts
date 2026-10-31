@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { AUSBILDUNG_COPY } from '@/content/ausbildung'
 import {
+  AUSBILDUNG_COMPANIES,
   AUSBILDUNG_CONTENT_REVIEWED,
   AUSBILDUNG_OCCUPATIONS,
   ausbildungDeUrl,
@@ -63,6 +64,30 @@ describe('ausbildung — dữ liệu nghề', () => {
   it('link tìm kiếm mã hoá từ khoá và lọc đúng loại Ausbildung', () => {
     expect(jobsucheUrl('Bäcker')).toBe('https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=4&was=B%C3%A4cker')
     expect(ausbildungDeUrl('Fachkraft für Lagerlogistik')).toContain('search=Fachkraft%20f%C3%BCr%20Lagerlogistik')
+  })
+})
+
+describe('ausbildung — danh bạ doanh nghiệp', () => {
+  it('link https trên website doanh nghiệp, không trùng, không qua cổng trung gian', () => {
+    const urls = AUSBILDUNG_COMPANIES.map((c) => c.url)
+    expect(new Set(urls).size).toBe(urls.length)
+    expect(new Set(AUSBILDUNG_COMPANIES.map((c) => c.name)).size).toBe(urls.length)
+    for (const url of urls) {
+      expect(url).toMatch(/^https:\/\//)
+      expect(url).not.toMatch(/ausbildung\.de|stepstone|indeed|arbeitsagentur/)
+    }
+  })
+
+  it('mọi nhóm ngành trong danh bạ đều có nhãn ở cả hai ngôn ngữ', () => {
+    for (const c of AUSBILDUNG_COMPANIES) {
+      expect(AUSBILDUNG_COPY.vi.companies.groups[c.workplace]).toBeTruthy()
+      expect(AUSBILDUNG_COPY.en.companies.groups[c.workplace]).toBeTruthy()
+    }
+  })
+
+  it('nói rõ không phải đối tác và chưa xác nhận nhận người ở nước ngoài', () => {
+    expect(AUSBILDUNG_COPY.vi.companies.note).toMatch(/không phải đối tác/)
+    expect(AUSBILDUNG_COPY.en.companies.note).toMatch(/not our partners/)
   })
 })
 
