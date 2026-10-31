@@ -259,7 +259,7 @@ export default function V2OrgCertificatesPage() {
                     rows.map((r) => (
                       <tr key={r.id} className="border-t border-ga-line">
                         <Td>
-                          <div className="font-semibold text-ga-ink">{r.studentName}</div>
+                          <div className="font-semibold text-ga-ink">{r.studentName || t('erasedStudent')}</div>
                           <GaCap className="mt-0.5 block">{r.certificateCode}</GaCap>
                         </Td>
                         <Td>
@@ -284,7 +284,7 @@ export default function V2OrgCertificatesPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => void copyLink(r)}
-                              aria-label={t('copyLinkAria', { student: r.studentName })}
+                              aria-label={t('copyLinkAria', { student: r.studentName || t('erasedStudent') })}
                             >
                               <GaIcon name={copiedId === r.id ? 'check' : 'link'} size={14} />
                               {copiedId === r.id ? t('copied') : t('copyLink')}
@@ -293,7 +293,7 @@ export default function V2OrgCertificatesPage() {
                               href={certificateVerifyUrl(r.verifyToken)}
                               target="_blank"
                               rel="noreferrer"
-                              aria-label={t('openVerifyAria', { student: r.studentName })}
+                              aria-label={t('openVerifyAria', { student: r.studentName || t('erasedStudent') })}
                               className="ga-ui inline-flex h-11 items-center gap-1 px-2 text-ga-caption font-semibold text-ga-muted underline-offset-2 hover:text-ga-ink hover:underline lg:h-8"
                             >
                               <GaIcon name="visibility" size={14} />
@@ -315,7 +315,7 @@ export default function V2OrgCertificatesPage() {
                                   size="sm"
                                   className="text-ga-red"
                                   onClick={() => openRevoke(r)}
-                                  aria-label={t('revokeAria', { student: r.studentName })}
+                                  aria-label={t('revokeAria', { student: r.studentName || t('erasedStudent') })}
                                 >
                                   <GaIcon name="block" size={14} />
                                   {t('revoke')}
@@ -359,7 +359,7 @@ export default function V2OrgCertificatesPage() {
             ? t('revokeDescription', {
                 code: pending.certificateCode,
                 level: pending.cefrLevel,
-                student: pending.studentName,
+                student: pending.studentName || t('erasedStudent'),
                 issuer: pending.issuedByName ?? '—',
               })
             : undefined

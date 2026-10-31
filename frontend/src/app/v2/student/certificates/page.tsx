@@ -4,14 +4,19 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { Award, Download, Lock, ShieldCheck, Star } from 'lucide-react'
+import { Award, Copy, Download, ExternalLink, Lock, ShieldCheck, Star } from 'lucide-react'
 import api, { isAxiosErr } from '@/lib/api'
+import { certificateVerifyUrl, listMyCertificates, type StudentCertificate } from '@/lib/certificateApi'
 import { getAccessToken } from '@/lib/authSession'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { GaBtn, GaCap, GaPageHdr, LoadingState, GaStatStrip } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaPageHdr, LoadingState, GaStatStrip, TkBadge } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// /v2/student/certificates — CEFR certificate list (Galerie shell).
+// /v2/student/certificates — chứng nhận trung tâm cấp + ghi nhận thi thử (Galerie shell).
+//
+// Hai thứ khác nhau, cố ý tách hai mục (đợt 4A):
+//   GET  /student/certificates       → chứng nhận hoàn thành khoá học do trung tâm cấp, có link xác thực
+//   Ghi nhận thi thử bên dưới là bản tự động, KHÔNG phải chứng chỉ ngôn ngữ.
 //
 // Port of /student/certificates: same endpoints, same contract —
 //   GET  /certificates/me            → Certificate[]
@@ -36,7 +41,7 @@ interface Certificate {
   justIssued?: boolean
 }
 
-const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'] as const
+const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 /** Level accent — same palette as /v2/student/mock-exam so a level reads the same colour app-wide. */
 const LEVEL_COLOR: Record<string, string> = {
@@ -56,6 +61,7 @@ export default function V2StudentCertificatesPage() {
   const t = useTranslations('v2.student.certificates')
 
   const [certs, setCerts] = useState<Certificate[]>([])
+  const [orgCerts, setOrgCerts] = useState<StudentCertificate[]>([])
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState<string | null>(null)
   const [notice, setNotice] = useState<ClaimNotice | null>(null)
@@ -67,6 +73,11 @@ export default function V2StudentCertificatesPage() {
       setCerts(data ?? [])
     } catch {
       setCerts([])
+    }
+    try {
+      setOrgCerts(await listMyCertificates())
+    } catch {
+      setOrgCerts([])
     } finally {
       setLoading(false)
     }
@@ -87,7 +98,7 @@ export default function V2StudentCertificatesPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `DeutschFlow-Certificate-${id}.pdf`
+      a.download = `DeutschFlow-Mock-Exam-Record-${id}.pdf`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -131,6 +142,18 @@ export default function V2StudentCertificatesPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
+            {orgCerts.length > 0 && (
+              <div>
+                <GaCap className="mb-3 block">{t('orgCap', { count: orgCerts.length })}</GaCap>
+                <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
+                  {orgCerts.map((c) => (
+                    <OrgCertificateCard key={c.verifyToken} cert={c} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <GaCap className="block">{t('mockCap')}</GaCap>
             <GaStatStrip
               items={[
                 { label: t('stats.earned'), value: certs.length, sub: t('stats.earnedSub'), tone: 'green' },
@@ -213,6 +236,46 @@ export default function V2StudentCertificatesPage() {
               </div>
             )}
           </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function OrgCertificateCard({ cert }: { cert: StudentCertificate }) {
+  const t = useTranslations('v2.student.certificates')
+  const url = certificateVerifyUrl(cert.verifyToken)
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success(t('orgCopied'))
+    } catch {
+      toast.error(t('orgCopyFailed'))
+    }
+  }
+
+  return (
+    <div className="border border-ga-line bg-ga-card p-4 lg:p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-ga-body font-semibold text-ga-ink">{t('orgCardTitle', { level: cert.cefrLevel })}</p>
+        {!cert.active && <TkBadge tone="red" variant="soft">{t('orgRevoked')}</TkBadge>}
+      </div>
+      <p className="ga-ui mt-1 text-ga-small text-ga-muted">
+        {t('orgCardMeta', {
+          org: cert.orgName ?? 'DeutschFlow',
+          date: format(new Date(cert.issuedAt), 'dd/MM/yyyy'),
+        })}
+      </p>
+      <p className="ga-ui mt-1 break-all font-mono text-ga-caption text-ga-subtle">{cert.certificateCode}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <GaBtn variant="ghost" size="sm" onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}>
+          <ExternalLink size={14} aria-hidden /> {t('orgOpen')}
+        </GaBtn>
+        {cert.active && (
+          <GaBtn variant="ghost" size="sm" onClick={() => void copyLink()}>
+            <Copy size={14} aria-hidden /> {t('orgCopy')}
+          </GaBtn>
         )}
       </div>
     </div>

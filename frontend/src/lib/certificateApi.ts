@@ -8,7 +8,10 @@ import api from '@/lib/api'
  * `baseURL` (`<origin>/api`), so the `/api` prefix is omitted.
  */
 
-export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
+/** Trình độ cấp được: A1–B2, cùng danh sách với backend (đợt 4A, sổ lời hứa). */
+export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2'
+
+export const CERTIFICATE_LEVELS: readonly CefrLevel[] = ['A1', 'A2', 'B1', 'B2'] as const
 
 /** Full certificate, as rendered / publicly verified. */
 export interface Certificate {
@@ -22,6 +25,18 @@ export interface Certificate {
   orgName: string | null
   orgLogoUrl: string | null
   issuedByName: string | null
+  issuedAt: string
+  active: boolean
+  /** Học viên đã xoá tài khoản: tên, điểm, nhận xét đã xoá, trang chỉ báo không còn hiệu lực. */
+  erased: boolean
+}
+
+/** Giấy của CHÍNH học viên — GET /student/certificates (đợt 4A). */
+export interface StudentCertificate {
+  certificateCode: string
+  verifyToken: string
+  cefrLevel: string
+  orgName: string | null
   issuedAt: string
   active: boolean
 }
@@ -57,6 +72,12 @@ export async function issueCertificate(input: IssueCertificateInput): Promise<Ce
 export async function listClassCertificates(classId: number | string): Promise<CertificateSummary[]> {
   const res = await api.get<CertificateSummary[]>(`/v2/teacher/certificates/class/${classId}`)
   return res.data
+}
+
+/** Chứng nhận trung tâm đã cấp cho chính người đang đăng nhập, gồm cả giấy đã thu hồi. */
+export async function listMyCertificates(): Promise<StudentCertificate[]> {
+  const res = await api.get<StudentCertificate[]>('/student/certificates')
+  return res.data ?? []
 }
 
 /** Revoke (soft-delete) a certificate. */
