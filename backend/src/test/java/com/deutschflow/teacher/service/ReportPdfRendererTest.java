@@ -5,12 +5,16 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
 
 import static com.deutschflow.testsupport.PdfTextAssert.assertThatPdfText;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.text.Normalizer;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -18,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * PDF phiếu gửi gia đình (§3.3–3.4): A4 DỌC, font nhúng vẽ được dấu tiếng Việt lẫn ß/ä/ö/ü, ba ngôn ngữ
@@ -28,6 +33,9 @@ class ReportPdfRendererTest {
     private static final String VN_NAME = "Nguyễn Thị Ánh Nguyệt Đỗ";
     private static final String COMMENT = "Em phát âm ß trong „Straße“ đã chuẩn, Übung với ä/ö/ü còn cần luyện. Tiến bộ rõ!";
     private static final String URL = "https://mydeutschflow.com/phieu/0123456789abcdef0123456789abcdef01234567?lang=vi";
+    /** Đủ các cặp font có thể ghép chữ; mã hex như {@code c69ffabf} rơi vào đây vì token sinh ngẫu nhiên. */
+    private static final String LIGATURE_WORDS = "Treffen Koffer offiziell Löffler Pflege Profi c69ffabf";
+    private static final float[] BLACK = {0f, 0f, 0f};
 
     private final ReportPdfRenderer renderer = new ReportPdfRenderer(new ReportI18n());
 
@@ -133,12 +141,102 @@ class ReportPdfRendererTest {
                 "(Giáo viên chưa ghi nhận xét.)", "10/09/2026");
     }
 
+    @Test
+    @DisplayName("Tên trung tâm (đậm) và nhận xét (thường) chứa ff/ffi trích xuất lại đúng chữ qua cả luồng render")
+    void ligatureWords_surviveFullRender() throws Exception {
+        StudentReportIssue issue = StudentReportIssue.builder()
+                .classId(1L).studentId(2L).period(StudentReportIssue.Period.MIDTERM).lang("vi")
+                .payload(map("teacherComment", LIGATURE_WORDS))
+                .orgNameSnapshot("TT Treffen ffe61285").studentNameSnapshot("Steffi Hoffmann")
+                .issuedAt(Instant.parse("2026-09-10T03:00:00Z")).token("0123456789abcdef0123456789abcdef01234567")
+                .tokenExpiresAt(Instant.parse("2026-10-10T03:00:00Z")).build();
+
+        assertThatPdfText(text(renderer.render(issue, URL)))
+                .contains("TT Treffen ffe61285", "Steffi Hoffmann", LIGATURE_WORDS);
+    }
+
+    @Test
+    @DisplayName("Cả ba phông: mỗi ký tự trong ff/ffi/ffl/fi/fl giữ glyph riêng có ánh xạ Unicode, không ký tự ghép U+FB0x")
+    void ligatureWords_keepOneGlyphPerCharacter_inEveryFont() throws Exception {
+        try (PDDocument doc = new PDDocument(); ReportPdfRenderer.Canvas c = new ReportPdfRenderer.Canvas(doc)) {
+            List<PDFont> fonts = List.of(c.regular, c.bold, c.italic);
+            float baseline = 700;
+            for (PDFont font : fonts) {
+                c.text(ReportPdfRenderer.MARGIN, baseline, font, 12, LIGATURE_WORDS, BLACK);
+                baseline -= 20;
+            }
+            c.close();
+
+            assertThat(rawUnicode(saved(doc))).isEqualTo(LIGATURE_WORDS.repeat(fonts.size()).replace(" ", ""));
+        }
+    }
+
+    @Test
+    @DisplayName("Tên tiếng Việt dạng NFD (dán từ nguồn ngoài) vẽ bằng glyph dựng sẵn, không còn dấu kết hợp rời")
+    void decomposedVietnamese_isDrawnPrecomposed() throws Exception {
+        String nfd = Normalizer.normalize(VN_NAME, Normalizer.Form.NFD);
+        assertThat(nfd).as("ca kiểm phải thật sự là NFD").isNotEqualTo(VN_NAME);
+
+        try (PDDocument doc = new PDDocument(); ReportPdfRenderer.Canvas c = new ReportPdfRenderer.Canvas(doc)) {
+            float measured = c.width(c.bold, 10, nfd);
+            c.text(ReportPdfRenderer.MARGIN, 700, c.bold, 10, nfd, BLACK);
+            c.close();
+
+            assertThat(measured).isEqualTo(c.width(c.bold, 10, VN_NAME));
+            assertThat(rawUnicode(saved(doc))).isEqualTo(VN_NAME.replace(" ", ""));
+        }
+    }
+
+    @Test
+    @DisplayName("Độ rộng đo để bọc dòng khớp độ rộng chữ thật sự vẽ ra, cả với từ có ff/ffi")
+    void measuredWidth_matchesDrawnWidth() throws Exception {
+        try (PDDocument doc = new PDDocument(); ReportPdfRenderer.Canvas c = new ReportPdfRenderer.Canvas(doc)) {
+            float measured = c.width(c.regular, 12, LIGATURE_WORDS);
+            c.text(ReportPdfRenderer.MARGIN, 700, c.regular, 12, LIGATURE_WORDS, BLACK);
+            c.close();
+
+            List<TextPosition> glyphs = positions(saved(doc));
+            TextPosition first = glyphs.get(0);
+            TextPosition last = glyphs.get(glyphs.size() - 1);
+            assertThat(last.getEndX() - first.getX()).isCloseTo(measured, within(0.05f));
+        }
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static String text(byte[] pdf) throws Exception {
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             return new PDFTextStripper().getText(doc);
         }
+    }
+
+    private static byte[] saved(PDDocument doc) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        doc.save(out);
+        return out.toByteArray();
+    }
+
+    /** Glyph đã vẽ, bỏ khoảng trắng. Glyph không có ánh xạ Unicode bị PDFBox bỏ qua, nên không xuất hiện ở đây. */
+    private static List<TextPosition> positions(byte[] pdf) throws Exception {
+        List<TextPosition> out = new ArrayList<>();
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            new PDFTextStripper() {
+                @Override
+                protected void processTextPosition(TextPosition glyph) {
+                    if (!glyph.getUnicode().isBlank()) {
+                        out.add(glyph);
+                    }
+                }
+            }.getText(doc);
+        }
+        return out;
+    }
+
+    /** Ghép ánh xạ của từng glyph, TRƯỚC bước chuẩn hoá của getText — bước đó che mất U+FB01 thành "fi". */
+    private static String rawUnicode(byte[] pdf) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        positions(pdf).forEach(glyph -> sb.append(glyph.getUnicode()));
+        return sb.toString();
     }
 
     private static StudentReportIssue issue(String lang, StudentReportIssue.Period period, String comment, boolean eligible) {

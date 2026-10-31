@@ -10,6 +10,8 @@ import static com.deutschflow.testsupport.PdfTextAssert.assertThatPdfText;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.text.Normalizer;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -35,6 +37,29 @@ class CertificateControllerPdfTest {
                     "CERTIFICATE OF ACHIEVEMENT",
                     "Exam Score: 87 / 100",
                     "DF-B1-TEST01");
+        }
+    }
+
+    @Test
+    @DisplayName("renderPdf: tên chứa ff/ffi trích xuất lại đúng chữ, không mất ký tự vào glyph ghép")
+    void rendersLigatureName() throws Exception {
+        byte[] pdf = CertificateController.renderPdf("Steffi Hoffmann-Schiffer", "B1", 87, "DF-B1-TEST03", "06/09/2026");
+
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            String text = new PDFTextStripper().getText(doc);
+            assertThatPdfText(text).contains("Steffi Hoffmann-Schiffer");
+        }
+    }
+
+    @Test
+    @DisplayName("renderPdf: tên dạng NFD được chuẩn hoá NFC trước khi vẽ")
+    void normalizesDecomposedName() throws Exception {
+        byte[] pdf = CertificateController.renderPdf(Normalizer.normalize(VN_NAME, Normalizer.Form.NFD),
+                "B1", 87, "DF-B1-TEST04", "06/09/2026");
+
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            String text = new PDFTextStripper().getText(doc);
+            assertThatPdfText(text).contains(VN_NAME);
         }
     }
 

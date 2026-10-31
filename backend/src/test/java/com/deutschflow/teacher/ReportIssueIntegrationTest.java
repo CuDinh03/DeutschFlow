@@ -485,8 +485,9 @@ class ReportIssueIntegrationTest extends AbstractPostgresIntegrationTest {
                 assertThat(doc.getPage(0).getMediaBox().getHeight()).isGreaterThan(doc.getPage(0).getMediaBox().getWidth());
                 String text = new PDFTextStripper().getText(doc);
                 // So khớp bỏ qua chỗ ngắt dòng: tên lớp/tên giáo viên trong dữ liệu dựng sẵn có hậu
-                // tố NGẪU NHIÊN nên độ rộng dòng đổi theo từng lần chạy, và mã phiếu từng bị gãy
-                // đôi ("TT Phiếu e61285" thay vì "…ffe61285") làm ca này đỏ ngẫu nhiên trên CI.
+                // tố NGẪU NHIÊN nên độ rộng dòng đổi theo từng lần chạy. Hậu tố chứa "ff" từng làm ca
+                // này đỏ ngẫu nhiên ("TT Phiếu e61285" thay vì "…ffe61285"), nhưng đó là lỗi mất chữ
+                // trong glyph ghép, không phải ngắt dòng: xem PdfFonts.
                 assertThatPdfText(text)
                         .contains(STUDENT_NAME, "Straße", "Übung", org.getName(),
                                 "Mã phiếu: " + token.substring(0, 8).toUpperCase(), "mydeutschflow.com")
