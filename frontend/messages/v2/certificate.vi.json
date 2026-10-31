@@ -18,7 +18,7 @@
     "revokedBody": "Chứng nhận mã {code} không còn hiệu lực. Bản in hay bản chụp của nó không còn giá trị. Cần cấp lại, hãy liên hệ {issuer}.",
     "revokedStrip": "Đã thu hồi · Không còn hiệu lực · Kiểm tra tại {url}",
     "erasedTitle": "Giấy này không còn hiệu lực",
-    "erasedBody": "Giấy mã {code} do {issuer} cấp không còn hiệu lực. Thông tin của người được cấp đã được xoá.",
+    "erasedBody": "Giấy mã {code} do {issuer} cấp không còn hiệu lực. Thông tin của người được cấp không còn được hiển thị.",
     "print": "In / Lưu PDF",
     "copyLink": "Sao chép liên kết xác thực",
     "copied": "Đã sao chép",

@@ -18,7 +18,7 @@
     "revokedBody": "Certificate {code} is no longer valid. Printed or scanned copies no longer count. To have it reissued, contact {issuer}.",
     "revokedStrip": "Revoked · No longer valid · Check at {url}",
     "erasedTitle": "This document is no longer valid",
-    "erasedBody": "Document {code} issued by {issuer} is no longer valid. The holder's details have been deleted.",
+    "erasedBody": "Document {code} issued by {issuer} is no longer valid. The holder's details are no longer shown.",
     "print": "Print / Save as PDF",
     "copyLink": "Copy verification link",
     "copied": "Copied",

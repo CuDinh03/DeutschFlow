@@ -1367,6 +1367,7 @@
       "orgCardTitle": "Chứng nhận hoàn thành khoá học {level}",
       "orgCardMeta": "{org} · Cấp ngày {date}",
       "orgRevoked": "Đã thu hồi",
+      "orgLoadError": "Chưa tải được chứng nhận của trung tâm.",
       "orgOpen": "Mở giấy",
       "orgCopy": "Sao chép link",
       "orgCopied": "Đã sao chép",

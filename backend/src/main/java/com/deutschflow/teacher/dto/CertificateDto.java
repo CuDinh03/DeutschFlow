@@ -9,8 +9,9 @@ import java.time.Instant;
  * intentionally included — it is printed on the certificate. {@code orgName}/{@code orgLogoUrl}
  * are the center co-brand (null when the issuer has no org → default DeutschFlow branding).
  *
- * <p>{@code erased}: học viên đã xoá tài khoản, tên/điểm/nhận xét không còn; trang xác thực chỉ báo
- * "không còn hiệu lực". {@code orgLogoUrl} là URL đã ký vì bucket private.
+ * <p>{@code erased}: học viên đã xoá tài khoản hoặc người giám hộ đã rút đồng ý, nên tên/điểm/nhận xét
+ * không được trả; trang xác thực chỉ báo "không còn hiệu lực". {@code orgLogoUrl} là URL đã ký vì bucket
+ * private.
  */
 public record CertificateDto(
         String certificateCode,

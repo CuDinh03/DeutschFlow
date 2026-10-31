@@ -1088,6 +1088,7 @@
       "statusRevoked": "Revoked",
       "classDeleted": "Class deleted",
       "erasedStudent": "Student deleted their account",
+      "statusErased": "Account deleted",
       "copyLink": "Copy link",
       "copyLinkAria": "Copy the verification link for {student}",
       "copied": "Copied",

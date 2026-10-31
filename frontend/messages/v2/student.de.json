@@ -1367,6 +1367,7 @@
       "orgCardTitle": "Teilnahmebescheinigung {level}",
       "orgCardMeta": "{org} · Ausgestellt am {date}",
       "orgRevoked": "Widerrufen",
+      "orgLoadError": "Die Bescheinigungen Ihrer Sprachschule konnten nicht geladen werden.",
       "orgOpen": "Öffnen",
       "orgCopy": "Link kopieren",
       "orgCopied": "Kopiert",

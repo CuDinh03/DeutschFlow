@@ -20,7 +20,7 @@ public interface OrgCertificateRepository extends JpaRepository<OrgCertificate, 
 
     List<OrgCertificate> findByStudentUserIdOrderByCreatedAtDesc(Long studentUserId);
 
-    boolean existsByClassIdAndStudentUserIdAndCefrLevelAndActiveTrue(Long classId, Long studentUserId, String cefrLevel);
+    boolean existsByClassIdAndStudentUserIdAndActiveTrue(Long classId, Long studentUserId);
 
     /**
      * Chứng nhận theo id NHƯNG ép thuộc đúng trung tâm (DEC-20): giám đốc chỉ với tới chứng nhận

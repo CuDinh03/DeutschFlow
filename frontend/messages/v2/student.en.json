@@ -1367,6 +1367,7 @@
       "orgCardTitle": "{level} course completion certificate",
       "orgCardMeta": "{org} · Issued {date}",
       "orgRevoked": "Revoked",
+      "orgLoadError": "We could not load your school certificates.",
       "orgOpen": "Open",
       "orgCopy": "Copy link",
       "orgCopied": "Copied",

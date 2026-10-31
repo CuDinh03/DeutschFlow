@@ -1088,6 +1088,7 @@
       "statusRevoked": "Widerrufen",
       "classDeleted": "Klasse gelöscht",
       "erasedStudent": "Konto der lernenden Person gelöscht",
+      "statusErased": "Konto gelöscht",
       "copyLink": "Link kopieren",
       "copyLinkAria": "Prüflink von {student} kopieren",
       "copied": "Kopiert",

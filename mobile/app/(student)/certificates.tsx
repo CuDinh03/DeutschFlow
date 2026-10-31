@@ -2,8 +2,10 @@
 //
 // Vào từ hai lối: hàng trong Hồ sơ, và chạm thông báo CERTIFICATE_ISSUED (lib/notificationRoute.ts).
 // Back về Hồ sơ theo PARENT_OF — Tabs (student) không có stack nên router.back() sẽ rơi về Heute.
+import { useCallback } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { useFocusEffect } from 'expo-router'
 import { format } from 'date-fns'
 import {
   Screen,
@@ -61,6 +63,13 @@ export default function CertificatesScreen() {
     staleTime: 60_000,
   })
   const pull = usePullRefresh(refetch)
+
+  // Tab ẩn giữ màn cũ sống: chạm thông báo giấy mới vẫn phải thấy giấy đó.
+  useFocusEffect(
+    useCallback(() => {
+      void refetch()
+    }, [refetch]),
+  )
 
   return (
     <Screen scroll refreshing={pull.refreshing} onRefresh={pull.onRefresh} contentStyle={{ paddingBottom: tabClearance }}>

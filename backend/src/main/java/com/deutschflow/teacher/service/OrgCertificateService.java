@@ -30,6 +30,7 @@ import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -88,6 +89,8 @@ public class OrgCertificateService {
     private static final String DEFAULT_STUDENT_NAME = "Học viên";
     private static final String REVOKED_BY_TEACHER = "TEACHER";
     private static final String REVOKED_BY_OWNER = "OWNER";
+    private static final String DUPLICATE_MESSAGE =
+            "Học viên đã có chứng nhận còn hiệu lực trong lớp này. Thu hồi giấy cũ trước khi cấp lại.";
 
     private final OrgCertificateRepository certificateRepository;
     private final TeacherService teacherService;
@@ -130,13 +133,12 @@ public class OrgCertificateService {
         if (!classStudentRepository.existsByIdClassIdAndIdStudentId(req.classId(), req.studentId())) {
             throw new BadRequestException("Học viên không thuộc lớp này");
         }
+        assertPublicLinkAllowed(req.studentId());
+        if (certificateRepository.existsByClassIdAndStudentUserIdAndActiveTrue(req.classId(), req.studentId())) {
+            throw new ConflictException(DUPLICATE_MESSAGE);
+        }
         if (!studentEvaluationService.evaluationOf(req.classId(), req.studentId()).certificateEligible()) {
             throw new ConflictException("Học viên chưa đạt ngưỡng cấp chứng nhận của trung tâm");
-        }
-        assertPublicLinkAllowed(req.studentId());
-        if (certificateRepository.existsByClassIdAndStudentUserIdAndCefrLevelAndActiveTrue(
-                req.classId(), req.studentId(), level)) {
-            throw new ConflictException("Học viên đã có chứng nhận trình độ này trong lớp");
         }
 
         User student = userRepository.findById(req.studentId())
@@ -178,7 +180,13 @@ public class OrgCertificateService {
                 .active(true)
                 .build();
 
-        OrgCertificate saved = certificateRepository.save(cert);
+        OrgCertificate saved;
+        try {
+            saved = certificateRepository.saveAndFlush(cert);
+        } catch (DataIntegrityViolationException e) {
+            // Hai request cùng lọt qua kiểm tra trên: chỉ mục V351 chặn dòng thứ hai.
+            throw new ConflictException(DUPLICATE_MESSAGE);
+        }
         audit(EVENT_ISSUED, issuer, saved, Map.of("cefrLevel", level));
         enqueueStudentNotification(saved);
         return toDto(saved);
@@ -190,11 +198,14 @@ public class OrgCertificateService {
      * <p>DEC-20: chứng nhận ĐÃ THU HỒI vẫn trả về (cờ {@code active=false}) thay vì 404 như trước —
      * người cầm tờ giấy quét link phải đọc được "đã thu hồi", không phải "không tồn tại" (404 không
      * phân biệt được giấy giả với giấy bị rút). Dữ liệu trả về vẫn chỉ là những gì đã in trên giấy.
+     *
+     * <p>Link không có hạn dùng nên cổng tuổi kiểm lại ở MỖI lần mở, không chỉ lúc cấp: người giám hộ
+     * rút đồng ý thì trang thôi in tên ngay ({@link #withheld}), đồng ý lại thì giấy hiện trở lại.
      */
     @Transactional(readOnly = true)
     public CertificateDto getByToken(String verifyToken) {
         return certificateRepository.findByVerifyToken(verifyToken)
-                .map(this::toDto)
+                .map(c -> isErased(c) || publicLinkAllowed(c.getStudentUserId()) ? toDto(c) : withheld(c))
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy chứng nhận"));
     }
 
@@ -328,6 +339,16 @@ public class OrgCertificateService {
                         + "trước khi cấp chứng nhận có link công khai.");
     }
 
+    /** Cùng luật với {@link #assertPublicLinkAllowed}, cho đường đọc công khai: không ném, chỉ trả lời. */
+    private boolean publicLinkAllowed(Long studentId) {
+        MinorPolicy.Status status = minorLearnerService.statusOf(studentId);
+        if (status == MinorPolicy.Status.UNKNOWN) {
+            return false;
+        }
+        return !status.isMinor()
+                || minorLearnerService.consentStatus(studentId, StudentConsent.Scope.GUARDIAN_REPORT_SHARING).isEffective();
+    }
+
     /** Báo học viên qua outbox trong CÙNG giao dịch — không điểm, không nhận xét, không token. */
     private void enqueueStudentNotification(OrgCertificate cert) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -427,7 +448,18 @@ public class OrgCertificateService {
                 c.getIssuedByNameSnapshot(),
                 c.getCreatedAt(),
                 c.isActive(),
-                c.getStudentNameSnapshot().isBlank());
+                isErased(c));
+    }
+
+    /** Bản cho trang công khai khi không còn được in tên: chỉ còn mã giấy và nơi cấp. */
+    private CertificateDto withheld(OrgCertificate c) {
+        return new CertificateDto(c.getCertificateCode(), c.getVerifyToken(), "", c.getCefrLevel(), null, null,
+                c.getOrgNameSnapshot(), orgLogoService.viewUrl(c.getOrgLogoUrlSnapshot()), null, c.getCreatedAt(),
+                false, true);
+    }
+
+    private static boolean isErased(OrgCertificate c) {
+        return c.getStudentNameSnapshot().isBlank();
     }
 
     private CertificateSummaryDto toSummary(OrgCertificate c) {
@@ -456,6 +488,7 @@ public class OrgCertificateService {
                 c.getIssuedByUserId(),
                 c.getIssuedByNameSnapshot(),
                 c.getCreatedAt(),
-                c.isActive());
+                c.isActive(),
+                isErased(c));
     }
 }

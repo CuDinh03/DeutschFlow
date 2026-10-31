@@ -274,6 +274,8 @@ export default function V2OrgCertificatesPage() {
                         <Td>
                           {r.active ? (
                             <TkBadge tone="green" dot>{t('statusActive')}</TkBadge>
+                          ) : r.erased ? (
+                            <TkBadge tone="neutral" dot>{t('statusErased')}</TkBadge>
                           ) : (
                             <TkBadge tone="red" dot>{t('statusRevoked')}</TkBadge>
                           )}

@@ -27,7 +27,7 @@ export interface Certificate {
   issuedByName: string | null
   issuedAt: string
   active: boolean
-  /** Học viên đã xoá tài khoản: tên, điểm, nhận xét đã xoá, trang chỉ báo không còn hiệu lực. */
+  /** Học viên đã xoá tài khoản hoặc giám hộ rút đồng ý: không có tên, điểm, nhận xét; trang chỉ báo không còn hiệu lực. */
   erased: boolean
 }
 
@@ -116,8 +116,9 @@ export interface OrgCertificateRow {
   issuedByUserId: number
   issuedByName: string | null
   issuedAt: string
-  /** false = đã thu hồi (giáo viên phụ trách hoặc giám đốc). */
+  /** false = hết hiệu lực; `erased` cho biết vì thu hồi hay vì học viên xoá tài khoản. */
   active: boolean
+  erased: boolean
 }
 
 /** Phong bì phân trang `{items,total,page,size}` — cùng khuôn với sổ hoạt động (C6). */

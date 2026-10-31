@@ -164,7 +164,7 @@ class OrgCertificateServiceTest {
         when(userRepository.findById(ISSUER_ID)).thenReturn(Optional.of(issuer));
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(
                 Organization.builder().name("Trung tâm ABC").slug("abc").logoUrl("https://cdn/abc.png").build()));
-        when(certificateRepository.save(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(certificateRepository.saveAndFlush(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CertificateDto dto = service.issue(ISSUER, req("b1", 88, "  Tiến bộ rõ rệt  "));
 
@@ -180,7 +180,7 @@ class OrgCertificateServiceTest {
         assertThat(dto.certificateCode()).startsWith("DF-B1-").contains(dto.verifyToken().substring(0, 8).toUpperCase());
 
         ArgumentCaptor<OrgCertificate> saved = ArgumentCaptor.forClass(OrgCertificate.class);
-        verify(certificateRepository).save(saved.capture());
+        verify(certificateRepository).saveAndFlush(saved.capture());
         OrgCertificate row = saved.getValue();
         assertThat(row.getStudentUserId()).isEqualTo(STUDENT_ID);
         assertThat(row.getStudentNameSnapshot()).isEqualTo("Nguyễn Văn A");
@@ -217,7 +217,7 @@ class OrgCertificateServiceTest {
 
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
                 .isInstanceOf(ForbiddenException.class);
-        verify(certificateRepository, never()).save(any());
+        verify(certificateRepository, never()).saveAndFlush(any());
         verifyNoInteractions(auditLogService);
     }
 
@@ -228,7 +228,7 @@ class OrgCertificateServiceTest {
 
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
                 .isInstanceOf(BadRequestException.class);
-        verify(certificateRepository, never()).save(any());
+        verify(certificateRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -256,7 +256,7 @@ class OrgCertificateServiceTest {
 
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
                 .isInstanceOf(ConflictException.class);
-        verify(certificateRepository, never()).save(any());
+        verify(certificateRepository, never()).saveAndFlush(any());
         verify(outboxRepository, never()).save(any());
     }
 
@@ -268,7 +268,7 @@ class OrgCertificateServiceTest {
 
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
                 .isInstanceOf(ReportIssueBlockedException.class);
-        verify(certificateRepository, never()).save(any());
+        verify(certificateRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -282,7 +282,7 @@ class OrgCertificateServiceTest {
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
                 .isInstanceOfSatisfying(ReportIssueBlockedException.class, e -> assertThat(e.getReason())
                         .isEqualTo(ReportIssueBlockedException.Reason.GUARDIAN_REPORT_CONSENT_REVOKED));
-        verify(certificateRepository, never()).save(any());
+        verify(certificateRepository, never()).saveAndFlush(any());
 
         when(minorLearnerService.consentStatus(STUDENT_ID, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
                 .thenReturn(ConsentState.GRANTED);
@@ -290,7 +290,7 @@ class OrgCertificateServiceTest {
         when(student.getId()).thenReturn(STUDENT_ID);
         stubClassOrg(null);
         when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-        when(certificateRepository.save(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(certificateRepository.saveAndFlush(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
 
         assertThat(service.issue(ISSUER, req("B1", null, null)).active()).isTrue();
     }
@@ -299,12 +299,12 @@ class OrgCertificateServiceTest {
     @DisplayName("issue: đã có giấy còn hiệu lực cùng lớp + trình độ → 409 (đợt 4A)")
     void issue_duplicateActive_conflict() {
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
-        when(certificateRepository.existsByClassIdAndStudentUserIdAndCefrLevelAndActiveTrue(CLASS_ID, STUDENT_ID, "B1"))
+        when(certificateRepository.existsByClassIdAndStudentUserIdAndActiveTrue(CLASS_ID, STUDENT_ID))
                 .thenReturn(true);
 
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
                 .isInstanceOf(ConflictException.class);
-        verify(certificateRepository, never()).save(any());
+        verify(certificateRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -317,7 +317,7 @@ class OrgCertificateServiceTest {
         when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(
                 Organization.builder().name("Trung tâm ABC").slug("abc").build()));
-        when(certificateRepository.save(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(certificateRepository.saveAndFlush(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CertificateDto dto = service.issue(ISSUER, req("B1", 88, "Tiến bộ rõ rệt"));
 
@@ -357,6 +357,92 @@ class OrgCertificateServiceTest {
     }
 
     @Test
+    @DisplayName("getByToken: người giám hộ rút đồng ý → thôi in tên, điểm, nhận xét, người cấp; đồng ý lại thì hiện lại")
+    void getByToken_consentWithdrawn_withholdsPersonalData() {
+        when(certificateRepository.findByVerifyToken("tok")).thenReturn(Optional.of(orgCert(true)));
+        when(minorLearnerService.statusOf(STUDENT_ID)).thenReturn(MinorPolicy.Status.MINOR_LEGAL);
+        when(minorLearnerService.consentStatus(STUDENT_ID, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.REVOKED);
+
+        CertificateDto hidden = service.getByToken("tok");
+
+        assertThat(hidden.erased()).isTrue();
+        assertThat(hidden.active()).isFalse();
+        assertThat(hidden.studentName()).isEmpty();
+        assertThat(hidden.score()).isNull();
+        assertThat(hidden.note()).isNull();
+        assertThat(hidden.issuedByName()).isNull();
+        assertThat(hidden.certificateCode()).isEqualTo("DF-B1-2026-TOK00000");
+
+        when(minorLearnerService.consentStatus(STUDENT_ID, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.GRANTED);
+        assertThat(service.getByToken("tok").studentName()).isEqualTo("Nguyễn Văn A");
+    }
+
+    @Test
+    @DisplayName("getByToken: giấy đã thu hồi của trẻ cũng thôi in tên khi rút đồng ý")
+    void getByToken_revokedCertificate_alsoWithheld() {
+        when(certificateRepository.findByVerifyToken("tok")).thenReturn(Optional.of(orgCert(false)));
+        when(minorLearnerService.statusOf(STUDENT_ID)).thenReturn(MinorPolicy.Status.MINOR_LEGAL);
+        when(minorLearnerService.consentStatus(STUDENT_ID, StudentConsent.Scope.GUARDIAN_REPORT_SHARING))
+                .thenReturn(ConsentState.REVOKED);
+
+        assertThat(service.getByToken("tok").studentName()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getByToken: chưa rõ tuổi → fail-closed như lúc cấp")
+    void getByToken_unknownAge_withheld() {
+        when(certificateRepository.findByVerifyToken("tok")).thenReturn(Optional.of(orgCert(true)));
+        when(minorLearnerService.statusOf(STUDENT_ID)).thenReturn(MinorPolicy.Status.UNKNOWN);
+
+        assertThat(service.getByToken("tok").erased()).isTrue();
+    }
+
+    @Test
+    @DisplayName("issue: mỗi lớp một giấy còn hiệu lực, chọn trình độ khác cũng bị chặn")
+    void issue_secondLevelInSameClass_conflict() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        when(certificateRepository.existsByClassIdAndStudentUserIdAndActiveTrue(CLASS_ID, STUDENT_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.issue(ISSUER, req("A2", null, null)))
+                .isInstanceOf(ConflictException.class);
+        verify(studentEvaluationService, never()).evaluationOf(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("issue: hai request đồng thời, chỉ mục V351 chặn dòng thứ hai → 409, không báo học viên")
+    void issue_concurrentDuplicate_conflict() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        User student = userMock("Nguyễn Văn A");
+        when(student.getId()).thenReturn(STUDENT_ID);
+        stubClassOrg(null);
+        when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+        when(certificateRepository.saveAndFlush(any(OrgCertificate.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("uq_org_cert_active_student_class"));
+
+        assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
+                .isInstanceOf(ConflictException.class);
+        verify(outboxRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("listByOrg: dòng đã xoá tài khoản mang cờ erased để sổ không ghi là đã thu hồi")
+    void listByOrg_flagsErasedRows() {
+        OrgCertificate erased = orgCert(false);
+        erased.setStudentNameSnapshot("");
+        when(certificateRepository.searchByOrg(eq(ORG_ID), any(), any(), any(), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(erased, orgCert(false))));
+        stubClassName();
+
+        @SuppressWarnings("unchecked")
+        List<OrgCertificateRowDto> rows = (List<OrgCertificateRowDto>) service
+                .listByOrg(OWNER_ID, ORG_ID, null, null, null, 0, 20).get("items");
+
+        assertThat(rows).extracting(OrgCertificateRowDto::erased).containsExactly(true, false);
+    }
+
+    @Test
     @DisplayName("issue: điểm ngoài 0–100 → BadRequest")
     void issue_scoreOutOfRange_throwsBadRequest() {
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", 150, null)))
@@ -373,7 +459,7 @@ class OrgCertificateServiceTest {
         stubClassOrg(null); // class has no org → no co-brand, no org lookup (M-7)
         when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
         when(userRepository.findById(ISSUER_ID)).thenReturn(Optional.of(issuer));
-        when(certificateRepository.save(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(certificateRepository.saveAndFlush(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CertificateDto dto = service.issue(ISSUER, req("A2", null, null));
 
@@ -391,7 +477,7 @@ class OrgCertificateServiceTest {
     void getByToken_active_returnsDto() {
         when(certificateRepository.findByVerifyToken("tok123")).thenReturn(Optional.of(
                 OrgCertificate.builder()
-                        .verifyToken("tok123").certificateCode("DF-B1-2026-TOK12345")
+                        .verifyToken("tok123").certificateCode("DF-B1-2026-TOK12345").studentUserId(STUDENT_ID)
                         .studentNameSnapshot("HV X").cefrLevel("B1").active(true).build()));
 
         CertificateDto dto = service.getByToken("tok123");
@@ -414,7 +500,7 @@ class OrgCertificateServiceTest {
     void getByToken_revoked_returnsInactiveDto() {
         when(certificateRepository.findByVerifyToken("rev")).thenReturn(Optional.of(
                 OrgCertificate.builder().verifyToken("rev").certificateCode("DF-A2-2026-REV00000")
-                        .studentNameSnapshot("HV Y").cefrLevel("A2").active(false).build()));
+                        .studentUserId(STUDENT_ID).studentNameSnapshot("HV Y").cefrLevel("A2").active(false).build()));
 
         CertificateDto dto = service.getByToken("rev");
 
@@ -623,7 +709,7 @@ class OrgCertificateServiceTest {
 
         assertThatThrownBy(() -> service.issue(ISSUER, req("B1", null, null)))
                 .isInstanceOf(com.deutschflow.common.exception.OrgReadOnlyException.class);
-        verify(certificateRepository, never()).save(any());
+        verify(certificateRepository, never()).saveAndFlush(any());
     }
 
 }

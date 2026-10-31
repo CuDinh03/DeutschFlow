@@ -9,7 +9,7 @@ import api, { isAxiosErr } from '@/lib/api'
 import { certificateVerifyUrl, listMyCertificates, type StudentCertificate } from '@/lib/certificateApi'
 import { getAccessToken } from '@/lib/authSession'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { GaBtn, GaCap, GaPageHdr, LoadingState, GaStatStrip, TkBadge } from '@/components/ui-v2'
+import { ErrorBanner, GaBtn, GaCap, GaPageHdr, LoadingState, GaStatStrip, TkBadge } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /v2/student/certificates — chứng nhận trung tâm cấp + ghi nhận thi thử (Galerie shell).
@@ -41,7 +41,8 @@ interface Certificate {
   justIssued?: boolean
 }
 
-const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
+// Bậc của GHI NHẬN THI THỬ, theo các bộ đề đang có. Khác chứng nhận trung tâm (A1–B2).
+const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'] as const
 
 /** Level accent — same palette as /v2/student/mock-exam so a level reads the same colour app-wide. */
 const LEVEL_COLOR: Record<string, string> = {
@@ -62,6 +63,7 @@ export default function V2StudentCertificatesPage() {
 
   const [certs, setCerts] = useState<Certificate[]>([])
   const [orgCerts, setOrgCerts] = useState<StudentCertificate[]>([])
+  const [orgLoadFailed, setOrgLoadFailed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState<string | null>(null)
   const [notice, setNotice] = useState<ClaimNotice | null>(null)
@@ -76,8 +78,11 @@ export default function V2StudentCertificatesPage() {
     }
     try {
       setOrgCerts(await listMyCertificates())
+      setOrgLoadFailed(false)
     } catch {
+      // Báo lỗi thay vì danh sách rỗng: học viên vừa nhận thông báo có giấy mới sẽ tưởng giấy biến mất.
       setOrgCerts([])
+      setOrgLoadFailed(true)
     } finally {
       setLoading(false)
     }
@@ -142,6 +147,8 @@ export default function V2StudentCertificatesPage() {
           <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
+            {orgLoadFailed && <ErrorBanner message={t('orgLoadError')} onRetry={() => void load()} />}
+
             {orgCerts.length > 0 && (
               <div>
                 <GaCap className="mb-3 block">{t('orgCap', { count: orgCerts.length })}</GaCap>

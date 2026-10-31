@@ -1088,6 +1088,7 @@
       "statusRevoked": "Đã thu hồi",
       "classDeleted": "Lớp đã xoá",
       "erasedStudent": "Học viên đã xoá tài khoản",
+      "statusErased": "Đã xoá tài khoản",
       "copyLink": "Sao chép link",
       "copyLinkAria": "Sao chép link xác thực của {student}",
       "copied": "Đã sao chép",
