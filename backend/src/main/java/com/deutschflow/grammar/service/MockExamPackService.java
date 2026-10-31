@@ -106,7 +106,7 @@ public class MockExamPackService {
      * read-only path never triggers subscription-reconciliation writes (which would fail in a
      * readOnly transaction).
      */
-    private boolean isPaid(Long userId) {
+    public boolean isPaid(Long userId) {
         QuotaSnapshot snapshot = quotaService.getSnapshotReadOnly(userId, Instant.now());
         String tier = snapshot == null ? null : QuotaService.publicTier(snapshot.planCode());
         return tier != null && !TIER_DEFAULT.equals(tier);

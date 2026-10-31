@@ -57,6 +57,7 @@ public class RoadmapTreeService {
     /** FE soft cap on leaves drawn per branch (config, not stored per row). */
     private static final int NODE_CAP = 10;
     private static final String DEFAULT_LEVEL = "A0";
+    private static final DateTimeFormatter EXAM_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final TreeLevelRepository levelRepository;
     private final TreeSkillRepository skillRepository;
@@ -358,6 +359,10 @@ public class RoadmapTreeService {
         String detail = firstNonBlank(profile.getExamType(), profile.getIndustry());
         if (detail != null) {
             sb.append(sb.length() > 0 ? " · " : "").append(detail);
+        }
+        // Chỉ khi có kỳ thi: không có examType thì ngày mốc có thể là buổi phỏng vấn hay ngày sang Đức.
+        if (profile.getTargetDate() != null && profile.getExamType() != null && !profile.getExamType().isBlank()) {
+            sb.append(" · thi ").append(profile.getTargetDate().format(EXAM_DATE));
         }
         return sb.length() > 0 ? sb.toString() : "Hành trình tiếng Đức";
     }

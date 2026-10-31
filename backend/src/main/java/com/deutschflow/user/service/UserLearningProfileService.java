@@ -213,6 +213,18 @@ public class UserLearningProfileService {
         }
     }
 
+    /** Ngày thi chính xác nhập ở màn lộ trình đếm ngược (LT3); onboarding chỉ hỏi theo tháng. */
+    public void updateTargetDate(User user, LocalDate targetDate) {
+        UserLearningProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new NotFoundException("Learning profile not found. Please complete onboarding first."));
+        LocalDate plausible = plausibleTargetDateOrNull(targetDate, LocalDate.now());
+        if (plausible == null) {
+            throw new BadRequestException("targetDate must be between today and " + MAX_TARGET_DATE_YEARS + " years from now");
+        }
+        profile.setTargetDate(plausible);
+        profileRepository.save(profile);
+    }
+
     // ── Settings page methods ────────────────────────────────────────────
 
     /**
