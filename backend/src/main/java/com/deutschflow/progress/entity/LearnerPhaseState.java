@@ -65,6 +65,15 @@ public class LearnerPhaseState {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /**
+     * Đã tới FLUENCY bằng chỉ số học thật. Học viên khai B1 vào thẳng FLUENCY nên phase một mình không
+     * chứng minh gì: tự vượt PRODUCTION mới có {@code productionCompletedAt}.
+     */
+    public boolean hasEarnedFluency() {
+        return currentPhase == PhaseType.GRADUATED
+                || (currentPhase == PhaseType.FLUENCY && productionCompletedAt != null);
+    }
+
     @PrePersist
     void onCreate() {
         var now = LocalDateTime.now();

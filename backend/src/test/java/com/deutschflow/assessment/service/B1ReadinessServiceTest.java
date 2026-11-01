@@ -47,6 +47,7 @@ class B1ReadinessServiceTest {
                 .user(user)
                 .currentPhase(PhaseType.FLUENCY)
                 .phaseStartedAt(LocalDateTime.now())
+                .productionCompletedAt(LocalDateTime.now())
                 .vocabularyMasteredCount(B1ReadinessService.VOCAB_THRESHOLD)
                 .speakingMinutesTotal(B1ReadinessService.SPEAKING_MINUTES_MIN)
                 .grammarAccuracyPercent(B1ReadinessService.GRAMMAR_ACCURACY_MIN)
@@ -65,6 +66,45 @@ class B1ReadinessServiceTest {
         assertThat(result.confidenceCheckPassed()).isTrue();
         assertThat(result.mockExamPassed()).isTrue();
         assertThat(result.fullyReady()).isTrue();
+    }
+
+    @Test
+    @DisplayName("FLUENCY taken from the declared level earns no confidence credit")
+    void evaluate_fluencyFromDeclaredLevel_noConfidenceCredit() {
+        var phaseState = LearnerPhaseState.builder()
+                .user(user)
+                .currentPhase(PhaseType.FLUENCY)
+                .phaseStartedAt(LocalDateTime.now())
+                .build();
+
+        when(phaseEngineService.getOrCreatePhaseState(user)).thenReturn(phaseState);
+        when(assessmentRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(assessmentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = b1ReadinessService.evaluate(user);
+
+        assertThat(result.confidenceCheckPassed()).isFalse();
+        assertThat(result.readinessScore()).isZero();
+    }
+
+    @Test
+    @DisplayName("GRADUATED counts as confidence even when FLUENCY came from the declared level")
+    void evaluate_graduatedFromDeclaredLevel_earnsConfidence() {
+        var phaseState = LearnerPhaseState.builder()
+                .user(user)
+                .currentPhase(PhaseType.GRADUATED)
+                .phaseStartedAt(LocalDateTime.now())
+                .fluencyCompletedAt(LocalDateTime.now())
+                .build();
+
+        when(phaseEngineService.getOrCreatePhaseState(user)).thenReturn(phaseState);
+        when(assessmentRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(assessmentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = b1ReadinessService.evaluate(user);
+
+        assertThat(result.confidenceCheckPassed()).isTrue();
+        assertThat(result.readinessScore()).isEqualTo(20);
     }
 
     @Test
@@ -96,6 +136,7 @@ class B1ReadinessServiceTest {
                 .user(user)
                 .currentPhase(PhaseType.FLUENCY)
                 .phaseStartedAt(LocalDateTime.now())
+                .productionCompletedAt(LocalDateTime.now())
                 .vocabularyMasteredCount(B1ReadinessService.VOCAB_THRESHOLD)
                 .speakingMinutesTotal(B1ReadinessService.SPEAKING_MINUTES_MIN)
                 .grammarAccuracyPercent(B1ReadinessService.GRAMMAR_ACCURACY_MIN)
@@ -143,6 +184,7 @@ class B1ReadinessServiceTest {
                 .user(user)
                 .currentPhase(PhaseType.FLUENCY)
                 .phaseStartedAt(LocalDateTime.now())
+                .productionCompletedAt(LocalDateTime.now())
                 .vocabularyMasteredCount(B1ReadinessService.VOCAB_THRESHOLD)
                 .speakingMinutesTotal(B1ReadinessService.SPEAKING_MINUTES_MIN)
                 .grammarAccuracyPercent(B1ReadinessService.GRAMMAR_ACCURACY_MIN)
