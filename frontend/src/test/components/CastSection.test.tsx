@@ -32,6 +32,7 @@ describe('CastSection — nhân vật cất tiếng', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   it('HTML ban đầu đã có nguyên câu của Klaus, không chờ JS hay cuộn trang', () => {
@@ -42,6 +43,8 @@ describe('CastSection — nhân vật cất tiếng', () => {
 
   it('chọn một thẻ: người đó nói đúng câu trong ngân hàng, miệng dừng khi chạy chữ xong', () => {
     vi.useFakeTimers()
+    // Nhân vật chớp mắt theo lịch ngẫu nhiên; ghim lịch để lần so SVG cuối không rơi vào lúc nhắm mắt.
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     renderCast()
     const card = screen.getByRole('button', { name: 'Xem Lena hỏi gì' })
     const closed = card.querySelector('svg')?.innerHTML
