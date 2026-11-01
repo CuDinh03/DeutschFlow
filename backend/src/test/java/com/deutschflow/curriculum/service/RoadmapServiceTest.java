@@ -306,6 +306,8 @@ class RoadmapServiceTest {
                     .thenReturn(List.of(rowWithCode("A1-001")));
 
             assertThat(service.getRoadmapMeta(USER_ID)).containsEntry("currentNodeCode", "A1-001");
+        }
+    }
 
     // ------------------------------------------------------------------ entry by level
 
