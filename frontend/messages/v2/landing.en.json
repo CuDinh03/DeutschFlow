@@ -10,6 +10,7 @@
       "pathways": "Pathways",
       "exam": "Exam practice",
       "centers": "For schools",
+      "training": "Vocational training",
       "about": "About us",
       "mainAria": "Main navigation"
     },
@@ -59,7 +60,7 @@
       "examLabel": "Exam",
       "interviewLabel": "Interviews focus on",
       "items": [
-        { "name": "Vocational training", "de": "Ausbildung", "who": "Aged 18–35, starting a trade or switching to a new one.", "level": "B1, sometimes B2", "exam": "Goethe or telc B1", "interview": "Motivation, plans, knowledge of the trade and of Germany", "fit": "On myDeutschFlow: interviews by trade, A1–B1 path, B1 mock exams." },
+        { "name": "Vocational training", "de": "Ausbildung", "who": "Starting a trade in Germany or switching to a new one.", "level": "B1, sometimes B2", "exam": "Goethe or telc B1", "interview": "Motivation, plans, knowledge of the trade and of Germany", "fit": "On myDeutschFlow: interviews by trade, A1–B1 path, B1 mock exams." },
         { "name": "Recognised qualifications", "de": "Anerkennung", "who": "Qualified and experienced: healthcare, engineering, crafts…", "level": "B1–B2, depending on the job and the state", "exam": "Job-specific exams such as telc Pflege, DTB", "interview": "Expertise, workplace situations, procedures", "fit": "On myDeutschFlow: interviews by trade. Job-specific exam papers are being written." },
         { "name": "Job search", "de": "Chancenkarte · Blaue Karte", "who": "Engineers, IT specialists, university graduates.", "level": "From A1, or B2 English", "exam": "Depends on the employer", "interview": "Expertise; German is an advantage", "fit": "On myDeutschFlow: interviews for IT, engineering and office roles." },
         { "name": "University", "de": "Studium", "who": "Students planning to study at a German university.", "level": "Usually B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "University and visa interviews", "fit": "On myDeutschFlow: speaking practice, mock exams up to B2. No C1 path yet." },

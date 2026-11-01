@@ -11,6 +11,9 @@ import {
   type QuestionSource,
 } from '@/lib/occupationTypes'
 import { LandingHeader } from './LandingHeader'
+import { ausbildungOccupation } from '@/lib/ausbildung'
+import { isAusbildungLocale } from '@/lib/ausbildungGate'
+import { AusbildungOccupationBlock } from './AusbildungPage'
 import { LandingFooter } from './LandingFooter'
 import { InterviewerPortrait } from './PersonaPortrait'
 import { QualityLabel } from './QualityLabel'
@@ -96,7 +99,7 @@ export async function OccupationIndex({ occupations }: { occupations: Occupation
   )
 }
 
-export async function OccupationDetailView({ detail }: { detail: OccupationDetail }) {
+export async function OccupationDetailView({ detail, showTraining = false }: { detail: OccupationDetail; showTraining?: boolean }) {
   const t = await getTranslations('v2.landing')
   const locale = await publicLocale()
   const o = detail.occupation
@@ -105,6 +108,7 @@ export async function OccupationDetailView({ detail }: { detail: OccupationDetai
   const sampleTexts = new Set(detail.sampleQuestions.map((q) => q.questionDe))
   const more = detail.occupationQuestions.filter((q) => !sampleTexts.has(q.questionDe))
   const startHref = `${START_HREF}/?occupation=${encodeURIComponent(o.code)}`
+  const training = showTraining ? ausbildungOccupation(o.code) : null
 
   return (
     <Shell>
@@ -182,6 +186,10 @@ export async function OccupationDetailView({ detail }: { detail: OccupationDetai
           <p className="mt-10 border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-muted">
             {t('occupationPages.detail.labelsNote')}
           </p>
+
+          {training && isAusbildungLocale(locale) && (
+            <AusbildungOccupationBlock training={training} locale={locale} />
+          )}
         </div>
 
         <aside className="flex flex-col gap-6 md:sticky md:top-28 md:self-start">

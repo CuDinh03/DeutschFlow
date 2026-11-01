@@ -10,6 +10,7 @@
       "pathways": "Hành trình",
       "exam": "Luyện thi",
       "centers": "Cho trung tâm",
+      "training": "Học nghề",
       "about": "Về chúng tôi",
       "mainAria": "Điều hướng chính"
     },
@@ -59,7 +60,7 @@
       "examLabel": "Kỳ thi",
       "interviewLabel": "Phỏng vấn xoay quanh",
       "items": [
-        { "name": "Học nghề", "de": "Ausbildung", "who": "18–35 tuổi, chưa có nghề hoặc muốn học nghề mới.", "level": "B1, đôi khi B2", "exam": "Goethe hoặc telc B1", "interview": "Động lực, kế hoạch, hiểu biết về nghề và nước Đức", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề, lộ trình A1–B1, thi thử B1." },
+        { "name": "Học nghề", "de": "Ausbildung", "who": "Chưa có nghề hoặc muốn học một nghề mới ở Đức.", "level": "B1, đôi khi B2", "exam": "Goethe hoặc telc B1", "interview": "Động lực, kế hoạch, hiểu biết về nghề và nước Đức", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề, lộ trình A1–B1, thi thử B1." },
         { "name": "Công nhận bằng nghề", "de": "Anerkennung", "who": "Đã có bằng và kinh nghiệm: y tế, kỹ thuật, thủ công…", "level": "B1–B2, tuỳ nghề và tuỳ bang", "exam": "Kỳ thi nghề nghiệp như telc Pflege, DTB", "interview": "Chuyên môn, tình huống trong nghề, quy trình", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề. Đề thi nghề nghiệp đang được biên soạn." },
         { "name": "Tìm việc", "de": "Chancenkarte · Blaue Karte", "who": "Kỹ sư, IT, người có bằng đại học.", "level": "Từ A1, hoặc B2 tiếng Anh", "exam": "Tuỳ nhà tuyển dụng", "interview": "Chuyên môn; tiếng Đức là lợi thế", "fit": "Trên myDeutschFlow: phỏng vấn cho IT, kỹ thuật, văn phòng." },
         { "name": "Du học đại học", "de": "Studium", "who": "Học sinh, sinh viên muốn học đại học ở Đức.", "level": "Thường B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Phỏng vấn trường, phỏng vấn visa", "fit": "Trên myDeutschFlow: luyện nói, thi thử đến B2. Chưa có lộ trình C1." },
