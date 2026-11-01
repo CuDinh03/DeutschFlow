@@ -268,4 +268,43 @@ class RoadmapServiceTest {
             assertThat(node.skillCounts()).isNotNull().isEmpty();
         }
     }
+
+    @Nested
+    @DisplayName("GET /roadmap/me/meta — currentNodeCode không được null")
+    class Meta {
+
+        /** Node nền tảng ngày 1–10 trên production có {@code node_code} NULL. */
+        private Map<String, Object> rowWithCode(String nodeCode) {
+            Map<String, Object> r = new HashMap<>();
+            r.put("node_code", nodeCode);
+            return r;
+        }
+
+        @Test
+        @DisplayName("Chưa có tiến độ, node đầu không có mã: trả mã node vào lộ trình thay vì 500")
+        void firstNodeWithoutCodeFallsBackToEntry() {
+            when(jdbcTemplate.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
+            when(jdbcTemplate.queryForList(anyString())).thenReturn(List.of(rowWithCode(null)));
+
+            assertThat(service.getRoadmapMeta(USER_ID)).containsEntry("currentNodeCode", "D01");
+        }
+
+        @Test
+        @DisplayName("Đang học node không có mã: vẫn trả được meta")
+        void progressOnNodeWithoutCodeFallsBackToEntry() {
+            when(jdbcTemplate.queryForList(anyString(), any(Object[].class)))
+                    .thenReturn(List.of(rowWithCode(null)));
+
+            assertThat(service.getRoadmapMeta(USER_ID)).containsEntry("currentNodeCode", "D01");
+        }
+
+        @Test
+        @DisplayName("Node có mã: giữ nguyên mã đó")
+        void keepsRealNodeCode() {
+            when(jdbcTemplate.queryForList(anyString(), any(Object[].class)))
+                    .thenReturn(List.of(rowWithCode("A1-001")));
+
+            assertThat(service.getRoadmapMeta(USER_ID)).containsEntry("currentNodeCode", "A1-001");
+        }
+    }
 }

@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
  * (giáo viên/placement đã đặt), rồi tới {@code cefr_level} của giáo trình gắn vào lớp đang học.
  * Không có cả hai ⇒ {@code null} và bản rút gọn hỏi thêm một câu trình độ.
  *
- * <p>Chỉ đọc; mọi tra cứu phụ (tên trung tâm, lớp, giáo trình) là best-effort — thiếu dữ liệu thì
+ * <p>Mọi tra cứu phụ (tên trung tâm, lớp, giáo trình) là best-effort — thiếu dữ liệu thì
  * trả {@code null} ở trường đó chứ không làm hỏng cả phản hồi, vì client chỉ cần
  * {@code accountSource} + {@code hasPlan} để rẽ lối.
  */
@@ -76,7 +76,8 @@ public class OnboardingContextService {
     private final UserLearningProfileRepository learningProfileRepository;
     private final QuotaService quotaService;
 
-    @Transactional(readOnly = true)
+    /** Không đặt readOnly: {@link #trialOf} đối soát gói (có UPDATE) trong cùng giao dịch này. */
+    @Transactional
     public OnboardingContextResponse contextFor(User user) {
         Long userId = user.getId();
         boolean hasPlan = learningPlanService.hasPlan(user);
