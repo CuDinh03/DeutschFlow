@@ -1,7 +1,7 @@
 package com.deutschflow.curriculum.service;
 
 /**
- * Điểm bắt đầu trên giáo trình 55 ngày theo trình độ học viên khai. Node trước điểm này không thuộc
+ * Điểm bắt đầu trên giáo trình A0–B1 theo trình độ học viên khai. Node trước điểm này không thuộc
  * lộ trình của học viên: không hiện, và không chặn bài ở điểm vào. Ngày/tuần hiển thị đếm từ đây,
  * nên tài khoản mới luôn thấy "Ngày 1" dù đang đứng giữa giáo trình.
  *

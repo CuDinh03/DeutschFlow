@@ -255,7 +255,10 @@ public class SkillTreeService {
                     boolean hasTheory  = theoryCards instanceof java.util.List<?> l1 && !l1.isEmpty();
                     boolean hasVocab   = vocabulary  instanceof java.util.List<?> l2 && !l2.isEmpty();
                     boolean hasPhrases = phrases     instanceof java.util.List<?> l3 && !l3.isEmpty();
-                    hasRealContent = hasTheory || hasVocab || hasPhrases;
+                    // Node gốc chưa có node_family là bản nháp chưa duyệt (V353): ẩn khỏi danh sách
+                    // thì cũng không được đọc trực tiếp theo id.
+                    boolean draft = "CORE_TRUNK".equals(node.get("node_type")) && node.get("node_family") == null;
+                    hasRealContent = !draft && (hasTheory || hasVocab || hasPhrases);
                 }
             } catch (Exception e) {
                 log.warn("[SkillTree] Failed to parse content_json for node={}", nodeId, e);
@@ -860,7 +863,7 @@ public class SkillTreeService {
                        xp_reward, energy_cost, mastery_threshold, industry, industry_vocab_percent,
                        vocab_strategy, content_json::text AS content_json, content_hash,
                        module_number, module_title_vi, module_title_de, session_type,
-                       satellite_status, creator_user_id,
+                       node_family, satellite_status, creator_user_id,
                        to_jsonb(core_topics)::text AS core_topics,
                        to_jsonb(grammar_points)::text AS grammar_points,
                        to_jsonb(tags)::text AS tags
