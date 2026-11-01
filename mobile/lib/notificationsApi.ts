@@ -60,6 +60,7 @@ export const STUDENT_NOTIFICATION_TYPES = [
   'SYSTEM_MAINTENANCE',
   'BIRTH_DATE_UPDATED',
   'REPORT_ISSUED',
+  'CERTIFICATE_ISSUED',
   // Đợt 6 onboarding (19/09/2026 §4.7): lifecycle tuần đầu + trial — mỗi (user, key) một lần.
   'ONBOARDING_D0_WELCOME',
   'ONBOARDING_D1_NEXT_LESSON',
@@ -124,6 +125,8 @@ export function notificationTypeLabel(type: string): string {
       return 'Bảo trì hệ thống'
     case 'REPORT_ISSUED':
       return 'Phiếu gửi gia đình'
+    case 'CERTIFICATE_ISSUED':
+      return 'Chứng nhận'
     default:
       return 'Thông báo'
   }
@@ -205,6 +208,8 @@ export function notificationIconKey(type: string): NotificationIconKey {
     case 'BIRTH_DATE_UPDATED':
       return 'profile'
     case 'REPORT_ISSUED':
+      return 'report'
+    case 'CERTIFICATE_ISSUED':
       return 'report'
   }
   // Loại lạ (backend thêm mới): đoán theo từ khoá rồi mới rơi về chuông.

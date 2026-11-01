@@ -76,7 +76,7 @@
       "game": "Game",
       "news": "German news",
       "b1-assessment": "B1 assessment",
-      "certificates": "Certificates",
+      "certificates": "Certificates & mock exams",
       "grammar-drafts": "Grammar exercises",
       "exercises": "Practice exercises",
       "org-timesheets": "Timesheets",
@@ -273,6 +273,7 @@
       "SCHEDULE_CHANGE_REJECTED": "Schedule change request declined",
       "TIMESHEET_PERIOD_APPROVED": "Timesheet period approved",
       "TIMESHEET_PERIOD_RETURNED": "Timesheet period returned",
+      "CERTIFICATE_ISSUED": "New certificate",
       "BIRTH_DATE_UPDATED": "Date of birth updated"
     }
   },

@@ -280,10 +280,24 @@ class OrgCertificateRegistryRbacIntegrationTest extends AbstractPostgresIntegrat
     @Test
     @DisplayName("Link công khai của chứng nhận còn hiệu lực: 200 active=true (không đăng nhập)")
     void publicVerifyActiveCertificate() throws Exception {
+        jdbcTemplate.update("UPDATE users SET birth_date = DATE '1990-01-01' WHERE id = ?",
+                certActive.getStudentUserId());
+
         mockMvc.perform(get(PUBLIC_VERIFY, certActive.getVerifyToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(true))
                 .andExpect(jsonPath("$.studentName").value(certActive.getStudentNameSnapshot()));
+    }
+
+    @Test
+    @DisplayName("Học viên chưa có ngày sinh: link công khai không in tên và điểm (fail-closed)")
+    void publicVerifyWithholdsWhenAgeUnknown() throws Exception {
+        mockMvc.perform(get(PUBLIC_VERIFY, certActive.getVerifyToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false))
+                .andExpect(jsonPath("$.erased").value(true))
+                .andExpect(jsonPath("$.studentName").value(""))
+                .andExpect(jsonPath("$.score").doesNotExist());
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────

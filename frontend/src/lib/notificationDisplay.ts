@@ -44,6 +44,7 @@ export const TYPE_ICON: Record<string, string> = {
   TIMESHEET_PERIOD_RETURNED: 'edit',
   // Ngày sinh do trung tâm đặt/sửa (Q-02, 14/09/2026) — người nhận là CHÍNH học viên.
   BIRTH_DATE_UPDATED: 'cake',
+  CERTIFICATE_ISSUED: 'workspace_premium',
 }
 
 export const TYPE_TONE: Record<string, string> = {
@@ -81,6 +82,7 @@ export const TYPE_TONE: Record<string, string> = {
   TIMESHEET_PERIOD_APPROVED: 'var(--ga-green)',
   TIMESHEET_PERIOD_RETURNED: 'var(--ga-orange)',
   BIRTH_DATE_UPDATED: 'var(--ga-blue)',
+  CERTIFICATE_ISSUED: 'var(--ga-gold)',
 }
 
 /**
@@ -122,6 +124,7 @@ export const TYPE_LABEL: Record<string, string> = {
   TIMESHEET_PERIOD_APPROVED: 'Kỳ công đã được duyệt',
   TIMESHEET_PERIOD_RETURNED: 'Kỳ công bị trả lại',
   BIRTH_DATE_UPDATED: 'Ngày sinh được cập nhật',
+  CERTIFICATE_ISSUED: 'Có chứng nhận mới',
 }
 
 /**
@@ -226,6 +229,8 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
     case 'BIRTH_DATE_UPDATED':
       // Về hồ sơ của chính mình: thông báo này chỉ có ích khi người nhận đối chiếu được giá trị.
       return '/v2/profile'
+    case 'CERTIFICATE_ISSUED':
+      return '/v2/student/certificates'
     case 'REVIEW_DUE':
       return '/v2/student/review'
     case 'STREAK_REMINDER':

@@ -38,6 +38,10 @@ describe('resolveNotificationRoute', () => {
     expect(resolveNotificationRoute('REPORT_ISSUED', null)).toBe('/(student)/report-issues')
   })
 
+  it('routes a new certificate to the certificates screen', () => {
+    expect(resolveNotificationRoute('CERTIFICATE_ISSUED', { certificateId: 7 })).toBe('/(student)/certificates')
+  })
+
   it('routes class-session events to the class schedule with the class name', () => {
     expect(resolveNotificationRoute('CLASS_SESSION_RESCHEDULED', { classId: 3, className: 'B1.2' })).toEqual({
       pathname: '/(student)/class-schedule/[classId]',

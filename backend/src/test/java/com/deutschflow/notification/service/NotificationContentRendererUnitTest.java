@@ -308,4 +308,17 @@ class NotificationContentRendererUnitTest {
         RenderedContent legacy = renderer.render(NotificationType.ADDED_TO_CLASS, Map.of("className", "A1 Sáng"));
         assertThat(legacy.body()).isEqualTo("Giáo viên của bạn đã thêm bạn vào lớp A1 Sáng.");
     }
+
+    @Test
+    @DisplayName("chứng nhận mới: nêu trung tâm và trình độ khoá học, không nói đạt trình độ (đợt 4A)")
+    void certificateIssued() {
+        RenderedContent c = renderer.render(NotificationType.CERTIFICATE_ISSUED,
+                Map.of("orgName", "Trung tâm ABC", "cefrLevel", "B1"));
+
+        assertThat(c.title()).isEqualTo("Bạn có chứng nhận mới");
+        assertThat(c.body()).contains("Trung tâm ABC").contains("hoàn thành khoá học B1");
+
+        RenderedContent noOrg = renderer.render(NotificationType.CERTIFICATE_ISSUED, Map.of("cefrLevel", "A2"));
+        assertThat(noOrg.body()).startsWith("Trung tâm của bạn");
+    }
 }

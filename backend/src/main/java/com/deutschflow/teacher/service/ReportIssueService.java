@@ -17,6 +17,7 @@ import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.organization.service.OrgGuard;
+import com.deutschflow.organization.service.OrgLogoService;
 import com.deutschflow.teacher.dto.ReportIssueDtos.PublicReportIssueDto;
 import com.deutschflow.teacher.dto.ReportIssueDtos.ReportIssueDto;
 import com.deutschflow.teacher.dto.ReportIssueDtos.ReportIssueSummaryDto;
@@ -113,6 +114,7 @@ public class ReportIssueService {
     private final ReportPayloadBuilder payloadBuilder;
     private final AuditLogService auditLogService;
     private final NotificationOutboxRepository outboxRepository;
+    private final OrgLogoService orgLogoService;
 
     // ── Phát hành ─────────────────────────────────────────────────────────────
 
@@ -332,7 +334,7 @@ public class ReportIssueService {
                 issue.getIssuedAt(),
                 issue.getTokenExpiresAt(),
                 issue.getOrgNameSnapshot(),
-                issue.getOrgLogoUrlSnapshot(),
+                orgLogoService.viewUrl(issue.getOrgLogoUrlSnapshot()),
                 issue.getStudentNameSnapshot(),
                 issue.getIssuedByNameSnapshot(),
                 verificationCodeOf(issue.getToken()),

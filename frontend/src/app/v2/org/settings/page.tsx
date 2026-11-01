@@ -7,6 +7,7 @@ import api, { apiMessage } from '@/lib/api'
 import { GaBtn, GaCap, GaPageHdr } from '@/components/ui-v2'
 import { OrgOwnerOnly } from '../OwnerOnly'
 import { OrgWriteGate } from '../../OrgLicenseGate'
+import { OrgLogoSection } from './OrgLogoSection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cấu hình trung tâm (PR-10, OWNER-only): P04 chính sách tính công + 2 ngưỡng
@@ -77,6 +78,8 @@ function SettingsInner() {
           <div className="ga-shimmer h-[220px] max-w-[560px] border border-ga-line" aria-hidden />
         ) : (
           <div className="flex max-w-[560px] flex-col gap-5">
+            <OrgLogoSection />
+
             {/* P04 — chính sách tính công */}
             <section className="border border-ga-line bg-ga-card p-4">
               <GaCap className="mb-2 block">{t('timesheetCap')}</GaCap>

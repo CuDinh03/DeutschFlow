@@ -51,6 +51,7 @@ const row = (id: number, over: Partial<OrgCertificateRow> = {}): OrgCertificateR
   issuedByName: 'Cô Lan',
   issuedAt: '2026-09-01T10:00:00Z',
   active: true,
+  erased: false,
   ...over,
 })
 
@@ -113,6 +114,14 @@ describe('V2OrgCertificatesPage — sổ chứng nhận toàn trung tâm (DEC-20
     const open = screen.getByRole('link', { name: k('openVerifyAria', { student: 'Học viên 1' }) })
     expect(open.getAttribute('href')).toBe('https://mydeutschflow.com/certificate/tok1/')
     expect(open.getAttribute('target')).toBe('_blank')
+  })
+
+  it('dòng của học viên đã xoá tài khoản hiện đúng lý do, không ghi là đã thu hồi', async () => {
+    listOrgCertificates.mockResolvedValue(envelope([row(1, { active: false, erased: true, studentName: '' })], 1))
+    render(<V2OrgCertificatesPage />)
+
+    expect(await screen.findByText(k('statusErased'))).toBeTruthy()
+    expect(screen.queryByText(k('statusRevoked'))).toBeNull()
   })
 
   it('MANAGER: vẫn đọc được sổ nhưng KHÔNG có cột/nút Thu hồi, có ghi chú chỉ giám đốc thu hồi được', async () => {

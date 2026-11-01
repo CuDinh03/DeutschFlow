@@ -32,8 +32,9 @@ class CertificateControllerPdfTest {
             String text = new PDFTextStripper().getText(doc);
             // Bỏ qua chỗ ngắt dòng của bố cục — xem PdfTextAssert.
             assertThatPdfText(text).contains(VN_NAME,
-                    "CERTIFICATE OF ACHIEVEMENT",
-                    "Exam Score: 87 / 100",
+                    "MOCK EXAM RECORD",
+                    "Mock exam score: 87 / 100",
+                    "Not a language certificate",
                     "DF-B1-TEST01");
         }
     }

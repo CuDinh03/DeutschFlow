@@ -1,0 +1,29 @@
+{
+  "certificate": {
+    "docTitle": "Teilnahmebescheinigung",
+    "certifies": "Hiermit wird bestätigt, dass",
+    "completed": "einen Deutschkurs auf folgendem Niveau abgeschlossen hat:",
+    "completedAtOrg": "bei {org}",
+    "levelCaption": "Niveau des Kurses",
+    "scoreLabel": "Ergebnis im Kurs",
+    "issuedOn": "Ausgestellt am",
+    "code": "Bescheinigungsnummer",
+    "issuer": "Ausgestellt von",
+    "partnerTagline": "Bildungspartner · DeutschFlow",
+    "platformTagline": "Plattform für das Sprechtraining auf Deutsch",
+    "disclaimer": "Diese Bescheinigung bestätigt den Abschluss eines Kurses beim genannten Bildungsträger. Sie ist kein Sprachzertifikat und ersetzt keine offizielle Prüfung.",
+    "validStrip": "Gültig · Prüfbar unter {url}",
+    "scanHint": "Code scannen, um dieses Dokument zu prüfen",
+    "revokedTitle": "Diese Bescheinigung wurde widerrufen",
+    "revokedBody": "Die Bescheinigung {code} ist nicht mehr gültig. Ausdrucke und Scans gelten nicht mehr. Für eine Neuausstellung wenden Sie sich an {issuer}.",
+    "revokedStrip": "Widerrufen · Nicht mehr gültig · Prüfbar unter {url}",
+    "erasedTitle": "Dieses Dokument ist nicht mehr gültig",
+    "erasedBody": "Das von {issuer} ausgestellte Dokument {code} ist nicht mehr gültig. Die Angaben zur Inhaberin oder zum Inhaber werden nicht mehr angezeigt.",
+    "print": "Drucken / Als PDF speichern",
+    "copyLink": "Prüflink kopieren",
+    "copied": "Kopiert",
+    "issuedVia": "Ausgestellt über DeutschFlow",
+    "cta": "Deutsch sprechen üben mit DeutschFlow",
+    "languageLabel": "Sprache"
+  }
+}

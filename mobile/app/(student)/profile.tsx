@@ -365,6 +365,13 @@ export default function ProfileScreen() {
               subtitle="Phiếu đánh giá giáo viên đã phát hành cho gia đình"
               onPress={() => router.push('/(student)/report-issues' as never)}
             />
+            <Divider />
+            <ListRow
+              glyph="thinoi"
+              title="Chứng nhận"
+              subtitle="Chứng nhận hoàn thành khoá học trung tâm đã cấp"
+              onPress={() => router.push('/(student)/certificates' as never)}
+            />
           </Card>
         </View>
 

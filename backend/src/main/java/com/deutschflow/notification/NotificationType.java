@@ -127,6 +127,13 @@ public enum NotificationType {
      */
     REPORT_ISSUED,
 
+    /**
+     * Giáo viên cấp chứng nhận hoàn thành khoá học (đợt 4A A+B+E). Recipient: học viên. Payload:
+     * {@code certificateId}, {@code classId}, {@code cefrLevel}, {@code orgName} — KHÔNG điểm, KHÔNG
+     * nhận xét, KHÔNG token (giấy đọc từ {@code GET /api/student/certificates}).
+     */
+    CERTIFICATE_ISSUED,
+
     // ── Đợt 6 onboarding (19/09/2026, §4.7): lifecycle tuần đầu + trial — mỗi (user, key) gửi một lần ──
     /** D0 — vừa kích hoạt (bài đầu tiên xong): chúc mừng + mời đặt giờ nhắc. */
     ONBOARDING_D0_WELCOME,

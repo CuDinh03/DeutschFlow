@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { GaBtn, GaCap, GaIcon, TkBadge } from '@/components/ui-v2'
 import { saveEvaluation, type StudentEvaluation, type StudentEvaluationInput } from '@/lib/teacherEvaluationApi'
+import { IssueCertificateDialog } from './IssueCertificateDialog'
 import { ReportIssueDialog } from './ReportIssueDialog'
 import { ReportPrintHeader, SkillBar, SKILL_COLORS } from './reportShared'
 
@@ -98,6 +99,8 @@ export function EvaluationTab(props: EvaluationTabProps) {
   // Học viên đang mở hộp thoại PHÁT HÀNH phiếu gửi gia đình (PR-R3). Giữ cả đối tượng chứ không chỉ
   // id: hộp thoại dựng bản xem trước từ chính dòng đánh giá này, không gọi lại máy chủ.
   const [issuingFor, setIssuingFor] = useState<StudentEvaluation | null>(null)
+  // Học viên đang mở hộp thoại cấp chứng nhận (đợt 4A); nút chỉ hiện khi đã đạt ngưỡng trung tâm.
+  const [certifyingFor, setCertifyingFor] = useState<StudentEvaluation | null>(null)
 
   const openEdit = (evaluation: StudentEvaluation): void => {
     setEditingEval(evaluation)
@@ -254,6 +257,11 @@ export function EvaluationTab(props: EvaluationTabProps) {
                   <GaBtn type="button" variant="ghost" size="sm" onClick={() => setIssuingFor(evaluation)} disabled={saving}>
                     <GaIcon name="mail" size={13} /> {t('reportIssue.openButton')}
                   </GaBtn>
+                  {evaluation.certificateEligible && (
+                    <GaBtn type="button" variant="ghost" size="sm" onClick={() => setCertifyingFor(evaluation)} disabled={saving}>
+                      <GaIcon name="workspace_premium" size={13} /> {t('certificateIssue.openButton')}
+                    </GaBtn>
+                  )}
                 </div>
               </div>
             </div>
@@ -336,6 +344,15 @@ export function EvaluationTab(props: EvaluationTabProps) {
           onOpenChange={(o) => { if (!o) setIssuingFor(null) }}
           classId={classId}
           evaluation={issuingFor}
+        />
+      )}
+
+      {certifyingFor && (
+        <IssueCertificateDialog
+          open
+          onOpenChange={(o) => { if (!o) setCertifyingFor(null) }}
+          classId={classId}
+          evaluation={certifyingFor}
         />
       )}
     </div>

@@ -83,6 +83,12 @@ describe('resolveNotificationHref', () => {
     expect(resolveNotificationHref(notif('TIMESHEET_PERIOD_RETURNED', { periodId: 5 }), 'teacher')).toBe('/v2/teacher/tc-timesheet')
   })
 
+  it('sends a new certificate to the student certificates page', () => {
+    expect(resolveNotificationHref(notif('CERTIFICATE_ISSUED', { certificateId: 7 }), 'student')).toBe(
+      '/v2/student/certificates',
+    )
+  })
+
   it('returns null when there is no useful destination', () => {
     expect(resolveNotificationHref(notif('ADMIN_BROADCAST', { title: 'x' }), 'student')).toBeNull()
     expect(resolveNotificationHref(notif('SOMETHING_UNKNOWN'), 'student')).toBeNull()

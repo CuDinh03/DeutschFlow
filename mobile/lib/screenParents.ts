@@ -39,6 +39,7 @@ export const PARENT_OF = {
   'settings/blocked': '/(student)/profile',
   'classes/index': '/(student)/profile',
   'report-issues': '/(student)/profile',
+  certificates: '/(student)/profile',
   'classes/[id]': '/(student)/classes',
   'messages/[userId]': '/(student)/messages',
 } as const
