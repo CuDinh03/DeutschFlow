@@ -138,6 +138,9 @@ export interface NodeSubmitResult {
   xpEarned?: number
   status?: string
   attempts?: number
+  // True when a node with both graded sets was already completed: the score is this run's, but
+  // nothing was saved and no XP was earned.
+  alreadyCompleted?: boolean
 }
 
 // ── Skill-tree list (/skill-tree/me) ────────────────────────────────────────

@@ -582,11 +582,19 @@ public class SkillTreeService {
         }
         
         String status = (String) progress.get("status");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> itemAnswers = answers.get("item_answers") instanceof Map<?, ?> raw
+                ? (Map<String, Object>) raw : null;
 
         if ("COMPLETED".equals(status)) {
-            throw new BadRequestException("Bạn đã hoàn thành bài này rồi");
+            String contentJson = (String) loadNodeOrThrow(nodeId).get("content_json");
+            NodeExerciseGrader.Result replay = NodeExerciseGrader.grade(objectMapper, contentJson, itemAnswers);
+            if (!hasBothGradedPaths(contentJson) || !replay.gradeable()) {
+                throw new BadRequestException("Bạn đã hoàn thành bài này rồi");
+            }
+            return alreadyCompletedResult(nodeId, replay.percent(), progress);
         }
-        
+
         // If not started or unlocked, check dependencies
         if (!"IN_PROGRESS".equals(status)) {
             if (!checkDependenciesMet(userId, nodeId)) {
@@ -602,9 +610,6 @@ public class SkillTreeService {
         // self-report 100% to unlock nodes / bypass paywalled content). Falls back to the
         // supplied score only when there is nothing deterministic to grade (SPEAKING/WRITING
         // nodes are AI-graded) or for legacy clients that don't yet send raw item answers.
-        @SuppressWarnings("unchecked")
-        Map<String, Object> itemAnswers = answers.get("item_answers") instanceof Map<?, ?> raw
-                ? (Map<String, Object>) raw : null;
         NodeExerciseGrader.Result graded =
                 NodeExerciseGrader.grade(objectMapper, (String) node.get("content_json"), itemAnswers);
 
@@ -738,6 +743,11 @@ public class SkillTreeService {
      * {@code "spoken"} sentinel (counted as attempted). Shares the same progress + side-effect path
      * as {@link #submitNodeExercises} so completion still unlocks the next node and seeds SRS/phase.
      *
+     * <p>A node may carry both {@code exercises} and {@code skill_exercises}. Passing EITHER set
+     * completes it: the web and older mobile builds only reach {@code /submit}, so requiring both
+     * would leave those learners stuck. The other set stays open as extra practice: it is graded
+     * and returned with {@code alreadyCompleted}, but nothing is written and no XP is awarded.
+     *
      * @param skillAnswers map skill → (itemIndex "0","1"… → raw answer / {@code {"answer": …}})
      */
     @Transactional
@@ -751,31 +761,25 @@ public class SkillTreeService {
 
         String status = (String) progress.get("status");
         if ("COMPLETED".equals(status)) {
-            throw new BadRequestException("Bạn đã hoàn thành bài này rồi");
+            String completedContentJson = (String) loadNodeOrThrow(nodeId).get("content_json");
+            if (!hasBothGradedPaths(completedContentJson)) {
+                throw new BadRequestException("Bạn đã hoàn thành bài này rồi");
+            }
+            SkillGrade replay = gradeSkillExercises(completedContentJson, skillAnswers);
+            Map<String, Object> result = alreadyCompletedResult(nodeId, replay.scorePercent(), progress);
+            result.put("perSkill", replay.perSkill());
+            return result;
         }
         if (!"IN_PROGRESS".equals(status) && !checkDependenciesMet(userId, nodeId)) {
             throw new BadRequestException("Bạn cần hoàn thành các bài học trước đó trước");
         }
 
         Map<String, Object> node = loadNodeOrThrow(nodeId);
-        String contentJson = (String) node.get("content_json");
+        SkillGrade grade = gradeSkillExercises((String) node.get("content_json"), skillAnswers);
+        int totalItems = grade.totalItems();
+        int scorePercent = grade.scorePercent();
+        Map<String, Object> perSkill = grade.perSkill();
 
-        // Grade each skill's exercises with the shared practice grader and aggregate across all four.
-        int totalItems = 0;
-        int totalCorrect = 0;
-        Map<String, Object> perSkill = new LinkedHashMap<>();
-        for (String skill : CORE_SKILLS) {
-            String skillJson = extractSkillExercisesJson(contentJson, skill);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> answers = skillAnswers.get(skill) instanceof Map<?, ?> m
-                    ? (Map<String, Object>) m : null;
-            PracticeExerciseGrader.Result r = PracticeExerciseGrader.grade(objectMapper, skillJson, answers);
-            totalItems += r.total();
-            totalCorrect += r.correctCount();
-            perSkill.put(skill, Map.of("scored", r.total(), "correct", r.correctCount()));
-        }
-
-        int scorePercent = totalItems == 0 ? 0 : (int) Math.round(totalCorrect * 100.0 / totalItems);
         int masteryThreshold = safeInt(node.get("mastery_threshold"), 70);
         if (masteryThreshold <= 0 || masteryThreshold > 100) {
             masteryThreshold = 70;
@@ -808,6 +812,54 @@ public class SkillTreeService {
                 "status", newStatus,
                 "perSkill", perSkill
         );
+    }
+
+    private record SkillGrade(int totalItems, int scorePercent, Map<String, Object> perSkill) {
+    }
+
+    /**
+     * Grade each skill's exercises with the shared practice grader and aggregate across all four.
+     * A skill missing from {@code skillAnswers} counts as unanswered: passing null would drop its
+     * items from the total, so a client sending only the self-attested speaking set would score 100%.
+     */
+    private SkillGrade gradeSkillExercises(String contentJson, Map<String, Object> skillAnswers) {
+        int totalItems = 0;
+        int totalCorrect = 0;
+        Map<String, Object> perSkill = new LinkedHashMap<>();
+        for (String skill : CORE_SKILLS) {
+            String skillJson = extractSkillExercisesJson(contentJson, skill);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> answers = skillAnswers.get(skill) instanceof Map<?, ?> m
+                    ? (Map<String, Object>) m : Map.of();
+            PracticeExerciseGrader.Result r = PracticeExerciseGrader.grade(objectMapper, skillJson, answers);
+            totalItems += r.total();
+            totalCorrect += r.correctCount();
+            perSkill.put(skill, Map.of("scored", r.total(), "correct", r.correctCount()));
+        }
+        int scorePercent = totalItems == 0 ? 0 : (int) Math.round(totalCorrect * 100.0 / totalItems);
+        return new SkillGrade(totalItems, scorePercent, perSkill);
+    }
+
+    /** True when the node has scored {@code exercises} and at least one {@code skill_exercises} item. */
+    private boolean hasBothGradedPaths(String contentJson) {
+        if (NodeExerciseGrader.countScored(objectMapper, contentJson) == 0) {
+            return false;
+        }
+        return gradeSkillExercises(contentJson, Map.of()).totalItems() > 0;
+    }
+
+    /** Response for extra practice on a completed node: this run's score, stored progress untouched. */
+    private Map<String, Object> alreadyCompletedResult(long nodeId, int scorePercent, Map<String, Object> progress) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("nodeId", nodeId);
+        result.put("scorePercent", scorePercent);
+        result.put("bestScore", safeInt(progress.get("best_score"), 0));
+        result.put("attempts", safeInt(progress.get("attempts"), 0));
+        result.put("completed", true);
+        result.put("xpEarned", 0);
+        result.put("status", "COMPLETED");
+        result.put("alreadyCompleted", true);
+        return result;
     }
 
     /**

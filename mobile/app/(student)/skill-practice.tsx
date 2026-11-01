@@ -61,11 +61,12 @@ import {
 import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/germanTts'
 import { useBlurGuard } from '@/hooks/useBlurGuard'
 import { findNextNode } from '@/lib/nextNode'
+import { completionCaption, completionTitle } from '@/lib/nodeActions'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
-type Result = { scorePercent: number; completed: boolean; xp: number } | null
+type Result = { scorePercent: number; completed: boolean; xp: number; alreadyCompleted: boolean } | null
 // Cap how long we hold the loading state waiting for the fresh tree before revealing the
 // result: happy-path refetch lands well under this; a slow refetch reveals anyway and the
 // derived nextNode self-heals when the observer catches up (the lesson is already graded).
@@ -135,7 +136,12 @@ function SkillPracticeRunner() {
         await Promise.race([treeRefresh, new Promise<void>((resolve) => setTimeout(resolve, REVEAL_TREE_CAP_MS))])
       }
       setSubmitted(true)
-      setResult({ scorePercent: res.scorePercent ?? 0, completed, xp: res.xpEarned ?? 0 })
+      setResult({
+        scorePercent: res.scorePercent ?? 0,
+        completed,
+        xp: res.xpEarned ?? 0,
+        alreadyCompleted: res.alreadyCompleted === true,
+      })
       await Haptics.notificationAsync(
         completed ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
       )
@@ -242,13 +248,11 @@ function ResultHero({ result, hasNext }: { result: NonNullable<Result>; hasNext:
             <GaGlyph name="thithu" size={18} ink="primary" />
           </View>
           <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
-            {`Tuyệt vời! +${result.xp} XP`}
+            {completionTitle(result.xp, result.alreadyCompleted)}
           </ThemedText>
         </View>
         <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-          {hasNext
-            ? 'Bài học đã mở khoá bài tiếp theo trên lộ trình.'
-            : 'Bạn đã hoàn thành mọi bài đang mở khoá.'}
+          {completionCaption(hasNext, result.alreadyCompleted)}
         </ThemedText>
       </Card>
     )
