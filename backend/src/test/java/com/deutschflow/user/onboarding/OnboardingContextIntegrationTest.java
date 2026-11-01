@@ -99,11 +99,11 @@ class OnboardingContextIntegrationTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get(CONTEXT).with(user(student)))
                 .andExpect(status().isOk());
 
-        // Đối soát xong còn cấp thêm một dòng DEFAULT ACTIVE, nên phải chỉ đúng dòng gói dùng thử.
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT status FROM user_subscriptions WHERE user_id = ? AND source = 'TRIAL'",
+        // Gói dùng thử kết thúc, đối soát mở gói DEFAULT để tài khoản luôn có một gói còn hiệu lực.
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT plan_code || ':' || status FROM user_subscriptions WHERE user_id = ?",
                 String.class, student.getId()))
-                .isEqualTo("ENDED");
+                .containsExactlyInAnyOrder("FREE:ENDED", "DEFAULT:ACTIVE");
     }
 
     private User student(User.CreatedVia createdVia) {
