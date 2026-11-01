@@ -1,6 +1,7 @@
 package com.deutschflow.curriculum.service;
 
 import com.deutschflow.curriculum.dto.RoadmapNodeDto;
+import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -305,6 +306,88 @@ class RoadmapServiceTest {
                     .thenReturn(List.of(rowWithCode("A1-001")));
 
             assertThat(service.getRoadmapMeta(USER_ID)).containsEntry("currentNodeCode", "A1-001");
+
+    // ------------------------------------------------------------------ entry by level
+
+    @Nested
+    @DisplayName("starting level decides where the roadmap begins (QA 01/11)")
+    class EntryByLevel {
+
+        private Map<String, Object> at(int day, int week, String cefr) {
+            Map<String, Object> r = row("N" + day, day, "LOCKED");
+            r.put("week_number", week);
+            r.put("cefr_level", cefr);
+            return r;
+        }
+
+        private List<RoadmapNodeDto> roadmapFor(UserLearningProfile.CurrentLevel level) {
+            when(profileRepository.findByUserId(anyLong())).thenReturn(Optional.of(
+                    UserLearningProfile.builder().currentLevel(level).build()));
+            givenRows(List.of(
+                    at(1, 1, "A1"), at(10, 2, "A1"), at(11, 3, "A1"), at(12, 3, "A1"), at(30, 7, "A1"),
+                    at(31, 8, "A2"), at(35, 9, "A2"),
+                    at(51, 13, "B1"), at(52, 13, "B1"), at(54, 14, "B1")));
+            return service.generateRoadmapForUser(USER_ID);
+        }
+
+        @Test
+        @DisplayName("a B1 learner starts on B1 content, never on A1 day 11")
+        void b1StartsAtB1() {
+            List<RoadmapNodeDto> nodes = roadmapFor(UserLearningProfile.CurrentLevel.B1);
+
+            assertThat(nodes).extracting(RoadmapNodeDto::cefrLevel).containsOnly("B1");
+            assertThat(nodes.get(0).progressStatus()).isEqualTo("AVAILABLE");
+            assertThat(nodes.get(1).progressStatus()).isEqualTo("LOCKED");
+        }
+
+        @Test
+        @DisplayName("day and week count from the learner's own start, so a new account reads day 1")
+        void calendarCountsFromTheLearnersStart() {
+            List<RoadmapNodeDto> nodes = roadmapFor(UserLearningProfile.CurrentLevel.B1);
+
+            assertThat(nodes).extracting(RoadmapNodeDto::dayNumber).containsExactly(1, 2, 4);
+            assertThat(nodes).extracting(RoadmapNodeDto::weekNumber).containsExactly(1, 1, 2);
+        }
+
+        @Test
+        @DisplayName("an A2 learner starts at the first A2 node and keeps going into B1")
+        void a2StartsAtA2() {
+            List<RoadmapNodeDto> nodes = roadmapFor(UserLearningProfile.CurrentLevel.A2);
+
+            assertThat(nodes).extracting(RoadmapNodeDto::cefrLevel)
+                    .containsExactly("A2", "A2", "B1", "B1", "B1");
+            assertThat(nodes.get(0).dayNumber()).isEqualTo(1);
+            assertThat(nodes.get(0).state()).isEqualTo("current");
+        }
+
+        @Test
+        @DisplayName("an A1 learner skips the foundation days and starts at day 11")
+        void a1SkipsFoundation() {
+            List<RoadmapNodeDto> nodes = roadmapFor(UserLearningProfile.CurrentLevel.A1);
+
+            assertThat(nodes).hasSize(8);
+            assertThat(nodes.get(0).code()).isEqualTo("N11");
+            assertThat(nodes.get(0).state()).isEqualTo("current");
+        }
+
+        @Test
+        @DisplayName("an A0 learner gets the whole curriculum from day 1, numbers untouched")
+        void a0GetsEverything() {
+            List<RoadmapNodeDto> nodes = roadmapFor(UserLearningProfile.CurrentLevel.A0);
+
+            assertThat(nodes).hasSize(10);
+            assertThat(nodes.get(0).code()).isEqualTo("N1");
+            assertThat(nodes.get(0).state()).isEqualTo("current");
+            assertThat(nodes.get(9).dayNumber()).isEqualTo(54);
+        }
+
+        @Test
+        @DisplayName("a level above the curriculum falls back to the highest level that has content")
+        void b2UsesHighestAvailable() {
+            List<RoadmapNodeDto> nodes = roadmapFor(UserLearningProfile.CurrentLevel.B2);
+
+            assertThat(nodes).extracting(RoadmapNodeDto::code).containsExactly("N51", "N52", "N54");
+            assertThat(nodes.get(0).state()).isEqualTo("current");
         }
     }
 }

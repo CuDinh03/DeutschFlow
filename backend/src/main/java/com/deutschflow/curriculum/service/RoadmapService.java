@@ -49,8 +49,9 @@ public class RoadmapService {
         String roadmapType = resolveRoadmapType(profile);
         String startingLevel = resolveCurrentLevel(profile);
         boolean beginnerFoundation = "A0".equals(startingLevel);
+        RoadmapEntry entry = RoadmapEntry.forLevel(startingLevel);
 
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+        List<Map<String, Object>> curriculum = jdbcTemplate.queryForList("""
                 SELECT
                     n.id,
                     n.node_code,
@@ -104,6 +105,9 @@ public class RoadmapService {
                   AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
                 ORDER BY COALESCE(n.day_number, 9999) ASC, COALESCE(n.sort_order, 9999) ASC, n.id ASC
                 """, userId);
+        List<Map<String, Object>> rows = curriculum.stream()
+                .filter(r -> r.get("day_number") == null || asInt(r.get("day_number")) >= entry.day())
+                .collect(Collectors.toCollection(ArrayList::new));
 
         if (!beginnerFoundation && roadmapType != null) {
             log.debug("Generating personalized roadmap branch for user {} with type {} and level {}", userId, roadmapType, startingLevel);
@@ -124,7 +128,7 @@ public class RoadmapService {
         List<RoadmapNodeDto> nodes = new ArrayList<>(rows.size());
 
         for (Map<String, Object> row : rows) {
-            String state = computeState(row, firstCurrentAssigned, roadmapStarted, firstFocusNodeCode, beginnerFoundation, prevCompleted, completedCodes);
+            String state = computeState(row, firstCurrentAssigned, roadmapStarted, firstFocusNodeCode, entry, prevCompleted, completedCodes);
             if ("current".equals(state)) {
                 firstCurrentAssigned = true;
             }
@@ -147,8 +151,8 @@ public class RoadmapService {
                     asString(row.get("cefr_level")),
                     firstPrerequisiteCode(row),
                     row.get("sort_order") == null ? null : asInt(row.get("sort_order")),
-                    asNullableInt(row.get("day_number")),
-                    asNullableInt(row.get("week_number")),
+                    shifted(row.get("day_number"), entry.dayShift()),
+                    shifted(row.get("week_number"), entry.weekShift()),
                     computeProgressStatus(row, state),
                     parseSkillCounts(row.get("skill_exercise_counts"))
             ));
@@ -169,30 +173,25 @@ public class RoadmapService {
         return profile.getTargetLevel().name();
     }
 
-    public String getCurrentNodeCode(Long userId) {
+    public String getCurrentNodeCode(Long userId, int entryDay) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT n.node_code
                 FROM v_skill_tree_roadmap_nodes n
                 JOIN skill_tree_user_progress p ON p.node_id = n.id
                 WHERE p.user_id = ?
                   AND p.status IN ('IN_PROGRESS', 'UNLOCKED', 'COMPLETED')
+                  AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                  AND n.day_number >= ?
                 ORDER BY
                     CASE p.status WHEN 'IN_PROGRESS' THEN 0 WHEN 'UNLOCKED' THEN 1 WHEN 'COMPLETED' THEN 2 ELSE 3 END,
                     COALESCE(p.updated_at, p.created_at) DESC,
                     n.day_number ASC,
                     n.sort_order ASC
                 LIMIT 1
-                """, userId);
+                """, userId, entryDay);
 
         if (rows.isEmpty()) {
-            List<Map<String, Object>> fallback = jdbcTemplate.queryForList("""
-                    SELECT n.node_code
-                    FROM v_skill_tree_roadmap_nodes n
-                    WHERE n.is_active = TRUE
-                    ORDER BY COALESCE(n.day_number, 9999) ASC, COALESCE(n.sort_order, 9999) ASC, n.id ASC
-                    LIMIT 1
-                    """);
-            return fallback.isEmpty() ? ENTRY_NODE_CODE : nodeCodeOrEntry(fallback.get(0));
+            return getEntryNodeCode(entryDay);
         }
 
         return nodeCodeOrEntry(rows.get(0));
@@ -204,7 +203,20 @@ public class RoadmapService {
         return code == null ? ENTRY_NODE_CODE : code;
     }
 
-    public long getCompletedNodeCount(Long userId) {
+    private String getEntryNodeCode(int entryDay) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT n.node_code
+                FROM v_skill_tree_roadmap_nodes n
+                WHERE n.is_active = TRUE
+                  AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                  AND n.day_number >= ?
+                ORDER BY n.day_number ASC, COALESCE(n.sort_order, 9999) ASC, n.id ASC
+                LIMIT 1
+                """, entryDay);
+        return rows.isEmpty() ? ENTRY_NODE_CODE : nodeCodeOrEntry(rows.get(0));
+    }
+
+    public long getCompletedNodeCount(Long userId, int entryDay) {
         Long count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM skill_tree_user_progress p
@@ -213,33 +225,36 @@ public class RoadmapService {
                   AND p.status = 'COMPLETED'
                   AND n.is_active = TRUE
                   AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
-                """, Long.class, userId);
+                  AND n.day_number >= ?
+                """, Long.class, userId, entryDay);
         return count == null ? 0L : count;
     }
 
-    public long getTotalNodeCount() {
+    public long getTotalNodeCount(int entryDay) {
         Long count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM v_skill_tree_roadmap_nodes n
                 WHERE n.is_active = TRUE
                   AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
-                """, Long.class);
+                  AND n.day_number >= ?
+                """, Long.class, entryDay);
         return count == null ? 0L : count;
     }
 
     public Map<String, Object> getRoadmapMeta(Long userId) {
         UserLearningProfile profile = profileRepository.findByUserId(userId).orElse(null);
-        long totalNodes = getTotalNodeCount();
-        long completedNodes = getCompletedNodeCount(userId);
+        int entryDay = RoadmapEntry.forLevel(resolveCurrentLevel(profile)).day();
+        long totalNodes = getTotalNodeCount(entryDay);
+        long completedNodes = getCompletedNodeCount(userId, entryDay);
         long progressPercent = totalNodes == 0 ? 0 : Math.min(100, Math.round((completedNodes * 100.0) / totalNodes));
 
         return Map.of(
                 "roadmapVersion", ROADMAP_VERSION,
                 "roadmapType", resolveRoadmapType(profile),
-                "entryNodeCode", ENTRY_NODE_CODE,
+                "entryNodeCode", getEntryNodeCode(entryDay),
                 "currentLevel", resolveCurrentLevel(profile),
                 "targetLevel", getTargetLevelCode(userId),
-                "currentNodeCode", getCurrentNodeCode(userId),
+                "currentNodeCode", getCurrentNodeCode(userId, entryDay),
                 "completedNodes", completedNodes,
                 "totalNodes", totalNodes,
                 "progressPercent", progressPercent,
@@ -262,7 +277,7 @@ public class RoadmapService {
     }
 
     private String computeState(Map<String, Object> row, boolean firstCurrentAssigned, boolean roadmapStarted, String firstFocusNodeCode,
-                                boolean beginnerFoundation, boolean prevCompleted, Set<String> completedCodes) {
+                                RoadmapEntry entry, boolean prevCompleted, Set<String> completedCodes) {
         String status = asString(row.get("user_status"));
         int bestScore = asInt(row.get("user_best_score"));
         int masteryThreshold = asInt(row.get("mastery_threshold"));
@@ -287,9 +302,9 @@ public class RoadmapService {
             return "current";
         }
         if (!roadmapStarted && !firstCurrentAssigned) {
-            return isEntryNode(row, beginnerFoundation) ? "current" : "locked";
+            return isEntryNode(row, entry) ? "current" : "locked";
         }
-        if (!firstCurrentAssigned && isEntryNode(row, beginnerFoundation)) {
+        if (!firstCurrentAssigned && isEntryNode(row, entry)) {
             return "current";
         }
         return "locked";
@@ -386,12 +401,8 @@ public class RoadmapService {
         }
     }
 
-    private boolean isEntryNode(Map<String, Object> row, boolean beginnerFoundation) {
-        if (beginnerFoundation) {
-            return ENTRY_NODE_CODE.equals(asString(row.get("node_code"))) || asInt(row.get("day_number")) == 1;
-        } else {
-            return "D11".equals(asString(row.get("node_code"))) || asInt(row.get("day_number")) == 11;
-        }
+    private boolean isEntryNode(Map<String, Object> row, RoadmapEntry entry) {
+        return asInt(row.get("day_number")) == entry.day();
     }
 
     private boolean hasCompletedProgress(Map<String, Object> row) {
@@ -488,5 +499,11 @@ public class RoadmapService {
     /** Like {@link #asInt} but keeps "absent" distinct from zero — day 0 and no day differ. */
     private Integer asNullableInt(Object value) {
         return value == null ? null : asInt(value);
+    }
+
+    /** Curriculum day/week counted from the learner's own start ({@link RoadmapEntry}). */
+    private Integer shifted(Object value, int shift) {
+        Integer n = asNullableInt(value);
+        return n == null ? null : n - shift;
     }
 }
