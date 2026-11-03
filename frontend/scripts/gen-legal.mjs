@@ -23,7 +23,8 @@ const OUT_DIR = path.resolve(HERE, '../src/content/legal')
 const LEGAL_NAME_EN = 'Cu Dinh'
 const LEGAL_NAME_VI = 'Cự Đinh'
 const EFFECTIVE_DATE = '2026-07-03'
-const LAST_UPDATED = '2026-09-13'
+// Each document keeps its own "Last updated": bumping one must not re-date the other.
+const LAST_UPDATED = { 'PRIVACY_POLICY.md': '2026-11-03', 'TERMS_OF_USE.md': '2026-09-13' }
 const DOMAIN = 'https://mydeutschflow.com'
 const SUPPORT_EMAIL = 'support@mydeutschflow.com'
 // ────────────────────────────────────────────────────────────────────────────
@@ -46,13 +47,13 @@ function splitLangs(filled) {
   return map
 }
 
-function fill(md) {
+function fill(md, lastUpdated) {
   return md
     .replace(/\[\[Legal name[^\]]*\]\]/g, LEGAL_NAME_EN)
     .replace(/\[\[Tên pháp lý[^\]]*\]\]/g, LEGAL_NAME_VI)
     .replace(/\[\[YYYY-MM-DD\]\]/g, EFFECTIVE_DATE)
     .replace(/\[\[EFFECTIVE-DATE\]\]/g, EFFECTIVE_DATE)
-    .replace(/\[\[LAST-UPDATED\]\]/g, LAST_UPDATED)
+    .replace(/\[\[LAST-UPDATED\]\]/g, lastUpdated)
     .replace(/\[\[https:\/\/your-domain\/privacy\]\]/g, `${DOMAIN}/privacy`)
     .replace(/\[\[privacy-policy-url\]\]/g, `${DOMAIN}/privacy`)
     .replace(/\[\[support@your-domain\]\]/g, SUPPORT_EMAIL)
@@ -61,8 +62,9 @@ function fill(md) {
 }
 
 for (const f of FILES) {
-  const md = fs.readFileSync(path.join(SRC_DIR, f.md), 'utf8')
-  const filled = fill(md)
+  // A Windows checkout (core.autocrlf) gives CRLF; normalize so the output does not depend on the OS.
+  const md = fs.readFileSync(path.join(SRC_DIR, f.md), 'utf8').replace(/\r\n/g, '\n')
+  const filled = fill(md, LAST_UPDATED[f.md])
   const leftover = filled.match(/\[\[[^\]]+\]\]/g)
   if (leftover) console.warn(`⚠️  ${f.out}: unresolved placeholders: ${[...new Set(leftover)].join(', ')}`)
   const banner =
