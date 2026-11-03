@@ -1,0 +1,158 @@
+/**
+ * Luyện đề telc (03/11/2026) — `/api/mock-exams/practice`. Làm từng Teil, không ép giờ, kiểm tra
+ * xong có phân tích từng câu; Viết chấm bằng AI có chỉ lỗi trong bài. Không tạo lượt thi.
+ *
+ * Khác `practiceApi.ts` (thư viện bài tập bổ trợ `/api/practice`) — hai tính năng không liên quan.
+ */
+import api from '@/lib/api'
+import { waitForAsyncJob } from '@/lib/asyncJob'
+
+export interface PracticeItemResult {
+  id: string
+  label: string
+  given: string | null
+  givenText: string | null
+  correct: string
+  correctText: string | null
+  answered: boolean
+  isCorrect: boolean
+  points: number
+  whyRight: string | null
+  whyWrong: string | null
+  trap: string | null
+  evidence: string[]
+  need: string | null
+  rule: string | null
+}
+
+export interface PracticeTeilResult {
+  teilKey: string
+  type: string
+  score: number
+  max: number
+  correctCount: number
+  total: number
+  items: PracticeItemResult[]
+  unusedOptions: { key: string; text: string; note: string | null }[]
+}
+
+export interface WritingAnnotation {
+  quote: string | null
+  insertAfter: string | null
+  correction: string
+  category: 'INHALT' | 'KOHAERENZ' | 'GRAMMATIK' | 'WORTSCHATZ' | 'RECHTSCHREIBUNG' | 'REGISTER' | string
+  kriterium: 'I' | 'II' | 'III' | null
+  leitpunkt: number | null
+  whyVi: string
+  ruleVi: string
+}
+
+/** Phiếu chấm Viết telc của chế độ luyện (phiếu thi thử + `annotations` + `musterloesung`). */
+export interface WritingEvaluation {
+  status: 'AI_EVALUATED' | 'PENDING_AI_EVALUATION' | string
+  total: number
+  max: number
+  percentage?: number
+  criteria?: { key: string; score: number; max: number; band?: string }[]
+  bands?: Record<string, string>
+  leitpunkte_fehlt?: number[]
+  kein_a_weil?: string[]
+  thema_verfehlt?: boolean
+  situierung_verfehlt?: boolean
+  feedback_vi?: string
+  feedback_de?: string
+  strengths?: string[]
+  improvements?: string[]
+  annotations?: WritingAnnotation[]
+  musterloesung?: string
+}
+
+export interface PracticeProgress {
+  answers: Record<string, string>
+  checked: boolean
+  score: number | null
+  max: number | null
+  elapsedSeconds: number
+  updatedAt: string | null
+  result: PracticeTeilResult | WritingEvaluation | null
+}
+
+export interface PracticeTeil {
+  key: string
+  section: 'LESEN' | 'SPRACHBAUSTEINE' | 'SCHREIBEN' | string
+  teil: number
+  type: string | null
+  items: number
+  maxPoints: number
+  suggestMinutes: number | null
+  progress: PracticeProgress | null
+}
+
+export interface PracticeOverview {
+  examId: number
+  title: string
+  level: string
+  format: string
+  sectionsJson: string
+  teile: PracticeTeil[]
+}
+
+export const WRITING_KEY = 'SCHREIBEN-1'
+
+export async function getPracticeAccess(): Promise<boolean> {
+  try {
+    const { data } = await api.get<{ enabled: boolean }>('/mock-exams/practice/access')
+    return !!data?.enabled
+  } catch {
+    return false
+  }
+}
+
+export async function getPracticeOverview(examId: number): Promise<PracticeOverview> {
+  const { data } = await api.get<PracticeOverview>(`/mock-exams/practice/${examId}`)
+  return data
+}
+
+export async function savePracticeDraft(
+  examId: number,
+  teilKey: string,
+  answers: Record<string, string>,
+  elapsedSeconds: number,
+): Promise<PracticeProgress | null> {
+  const { data } = await api.put<PracticeProgress | null>(
+    `/mock-exams/practice/${examId}/teile/${teilKey}/draft`,
+    { answers, elapsedSeconds },
+  )
+  return data
+}
+
+export async function checkPracticeTeil(
+  examId: number,
+  teilKey: string,
+  answers: Record<string, string>,
+  elapsedSeconds: number,
+): Promise<PracticeProgress> {
+  const { data } = await api.post<PracticeProgress>(`/mock-exams/practice/${examId}/teile/${teilKey}/check`, {
+    answers,
+    elapsedSeconds,
+  })
+  return data
+}
+
+export async function resetPracticeTeil(examId: number, teilKey: string): Promise<void> {
+  await api.delete(`/mock-exams/practice/${examId}/teile/${teilKey}`)
+}
+
+/** Gửi bài Viết rồi chờ AI chấm xong (poll job nền). */
+export async function gradePracticeWriting(
+  examId: number,
+  text: string,
+  elapsedSeconds: number,
+  signal?: AbortSignal,
+): Promise<WritingEvaluation> {
+  const { data } = await api.post<{ jobId: string }>(`/mock-exams/practice/${examId}/schreiben`, {
+    text,
+    elapsedSeconds,
+  })
+  return waitForAsyncJob<WritingEvaluation>(data.jobId, { timeoutMs: 180_000, signal })
+}

@@ -17,6 +17,8 @@ const h = vi.hoisted(() => ({
 
 vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi'))
 
+vi.mock('@/lib/telcPracticeApi', () => ({ getPracticeAccess: () => Promise.resolve(false) }))
+
 vi.mock('@/lib/mockPackApi', () => ({
   getMockPacks: h.getMockPacks,
   getMockPack: h.getMockPack,

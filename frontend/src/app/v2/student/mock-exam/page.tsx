@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Lock, ChevronRight, Clock, ArrowRight } from 'lucide-react'
 import { getMockPacks, getMockPack, type MockExamPack, type MockExamPackDetail } from '@/lib/mockPackApi'
+import { getPracticeAccess } from '@/lib/telcPracticeApi'
 import { GaPageHdr, GaCard, GaCap, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 // Reuse mockPackApi (getMockPacks + getMockPack). Catalog + per-pack exam list. The exam RUNNER
@@ -32,6 +33,11 @@ export default function V2StudentMockExamPage() {
       .finally(() => setLoading(false))
   }
   useEffect(load, [])
+  // Luyện đề telc (03/11/2026): chỉ hiện lối vào khi cờ truy cập bật cho tài khoản này.
+  const [practiceOn, setPracticeOn] = useState(false)
+  useEffect(() => {
+    getPracticeAccess().then(setPracticeOn)
+  }, [])
 
   const toggle = async (p: MockExamPack) => {
     if (p.locked) return
@@ -134,6 +140,14 @@ export default function V2StudentMockExamPage() {
                                   </p>
                                 )}
                               </div>
+                              {!ex.comingSoon && practiceOn && p.examFormat?.toUpperCase() === 'TELC' && (
+                                <a
+                                  href={`/v2/student/mock-exam/practice?examId=${ex.id}`}
+                                  className="ga-ui inline-flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-ga border-[1.5px] border-ga-line-strong bg-ga-card px-3.5 py-2.5 text-ga-small font-semibold text-ga-ink hover:bg-ga-side-active sm:justify-start sm:py-2 lg:min-h-0"
+                                >
+                                  {t('practice')}
+                                </a>
+                              )}
                               {!ex.comingSoon && (
                                 <a
                                   href={`/v2/student/mock-exam/run?examId=${ex.id}&level=${encodeURIComponent(p.cefrLevel ?? '')}`}

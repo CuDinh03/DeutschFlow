@@ -97,6 +97,7 @@ const config: Config = {
           card: 'var(--ga-card)',
           surface: 'var(--ga-surface)',
           line: 'var(--ga-line)',
+          'line-strong': 'var(--ga-line-strong)',
           'side-active': 'var(--ga-side-active)',
           'slate-bg': 'var(--ga-slate-bg)',
           ink: 'var(--ga-ink)',
