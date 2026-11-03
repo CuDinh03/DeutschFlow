@@ -160,6 +160,8 @@ export const adminNav: RoleNav = {
         { id: 'admin-classes', label: 'Lớp học', href: '/v2/admin/classes', icon: 'groups' },
         { id: 'admin-plans', label: 'Gói', href: '/v2/admin/plans', icon: 'sell' },
         { id: 'admin-mock-packs', label: 'Bộ đề thi', href: '/v2/admin/mock-exam-packs', icon: 'quiz' },
+        // 04/11/2026: chọn học viên được dùng luyện đề telc (practice.telc.access / allowlist).
+        { id: 'admin-practice-access', label: 'Quyền luyện đề', href: '/v2/admin/practice-access', icon: 'fact_check' },
         { id: 'admin-vocab', label: 'Từ vựng', href: '/v2/admin/vocabulary', icon: 'menu_book' },
         { id: 'admin-grammar-review', label: 'Duyệt ngữ pháp', href: '/v2/admin/grammar-review', icon: 'spellcheck' },
         // Đợt 2b A+B+E: câu hỏi + từ chuyên môn AI tạo cho từng nghề → giáo viên tiếng Đức duyệt.
