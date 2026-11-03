@@ -26,7 +26,7 @@
              target/ cũ che). Đồng bộ CẢ dependency lẫn annotationProcessorPaths qua property này. -->
         <lombok.version>1.18.36</lombok.version>
         <!-- Spring Boot 3.2.5 manages 1.19.x; bump for docker-java / Docker Desktop API fixes on macOS -->
-        <testcontainers.version>1.20.5</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
         <!-- `-DskipUnitTests=true` bỏ qua surefire mà KHÔNG đụng failsafe (khác `-DskipTests`, vốn
              tắt cả hai). Job Integration Tests dùng cờ này để khỏi chạy lại 1692 unit test. Phải
              khai property ở đây thì cờ mới có tác dụng — trước đó nó là no-op im lặng. -->
