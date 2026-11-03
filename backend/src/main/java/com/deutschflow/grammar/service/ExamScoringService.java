@@ -295,7 +295,7 @@ public class ExamScoringService {
      * bao giờ tới nơi. Tiêu chí {@code aufgabenerfuellung} đúng nghĩa là "có nêu đủ các ý yêu cầu
      * không", nên nó chấm mà không có gì để đối chiếu.
      */
-    private String taskPrompt(Map<String, Object> teil) {
+    public String taskPrompt(Map<String, Object> teil) {
         StringBuilder task = new StringBuilder();
         // Câu lệnh: ưu tiên tiếng Đức vì phần còn lại của prompt là Đức/Anh.
         appendFirst(task, teil, List.of("instruction_de", "instruction_vi"));

@@ -193,6 +193,21 @@ public class AiExamEvaluatorService {
      */
     public Map<String, Object> evaluateSchreibenEmail(long userId, String emailContent, String taskPrompt,
                                                       String cefrLevel, String examFormat) {
+        return evaluateSchreiben(userId, emailContent, taskPrompt, cefrLevel, examFormat, false);
+    }
+
+    /**
+     * Chấm Viết cho chế độ LUYỆN ĐỀ telc (03/11/2026): cùng phiếu 3 Kriterien như thi thử, cộng thêm
+     * {@code annotations} — từng chỗ cần sửa trích NGUYÊN VĂN từ bài, câu sửa, lý do, quy tắc — và
+     * {@code musterloesung} (bài đã sửa). Thi thử giữ nguyên prompt cũ, không tốn thêm token.
+     */
+    public Map<String, Object> evaluateSchreibenPractice(long userId, String emailContent, String taskPrompt,
+                                                         String cefrLevel) {
+        return evaluateSchreiben(userId, emailContent, taskPrompt, cefrLevel, FORMAT_TELC, true);
+    }
+
+    private Map<String, Object> evaluateSchreiben(long userId, String emailContent, String taskPrompt,
+                                                  String cefrLevel, String examFormat, boolean annotate) {
         String level = normalizeLevel(cefrLevel);
         if (emailContent == null || emailContent.isBlank()) {
             return buildEmptyEvaluation("Không có nội dung bài viết");
@@ -200,18 +215,25 @@ public class AiExamEvaluatorService {
         boolean telc = FORMAT_TELC.equalsIgnoreCase(examFormat);
 
         try {
-            String prompt = buildSchreibenPrompt(emailContent, taskPrompt, level, telc);
+            String prompt = buildSchreibenPrompt(emailContent, taskPrompt, level, telc)
+                    + (annotate ? ANNOTATION_NOTE : "");
             var messages = List.of(
                 new ChatMessage("system", telc ? SCHREIBEN_SYSTEM_PROMPT_TELC : SCHREIBEN_SYSTEM_PROMPT),
                 new ChatMessage("user", prompt)
             );
 
-            var result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.GRADING_EXAM), 0.2, 800);
+            var result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.GRADING_EXAM),
+                    0.2, annotate ? 2200 : 800);
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),
-                        result.usage(), "EXAM_SCHREIBEN", null, null);
+                        result.usage(), annotate ? "PRACTICE_SCHREIBEN" : "EXAM_SCHREIBEN", null, null);
             }
-            return parseEvaluationResponse(result.content(), emailContent, level, writingRubric(examFormat), telc);
+            Map<String, Object> eval = parseEvaluationResponse(result.content(), emailContent, level,
+                    writingRubric(examFormat), telc);
+            if (annotate && "AI_EVALUATED".equals(eval.get("status"))) {
+                readAnnotations(result.content(), emailContent, eval);
+            }
+            return eval;
 
         } catch (Exception e) {
             log.error("AI evaluation failed for Schreiben Teil 2: {}", e.getMessage(), e);
@@ -391,6 +413,81 @@ public class AiExamEvaluatorService {
             log.error("Failed to parse AI evaluation response: {}", e.getMessage());
             return buildEmptyEvaluation("Lỗi phân tích kết quả AI — vui lòng thử lại");
         }
+    }
+
+    /**
+     * Phần dặn thêm của chế độ luyện đề: chỉ ra từng chỗ cần sửa NGAY TRONG bài. Trích dẫn phải chép
+     * nguyên văn để giao diện tô được đúng chỗ — {@link #readAnnotations} bỏ trích dẫn không khớp bài
+     * thay vì tô nhầm.
+     */
+    private static final String ANNOTATION_NOTE = """
+
+            In the SAME JSON object, also include these two keys:
+              "annotations": [ at most 8 objects, most important first, each:
+                { "quote": "<copy EXACTLY 2-15 consecutive words from the student's text that need fixing; empty string when the problem is something MISSING>",
+                  "insert_after": "<only when quote is empty: copy EXACTLY the passage after which the missing sentence belongs>",
+                  "correction": "<the corrected German text, or the missing German sentence>",
+                  "category": "<INHALT | KOHAERENZ | GRAMMATIK | WORTSCHATZ | RECHTSCHREIBUNG | REGISTER>",
+                  "kriterium": "<I | II | III>",
+                  "leitpunkt": <number of the required point as listed in the task when the issue is a missing or weak point, otherwise null>,
+                  "why_vi": "<1-3 sentences in Vietnamese: what is wrong, why it is wrong, and which band it costs>",
+                  "rule_vi": "<a short rule or pattern in Vietnamese, e.g. zu + der → zur>" } ],
+              "musterloesung_de": "<the student's text rewritten with every annotation applied; keep their ideas, tone and length>"
+            Annotate only real problems — never invent errors. Every missing required point must have exactly one annotation.
+            """;
+
+    private static final int MAX_ANNOTATIONS = 8;
+    private static final java.util.Set<String> ANNOTATION_CATEGORIES =
+            java.util.Set.of("INHALT", "KOHAERENZ", "GRAMMATIK", "WORTSCHATZ", "RECHTSCHREIBUNG", "REGISTER");
+
+    /**
+     * Đọc {@code annotations} + {@code musterloesung_de} từ cùng câu trả lời của mô hình. Trích dẫn không
+     * có trong bài (mô hình chép sai một chữ) thì giữ ghi chú nhưng bỏ trích dẫn — người học vẫn đọc
+     * được lý do, chỉ là không tô vào bài; tô vào chỗ khác còn tệ hơn.
+     */
+    void readAnnotations(String rawJson, String emailContent, Map<String, Object> eval) {
+        try {
+            String cleaned = rawJson.trim();
+            int start = cleaned.indexOf('{');
+            int end = cleaned.lastIndexOf('}');
+            if (start >= 0 && end > start) cleaned = cleaned.substring(start, end + 1);
+            JsonNode node = om.readTree(cleaned);
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (JsonNode n : node.path("annotations")) {
+                if (out.size() >= MAX_ANNOTATIONS) break;
+                String why = n.path("why_vi").asText("").trim();
+                String correction = n.path("correction").asText("").trim();
+                if (why.isEmpty() && correction.isEmpty()) continue;
+                Map<String, Object> a = new LinkedHashMap<>();
+                a.put("quote", exactPassage(emailContent, n.path("quote").asText("")));
+                a.put("insertAfter", exactPassage(emailContent, n.path("insert_after").asText("")));
+                a.put("correction", correction);
+                String category = n.path("category").asText("").trim().toUpperCase(Locale.ROOT);
+                a.put("category", ANNOTATION_CATEGORIES.contains(category) ? category : "GRAMMATIK");
+                String kriterium = n.path("kriterium").asText("").trim().toUpperCase(Locale.ROOT);
+                a.put("kriterium", List.of("I", "II", "III").contains(kriterium) ? kriterium : null);
+                a.put("leitpunkt", n.path("leitpunkt").isInt() ? n.path("leitpunkt").asInt() : null);
+                a.put("whyVi", why);
+                a.put("ruleVi", n.path("rule_vi").asText("").trim());
+                out.add(a);
+            }
+            eval.put("annotations", out);
+            eval.put("musterloesung", node.path("musterloesung_de").asText("").trim());
+        } catch (Exception e) {
+            log.warn("[Practice] Không đọc được annotations của bài Viết: {}", e.getMessage());
+            eval.put("annotations", List.of());
+            eval.put("musterloesung", "");
+        }
+    }
+
+    /** Đoạn trích đúng như trong bài (khớp cả khi mô hình đổi hoa/thường), hoặc {@code null}. */
+    static String exactPassage(String text, String quote) {
+        if (text == null || quote == null) return null;
+        String q = quote.trim();
+        if (q.isEmpty()) return null;
+        if (text.contains(q)) return q;
+        int at = text.toLowerCase(Locale.ROOT).indexOf(q.toLowerCase(Locale.ROOT));
+        return at >= 0 ? text.substring(at, at + q.length()) : null;
     }
 
     private Map<String, Object> buildEmptyEvaluation(String reason) {
