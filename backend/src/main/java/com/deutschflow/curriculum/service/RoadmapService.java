@@ -192,10 +192,16 @@ public class RoadmapService {
                     ORDER BY COALESCE(n.day_number, 9999) ASC, COALESCE(n.sort_order, 9999) ASC, n.id ASC
                     LIMIT 1
                     """);
-            return fallback.isEmpty() ? ENTRY_NODE_CODE : asString(fallback.get(0).get("node_code"));
+            return fallback.isEmpty() ? ENTRY_NODE_CODE : nodeCodeOrEntry(fallback.get(0));
         }
 
-        return asString(rows.get(0).get("node_code"));
+        return nodeCodeOrEntry(rows.get(0));
+    }
+
+    /** Node nền tảng (ngày 1–10) có thể không có {@code node_code}; meta cần một mã khác null. */
+    private String nodeCodeOrEntry(Map<String, Object> row) {
+        String code = asString(row.get("node_code"));
+        return code == null ? ENTRY_NODE_CODE : code;
     }
 
     public long getCompletedNodeCount(Long userId) {
