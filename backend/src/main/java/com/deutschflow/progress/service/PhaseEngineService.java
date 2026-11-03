@@ -7,6 +7,8 @@ import com.deutschflow.progress.repository.LearnerPhaseStateRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.srs.repository.VocabReviewRepository;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.entity.UserLearningProfile;
+import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,11 +43,41 @@ public class PhaseEngineService {
     private final UserXpEventRepository xpEventRepository;
     private final AiSpeakingSessionRepository speakingSessionRepository;
     private final UserRepository userRepository;
+    private final UserLearningProfileRepository profileRepository;
 
+    /**
+     * Trả state của học viên, đồng thời giữ phase không thấp hơn giai đoạn của trình độ khai báo.
+     * Đọc hồ sơ ở mỗi lần gọi (không chỉ lúc tạo dòng) vì điểm vào lộ trình cũng tính lúc đọc: dòng có
+     * thể được tạo trước khi học viên khai trình độ, và trình độ còn đổi được ở hồ sơ.
+     */
     @Transactional
     public LearnerPhaseState getOrCreatePhaseState(User user) {
+        PhaseType entryPhase = entryPhaseOf(declaredLevel(user));
         return phaseStateRepository.findByUserId(user.getId())
-                .orElseGet(() -> createInitialPhaseState(user));
+                .map(state -> raiseToEntryPhase(state, entryPhase))
+                .orElseGet(() -> createInitialPhaseState(user, entryPhase));
+    }
+
+    /**
+     * Giai đoạn bắt đầu theo trình độ khai báo, cùng bậc với điểm vào giáo trình ({@code RoadmapEntry}):
+     * ngày 1–10 là nền tảng, A1 và A2 vào phần bài theo cấp, B1 trở lên vào cấp cao nhất đang có.
+     * Không bao giờ là GRADUATED: giai đoạn đó chỉ đạt bằng chỉ số học thật.
+     */
+    private static PhaseType entryPhaseOf(UserLearningProfile.CurrentLevel level) {
+        if (level == null) {
+            return PhaseType.FOUNDATION;
+        }
+        return switch (level) {
+            case A0 -> PhaseType.FOUNDATION;
+            case A1, A2 -> PhaseType.PRODUCTION;
+            case B1, B2, C1, C2 -> PhaseType.FLUENCY;
+        };
+    }
+
+    private UserLearningProfile.CurrentLevel declaredLevel(User user) {
+        return profileRepository.findByUserId(user.getId())
+                .map(UserLearningProfile::getCurrentLevel)
+                .orElse(null);
     }
 
     /**
@@ -146,12 +178,23 @@ public class PhaseEngineService {
         }
     }
 
-    private LearnerPhaseState createInitialPhaseState(User user) {
+    private LearnerPhaseState createInitialPhaseState(User user, PhaseType entryPhase) {
         var state = LearnerPhaseState.builder()
                 .user(user)
-                .currentPhase(PhaseType.FOUNDATION)
+                .currentPhase(entryPhase)
                 .phaseStartedAt(LocalDateTime.now())
                 .build();
+        return phaseStateRepository.save(state);
+    }
+
+    /** Chỉ nâng, không hạ; các mốc *CompletedAt để trống vì học viên chưa thật sự đi qua giai đoạn đó. */
+    private LearnerPhaseState raiseToEntryPhase(LearnerPhaseState state, PhaseType entryPhase) {
+        if (state.getCurrentPhase().compareTo(entryPhase) >= 0) {
+            return state;
+        }
+        state.setCurrentPhase(entryPhase);
+        state.setPhaseStartedAt(LocalDateTime.now());
+        log.info("User {} raised to {} by declared level", state.getUser().getId(), entryPhase);
         return phaseStateRepository.save(state);
     }
 }

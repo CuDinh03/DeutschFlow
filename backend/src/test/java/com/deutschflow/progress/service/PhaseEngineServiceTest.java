@@ -7,11 +7,16 @@ import com.deutschflow.progress.repository.LearnerPhaseStateRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.srs.repository.VocabReviewRepository;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.entity.UserLearningProfile;
+import com.deutschflow.user.entity.UserLearningProfile.CurrentLevel;
+import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,6 +41,8 @@ class PhaseEngineServiceTest {
     AiSpeakingSessionRepository speakingSessionRepository;
     @Mock
     UserRepository userRepository;
+    @Mock
+    UserLearningProfileRepository profileRepository;
 
     @InjectMocks
     PhaseEngineService phaseEngineService;
@@ -47,8 +54,13 @@ class PhaseEngineServiceTest {
         user = User.builder().id(1L).email("test@test.com").build();
     }
 
+    private void declaredLevel(CurrentLevel level) {
+        when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(
+                UserLearningProfile.builder().user(user).currentLevel(level).build()));
+    }
+
     @Test
-    @DisplayName("new learner starts in FOUNDATION")
+    @DisplayName("new learner without a profile starts in FOUNDATION")
     void getOrCreate_newLearner_startsInFoundation() {
         when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(phaseStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -56,6 +68,105 @@ class PhaseEngineServiceTest {
         var state = phaseEngineService.getOrCreatePhaseState(user);
 
         assertThat(state.getCurrentPhase()).isEqualTo(PhaseType.FOUNDATION);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "A0, FOUNDATION",
+            "A1, PRODUCTION",
+            "A2, PRODUCTION",
+            "B1, FLUENCY",
+            "B2, FLUENCY",
+            "C1, FLUENCY",
+            "C2, FLUENCY",
+    })
+    @DisplayName("new learner starts at the phase of their declared level, never GRADUATED")
+    void getOrCreate_newLearner_startsAtDeclaredLevelPhase(CurrentLevel level, PhaseType expected) {
+        declaredLevel(level);
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(phaseStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var state = phaseEngineService.getOrCreatePhaseState(user);
+
+        assertThat(state.getCurrentPhase()).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("stored FOUNDATION row is raised to the declared level, keeping counters and earned markers")
+    void getOrCreate_foundationRowBelowDeclaredLevel_isRaised() {
+        declaredLevel(CurrentLevel.B1);
+        var startedBefore = LocalDateTime.now().minusDays(3);
+        var existing = LearnerPhaseState.builder()
+                .user(user)
+                .currentPhase(PhaseType.FOUNDATION)
+                .phaseStartedAt(startedBefore)
+                .vocabularyMasteredCount(12)
+                .sessionsCompleted(3)
+                .build();
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.of(existing));
+        when(phaseStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var state = phaseEngineService.getOrCreatePhaseState(user);
+
+        assertThat(state.getCurrentPhase()).isEqualTo(PhaseType.FLUENCY);
+        assertThat(state.getPhaseStartedAt()).isAfter(startedBefore);
+        assertThat(state.getVocabularyMasteredCount()).isEqualTo(12);
+        assertThat(state.getSessionsCompleted()).isEqualTo(3);
+        assertThat(state.getFoundationCompletedAt()).isNull();
+        assertThat(state.getProductionCompletedAt()).isNull();
+        verify(phaseStateRepository).save(existing);
+    }
+
+    @Test
+    @DisplayName("A0 learner keeps FOUNDATION and the row is not rewritten")
+    void getOrCreate_a0FoundationRow_staysFoundation() {
+        declaredLevel(CurrentLevel.A0);
+        var existing = LearnerPhaseState.builder()
+                .user(user).currentPhase(PhaseType.FOUNDATION).phaseStartedAt(LocalDateTime.now()).build();
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.of(existing));
+
+        var state = phaseEngineService.getOrCreatePhaseState(user);
+
+        assertThat(state.getCurrentPhase()).isEqualTo(PhaseType.FOUNDATION);
+        verify(phaseStateRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "A0, PRODUCTION",
+            "A1, FLUENCY",
+            "A1, GRADUATED",
+            "B1, GRADUATED",
+    })
+    @DisplayName("declared level never lowers a phase already reached")
+    void getOrCreate_phaseAboveDeclaredLevel_isKept(CurrentLevel level, PhaseType stored) {
+        declaredLevel(level);
+        var existing = LearnerPhaseState.builder()
+                .user(user).currentPhase(stored).phaseStartedAt(LocalDateTime.now()).build();
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.of(existing));
+
+        var state = phaseEngineService.getOrCreatePhaseState(user);
+
+        assertThat(state.getCurrentPhase()).isEqualTo(stored);
+        verify(phaseStateRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("declared B1 starts FLUENCY but still has to earn GRADUATED")
+    void recompute_declaredB1BelowThresholds_staysFluency() {
+        declaredLevel(CurrentLevel.B1);
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(phaseStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(vocabReviewRepository.countMastered(1L)).thenReturn(0L);
+        when(xpEventRepository.countSessionCompleteByUserId(1L)).thenReturn(0L);
+        when(xpEventRepository.countSatelliteCompleteByUserId(1L)).thenReturn(0L);
+        when(speakingSessionRepository.countEndedByUserId(1L)).thenReturn(0L);
+        when(speakingSessionRepository.avgEndedScoreByUserId(1L)).thenReturn(0.0);
+
+        var result = phaseEngineService.recompute(user);
+
+        assertThat(result.getCurrentPhase()).isEqualTo(PhaseType.FLUENCY);
+        assertThat(result.getFluencyCompletedAt()).isNull();
     }
 
     @Test

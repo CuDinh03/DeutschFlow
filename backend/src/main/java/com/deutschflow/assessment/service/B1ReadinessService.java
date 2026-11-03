@@ -4,7 +4,6 @@ import com.deutschflow.assessment.dto.B1ReadinessResponse;
 import com.deutschflow.assessment.entity.B1AssessmentState;
 import com.deutschflow.assessment.repository.B1AssessmentStateRepository;
 import com.deutschflow.progress.entity.LearnerPhaseState;
-import com.deutschflow.progress.entity.PhaseType;
 import com.deutschflow.progress.service.PhaseEngineService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +35,7 @@ public class B1ReadinessService {
         boolean vocabOk       = phaseState.getVocabularyMasteredCount() >= VOCAB_THRESHOLD;
         boolean speakingOk    = phaseState.getSpeakingMinutesTotal() >= SPEAKING_MINUTES_MIN;
         boolean grammarOk     = phaseState.getGrammarAccuracyPercent() >= GRAMMAR_ACCURACY_MIN;
-        boolean confidenceOk  = phaseState.getCurrentPhase() == PhaseType.FLUENCY
-                || phaseState.getCurrentPhase() == PhaseType.GRADUATED;
+        boolean confidenceOk  = phaseState.hasEarnedFluency();
 
         assessment.setVocabularyCheckPassed(vocabOk);
         assessment.setSpeakingCheckPassed(speakingOk);
@@ -79,8 +77,7 @@ public class B1ReadinessService {
         score += Math.min(20, (phaseState.getVocabularyMasteredCount() * 20) / VOCAB_THRESHOLD);
         score += Math.min(20, (phaseState.getSpeakingMinutesTotal() * 20) / SPEAKING_MINUTES_MIN);
         score += Math.min(20, (phaseState.getGrammarAccuracyPercent() * 20) / GRAMMAR_ACCURACY_MIN);
-        if (phaseState.getCurrentPhase() == PhaseType.FLUENCY
-                || phaseState.getCurrentPhase() == PhaseType.GRADUATED) {
+        if (phaseState.hasEarnedFluency()) {
             score += 20;
         }
         if (mockExamPassed) {
