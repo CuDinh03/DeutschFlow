@@ -28,6 +28,7 @@ import {
   type NodePhrase,
 } from '@/lib/skillTreeApi'
 import { hasAnySkillExercise } from '@/lib/skillExercises'
+import { nodeActions } from '@/lib/nodeActions'
 import { findNextNode } from '@/lib/nextNode'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
 import { useBackTo } from '@/hooks/useBackTo'
@@ -38,8 +39,9 @@ import { PARENT_OF } from '@/lib/screenParents'
 const REVEAL_TREE_CAP_MS = 3000
 
 // Lesson detail for a skill-tree node: theory cards + vocabulary + phrases.
-// Nodes with exercises open the practice runner (node-practice.tsx); theory-only nodes
-// (no gradeable exercises) complete via the "Đánh dấu đã học" action below.
+// Nodes with exercises open the practice runner (node-practice.tsx), nodes with skill_exercises
+// open the 4-skill runner (skill-practice.tsx), and a node with both offers both (lib/nodeActions).
+// Theory-only nodes (no gradeable exercises) complete via the "Đánh dấu đã học" action below.
 export default function NodeScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackTo(PARENT_OF['node'])
@@ -70,6 +72,7 @@ export default function NodeScreen() {
   const inProgress = data?.userStatus === 'IN_PROGRESS'
   const done = data?.userStatus === 'COMPLETED'
   const hasSkillExercises = hasAnySkillExercise(content?.skill_exercises)
+  const actions = nodeActions({ exerciseCount, hasSkillExercises, done })
   const nextNode = done ? findNextNode(tree, nodeId) : undefined
 
   const qc = useQueryClient()
@@ -178,22 +181,7 @@ export default function NodeScreen() {
             </Section>
           ) : null}
 
-          {exerciseCount > 0 ? (
-            <View style={{ gap: space[2] }}>
-              <Button
-                label={`Bắt đầu luyện tập (${exerciseCount} câu)`}
-                onPress={() =>
-                  router.push({
-                    pathname: '/(student)/node-practice',
-                    params: { nodeId: String(nodeId), title: params.title ?? data?.titleVi ?? 'Luyện tập' },
-                  } as unknown as Href)
-                }
-              />
-              <ThemedText variant="caption" color="faint" align="center">
-                Trắc nghiệm & điền từ được chấm điểm; dịch & sắp xếp để tự kiểm tra.
-              </ThemedText>
-            </View>
-          ) : done ? (
+          {actions.doneNav ? (
             <View style={{ gap: space[3] }}>
               <View
                 style={{
@@ -222,11 +210,31 @@ export default function NodeScreen() {
                 onRoadmap={() => router.replace('/(student)/lernweg')}
               />
             </View>
-          ) : hasSkillExercises ? (
-            // Authored 4-skill node: route to the Nghe/Nói/Đọc/Viết runner (server-graded).
+          ) : null}
+
+          {actions.practice ? (
+            <View style={{ gap: space[2] }}>
+              <Button
+                label={`Bắt đầu luyện tập (${exerciseCount} câu)`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(student)/node-practice',
+                    params: { nodeId: String(nodeId), title: params.title ?? data?.titleVi ?? 'Luyện tập' },
+                  } as unknown as Href)
+                }
+              />
+              <ThemedText variant="caption" color="faint" align="center">
+                Trắc nghiệm & điền từ được chấm điểm; dịch & sắp xếp để tự kiểm tra.
+              </ThemedText>
+            </View>
+          ) : null}
+
+          {actions.skills ? (
+            // Authored 4-skill set: route to the Nghe/Nói/Đọc/Viết runner (server-graded).
             <View style={{ gap: space[2] }}>
               <Button
                 label="Bắt đầu luyện 4 kỹ năng"
+                variant={actions.practice ? 'secondary' : undefined}
                 onPress={() =>
                   router.push({
                     pathname: '/(student)/skill-practice',
@@ -235,10 +243,14 @@ export default function NodeScreen() {
                 }
               />
               <ThemedText variant="caption" color="faint" align="center">
-                Nghe · Nói · Đọc · Viết — chấm điểm để hoàn thành và mở bài tiếp theo.
+                {actions.practice
+                  ? 'Nghe · Nói · Đọc · Viết — đạt một trong hai phần là hoàn thành bài, phần còn lại để luyện thêm.'
+                  : 'Nghe · Nói · Đọc · Viết — chấm điểm để hoàn thành và mở bài tiếp theo.'}
               </ThemedText>
             </View>
-          ) : (
+          ) : null}
+
+          {actions.markLearned ? (
             // Theory-only node (no gradeable exercises): explicit "mark as learned" so the lesson
             // can be completed and unlock the next node — otherwise it dead-ends (no practice runner).
             <View style={{ gap: space[2] }}>
@@ -251,7 +263,7 @@ export default function NodeScreen() {
                 Đánh dấu để hoàn thành bài lý thuyết và mở khoá bài tiếp theo.
               </ThemedText>
             </View>
-          )}
+          ) : null}
         </Screen>
       )}
     </Screen>

@@ -19,6 +19,7 @@ import {
   type ExerciseReorder,
 } from '@/lib/skillTreeApi'
 import { findNextNode } from '@/lib/nextNode'
+import { completionCaption, completionTitle } from '@/lib/nodeActions'
 import { LessonCompleteNav } from '@/components/LessonCompleteNav'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
@@ -56,7 +57,13 @@ function NodePracticeRunner() {
   const [answers, setAnswers] = useState<Record<string, Answer>>({})
   const [submitted, setSubmitted] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<{ correct: number; total: number; completed: boolean; xp: number } | null>(null)
+  const [result, setResult] = useState<{
+    correct: number
+    total: number
+    completed: boolean
+    xp: number
+    alreadyCompleted: boolean
+  } | null>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['node-session', nodeId],
@@ -126,7 +133,13 @@ function NodePracticeRunner() {
         await Promise.race([treeRefresh, new Promise<void>((resolve) => setTimeout(resolve, REVEAL_TREE_CAP_MS))])
       }
       setSubmitted(true)
-      setResult({ correct, total: scoredCount, completed, xp: res.xpEarned ?? 0 })
+      setResult({
+        correct,
+        total: scoredCount,
+        completed,
+        xp: res.xpEarned ?? 0,
+        alreadyCompleted: res.alreadyCompleted === true,
+      })
       await Haptics.notificationAsync(
         completed
           ? Haptics.NotificationFeedbackType.Success
@@ -189,13 +202,11 @@ function NodePracticeRunner() {
                     <GaGlyph name="thithu" size={18} ink="primary" />
                   </View>
                   <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
-                    {`Tuyệt vời! +${result.xp} XP`}
+                    {completionTitle(result.xp, result.alreadyCompleted)}
                   </ThemedText>
                 </View>
                 <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                  {nextNode
-                    ? 'Bài học đã mở khoá bài tiếp theo trên lộ trình.'
-                    : 'Bạn đã hoàn thành mọi bài đang mở khoá.'}
+                  {completionCaption(!!nextNode, result.alreadyCompleted)}
                 </ThemedText>
               </Card>
             ) : (
