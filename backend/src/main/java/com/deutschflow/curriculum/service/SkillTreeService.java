@@ -81,8 +81,9 @@ public class SkillTreeService {
 
     @Transactional
     public List<Map<String, Object>> getSkillTreeForUser(long userId) {
+        RoadmapEntry entry = entryFor(userId);
         // Auto-unlock node đầu tiên cho user mới (chưa có bất kỳ progress nào)
-        autoUnlockFirstNodeIfNeeded(userId);
+        autoUnlockFirstNodeIfNeeded(userId, entry);
 
         // Lấy tất cả nodes + progress của user (LEFT JOIN để bao gồm cả LOCKED nodes)
         // Cast TEXT[] → TEXT và JSONB → TEXT để tránh lỗi serialization Jackson
@@ -141,9 +142,11 @@ public class SkillTreeService {
                     CASE
                         WHEN NOT EXISTS (
                             SELECT 1 FROM skill_tree_node_dependencies d
+                            JOIN skill_tree_nodes dn ON dn.id = d.depends_on_node_id
                             LEFT JOIN skill_tree_user_progress dp
                                 ON dp.node_id = d.depends_on_node_id AND dp.user_id = ?
                             WHERE d.node_id = n.id
+                              AND COALESCE(dn.day_number, 9999) >= ?
                               AND (dp.status IS NULL OR dp.status <> 'COMPLETED')
                         ) THEN TRUE
                         ELSE FALSE
@@ -152,8 +155,11 @@ public class SkillTreeService {
                 LEFT JOIN skill_tree_user_progress p
                     ON p.node_id = n.id AND p.user_id = ?
                 WHERE n.is_active = TRUE
+                  AND (n.day_number IS NULL OR n.day_number >= ?)
+                  -- Node gốc chưa có node_family là vỏ chưa soạn bài (V352): chưa phát hành.
+                  AND (n.node_type <> 'CORE_TRUNK' OR n.node_family IS NOT NULL)
                 ORDER BY COALESCE(n.day_number, 9999) ASC, n.sort_order ASC
-                """, userId, userId);
+                """, userId, entry.day(), userId, entry.day());
 
         // Derive-at-read unlock (bug A fix): a node whose dependencies are satisfied but has no
         // started progress row is AVAILABLE, not LOCKED. Nothing else ever writes the successor's
@@ -165,29 +171,43 @@ public class SkillTreeService {
                     && "LOCKED".equals(row.get("user_status"))) {
                 row.put("user_status", "UNLOCKED");
             }
+            // Cùng cách đếm với /roadmap/me: hai màn mobile đọc hai nguồn không được lệch số ngày.
+            if (row.get("day_number") instanceof Number day) {
+                row.put("day_number", day.intValue() - entry.dayShift());
+            }
+            if (row.get("week_number") instanceof Number week) {
+                row.put("week_number", week.intValue() - entry.weekShift());
+            }
         }
         return rows;
     }
 
+    private RoadmapEntry entryFor(long userId) {
+        List<String> levels = jdbcTemplate.queryForList(
+                "SELECT current_level FROM user_learning_profiles WHERE user_id = ?", String.class, userId);
+        return RoadmapEntry.forLevel(levels.isEmpty() ? null : levels.get(0));
+    }
+
     /**
-     * Nếu user chưa có bất kỳ progress nào → unlock node đầu tiên (sort_order = 1)
+     * Nếu user chưa có bất kỳ progress nào → unlock node ở điểm vào theo trình độ
      * để user mới thấy điểm bắt đầu là UNLOCKED thay vì toàn bộ LOCKED.
      */
-    private void autoUnlockFirstNodeIfNeeded(long userId) {
+    private void autoUnlockFirstNodeIfNeeded(long userId, RoadmapEntry entry) {
         Integer existingProgress = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM skill_tree_user_progress WHERE user_id = ?",
                 Integer.class, userId);
 
         if (existingProgress != null && existingProgress > 0) return; // Đã có progress → không cần
 
-        // Lấy node đầu tiên (sort_order nhỏ nhất, CORE_TRUNK)
+        // Lấy node đầu tiên từ điểm vào (sort_order nhỏ nhất, CORE_TRUNK)
         List<Map<String, Object>> firstNodes = jdbcTemplate.queryForList("""
                 SELECT id FROM skill_tree_nodes
                 WHERE is_active = TRUE AND node_type = 'CORE_TRUNK'
-                  AND (node_family = 'FOUNDATION' OR phase = 'FOUNDATION')
-                ORDER BY COALESCE(day_number, 9999) ASC, sort_order ASC
+                  AND node_family IS NOT NULL
+                  AND day_number >= ?
+                ORDER BY day_number ASC, sort_order ASC
                 LIMIT 1
-                """);
+                """, entry.day());
 
         if (firstNodes.isEmpty()) return;
 
@@ -928,14 +948,18 @@ public class SkillTreeService {
         // is already enforced by the node's own mastery_threshold at submit/mark-complete time, so
         // the extra `score_percent < min_score_percent` clause (seed value 100) wrongly kept the
         // successor locked after a legitimate pass at 70–99%. min_score_percent is now advisory.
+        // Tiền đề nằm trước điểm vào theo trình độ không tính: học viên A2 không học ngày 30 nên
+        // ngày 31 của họ không được chờ ngày 30.
         Integer unmetCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM skill_tree_node_dependencies d
+                JOIN skill_tree_nodes dn ON dn.id = d.depends_on_node_id
                 LEFT JOIN skill_tree_user_progress p
                     ON p.node_id = d.depends_on_node_id AND p.user_id = ?
                 WHERE d.node_id = ?
+                  AND COALESCE(dn.day_number, 9999) >= ?
                   AND (p.status IS NULL OR p.status <> 'COMPLETED')
-                """, Integer.class, userId, nodeId);
+                """, Integer.class, userId, nodeId, entryFor(userId).day());
         return unmetCount != null && unmetCount == 0;
     }
 
