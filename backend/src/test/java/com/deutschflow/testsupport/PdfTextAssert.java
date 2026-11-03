@@ -8,8 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p><b>Vì sao cần.</b> {@code PDFTextStripper} trả về văn bản đã ngắt dòng theo đúng bố cục thật
  * của trang, nên một chuỗi liền mạch trong mã nguồn có thể bị cắt làm đôi trong kết quả trích. Khi
  * dữ liệu dựng sẵn của test sinh ngẫu nhiên (tên lớp, tên giáo viên, token), độ rộng dòng đổi theo
- * từng lần chạy và phép {@code contains} thường sẽ đỏ **ngẫu nhiên**. Quan sát thật trên CI
- * 15/09/2026 (PR #661):
+ * từng lần chạy và phép {@code contains} thường sẽ đỏ <b>ngẫu nhiên</b>.
+ *
+ * <p><b>Trợ giúp này KHÔNG che lỗi mất chữ.</b> Quan sát thật trên CI 15/09/2026 (PR #661):
  *
  * <pre>
  * Expecting actual:
@@ -18,10 +19,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   "TT Phiếu ffe61285"
  * </pre>
  *
- * Hai ký tự {@code ff} nằm ở dòng trước — mã phiếu bị gãy dòng, không phải lỗi sinh PDF.
+ * Ca này từng bị đoán nhầm là gãy dòng. Thật ra hai ký tự {@code ff} đã mất trong chính PDF: PDFBox
+ * thay chúng bằng glyph ghép không có ánh xạ Unicode, nên hậu tố ngẫu nhiên nào chứa {@code ff} là
+ * phép so đỏ. Lỗi đã sửa ở nơi sinh PDF, xem {@code PdfFonts}.
  *
- * <p><b>Dấu hiệu nhận diện họ lỗi này:</b> phần "actual" có chứa ĐUÔI của chuỗi trong phần
- * "to contain".
+ * <p><b>Dấu hiệu nhận diện lỗi sinh PDF:</b> phần "actual" thiếu ký tự giữa chuỗi và không có các ký
+ * tự đó ở dòng trước hay dòng sau. Khi đó sửa nơi sinh PDF, không nới phép kiểm.
  *
  * <p><b>Phép kiểm KHÔNG bị nới lỏng.</b> Chuỗi vẫn phải có mặt; chỉ khoảng trắng giữa các ký tự là
  * được bỏ qua. Riêng {@link #doesNotContain} còn NGHIÊM hơn trước: nó kiểm trên cả bản gốc lẫn bản

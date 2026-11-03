@@ -1,5 +1,6 @@
 package com.deutschflow.grammar.controller;
 
+import com.deutschflow.common.util.PdfFonts;
 import com.deutschflow.grammar.dto.CertificateClaimDto;
 import com.deutschflow.grammar.dto.CertificateDto;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -12,7 +13,6 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,8 +23,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -184,7 +183,8 @@ public class CertificateController {
      * Helvetica Standard-14: Helvetica chỉ mã hoá WinAnsi nên tên học viên có dấu tiếng Việt
      * ("Nguyễn", "Đức", ơ/ư…) làm PDFBox ném IllegalArgumentException → tải chứng nhận trả 500
      * (audit UTF-8 06/09/2026, F-UTF-03). Ký tự font không có glyph (chữ Hán, emoji…) được thay
-     * bằng '?' qua {@link #safeText} thay vì vỡ cả file.
+     * bằng '?' qua {@link #safeText} thay vì vỡ cả file. Font nạp qua {@link PdfFonts} để tên có
+     * "ff"/"ffi" (Hoffmann, Steffi) không mất chữ khi tìm kiếm, sao chép.
      */
     static byte[] renderPdf(String name, String cefrLevel, int score, String code, String issuedDate) throws Exception {
         try (PDDocument doc = new PDDocument()) {
@@ -208,9 +208,9 @@ public class CertificateController {
                 cs.addRect(38, 38, w - 76, h - 76);
                 cs.stroke();
 
-                PDFont bold   = loadFont(doc, "PlusJakartaSans-Bold.ttf");
-                PDFont normal = loadFont(doc, "PlusJakartaSans-Regular.ttf");
-                PDFont italic = loadFont(doc, "PlusJakartaSans-Italic.ttf");
+                PDFont bold   = PdfFonts.load(doc, "PlusJakartaSans-Bold.ttf");
+                PDFont normal = PdfFonts.load(doc, "PlusJakartaSans-Regular.ttf");
+                PDFont italic = PdfFonts.load(doc, "PlusJakartaSans-Italic.ttf");
 
                 cs.setNonStrokingColor(0.24f, 0.27f, 0.98f);
                 centerText(cs, bold, 28, "DEUTSCHFLOW", w, h - 120);
@@ -263,17 +263,13 @@ public class CertificateController {
         }
     }
 
-    private static PDFont loadFont(PDDocument doc, String file) throws IOException {
-        try (InputStream in = CertificateController.class.getResourceAsStream("/fonts/" + file)) {
-            if (in == null) throw new IllegalStateException("Thiếu font nhúng /fonts/" + file);
-            return PDType0Font.load(doc, in);
-        }
-    }
-
-    /** Thay code point mà font không mã hoá được bằng '?' để showText/getStringWidth không ném lỗi. */
+    /**
+     * Chuẩn hoá NFC rồi thay code point mà font không mã hoá được bằng '?' để showText/getStringWidth
+     * không ném lỗi. NFC để tên dán từ nguồn NFD dùng glyph dựng sẵn: PDFBox không đặt được dấu kết hợp.
+     */
     static String safeText(PDFont font, String text) {
         StringBuilder sb = new StringBuilder(text.length());
-        text.codePoints().forEach(cp -> {
+        Normalizer.normalize(text, Normalizer.Form.NFC).codePoints().forEach(cp -> {
             String ch = new String(Character.toChars(cp));
             try {
                 font.encode(ch);

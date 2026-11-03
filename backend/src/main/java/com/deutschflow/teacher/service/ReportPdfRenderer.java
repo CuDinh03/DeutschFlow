@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.util.PdfFonts;
 import com.deutschflow.teacher.entity.StudentReportIssue;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -7,12 +8,11 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.text.Normalizer;
 import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,7 +28,8 @@ import java.util.Map;
  * {@link StudentReportIssue} — đọc {@code payload_json} đã đóng băng + các cột snapshot, KHÔNG chạm
  * bảng nguồn. PDFBox 3 + Plus Jakarta Sans nhúng (cùng font đã vá tiếng Việt ở
  * {@code CertificateController.renderPdf}, F-UTF-03): đủ glyph cho dấu tiếng Việt và ß/ä/ö/ü; ký tự
- * font không có (chữ Hán, emoji) thay bằng '?' thay vì vỡ cả file.
+ * font không có (chữ Hán, emoji) thay bằng '?' thay vì vỡ cả file. Font nạp qua {@link PdfFonts} để
+ * chữ trong PDF tìm kiếm, sao chép được và số đo bọc dòng khớp chữ thật được vẽ.
  *
  * <p>Nhãn ba ngôn ngữ qua {@link ReportI18n}; số liệu và nhận xét giáo viên in nguyên văn theo payload
  * (không dịch máy — §5). Logo trung tâm KHÔNG nhúng vào PDF: nhúng nghĩa là backend phải tải một URL
@@ -287,13 +288,17 @@ public class ReportPdfRenderer {
         return o instanceof Number n ? String.valueOf(n.intValue()) : "—";
     }
 
-    /** Thay code point font không mã hoá được bằng '?' (cùng khuôn CertificateController.safeText). */
+    /**
+     * Chuẩn hoá NFC rồi thay code point font không mã hoá được bằng '?' (cùng khuôn
+     * CertificateController.safeText). NFC để chữ Việt dán từ nguồn NFD dùng glyph dựng sẵn: PDFBox
+     * không đặt được dấu kết hợp vào đúng chỗ.
+     */
     static String safeText(PDFont font, String text) {
         if (text == null) {
             return "";
         }
         StringBuilder sb = new StringBuilder(text.length());
-        text.codePoints().forEach(cp -> {
+        Normalizer.normalize(text, Normalizer.Form.NFC).codePoints().forEach(cp -> {
             if (cp == '\t') {
                 sb.append(' ');
                 return;
@@ -326,9 +331,9 @@ public class ReportPdfRenderer {
 
         Canvas(PDDocument doc) throws IOException {
             this.doc = doc;
-            this.regular = loadFont(doc, "PlusJakartaSans-Regular.ttf");
-            this.bold = loadFont(doc, "PlusJakartaSans-Bold.ttf");
-            this.italic = loadFont(doc, "PlusJakartaSans-Italic.ttf");
+            this.regular = PdfFonts.load(doc, "PlusJakartaSans-Regular.ttf");
+            this.bold = PdfFonts.load(doc, "PlusJakartaSans-Bold.ttf");
+            this.italic = PdfFonts.load(doc, "PlusJakartaSans-Italic.ttf");
             newPage();
         }
 
@@ -493,15 +498,6 @@ public class ReportPdfRenderer {
             if (cs != null) {
                 cs.close();
                 cs = null;
-            }
-        }
-
-        private static PDFont loadFont(PDDocument doc, String file) throws IOException {
-            try (InputStream in = ReportPdfRenderer.class.getResourceAsStream("/fonts/" + file)) {
-                if (in == null) {
-                    throw new IllegalStateException("Thiếu font nhúng /fonts/" + file);
-                }
-                return PDType0Font.load(doc, in);
             }
         }
     }
