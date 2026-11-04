@@ -492,6 +492,41 @@
       "noData": "Chưa có dữ liệu.",
       "nounRight": "{pct} · {withGender}/{nounWords} DT",
       "transRight": "VI {vi} · EN {en}"
+    },
+    "practiceAccess": {
+      "title": "Quyền luyện đề",
+      "subtitle": "Chọn học viên nào được dùng chế độ luyện đề telc — có hiệu lực ngay",
+      "loadError": "Không tải được cấu hình",
+      "modeCap": "Ai được dùng luyện đề",
+      "mode": {
+        "OFF": "Tắt",
+        "ALLOWLIST": "Chỉ danh sách",
+        "ALL": "Tất cả học viên"
+      },
+      "modeDesc": {
+        "OFF": "Không học viên nào thấy luyện đề",
+        "ALLOWLIST": "Chỉ học viên trong danh sách bên dưới",
+        "ALL": "Mọi học viên có quyền vào bộ đề telc"
+      },
+      "modeNote": {
+        "OFF": "Đang tắt: danh sách bên dưới tạm không có tác dụng.",
+        "ALL": "Đang mở cho tất cả: danh sách bên dưới không còn giới hạn ai."
+      },
+      "modeSaved": "Đã đổi chế độ",
+      "addCap": "Thêm học viên",
+      "searchPlaceholder": "Tìm theo email hoặc tên",
+      "searchHint": "Gõ ít nhất 2 ký tự. Có thể dán thẳng email để thêm.",
+      "alreadyAdded": "Đã có trong danh sách",
+      "add": "Thêm",
+      "added": "Đã thêm {name}",
+      "noResults": "Không tìm thấy tài khoản nào.",
+      "addByEmail": "Thêm theo email {email}",
+      "listCap": "Đang được dùng ({count})",
+      "empty": "Chưa có học viên nào trong danh sách.",
+      "remove": "Gỡ",
+      "removed": "Đã gỡ {name}",
+      "removeOne": "Gỡ {name}",
+      "unknownCap": "Mục không khớp tài khoản nào"
     }
   }
 }

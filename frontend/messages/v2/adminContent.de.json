@@ -492,6 +492,41 @@
       "noData": "Noch keine Daten.",
       "nounRight": "{pct} · {withGender}/{nounWords} Nomen",
       "transRight": "VI {vi} · EN {en}"
+    },
+    "practiceAccess": {
+      "title": "Zugang zum Üben",
+      "subtitle": "Festlegen, welche Lernenden den telc-Übungsmodus nutzen — gilt sofort",
+      "loadError": "Einstellungen konnten nicht geladen werden",
+      "modeCap": "Wer darf üben",
+      "mode": {
+        "OFF": "Aus",
+        "ALLOWLIST": "Nur Liste",
+        "ALL": "Alle Lernenden"
+      },
+      "modeDesc": {
+        "OFF": "Niemand sieht den Übungsmodus",
+        "ALLOWLIST": "Nur die Lernenden in der Liste unten",
+        "ALL": "Alle mit Zugang zum telc-Paket"
+      },
+      "modeNote": {
+        "OFF": "Aus: Die Liste unten wirkt gerade nicht.",
+        "ALL": "Für alle offen: Die Liste unten schränkt niemanden mehr ein."
+      },
+      "modeSaved": "Modus geändert",
+      "addCap": "Lernende hinzufügen",
+      "searchPlaceholder": "Nach E-Mail oder Name suchen",
+      "searchHint": "Mindestens 2 Zeichen. Eine E-Mail kann auch direkt eingefügt werden.",
+      "alreadyAdded": "Schon in der Liste",
+      "add": "Hinzufügen",
+      "added": "{name} hinzugefügt",
+      "noResults": "Kein Konto gefunden.",
+      "addByEmail": "Per E-Mail hinzufügen: {email}",
+      "listCap": "Freigegeben ({count})",
+      "empty": "Noch niemand in der Liste.",
+      "remove": "Entfernen",
+      "removed": "{name} entfernt",
+      "removeOne": "{name} entfernen",
+      "unknownCap": "Einträge ohne passendes Konto"
     }
   }
 }

@@ -492,6 +492,41 @@
       "noData": "No data yet.",
       "nounRight": "{pct} · {withGender}/{nounWords} nouns",
       "transRight": "VI {vi} · EN {en}"
+    },
+    "practiceAccess": {
+      "title": "Practice access",
+      "subtitle": "Choose which students can use telc exam practice — takes effect immediately",
+      "loadError": "Could not load the settings",
+      "modeCap": "Who can use exam practice",
+      "mode": {
+        "OFF": "Off",
+        "ALLOWLIST": "List only",
+        "ALL": "All students"
+      },
+      "modeDesc": {
+        "OFF": "No student sees exam practice",
+        "ALLOWLIST": "Only the students in the list below",
+        "ALL": "Every student with access to the telc pack"
+      },
+      "modeNote": {
+        "OFF": "Off: the list below has no effect for now.",
+        "ALL": "Open to all: the list below no longer restricts anyone."
+      },
+      "modeSaved": "Mode changed",
+      "addCap": "Add a student",
+      "searchPlaceholder": "Search by email or name",
+      "searchHint": "Type at least 2 characters. You can also paste an email to add it.",
+      "alreadyAdded": "Already in the list",
+      "add": "Add",
+      "added": "Added {name}",
+      "noResults": "No account found.",
+      "addByEmail": "Add by email {email}",
+      "listCap": "Allowed ({count})",
+      "empty": "No student in the list yet.",
+      "remove": "Remove",
+      "removed": "Removed {name}",
+      "removeOne": "Remove {name}",
+      "unknownCap": "Entries that match no account"
     }
   }
 }
