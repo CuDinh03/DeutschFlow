@@ -70,7 +70,9 @@ We share personal data only with the service providers that help us run the app,
 
 - **PostHog** (United States region) — product and usage analytics.
 - **Expo / EAS** — delivers push notifications and over-the-air app updates.
-- **Amazon Web Services (AWS)** — cloud hosting for our backend, which stores your account and learning data.
+- **Cloudflare, Inc.** (United States, global network) — sits in front of our servers: every connection to the website and the app passes through Cloudflare (DNS, HTTPS encryption, protection against attacks, and a secure tunnel to our servers). Cloudflare R2 also stores the files you upload (voice recordings, photos, avatars, learning materials) and our encrypted database backups.
+
+Your account and learning data are stored in a database on servers that we operate ourselves in Vietnam, not with a cloud hosting provider.
 - **Apple** — processes iOS In-App Purchase payments; we receive subscription status and transaction identifiers, never your payment card details. (Purchases made on our website are processed by our web payment provider and are covered by the website's checkout notice.)
 
 **The language center that enrolled you.** If you learn through a language center, that center's teachers, managers, and director can see your learning data within the scope of running your classes — submissions, scores, feedback, attendance, and your learning record (see Section 8 for minor learners). The center decides the purposes for which its learners' learning data is processed; when its contract with us ends, the center may export all of its learners' learning data, including original submissions and attachments. You keep the right to access and obtain a copy of your own data.
@@ -116,7 +118,7 @@ We protect your data with industry-standard measures: passwords are stored only 
 
 ### 10. International data transfers
 
-Your data may be processed in countries other than the one you live in — for example, analytics in the United States and cloud hosting on AWS. Where we transfer data internationally, we rely on appropriate safeguards (such as standard contractual clauses) as required by applicable law.
+Your data may be processed in countries other than the one you live in — for example, our servers in Vietnam, analytics in the United States, and file storage and network traffic through Cloudflare. Where we transfer data internationally, we rely on appropriate safeguards (such as standard contractual clauses) as required by applicable law.
 
 ### 11. Changes to this policy
 
@@ -194,7 +196,9 @@ Chúng tôi chỉ chia sẻ dữ liệu cá nhân với các nhà cung cấp d�
 
 - **PostHog** (khu vực Hoa Kỳ) — phân tích sản phẩm và sử dụng.
 - **Expo / EAS** — gửi thông báo đẩy và cập nhật ứng dụng qua mạng (OTA).
-- **Amazon Web Services (AWS)** — lưu trữ đám mây cho máy chủ của chúng tôi, nơi lưu tài khoản và dữ liệu học của bạn.
+- **Cloudflare, Inc.** (Hoa Kỳ, mạng toàn cầu) — đứng trước máy chủ của chúng tôi: mọi kết nối tới website và ứng dụng đều đi qua Cloudflare (DNS, mã hoá HTTPS, chống tấn công và đường hầm bảo mật tới máy chủ). Cloudflare R2 còn lưu các tệp bạn tải lên (ghi âm, ảnh, ảnh đại diện, tài liệu học) và bản sao lưu cơ sở dữ liệu đã mã hoá.
+
+Tài khoản và dữ liệu học của bạn nằm trong cơ sở dữ liệu trên máy chủ do chính chúng tôi vận hành tại Việt Nam, không thuê nhà cung cấp lưu trữ đám mây.
 - **Apple** — xử lý thanh toán Mua trong ứng dụng trên iOS; chúng tôi nhận trạng thái gói và mã giao dịch, không bao giờ nhận thông tin thẻ của bạn. (Giao dịch mua trên website do nhà cung cấp thanh toán web của chúng tôi xử lý và được nêu trong thông báo thanh toán của website.)
 
 **Trung tâm ngoại ngữ đã ghi danh bạn.** Nếu bạn học thông qua một trung tâm ngoại ngữ, giáo viên, quản lý và giám đốc của trung tâm đó xem được dữ liệu học tập của bạn trong phạm vi vận hành lớp — bài nộp, điểm, nhận xét, chuyên cần và hồ sơ học tập (xem thêm Mục 8 về học viên chưa thành niên). Trung tâm là bên quyết định mục đích xử lý dữ liệu học tập của học viên mình; khi hợp đồng giữa trung tâm và chúng tôi kết thúc, trung tâm được xuất toàn bộ dữ liệu học tập của học viên mình, gồm bài nộp gốc và tệp đính kèm. Bạn vẫn giữ quyền truy cập và nhận bản sao dữ liệu của chính mình.
@@ -240,7 +244,7 @@ Chúng tôi bảo vệ dữ liệu bằng các biện pháp tiêu chuẩn ngành
 
 ### 10. Chuyển dữ liệu quốc tế
 
-Dữ liệu của bạn có thể được xử lý ở quốc gia khác với nơi bạn sinh sống — ví dụ phân tích tại Hoa Kỳ và lưu trữ đám mây trên AWS. Khi chuyển dữ liệu ra quốc tế, chúng tôi áp dụng các biện pháp bảo vệ phù hợp (như điều khoản hợp đồng chuẩn) theo yêu cầu của pháp luật.
+Dữ liệu của bạn có thể được xử lý ở quốc gia khác với nơi bạn sinh sống — ví dụ máy chủ của chúng tôi tại Việt Nam, phân tích tại Hoa Kỳ, lưu tệp và lưu lượng mạng qua Cloudflare. Khi chuyển dữ liệu ra quốc tế, chúng tôi áp dụng các biện pháp bảo vệ phù hợp (như điều khoản hợp đồng chuẩn) theo yêu cầu của pháp luật.
 
 ### 11. Thay đổi chính sách
 
@@ -318,7 +322,9 @@ Wir geben personenbezogene Daten nur an die Dienstleister weiter, die uns beim B
 
 - **PostHog** (Region USA) — Produkt- und Nutzungsanalyse.
 - **Expo / EAS** — liefert Push-Benachrichtigungen und Over-the-Air-App-Updates.
-- **Amazon Web Services (AWS)** — Cloud-Hosting für unser Backend, das Ihre Konto- und Lerndaten speichert.
+- **Cloudflare, Inc.** (USA, globales Netzwerk) — steht vor unseren Servern: Jede Verbindung zur Website und zur App läuft über Cloudflare (DNS, HTTPS-Verschlüsselung, Schutz vor Angriffen und ein gesicherter Tunnel zu unseren Servern). Cloudflare R2 speichert außerdem die Dateien, die Sie hochladen (Sprachaufnahmen, Fotos, Profilbilder, Lernmaterialien), sowie unsere verschlüsselten Datenbank-Backups.
+
+Ihre Konto- und Lerndaten liegen in einer Datenbank auf Servern, die wir selbst in Vietnam betreiben, nicht bei einem Cloud-Hosting-Anbieter.
 - **Apple** — wickelt iOS-In-App-Kaufzahlungen ab; wir erhalten den Abostatus und Transaktionskennungen, niemals Ihre Zahlungskartendaten. (Käufe auf unserer Website werden von unserem Web-Zahlungsanbieter abgewickelt und im Checkout-Hinweis der Website behandelt.)
 
 **Die Sprachschule, die Sie angemeldet hat.** Wenn Sie über eine Sprachschule lernen, können deren Lehrkräfte, Verwaltungskräfte und Leitung Ihre Lerndaten im Rahmen des Unterrichtsbetriebs einsehen — Einreichungen, Bewertungen, Rückmeldungen, Anwesenheit und Ihre Lernakte (siehe Abschnitt 8 zu minderjährigen Lernenden). Die Sprachschule bestimmt die Zwecke, zu denen die Lerndaten ihrer Lernenden verarbeitet werden; endet ihr Vertrag mit uns, kann die Sprachschule sämtliche Lerndaten ihrer Lernenden exportieren, einschließlich der Originaleinreichungen und Anhänge. Sie behalten das Recht auf Zugang zu Ihren eigenen Daten und auf eine Kopie davon.
@@ -364,7 +370,7 @@ Wir schützen Ihre Daten mit branchenüblichen Maßnahmen: Passwörter werden nu
 
 ### 10. Internationale Datenübermittlungen
 
-Ihre Daten können in anderen Ländern als Ihrem Wohnsitzland verarbeitet werden — zum Beispiel Analyse in den USA und Cloud-Hosting bei AWS. Bei internationalen Datenübermittlungen stützen wir uns auf geeignete Garantien (etwa Standardvertragsklauseln), wie es das geltende Recht verlangt.
+Ihre Daten können in anderen Ländern als Ihrem Wohnsitzland verarbeitet werden — zum Beispiel unsere Server in Vietnam, Analyse in den USA sowie Dateispeicherung und Netzwerkverkehr über Cloudflare. Bei internationalen Datenübermittlungen stützen wir uns auf geeignete Garantien (etwa Standardvertragsklauseln), wie es das geltende Recht verlangt.
 
 ### 11. Änderungen dieser Erklärung
 
