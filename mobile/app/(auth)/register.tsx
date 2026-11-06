@@ -13,6 +13,12 @@ import { clearOnboardingDraft } from '@/lib/onboardingDraft'
 import { clearGuestSessionCache } from '@/lib/guestSessionStore'
 import { passwordStrength } from '@/lib/passwordStrength'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
+import {
+  isVerificationDisabled,
+  resetSignupVerified,
+  startFailureKey,
+  wasSignupVerified,
+} from '@/lib/registrationPin'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, TextField, Button, Icon } from '@/components/ui'
 import { getDeviceLocale, useT } from '@/lib/i18n'
@@ -49,17 +55,18 @@ export default function RegisterScreen() {
   // phễu phải chết theo. Không dọn thì nó nằm lại và người ĐĂNG KÝ KẾ TIẾP trên
   // cùng máy sẽ bị replay im lặng câu trả lời của người trước, không hề thấy
   // bảng câu hỏi (QA 2026-08-20, F-3).
-  useEffect(
-    () => () => {
-      if (!signedUpRef.current) {
+  useEffect(() => {
+    resetSignupVerified()
+    return () => {
+      // Đường mã PIN: màn này nằm DƯỚI màn nhập mã, nên "đã đăng ký xong" do màn kia báo qua cờ module.
+      if (!signedUpRef.current && !wasSignupVerified()) {
         void clearOnboardingDraft()
         // Đợt 2 (17/09): cùng luật cho con trỏ phiên khách trên server — khách A bỏ dở ở đây, B đăng ký
         // sau trên cùng máy không được claim phiên (câu trả lời) của A. Phiên trên server tự hết hạn 72 h.
         void clearGuestSessionCache()
       }
-    },
-    [],
-  )
+    }
+  }, [])
 
   async function handleRegister() {
     const phoneTrimmed = phone.trim()
@@ -82,15 +89,38 @@ export default function RegisterScreen() {
     }
     setLoading(true)
     captureEvent('register_started')
+    const payload = {
+      displayName: displayName.trim(),
+      email: email.trim(),
+      // Omit entirely when blank — never send "" (the phone column is UNIQUE; the backend stores NULL).
+      ...(phoneTrimmed ? { phoneNumber: phoneTrimmed } : {}),
+      password,
+      locale: getDeviceLocale(),
+    }
     try {
-      const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/register', {
-        displayName: displayName.trim(),
-        email: email.trim(),
-        // Omit entirely when blank — never send "" (the phone column is UNIQUE; the backend stores NULL).
-        ...(phoneTrimmed ? { phoneNumber: phoneTrimmed } : {}),
-        password,
-        locale: getDeviceLocale(),
-      })
+      // Mã PIN (thiết kế 05/11 §7.2): thử đường mới trước. 202 ⇒ CHƯA có tài khoản, CHƯA setTokens,
+      // CHƯA đặt signedUpRef — sang màn nhập mã (push, để "Đổi email" = back giữ nguyên form).
+      // 501 ⇒ công tắc backend tắt ⇒ rơi xuống /auth/register cũ bên dưới, y như trước.
+      try {
+        const started = await api.post<{ email: string; expiresInSeconds: number; resendAfterSeconds: number }>(
+          '/auth/register/start',
+          payload,
+        )
+        captureEvent('register_code_sent')
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: {
+            email: started.data.email,
+            ttl: String(started.data.expiresInSeconds),
+            resendAfter: String(started.data.resendAfterSeconds),
+          },
+        })
+        return
+      } catch (startErr) {
+        if (!isVerificationDisabled(startErr)) throw startErr
+      }
+
+      const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/register', payload)
       await setTokens(res.data.accessToken, res.data.refreshToken)
       await fetchMe()
       await fetchPlan()
@@ -108,7 +138,8 @@ export default function RegisterScreen() {
       // Đừng đoán hộ nguyên nhân: mất mạng, 500, email sai định dạng đều từng bị
       // gộp thành "Email có thể đã được sử dụng" (F-9). apiMessage đọc `detail`
       // của ProblemDetail, đúng như phần còn lại của app.
-      Alert.alert(t('register.failedTitle'), apiMessage(e))
+      const key = startFailureKey(e)
+      Alert.alert(t('register.failedTitle'), key ? t(key) : apiMessage(e))
     } finally {
       setLoading(false)
     }
