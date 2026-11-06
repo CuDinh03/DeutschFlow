@@ -90,6 +90,10 @@ public class SecurityConfig {
                         // chưa từng đăng nhập nên không thể có token — bí mật nằm ở chính liên kết,
                         // và cả hai đường đều đi qua bộ đếm rate-limit của đường đặt lại mật khẩu.
                         auth.requestMatchers("/api/auth/activate").permitAll();
+                        // Mã PIN xác nhận đăng ký (thiết kế 05/11): người gọi chưa có tài khoản. Hạn mức
+                        // riêng theo email + theo IP nằm ở AuthController.
+                        auth.requestMatchers("/api/auth/register/start", "/api/auth/register/verify",
+                                "/api/auth/register/resend").permitAll();
                         auth.requestMatchers("/api/auth/logout").authenticated();
                         auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join

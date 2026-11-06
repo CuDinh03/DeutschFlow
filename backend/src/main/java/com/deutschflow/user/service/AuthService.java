@@ -67,16 +67,14 @@ public class AuthService {
         // Normalize to canonical lowercase + trimmed, matching admin createUser. Keeps stored emails
         // consistent so the case-insensitive login lookup always resolves, and the IgnoreCase
         // existence check blocks creating a case-variant duplicate (Foo@x.com vs foo@x.com).
-        String email = request.email() == null ? "" : request.email().trim().toLowerCase();
+        String email = SelfRegistrationInputs.normalizeEmail(request.email());
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email này đã được đăng ký, vui lòng dùng email khác.");
         }
         // Phone is optional (App Store 5.1.1(v)). Store NULL — not "" — when omitted: the column is
         // UNIQUE, and Postgres permits many NULLs but only one empty string, so a second no-phone
         // signup would otherwise collide. Uniqueness is only checked when a real number is given.
-        String phoneNumber = (request.phoneNumber() == null || request.phoneNumber().isBlank())
-                ? null
-                : request.phoneNumber().trim();
+        String phoneNumber = SelfRegistrationInputs.normalizePhone(request.phoneNumber());
         if (phoneNumber != null && userRepository.existsByPhoneNumber(phoneNumber)) {
             throw new BadRequestException("Số điện thoại này đã được đăng ký, vui lòng dùng số khác.");
         }
@@ -86,11 +84,27 @@ public class AuthService {
                 ? User.Locale.valueOf(request.locale())
                 : User.Locale.vi;
 
+        User user = createSelfRegisteredStudent(email, phoneNumber,
+                passwordEncoder.encode(request.password()), request.displayName(), locale);
+        return buildAuthResponse(user);
+    }
+
+    /**
+     * Phần thân DÙNG CHUNG của mọi đường tự đăng ký: tạo {@code STUDENT} ({@code createdVia=SELF}) → cấp
+     * trial tính từ BÂY GIỜ → bắn {@code StudentRegisteredEvent} sau commit. Gọi từ {@link #register} (đường
+     * cũ) và từ {@code RegistrationVerificationService.verify} (mã PIN — trial tính từ lúc xác minh xong,
+     * không phải lúc bấm đăng ký). Một chỗ duy nhất để hai đường không lệch nhau về trial (bài học 13/09).
+     *
+     * @param passwordHash đã băm BCrypt — KHÔNG băm lại ở đây
+     */
+    @Transactional
+    public User createSelfRegisteredStudent(String email, String phoneNumber, String passwordHash,
+                                            String displayName, User.Locale locale) {
         var user = User.builder()
                 .email(email)
                 .phoneNumber(phoneNumber)
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .displayName(request.displayName())
+                .passwordHash(passwordHash)
+                .displayName(displayName)
                 .role(User.Role.STUDENT)
                 .locale(locale)
                 .createdVia(User.CreatedVia.SELF)
@@ -104,8 +118,7 @@ public class AuthService {
         StudentRegisteredEvent registered = new StudentRegisteredEvent(
                 user.getId(), user.getEmail(), user.getDisplayName());
         runAfterCommitService.run(() -> userNotificationService.onStudentRegisteredAfterCommit(registered));
-
-        return buildAuthResponse(user);
+        return user;
     }
 
     /**

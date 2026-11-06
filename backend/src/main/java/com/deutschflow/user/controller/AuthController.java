@@ -12,6 +12,10 @@ import com.deutschflow.user.service.AuthConcurrencyLimiter;
 import com.deutschflow.user.service.AuthRateLimiterService;
 import com.deutschflow.user.activation.AccountActivationService;
 import com.deutschflow.user.service.PasswordResetService;
+import com.deutschflow.user.registration.RegistrationVerificationConfig;
+import com.deutschflow.user.registration.RegistrationVerificationException;
+import com.deutschflow.user.registration.RegistrationVerificationService;
+import io.micrometer.core.instrument.MeterRegistry;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.common.security.ClientIpResolver;
@@ -56,18 +60,31 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
     private final AccountActivationService accountActivationService;
     private final ClientIpResolver clientIpResolver;
+    private final RegistrationVerificationService registrationVerificationService;
+    private final RegistrationVerificationConfig registrationVerificationConfig;
+    private final MeterRegistry meterRegistry;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
 
     // ─── Public endpoints ──────────────────────────────────────────────────────
 
-    /** 201 Created — tài khoản mới. */
+    /**
+     * 201 Created — tài khoản mới, KHÔNG kiểm email (đường cũ). Còn mở có chủ ý cho bản app đã phát hành;
+     * {@code registration.legacy.used} là con số quyết định ngày đặt {@code LEGACY_REGISTER_ENABLED=false}
+     * (khi đó trả 410 "hãy cập nhật ứng dụng").
+     */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public AuthResponse register(@Valid @RequestBody RegisterRequest request,
                                  HttpServletRequest httpRequest,
                                  HttpServletResponse httpResponse) {
+        if (!registrationVerificationConfig.legacyRegisterEnabled()) {
+            throw new RegistrationVerificationException(
+                    RegistrationVerificationException.Reason.LEGACY_REGISTER_DISABLED,
+                    "Phiên bản này không còn đăng ký được. Hãy cập nhật ứng dụng hoặc đăng ký trên web.");
+        }
+        meterRegistry.counter("registration.legacy.used").increment();
         String ip = resolveClientIp(httpRequest);
         if (!authRateLimiterService.allowRegister(ip)) {
             throw new RateLimitExceededException(
@@ -77,6 +94,89 @@ public class AuthController {
         AuthResponse authResp = withAuthBulkhead(() -> authService.register(request));
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
         return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
+    }
+
+    // ─── Đăng ký có mã PIN (plans/2026-11-05-thiet-ke-ma-pin-xac-nhan-dang-ky.md) ──
+
+    /**
+     * 202 — đã gửi mã (hoặc, với email đã có tài khoản, đã gửi thư "bạn đã có tài khoản" — nhìn từ ngoài
+     * y hệt). 501 khi công tắc tắt ⇒ client rơi về {@code /register}. 503 khi gửi thư hỏng.
+     */
+    @PostMapping("/register/start")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public RegistrationVerificationService.StartResult registerStart(@Valid @RequestBody RegisterRequest request,
+                                                                      HttpServletRequest httpRequest) {
+        if (!registrationVerificationConfig.enabled()) {
+            // Trước mọi rate-limit: client mới thử đường mới rồi lùi về /register không được tốn lượt.
+            throw new RegistrationVerificationException(
+                    RegistrationVerificationException.Reason.DISABLED, "Xác minh email khi đăng ký chưa bật.");
+        }
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allowRegister(ip)) {
+            throw new RateLimitExceededException(
+                    "Too many registration attempts. Please try again later.",
+                    authRateLimiterService.registerRetryAfterSeconds());
+        }
+        if (!authRateLimiterService.allowRegistrationSend(request.email())) {
+            throw new RateLimitExceededException(
+                    "Too many verification emails. Please try again later.",
+                    authRateLimiterService.registrationSendRetryAfterSeconds());
+        }
+        return withAuthBulkhead(() -> registrationVerificationService.start(request, ip));
+    }
+
+    /** 201 + AuthResponse + cookie refresh — đúng từng byte như {@code /register}. */
+    @PostMapping("/register/verify")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AuthResponse registerVerify(@Valid @RequestBody VerifyRegistrationRequest request,
+                                       HttpServletRequest httpRequest,
+                                       HttpServletResponse httpResponse) {
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allowRegistrationVerifyPerIp(ip)) {
+            throw new RateLimitExceededException(
+                    "Too many verification attempts. Please try again later.",
+                    authRateLimiterService.registrationVerifyIpRetryAfterSeconds());
+        }
+        AuthResponse authResp = registrationVerificationService.verify(request.email(), request.code());
+        setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
+        return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
+    }
+
+    /** 204 luôn luôn (kể cả email lạ) — không lộ email nào đang chờ xác minh. */
+    @PostMapping("/register/resend")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void registerResend(@Valid @RequestBody ResendRegistrationRequest request,
+                               HttpServletRequest httpRequest) {
+        if (!authRateLimiterService.allowRegistrationSend(request.email())) {
+            throw new RateLimitExceededException(
+                    "Too many verification emails. Please try again later.",
+                    authRateLimiterService.registrationSendRetryAfterSeconds());
+        }
+        registrationVerificationService.resend(request.email(), resolveClientIp(httpRequest));
+    }
+
+    public record VerifyRegistrationRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Email
+            String email,
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Pattern(regexp = "^\\d{6}$", message = "Mã gồm 6 chữ số.")
+            String code
+    ) {
+        public VerifyRegistrationRequest {
+            if (email != null) email = email.trim();
+            if (code != null) code = code.trim();
+        }
+    }
+
+    public record ResendRegistrationRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Email
+            String email
+    ) {
+        public ResendRegistrationRequest {
+            if (email != null) email = email.trim();
+        }
     }
 
     /** 200 OK — đăng nhập thành công. */

@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *   <li><b>Register</b>: 10/600s per IP.</li>
  *   <li><b>Refresh</b>: 10/60s per IP.</li>
  *   <li><b>Password reset</b>: 5/900s per (IP + email).</li>
+ *   <li><b>Registration PIN send</b> (start + resend): 5/3600s per <i>email</i> (hashed in the key).</li>
+ *   <li><b>Registration PIN verify</b>: 30/600s per IP.</li>
  * </ul>
  *
  * <p><b>Why login needs two budgets:</b> the (IP + email) key stops credential-stuffing against one
@@ -63,6 +65,19 @@ public class AuthRateLimiterService {
     private final ConcurrentHashMap<String, Deque<Instant>> registerAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> refreshAttempts  = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> passwordResetAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<Instant>> registrationSendAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<Instant>> registrationVerifyAttempts = new ConcurrentHashMap<>();
+
+    // Mã PIN đăng ký. Tiêm theo FIELD (không thêm tham số constructor) để không đụng các test đang
+    // dựng lớp này bằng tay; giá trị khởi tạo là mặc định khi lớp được dựng ngoài Spring.
+    @Value("${app.auth.rate-limit.registration-send-max-per-window:5}")
+    private int  registrationSendMax = 5;
+    @Value("${app.auth.rate-limit.registration-send-window-seconds:3600}")
+    private long registrationSendWindow = 3600;
+    @Value("${app.auth.rate-limit.registration-verify-ip-max-per-window:30}")
+    private int  registrationVerifyIpMax = 30;
+    @Value("${app.auth.rate-limit.registration-verify-ip-window-seconds:600}")
+    private long registrationVerifyIpWindow = 600;
 
     // Redis sliding window (primary). May be null if no Redis is configured.
     private final StringRedisTemplate redis;
@@ -146,6 +161,34 @@ public class AuthRateLimiterService {
     public boolean allowPasswordReset(String ip, String email) {
         String key = "pwreset|" + safe(ip) + "|" + safe(email).toLowerCase(Locale.ROOT);
         return check(passwordResetAttempts, key, passwordResetMax, passwordResetWindow);
+    }
+
+    /**
+     * Trần GỬI mã PIN đăng ký (start + resend) theo EMAIL. Email được băm trước khi thành khoá Redis —
+     * Redis không giữ email thô của người chưa thành người dùng.
+     */
+    public boolean allowRegistrationSend(String email) {
+        String key = "regsend|" + sha256Hex(safe(email).toLowerCase(Locale.ROOT));
+        return check(registrationSendAttempts, key, Math.max(1, registrationSendMax), Math.max(1L, registrationSendWindow));
+    }
+
+    /** Trần verify mã PIN theo IP — chống dò mã trên nhiều email cùng lúc. */
+    public boolean allowRegistrationVerifyPerIp(String ip) {
+        return check(registrationVerifyAttempts, "regverify-ip|" + safe(ip),
+                Math.max(1, registrationVerifyIpMax), Math.max(1L, registrationVerifyIpWindow));
+    }
+
+    public int registrationSendRetryAfterSeconds()     { return (int) registrationSendWindow; }
+    public int registrationVerifyIpRetryAfterSeconds() { return (int) registrationVerifyIpWindow; }
+
+    private static String sha256Hex(String s) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(d);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     // ─── Retry-After helpers (used in RateLimitExceededException) ──────────────
