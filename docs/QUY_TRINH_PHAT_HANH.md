@@ -12,7 +12,7 @@
 ## 0. Luật cứng (đọc kể cả khi vội)
 
 1. **Production không còn chạy trên AWS.** Frontend và backend chạy trên máy chủ tự host `deutschflow-srv` (VM Ubuntu, sau Cloudflare Tunnel). `amplify.yml` và job "Deploy to EC2" trong `backend-ci.yml` đã gỡ. `deploy-backend.sh`, `cleanup-deploy.sh` ở gốc repo là **di sản AWS — đã chặn bằng `exit 1`, không dùng, không "sửa cho chạy"** (script cũ ghi đè env của máy chủ bằng env EC2 cũ ⇒ mất DB, chết mọi phiên đăng nhập).
-2. **Merge vào `main` KHÔNG tự deploy.** Không còn Amplify tự build. Muốn lên web phải chạy script deploy trên máy chủ (§5, §6).
+2. **Merge vào `main` KHÔNG tự deploy.** Không còn Amplify tự build. Muốn lên web phải chạy script deploy trên máy chủ (§5, §6), trực tiếp qua SSH hoặc qua workflow "Deploy production" chạy tay, owner duyệt từng lần (§5.0).
 3. **Deploy production (frontend, backend, OTA mobile) chỉ khi owner ra lệnh trực tiếp** trong phiên làm việc. "Merge đi" không có nghĩa là "deploy đi" — hỏi lại nếu chưa rõ.
 4. **`main` được bảo vệ**: chỉ nhận thay đổi qua Pull Request, CI phải xanh. Không push thẳng, không force-push.
 5. **Biết máy chủ đang deploy từ nhánh nào trước khi làm gì** (§2). Deploy một nhánh thiếu code tự host (R2, Dockerfile, CSP) sẽ làm hỏng production.
@@ -36,7 +36,8 @@ Người dùng ──HTTPS──► Cloudflare (DNS, TLS, proxy)
                      deutschflow-postgres (pgvector pg16) · deutschflow-redis · deutschflow-edge-tts
                    Lưu file: Cloudflare R2 (bucket media; bucket backup cho bản sao lưu DB)
 Mobile (Expo/EAS) ──► gọi api.mydeutschflow.com; bản build qua EAS → TestFlight; vá JS qua EAS Update (OTA)
-GitHub ──► CI (frontend-ci, backend-ci, mobile-ci, security-ci); KHÔNG deploy.
+GitHub ──► CI (frontend-ci, backend-ci, mobile-ci, security-ci); KHÔNG tự deploy.
+GitHub Actions "Deploy production" (chạy tay + owner duyệt) ──► Cloudflare Access SSH ──► forced command trên máy chủ (§5.0)
 ```
 
 | Thành phần | Ở đâu | Ghi chú |
@@ -73,7 +74,7 @@ Kiểm nhanh trên máy chủ: `git -C /srv/deutschflow/repo rev-parse --abbrev-
 ```
 nhánh feature ──► PR vào main ──► CI xanh + tự kiểm (§4) ──► merge
      ──► (nếu máy chủ chưa theo main: gộp vào nhánh deploy, §2)
-     ──► owner ra lệnh deploy ──► chạy script (§5/§6) ──► kiểm sau deploy (§9) ──► ghi nhận (§11)
+     ──► owner ra lệnh deploy ──► chạy script (§5/§6) hoặc workflow (§5.0) ──► kiểm sau deploy (§9) ──► ghi nhận (§11)
 ```
 
 - **Đặt tên nhánh**: `feat/…`, `fix/…`, `docs/…`. PR xếp chồng được (base là nhánh feature khác); khi PR nền merge thì đổi base của PR trên về `main`.
@@ -106,9 +107,68 @@ nhánh feature ──► PR vào main ──► CI xanh + tự kiểm (§4) ─�
 
 ---
 
+## 5.0 Deploy từ xa bằng workflow "Deploy production"
+
+Dùng khi không ngồi ở máy có khoá SSH (ví dụ đang ở ngoài, chỉ có điện thoại). Merge vẫn **không** tự deploy (§0.2). Workflow chỉ là một đường khác để chạy đúng hai script ở §5, §6, và vẫn chỉ chạy khi owner ra lệnh (§0.3).
+
+**Chạy**
+- Điện thoại: app GitHub → repo → Actions → **Deploy production** → Run workflow (nhánh `main`), chọn `target` và `mode`. Sau đó vào lần chạy đó → **Review deployments** → Approve.
+- Máy có `gh`: `gh workflow run deploy-production.yml -R CuDinh03/DeutschFlow -f target=both -f mode=deploy`. Owner vẫn phải bấm duyệt.
+- Lần đầu sau khi cài, và sau khi đổi bất cứ gì ở phần cài đặt: chạy `mode=check` trước.
+
+| `mode` | Làm gì |
+|---|---|
+| `deploy` | `DEPLOY_BRANCH=main deploy-*-vm.sh`. `both` = backend xong mới tới frontend, backend đỏ thì dừng. Từ chối nếu `main` đã có commit mới sau lúc bấm chạy (không deploy thứ chưa được duyệt) |
+| `check` | Kiểm kết nối, nhánh + commit repo máy chủ, upstream đang phục vụ, `sudo -n nginx -t`, container. Không đổi gì |
+| `rollback` | `deploy-*-vm.sh --rollback`, từng phần một (§10) |
+
+Workflow tự chạy phần `curl` của §9. Phần kiểm bằng mắt của §9 vẫn làm tay, rồi ghi nhận §11.
+
+**Các lớp chặn**
+1. Chỉ `workflow_dispatch`, chỉ từ `main`. Environment `production` bắt owner duyệt **từng lần chạy**.
+2. Cloudflare Access đứng trước hostname SSH: chỉ service token của workflow qua được.
+3. Khoá SSH riêng của workflow: `restrict`, `from="127.0.0.1,::1"` (cloudflared đưa kết nối vào từ localhost), forced command `deploy/self-host/remote-deploy-guard.sh`. Khoá này chỉ chạy được ba lệnh trên, không có shell.
+4. Host key máy chủ được ghim (`StrictHostKeyChecking yes`).
+
+Repo PUBLIC ⇒ **log Actions ai cũng đọc được**. Script deploy chỉ in tên biến, không in giá trị. Không thêm `set -x`, `env`, `cat *.env` vào script deploy hay workflow.
+
+**Thu hồi khẩn**: xoá dòng khoá trong `authorized_keys` **hoặc** revoke service token trên Cloudflare. Một trong hai là đủ chặn.
+
+### Cài đặt một lần (owner, cần ngồi ở máy có SSH)
+
+Máy chủ (user có sudo):
+1. Tạo cặp khoá **riêng** cho workflow, không dùng lại khoá cá nhân: `ssh-keygen -t ed25519 -N '' -C github-actions-deploy -f /tmp/gha_deploy`.
+2. Cài guard ra ngoài repo (sau khi PR này đã vào `main` và repo máy chủ đã lấy code mới):
+   `sudo install -o root -g root -m 755 /srv/deutschflow/repo/deploy/self-host/remote-deploy-guard.sh /usr/local/sbin/deutschflow-remote-deploy`.
+   Mỗi lần file này đổi trong repo ⇒ chạy lại lệnh install.
+3. Thêm một dòng vào `/home/deploy/.ssh/authorized_keys`:
+   `restrict,from="127.0.0.1,::1",command="/usr/local/sbin/deutschflow-remote-deploy" ` + nội dung `/tmp/gha_deploy.pub`.
+4. Dòng known_hosts cho workflow: `echo "deutschflow-srv $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"`.
+5. Kiểm hai điều kiện script cần khi chạy không có terminal: `sudo -u deploy sudo -n nginx -t` phải qua, không hỏi mật khẩu. User `deploy` phải ghi được `/srv/deutschflow/remote-deploy.lock`.
+
+Cloudflare (dashboard Zero Trust):
+
+6. Tunnel của máy chủ → thêm Public hostname, ví dụ `ssh.mydeutschflow.com` → Service `ssh://localhost:22`. Nếu tunnel cấu hình bằng file trên máy chủ thì thêm ingress tương ứng rồi restart `cloudflared`.
+7. Access → Service Auth → tạo service token `github-actions-deploy`. Client ID và Secret chỉ hiện một lần. Đặt thời hạn và ghi ngày hết hạn vào lịch.
+8. Access → Applications → Self-hosted cho đúng hostname ở bước 6. Policy đặt Action **Service Auth**, Include: service token ở bước 7. Muốn tự SSH bằng email thì thêm một policy Allow riêng cho email owner.
+
+GitHub (Settings → Environments):
+
+9. Tạo environment `production`: **Required reviewers** = owner; **Deployment branches** = chỉ `main`.
+10. Environment secrets (không phải repo secrets):
+    - `DEPLOY_SSH_KEY`: nội dung `/tmp/gha_deploy`
+    - `DEPLOY_SSH_KNOWN_HOSTS`: dòng in ra ở bước 4
+    - `DEPLOY_SSH_HOSTNAME`: hostname ở bước 6
+    - `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`: lấy ở bước 7
+
+    Xong thì `shred -u /tmp/gha_deploy /tmp/gha_deploy.pub`.
+11. Chạy workflow với `mode=check`, `target=backend` rồi `target=frontend`. Cả hai xanh thì mới dùng `deploy`.
+
+---
+
 ## 5. Deploy frontend
 
-Chỉ khi owner ra lệnh. Trên máy chủ, user `deploy`:
+Chỉ khi owner ra lệnh. Trên máy chủ, user `deploy` (hoặc từ xa: §5.0):
 
 ```bash
 ssh deutschflow-srv
@@ -132,7 +192,7 @@ Script làm: kiểm `frontend-build.env` đủ biến → `fetch` + `reset --har
 
 ### 6.1 Lệnh
 
-Chỉ khi owner ra lệnh. Trên máy chủ:
+Chỉ khi owner ra lệnh. Trên máy chủ (hoặc từ xa: §5.0):
 
 ```bash
 cd /srv/deutschflow/repo
