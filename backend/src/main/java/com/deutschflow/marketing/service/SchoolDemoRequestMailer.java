@@ -3,8 +3,7 @@ package com.deutschflow.marketing.service;
 import com.deutschflow.marketing.entity.SchoolDemoRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.deutschflow.common.mail.TransactionalMail;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,30 +17,24 @@ import org.springframework.stereotype.Service;
 @Service
 public class SchoolDemoRequestMailer {
 
-    private final JavaMailSender mailSender;
-    private final boolean mailEnabled;
+    private final TransactionalMail mail;
     private final String notifyTo;
-    private final String mailFrom;
 
     public SchoolDemoRequestMailer(
-            JavaMailSender mailSender,
-            @Value("${spring.mail.host:}") String mailHost,
-            @Value("${app.leads.notify-email:}") String notifyTo,
-            @Value("${app.mail.from}") String mailFrom) {
-        this.mailSender = mailSender;
-        this.mailEnabled = mailHost != null && !mailHost.isBlank();
+            TransactionalMail mail,
+            @Value("${app.leads.notify-email:}") String notifyTo) {
+        this.mail = mail;
         this.notifyTo = notifyTo == null ? "" : notifyTo.trim();
-        this.mailFrom = mailFrom;
     }
 
     public void notifyOwner(SchoolDemoRequest r) {
-        if (notifyTo.isEmpty() || !mailEnabled) {
+        if (notifyTo.isEmpty() || !mail.isEnabled()) {
             log.info("[SchoolDemo] request id={} saved — email notify skipped (notify-email or SMTP not set)", r.getId());
             return;
         }
         try {
-            var msg = new SimpleMailMessage();
-            msg.setFrom(mailFrom);
+            // From + Reply-To gắn sẵn — xem javadoc TransactionalMail về vì sao SES từ chối thư thiếu From.
+            var msg = mail.newMessage();
             msg.setTo(notifyTo);
             // Bấm Reply là trả lời thẳng người gửi khi họ để lại email.
             if ("EMAIL".equals(r.getContactChannel())) {
@@ -59,7 +52,7 @@ public class SchoolDemoRequestMailer {
                     (r.getMessage() == null ? "" : "\nLời nhắn:\n" + r.getMessage() + "\n") +
                     "\nMã yêu cầu #" + r.getId() + "."
             );
-            mailSender.send(msg);
+            mail.send("school-demo", msg);
             log.info("[SchoolDemo] notify email sent for request id={}", r.getId());
         } catch (Exception e) {
             log.warn("[SchoolDemo] failed to send notify email for request id={}: {}", r.getId(), e.getMessage());

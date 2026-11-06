@@ -34,10 +34,11 @@ spring:
       pool:
         size: ${SPRING_SCHEDULING_POOL_SIZE:4}
 
-  # ── Email / SMTP (for password-reset OTP) ─────────────────────────────────
-  # Set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in your .env.
-  # Recommended: Gmail SMTP (smtp.gmail.com:587) or AWS SES.
-  # Leave MAIL_HOST empty to disable email sending (OTP is logged at DEBUG level).
+  # ── Email / SMTP (mọi thư giao dịch — đi qua common.mail.TransactionalMail) ──
+  # Set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in backend.env.
+  # Đích: AWS SES (email-smtp.us-east-1.amazonaws.com:587). Gmail SMTP chỉ là đường TẠM.
+  # MAIL_HOST rỗng: các mailer kênh phụ bỏ qua thư (chỉ log warn, KHÔNG log mã/link nào).
+  # Đếm thư: metric mail.send{mailer, outcome=ok|fail}.
   mail:
     host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}

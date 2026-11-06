@@ -1,12 +1,14 @@
 package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.mail.TransactionalMail;
 import com.deutschflow.user.repository.RefreshTokenRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -16,7 +18,6 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.sql.Timestamp;
 import java.util.List;
@@ -42,7 +43,14 @@ class PasswordResetServiceUnitTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock RefreshTokenRepository refreshTokenRepository;
 
-    @InjectMocks PasswordResetService service;
+    PasswordResetService service;
+
+    @BeforeEach
+    void setUp() {
+        var mail = new TransactionalMail(mailSender, "smtp.example.com",
+                "support@mydeutschflow.com", "support@mydeutschflow.com", new SimpleMeterRegistry());
+        service = new PasswordResetService(jdbc, mail, passwordEncoder, refreshTokenRepository);
+    }
 
     /**
      * Regression guard for the forgot-password column bug: the UPDATE must target {@code password_hash}.
@@ -92,9 +100,6 @@ class PasswordResetServiceUnitTest {
     @Test
     @DisplayName("thư OTP mang đúng From + Reply-To đã cấu hình (SES từ chối thư thiếu From)")
     void requestReset_otpMailCarriesConfiguredSenderIdentity() {
-        // @Value không đi qua constructor (lớp dùng @RequiredArgsConstructor) nên @InjectMocks bỏ trống.
-        ReflectionTestUtils.setField(service, "mailFrom", "support@mydeutschflow.com");
-        ReflectionTestUtils.setField(service, "mailReplyTo", "support@mydeutschflow.com");
         when(jdbc.queryForObject(contains("COUNT(*) FROM users"), eq(Integer.class), eq("user@x.com")))
                 .thenReturn(1);
         var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
