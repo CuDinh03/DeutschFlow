@@ -2,6 +2,8 @@ package com.deutschflow.grammar.service;
 
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.ChatMessage;
+import com.deutschflow.speaking.ai.ErrorCatalog;
+import com.deutschflow.examspeaking.weakness.ErrorRuleCatalog;
 import com.deutschflow.ai.tier.LlmTier;
 import com.deutschflow.ai.tier.LlmTierResolver;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
@@ -431,10 +433,13 @@ public class AiExamEvaluatorService {
                   "kriterium": "<I | II | III>",
                   "leitpunkt": <number of the required point as listed in the task when the issue is a missing or weak point, otherwise null>,
                   "why_vi": "<1-3 sentences in Vietnamese: what is wrong, why it is wrong, and which band it costs>",
-                  "rule_vi": "<a short rule or pattern in Vietnamese, e.g. zu + der → zur>" } ],
-              "musterloesung_de": "<the student's text rewritten with every annotation applied; keep their ideas, tone and length>"
-            Annotate only real problems — never invent errors. Every missing required point must have exactly one annotation.
-            """;
+                  "rule_vi": "<a short rule or pattern in Vietnamese, e.g. zu + der → zur>",
+                  "error_code": "<only for GRAMMATIK: the ONE code from the list below that names this error exactly, otherwise empty string>" } ],
+              "musterloesung_de": "<the student's text rewritten with every annotation applied; keep their ideas, tone and length; add NO new ideas or sentences beyond the annotations>"
+            Annotate only real problems — never invent errors. Never annotate a passage that is already correct:
+            "correction" must differ from "quote". Every missing required point must have exactly one annotation.
+            Error codes: %s
+            """.formatted(ErrorCatalog.codesCompactForPrompt(ErrorCatalog.ORDERED_CODES.length, 6).replace("\n", ", "));
 
     private static final int MAX_ANNOTATIONS = 8;
     private static final java.util.Set<String> ANNOTATION_CATEGORIES =
@@ -458,8 +463,11 @@ public class AiExamEvaluatorService {
                 String why = n.path("why_vi").asText("").trim();
                 String correction = n.path("correction").asText("").trim();
                 if (why.isEmpty() && correction.isEmpty()) continue;
+                String rawQuote = n.path("quote").asText("");
+                // "Nên viết" trùng "bạn viết": mô hình báo lỗi ở chỗ đã đúng — thà bỏ một lỗi còn hơn báo sai.
+                if (!rawQuote.isBlank() && sameText(rawQuote, correction)) continue;
                 Map<String, Object> a = new LinkedHashMap<>();
-                a.put("quote", exactPassage(emailContent, n.path("quote").asText("")));
+                a.put("quote", exactPassage(emailContent, rawQuote));
                 a.put("insertAfter", exactPassage(emailContent, n.path("insert_after").asText("")));
                 a.put("correction", correction);
                 String category = n.path("category").asText("").trim().toUpperCase(Locale.ROOT);
@@ -468,16 +476,76 @@ public class AiExamEvaluatorService {
                 a.put("kriterium", List.of("I", "II", "III").contains(kriterium) ? kriterium : null);
                 a.put("leitpunkt", n.path("leitpunkt").isInt() ? n.path("leitpunkt").asInt() : null);
                 a.put("whyVi", why);
-                a.put("ruleVi", n.path("rule_vi").asText("").trim());
+                // Lỗi ngữ pháp có mã trong catalog: câu quy tắc lấy từ ErrorRuleCatalog (tĩnh, đã duyệt),
+                // không dùng chữ tự do của mô hình (có thể ngược quy tắc, vd. "habe sau chủ ngữ").
+                String code = "GRAMMATIK".equals(a.get("category"))
+                        ? ErrorCatalog.normalize(n.path("error_code").asText("")) : null;
+                String catalogRule = ErrorRuleCatalog.ruleVi(code);
+                a.put("errorCode", code);
+                a.put("ruleVi", catalogRule != null ? catalogRule : n.path("rule_vi").asText("").trim());
                 out.add(a);
             }
             eval.put("annotations", out);
-            eval.put("musterloesung", node.path("musterloesung_de").asText("").trim());
+            String muster = node.path("musterloesung_de").asText("").trim();
+            if (!muster.isEmpty() && addsNewContent(emailContent, muster, out)) {
+                log.warn("[Practice] Bỏ musterloesung: dài/khác bài gốc quá mức cho phép (thêm ý mới).");
+                muster = "";
+            }
+            eval.put("musterloesung", muster);
         } catch (Exception e) {
             log.warn("[Practice] Không đọc được annotations của bài Viết: {}", e.getMessage());
             eval.put("annotations", List.of());
             eval.put("musterloesung", "");
         }
+    }
+
+    /**
+     * Hai đoạn giống hệt nhau sau chuẩn hoá NFC, kiểu dấu nháy và khoảng trắng. Giữ phân biệt hoa/thường
+     * và dấu câu: sửa "arbeit" → "Arbeit" hay thêm dấu phẩy là sửa thật.
+     */
+    static boolean sameText(String a, String b) {
+        return normalizeForCompare(a).equals(normalizeForCompare(b));
+    }
+
+    private static String normalizeForCompare(String s) {
+        if (s == null) return "";
+        String t = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFC)
+                .replaceAll("[„“”«»]", "\"").replaceAll("[‚‘’]", "'");
+        return t.replaceAll("\\s+", " ").trim();
+    }
+
+    /** Tỷ lệ tối đa từ "lạ" (không có trong bài gốc lẫn trong các câu sửa) được phép có trong bài đã sửa. */
+    static final double MAX_NOVEL_WORD_RATIO = 0.2;
+
+    /**
+     * Bài đã sửa có thêm ý mà người học chưa viết không: dài hơn bài gốc + các câu sửa quá 20% (tối thiểu
+     * 10 từ), hoặc hơn 20% số từ không xuất hiện ở bài gốc lẫn ở câu sửa nào. Khi đó bỏ bài đã sửa — các
+     * ghi chú trong bài vẫn còn, người học không mất gì ngoài một bản viết lại không tin được.
+     */
+    static boolean addsNewContent(String original, String muster, List<Map<String, Object>> annotations) {
+        List<String> orig = words(original);
+        List<String> mw = words(muster);
+        if (mw.isEmpty()) return false;
+        Set<String> allowed = new HashSet<>(orig);
+        int insertedWords = 0;
+        for (Map<String, Object> a : annotations) {
+            List<String> cw = words(String.valueOf(a.getOrDefault("correction", "")));
+            allowed.addAll(cw);
+            if (a.get("quote") == null) insertedWords += cw.size();
+        }
+        int budget = orig.size() + insertedWords + Math.max(10, (int) Math.ceil(orig.size() * 0.2));
+        if (mw.size() > budget) return true;
+        long novel = mw.stream().filter(w -> !allowed.contains(w)).count();
+        return novel > Math.max(3, mw.size() * MAX_NOVEL_WORD_RATIO);
+    }
+
+    private static List<String> words(String s) {
+        List<String> out = new ArrayList<>();
+        if (s == null) return out;
+        for (String w : s.toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
+            if (!w.isEmpty()) out.add(w);
+        }
+        return out;
     }
 
     /** Đoạn trích đúng như trong bài (khớp cả khi mô hình đổi hoa/thường), hoặc {@code null}. */
