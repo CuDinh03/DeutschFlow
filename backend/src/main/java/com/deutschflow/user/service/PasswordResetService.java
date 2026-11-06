@@ -1,13 +1,11 @@
 package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.mail.TransactionalMail;
 import com.deutschflow.user.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,16 +31,9 @@ public class PasswordResetService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final JdbcTemplate jdbc;
-    private final JavaMailSender mailSender;
+    private final TransactionalMail mail;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
-
-    // Tiêm theo FIELD chứ không qua constructor: lớp này dùng @RequiredArgsConstructor, mà Lombok chỉ
-    // chép @Value sang tham số constructor khi có lombok.config khai copyableAnnotations — repo không có.
-    @Value("${app.mail.from}")
-    private String mailFrom;
-    @Value("${app.mail.reply-to}")
-    private String mailReplyTo;
 
     /**
      * Generates a 6-digit OTP for the given email, persists it with a TTL, and
@@ -136,13 +127,8 @@ public class PasswordResetService {
 
     private void sendOtpEmail(String to, String code) {
         try {
-            var msg = new SimpleMailMessage();
-            // setFrom là BẮT BUỘC, không phải tuỳ chọn. Gmail SMTP tự viết lại `From` thành tài khoản
-            // vừa xác thực nên thiếu nó vẫn chạy và không ai thấy; SES thì xác thực một chuỗi `AKIA…`
-            // chứ không phải địa chỉ email, nên thư rời ứng dụng KHÔNG có header `From` và bị từ chối
-            // thẳng — đúng lúc người dùng bấm "quên mật khẩu" trên production.
-            msg.setFrom(mailFrom);
-            msg.setReplyTo(mailReplyTo);
+            // From + Reply-To gắn sẵn — xem javadoc TransactionalMail về vì sao SES từ chối thư thiếu From.
+            var msg = mail.newMessage();
             msg.setTo(to);
             msg.setSubject("DeutschFlow — Mã đặt lại mật khẩu");
             msg.setText(
@@ -153,7 +139,7 @@ public class PasswordResetService {
                     "Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.\n\n" +
                     "DeutschFlow Team"
             );
-            mailSender.send(msg);
+            mail.send("password-reset", msg);
         } catch (Exception e) {
             // Log but do not expose email errors to the caller.
             log.warn("[PasswordReset] failed to send OTP email to {}: {}", to, e.getMessage());

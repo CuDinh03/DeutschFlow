@@ -3,14 +3,13 @@ package com.deutschflow.user.activation;
 import com.deutschflow.common.WebRoutes;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.deutschflow.common.mail.TransactionalMail;
 import org.springframework.stereotype.Service;
 
 /**
  * Gửi email "kích hoạt tài khoản" cho học viên vừa được trung tâm nhập từ CSV (Q-09, 14/09/2026).
- * Cùng khuôn {@link JavaMailSender} + {@link SimpleMailMessage} với
- * {@code com.deutschflow.organization.service.OrgInvitationMailer}.
+ * Tạo thư qua {@link TransactionalMail} như mọi mailer khác (From/Reply-To gắn sẵn — trước 06/11
+ * mailer này thiếu {@code setFrom} nên sẽ bị SES từ chối).
  *
  * <p><b>Không bao giờ ném.</b> Dòng CSV đã commit khi tới đây; một SMTP hỏng không được làm trung tâm
  * tưởng lượt nhập thất bại. Học viên không nhận được email vẫn còn đường "Quên mật khẩu".
@@ -26,21 +25,18 @@ import org.springframework.stereotype.Service;
 @Service
 public class AccountActivationMailer {
 
-    private final JavaMailSender mailSender;
+    private final TransactionalMail mail;
     private final String webUrl;
-    private final boolean mailEnabled;
     private final int ttlDays;
 
     public AccountActivationMailer(
-            JavaMailSender mailSender,
+            TransactionalMail mail,
             // Cùng khoá `app.web-url` với OrgInvitationMailer — xem javadoc ở đó về việc vì sao
             // KHÔNG được dựng link từ origin đầu tiên của CORS_ALLOWED_ORIGINS.
             @Value("${app.web-url:http://localhost:3000}") String webUrl,
-            @Value("${spring.mail.host:}") String mailHost,
             @Value("${app.activation.ttl-days:14}") int ttlDays) {
-        this.mailSender = mailSender;
+        this.mail = mail;
         this.webUrl = stripTrailingSlash(firstOrigin(webUrl));
-        this.mailEnabled = mailHost != null && !mailHost.isBlank();
         this.ttlDays = ttlDays;
     }
 
@@ -51,7 +47,7 @@ public class AccountActivationMailer {
     public void sendActivation(String to, String displayName, String orgName, String token) {
         String link = webUrl + WebRoutes.ACCOUNT_ACTIVATE + "?token=" + token;
 
-        if (!mailEnabled) {
+        if (!mail.isEnabled()) {
             log.warn("[Activation] chưa cấu hình SMTP — tài khoản của {} đã tạo nhưng KHÔNG gửi được email kích hoạt", to);
             return;
         }
@@ -59,7 +55,7 @@ public class AccountActivationMailer {
         String greeting = displayName == null || displayName.isBlank() ? "Xin chào," : "Xin chào " + displayName + ",";
         String from = orgName == null || orgName.isBlank() ? "Trung tâm của bạn" : orgName;
         try {
-            var msg = new SimpleMailMessage();
+            var msg = mail.newMessage();
             msg.setTo(to);
             msg.setSubject("DeutschFlow — Kích hoạt tài khoản học viên");
             msg.setText(
@@ -72,7 +68,7 @@ public class AccountActivationMailer {
                     "Nếu bạn không mong đợi email này, hãy bỏ qua nó.\n\n" +
                     "DeutschFlow Team"
             );
-            mailSender.send(msg);
+            mail.send("account-activation", msg);
             log.info("[Activation] đã gửi email kích hoạt tới {} (org={})", to, orgName);
         } catch (Exception e) {
             log.warn("[Activation] không gửi được email kích hoạt tới {}: {}", to, e.getMessage());

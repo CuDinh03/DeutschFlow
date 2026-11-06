@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.mail.TransactionalMail;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -22,9 +24,13 @@ class OrgInvitationMailerUnitTest {
     private static final String FROM = "support@mydeutschflow.com";
     private static final String REPLY_TO = "support@mydeutschflow.com";
 
+    private static TransactionalMail mail(JavaMailSender sender, String host) {
+        return new TransactionalMail(sender, host, FROM, REPLY_TO, new SimpleMeterRegistry());
+    }
+
     /** mailHost rỗng = SMTP chưa cấu hình → mailer im lặng bỏ qua (hành vi sẵn có). */
     private static OrgInvitationMailer mailerWithMail(JavaMailSender sender) {
-        return new OrgInvitationMailer(sender, WEB, "smtp.example.com", FROM, REPLY_TO);
+        return new OrgInvitationMailer(mail(sender, "smtp.example.com"), WEB);
     }
 
     @Test
@@ -50,7 +56,7 @@ class OrgInvitationMailerUnitTest {
     @DisplayName("chưa cấu hình SMTP thì không gửi và cũng KHÔNG được ném lỗi (không chặn việc tạo lời mời)")
     void doesNotSendNorThrowWhenMailDisabled() {
         JavaMailSender sender = mock(JavaMailSender.class);
-        var mailer = new OrgInvitationMailer(sender, WEB, "", FROM, REPLY_TO);
+        var mailer = new OrgInvitationMailer(mail(sender, ""), WEB);
 
         mailer.sendInvite("teacher@example.com", "Trung tâm A", "TEACHER", "tok-123");
 
@@ -64,8 +70,7 @@ class OrgInvitationMailerUnitTest {
         var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         // Đúng hình dạng của CORS_ALLOWED_ORIGINS khi WEB_URL không được đặt (fallback trong yml).
         var mailer = new OrgInvitationMailer(
-                sender, "https://mydeutschflow.com/,https://www.mydeutschflow.com", "smtp.example.com",
-                FROM, REPLY_TO);
+                mail(sender, "smtp.example.com"), "https://mydeutschflow.com/,https://www.mydeutschflow.com");
 
         mailer.sendInvite("teacher@example.com", "Trung tâm A", "MANAGER", "tok-9");
 

@@ -3,14 +3,11 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.WebRoutes;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.deutschflow.common.mail.TransactionalMail;
 import org.springframework.stereotype.Service;
 
 /**
- * Sends organization-invitation emails. Mirrors
- * {@link com.deutschflow.user.service.PasswordResetService} for the
- * {@link JavaMailSender} + {@link SimpleMailMessage} pattern.
+ * Sends organization-invitation emails qua {@link TransactionalMail} (From/Reply-To gắn sẵn).
  *
  * <p>Pilot fallback: when SMTP is not configured ({@code spring.mail.host} blank)
  * we do NOT throw — the invite row is already persisted, so we log the accept link
@@ -20,32 +17,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class OrgInvitationMailer {
 
-    private final JavaMailSender mailSender;
+    private final TransactionalMail mail;
     private final String webUrl;
-    private final boolean mailEnabled;
-    private final String mailFrom;
-    private final String mailReplyTo;
 
     public OrgInvitationMailer(
-            JavaMailSender mailSender,
+            TransactionalMail mail,
             // Base URL của web — khoá RIÊNG `app.web-url` (xem application.yml, nó tự rơi về
             // CORS_ALLOWED_ORIGINS khi không đặt WEB_URL).
             //
             // Vì sao phải có khoá riêng: trước đây link mời trong email được dựng từ origin ĐẦU TIÊN
             // của danh sách CORS. Nghĩa là đổi THỨ TỰ các origin trong CORS_ALLOWED_ORIGINS — một thay
             // đổi ai cũng tưởng là vô hại — sẽ lặng lẽ đổi domain trong mọi email mời gửi ra sau đó.
-            @Value("${app.web-url:http://localhost:3000}") String webUrl,
-            @Value("${spring.mail.host:}") String mailHost,
-            // Danh tính người gửi — xem khối `app.mail` trong application.yml. Bắt buộc phải nằm trong
-            // identity đã verify ở SES, nếu không SES từ chối thư.
-            @Value("${app.mail.from}") String mailFrom,
-            @Value("${app.mail.reply-to}") String mailReplyTo) {
-        this.mailSender = mailSender;
+            @Value("${app.web-url:http://localhost:3000}") String webUrl) {
+        this.mail = mail;
         // allowed-origins may be a comma-separated list; the first origin is the canonical web URL.
         this.webUrl = stripTrailingSlash(firstOrigin(webUrl));
-        this.mailEnabled = mailHost != null && !mailHost.isBlank();
-        this.mailFrom = mailFrom;
-        this.mailReplyTo = mailReplyTo;
     }
 
     /**
@@ -64,7 +50,7 @@ public class OrgInvitationMailer {
     public void sendInvite(String to, String orgName, String role, String token) {
         String acceptLink = webUrl + WebRoutes.ORG_ACCEPT_INVITE + "?token=" + token;
 
-        if (!mailEnabled) {
+        if (!mail.isEnabled()) {
             // Do NOT log acceptLink — it carries the invite token (a bearer secret). Configure SMTP,
             // or surface the link to the authorized admin via the API (follow-up), not via logs.
             log.warn("[OrgInvite] mail host not configured — invite for {} (role={}, org={}) saved but NOT emailed",
@@ -73,11 +59,8 @@ public class OrgInvitationMailer {
         }
 
         try {
-            var msg = new SimpleMailMessage();
-            // setFrom là BẮT BUỘC, không phải tuỳ chọn — xem ghi chú cùng nội dung ở PasswordResetService:
-            // Gmail tự điền `From` hộ nên thiếu nó không ai thấy, còn SES thì từ chối thư không có `From`.
-            msg.setFrom(mailFrom);
-            msg.setReplyTo(mailReplyTo);
+            // From + Reply-To gắn sẵn — xem javadoc TransactionalMail về vì sao SES từ chối thư thiếu From.
+            var msg = mail.newMessage();
             msg.setTo(to);
             msg.setSubject("DeutschFlow — Lời mời tham gia " + orgName);
             msg.setText(
@@ -89,7 +72,7 @@ public class OrgInvitationMailer {
                     "Nếu bạn không mong đợi email này, hãy bỏ qua nó.\n\n" +
                     "DeutschFlow Team"
             );
-            mailSender.send(msg);
+            mail.send("org-invite", msg);
             log.info("[OrgInvite] invite email sent to {} (role={}, org={})", to, role, orgName);
         } catch (Exception e) {
             // Do not block invite creation; do NOT log the token-bearing link.
