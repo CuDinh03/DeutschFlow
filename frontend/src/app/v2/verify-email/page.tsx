@@ -127,10 +127,10 @@ export default function V2VerifyEmailPage() {
     return (
       <GaAuthShell>
         <GaCap className="mb-3 block">{t('verify.cap')}</GaCap>
-        <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px]">
+        <h1 className="m-0 mb-2 font-ga-display text-ga-h1-m text-ga-ink sm:text-ga-h1">
           {t('verify.missingTitle')}
         </h1>
-        <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('verify.missingBody')}</p>
+        <p className="m-0 mb-7 text-ga-body-lg text-ga-muted">{t('verify.missingBody')}</p>
         <Link href="/v2/register" className="font-bold text-ga-ink underline">{t('verify.backToRegister')}</Link>
       </GaAuthShell>
     )
@@ -139,10 +139,10 @@ export default function V2VerifyEmailPage() {
   return (
     <GaAuthShell>
       <GaCap className="mb-3 block">{t('verify.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
+      <h1 className="m-0 mb-2 font-ga-display text-ga-h1-m text-ga-ink sm:text-ga-h1 lg:text-ga-display">
         {t('verify.title')}
       </h1>
-      <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('verify.subtitle')}</p>
+      <p className="m-0 mb-7 text-ga-body-lg text-ga-muted">{t('verify.subtitle')}</p>
 
       {draft && (
         <div
@@ -151,7 +151,7 @@ export default function V2VerifyEmailPage() {
           role="status"
         >
           <MailCheck size={18} className="mt-0.5 shrink-0 text-ga-green" />
-          <div className="min-w-0 flex-1 break-words text-[13.5px] leading-relaxed text-ga-ink">
+          <div className="min-w-0 flex-1 break-words text-ga-small leading-relaxed text-ga-ink">
             {t('verify.sentNotice', { email: draft.email, minutes: Math.round(draft.expiresInSeconds / 60) })}
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function V2VerifyEmailPage() {
           {loading ? t('verify.submitting') : t('verify.submit')}
         </GaBtn>
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13.5px] lg:flex-nowrap lg:gap-0">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-ga-small lg:flex-nowrap lg:gap-0">
           <button
             type="button"
             onClick={resend}
@@ -203,7 +203,7 @@ export default function V2VerifyEmailPage() {
         </div>
       </form>
 
-      <p className="text-[12.5px] leading-relaxed text-ga-muted">{t('verify.spamHint')}</p>
+      <p className="text-ga-caption leading-relaxed text-ga-muted">{t('verify.spamHint')}</p>
     </GaAuthShell>
   )
 }
