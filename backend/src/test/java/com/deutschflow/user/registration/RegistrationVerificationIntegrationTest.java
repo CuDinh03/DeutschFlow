@@ -393,6 +393,39 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     }
 
     @Test
+    @DisplayName("chống bot: email hộp thư tạm ⇒ 400 DISPOSABLE_EMAIL, không hồ sơ, không thư (cả /register cũ)")
+    void disposableEmail_rejected() throws Exception {
+        String email = "pin-it-" + UUID.randomUUID() + "@mailinator.com";
+        start(email)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.extensions.reason").value("DISPOSABLE_EMAIL"));
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", email, "password", "MatKhau123!", "displayName", "Bot"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.extensions.reason").value("DISPOSABLE_EMAIL"));
+        Integer rows = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM pending_registrations WHERE email = ?", Integer.class, email);
+        assertThat(rows).isZero();
+        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+    }
+
+    @Test
+    @DisplayName("chống bot: ô honeypot `website` có giá trị ⇒ 400 HUMAN_CHECK_FAILED, không hồ sơ")
+    void honeypot_rejected() throws Exception {
+        String email = newEmail();
+        mockMvc.perform(post("/api/auth/register/start")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", email, "password", "MatKhau123!", "displayName", "Bot",
+                                "website", "http://spam.example"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.extensions.reason").value("HUMAN_CHECK_FAILED"));
+        assertThat(openPending(email)).isZero();
+    }
+
+    @Test
     @DisplayName("start lần hai cho cùng email ⇒ hồ sơ cũ SUPERSEDED, chỉ một hồ sơ mở")
     void secondStart_supersedes() throws Exception {
         String email = newEmail();

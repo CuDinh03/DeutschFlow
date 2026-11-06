@@ -29,8 +29,19 @@ public record RegisterRequest(
         String displayName,
 
         @Pattern(regexp = "^(vi|en|de)$", message = "Ngôn ngữ phải là vi, en hoặc de.")
-        String locale
+        String locale,
+
+        // Honeypot (chống bot, 07/11/2026): ô ẩn khỏi người dùng trên form web. Người thật không bao giờ
+        // điền; trình điền form tự động thì hay điền. Khác rỗng ⇒ RegistrationAbuseGuard từ chối.
+        // @Size chặn trên để body rác không phình log. Client cũ không gửi ⇒ null ⇒ bỏ qua.
+        @Size(max = 200)
+        String website
 ) {
+    /** Hợp đồng 5 trường cũ (app mobile, test) — không có honeypot. */
+    public RegisterRequest(String email, String phoneNumber, String password, String displayName, String locale) {
+        this(email, phoneNumber, password, displayName, locale, null);
+    }
+
     // Trim email + phone BEFORE Bean Validation runs, mirroring LoginRequest. @Email/@Pattern do a
     // full-region match and reject surrounding whitespace, so a pasted/autofilled value with a stray
     // space would 400 at the controller instead of registering. Trimming phone here also makes a

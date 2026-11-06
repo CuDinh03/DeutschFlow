@@ -104,6 +104,10 @@ public class GuestOnboardingService {
         if (request.currentStep() != null) {
             session.setCurrentStep(request.currentStep());
         }
+        // Chống bot (07/11/2026): bề mặt này công khai, ai cầm sessionId cũng ghi được JSONB vào DB. Câu
+        // trả lời thật của phễu chỉ vài trăm byte; chặn cỡ để không ai dùng nó làm kho chứa miễn phí.
+        GuestOnboardingServiceLimits.check(request.answers(), "answers");
+        GuestOnboardingServiceLimits.check(request.activityResult(), "activityResult");
         if (request.answers() != null) {
             session.setAnswers(new LinkedHashMap<>(request.answers()));
         }
