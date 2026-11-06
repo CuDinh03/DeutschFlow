@@ -69,6 +69,10 @@ const GERMAN_ON_PURPOSE: readonly string[] = [
   'v2.landing.report.quote',
   'v2.landing.report.fix',
 
+  // Tên phần thi telc giữ nguyên tiếng Đức ở mọi ngôn ngữ, như trên đề thật (06/11/2026: Hören
+  // vào chế độ luyện; Leseverstehen/Sprachbausteine không có chữ có dấu nên không cần miễn).
+  'v2.student.practice.sectionDe.HOEREN',
+
   // (c) nhân vật người Đức (bản vi giữ nguyên nghề/nơi chốn)
   'v2.student.personas.emma.tag',
   'v2.student.personas.thomas.role',

@@ -11,8 +11,8 @@ import * as React from 'react'
  * cục" chưa thật. Cờ này khiến `[data-ga-chrome]` bị `display:none` (xem galerie.css): mất khỏi
  * cả tab order lẫn cây accessibility.
  *
- * Gắn theo TRẠNG THÁI chứ không theo route: `/v2/student/mock-exam/run` còn phục vụ màn danh
- * sách và màn kết quả, `/v2/student/interviews` còn phục vụ màn chủ — những màn đó VẪN cần nav.
+ * Gắn theo TRẠNG THÁI chứ không theo route: `/v2/student/mock-exam/full` còn phục vụ màn kết quả,
+ * `/v2/student/interviews` còn phục vụ màn chủ — những màn đó VẪN cần nav.
  *
  * Đếm tham chiếu vì có lúc hai mode shell chồng nhau trong một nhịp chuyển màn; nếu chỉ set/remove
  * thì cái unmount sau sẽ gỡ cờ của cái vừa mount và nav lóe ra giữa phiên.

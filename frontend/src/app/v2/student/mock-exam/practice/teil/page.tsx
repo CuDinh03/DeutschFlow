@@ -22,6 +22,7 @@ import { fetchExamStrategies, findStrategy } from '@/components/exam/strategy/ex
 import { LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { PracticeShell, TipsCard, type PracticeSaveState } from '@/components/exam/practice/PracticeShell'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
+import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
 import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
@@ -102,7 +103,7 @@ function PracticeTeilPage() {
   // ── mẹo: chiến thuật đã duyệt (LT2), không có thì mẹo chung của Teil ────────
   React.useEffect(() => {
     if (!overview || !meta) return
-    const section = ['LESEN', 'SPRACHBAUSTEINE', 'SCHREIBEN'].includes(meta.section) ? meta.section : 'LESEN'
+    const section = ['LESEN', 'SPRACHBAUSTEINE', 'HOEREN', 'SCHREIBEN'].includes(meta.section) ? meta.section : 'LESEN'
     const fallback = (['t1', 't2', 't3'] as const).map((k) => t(`fallbackTips.${section}.${k}`))
     setTipSteps(fallback)
     fetchExamStrategies('TELC', overview.level, locale).then((list) => {
@@ -338,15 +339,19 @@ function PracticeTeilPage() {
       saveState={result ? 'idle' : saveState}
       footer={footer}
     >
-      <ObjectiveTeilView
-        teil={teil}
-        kind={kind as 'match' | 'mc' | 'gap-mc' | 'gap-bank'}
-        answers={answers}
-        onAnswer={onAnswer}
-        result={result}
-        wide={wide}
-        tips={tips}
-      />
+      {meta.section === 'HOEREN' ? (
+        <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} />
+      ) : (
+        <ObjectiveTeilView
+          teil={teil}
+          kind={kind as 'match' | 'mc' | 'gap-mc' | 'gap-bank'}
+          answers={answers}
+          onAnswer={onAnswer}
+          result={result}
+          wide={wide}
+          tips={tips}
+        />
+      )}
     </PracticeShell>
   )
 }

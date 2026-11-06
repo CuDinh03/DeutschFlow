@@ -13,7 +13,7 @@
  * không suy từ câu hỏi. Kho lựa chọn cũng nằm ở cấp Teil vì **cả Teil dùng chung một kho**.
  */
 
-import type { ExamQuestionItem, ExamTeil } from '@/app/v2/student/mock-exam/run/ExamTaking'
+import type { ExamQuestionItem, ExamTeil } from './examTypes'
 
 export const TELC_TEIL_TYPES = ['MATCH_HEADLINE', 'MATCH_AD_X', 'GAP_MC', 'GAP_WORDBANK'] as const
 export type TelcTeilType = (typeof TELC_TEIL_TYPES)[number]

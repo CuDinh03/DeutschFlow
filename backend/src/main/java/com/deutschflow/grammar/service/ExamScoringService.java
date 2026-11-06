@@ -232,8 +232,12 @@ public class ExamScoringService {
                 tasks.add(taskDetail(teil, "WRITING", weight, 0, STATUS_COMPLETED));
                 continue;
             }
-            Map<String, Object> ai = aiEvaluator.evaluateSchreibenEmail(
-                    userId, text, taskPrompt(teil), examLevel(section, cefrLevel), examFormat);
+            // telc (06/11/2026): thi thử chạy trong giao diện luyện đề mới, màn kết quả chỉ lỗi ngay trong
+            // bài — dùng phiếu có annotations + bài đã sửa. Cùng bảng 3 Kriterien, cùng total/max.
+            Map<String, Object> ai = "TELC".equalsIgnoreCase(examFormat)
+                    ? aiEvaluator.evaluateSchreibenPractice(userId, text, taskPrompt(teil), examLevel(section, cefrLevel))
+                    : aiEvaluator.evaluateSchreibenEmail(
+                            userId, text, taskPrompt(teil), examLevel(section, cefrLevel), examFormat);
             if (firstAiEval == null) firstAiEval = ai;
             if (isPending(ai)) {
                 tasks.add(taskDetail(teil, "WRITING", weight, 0, STATUS_PENDING));

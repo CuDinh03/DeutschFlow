@@ -24,6 +24,10 @@ interface PracticeShellProps {
   saveState?: PracticeSaveState
   footer?: React.ReactNode
   children: React.ReactNode
+  /** Nhãn nút quay lại (mặc định "Về bản đồ đề"). */
+  backLabel?: string
+  /** Thi thử trọn đề: `seconds` là thời gian CÒN LẠI; dưới 5 phút thì đổi màu cảnh báo. */
+  countdown?: boolean
 }
 
 const HIDE_CLOCK_KEY = 'df.practice.hideClock'
@@ -45,6 +49,8 @@ export function PracticeShell({
   saveState = 'idle',
   footer,
   children,
+  backLabel,
+  countdown = false,
 }: PracticeShellProps) {
   const t = useTranslations('v2.student.practice')
   useImmersiveChrome()
@@ -68,7 +74,10 @@ export function PracticeShell({
     })
   }
 
-  const over = seconds != null && suggestMinutes != null && seconds > suggestMinutes * 60
+  const over = countdown
+    ? seconds != null && seconds <= 5 * 60
+    : seconds != null && suggestMinutes != null && seconds > suggestMinutes * 60
+  const back = backLabel ?? t('backToMap')
   const saveLabel =
     saveState === 'saving' ? t('saveSaving') : saveState === 'saved' ? t('saveSaved') : saveState === 'error' ? t('saveError') : ''
 
@@ -78,11 +87,11 @@ export function PracticeShell({
         <div className="flex min-h-14 items-center gap-2 px-2 py-1.5 lg:gap-4 lg:px-5">
           <Link
             href={backHref}
-            aria-label={t('backToMap')}
+            aria-label={back}
             className="ga-ui inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-ga-touch px-2 text-ga-small font-medium text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
           >
             <ChevronLeft size={18} aria-hidden />
-            <span className="hidden lg:inline">{t('backToMap')}</span>
+            <span className="hidden lg:inline">{back}</span>
           </Link>
           <div className="min-w-0 flex-1">
             <p className="ga-ui truncate text-ga-caption text-ga-muted">{subtitle}</p>
@@ -100,7 +109,7 @@ export function PracticeShell({
                 >
                   <Clock size={15} aria-hidden />
                   {formatClock(seconds)}
-                  {suggestMinutes != null && (
+                  {!countdown && suggestMinutes != null && (
                     <span className="hidden lg:inline">
                       {over
                         ? t('clockOver', { minutes: Math.floor((seconds - suggestMinutes * 60) / 60) })

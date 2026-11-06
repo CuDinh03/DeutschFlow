@@ -3,6 +3,7 @@
  */
 import type { WritingAnnotation } from '@/lib/telcPracticeApi'
 import { orderedWritingPoints } from '@/components/exam/telc/writingTask'
+import type { AudioScript } from '@/components/exam/audioScript'
 
 export type PracticeKind = 'match' | 'mc' | 'gap-mc' | 'gap-bank' | 'writing' | 'unknown'
 
@@ -12,6 +13,11 @@ export interface PracticeItem {
   text?: string
   gap?: number
   options?: Record<string, string>
+  /** Hören: bài nghe của câu (Teil 1, 3), câu dẫn tình huống, giọng người nói. */
+  audio_script?: AudioScript
+  lead_in_de?: string
+  speaker?: string
+  person?: string
 }
 
 export interface PracticeTeilData {
@@ -36,6 +42,12 @@ export interface PracticeTeilData {
   shuffle_points?: boolean
   prompt?: string
   items?: PracticeItem[]
+  /** Hören: bài nghe cấp Teil (Teil 2), số lần phát, nghi thức telc (Ansage, giây đọc câu hỏi, câu khung). */
+  audio_script?: AudioScript
+  max_plays?: number
+  ansage_de?: string
+  reading_seconds?: number
+  framing_de?: string
 }
 
 export const NONE_OF_THEM = 'x'
@@ -62,6 +74,8 @@ export function findTeil(json: string | null | undefined, key: string): Practice
 
 export function kindOf(teil: PracticeTeilData | null, key: string): PracticeKind {
   if (key.startsWith('SCHREIBEN')) return 'writing'
+  // Hören telc: mọi câu là richtig/falsch, đề không khai `type` ⇒ dựng như trắc nghiệm từng câu.
+  if (key.startsWith('HOEREN')) return teil ? 'mc' : 'unknown'
   switch (teil?.type) {
     case 'MATCH_HEADLINE':
     case 'MATCH_AD_X':
@@ -182,4 +196,16 @@ export function wordCount(text: string): number {
 export function formatClock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/** Hai lựa chọn của câu Hören đúng/sai — khoá giữ đúng giá trị server chấm ("richtig"/"falsch"). */
+export const TRUE_FALSE_OPTIONS: Record<string, string> = { richtig: 'Richtig', falsch: 'Falsch' }
+
+/**
+ * Teil Hören dựng bằng trắc nghiệm từng câu: câu nào không khai `options` thì gắn richtig/falsch.
+ * Không đổi Teil có sẵn lựa chọn (Hören Goethe a/b/c).
+ */
+export function withTrueFalse(teil: PracticeTeilData): PracticeTeilData {
+  if (!teil.items?.some((it) => !it.options)) return teil
+  return { ...teil, items: teil.items.map((it) => (it.options ? it : { ...it, options: TRUE_FALSE_OPTIONS })) }
 }
