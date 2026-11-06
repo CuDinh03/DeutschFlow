@@ -100,7 +100,7 @@ export default function RegisterScreen() {
     try {
       // Mã PIN (thiết kế 05/11 §7.2): thử đường mới trước. 202 ⇒ CHƯA có tài khoản, CHƯA setTokens,
       // CHƯA đặt signedUpRef — sang màn nhập mã (push, để "Đổi email" = back giữ nguyên form).
-      // 501 ⇒ công tắc backend tắt ⇒ rơi xuống /auth/register cũ bên dưới, y như trước.
+      // 501 (công tắc tắt) hoặc 401/404 (backend chưa có endpoint) ⇒ rơi xuống /auth/register cũ, y như trước.
       try {
         const started = await api.post<{ email: string; expiresInSeconds: number; resendAfterSeconds: number }>(
           '/auth/register/start',

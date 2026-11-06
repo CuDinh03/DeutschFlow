@@ -40,8 +40,11 @@ describe('registrationPin', () => {
     expect(verifyFailure(new Error('Network Error'))).toEqual({ key: 'verify.network' })
   })
 
-  it('start: 501 = rơi về đường cũ; 503 = chưa gửi được thư; 429 = quá nhanh', () => {
+  it('start: 501/401/404 = rơi về đường cũ; 503 = chưa gửi được thư; 429 = quá nhanh', () => {
     expect(isVerificationDisabled({ response: { status: 501 } })).toBe(true)
+    expect(isVerificationDisabled({ response: { status: 401 } })).toBe(true)
+    expect(isVerificationDisabled({ response: { status: 404 } })).toBe(true)
+    expect(isVerificationDisabled({ response: { status: 400 } })).toBe(false)
     expect(isVerificationDisabled({ response: { status: 503 } })).toBe(false)
     expect(isVerificationDisabled(new Error('x'))).toBe(false)
     expect(startFailureKey({ response: { status: 503 } })).toBe('verify.sendFailed')

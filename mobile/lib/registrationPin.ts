@@ -34,9 +34,16 @@ export function errorStatus(e: unknown): number | undefined {
   return (e as ErrLike)?.response?.status
 }
 
-/** 501 ở /register/start = công tắc backend tắt ⇒ client lùi về /auth/register cũ. */
+/**
+ * /register/start trả một trong các mã này ⇒ đường mã PIN chưa dùng được ⇒ lùi về /auth/register cũ.
+ * 501 = công tắc backend tắt. 401/403/404/405 = backend CHƯA có endpoint (OTA lên trước backend; endpoint
+ * chưa permitAll nên Security trả 401) — thiết kế đòi client merge trước backend vẫn an toàn.
+ */
+const START_FALLBACK_STATUSES = new Set([401, 403, 404, 405, 501])
+
 export function isVerificationDisabled(e: unknown): boolean {
-  return errorStatus(e) === 501
+  const s = errorStatus(e)
+  return s !== undefined && START_FALLBACK_STATUSES.has(s)
 }
 
 export type VerifyFailure =
