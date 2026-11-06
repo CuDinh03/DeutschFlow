@@ -293,6 +293,24 @@ public class GlobalExceptionHandler {
     }
 
     // --- 409 Conflict ---
+    /**
+     * Luồng mã PIN đăng ký: status theo {@code Reason} (400/409/410/501/503). {@code extensions.code} =
+     * {@code extensions.reason} = mã máy cho client chọn câu; {@code remainingAttempts} khi còn lượt.
+     */
+    @ExceptionHandler(com.deutschflow.user.registration.RegistrationVerificationException.class)
+    public ResponseEntity<ProblemDetail> handleRegistrationVerification(
+            com.deutschflow.user.registration.RegistrationVerificationException ex, HttpServletRequest request) {
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", ex.getReason().name());
+        ext.put("reason", ex.getReason().name());
+        if (ex.getRemainingAttempts() != null) {
+            ext.put("remainingAttempts", ex.getRemainingAttempts());
+        }
+        HttpStatus status = ex.getReason().status();
+        return problem(status, "registration-verification", status.getReasonPhrase(),
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ProblemDetail> handleConflict(ConflictException ex,
                                                         HttpServletRequest request) {

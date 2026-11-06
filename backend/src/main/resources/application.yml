@@ -555,6 +555,27 @@ app:
       # Budget dùng chung theo (IP + email); cửa sổ 900s ≈ TTL của OTP.
       password-reset-max-per-window: ${APP_AUTH_PWRESET_RL_MAX:5}
       password-reset-window-seconds: ${APP_AUTH_PWRESET_RL_WINDOW:900}
+      # Mã PIN đăng ký. Trần GỬI theo EMAIL (gồm start + resend) chặn dùng form làm súng bắn thư và
+      # chặn dò mã: 5 lần gửi/giờ × 5 lần sai/mã ⇒ ≤ 25 lần thử/giờ/email. Cộng trần verify theo IP.
+      registration-send-max-per-window: ${APP_AUTH_REG_SEND_RL_MAX:5}
+      registration-send-window-seconds: ${APP_AUTH_REG_SEND_RL_WINDOW:3600}
+      registration-verify-ip-max-per-window: ${APP_AUTH_REG_VERIFY_IP_RL_MAX:30}
+      registration-verify-ip-window-seconds: ${APP_AUTH_REG_VERIFY_IP_RL_WINDOW:600}
+
+    # Xác nhận đăng ký bằng mã PIN 6 số (plans/2026-11-05-thiet-ke-ma-pin-xac-nhan-dang-ky.md).
+    # enabled=false (MẶC ĐỊNH) ⇒ /register/start trả 501 và client tự rơi về /register cũ — đây là nút
+    # rollback tức thì (sửa backend.env + restart). Bật mà thiếu spring.mail.host hoặc pepper thì
+    # backend KHÔNG khởi động. Pepper: ≥ 32 byte ngẫu nhiên, CHỈ ở backend.env (`openssl rand -hex 32`).
+    registration-verification:
+      enabled: ${REGISTRATION_VERIFICATION_ENABLED:false}
+      code-pepper: ${REGISTRATION_CODE_PEPPER:}
+      code-ttl-minutes: ${REGISTRATION_CODE_TTL_MINUTES:60}
+      max-attempts-per-code: ${REGISTRATION_MAX_ATTEMPTS_PER_CODE:5}
+      resend-cooldown-seconds: ${REGISTRATION_RESEND_COOLDOWN_SECONDS:60}
+    # Đường /register cũ (tạo tài khoản không kiểm email). Còn mở có chủ ý cho tới khi bản app mới phủ
+    # hết; đặt false khi metric registration.legacy.used ≈ 0 ⇒ /register trả 410.
+    legacy-register:
+      enabled: ${LEGACY_REGISTER_ENABLED:true}
 
   notifications:
     # SSE unread-count stream. Single-node by default; enable Redis pub/sub fan-out
