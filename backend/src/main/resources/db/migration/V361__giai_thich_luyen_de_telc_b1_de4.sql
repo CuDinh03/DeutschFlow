@@ -5,6 +5,10 @@
 -- này Đề 4 chạy bằng câu ráp (PracticeAnalysis). "Vì sao đúng" vẫn là explanation_vi trong đề (V345).
 -- `evidence` chép NGUYÊN VĂN từng dòng của đề để tô được (PracticeExplanationsDe4Test kiểm).
 --
+-- Luật đáp án (owner 07/11/2026): đáp án đúng phải khớp NGỮ CẢNH của cả thư/bài, không chỉ đúng
+-- ngữ pháp tại chỗ trống. Phương án đúng ngữ pháp mà sai ngữ cảnh (SB1-23 „wurden", SB1-24 „denn")
+-- vẫn là sai; giải thích phải nói rõ vì sao sai THEO NGỮ CẢNH.
+--
 -- Nội dung soạn gốc, BẢN NHÁP chờ owner duyệt (cùng cách duyệt như V358: làm thử trên production).
 -- Sửa nội dung: viết migration mới ghi đè đúng hàng (ON CONFLICT … DO UPDATE).
 -- 🪤 Dấu cách sau $j$ là BẮT BUỘC (xem V325).
@@ -123,11 +127,11 @@ SELECT id, 'SPRACHBAUSTEINE-1', $j$
         "c": { "why_vi": "„um“ dùng cho giờ chính xác (um 10 Uhr), không dùng cho buổi." } } },
     "SB1-23": { "need_vi": "trợ động từ bị động ở hiện tại, đi với „repariert“", "rule_vi": "werden + Partizip II (Passiv Präsens)",
       "wrong": {
-        "a": { "why_vi": "„wurden“ là quá khứ. Câu nói máy hỏng „schon seit Wochen“ và tới giờ vẫn chưa được sửa: với „seit“, tiếng Đức dùng thì hiện tại ⇒ „werden … nicht repariert“.", "trap": "Sai thì" },
+        "a": { "why_vi": "Đứng riêng thì „wurden nicht repariert“ (đã không được sửa) đúng ngữ pháp, nhưng không khớp ngữ cảnh. Vế trước ở hiện tại („sind schon seit Wochen kaputt“), và người viết phàn nàn rằng TỚI GIỜ máy vẫn chưa được sửa ⇒ hiện tại „werden … nicht repariert“.", "trap": "Đúng ngữ pháp, sai ngữ cảnh" },
         "c": { "why_vi": "„worden“ là Partizip II của „werden“, chỉ đứng sau „sind/waren“ (sind repariert worden), không đứng một mình." } } },
     "SB1-24": { "need_vi": "liên từ nối hai ý ĐỐI LẬP, giữ trật tự câu chính („hat“ đứng thứ hai)", "rule_vi": "…, aber + chủ ngữ + động từ",
       "wrong": {
-        "a": { "why_vi": "„denn“ cũng giữ trật tự câu chính, nhưng nghĩa thành „tôi phàn nàn VÌ không ai phản hồi“. Ý của thư là đã phàn nàn hai lần MÀ không ai phản hồi ⇒ đối lập „aber“.", "trap": "Đúng ngữ pháp, sai nghĩa" },
+        "a": { "why_vi": "„denn“ cũng giữ trật tự câu chính nên đúng ngữ pháp, nhưng không khớp ngữ cảnh: câu sẽ thành „tôi phàn nàn VÌ không ai phản hồi“. Thư đang kể lý do huỷ hợp đồng: đã phàn nàn hai lần MÀ không ai phản hồi ⇒ đối lập „aber“.", "trap": "Đúng ngữ pháp, sai ngữ cảnh" },
         "c": { "why_vi": "„weil“ đẩy động từ xuống cuối (weil niemand reagiert hat). Ở đây „hat“ đứng ngay sau chủ ngữ.", "trap": "Bẫy cặp WEIL/DENN" } } },
     "SB1-25": { "need_vi": "liên từ lý do mở câu phụ đứng đầu câu, „umziehe“ ở cuối", "rule_vi": "Da …, werde ich … (câu phụ đứng trước, động từ chính theo ngay sau)",
       "wrong": {
