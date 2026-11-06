@@ -123,6 +123,33 @@
       "unknown": "This activation link is not valid. Check the email again, or use “Forgot password”.",
       "goForgot": "Forgot password",
       "goLogin": "Back to sign in"
+    },
+    "verify": {
+      "cap": "Verify your email",
+      "title": "Enter your verification code",
+      "subtitle": "Your account is created only after you enter the correct code.",
+      "sentNotice": "We sent a 6-digit code to {email}. It is valid for {minutes} minutes.",
+      "codeLabel": "Verification code",
+      "codePlaceholder": "6 digits",
+      "codeInvalid": "The code has exactly 6 digits.",
+      "submit": "Verify and create account",
+      "submitting": "Verifying…",
+      "resend": "Resend code",
+      "resendIn": "Resend code in {seconds} s",
+      "resent": "A new code was sent to {email}.",
+      "resendFailed": "We could not resend the code. Please try again.",
+      "changeEmail": "Change email",
+      "spamHint": "No email? Check your Spam or Promotions folder, then tap \"Resend code\" if it is still missing.",
+      "wrong": "The code is incorrect or has expired.",
+      "wrongWithRemaining": "{count, plural, one {Incorrect code. You have 1 attempt left.} other {Incorrect code. You have # attempts left.}}",
+      "locked": "Too many incorrect attempts. Tap \"Resend code\" to get a new one.",
+      "expired": "The code has expired. Tap \"Resend code\" to get a new one.",
+      "accountExists": "This email now has an account. Log in, or use \"Forgot password\".",
+      "tooMany": "Too many attempts. Please wait a moment and try again.",
+      "sendFailed": "We could not send the verification code. Please try again in a few minutes.",
+      "missingTitle": "Your sign-up session has ended",
+      "missingBody": "We could not find your sign-up details in this browser. Please fill in the sign-up form again.",
+      "backToRegister": "Back to sign-up"
     }
   }
 }

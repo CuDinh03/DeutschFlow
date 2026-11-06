@@ -123,6 +123,33 @@
       "unknown": "Dieser Aktivierungslink ist ungültig. Prüfen Sie die E-Mail oder nutzen Sie „Passwort vergessen“.",
       "goForgot": "Passwort vergessen",
       "goLogin": "Zurück zur Anmeldung"
+    },
+    "verify": {
+      "cap": "E-Mail bestätigen",
+      "title": "Bestätigungscode eingeben",
+      "subtitle": "Dein Konto wird erst angelegt, wenn du den richtigen Code eingibst.",
+      "sentNotice": "Wir haben einen 6-stelligen Code an {email} geschickt. Er ist {minutes} Minuten gültig.",
+      "codeLabel": "Bestätigungscode",
+      "codePlaceholder": "6 Ziffern",
+      "codeInvalid": "Der Code hat genau 6 Ziffern.",
+      "submit": "Bestätigen und Konto anlegen",
+      "submitting": "Wird geprüft…",
+      "resend": "Code erneut senden",
+      "resendIn": "Code erneut senden in {seconds} s",
+      "resent": "Ein neuer Code wurde an {email} geschickt.",
+      "resendFailed": "Der Code konnte nicht erneut gesendet werden. Bitte versuche es noch einmal.",
+      "changeEmail": "E-Mail ändern",
+      "spamHint": "Keine E-Mail? Sieh im Spam- oder Werbeordner nach und tippe auf „Code erneut senden“, falls sie fehlt.",
+      "wrong": "Der Code ist falsch oder abgelaufen.",
+      "wrongWithRemaining": "{count, plural, one {Falscher Code. Du hast noch 1 Versuch.} other {Falscher Code. Du hast noch # Versuche.}}",
+      "locked": "Zu viele falsche Versuche. Tippe auf „Code erneut senden“, um einen neuen Code zu erhalten.",
+      "expired": "Der Code ist abgelaufen. Tippe auf „Code erneut senden“, um einen neuen Code zu erhalten.",
+      "accountExists": "Für diese E-Mail gibt es jetzt ein Konto. Melde dich an oder nutze „Passwort vergessen“.",
+      "tooMany": "Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.",
+      "sendFailed": "Der Bestätigungscode konnte nicht gesendet werden. Bitte versuche es in ein paar Minuten erneut.",
+      "missingTitle": "Deine Registrierung ist abgelaufen",
+      "missingBody": "Wir haben deine Registrierungsdaten in diesem Browser nicht gefunden. Bitte fülle das Formular erneut aus.",
+      "backToRegister": "Zurück zur Registrierung"
     }
   }
 }

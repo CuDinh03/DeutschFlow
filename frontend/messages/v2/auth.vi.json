@@ -123,6 +123,33 @@
       "unknown": "Liên kết kích hoạt không hợp lệ. Hãy kiểm tra lại email, hoặc dùng “Quên mật khẩu”.",
       "goForgot": "Quên mật khẩu",
       "goLogin": "Về trang đăng nhập"
+    },
+    "verify": {
+      "cap": "Xác minh email",
+      "title": "Nhập mã xác minh",
+      "subtitle": "Tài khoản chỉ được tạo sau khi bạn nhập đúng mã.",
+      "sentNotice": "Chúng tôi đã gửi mã 6 số tới {email}. Mã có hiệu lực trong {minutes} phút.",
+      "codeLabel": "Mã xác minh",
+      "codePlaceholder": "6 chữ số",
+      "codeInvalid": "Mã gồm đúng 6 chữ số.",
+      "submit": "Xác minh và tạo tài khoản",
+      "submitting": "Đang xác minh…",
+      "resend": "Gửi lại mã",
+      "resendIn": "Gửi lại mã sau {seconds} giây",
+      "resent": "Đã gửi mã mới tới {email}.",
+      "resendFailed": "Chưa gửi lại được mã. Vui lòng thử lại.",
+      "changeEmail": "Đổi email",
+      "spamHint": "Không thấy thư? Hãy xem thư mục Spam hoặc Quảng cáo, rồi bấm \"Gửi lại mã\" nếu vẫn chưa có.",
+      "wrong": "Mã không đúng hoặc đã hết hạn.",
+      "wrongWithRemaining": "{count, plural, other {Mã không đúng. Bạn còn # lần thử.}}",
+      "locked": "Bạn đã nhập sai quá nhiều lần. Hãy bấm \"Gửi lại mã\" để nhận mã mới.",
+      "expired": "Mã đã hết hạn. Hãy bấm \"Gửi lại mã\" để nhận mã mới.",
+      "accountExists": "Email này vừa có tài khoản. Hãy đăng nhập, hoặc dùng \"Quên mật khẩu\".",
+      "tooMany": "Bạn thao tác quá nhanh. Vui lòng đợi một lúc rồi thử lại.",
+      "sendFailed": "Chưa gửi được mã xác minh. Vui lòng thử lại sau ít phút.",
+      "missingTitle": "Phiên đăng ký đã hết",
+      "missingBody": "Không tìm thấy thông tin đăng ký trong trình duyệt này. Hãy điền lại form đăng ký.",
+      "backToRegister": "Quay lại trang đăng ký"
     }
   }
 }

@@ -5,13 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { setTokens } from '@/lib/authSession'
 import { clearGuestSessionCache } from '@/lib/guestSessionStore'
-import { useUserStore } from '@/stores/useUserStore'
 import { isValidVnPhone, normalizeVnPhone } from '@/lib/vnPhone'
 import { useTracking } from '@/hooks/useTracking'
 import { GaCap, GaBtn } from '@/components/ui-v2'
 import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE, pwStrength } from '../authShared'
+import { readPendingSignup, savePendingSignup, useCompleteSignup, type RegisterPayload } from '../authSignup'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Đăng ký (GaRegister) — Galerie 2.0 reskin of /register. Plumbing reused 1:1
@@ -31,9 +30,17 @@ import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE, pwStrength } from '../
 // hard-code tiếng Việt, nên phải dịch trước khi xoá v1 (nếu không, EN/DE mất bản dịch).
 // Link Điều khoản/Bảo mật trước đây là href="#" (chết) dù /terms và /privacy đã tồn tại → nối thật.
 // Nút "Đăng nhập với Google" đã gỡ khỏi authShared: backend không có endpoint OAuth.
+//
+// 06/11/2026 — xác nhận mã PIN (plans/2026-11-05-thiet-ke-ma-pin-xac-nhan-dang-ky.md §7.1): form gọi
+// POST /auth/register/start trước. 202 ⇒ CHƯA có tài khoản, mã đã gửi tới email ⇒ sang /v2/verify-email
+// (form giữ trong sessionStorage, KHÔNG giữ mật khẩu). 501 ⇒ công tắc backend đang tắt ⇒ lùi về
+// POST /auth/register cũ y như trước. Nhánh thành công dùng chung useCompleteSignup() với trang nhập mã.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FieldErrors = Record<string, string>
+
+/** Mã từ /auth/register/start nghĩa là "đường mã PIN chưa dùng được" ⇒ lùi về /auth/register. */
+const START_FALLBACK_STATUSES = new Set([401, 403, 404, 405, 501])
 
 export default function V2RegisterPage() {
   // Đợt 2 onboarding (17/09): rời màn này mà CHƯA đăng ký xong thì vứt con trỏ phiên khách trên máy —
@@ -48,15 +55,19 @@ export default function V2RegisterPage() {
   )
   const t = useTranslations('v2.auth')
   const router = useRouter()
-  const { trackEvent, identifyUser } = useTracking()
-  const setOrg = useUserStore((s) => s.setOrg)
-  const setUser = useUserStore((s) => s.setUser)
+  const { trackEvent } = useTracking()
+  const completeSignup = useCompleteSignup()
   // Mặc định ô "ngôn ngữ" = ngôn ngữ ĐANG hiển thị, không phải 'vi' cứng. GaAuthShell nay có
   // LanguageToggle, nên khách EN/DE đổi giao diện rồi đăng ký: nếu vẫn gửi locale='vi' thì tài khoản
   // bị ghim tiếng Việt, và ngay dòng dưới ta lại ghi đè cookie `locale=vi` → giao diện lật về tiếng
   // Việt ngay sau khi đăng ký. Muốn ngôn ngữ khác thì đổi bằng LanguageToggle trên header.
   const initialLocale = useLocale()
   const [f, setF] = useState({ first: '', last: '', email: '', phone: '', pw: '', locale: initialLocale })
+  // "Đổi email" từ trang nhập mã quay về đây: nạp lại phần form đã gõ (trừ mật khẩu — không giữ phía client).
+  useEffect(() => {
+    const d = readPendingSignup()
+    if (d) setF((s) => ({ ...s, first: d.first, last: d.last, email: d.email, phone: d.phone }))
+  }, [])
   const [errs, setErrs] = useState<FieldErrors>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -84,7 +95,7 @@ export default function V2RegisterPage() {
     trackEvent('register_started', { locale: f.locale })
     try {
       const displayName = `${f.first.trim()} ${f.last.trim()}`.trim()
-      const { data } = await api.post('/auth/register', {
+      const payload: RegisterPayload = {
         email: f.email.trim(),
         // Gửi đúng giá trị ĐÃ chuẩn hoá — cùng chuỗi mà isValidVnPhone() vừa chấp nhận. Bỏ trống thì
         // gửi chuỗi rỗng: backend coi rỗng là "không có" và lưu NULL.
@@ -92,54 +103,44 @@ export default function V2RegisterPage() {
         password: f.pw,
         displayName,
         locale: f.locale,
-      })
-      setTokens(data)
-      setOrg({ orgId: data.orgId ?? null, orgRole: data.orgRole ?? null })
-      if (['vi', 'en', 'de'].includes(f.locale)) {
-        document.cookie = `locale=${f.locale};path=/;max-age=31536000;SameSite=Lax`
       }
 
-      const { data: user } = await api.get('/auth/me')
-      // Nạp danh tính vào store NGAY sau khi đăng ký — /v2/login đã làm, trang này thì chưa (F-16).
-      // Store dùng zustand persist, nên thiếu bước này nó giữ nguyên danh tính của PHIÊN TRƯỚC:
-      // QA 2026-09-01 thấy sidebar hiện tên + email của một giáo viên cũ cho tài khoản học viên vừa
-      // đăng ký. Trên máy dùng chung (quán net, phòng máy, máy mượn) đó là rò dữ liệu cá nhân giữa
-      // hai người, và mọi UI rẽ nhánh theo `user.roles` cũng đọc sai vai.
-      setUser({
-        // AuthResponse phơi id ở `userId` chứ không phải `id` — đọc nhầm sẽ lưu chuỗi "undefined".
-        id: String(user.userId),
-        email: user.email,
-        roles: [String(user.role)],
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-      })
-      switch (user.role) {
-        case 'ADMIN':
-          router.replace('/v2/admin/users')
-          break
-        case 'TEACHER':
-          router.replace('/v2/teacher')
-          break
-        case 'STUDENT':
-        default:
-          // Self-register = STUDENT → the onboarding funnel, now on v2 (/v2/onboarding). A guest who
-          // ran the funnel BEFORE signing up left a draft in localStorage; that page replays it here.
-          signedUpRef.current = true
-          router.replace('/v2/onboarding')
-          break
+      let started: { email: string; expiresInSeconds: number; resendAfterSeconds: number } | null = null
+      try {
+        const { data } = await api.post('/auth/register/start', payload)
+        started = data
+      } catch (startErr: unknown) {
+        // 501 = công tắc mã PIN tắt ở backend ⇒ đường cũ. 401/403/404/405 = backend CHƯA có endpoint
+        // (web lên trước backend; endpoint chưa permitAll nên Security trả 401) ⇒ cũng đường cũ.
+        // Lỗi khác (400/429/503) để catch ngoài hiện.
+        const status = (startErr as { response?: { status?: number } })?.response?.status
+        if (!status || !START_FALLBACK_STATUSES.has(status)) throw startErr
       }
 
-      identifyUser(String(user.userId), {
-        email: user.email, name: user.displayName, role: user.role, locale: user.locale,
-        created_at: new Date().toISOString(),
-      })
-      trackEvent('register_success', { role: user.role, locale: f.locale })
-      // Taxonomy onb_v3 (spec §6.2/§6.3): bắn song song tên mới, tên cũ giữ cho dashboard hiện có.
-      trackEvent('signup_succeeded', { method: 'email', role: user.role })
+      if (started) {
+        savePendingSignup({
+          first: f.first, last: f.last, email: started.email, phone: f.phone, locale: f.locale,
+          expiresInSeconds: started.expiresInSeconds, resendAfterSeconds: started.resendAfterSeconds,
+          sentAt: Date.now(),
+        })
+        trackEvent('register_code_sent', { locale: f.locale })
+        // Vẫn là "đang đăng ký": phiên khách (câu trả lời onboarding) phải sống qua trang nhập mã.
+        signedUpRef.current = true
+        router.push('/v2/verify-email')
+        return
+      }
+
+      const { data } = await api.post('/auth/register', payload)
+      await completeSignup(data, f.locale, () => { signedUpRef.current = true })
     } catch (err: unknown) {
-      const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
+      const resp = (err as { response?: { status?: number; data?: { detail?: string; errors?: FieldErrors } } })?.response
+      const res = resp?.data
       if (res?.errors) setErrs(res.errors)
-      else {
+      else if (resp?.status === 503) {
+        // Backend KHÔNG báo "đã gửi" khi chưa gửi được mã — email là lối vào duy nhất.
+        setError(t('verify.sendFailed'))
+        trackEvent('register_failed', { reason: 'SEND_FAILED' })
+      } else {
         setError(res?.detail ?? t('register.failed'))
         trackEvent('register_failed', { reason: res?.detail ?? 'unknown' })
       }
