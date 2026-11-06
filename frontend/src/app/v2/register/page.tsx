@@ -39,6 +39,9 @@ import { readPendingSignup, savePendingSignup, useCompleteSignup, type RegisterP
 
 type FieldErrors = Record<string, string>
 
+/** Mã từ /auth/register/start nghĩa là "đường mã PIN chưa dùng được" ⇒ lùi về /auth/register. */
+const START_FALLBACK_STATUSES = new Set([401, 403, 404, 405, 501])
+
 export default function V2RegisterPage() {
   // Đợt 2 onboarding (17/09): rời màn này mà CHƯA đăng ký xong thì vứt con trỏ phiên khách trên máy —
   // khách A bỏ dở ở đây, B đăng ký sau trên cùng máy không được claim phiên (câu trả lời) của A.
@@ -107,8 +110,11 @@ export default function V2RegisterPage() {
         const { data } = await api.post('/auth/register/start', payload)
         started = data
       } catch (startErr: unknown) {
-        // 501 = công tắc mã PIN tắt ở backend ⇒ đường cũ. Lỗi khác (400/429/503) để catch ngoài hiện.
-        if ((startErr as { response?: { status?: number } })?.response?.status !== 501) throw startErr
+        // 501 = công tắc mã PIN tắt ở backend ⇒ đường cũ. 401/403/404/405 = backend CHƯA có endpoint
+        // (web lên trước backend; endpoint chưa permitAll nên Security trả 401) ⇒ cũng đường cũ.
+        // Lỗi khác (400/429/503) để catch ngoài hiện.
+        const status = (startErr as { response?: { status?: number } })?.response?.status
+        if (!status || !START_FALLBACK_STATUSES.has(status)) throw startErr
       }
 
       if (started) {

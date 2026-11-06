@@ -85,6 +85,17 @@ describe("/v2/register — mã PIN", () => {
     expect(postMock.mock.calls.map((c) => c[0])).toEqual(["/auth/register/start", "/auth/register"]);
   });
 
+  it("404/401 (backend chưa có endpoint) ⇒ cũng lùi về /auth/register", async () => {
+    postMock
+      .mockRejectedValueOnce({ response: { status: 401, data: {} } })
+      .mockResolvedValueOnce({ data: { accessToken: "a", role: "STUDENT", orgId: null, orgRole: null } });
+    const { container } = render(<RegisterPage />);
+    fillRegisterForm(container);
+
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/v2/onboarding"));
+    expect(postMock.mock.calls.map((c) => c[0])).toEqual(["/auth/register/start", "/auth/register"]);
+  });
+
   it("503 ⇒ báo chưa gửi được mã, không chuyển trang", async () => {
     postMock.mockRejectedValueOnce({ response: { status: 503, data: { extensions: { reason: "SEND_FAILED" } } } });
     const { container } = render(<RegisterPage />);
