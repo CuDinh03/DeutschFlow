@@ -247,6 +247,10 @@ function sharedDashboardOrigin(): string {
   }
 }
 
+// Cloudflare Turnstile (chống bot ở form đăng ký, 07/11/2026): widget là một iframe từ origin này. Chỉ
+// thêm khi build có site key — không có key thì widget không render và CSP giữ nguyên như cũ.
+const turnstileOrigin = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? 'https://challenges.cloudflare.com' : ''
+
 function buildCsp(nonce: string): string {
   // E5 đường 1 (owner chọn 08/09): bỏ `https:` khỏi img/connect/frame/media và bỏ hai host font
   // Google khỏi style/font. Lý do KHÔNG phải "cho chặt hơn" mà là **để đo được**: chừng nào còn
@@ -261,7 +265,7 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     // 'strict-dynamic' + nonce is honored by modern browsers; 'unsafe-inline' + https: are
     // ignored there and act only as fallbacks for older browsers.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${posthogHost} https: 'unsafe-inline'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${[posthogHost, turnstileOrigin].filter(Boolean).join(' ')} https: 'unsafe-inline'`,
     // Font là self-host thật: `next/font/google` tải file lúc BUILD rồi phục vụ từ `/_next/static`,
     // runtime không gọi fonts.googleapis.com/fonts.gstatic.com lần nào (khảo sát E5 §0).
     "style-src 'self' 'unsafe-inline'",
@@ -272,7 +276,7 @@ function buildCsp(nonce: string): string {
     // <iframe>, audio/video in their own elements. Without these two, both fall back to default-src
     // 'self' and every open reports a violation today — and would be blocked outright the day this
     // policy is flipped to enforced.
-    `frame-src ${["'self'", sharedDashboardOrigin(), ...mediaHosts].filter(Boolean).join(' ')}`,
+    `frame-src ${["'self'", sharedDashboardOrigin(), turnstileOrigin, ...mediaHosts].filter(Boolean).join(' ')}`,
     `media-src ${["'self'", 'blob:', 'data:', ...mediaHosts].join(' ')}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",

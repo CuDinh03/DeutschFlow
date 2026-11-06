@@ -22,6 +22,8 @@ export type RegisterPayload = {
   password: string
   displayName: string
   locale: string
+  /** Honeypot (chống bot): ô ẩn, người thật để trống. Backend từ chối khi khác rỗng. */
+  website?: string
 }
 
 /** Phần form giữ lại khi chuyển sang ô nhập mã (để "Đổi email" quay về không mất). KHÔNG có mật khẩu. */
