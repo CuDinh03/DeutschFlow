@@ -96,6 +96,11 @@ describe('practiceModel', () => {
     // không đụng số khác trong câu (ngày tháng, điểm)
     expect(relabelLeitpunkte('Am 15. Juli, 3 Punkte, Leitpunkt 1.', shown)).toBe(`Am 15. Juli, 3 Punkte, Leitpunkt ${p(1)}.`)
     expect(relabelLeitpunkte(null, shown)).toBe('')
+    // mô hình viết „điểm 4" / „Punkt 4" thay vì „Leitpunkt 4" (gặp trên prod 07/11/2026)
+    expect(relabelLeitpunkte('những gì mới sau khi chuyển nhà (điểm 4).', shown)).toBe(`những gì mới sau khi chuyển nhà (điểm ${p(4)}).`)
+    expect(relabelLeitpunkte('Punkt 2 fehlt.', shown)).toBe(`Punkt ${p(2)} fehlt.`)
+    // điểm số thì không đụng: „27 điểm", „điểm 27"
+    expect(relabelLeitpunkte('Được 27 điểm, điểm 27/45.', shown)).toBe('Được 27 điểm, điểm 27/45.')
   })
 
   it('ý thiếu không định vị được thì đặt cuối bài; hai ý thiếu cùng chỗ đều hiện', () => {
