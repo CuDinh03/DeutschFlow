@@ -6,7 +6,10 @@ import com.deutschflow.grammar.dto.ExamPlanDto;
 import com.deutschflow.grammar.dto.PracticeDtos;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.repository.UserRepository;
+import com.deutschflow.user.service.UserLearningProfileService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,12 +26,16 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
  * Bài chẩn đoán (V365) trên PostgreSQL thật: bắt đầu ghi hồ sơ + chọn đề seed, tự đánh giá ghép JSONB,
  * chốt kết quả, và lộ trình đếm ngược xếp Teil yếu nhất của bài chẩn đoán lên đầu tuần 1.
- * Đường luyện đề được giả lập (chấm từng Teil đã có test riêng).
+ * Đường luyện đề được giả lập (chấm từng Teil đã có test riêng). Service dựng tay với bản giả đó
+ * thay vì {@code @MockBean}: một tổ hợp MockBean mới là một Spring context mới kèm một pool kết nối,
+ * và CI từng vượt {@code max_connections} của Postgres ("too many clients") vì vậy. Lớp này dùng chung
+ * context với {@code ExamPlanServiceIntegrationTest} (chỉ MockBean QuotaService).
  */
 @SpringBootTest
 @DisplayName("Bài chẩn đoán (ExamDiagnosticService) trên Postgres")
@@ -37,14 +44,17 @@ class ExamDiagnosticServiceIntegrationTest extends AbstractPostgresIntegrationTe
     private static final long UID = 990_365L;
 
     @MockBean private QuotaService quotaService;
-    @MockBean private MockExamPracticeService practice;
 
-    @Autowired private ExamDiagnosticService service;
     @Autowired private ExamPlanService planService;
+    @Autowired private UserLearningProfileService profileService;
+    @Autowired private UserLearningProfileRepository profileRepository;
+    @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository users;
     @Autowired private JdbcTemplate jdbc;
 
     private User user;
+    private final MockExamPracticeService practice = mock(MockExamPracticeService.class);
+    private ExamDiagnosticService service;
 
     @BeforeEach
     void setUp() {
@@ -59,6 +69,7 @@ class ExamDiagnosticServiceIntegrationTest extends AbstractPostgresIntegrationTe
             VALUES (?, 'CERT', 'A2', 'A2', 5, 40, NOW(), NOW())
             """, UID);
         user = users.findById(UID).orElseThrow();
+        service = new ExamDiagnosticService(jdbc, objectMapper, practice, profileService, profileRepository);
         when(quotaService.getSnapshotReadOnly(anyLong(), any()))
                 .thenReturn(new QuotaSnapshot("PRO", false, null, null, 0L, 0L, 0L, 0L, 0L, null, null));
     }
