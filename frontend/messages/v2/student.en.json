@@ -2713,7 +2713,12 @@
         "confirmBody": "Empty answers score 0 points. Check this part now?",
         "confirmGo": "Check anyway",
         "keepGoing": "Keep working",
-        "suggestStrategy": "See the strategy"
+        "suggestStrategy": "See the strategy",
+        "exitTitle": "Leave {teil}?",
+        "exitBody": "You have answered {done} of {total} questions. Your work is saved as a draft so you can continue later. Drafts do not count towards your skill scores; press “Check this part” to count them.",
+        "exitBodyWriting": "Your text ({words} words) is saved as a draft so you can continue later. The AI only grades it when you press “Grade with AI”.",
+        "exitFailed": "The draft could not be saved. Check your connection and try again.",
+        "exitRetry": "Try again"
       },
       "seeInText": "Show in text",
       "hoeren": {
@@ -2795,7 +2800,9 @@
         "strategyFor": "Strategy for {name}",
         "chartLabel": "Written score across mock exams: {scores}; pass mark {mark}",
         "passLine": "pass mark {n}",
-        "today": "Today"
+        "today": "Today",
+        "rowPartial": "Stopped early · {done}/{total} parts worked on",
+        "partialPill": "Stopped early"
       },
       "rewrite": "Rewrite this letter",
       "estPass": "Estimate · 60% of this part reached",
@@ -3037,6 +3044,30 @@
         "backToday": "Back to today",
         "lostWritingEmpty": "No letter written",
         "planNoDate": "Set your exam date on the Today screen to get a study plan based on this result."
+      },
+      "closedPrevious": "Your previous attempt ran out of time while you were away. What you had done is saved in your history as “Stopped early”.",
+      "stopTitle": "Stop this mock exam?",
+      "stopBody": "The clock keeps running when you leave. If you stop now, this attempt is marked “Stopped early”: only the parts you worked on are scored, there is no pass/fail result and you cannot continue it.",
+      "stopCounted": "Scored: {list}",
+      "stopTeilFull": "{teil} ({done}/{total} questions)",
+      "stopTeilBlank": "{teil} ({done}/{total} questions, {blank} blank count as 0)",
+      "stopWriting": "Schreiben: written but not graded. The AI only grades it when you submit.",
+      "stopSkipped": "Not scored: {list}",
+      "stopFailed": "The attempt could not be stopped. Check your connection and try again; your answers are still being saved.",
+      "stopRetry": "Try again",
+      "stopConfirm": "Stop and save my work",
+      "keepGoing": "Keep going",
+      "partial": {
+        "title": "Stopped early",
+        "leadStopped": "You stopped this attempt. Only the parts you worked on are scored (blank questions in those parts count as 0); a stopped attempt has no total score and no pass/fail result.",
+        "leadExpired": "This attempt ran out of time while you were away. What you had done is scored from the last saved version; a stopped attempt has no total score and no pass/fail result.",
+        "doneOf": "{done} of {total} parts worked on",
+        "rowScored": "{answered}/{total} questions answered · tap to review",
+        "rowWritten": "Written, not graded (the AI only grades on submit)",
+        "rowSkipped": "Not started · not scored",
+        "note": "Part scores show where you stand. For a total score and a pass/fail result, submit the whole exam.",
+        "again": "Retake this mock exam",
+        "toHub": "Back to Today"
       }
     },
     "tour": {
@@ -3235,7 +3266,13 @@
       "oralBack": "When you are done, come back here and tap \"Check oral result\".",
       "oralCheck": "Check oral result",
       "oralNotYet": "No scored oral exam found since you started the diagnostic test.",
-      "aiTag": "AI-scored on telc criteria · estimate"
+      "aiTag": "AI-scored on telc criteria · estimate",
+      "exitTitle": "Leave the diagnostic test?",
+      "exitBody": "Finished parts are kept. The {part} part you are working on is saved as a draft; next time you open the diagnostic test you continue from here.",
+      "exitFailed": "The draft could not be saved. Check your connection and try again.",
+      "exitRetry": "Try again",
+      "exitConfirm": "Save and leave",
+      "keepGoing": "Keep going"
     }
   }
 }

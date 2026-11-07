@@ -32,4 +32,17 @@ public record ExamStartDto(
         @JsonProperty("server_now") Instant serverNow,
         @JsonProperty("deadline_at") Instant deadlineAt,
         @JsonProperty("remaining_seconds") Long remainingSeconds,
-        ExamDraftDto draft) {}
+        ExamDraftDto draft,
+        /**
+         * 07/11/2026: lượt trước của CÙNG đề vừa được chốt "Dừng giữa chừng" vì đã quá giờ khi người
+         * học vắng mặt (chốt lười ở /start) — client báo một dòng. Vắng mặt khi không có.
+         */
+        @JsonProperty("closed_attempt_id") Long closedAttemptId) {
+    /** Không có lượt cũ vừa được chốt (hình dạng trước 07/11/2026). */
+    public ExamStartDto(long id, Long examId, Date startedAt, String status, String sectionsJson,
+                        Integer timeLimitMinutes, Instant serverNow, Instant deadlineAt, Long remainingSeconds,
+                        ExamDraftDto draft) {
+        this(id, examId, startedAt, status, sectionsJson, timeLimitMinutes, serverNow, deadlineAt, remainingSeconds,
+                draft, null);
+    }
+}

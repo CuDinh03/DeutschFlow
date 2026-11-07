@@ -23,6 +23,8 @@ export interface StartedAttempt {
   answers: Record<string, string>
   sectionIndex: number
   draftVersion: number
+  /** Lượt trước của đề này vừa được server chốt "Dừng giữa chừng" vì quá giờ khi vắng mặt. */
+  closedAttemptId: number | null
 }
 
 interface StartResponse {
@@ -32,6 +34,7 @@ interface StartResponse {
   time_limit_minutes?: number
   remaining_seconds?: number
   draft?: { answers_json?: string | null; section_index?: number | null; version: number }
+  closed_attempt_id?: number | null
 }
 
 function asJsonString(raw: unknown): string | null {
@@ -62,6 +65,7 @@ export async function startAttempt(examId: number): Promise<StartedAttempt> {
     answers: parseDraftAnswers(data?.draft?.answers_json),
     sectionIndex: typeof data?.draft?.section_index === 'number' ? data.draft.section_index : 0,
     draftVersion: data?.draft?.version ?? 0,
+    closedAttemptId: typeof data?.closed_attempt_id === 'number' ? data.closed_attempt_id : null,
   }
 }
 
@@ -150,11 +154,85 @@ export interface MyAttempt {
   total_score?: number | null
   passed?: boolean | null
   status: string
+  /** Điểm từng phần (chuỗi JSON); lượt `PARTIAL` có khối `partial` + `teile` — đọc bằng `partialInfo`. */
+  detailed_scores_json?: string | null
 }
 
+/** Lịch sử lượt thi, gồm cả lượt "Dừng giữa chừng" (`PARTIAL`, chỉ web mới xin; mobile không thấy). */
 export async function listMyAttempts(): Promise<MyAttempt[]> {
-  const { data } = await api.get<MyAttempt[]>('/mock-exams/attempts/me')
+  const { data } = await api.get<MyAttempt[]>('/mock-exams/attempts/me', { params: { includePartial: true } })
   return Array.isArray(data) ? data : []
+}
+
+export const PARTIAL = 'PARTIAL'
+
+export type PartialTeilStatus = 'SCORED' | 'NOT_ATTEMPTED' | 'WRITTEN_NOT_GRADED'
+
+export interface PartialTeil {
+  key: string
+  status: PartialTeilStatus
+  score: number | null
+  max: number | null
+  answered: number
+  total: number
+}
+
+export interface PartialInfo {
+  reason: 'STOPPED' | 'EXPIRED' | string | null
+  teileDone: number
+  teileCounted: number
+  teileTotal: number
+  teile: PartialTeil[]
+}
+
+/**
+ * Lượt dừng giữa chừng (07/11/2026): chỉ Teil đã chạm ≥ 1 câu có điểm, Viết dở không chấm, không
+ * tổng điểm, không đỗ/trượt. Đọc từ `detailed_scores_json` (`partial` + `teile`); `null` nếu không phải.
+ */
+export function partialInfo(detailedJson: string | null | undefined): PartialInfo | null {
+  if (!detailedJson) return null
+  try {
+    const parsed = JSON.parse(detailedJson) as {
+      partial?: { reason?: string; teile_done?: number; teile_counted?: number; teile_total?: number }
+      teile?: Record<string, { status?: string; score?: number; max?: number; answered?: number; total?: number }>
+    }
+    if (!parsed?.partial) return null
+    const teile = Object.entries(parsed.teile ?? {}).map(([key, v]): PartialTeil => ({
+      key,
+      status: (v.status ?? 'NOT_ATTEMPTED') as PartialTeilStatus,
+      score: typeof v.score === 'number' ? v.score : null,
+      max: typeof v.max === 'number' ? v.max : null,
+      answered: v.answered ?? 0,
+      total: v.total ?? 0,
+    }))
+    return {
+      reason: parsed.partial.reason ?? null,
+      teileDone: parsed.partial.teile_done ?? teile.filter((x) => x.status !== 'NOT_ATTEMPTED').length,
+      teileCounted: parsed.partial.teile_counted ?? teile.filter((x) => x.status === 'SCORED').length,
+      teileTotal: parsed.partial.teile_total ?? teile.length,
+      teile,
+    }
+  } catch {
+    return null
+  }
+}
+
+export interface StopResult {
+  attemptId: number
+  status: 'PARTIAL' | 'CANCELLED' | string
+  alreadyClosed: boolean
+}
+
+/**
+ * Dừng lượt thi giữa chừng: server chấm theo Teil các Teil đã chạm và dừng đồng hồ. Không chạm câu nào
+ * ⇒ `CANCELLED` (lượt bị huỷ, không vào lịch sử). Gọi lại trên lượt đã đóng ⇒ `alreadyClosed`.
+ */
+export async function stopAttempt(attemptId: number, answers: Record<string, string>): Promise<StopResult> {
+  const { data } = await api.post<{ attempt_id: number; status: string; already_closed?: boolean }>(
+    `/mock-exams/attempts/${attemptId}/stop`,
+    { answers },
+  )
+  return { attemptId: data.attempt_id, status: data.status, alreadyClosed: !!data.already_closed }
 }
 
 /** Điểm từng phần đọc từ `detailed_scores_json` của lượt thi. */

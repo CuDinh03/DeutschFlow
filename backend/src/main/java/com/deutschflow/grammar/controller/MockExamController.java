@@ -21,6 +21,8 @@ import com.deutschflow.grammar.service.ExamGenerationService;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
 import com.deutschflow.grammar.service.ExamScoringService;
 import com.deutschflow.grammar.service.MockExamDraftService;
+import com.deutschflow.grammar.service.MockExamPartialScoring;
+import com.deutschflow.grammar.service.MockExamStopService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -71,6 +73,8 @@ public class MockExamController {
     @Autowired private com.deutschflow.grammar.service.MockExamOralGateService oralGateService;
     // LT1: ngân sách điểm trên màn kết quả đề nhiều cổng — hàm thuần, cùng idiom tiêm riêng
     @Autowired private com.deutschflow.grammar.service.ExamBudgetService budgetService;
+    // 07/11/2026: dừng giữa chừng + chốt lười lượt quá hạn — cùng idiom tiêm riêng
+    @Autowired private MockExamStopService stopService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                ExamGenerationService generationService,
@@ -133,6 +137,13 @@ public class MockExamController {
         packService.assertExamUnlocked(uid, examId);
         packService.assertExamReviewed(examId);
 
+        // Lượt quá giờ khi người học vắng mặt: chốt "Dừng giữa chừng" theo nháp đã lưu rồi mở lượt mới,
+        // thay vì trả lượt cũ về với 0 giây để client tự nộp cả đề (Teil chưa làm tính 0).
+        Long closedAttemptId = stopService.closeExpired(uid).stream()
+                .filter(r -> r.examId() == examId && MockExamStopService.PARTIAL.equals(r.status()))
+                .map(MockExamStopService.StopResult::attemptId)
+                .findFirst().orElse(null);
+
         // Check active attempt — resume returns the FULL row incl. the autosaved draft (V285,
         // audit C-02): a fresh device must be able to rebuild position, answers and countdown
         // from this one call. (The old branch selected only `id`, which left resume blind.)
@@ -188,7 +199,8 @@ public class MockExamController {
                 now,
                 deadlineAt,
                 MockExamDraftService.remainingSeconds(deadlineAt, now),
-                draft);
+                draft,
+                closedAttemptId);
 
         return ResponseEntity.ok(response);
     }
@@ -486,10 +498,17 @@ public class MockExamController {
         return response;
     }
 
+    /**
+     * Lịch sử lượt thi. {@code includePartial=true} (web mới) thêm lượt "Dừng giữa chừng"; mặc định
+     * KHÔNG có để app mobile chưa biết trạng thái {@code PARTIAL} không vỡ. Lượt {@code CANCELLED}
+     * (dừng khi chưa chạm câu nào) không bao giờ hiện.
+     */
     @GetMapping("/attempts/me")
     public ResponseEntity<List<ExamAttemptDto>> myAttempts(
+            @RequestParam(defaultValue = "false") boolean includePartial,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
+        stopService.closeExpired(uid);
         var attempts = jdbcTemplate.query("""
             SELECT a.id, a.exam_id, e.title AS exam_title, a.started_at, a.finished_at,
                    a.total_score, a.passed, a.status,
@@ -497,7 +516,7 @@ public class MockExamController {
                    a.weak_areas::text AS weak_areas
             FROM mock_exam_attempts a
             JOIN mock_exams e ON e.id = a.exam_id
-            WHERE a.user_id = ?
+            WHERE a.user_id = ? AND a.status <> 'CANCELLED' AND (? OR a.status <> 'PARTIAL')
             ORDER BY a.created_at DESC
             """, (rs, n) -> new ExamAttemptDto(
                 rs.getLong("id"),
@@ -510,8 +529,58 @@ public class MockExamController {
                 rs.getString("status"),
                 rs.getString("detailed_scores_json"),
                 rs.getString("weak_areas")),
-            uid);
+            uid, includePartial);
         return ResponseEntity.ok(attempts);
+    }
+
+    /**
+     * Dừng lượt thi thử giữa chừng (07/11/2026): chấm theo Teil các Teil đã chạm, Viết dở không chấm,
+     * lượt thành {@code PARTIAL} (không đỗ/trượt), đồng hồ dừng tại {@code finished_at}. Không chạm câu nào
+     * ⇒ {@code CANCELLED}. Idempotent: lượt đã nộp/đã dừng trả {@code already_closed=true}, không lỗi.
+     */
+    @PostMapping("/attempts/{attemptId}/stop")
+    public ResponseEntity<Map<String, Object>> stopAttempt(
+            @PathVariable long attemptId,
+            @RequestBody(required = false) Map<String, Object> body,
+            @AuthenticationPrincipal UserDetails principal) {
+        long uid = userId(principal);
+        Map<String, Object> answers = body != null && body.get("answers") instanceof Map<?, ?> m
+                ? castAnswers(m) : Map.of();
+        return stopService.stop(uid, attemptId, answers)
+                .map(r -> ResponseEntity.ok(stopBody(r)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> castAnswers(Map<?, ?> raw) {
+        return (Map<String, Object>) raw;
+    }
+
+    private static Map<String, Object> stopBody(MockExamStopService.StopResult r) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("attempt_id", r.attemptId());
+        out.put("exam_id", r.examId());
+        out.put("status", r.status());
+        out.put("reason", r.reason());
+        out.put("already_closed", r.alreadyClosed());
+        if (r.summary() != null) {
+            out.put("teile_done", r.summary().teileDone());
+            out.put("teile_counted", r.summary().teileCounted());
+            out.put("teile_total", r.summary().teileTotal());
+            List<Map<String, Object>> teile = new ArrayList<>();
+            for (MockExamPartialScoring.TeilScore t : r.summary().teile()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("key", t.key());
+                row.put("status", t.status());
+                row.put("score", t.score());
+                row.put("max", t.max());
+                row.put("answered", t.answered());
+                row.put("total", t.total());
+                teile.add(row);
+            }
+            out.put("teile", teile);
+        }
+        return out;
     }
 
     @GetMapping("/attempts/{attemptId}/result")
@@ -532,6 +601,21 @@ public class MockExamController {
                 JOIN mock_exams e ON e.id = a.exam_id
                 WHERE a.id = ? AND a.user_id = ?
                 """, attemptId, uid);
+
+            // Lượt dừng giữa chừng: không cổng đỗ, không ngân sách điểm — chỉ điểm từng Teil đã làm
+            // (detailed_scores_json.teile). Tính cổng trên bài thiếu phần sẽ ra "Chưa đỗ" sai sự thật.
+            if (MockExamStopService.PARTIAL.equals(row.get("status"))) {
+                return ResponseEntity.ok(new ExamResultDto(
+                        ((Number) row.get("id")).longValue(),
+                        row.get("exam_id") instanceof Number n ? n.longValue() : null,
+                        (String) row.get("title"),
+                        (java.util.Date) row.get("started_at"),
+                        (java.util.Date) row.get("finished_at"),
+                        null, null, MockExamStopService.PARTIAL,
+                        (String) row.get("detailed_scores_json"),
+                        (String) row.get("weak_areas"),
+                        List.of()));
+            }
 
             // Cổng đỗ tính LẠI tại đây thay vì đọc cột `passed` đóng băng lúc nộp: điểm cổng Nói
             // đến từ module luyện thi nói, nên một phiên thi nói sau khi nộp bài viết phải làm đổi

@@ -15,7 +15,11 @@ const h = vi.hoisted(() => ({
   overview: vi.fn(),
   check: vi.fn(),
   plan: vi.fn(),
+  draft: vi.fn(),
+  push: vi.fn(),
 }))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }))
 
 vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi'))
 vi.mock('@/lib/examDiagnosticApi', async (orig) => ({
@@ -27,6 +31,7 @@ vi.mock('@/lib/telcPracticeApi', async (orig) => ({
   getPracticeOverview: h.overview,
   checkPracticeTeil: h.check,
   gradePracticeWriting: h.grade,
+  savePracticeDraft: h.draft,
 }))
 vi.mock('@/lib/examPlanApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/examPlanApi')>()),
@@ -117,6 +122,26 @@ describe('Bài chẩn đoán', () => {
     await user.click(screen.getByRole('button', { name: /Kiểm tra kết quả thi nói/ }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Lesen cần luyện trước' })).toBeInTheDocument()
     expect(h.finish).toHaveBeenCalled()
+  })
+
+  it('thoát giữa chừng: nạp nháp phần đang làm, hỏi trước khi rời, lưu nháp rồi mới về Hôm nay', async () => {
+    const o = overview(['LESEN-1', 'SPRACHBAUSTEINE-1', 'HOEREN-1'])
+    o.teile[3].progress = { answers: { text: 'Liebe Anna' }, checked: false, score: null, max: null, elapsedSeconds: 120, updatedAt: null, result: null } as never
+    h.get.mockResolvedValue(view({}))
+    h.overview.mockResolvedValue(o)
+    h.draft.mockResolvedValue(null)
+    const user = userEvent.setup()
+    render(<DiagnosticPage />)
+
+    expect(await screen.findByText('Bài chẩn đoán · phần 4/5')).toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveValue('Liebe Anna')
+    await user.click(screen.getByRole('button', { name: /^Rời bài chẩn đoán/ }))
+    expect(await screen.findByText('Rời bài chẩn đoán?')).toBeInTheDocument()
+    expect(h.push).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Lưu và rời' }))
+    expect(h.draft).toHaveBeenCalledWith(9, 'SCHREIBEN-1', { text: 'Liebe Anna' }, expect.any(Number))
+    expect((h.draft.mock.calls[0] as unknown[])[3]).toBeGreaterThanOrEqual(120)
+    expect(h.push).toHaveBeenCalledWith('/v2/student/exam')
   })
 
   it('kết quả: bốn kỹ năng, Viết/Nói ghi AI chấm ước tính, lịch ôn sẵn sàng', async () => {

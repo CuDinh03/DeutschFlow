@@ -12,6 +12,7 @@ import {
   Blocks,
   ChevronRight,
   CircleCheck,
+  CirclePause,
   CircleX,
   FileText,
   Heading,
@@ -30,7 +31,7 @@ import {
 } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { WRITING_KEY, getPracticeOverview, type PracticeOverview, type PracticeTeil, type WritingEvaluation } from '@/lib/telcPracticeApi'
-import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
+import { listMyAttempts, PARTIAL, partialInfo, type MyAttempt } from '@/lib/exam/mockAttemptApi'
 import { examPlanApi, teilKeyOf, todaySession } from '@/lib/examPlanApi'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { ErrorBanner, LoadingState } from '@/components/ui-v2'
@@ -116,6 +117,10 @@ function PracticeMapPage() {
     .sort((a, b) => (a.finished_at ?? a.started_at).localeCompare(b.finished_at ?? b.started_at))
   const last = completed[completed.length - 1]
   const running = attempts.find((a) => a.status === 'IN_PROGRESS')
+  // Lịch sử: lượt nộp cả đề + lượt "Dừng giữa chừng" (không Đỗ/Chưa đỗ, không vào biểu đồ).
+  const history = attempts
+    .filter((a) => a.status === 'COMPLETED' || a.status === PARTIAL)
+    .sort((a, b) => (b.finished_at ?? b.started_at).localeCompare(a.finished_at ?? a.started_at))
   const inProgress = teile.find((x) => {
     const p = x.progress
     if (!p || p.checked) return false
@@ -223,15 +228,16 @@ function PracticeMapPage() {
 
           <section aria-labelledby="history-title" data-tour="history">
             <h2 id="history-title" className="mb-4 font-ga-display text-ga-h2 text-ga-ink">{tm('historyTitle')}</h2>
-            {completed.length === 0 && !running ? (
+            {history.length === 0 && !running ? (
               <p className="ga-ui text-ga-body text-ga-muted">{tm('historyEmpty')}</p>
             ) : (
               <>
                 {completed.length >= 2 && writtenMax > 0 && <ScoreChart attempts={completed.slice(-6)} passMark={passMark} max={writtenMax} />}
                 <div className="mt-2 border-t border-ga-line">
-                  {[...(running ? [running] : []), ...[...completed].reverse()].slice(0, 6).map((a) => {
+                  {[...(running ? [running] : []), ...history].slice(0, 6).map((a) => {
                     const passed = (a.total_score ?? 0) >= passMark
                     const isRunning = a.status === 'IN_PROGRESS'
+                    const part = a.status === PARTIAL ? partialInfo(a.detailed_scores_json) : null
                     return (
                       <Link
                         key={a.id}
@@ -241,10 +247,19 @@ function PracticeMapPage() {
                         <span className="min-w-0 flex-1">
                           <b className="block text-ga-body font-semibold text-ga-ink">{fmtd.date(a.finished_at ?? a.started_at)}</b>
                           <span className="block text-ga-small tabular-nums text-ga-muted">
-                            {isRunning ? tm('rowRunning') : tm('rowScore', { score: fmt(a.total_score ?? 0), max: fmt(writtenMax) })}
+                            {isRunning
+                              ? tm('rowRunning')
+                              : part
+                                ? tm('rowPartial', { done: part.teileDone, total: part.teileTotal })
+                                : tm('rowScore', { score: fmt(a.total_score ?? 0), max: fmt(writtenMax) })}
                           </span>
                         </span>
-                        {!isRunning && (
+                        {part && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-ga-pill bg-ga-side-active px-2.5 py-0.5 text-ga-caption font-semibold text-ga-muted">
+                            <CirclePause size={13} aria-hidden /> {tm('partialPill')}
+                          </span>
+                        )}
+                        {!isRunning && !part && (
                           <span
                             className={cn(
                               'inline-flex shrink-0 items-center gap-1 rounded-ga-pill px-2.5 py-0.5 text-ga-caption font-semibold',
