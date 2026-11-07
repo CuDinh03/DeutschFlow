@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -47,6 +48,7 @@ class ExamPlanServiceTest {
     private List<Map<String, Object>> oralMocks = List.of();
     private List<Map<String, Object>> drills = List.of();
     private List<Map<String, Object>> roadmapNodes = List.of();
+    private List<Map<String, Object>> practice = List.of();
 
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class, this::answer);
     private final ExamPlanService service = new ExamPlanService(jdbc, profiles, mock(ExamBudgetService.class),
@@ -69,7 +71,8 @@ class ExamPlanServiceTest {
         }
         if (method.equals("query")) {
             List<Map<String, Object>> rows;
-            if (sql.contains("FROM mock_exams")) rows = exams;
+            if (sql.contains("mock_exam_practice_progress")) rows = practice;
+            else if (sql.contains("FROM mock_exams")) rows = exams;
             else if (sql.contains("mock_exam_attempts")) rows = attempts;
             else if (sql.contains("speaking_exam_results")) rows = oralMocks;
             else if (sql.contains("speaking_exam_sessions")) rows = drills;
@@ -124,6 +127,12 @@ class ExamPlanServiceTest {
         row.put("start_date", java.sql.Date.valueOf(start));
         row.put("algorithm_version", ExamPlanGenerator.ALGORITHM_VERSION);
         row.put("locked", lockedJson);
+        stateRows = List.of(row);
+    }
+
+    private void storedDayOrder(String json) {
+        java.util.Map<String, Object> row = new java.util.HashMap<>(stateRows.get(0));
+        row.put("day_order", json);
         stateRows = List.of(row);
     }
 
@@ -385,5 +394,63 @@ class ExamPlanServiceTest {
     void helperTimestampIsInsideDay() {
         Instant noon = at(TODAY).toInstant();
         assertThat(QuotaVnCalendar.localDateOf(noon)).isEqualTo(TODAY);
+    }
+
+    @Test
+    @DisplayName("Lịch theo ngày chỉ ở tuần hiện tại; buổi đã luyện tính DONE, hôm nay TODAY, đã qua chưa làm MISSED")
+    void days_currentWeekOnly_withStatus() {
+        storedState(TODAY.minusDays(2), TODAY.plusWeeks(4), "{}");
+        profile("TELC", TODAY.plusWeeks(4));
+        practice = List.of(new java.util.HashMap<>(Map.of("teil_key", "SCHREIBEN-1", "checked_at", at(TODAY.minusDays(1)))));
+
+        ExamPlanDto plan = plan();
+        WeekDto week = plan.weeks().get(0);
+        assertThat(plan.weeks().get(1).days()).isNull();
+        List<ExamPlanDto.DayDto> days = week.days();
+        assertThat(days).hasSize(7);
+        assertThat(days.get(0).date()).isEqualTo(TODAY.minusDays(2));
+        // Teil nặng điểm nhất (Viết) là trọng tâm khi chưa có bài làm; luyện hôm qua vẫn tính cho buổi hôm kia.
+        assertThat(days.get(0).kind()).isEqualTo("TEIL");
+        assertThat(days.get(0).section()).isEqualTo("SCHREIBEN");
+        assertThat(days.get(0).status()).isEqualTo("DONE");
+        assertThat(days.get(0).movable()).isFalse();
+        assertThat(days.get(1).status()).isEqualTo("MISSED");
+        assertThat(days.get(1).movable()).isFalse();
+        assertThat(days.get(2).status()).isEqualTo("TODAY");
+        assertThat(days.get(2).movable()).isTrue();
+        ExamPlanDto.DayDto exam = days.stream().filter(d -> d.kind().equals("FULL_EXAM")).findFirst().orElseThrow();
+        assertThat(exam.examId()).isEqualTo(1L);
+        assertThat(exam.minutes()).isEqualTo(ExamPlanDays.FULL_EXAM_MINUTES);
+        assertThat(days.get(6).status()).isEqualTo("REST");
+    }
+
+    @Test
+    @DisplayName("Thứ tự đã đổi lưu trong exam_plan_state được áp lại khi đọc")
+    void days_storedOrderApplied() {
+        storedState(TODAY, TODAY.plusWeeks(4), "{}");
+        profile("TELC", TODAY.plusWeeks(4));
+        List<ExamPlanDto.DayDto> before = plan().weeks().get(0).days();
+        storedDayOrder("{\"1\":[6,1,2,3,4,5,0]}");
+        List<ExamPlanDto.DayDto> after = plan().weeks().get(0).days();
+        assertThat(after.get(0).kind()).isEqualTo(before.get(6).kind());
+        assertThat(after.get(6).kind()).isEqualTo(before.get(0).kind());
+        assertThat(after.get(0).date()).isEqualTo(before.get(0).date());
+    }
+
+    @Test
+    @DisplayName("Đổi chỗ hai buổi: ghi thứ tự mới; buổi đã qua, tuần khác hay ngày ngoài tuần bị từ chối")
+    void swapDays_validatesAndPersists() {
+        storedState(TODAY.minusDays(2), TODAY.plusWeeks(4), "{}");
+        profile("TELC", TODAY.plusWeeks(4));
+
+        service.swapDays(USER, 1, TODAY, TODAY.plusDays(1), TODAY);
+        assertThat(updates).anyMatch(sql -> sql.contains("day_order_json = ?::jsonb"));
+
+        assertThatThrownBy(() -> service.swapDays(USER, 1, TODAY.minusDays(1), TODAY, TODAY))
+                .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
+        assertThatThrownBy(() -> service.swapDays(USER, 2, TODAY, TODAY.plusDays(1), TODAY))
+                .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
+        assertThatThrownBy(() -> service.swapDays(USER, 1, TODAY, TODAY.plusDays(30), TODAY))
+                .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
     }
 }

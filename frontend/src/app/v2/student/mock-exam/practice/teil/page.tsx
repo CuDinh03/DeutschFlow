@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ChevronRight, Send, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronRight, ClipboardList, GripHorizontal, Headphones, Lightbulb, ListChecks, MoveHorizontal, PenLine, Send, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
   WRITING_KEY,
@@ -28,6 +28,8 @@ import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
 import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
+import { REWRITE_KEY } from '@/components/exam/mock/mockModel'
+import { useScreenTour, type TourStep } from '@/components/exam/tour/ScreenTour'
 
 export default function PracticeTeilRoute() {
   return (
@@ -46,6 +48,7 @@ function PracticeTeilPage() {
   const params = useSearchParams()
   const examId = Number(params.get('examId'))
   const teilKey = params.get('teil') ?? ''
+  const rewrite = params.get('rewrite') === '1'
   const tf = useTranslations('v2.student.practice.frame')
   // Khung làm bài chia hai cột từ 760px; màn kết quả Viết giữ mốc 1024px như cũ.
   const wide = useWide(SPLIT_MIN_WIDTH)
@@ -91,10 +94,26 @@ function PracticeTeilPage() {
         setSeconds(p?.elapsedSeconds ?? 0)
         setTipsOpen(!p)
         if (teilKey === WRITING_KEY) {
-          setText(p?.answers?.text ?? '')
-          if (p?.checked && p.result) {
-            setEvaluation(p.result as WritingEvaluation)
-            setWritingView('result')
+          // "Viết lại bài này" từ kết quả thi thử: mở bài của lượt thi để sửa rồi chấm lại (đợt (d)).
+          let carried: string | null = null
+          if (rewrite) {
+            try {
+              carried = window.sessionStorage.getItem(REWRITE_KEY(examId))
+              window.sessionStorage.removeItem(REWRITE_KEY(examId))
+            } catch {
+              carried = null
+            }
+          }
+          if (carried) {
+            setText(carried)
+            dirty.current = true
+            if (p?.checked && p.result) setEvaluation(p.result as WritingEvaluation)
+          } else {
+            setText(p?.answers?.text ?? '')
+            if (p?.checked && p.result) {
+              setEvaluation(p.result as WritingEvaluation)
+              setWritingView('result')
+            }
           }
         } else {
           setAnswers(p?.answers ?? {})
@@ -107,7 +126,7 @@ function PracticeTeilPage() {
     } catch {
       /* bỏ qua */
     }
-  }, [examId, teilKey, ticksKey])
+  }, [examId, teilKey, ticksKey, rewrite])
 
   // ── mẹo: chiến thuật đã duyệt (LT2), không có thì mẹo chung của Teil ────────
   React.useEffect(() => {
@@ -121,8 +140,41 @@ function PracticeTeilPage() {
     })
   }, [overview, meta, locale, t])
 
-  // ── đồng hồ theo Teil: chỉ chạy khi đang làm và tab đang mở ────────────────
-  const running = !!overview && !result && !relaxed && !(isWriting && writingView === 'result')
+  // ── hướng dẫn lần đầu (đợt (e)): Teil trắc nghiệm, Hören, Viết mỗi dạng một bộ bước ─────
+  const tt = useTranslations('v2.student.tour')
+  const tourKey = isWriting ? 'exam.writing' : meta?.section === 'HOEREN' ? 'exam.hoeren' : 'exam.teil'
+  const strategyStep: TourStep = { target: 'strategy', icon: Lightbulb, title: tt('teil.strategy.t'), body: tt('teil.strategy.p') }
+  const tourSteps: TourStep[] =
+    tourKey === 'exam.writing'
+      ? [
+          { target: 'task', icon: ClipboardList, title: tt('writing.task.t'), body: tt('writing.task.p') },
+          { target: 'editor', icon: PenLine, title: tt('writing.editor.t'), body: tt('writing.editor.p') },
+          strategyStep,
+          { target: 'submit', icon: Sparkles, title: tt('writing.grade.t'), body: tt('writing.grade.p') },
+        ]
+      : tourKey === 'exam.hoeren'
+        ? [
+            { target: 'hoeren-prep', icon: Headphones, title: tt('hoeren.prep.t'), body: tt('hoeren.prep.p') },
+            { target: 'hoeren-mode', icon: SlidersHorizontal, title: tt('hoeren.mode.t'), body: tt('hoeren.mode.p') },
+            strategyStep,
+            { target: 'submit', icon: Send, title: tt('teil.submit.t'), body: tt('teil.submit.p') },
+          ]
+        : [
+            { target: 'source', icon: BookOpen, title: tt('teil.source.t'), body: tt('teil.source.p') },
+            { target: 'divider', icon: MoveHorizontal, title: tt('teil.divider.t'), body: tt('teil.divider.p') },
+            { target: 'handle', icon: GripHorizontal, title: tt('teil.handle.t'), body: tt('teil.handle.p') },
+            { target: 'dots', icon: ListChecks, title: tt('teil.dots.t'), body: tt('teil.dots.p') },
+            strategyStep,
+            { target: 'submit', icon: Send, title: tt('teil.submit.t'), body: tt('teil.submit.p') },
+          ]
+  const tour = useScreenTour({
+    key: tourKey,
+    steps: tourSteps,
+    ready: !!overview && !!meta && kind !== 'unknown' && !result && !(isWriting && writingView === 'result'),
+  })
+
+  // ── đồng hồ theo Teil: chỉ chạy khi đang làm, tab đang mở và hướng dẫn đang đóng ──
+  const running = !!overview && !result && !relaxed && !tour.active && !(isWriting && writingView === 'result')
   React.useEffect(() => {
     if (!running) return
     const id = window.setInterval(() => {
@@ -269,7 +321,9 @@ function PracticeTeilPage() {
     const footer = showResult ? (
       <>
         <span className="ga-ui min-w-0 flex-1 basis-full text-ga-small text-ga-muted lg:basis-auto">{t('notInHistory')}</span>
-        <FootBtn onClick={() => setWritingView('edit')}>{t('editAndRegrade')}</FootBtn>
+        <FootBtn onClick={() => setWritingView('edit')}>
+          <PenLine size={15} aria-hidden /> {t('rewrite')}
+        </FootBtn>
         <FootLink href={mapHref} primary>{t('backToMap')}</FootLink>
       </>
     ) : warn ? (
@@ -286,7 +340,7 @@ function PracticeTeilPage() {
           {t('aiNote')}
         </span>
         <FootLink href={mapHref}>{t('saveExit')}</FootLink>
-        <FootBtn primary disabled={busy || wordCount(text) === 0} onClick={() => grade(false)}>
+        <FootBtn primary tour="submit" disabled={busy || wordCount(text) === 0} onClick={() => grade(false)}>
           {busy ? t('grading') : t('gradeAi')}
         </FootBtn>
       </>
@@ -303,6 +357,7 @@ function PracticeTeilPage() {
         suggestMinutes={meta.suggestMinutes}
         tipsOpen={drawerOpen}
         onToggleTips={showResult ? undefined : () => setDrawerOpen(true)}
+        onHelp={showResult ? undefined : tour.start}
         saveState={showResult ? 'idle' : saveState}
         footer={footer}
       >
@@ -323,6 +378,7 @@ function PracticeTeilPage() {
         )}
       </PracticeShell>
       {drawer}
+      {tour.overlay}
       </>
     )
   }
@@ -334,6 +390,11 @@ function PracticeTeilPage() {
       <span className="ga-ui min-w-0 flex-1 basis-full text-ga-small text-ga-muted lg:basis-auto">
         {t('footChecked', { done: result.correctCount, total: result.total })} {t('notInHistory')}
       </span>
+      {result.max > 0 && result.score / result.max < 0.6 && (
+        <FootBtn onClick={() => setDrawerOpen(true)}>
+          <Lightbulb size={15} aria-hidden /> {tf('suggestStrategy')}
+        </FootBtn>
+      )}
       <FootBtn disabled={busy} onClick={redo}>{t('redo')}</FootBtn>
       <FootBtn primary onClick={goNext}>
         {nextKey ? t('nextTeil') : t('backToMap')} <ChevronRight size={16} aria-hidden />
@@ -343,7 +404,7 @@ function PracticeTeilPage() {
     <>
       {errorBar}
       <FootLink href={mapHref}>{t('saveExit')}</FootLink>
-      <FootBtn primary disabled={busy} onClick={() => (answered < total ? setConfirmOpen(true) : void check())}>
+      <FootBtn primary tour="submit" disabled={busy} onClick={() => (answered < total ? setConfirmOpen(true) : void check())}>
         <Send size={15} aria-hidden /> {busy ? t('checking') : t('check')}
       </FootBtn>
     </>
@@ -361,6 +422,7 @@ function PracticeTeilPage() {
       suggestMinutes={meta.suggestMinutes}
       tipsOpen={drawerOpen}
       onToggleTips={() => setDrawerOpen(true)}
+      onHelp={result ? undefined : tour.start}
       saveState={result ? 'idle' : saveState}
       footer={footer}
     >
@@ -379,6 +441,7 @@ function PracticeTeilPage() {
       )}
     </PracticeShell>
     {drawer}
+    {tour.overlay}
     <ConfirmDialog
       open={confirmOpen}
       onOpenChange={setConfirmOpen}
@@ -396,10 +459,11 @@ function PracticeTeilPage() {
 const btnBase =
   'ga-ui inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-ga-touch px-4 text-ga-body font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-50 lg:flex-none'
 
-function FootBtn({ primary, disabled, onClick, children }: { primary?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
+function FootBtn({ primary, tour, disabled, onClick, children }: { primary?: boolean; tour?: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
+      data-tour={tour}
       disabled={disabled}
       onClick={onClick}
       className={`${btnBase} ${primary ? 'bg-ga-yellow text-ga-ink hover:opacity-90' : 'border-[1.5px] border-ga-line-strong bg-ga-card text-ga-ink hover:bg-ga-side-active'}`}

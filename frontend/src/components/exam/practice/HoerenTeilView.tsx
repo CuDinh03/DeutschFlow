@@ -367,7 +367,7 @@ function PrepCard({
   const PlaysIcon = maxPlays === 1 ? Repeat1 : Repeat2
   const fact = 'flex flex-col gap-1.5 rounded-ga border border-ga-line bg-ga-card p-3'
   return (
-    <div className="mb-5 space-y-5">
+    <div className="mb-5 space-y-5" data-tour="hoeren-prep">
       <Steps phase="prep" steps={steps} />
       <div>
         <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
@@ -398,7 +398,7 @@ function PrepCard({
         <li className="flex items-center gap-2"><Lock size={15} aria-hidden /> {t('rule3')}</li>
       </ul>
       {allowRelaxed && (
-        <fieldset className="ga-ui">
+        <fieldset className="ga-ui" data-tour="hoeren-mode">
           <legend className="mb-2 text-ga-small font-semibold text-ga-ink">{t('modeLabel')}</legend>
           <div className="grid gap-2 sm:grid-cols-2" role="radiogroup">
             {(['exam', 'relaxed'] as const).map((m) => (

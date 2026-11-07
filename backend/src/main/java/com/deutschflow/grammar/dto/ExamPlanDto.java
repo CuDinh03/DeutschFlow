@@ -36,9 +36,27 @@ public record ExamPlanDto(
      * @param phase      {@code ROADMAP} / {@code FOUNDATION} / {@code TEIL} / {@code FULL}
      * @param doneTasks  số việc đã xong, chỉ đếm việc {@code counted}
      * @param totalTasks số việc tính tiến độ
+     * @param days       từng buổi theo ngày — CHỈ tuần hiện tại, tuần khác {@code null}
      */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record WeekDto(int weekNo, LocalDate startDate, LocalDate endDate, String phase,
-                          List<FocusDto> focus, List<TaskDto> tasks, int doneTasks, int totalTasks) {}
+                          List<FocusDto> focus, List<TaskDto> tasks, int doneTasks, int totalTasks,
+                          List<DayDto> days) {}
+
+    /**
+     * Một buổi trong lịch tuần (đợt (d) làm mới Luyện thi).
+     *
+     * @param kind    {@code TEIL} luyện một Teil · {@code FULL_EXAM} thi thử phần viết · {@code ORAL_MOCK} ·
+     *                {@code ORAL_DRILL} · {@code ROADMAP} bài lộ trình · {@code REST} nghỉ · {@code EXAM_DAY}
+     * @param section phần thi của buổi {@code TEIL} ({@code LESEN}…), {@code SPRECHEN} với buổi Nói
+     * @param status  {@code DONE} · {@code MISSED} ngày đã qua chưa làm · {@code TODAY} · {@code UPCOMING} ·
+     *                {@code REST}
+     * @param movable đổi chỗ được: chưa làm, chưa qua, không phải ngày thi
+     * @param examId  đề của buổi thi thử (theo việc đề full của tuần)
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record DayDto(LocalDate date, String kind, String section, Integer teil, int minutes, String status,
+                         boolean movable, Long examId, String examTitle) {}
 
     /** Teil trọng tâm của tuần; client mở chiến thuật LT2 theo cặp này. */
     public record FocusDto(String section, int teil) {}

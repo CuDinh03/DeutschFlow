@@ -24,15 +24,19 @@ import {
   Puzzle,
   Repeat1,
   Repeat2,
+  Target,
   TextCursorInput,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { WRITING_KEY, getPracticeOverview, type PracticeOverview, type PracticeTeil, type WritingEvaluation } from '@/lib/telcPracticeApi'
 import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
+import { examPlanApi, teilKeyOf, todaySession } from '@/lib/examPlanApi'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { findTeil, wordCount } from '@/components/exam/practice/practiceModel'
 import { cn } from '@/lib/utils'
 
@@ -73,6 +77,8 @@ function PracticeMapPage() {
   const [attempts, setAttempts] = React.useState<MyAttempt[]>([])
   const [error, setError] = React.useState<string | null>(null)
   const [strategyFor, setStrategyFor] = React.useState<PracticeTeil | null>(null)
+  // Teil của buổi hôm nay trong lịch tuần (đợt (d)) ⇒ nhãn "Hôm nay" trên dòng Teil đó.
+  const [todayKey, setTodayKey] = React.useState<string | null>(null)
 
   const load = React.useCallback(() => {
     if (!examId) return
@@ -81,8 +87,23 @@ function PracticeMapPage() {
     listMyAttempts()
       .then((all) => setAttempts(all.filter((a) => a.exam_id === examId)))
       .catch(() => setAttempts([]))
+    examPlanApi
+      .get()
+      .then((p) => setTodayKey(teilKeyOf(todaySession(p))))
+      .catch(() => setTodayKey(null))
   }, [examId])
   React.useEffect(load, [load])
+
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.set',
+    ready: !!overview,
+    steps: [
+      { target: 'teile', icon: ListChecks, title: tt('set.teile.t'), body: tt('set.teile.p') },
+      { target: 'mock', icon: FileText, title: tt('set.mock.t'), body: tt('set.mock.p') },
+      { target: 'history', icon: TrendingUp, title: tt('set.history.t'), body: tt('set.history.p') },
+    ],
+  })
 
   if (!examId) return <div className="p-6"><ErrorBanner message={t('badLink')} /></div>
 
@@ -137,12 +158,16 @@ function PracticeMapPage() {
                 )}
               </div>
             </div>
+            <div className="flex items-center gap-2.5">
+            <TourHelpButton onClick={tour.start} />
             <Link
+              data-tour="mock"
               href={`/v2/student/mock-exam/full?examId=${examId}`}
               className="ga-ui inline-flex min-h-12 items-center gap-2 rounded-ga-touch bg-ga-ink px-5 text-ga-body font-semibold text-ga-card transition-[transform,filter] duration-150 hover:-translate-y-px hover:brightness-110 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2"
             >
               <FileText size={17} aria-hidden /> {running ? tm('continueMock') : tm('fullMock')}
             </Link>
+            </div>
           </header>
 
           {inProgress && (
@@ -162,7 +187,8 @@ function PracticeMapPage() {
             </div>
           )}
 
-          <section aria-labelledby="teile-title">
+          {tour.overlay}
+          <section aria-labelledby="teile-title" data-tour="teile">
             <h2 id="teile-title" className="mb-4 font-ga-display text-ga-h2 text-ga-ink">{tm('teileTitle')}</h2>
             <div className="space-y-6">
               {SECTION_ORDER.map((section) => {
@@ -182,7 +208,7 @@ function PracticeMapPage() {
                     </div>
                     <div className="border-t border-ga-line">
                       {rows.map((x) => (
-                        <TeilRow key={x.key} teil={x} overview={overview} href={href(x.key)} onStrategy={() => setStrategyFor(x)} />
+                        <TeilRow key={x.key} teil={x} overview={overview} href={href(x.key)} today={todayKey === x.key} onStrategy={() => setStrategyFor(x)} />
                       ))}
                     </div>
                   </div>
@@ -210,7 +236,7 @@ function PracticeMapPage() {
             </div>
           </section>
 
-          <section aria-labelledby="history-title">
+          <section aria-labelledby="history-title" data-tour="history">
             <h2 id="history-title" className="mb-4 font-ga-display text-ga-h2 text-ga-ink">{tm('historyTitle')}</h2>
             {completed.length === 0 && !running ? (
               <p className="ga-ui text-ga-body text-ga-muted">{tm('historyEmpty')}</p>
@@ -273,7 +299,7 @@ function PracticeMapPage() {
   )
 }
 
-function TeilRow({ teil, overview, href, onStrategy }: { teil: PracticeTeil; overview: PracticeOverview; href: string; onStrategy: () => void }) {
+function TeilRow({ teil, overview, href, today, onStrategy }: { teil: PracticeTeil; overview: PracticeOverview; href: string; today?: boolean; onStrategy: () => void }) {
   const t = useTranslations('v2.student.practice')
   const tm = useTranslations('v2.student.practice.map')
   const data = findTeil(overview.sectionsJson, teil.key)
@@ -322,6 +348,11 @@ function TeilRow({ teil, overview, href, onStrategy }: { teil: PracticeTeil; ove
       <Link href={href} className="ga-ui min-w-0 text-ga-ink after:absolute after:inset-0 focus-visible:outline-none" aria-label={`${name} · ${t(`teilTitle.${data?.type ?? teil.section}`)}`}>
         <b className="block truncate text-ga-body font-semibold">
           Teil {teil.teil} <span className="font-normal text-ga-muted">· {t(`teilTitle.${data?.type ?? teil.section}`)}</span>
+          {today && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-ga-pill bg-ga-yellow px-2 py-px align-[1px] text-ga-caption font-bold text-ga-ink">
+              <Target size={12} aria-hidden /> {tm('today')}
+            </span>
+          )}
         </b>
         <span className="block truncate text-ga-small text-ga-muted">{meta}</span>
       </Link>

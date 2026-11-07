@@ -61,6 +61,7 @@ class ExamPlanServiceIntegrationTest extends AbstractPostgresIntegrationTest {
     @AfterEach
     void cleanUp() {
         jdbc.update("DELETE FROM mock_exam_attempts WHERE user_id = ?", UID);
+        jdbc.update("DELETE FROM mock_exam_practice_progress WHERE user_id = ?", UID);
         jdbc.update("DELETE FROM exam_plan_state WHERE user_id = ?", UID);
         jdbc.update("DELETE FROM user_learning_profiles WHERE user_id = ?", UID);
         jdbc.update("DELETE FROM users WHERE id = ?", UID);
@@ -141,6 +142,31 @@ class ExamPlanServiceIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(task(plan, 3, "FULL_EXAM").done()).isTrue();
         assertThat(task(plan, 3, "FULL_EXAM").examId()).isEqualTo(exam);
         assertThat(task(plan, 4, "FULL_EXAM").examId()).isNotEqualTo(exam);
+    }
+
+    @Test
+    @DisplayName("Lịch theo ngày: luyện Teil đã kiểm tra tính DONE; đổi chỗ ghi day_order_json (V363) và đọc lại được")
+    void days_practiceAndSwap() {
+        long exam = telcExam();
+        service.planFor(UID, TODAY);
+        jdbc.update("""
+            INSERT INTO mock_exam_practice_progress (user_id, exam_id, teil_key, checked, score, max_score, checked_at)
+            VALUES (?, ?, 'SCHREIBEN-1', TRUE, 30, 45, ?)
+            """, UID, exam, Timestamp.from(QuotaVnCalendar.startOfVnDay(TODAY).plusSeconds(3600)));
+
+        ExamPlanDto plan = service.planFor(UID, TODAY);
+        var days = plan.weeks().get(0).days();
+        assertThat(days).hasSize(7);
+        assertThat(days.get(0).section()).isEqualTo("SCHREIBEN");
+        assertThat(days.get(0).status()).isEqualTo("DONE");
+
+        var first = days.get(1);
+        var second = days.get(2);
+        ExamPlanDto swapped = service.swapDays(UID, 1, first.date(), second.date(), TODAY);
+        assertThat(swapped.weeks().get(0).days().get(1).kind()).isEqualTo(second.kind());
+        assertThat(swapped.weeks().get(0).days().get(2).kind()).isEqualTo(first.kind());
+        String stored = jdbc.queryForObject("SELECT day_order_json::text FROM exam_plan_state WHERE user_id = ?", String.class, UID);
+        assertThat(stored).contains("\"1\"");
     }
 
     @Test

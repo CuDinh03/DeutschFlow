@@ -85,7 +85,7 @@ export function WritingTeilView({ teil, points, text, onText, ticks, onTick, wid
   )
 
   const task = (
-    <div>
+    <div data-tour="task">
       {tips}
       {teil.instruction_de && <p lang="de" className="ga-ui text-ga-body text-ga-ink">{teil.instruction_de}</p>}
       {teil.instruction_vi && <p className="ga-ui mb-4 mt-1 text-ga-small text-ga-muted">{teil.instruction_vi}</p>}
@@ -123,6 +123,7 @@ export function WritingTeilView({ teil, points, text, onText, ticks, onTick, wid
       )}
       {wide && <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{t('yourText')}</p>}
       <textarea
+        data-tour="editor"
         ref={textareaRef}
         value={text}
         onChange={(e) => onText(e.target.value)}

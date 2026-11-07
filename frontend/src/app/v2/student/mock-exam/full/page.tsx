@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Mic, Send } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Headphones, PenLine, PenTool, Send } from 'lucide-react'
 import api, { apiMessage } from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
 import {
@@ -19,12 +19,14 @@ import {
   finishAttempt,
   getAttemptAnalysis,
   getAttemptResult,
+  listMyAttempts,
   saveAttemptDraft,
-  sectionScores,
   startAttempt,
   type AttemptAnalysis,
   type AttemptResult,
 } from '@/lib/exam/mockAttemptApi'
+import { getPracticeOverview } from '@/lib/telcPracticeApi'
+import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { useTracking } from '@/hooks/useTracking'
 import { ConfirmDialog, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { PracticeShell, type PracticeSaveState } from '@/components/exam/practice/PracticeShell'
@@ -42,12 +44,13 @@ import {
   type FullTeil,
 } from '@/components/exam/practice/fullExamModel'
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
-import { ExamGatePanel } from '@/components/exam/telc/ExamGatePanel'
-import { ExamBudgetPanel } from '@/components/exam/telc/ExamBudgetPanel'
-import { gateVerdict } from '@/components/exam/telc/examGates'
+import { MockStart } from '@/components/exam/mock/MockStart'
+import { GradingSteps, HoerenRitual } from '@/components/exam/mock/HoerenRitual'
+import { ResultSummary } from '@/components/exam/mock/ResultSummary'
+import { REWRITE_KEY, firstIdxOf, lastIdxOf, nextStage, resumeStage, stageOf } from '@/components/exam/mock/mockModel'
+import { oralHref } from '@/components/exam/today/todayModel'
 
 const HUB = '/v2/student/exam'
-const fmt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 })
 
 /**
  * /v2/student/mock-exam/full — thi thử trọn đề telc trong giao diện luyện đề mới (06/11/2026,
@@ -75,12 +78,70 @@ function FullExamPage() {
 
   if (attemptId) return <AttemptResultView attemptId={attemptId} />
   if (examId) {
-    return <AttemptTaking examId={examId} onFinished={(id) => router.replace(`/v2/student/mock-exam/full?attemptId=${id}`)} />
+    return <MockEntry examId={examId} autoStart={params.get('start') === '1'} onFinished={(id) => router.replace(`/v2/student/mock-exam/full?attemptId=${id}`)} />
   }
   return (
     <div className="p-6">
       <ErrorBanner message={t('badLink')} />
     </div>
+  )
+}
+
+// ─── trước khi thi ───────────────────────────────────────────────────────────
+
+/**
+ * Màn chọn kiểu lượt trước khi đồng hồ chạy (đợt (d)). Đồng hồ của server chỉ bắt đầu khi bấm
+ * "Bắt đầu" (gọi /start). Lượt đang dở thì nút là "Làm tiếp phần viết".
+ */
+function MockEntry({ examId, autoStart, onFinished }: { examId: number; autoStart: boolean; onFinished: (attemptId: number) => void }) {
+  const t = useTranslations('v2.student.fullExam')
+  const [started, setStarted] = React.useState(autoStart)
+  const [info, setInfo] = React.useState<{ title: string; points: Record<string, number>; running: boolean; oralTaken: boolean } | null>(null)
+  const fallbackTitle = t('examCap')
+
+  React.useEffect(() => {
+    if (started) return
+    let alive = true
+    Promise.all([
+      getPracticeOverview(examId).catch(() => null),
+      listMyAttempts().catch(() => []),
+      examSpeakingApi
+        .listResults()
+        .then((r) => r.data ?? [])
+        .catch(() => null),
+    ]).then(([o, mine, orals]) => {
+      if (!alive) return
+      const points: Record<string, number> = {}
+      for (const x of o?.teile ?? []) {
+        const id = x.section === 'SPRACHBAUSTEINE' ? 'LESEN' : x.section
+        points[id] = (points[id] ?? 0) + x.maxPoints
+      }
+      const own = mine.filter((a) => a.exam_id === examId)
+      setInfo({
+        title: o?.title ?? own[0]?.exam_title ?? fallbackTitle,
+        points,
+        running: own.some((a) => a.status === 'IN_PROGRESS'),
+        // không đọc được thì coi như đã thi, để không gợi ý sai
+        oralTaken: orals == null || orals.some((r) => r.total != null),
+      })
+    })
+    return () => {
+      alive = false
+    }
+  }, [examId, started, fallbackTitle])
+
+  if (started) return <AttemptTaking examId={examId} onFinished={onFinished} />
+  if (!info) return <div className="p-6"><LoadingState label={t('loading')} /></div>
+  return (
+    <MockStart
+      examTitle={info.title}
+      points={info.points}
+      running={info.running}
+      oralTaken={info.oralTaken}
+      backHref={`/v2/student/mock-exam/practice?examId=${examId}`}
+      oralHref={oralHref(null)}
+      onStart={() => setStarted(true)}
+    />
   )
 }
 
@@ -103,6 +164,11 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [phase, setPhase] = React.useState<'taking' | 'grading'>('taking')
   const [ticks, setTicks] = React.useState<Record<string, boolean>>({})
+  // Chặng đang làm: 0 Lesen + Sprachbausteine · 1 Hören · 2 Schreiben. Sang chặng sau thì khoá chặng trước.
+  const [stage, setStage] = React.useState(0)
+  const [ritual, setRitual] = React.useState(false)
+  const [stageConfirm, setStageConfirm] = React.useState(false)
+  const [timedOut, setTimedOut] = React.useState(false)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   const autosaverRef = React.useRef<DraftAutosaver | null>(null)
@@ -125,7 +191,17 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         setAttemptId(s.attemptId)
         setTeile(list)
         setAnswers(s.answers)
-        setIdx(resumeIndex(list, s.sectionIndex))
+        const at = resumeIndex(list, s.sectionIndex)
+        let saved: number | null = null
+        try {
+          const raw = window.localStorage.getItem(`df.fullExam.stage.${s.attemptId}`)
+          saved = raw != null && Number.isFinite(Number(raw)) ? Number(raw) : null
+        } catch {
+          /* bỏ qua */
+        }
+        const st = resumeStage(list, at, saved)
+        setStage(st)
+        setIdx(stageOf(list[at].section) === st ? at : firstIdxOf(list, st))
         setTimeLeft(s.remainingSeconds)
         const restored = Object.keys(s.answers).length
         if (restored > 0) toast.success(t('draftRestored', { count: restored }))
@@ -175,6 +251,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   React.useEffect(() => {
     if (timeLeft === 0 && phase === 'taking' && !submittedRef.current) {
       submittedRef.current = true
+      setTimedOut(true)
       toast.info(t('timeUp'))
       void submitRef.current()
     }
@@ -204,6 +281,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
       onExpired: () => {
         if (submittedRef.current) return
         submittedRef.current = true
+        setTimedOut(true)
         toast.info(t('timeUp'))
         void submitRef.current()
       },
@@ -254,6 +332,21 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
     }
   }, [attemptId])
 
+  const enterStage = React.useCallback(
+    (next: number) => {
+      setRitual(false)
+      setStageConfirm(false)
+      setStage(next)
+      setIdx(firstIdxOf(teile, next))
+      try {
+        if (attemptId) window.localStorage.setItem(`df.fullExam.stage.${attemptId}`, String(next))
+      } catch {
+        /* bỏ qua */
+      }
+    },
+    [attemptId, teile],
+  )
+
   const onAnswer = React.useCallback((id: string, value: string | null) => {
     dirty.current = true
     setAnswers((prev) => {
@@ -282,10 +375,14 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   if (phase === 'grading') {
     return (
       <PracticeShell backHref={HUB} subtitle={t('examCap')} title={t('grading')} backLabel={t('backToHub')}>
-        <div className="mx-auto max-w-[560px] p-6">
-          <LoadingState label={t('grading')} />
-          <p className="ga-ui mt-3 text-center text-ga-small text-ga-muted">{t('gradingDesc')}</p>
-        </div>
+        <GradingSteps
+          title={timedOut ? t('timeUpTitle') : t('gradingTitle')}
+          steps={[
+            { label: t('stepObjective'), state: 'done' },
+            { label: t('stepWriting'), state: 'run' },
+            { label: t('stepPlan'), state: 'wait' },
+          ]}
+        />
       </PracticeShell>
     )
   }
@@ -297,8 +394,19 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const title = tp(`teilTitle.${cur.data.type ?? cur.section}`)
   const subtitle = t('subtitle', { section: tp(`section.${cur.section}`), n: cur.no })
 
+  const after = nextStage(teile, stage)
+  const firstOfStage = firstIdxOf(teile, stage)
+  const lastOfStage = lastIdxOf(teile, stage)
+  const goNextStage = () => {
+    if (after == null) return
+    if (after === 1) setRitual(true)
+    else setStageConfirm(true)
+  }
+
   let body: React.ReactNode
-  if (cur.section === 'SCHREIBEN') {
+  if (ritual) {
+    body = <HoerenRitual onStart={() => enterStage(1)} onBack={() => { setRitual(false); setIdx(lastOfStage) }} />
+  } else if (cur.section === 'SCHREIBEN') {
     const points = displayedPoints(cur.data.writing_points, cur.data.shuffle_points)
     const key = writingKey(cur.no)
     body = (
@@ -335,7 +443,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const footer = (
     <>
       {error && <div className="w-full"><ErrorBanner message={error} /></div>}
-      <NavBtn disabled={idx === 0} onClick={() => setIdx((i) => Math.max(0, i - 1))} label={t('prevTeil')}>
+      <NavBtn disabled={idx <= firstOfStage} onClick={() => setIdx((i) => Math.max(firstOfStage, i - 1))} label={t('prevTeil')}>
         <ChevronLeft size={16} aria-hidden />
       </NavBtn>
       <label className="ga-ui min-w-0 flex-1">
@@ -347,17 +455,28 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         >
           {teile.map((x, i) => {
             const p = teilProgress(x, answers)
+            const locked = stageOf(x.section) !== stage
             return (
-              <option key={x.key} value={i}>
-                {t('jumpOption', { section: tp(`sectionDe.${x.section}`), n: x.no, done: p.done, total: p.total })}
+              <option key={x.key} value={i} disabled={locked}>
+                {t(locked ? 'jumpOptionLocked' : 'jumpOption', { section: tp(`sectionDe.${x.section}`), n: x.no, done: p.done, total: p.total })}
               </option>
             )
           })}
         </select>
       </label>
-      <NavBtn disabled={idx === teile.length - 1} onClick={() => setIdx((i) => Math.min(teile.length - 1, i + 1))} label={t('nextTeil')}>
+      <NavBtn disabled={idx >= lastOfStage} onClick={() => setIdx((i) => Math.min(lastOfStage, i + 1))} label={t('nextTeil')}>
         <ChevronRight size={16} aria-hidden />
       </NavBtn>
+      {after != null && !ritual && (
+        <button
+          type="button"
+          onClick={goNextStage}
+          className="ga-ui inline-flex min-h-11 items-center justify-center gap-1.5 rounded-ga-touch border-[1.5px] border-ga-line-strong bg-ga-card px-4 text-ga-body font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+        >
+          {after === 1 ? <Headphones size={15} aria-hidden /> : <PenTool size={15} aria-hidden />}
+          {after === 1 ? t('toHoeren') : t('toSchreiben')}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setConfirmOpen(true)}
@@ -394,6 +513,16 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         destructive={false}
         onConfirm={() => void submit()}
       />
+      <ConfirmDialog
+        open={stageConfirm}
+        onOpenChange={setStageConfirm}
+        title={t('toSchreibenTitle')}
+        description={t('toSchreibenBody')}
+        confirmLabel={t('toSchreiben')}
+        cancelLabel={tc('cancel')}
+        destructive={false}
+        onConfirm={() => after != null && enterStage(after)}
+      />
     </>
   )
 }
@@ -417,6 +546,7 @@ function NavBtn({ disabled, onClick, label, children }: { disabled: boolean; onC
 function AttemptResultView({ attemptId }: { attemptId: number }) {
   const t = useTranslations('v2.student.fullExam')
   const tp = useTranslations('v2.student.practice')
+  const router = useRouter()
   const wide = useWide()
   const split = useWide(SPLIT_MIN_WIDTH)
   const [result, setResult] = React.useState<AttemptResult | null>(null)
@@ -454,14 +584,33 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
   // ── xem lại một Teil ──────────────────────────────────────────────────────
   const openTeil = open ? teile.find((x) => x.key === open) : null
   if (openTeil) {
+    const canRewrite = openTeil.section === 'SCHREIBEN' && analysis.examId > 0 && !!analysis.writingText
     const back = (
-      <button
-        type="button"
-        onClick={() => setOpen(null)}
-        className="ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch border-[1.5px] border-ga-line-strong bg-ga-card px-4 text-ga-body font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
-      >
-        <ChevronLeft size={16} aria-hidden /> {t('backToResult')}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(null)}
+          className="ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch border-[1.5px] border-ga-line-strong bg-ga-card px-4 text-ga-body font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+        >
+          <ChevronLeft size={16} aria-hidden /> {t('backToResult')}
+        </button>
+        {canRewrite && (
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                window.sessionStorage.setItem(REWRITE_KEY(analysis.examId), analysis.writingText ?? '')
+              } catch {
+                /* không lưu được thì mở bài luyện như thường */
+              }
+              router.push(`/v2/student/mock-exam/practice/teil?examId=${analysis.examId}&teil=${openTeil.key}&rewrite=1`)
+            }}
+            className="ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch bg-ga-yellow px-4 text-ga-body font-semibold text-ga-ink hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+          >
+            <PenLine size={16} aria-hidden /> {tp('rewrite')}
+          </button>
+        )}
+      </>
     )
     const subtitle = t('subtitle', { section: tp(`section.${openTeil.section}`), n: openTeil.no })
     const title = tp(`teilTitle.${openTeil.data.type ?? openTeil.section}`)
@@ -493,96 +642,18 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
   }
 
   // ── tổng quan ─────────────────────────────────────────────────────────────
-  const scores = sectionScores(result.detailed_scores_json)
-  const verdict = gateVerdict(result.gates)
-  const totalMax = Object.values(scores).reduce((s, x) => s + x.max, 0)
-  const verdictText = verdict === 'PASSED' ? t('passed') : verdict === 'FAILED' ? t('failed') : verdict === 'INCOMPLETE' ? t('pending') : result.passed ? t('passed') : t('failed')
-  const examTitle = result.exam_title ?? result.title ?? ''
-  const oralPending = (result.gates ?? []).some((g) => g.id === 'oral' && g.status === 'PENDING')
-
   return (
-    <PracticeShell
-      backHref={HUB}
-      backLabel={t('backToHub')}
-      subtitle={examTitle}
-      title={t('resultTitle')}
-      footer={
-        <>
-          <Link href={HUB} className="ga-ui inline-flex min-h-11 flex-1 items-center justify-center rounded-ga-touch px-4 text-ga-body font-semibold text-ga-muted hover:bg-ga-side-active hover:text-ga-ink lg:flex-none">
-            {t('backToHub')}
-          </Link>
-          {analysis.examId > 0 && (
-            <Link
-              href={`/v2/student/mock-exam/practice?examId=${analysis.examId}`}
-              className="ga-ui inline-flex min-h-11 flex-1 items-center justify-center rounded-ga-touch bg-ga-yellow px-4 text-ga-body font-semibold text-ga-ink hover:opacity-90 lg:flex-none"
-            >
-              {t('practiceWeak')}
-            </Link>
-          )}
-        </>
-      }
-    >
-      <div className="mx-auto w-full max-w-[880px] space-y-5 px-3 py-5 lg:px-6">
-        <section className="border border-ga-line bg-ga-card p-4 lg:p-5">
-          <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t('resultCap')}</p>
-          <p className="mt-1 font-ga-display text-ga-stat tabular-nums text-ga-ink">
-            {fmt(result.total_score ?? 0)}
-            {totalMax > 0 && <span className="text-ga-body text-ga-muted"> / {fmt(totalMax)}</span>}
-          </p>
-          <p className="ga-ui mt-1 text-ga-body-lg font-semibold text-ga-ink">{verdictText}</p>
-        </section>
-
-        {result.gates && result.gates.length > 0 && <ExamGatePanel gates={result.gates} />}
-
-        {oralPending && (
-          <Link
-            href="/v2/student/speaking/exam"
-            className="ga-ui flex min-h-16 items-center gap-3.5 border-[1.5px] border-ga-ink bg-ga-card px-4 py-3 hover:bg-ga-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
-          >
-            <Mic size={18} className="shrink-0 text-ga-ink" aria-hidden />
-            <span className="min-w-0 flex-1">
-              <b className="block text-ga-body-lg text-ga-ink">{t('oralCta')}</b>
-              <span className="block text-ga-small text-ga-muted">{t('oralCtaDesc')}</span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 text-ga-subtle" aria-hidden />
-          </Link>
-        )}
-
-        <section className="border border-ga-line bg-ga-card">
-          <h2 className="ga-ui border-b border-ga-line px-4 py-3 text-ga-eyebrow uppercase text-ga-muted">{t('reviewCap')}</h2>
-          {teile.map((x) => {
-            const r = byKey.get(x.key)
-            const isWriting = x.section === 'SCHREIBEN'
-            const s = scores[x.section]
-            const meta = isWriting
-              ? analysis.writing && analysis.writing.status !== 'PENDING_AI_EVALUATION'
-                ? t('rowWriting', { score: fmt(s?.total ?? analysis.writing.total ?? 0), max: fmt(s?.max ?? 45) })
-                : t('writingPendingShort')
-              : r
-                ? t('rowCorrect', { done: r.correctCount, total: r.total, score: fmt(r.score), max: fmt(r.max) })
-                : ''
-            return (
-              <button
-                key={x.key}
-                type="button"
-                onClick={() => setOpen(x.key)}
-                className="ga-ui flex min-h-[4rem] w-full items-center gap-3.5 border-b border-ga-line px-4 py-2.5 text-left last:border-b-0 hover:bg-ga-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
-              >
-                <span className="w-24 shrink-0 text-ga-small text-ga-muted">{tp(`sectionDe.${x.section}`)} {x.no}</span>
-                <span className="min-w-0 flex-1">
-                  <b className="block text-ga-body font-semibold text-ga-ink">{tp(`teilTitle.${x.data.type ?? x.section}`)}</b>
-                  <span className="block text-ga-small text-ga-muted">{meta}</span>
-                </span>
-                <ChevronRight size={16} className="shrink-0 text-ga-subtle" aria-hidden />
-              </button>
-            )
-          })}
-        </section>
-
-        {result.budget && (
-          <ExamBudgetPanel budget={result.budget} strategyExam={{ provider: 'TELC', level: 'B1' }} />
-        )}
-      </div>
+    <PracticeShell backHref={HUB} backLabel={t('backToHub')} subtitle={result.exam_title ?? result.title ?? ''} title={t('resultTitle')}>
+      <ResultSummary
+        attemptId={attemptId}
+        result={result}
+        analysis={analysis}
+        teile={teile}
+        byKey={byKey}
+        onOpen={setOpen}
+        oralHref={oralHref(null)}
+        hubHref={HUB}
+      />
     </PracticeShell>
   )
 }

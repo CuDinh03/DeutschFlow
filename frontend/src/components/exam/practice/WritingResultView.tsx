@@ -2,10 +2,14 @@
 
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, ListChecks, MessageSquareText, PenTool, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WritingEvaluation } from '@/lib/telcPracticeApi'
 import { essaySegments, labelForLogical, relabelLeitpunkte, type displayedPoints } from './practiceModel'
+import { Bar } from '@/components/exam/today/visual'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
+
+const LANG_KEY = 'df.practice.writingLang'
 
 const BANDS = ['A', 'B', 'C', 'D'] as const
 const CRITERIA = [
@@ -31,8 +35,33 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   const notes = React.useMemo(() => evaluation.annotations ?? [], [evaluation.annotations])
   const [current, setCurrent] = React.useState(0)
   const [showModel, setShowModel] = React.useState(false)
-  const [lang, setLang] = React.useState<'vi' | 'de'>('vi')
+  // VI/DE đổi ngôn ngữ phần giải thích chung, nhớ theo máy (đợt (d)).
+  const [lang, setLangState] = React.useState<'vi' | 'de'>(() => {
+    try {
+      return window.localStorage.getItem(LANG_KEY) === 'de' ? 'de' : 'vi'
+    } catch {
+      return 'vi'
+    }
+  })
+  const setLang = (v: 'vi' | 'de') => {
+    setLangState(v)
+    try {
+      window.localStorage.setItem(LANG_KEY, v)
+    } catch {
+      /* bỏ qua */
+    }
+  }
   const segments = React.useMemo(() => essaySegments(text, notes), [text, notes])
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.writingResult',
+    ready: evaluation.status === 'AI_EVALUATED',
+    steps: [
+      { target: 'essay', icon: PenTool, title: tt('writingResult.essay.t'), body: tt('writingResult.essay.p') },
+      { target: 'note', icon: MessageSquareText, title: tt('writingResult.note.t'), body: tt('writingResult.note.p') },
+      { target: 'criteria', icon: ListChecks, title: tt('writingResult.criteria.t'), body: tt('writingResult.criteria.p') },
+    ],
+  })
 
   if (evaluation.status !== 'AI_EVALUATED') {
     return (
@@ -49,7 +78,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   const missingLabels = (evaluation.leitpunkte_fehlt ?? []).map((n) => labelForLogical(points, n)).filter(Boolean) as string[]
 
   const essay = (
-    <section>
+    <section data-tour="essay">
       <div className="mb-2 flex flex-wrap items-center gap-2.5">
         <p className="ga-ui flex-1 text-ga-eyebrow uppercase text-ga-muted">{showModel ? t('modelHint') : t('essayHint')}</p>
         <Seg
@@ -104,7 +133,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   )
 
   const detail = note ? (
-    <section className="ga-ui text-ga-body">
+    <section data-tour="note" className="ga-ui text-ga-body">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="font-ga-display text-ga-h2 text-ga-ink">{t('noteOf', { n: current + 1, total: notes.length })}</h3>
         <span className="rounded-ga-pill bg-ga-navy-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-navy">{t(`cat.${note.category}`)}</span>
@@ -147,7 +176,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   )
 
   const criteria = (
-    <section>
+    <section data-tour="criteria">
       <p className="ga-ui mb-2.5 text-ga-eyebrow uppercase text-ga-muted">{t('criteriaTitle')}</p>
       {CRITERIA.map((c) => {
         const row = evaluation.criteria?.find((r) => r.key === c.key)
@@ -207,15 +236,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
     <details open={wide} className="ga-ui mt-3 rounded-ga-touch border border-ga-line bg-ga-card">
       <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-ga-small font-semibold">{t('overall')}</summary>
       <div className="px-3 pb-3 text-ga-body">
-        <Seg
-          value={lang}
-          onChange={(v) => setLang(v as 'vi' | 'de')}
-          options={[
-            { value: 'vi', label: 'Tiếng Việt' },
-            { value: 'de', label: 'Deutsch' },
-          ]}
-        />
-        <p lang={lang} className="mt-2 leading-relaxed text-ga-ink">{relabelLeitpunkte(lang === 'vi' ? evaluation.feedback_vi : evaluation.feedback_de, points)}</p>
+        <p lang={lang} className="leading-relaxed text-ga-ink">{relabelLeitpunkte(lang === 'vi' ? evaluation.feedback_vi : evaluation.feedback_de, points)}</p>
         {(evaluation.strengths?.length ?? 0) > 0 && (
           <>
             <p className="mt-3 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{t('strengths')}</p>
@@ -232,16 +253,36 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
     </details>
   )
 
+  // Ô điểm (đợt (d)): /45 với thanh và vạch 60%, nhãn "Ước tính" vì AI chấm theo phiếu telc.
+  const ok = evaluation.total >= ref
   const header = (
-    <div className="ga-ui mb-4 flex flex-wrap items-center gap-4 border border-ga-line bg-ga-card px-4 py-3">
-      <span className="font-ga-display text-ga-stat-m tabular-nums text-ga-ink">
-        {evaluation.total} <span className="text-ga-body text-ga-muted">/ {evaluation.max}</span>
+    <div className="ga-ui mb-4 flex flex-col gap-2.5 border-y border-ga-line px-1 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
+          <PenTool size={14} aria-hidden /> <span lang="de">Schriftlicher Ausdruck</span>
+        </span>
+        <div className="flex items-center gap-2">
+          <Seg
+            value={lang}
+            onChange={(v) => setLang(v as 'vi' | 'de')}
+            options={[
+              { value: 'vi', label: 'VI' },
+              { value: 'de', label: 'DE' },
+            ]}
+          />
+          <TourHelpButton onClick={tour.start} />
+          {tour.overlay}
+        </div>
+      </div>
+      <span className="font-ga-display text-ga-stat-m leading-none tabular-nums text-ga-ink">
+        {evaluation.total} <small className="text-ga-body font-medium text-ga-muted">/ {evaluation.max}</small>
       </span>
-      <p className="text-ga-small text-ga-muted">
-        <b className="text-ga-ink">{t('writingPct', { pct })}</b> · {t('writingRef', { ref })}
-        <br />
-        {t('bandScale')}
-      </p>
+      <Bar pct={pct} />
+      <span className={cn('inline-flex items-center gap-1.5 text-ga-small font-semibold', ok ? 'text-ga-green' : 'text-ga-red')}>
+        {ok ? <CircleCheck size={15} aria-hidden /> : <CircleAlert size={15} aria-hidden />}
+        {ok ? t('estPass') : t('estBelow', { n: ref - evaluation.total })}
+      </span>
+      <p className="text-ga-small text-ga-muted">{t('estNote')} {t('bandScale')}</p>
     </div>
   )
 

@@ -465,7 +465,7 @@ function QuestionDots({
   const checked = byId.size > 0
   const done = items.filter((it) => answers[it.id]).length
   return (
-    <div role="group" aria-label={tf('dotsLabel')} className="ga-autoscroll -mx-1 flex min-w-0 flex-1 basis-full items-center gap-1.5 overflow-x-auto px-1 py-1 sm:basis-auto sm:flex-wrap sm:overflow-visible">
+    <div role="group" data-tour="dots" aria-label={tf('dotsLabel')} className="ga-autoscroll -mx-1 flex min-w-0 flex-1 basis-full items-center gap-1.5 overflow-x-auto px-1 py-1 sm:basis-auto sm:flex-wrap sm:overflow-visible">
       {items.map((it, i) => {
         const res = byId.get(it.id)
         const label = itemLabel(it)
