@@ -53,6 +53,9 @@ Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về 
   tiêu chí chung, "Xem lại hội thoại" đọc `GET /speaking/exam/sessions/{id}/transcript` (không lưu âm thanh cho mọi
   người — owner chốt), phiếu chấm chi tiết (`Ergebnisbogen`) thu gọn. Drill đã xong mở lại trang thì tổng kết dựng từ
   cùng API đó.
+- Hướng dẫn lần đầu (khoá `exam.oral`): tự mở lần đầu vào Đang thi (cả luyện lẫn thi thử), 3 bước Ba phần thi → Nút
+  micro → Thẻ đề; nút dấu hỏi trên thanh trên mở lại. Đồng hồ thi do server giữ nên không dừng được: giám khảo chờ tới
+  khi hướng dẫn đóng (`useScreenTour().settled`), bước đầu nói rõ đồng hồ vẫn chạy (owner chốt 07/11/2026).
 
 ### 1.2 Hiện có cho kỳ thi nào
 

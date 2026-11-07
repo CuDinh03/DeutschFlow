@@ -3165,6 +3165,20 @@
           "t": "Ba tiêu chí",
           "p": "Mỗi tiêu chí có bậc A–D và cách lên bậc."
         }
+      },
+      "oral": {
+        "steps": {
+          "t": "Ba phần thi",
+          "p": "Thi lần lượt từng Teil, đồng hồ góc phải là giờ của Teil đang thi. Đồng hồ vẫn chạy khi bạn đọc hướng dẫn này; giám khảo chờ bạn đọc xong mới nói."
+        },
+        "mic": {
+          "t": "Nút micro",
+          "p": "Vòng vàng là đến lượt bạn. Bấm để nói, bấm lại để dừng và gửi. Khi giám khảo hoặc bạn thi đang nói, nút tạm khoá."
+        },
+        "task": {
+          "t": "Thẻ đề",
+          "p": "Đề, gợi ý của bước này và ghi chú nháp của bạn. Trên điện thoại, bấm dòng Thẻ đề để mở."
+        }
       }
     },
     "diagnostic": {

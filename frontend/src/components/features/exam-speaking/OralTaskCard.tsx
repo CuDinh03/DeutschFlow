@@ -34,6 +34,7 @@ export function OralTaskCard({ directive, provider, level, hint, notesText, dril
     <aside
       className="order-first max-h-[50vh] shrink-0 overflow-y-auto border-b border-ga-line bg-ga-card lg:order-none lg:max-h-none lg:border-b-0 lg:border-l"
       data-testid="oral-task-card"
+      data-tour="oral-task"
       aria-label={t('oral.taskCard')}
     >
       <button

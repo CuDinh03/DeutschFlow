@@ -117,6 +117,10 @@ async function baseMocks(page: Page) {
   await page.route('**/api/speaking/exam/results', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
   // TTS: trả rỗng để không phát âm trong headless (component fallback im lặng).
   await page.route('**/api/ai-speaking/tts', (route) => route.fulfill({ status: 204, body: '' }));
+  // Hướng dẫn lần đầu phòng thi nói (Đợt 4) coi như đã xem — spec này không kiểm hướng dẫn.
+  await page.route('**/api/auth/me/tours', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ seen: ['exam.oral'] }) }),
+  );
 }
 
 test.describe('Phòng luyện thi nói (/v2)', () => {
