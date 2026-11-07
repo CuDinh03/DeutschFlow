@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, BellRing, BookOpen, CheckCircle2, Map, Mic, Target } from 'lucide-react'
+import { ArrowRight, BellRing, BookOpen, CircleCheck, Mic, Route, Target } from 'lucide-react'
 import api from '@/lib/api'
 import { getMyLearningProfile, updateProfile } from '@/lib/profileApi'
 import { useTracking } from '@/hooks/useTracking'
-import { GaBtn, GaCap, GaProgress } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaGlyph, GaProgress } from '@/components/ui-v2'
 import {
   DEFAULT_REMINDER_HOUR,
   REMINDER_HOURS,
@@ -33,7 +33,7 @@ import {
 const ICON: Record<StarterItemKey, typeof BookOpen> = {
   first_lesson: BookOpen,
   placement: Target,
-  roadmap_node: Map,
+  roadmap_node: Route,
   mock_exam: Mic,
   reminder: BellRing,
 }
@@ -114,9 +114,7 @@ export function StarterChecklist() {
           if (item.done) {
             return (
               <li key={item.key} className="flex items-center gap-3 py-3" data-testid={`starter-item-${item.key}`} data-done="true">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-ga-pill bg-ga-green-soft text-ga-green" aria-hidden="true">
-                  <CheckCircle2 size={16} />
-                </span>
+                <GaGlyph icon={CircleCheck} size="sm" tone="green" />
                 <span className="ga-ui min-w-0 flex-1 text-ga-small text-ga-muted line-through">{label}</span>
                 <span className="text-ga-caption text-ga-green">
                   {item.key === 'reminder' && savedHour !== null
@@ -130,12 +128,10 @@ export function StarterChecklist() {
             return (
               <li key={item.key} className="py-3" data-testid="starter-item-reminder" data-done="false">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-ga-pill border border-ga-line bg-ga-bg text-ga-muted" aria-hidden="true">
-                    <Icon size={15} />
-                  </span>
+                  <GaGlyph icon={Icon} size="sm" tone="plain" />
                   <span className="ga-ui min-w-0 flex-1 text-ga-small font-bold text-ga-ink">{label}</span>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 pl-11">
+                <div className="mt-2 flex flex-wrap items-center gap-2 pl-10">
                   <label className="ga-ui text-ga-caption text-ga-muted" htmlFor="starter-reminder-hour">{t('reminderLabel')}</label>
                   <select
                     id="starter-reminder-hour"
@@ -154,7 +150,7 @@ export function StarterChecklist() {
                   </GaBtn>
                 </div>
                 {reminderError && (
-                  <p className="mt-1 pl-11 text-ga-caption text-ga-red" role="alert">{t('reminderError')}</p>
+                  <p className="mt-1 pl-10 text-ga-caption text-ga-red" role="alert">{t('reminderError')}</p>
                 )}
               </li>
             )
@@ -166,9 +162,7 @@ export function StarterChecklist() {
                 onClick={() => trackEvent('onboarding_starter_item_clicked', { key: item.key })}
                 className="group flex items-center gap-3 py-3 transition-colors hover:text-ga-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-accent"
               >
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-ga-pill border border-ga-line bg-ga-bg text-ga-muted transition-colors group-hover:border-ga-accent group-hover:text-ga-accent" aria-hidden="true">
-                  <Icon size={15} />
-                </span>
+                <GaGlyph icon={Icon} size="sm" tone="plain" />
                 <span className="ga-ui min-w-0 flex-1 text-ga-small font-bold text-ga-ink group-hover:text-ga-accent">{label}</span>
                 <ArrowRight size={14} className="shrink-0 text-ga-muted group-hover:text-ga-accent" aria-hidden="true" />
               </Link>

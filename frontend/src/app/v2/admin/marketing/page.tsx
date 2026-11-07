@@ -8,7 +8,7 @@ import {
   getGrowthStats, listLeads, getTeacherClusters,
   type GrowthStats, type MarketingLead, type TeacherCluster,
 } from '@/lib/adminMarketingApi'
-import { GaPageHdr, GaCap, GaBtn, GaStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaCap, GaBtn, GaGlyph, GaStatStrip } from '@/components/ui-v2'
 import { useFmt, type Fmt } from '@/lib/i18n/useFmt'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,8 +91,8 @@ export default function V2AdminMarketingPage() {
             />
 
             <div className="mt-[22px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <SplitCard icon={<Mail size={16} className="text-ga-accent" />} label={t('emailLeads')} value={stats?.emailLeads ?? 0} total={stats?.leadsTotal ?? 0} tone="var(--ga-blue)" />
-              <SplitCard icon={<MessageCircle size={16} className="text-ga-accent" />} label={t('zaloLeads')} value={stats?.zaloLeads ?? 0} total={stats?.leadsTotal ?? 0} tone="var(--ga-teal)" />
+              <SplitCard icon={<GaGlyph icon={Mail} size="sm" />} label={t('emailLeads')} value={stats?.emailLeads ?? 0} total={stats?.leadsTotal ?? 0} tone="var(--ga-blue)" />
+              <SplitCard icon={<GaGlyph icon={MessageCircle} size="sm" />} label={t('zaloLeads')} value={stats?.zaloLeads ?? 0} total={stats?.leadsTotal ?? 0} tone="var(--ga-teal)" />
             </div>
 
             {/* Recent leads */}

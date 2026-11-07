@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Paperclip, Download, Mic, Clock, CheckCircle2, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Paperclip, Download, Mic, CheckCircle2, Hourglass, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
@@ -12,7 +12,7 @@ import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { loadSpeakingSessionIntoStore } from '@/lib/speakingSessionBootstrap'
 import { useChatStore } from '@/stores/useChatStore'
 import { fetchClassAssignments, scenarioTopic, type StudentAssignment } from '@/lib/studentClassesApi'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 import { MinorAudioBlockedModal } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { AssignmentMaterials } from './AssignmentMaterials'
 import type { AiCompanion } from '@/types/ai-speaking'
@@ -216,7 +216,7 @@ export default function V2AssignmentPage() {
                   )}
                   {isSpeaking && (
                     <div className="mb-4 flex flex-wrap items-center gap-4 border border-dashed border-ga-line bg-ga-bg p-4 lg:flex-nowrap lg:p-5">
-                      <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full" style={{ background: 'var(--ga-red)' }}><Mic size={20} className="text-white" /></span>
+                      <GaGlyph icon={Mic} size="lg" tone="navy" />
                       <div className="min-w-0">
                         <div className="text-[14.5px] font-semibold text-ga-ink">{t('speakingCardTitle')}</div>
                         <div className="mt-0.5 text-[13px] text-ga-muted">{t('speakingCardDesc')}</div>
@@ -279,8 +279,8 @@ export default function V2AssignmentPage() {
                   <GaCap className="mb-4 block">{t('yourSubmissionCap')}</GaCap>
                   {a.submissionContent && <p className="mb-4 whitespace-pre-wrap break-words border border-ga-line bg-ga-bg p-4 text-[14px] leading-relaxed text-ga-ink">{a.submissionContent}</p>}
                   {a.submissionFileUrl && <a href={a.submissionFileUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mb-4 inline-flex min-h-[40px] items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface lg:min-h-0"><Download size={14} /> {t('submittedFile')}</a>}
-                  <div className="flex flex-wrap items-center gap-3 border p-3.5 lg:flex-nowrap" style={{ background: 'rgba(47,111,201,0.08)', borderColor: 'rgba(47,111,201,0.25)' }}>
-                    <Clock size={18} className="shrink-0" style={{ color: '#2F6FC9' }} />
+                  <div className="flex flex-wrap items-center gap-3 border border-ga-line bg-ga-surface p-3.5 lg:flex-nowrap">
+                    <GaGlyph icon={Hourglass} size="md" tone="plain" />
                     <div className="min-w-0 flex-1">
                       <div className="text-[14px] font-semibold text-ga-ink">{t('waitingGrade')}</div>
                       <div className="mt-0.5 text-[12.5px] text-ga-muted">{t('submittedAt', { time: fmtDateTime(a.submittedAt) })}</div>

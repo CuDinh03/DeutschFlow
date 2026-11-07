@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Banknote, Check, Copy } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgSummary, getPaymentInfo, listMyInvoices, type OrgInvoice, type OrgSummary, type PaymentInfo } from '@/lib/orgApi'
@@ -200,7 +200,7 @@ function V2OrgBillingInner() {
             {/* F03: hướng dẫn chuyển khoản THẬT thay cho nút "Thanh toán (sắp ra mắt)". */}
             {unpaid.length > 0 && (
               <div className="mt-[26px] border border-ga-line bg-ga-card p-4 sm:p-6 lg:p-[26px]">
-                <GaCap className="mb-3.5 flex items-center gap-2"><Banknote size={15} style={{ color: GREEN }} /> {t('payCap')}</GaCap>
+                <GaCap className="mb-3.5">{t('payCap')}</GaCap>
                 {payInfoError ? (
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="ga-ui text-[13.5px] text-ga-red">{t('payInfoError')}</p>

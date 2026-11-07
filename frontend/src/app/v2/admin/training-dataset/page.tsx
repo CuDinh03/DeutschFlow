@@ -6,7 +6,7 @@ import { Download, MessageSquare, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
-import { GaPageHdr, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Training Dataset Export (admin) — navy (W1.7 migrate admin/training-dataset).
@@ -38,9 +38,9 @@ async function downloadJson(path: string, filename: string, token: string, failM
 }
 
 // key = API path segment (kept), titleKey/descKey resolve via t().
-const EXPORTS: { key: 'conversations' | 'errors'; titleKey: string; descKey: string; tone: string }[] = [
-  { key: 'conversations', titleKey: 'exportConversationsTitle', descKey: 'exportConversationsDesc', tone: 'var(--ga-violet)' },
-  { key: 'errors', titleKey: 'exportErrorsTitle', descKey: 'exportErrorsDesc', tone: 'var(--ga-orange)' },
+const EXPORTS: { key: 'conversations' | 'errors'; titleKey: string; descKey: string }[] = [
+  { key: 'conversations', titleKey: 'exportConversationsTitle', descKey: 'exportConversationsDesc' },
+  { key: 'errors', titleKey: 'exportErrorsTitle', descKey: 'exportErrorsDesc' },
 ]
 
 export default function V2AdminTrainingDatasetPage() {
@@ -98,17 +98,15 @@ export default function V2AdminTrainingDatasetPage() {
 
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('exportCap')}</GaCap></div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {EXPORTS.map(({ key, titleKey, descKey, tone }) => (
+              {EXPORTS.map(({ key, titleKey, descKey }) => (
                 <div key={key} className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center" style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}>
-                      {key === 'conversations' ? <MessageSquare size={18} /> : <AlertTriangle size={18} />}
-                    </span>
+                    <GaGlyph icon={key === 'conversations' ? MessageSquare : AlertTriangle} size="md" />
                     <h2 className="min-w-0 font-ga-display text-[16px] font-medium text-ga-ink">{t(titleKey)}</h2>
                   </div>
                   <p className="ga-ui mb-4 text-[13px] leading-relaxed text-ga-muted">{t(descKey)}</p>
                   <GaBtn variant="primary" size="sm" loading={downloading === key} onClick={() => handleDownload(key)}>
-                    {downloading !== key && <Download size={15} />} {t('downloadJson')}
+                    {downloading !== key && <Download size={15} aria-hidden />} {t('downloadJson')}
                   </GaBtn>
                 </div>
               ))}

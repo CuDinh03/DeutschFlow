@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
-  AlertTriangle, Calendar, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, PartyPopper, RotateCcw, Shield,
+  Check, CheckCircle2, ChevronDown, ChevronUp, Clock, NotebookPen, PartyPopper, RotateCcw,
 } from 'lucide-react'
 import api from '@/lib/api'
 import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
@@ -167,10 +167,7 @@ function ErrorBook() {
           {/* ── Nhiệm vụ ôn hôm nay ─────────────────────────────────────────── */}
           {(pendingTasks.length > 0 || lockedCount > 0) && (
             <section className="border border-ga-line bg-ga-yellow-soft p-4 lg:p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <Calendar size={16} className="text-ga-gold" aria-hidden />
-                <GaCap className="text-ga-gold">{t('reviewToday', { count: pendingTasks.length })}</GaCap>
-              </div>
+              <GaCap className="mb-4">{t('reviewToday', { count: pendingTasks.length })}</GaCap>
 
               {pendingTasks.length > 0 && (
                 <div className="border border-ga-line bg-ga-card">
@@ -233,10 +230,7 @@ function ErrorBook() {
               {/* ── Lỗi chưa sửa ─────────────────────────────────────────────── */}
               {filtered.length > 0 && (
                 <section>
-                  <div className="mb-3 flex items-center gap-2">
-                    <AlertTriangle size={14} className="text-ga-gold" aria-hidden />
-                    <GaCap>{t('unfixedCap', { count: filtered.length })}</GaCap>
-                  </div>
+                  <GaCap className="mb-3">{t('unfixedCap', { count: filtered.length })}</GaCap>
 
                   <div className="space-y-3">
                     {filtered.map((err) => {
@@ -285,7 +279,7 @@ function ErrorBook() {
 
                           <footer className="mt-4 flex flex-wrap items-center gap-2">
                             <span className="ga-ui flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-semibold text-ga-muted">
-                              <Shield size={13} className="shrink-0 text-ga-accent" aria-hidden /> {t('recordedGrammarError')}
+                              <NotebookPen size={13} className="shrink-0 text-ga-muted" aria-hidden /> {t('recordedGrammarError')}
                             </span>
                             <GaBtn
                               variant={repaired ? 'ghost' : 'primary'}
@@ -322,8 +316,7 @@ function ErrorBook() {
                     className="flex w-full items-center justify-between gap-3 border border-ga-line bg-ga-green-soft px-4 py-3 transition-colors hover:bg-ga-surface lg:px-5"
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <CheckCircle2 size={14} className="text-ga-green" aria-hidden />
-                      <GaCap className="text-ga-green">{t('completedCap', { count: filteredResolved.length })}</GaCap>
+                      <GaCap>{t('completedCap', { count: filteredResolved.length })}</GaCap>
                     </span>
                     {showResolved
                       ? <ChevronUp size={15} className="text-ga-green" aria-hidden />

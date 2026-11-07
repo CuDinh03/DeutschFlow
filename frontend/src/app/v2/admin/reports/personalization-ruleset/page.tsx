@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft, GitBranch, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 
 // Ruleset cá nhân hoá (admin) — navy.
 // GET /api/admin/reports/personalization-ruleset → { version, dimensionsSupported: string[] }
@@ -91,9 +91,7 @@ export default function V2PersonalizationRulesetPage() {
           <>
             {/* Active version banner */}
             <div className="flex items-center gap-4 border border-ga-line bg-ga-card p-4 lg:p-[22px]">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background: 'var(--ga-accent-soft, rgba(47,111,201,0.12))' }}>
-                <GitBranch size={22} style={{ color: 'var(--ga-accent)' }} />
-              </span>
+              <GaGlyph icon={GitBranch} size="lg" />
               <div className="min-w-0">
                 <GaCap>{t('activeVersionCap')}</GaCap>
                 <p className="mt-1 break-words font-ga-display text-[20px] font-medium text-ga-ink sm:text-[24px] lg:text-[28px]">{data.version ?? '—'}</p>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { useTranslations } from 'next-intl'
 import { withPostHog } from '@/lib/posthogClient'
 // Import THẲNG từ file component, không qua barrel `@/components/ui-v2`: barrel kéo theo cả
@@ -68,9 +69,7 @@ export function RouteErrorCard({ error, reset, scope, frame = 'screen' }: RouteE
         role="alert"
         className="w-full max-w-md space-y-4 rounded-ga border border-ga-line bg-ga-card p-6 lg:p-7"
       >
-        <span className="grid h-12 w-12 place-items-center rounded-ga-pill bg-ga-red-soft text-ga-red">
-          <GaIcon name="error" size={24} />
-        </span>
+        <GaGlyph name="error" tone="red" size="lg" />
 
         <div className="space-y-1.5">
           <h1 className="font-ga-display text-[21px] font-medium text-ga-ink">

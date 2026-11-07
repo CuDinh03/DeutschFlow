@@ -11,7 +11,7 @@ import { shuffle, type WordListResponse } from '@/lib/vocabWords'
 import { EMPTY_TALLY, hasUnsaved, markWordLearned, tally, type SaveTally } from '../progress'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { useTracking } from '@/hooks/useTracking'
-import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState, TkSeg } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaCard, GaGlyph, GaPageHdr, ErrorBanner, LoadingState, TkSeg } from '@/components/ui-v2'
 import { SwipeCard, CARD_COLOR, mapWordToSwipe, type CardMode, type SwipeCardData } from './SwipeCard'
 
 /**
@@ -214,7 +214,7 @@ function SwipeCards() {
           ) : showComplete ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <GaCard className="flex flex-col items-center gap-4 px-4 py-8 lg:px-6">
-                <Trophy size={40} strokeWidth={1.4} className="text-ga-accent" aria-hidden />
+                <GaGlyph icon={Trophy} size="lg" tone="yellow" />
                 <p className="font-ga-display text-[24px] font-medium text-ga-ink">{t('sessionEnd')}</p>
                 <div className="grid w-full grid-cols-3 gap-2 text-center">
                   {[

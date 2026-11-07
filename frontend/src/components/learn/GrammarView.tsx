@@ -2,7 +2,8 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
-import { BookOpen, Library, MessagesSquare, Sparkles, TriangleAlert, Lightbulb, CircleCheck, CircleX } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Library, MessagesSquare, Quote, TriangleAlert, Lightbulb, CircleCheck, CircleX } from "lucide-react";
+import { GaGlyph } from "@/components/ui-v2";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
@@ -190,7 +191,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
     <div className="space-y-6 pb-20">
       <section>
         <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide mb-3 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><BookOpen size={13} aria-hidden /></span>
+          <GaGlyph icon={BookOpen} size="sm" tone="navy" />
           {t("theoryCount", { count: content.theory_cards.length })}
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
@@ -214,7 +215,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
 
       <section>
         <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide mb-3 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><Library size={13} aria-hidden /></span>
+          <GaGlyph icon={Library} size="sm" tone="navy" />
           {tLearn("vocabularyCount", { count: filteredVocab.length })}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -229,9 +230,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
               disabled={vocabPage === 1}
               className="flex min-h-[40px] min-w-[40px] items-center justify-center lg:min-h-0 lg:min-w-0 p-1.5 rounded-ga border border-ga-line text-ga-muted hover:bg-ga-surface hover:text-ga-ink disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft size={16} aria-hidden />
             </button>
             <span className="text-xs font-medium text-ga-muted">
               {t("pageOf", { page: vocabPage, total: totalVocabPages })}
@@ -241,9 +240,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
               disabled={vocabPage === totalVocabPages}
               className="flex min-h-[40px] min-w-[40px] items-center justify-center lg:min-h-0 lg:min-w-0 p-1.5 rounded-ga border border-ga-line text-ga-muted hover:bg-ga-surface hover:text-ga-ink disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+              <ChevronRight size={16} aria-hidden />
             </button>
           </div>
         )}
@@ -252,7 +249,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
       {content.phrases?.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide mb-3 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><MessagesSquare size={13} aria-hidden /></span>
+            <GaGlyph icon={MessagesSquare} size="sm" tone="navy" />
             {t("phrasesCap")}
           </h2>
           <div className="space-y-2">
@@ -272,7 +269,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
       {content.examples?.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide mb-3 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><Sparkles size={13} aria-hidden /></span>
+            <GaGlyph icon={Quote} size="sm" tone="navy" />
             {t("examplesCap")}
           </h2>
           <div className="space-y-2">

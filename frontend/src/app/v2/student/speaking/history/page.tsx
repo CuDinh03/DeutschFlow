@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { AlertTriangle, ArrowLeft, Calendar, ChevronDown, ChevronUp, MessageSquare, Mic, Plus } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Calendar, ChevronDown, ChevronUp, CircleAlert, MessageSquare, Mic, Plus } from 'lucide-react'
 import api from '@/lib/api'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
+import { GaCap, GaCard, GaGlyph, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
+import { SpeakAi } from '@/components/ui-v2/glyphs'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
@@ -117,7 +118,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
     <div className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
         <span className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-ga-pill bg-ga-ink text-ga-bg">
-          <Mic size={13} aria-hidden />
+          <SpeakAi size={13} className="text-ga-card" aria-hidden />
         </span>
       )}
       <div className={`flex max-w-[80%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
@@ -308,7 +309,7 @@ export default function V2StudentSpeakingHistoryPage() {
                 </div>
               ) : visibleSessions.length === 0 ? (
                 <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
-                  <Mic size={36} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
+                  <GaGlyph icon={Mic} size="lg" tone="plain" className="mx-auto mb-3" />
                   <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('noSessions')}</p>
                   <p className="ga-ui mt-2 text-[13px] text-ga-muted">{t('promptStart')}</p>
                   <a
@@ -331,12 +332,7 @@ export default function V2StudentSpeakingHistoryPage() {
                         onClick={() => openSession(sess)}
                         className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:gap-4 lg:px-5"
                       >
-                        <span
-                          className="grid h-10 w-10 shrink-0 place-items-center rounded-ga"
-                          style={{ background: 'var(--ga-yellow-soft)', color: 'var(--ga-ink)' }}
-                        >
-                          <Mic size={18} aria-hidden />
-                        </span>
+                        <GaGlyph icon={Mic} size="md" tone="navy" />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="min-w-0 truncate text-[15px] font-semibold text-ga-ink">
@@ -376,7 +372,7 @@ export default function V2StudentSpeakingHistoryPage() {
               role="alert"
               className="rounded-ga border border-ga-line bg-ga-card px-4 py-14 text-center lg:px-0"
             >
-              <MessageSquare size={32} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
+              <GaGlyph icon={CircleAlert} size="lg" tone="red" className="mx-auto mb-3" />
               <p className="ga-ui text-[13.5px] text-ga-muted">{t('loadMessagesFailed')}</p>
               <button
                 type="button"
@@ -388,7 +384,7 @@ export default function V2StudentSpeakingHistoryPage() {
             </div>
           ) : messages.length === 0 ? (
             <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-14 text-center lg:px-0">
-              <MessageSquare size={32} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
+              <GaGlyph icon={MessageSquare} size="lg" tone="plain" className="mx-auto mb-3" />
               <p className="ga-ui text-[13.5px] text-ga-muted">{t('noMessages')}</p>
             </div>
           ) : (

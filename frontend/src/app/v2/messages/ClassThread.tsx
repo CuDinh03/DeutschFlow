@@ -11,7 +11,7 @@ import {
 } from '@/lib/classChannelApi'
 import { sameMessageIds } from '@/lib/messagesApi'
 import { usePollWhileVisible } from '@/hooks/usePollWhileVisible'
-import { LoadingState } from '@/components/ui-v2'
+import { GaGlyph, LoadingState } from '@/components/ui-v2'
 import { Composer } from './Composer'
 import { ThreadShell, fmtDay } from './ThreadShell'
 import { useTranslations } from 'next-intl'
@@ -86,9 +86,7 @@ export function ClassThread({ classId, name, onBack }: ClassThreadProps) {
   return (
     <ThreadShell
       avatar={
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ga-accent-soft text-ga-accent">
-          <Users size={16} />
-        </span>
+        <GaGlyph icon={Users} tone="navy" size="md" />
       }
       title={name || t('classFallback', { id: classId })}
       caption={t('classCaption')}

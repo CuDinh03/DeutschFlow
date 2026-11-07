@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { xpApi, type XpSummaryDto, type LeaderboardEntry, type AchievementDto } from '@/lib/xpApi'
 import { useUserStore } from '@/stores/useUserStore'
-import { GaPageHdr, GaStatStrip, GaCap, GaIcon, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { Lock } from 'lucide-react'
+import { GaPageHdr, GaStatStrip, GaCap, GaGlyph, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 const RARITY: Record<string, { labelKey: string; color: string }> = {
@@ -24,12 +25,13 @@ function AchievementCard({ a }: { a: AchievementDto }) {
       }`}
       style={a.unlocked ? { borderColor: `${r.color}55` } : undefined}
     >
-      {/* Huy hiệu đã mở giữ emoji: `achievements.icon_emoji` là NHẬN DIỆN của từng huy hiệu
-          (mỗi cái một emoji riêng), không phải icon giao diện. Ô khoá thì ngược lại — nó là
-          trạng thái, nên dùng icon Lucide cho khớp nét với phần còn lại. */}
-      <span className={`grid h-14 w-14 place-items-center rounded-full text-[28px] ${a.unlocked ? '' : 'text-ga-subtle'}`} style={{ background: `${r.color}14` }}>
-        {a.unlocked ? a.iconEmoji : <GaIcon name="lock" size={24} />}
-      </span>
+      {/* `achievements.icon_emoji` là dữ liệu backend: dịch sang icon nét qua `emojiIconMap` để
+          cùng bộ với phần còn lại. Ô khoá là trạng thái, nên dùng ổ khoá trung tính. */}
+      {a.unlocked ? (
+        <GaGlyph emoji={a.iconEmoji} size="lg" tone="navy" />
+      ) : (
+        <GaGlyph icon={Lock} size="lg" tone="plain" />
+      )}
       <p className="text-[13.5px] font-semibold leading-tight text-ga-ink break-words">{a.nameVi}</p>
       <p className="ga-ui line-clamp-2 break-words text-[11.5px] text-ga-muted">{a.descriptionVi}</p>
       <span className="ga-ui mt-auto break-words text-[11px] font-semibold" style={{ color: r.color }}>
@@ -122,12 +124,14 @@ export default function V2AchievementsPage() {
                         >
                           <span
                             className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold ${
-                              e.rank <= 3 ? 'text-white' : 'text-ga-muted'
+                              e.rank === 1
+                                ? 'bg-ga-gold text-ga-ink'
+                                : e.rank === 2
+                                  ? 'bg-ga-side-active text-ga-ink'
+                                  : e.rank === 3
+                                    ? 'bg-ga-orange text-ga-ink'
+                                    : 'bg-ga-side-active text-ga-muted'
                             }`}
-                            style={{
-                              background:
-                                e.rank === 1 ? '#C79A00' : e.rank === 2 ? '#9BA3AF' : e.rank === 3 ? '#CD7F32' : 'var(--ga-side-active)',
-                            }}
                           >
                             {e.rank}
                           </span>

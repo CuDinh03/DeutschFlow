@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { AlertTriangle, CheckCircle2, FileText, Loader2, Upload } from 'lucide-react'
+import { AlertTriangle, CircleCheckBig, FileText, Loader2, Upload } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
-import { TkModal, GaBtn, ErrorBanner } from '@/components/ui-v2'
+import { TkModal, GaBtn, GaGlyph, ErrorBanner } from '@/components/ui-v2'
 import { listMaterials, uploadMaterial, type Material } from '@/lib/materialApi'
 import {
   commitCurriculumImport,
@@ -280,7 +280,7 @@ export function CurriculumImportWizard({
     if (step === 'importing') {
       return (
         <GaBtn variant="primary" disabled>
-          <Loader2 size={15} className="animate-spin" /> {t('importing')}
+          <Loader2 size={15} className="ga-spin" /> {t('importing')}
         </GaBtn>
       )
     }
@@ -357,7 +357,7 @@ export function CurriculumImportWizard({
               }}
             />
             <GaBtn variant="ghost" disabled={uploading} onClick={() => fileInput.current?.click()}>
-              {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+              {uploading ? <Loader2 size={15} className="ga-spin" /> : <Upload size={15} />}
               {uploading ? t('uploading') : t('uploadButton')}
             </GaBtn>
             <p className="ga-ui mt-2 text-[12px] text-ga-subtle">{t('uploadHint')}</p>
@@ -483,7 +483,7 @@ export function CurriculumImportWizard({
 
       {step === 'analyzing' && (
         <div className="flex flex-col items-center gap-3 py-10">
-          <Loader2 size={26} className="animate-spin text-ga-accent" />
+          <Loader2 size={26} className="ga-spin text-ga-accent" />
           <p className="ga-ui text-[13.5px] text-ga-ink">{t('analyzing')}</p>
           <p className="ga-ui text-[12px] text-ga-subtle">{t('analyzingHint')}</p>
         </div>
@@ -554,14 +554,14 @@ export function CurriculumImportWizard({
 
       {step === 'importing' && (
         <div className="flex flex-col items-center gap-3 py-10">
-          <Loader2 size={26} className="animate-spin text-ga-accent" />
+          <Loader2 size={26} className="ga-spin text-ga-accent" />
           <p className="ga-ui text-[13.5px] text-ga-ink">{t('importing')}</p>
         </div>
       )}
 
       {step === 'done' && result && (
         <div className="flex flex-col items-center gap-3 py-10">
-          <CheckCircle2 size={26} className="text-ga-accent" />
+          <GaGlyph icon={CircleCheckBig} tone="green" size="lg" />
           <p className="ga-ui text-[13.5px] text-ga-ink">
             {t('importedSummary', {
               modules: result.modulesCreated,

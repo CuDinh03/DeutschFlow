@@ -7,15 +7,16 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2, Paperclip, ChevronRight, FileText, Music, Video, Image as ImageIcon, Link as LinkIcon, ExternalLink } from 'lucide-react'
+import { Loader2, Paperclip, ChevronRight, FileText, FileAudio, Video, Image as ImageIcon, Link as LinkIcon, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { fetchLessonMaterials, fetchLessonMaterialUrl } from '@/lib/studentClassesApi'
 import type { Material, MaterialKind } from '@/lib/materialApi'
+import { GaGlyph } from '@/components/ui-v2'
 
 const KIND_ICON: Record<MaterialKind, typeof FileText> = {
   PDF: FileText, DOCX: FileText, PPTX: FileText, OTHER: FileText,
-  AUDIO: Music, VIDEO: Video, IMAGE: ImageIcon, LINK: LinkIcon,
+  AUDIO: FileAudio, VIDEO: Video, IMAGE: ImageIcon, LINK: LinkIcon,
 }
 
 /** mm:ss for an audio/video duration. */
@@ -97,7 +98,7 @@ export function LessonMaterials({ lessonId }: { lessonId: number }) {
                       disabled={opening === m.id}
                       className="ga-ui flex min-h-[40px] w-full items-center gap-2 rounded-ga border border-ga-line bg-ga-bg px-2.5 py-1.5 text-left text-[12.5px] text-ga-ink transition-colors hover:border-ga-accent disabled:opacity-60 lg:min-h-0"
                     >
-                      <Icon size={14} className="shrink-0 text-ga-muted" />
+                      <GaGlyph icon={Icon} size="sm" tone="plain" />
                       <span className="min-w-0 flex-1 truncate font-medium">{m.title}</span>
                       {dur && <span className="ga-ui shrink-0 text-[11px] text-ga-subtle">{dur}</span>}
                       {opening === m.id

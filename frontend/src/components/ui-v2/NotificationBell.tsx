@@ -4,9 +4,10 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { GaIcon } from './GaIcon'
+import { GaGlyph } from './GaGlyph'
 import { notificationApi, type NotificationItem } from '@/lib/notificationApi'
 import { subscribeNotificationUnread } from '@/lib/notificationStream'
-import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref, toneSoft } from '@/lib/notificationDisplay'
+import { notifTone, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref } from '@/lib/notificationDisplay'
 import { GaPopover, GaPopoverContent, GaPopoverTrigger } from './GaPopover'
 import { showGaNotificationToast } from './GaNotificationToast'
 import { useLocale, useTranslations } from 'next-intl'
@@ -241,7 +242,6 @@ export function NotificationBell({ role }: { role: RoleId }) {
             </div>
           ) : (
             items.map((n, i) => {
-              const tone = TYPE_TONE[n.type] ?? 'var(--ga-muted)'
               const body = notifBody(n)
               return (
                 <button
@@ -252,12 +252,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
                     i ? 'border-t border-ga-border' : ''
                   } ${!n.read ? 'bg-ga-accent-soft/40' : ''}`}
                 >
-                  <span
-                    className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-ga"
-                    style={{ background: toneSoft(tone), color: tone }}
-                  >
-                    <GaIcon name={TYPE_ICON[n.type] ?? 'notifications'} size={16} />
-                  </span>
+                  <GaGlyph name={TYPE_ICON[n.type] ?? 'notifications'} tone={notifTone(n.type)} size="sm" className="mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-semibold capitalize text-ga-ink">{notifTitle(n, tn)}</p>
                     {body && <p className="mt-0.5 line-clamp-2 text-[12px] text-ga-muted">{body}</p>}

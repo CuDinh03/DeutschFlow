@@ -11,7 +11,7 @@ import { readFirstCompletion } from '@/features/onboarding/celebrate'
 import { useTracking } from '@/hooks/useTracking'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
 import { startRecorder, RecorderHandle } from '@/lib/voiceRecorder'
-import { GaCard, GaBtn, GaCap, GaIcon } from '@/components/ui-v2'
+import { GaCard, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 import { GaAuthShell } from '../../authShared'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -237,9 +237,7 @@ export default function V2OnboardingMockExamPage() {
     return (
       <GaAuthShell showBackToLanding={false}>
         <div className="flex flex-col items-center text-center">
-          <div className="mb-6 grid h-16 w-16 place-items-center rounded-ga-pill bg-ga-red-soft">
-            <AlertTriangle size={30} className="text-ga-red" />
-          </div>
+          <GaGlyph icon={AlertTriangle} size="lg" tone="red" className="mb-6" />
           <h2 className="mb-2 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{t('errorTitle')}</h2>
           <p className="mb-8 text-[14px] text-ga-muted">{errorMsg}</p>
           <div className="flex flex-wrap justify-center gap-3">
@@ -265,12 +263,10 @@ export default function V2OnboardingMockExamPage() {
       <GaAuthShell showBackToLanding={false}>
         <div className="space-y-6 text-center">
           <Link href={DASHBOARD_ROUTE} className="ga-ui inline-flex items-center gap-2 text-[13px] text-ga-muted transition-colors hover:text-ga-ink">
-            <ArrowLeft size={16} /> {t('backToDashboard')}
+            <ArrowLeft size={16} aria-hidden /> {t('backToDashboard')}
           </Link>
 
-          <div className="mx-auto grid h-20 w-20 place-items-center rounded-ga-pill bg-ga-yellow-soft">
-            <Mic size={36} className="text-ga-gold" />
-          </div>
+          <GaGlyph icon={Mic} size="lg" tone="yellow" className="mx-auto" />
 
           <GaCap>{t('cap')}</GaCap>
           <h1 className="m-0 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
@@ -281,7 +277,7 @@ export default function V2OnboardingMockExamPage() {
           </p>
 
           <GaCard className="space-y-3 p-4 text-left lg:p-5">
-            <GaCap className="flex items-center gap-1.5"><GaIcon name="lightbulb" size={12} /> {t('hintsCap')}</GaCap>
+            <GaCap className="block">{t('hintsCap')}</GaCap>
             <ul className="space-y-2 text-[13.5px] text-ga-muted">
               {(t.raw('hints') as string[]).map((h) => (
                 <li key={h}>• {h}</li>

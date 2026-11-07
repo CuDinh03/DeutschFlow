@@ -3,12 +3,13 @@
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useCallback, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Play, RefreshCw, Volume2, TriangleAlert, Check, X, Star, ThumbsUp, Dumbbell } from "lucide-react";
+import { Mic, MicOff, Play, RefreshCw, RotateCcw, Volume2, TriangleAlert, Check, X, Star, ThumbsUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { playTTS } from "@/lib/tts";
 import api from "@/lib/api";
 import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
 import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
+import { GaCap, GaGlyph } from "@/components/ui-v2";
 import { useTranslations } from "next-intl";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -34,11 +35,11 @@ interface EvalResult {
  * giao diện, và buộc FE vào một chuỗi emoji thì đổi ngưỡng ở backend là hỏng ánh xạ ở đây.
  * `emoji` vẫn nằm trong `EvalResult` vì nó là phần của hợp đồng API — chỉ là không render nữa.
  */
-function scoreIcon(score: number): { Icon: LucideIcon; color: string } {
-  if (score >= 90) return { Icon: Star, color: "#F59E0B" };
-  if (score >= 70) return { Icon: ThumbsUp, color: "#16A34A" };
-  if (score >= 50) return { Icon: RefreshCw, color: "#EA580C" };
-  return { Icon: Dumbbell, color: "#DC2626" };
+function scoreIcon(score: number): { Icon: LucideIcon; className: string } {
+  if (score >= 90) return { Icon: Star, className: "text-ga-gold" };
+  if (score >= 70) return { Icon: ThumbsUp, className: "text-ga-green" };
+  if (score >= 50) return { Icon: RotateCcw, className: "text-ga-orange" };
+  return { Icon: TriangleAlert, className: "text-ga-red" };
 }
 
 interface PhonemeCoachProps {
@@ -168,9 +169,9 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC] flex items-center gap-3">
-        <span className="grid w-8 h-8 place-items-center rounded-lg bg-[#121212] text-white"><Mic size={15} aria-hidden /></span>
+        <GaGlyph icon={Mic} size="md" tone="ink" />
         <div className="flex-1">
-          <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">Phoneme Coach</p>
+          <GaCap>Phoneme Coach</GaCap>
           <p className="text-sm font-bold text-[#0F172A]">{t("title")}</p>
         </div>
       </div>
@@ -202,8 +203,8 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
               onClick={state === "idle" ? startRecording : stopRecording}
               className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-colors ${
                 state === "recording"
-                  ? "bg-red-500 text-white"
-                  : "bg-[#121212] text-white"
+                  ? "bg-ga-red text-ga-card"
+                  : "bg-ga-ink text-ga-card"
               }`}
             >
               {state === "recording" ? (
@@ -276,8 +277,8 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
                 <div className="min-w-0">
                   {(() => {
-                    const { Icon, color } = scoreIcon(result.score);
-                    return <Icon size={22} strokeWidth={1.9} style={{ color }} aria-hidden />;
+                    const { Icon, className } = scoreIcon(result.score);
+                    return <Icon size={22} className={className} aria-hidden />;
                   })()}
                   <p className="text-sm font-bold text-[#0F172A] mt-1 break-words">{result.feedbackVi}</p>
                   {result.transcribed ? (

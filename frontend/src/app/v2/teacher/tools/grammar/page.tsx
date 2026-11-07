@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, X, RotateCcw, Copy, Sparkles, Loader2 } from 'lucide-react'
+import { Check, X, History, Copy, Sparkles, Loader2, CircleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { aiToolsApi, type GrammarCorrectResponse } from '@/lib/aiToolsApi'
 import { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ngữ pháp AI (GaGrammarAI) — violet, 2-column (input · result).
@@ -102,7 +102,7 @@ export default function V2GrammarAiPage() {
                   onClick={() => check(h)}
                   className="ga-ui mb-1.5 flex w-full items-center gap-2 border border-ga-line bg-transparent px-3 py-2 text-left text-[13px] text-ga-muted transition-colors hover:text-ga-ink"
                 >
-                  <RotateCcw size={12} className="shrink-0 text-ga-subtle" />
+                  <History size={12} className="shrink-0 text-ga-subtle" aria-hidden />
                   <span className="truncate">{h}</span>
                 </button>
               ))}
@@ -115,14 +115,14 @@ export default function V2GrammarAiPage() {
           {loading ? (
             <div className="grid h-full place-items-center text-center text-ga-muted">
               <div>
-                <Loader2 size={28} className="mx-auto mb-3 animate-spin text-ga-accent" />
+                <Loader2 size={28} className="ga-spin mx-auto mb-3 text-ga-accent" aria-hidden />
                 <p className="ga-ui text-[14px]">AI đang phân tích câu…</p>
               </div>
             </div>
           ) : error ? (
             <div className="grid h-full place-items-center text-center">
               <div>
-                <X size={32} className="mx-auto mb-3 text-ga-red" />
+                <GaGlyph icon={CircleAlert} tone="red" size="lg" className="mx-auto mb-3" />
                 <p className="font-ga-display text-[20px] font-medium text-ga-ink">Không phân tích được</p>
                 <p className="ga-ui mx-auto mt-1.5 max-w-sm text-[13.5px] text-ga-muted">{error}</p>
                 <GaBtn variant="primary" className="mt-4" onClick={() => check()}>Thử lại</GaBtn>

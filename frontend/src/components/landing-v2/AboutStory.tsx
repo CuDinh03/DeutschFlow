@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { ArrowDown } from 'lucide-react'
 import { GaBtn, GaCap } from '@/components/ui-v2'
 import type { PersonaId } from '@/lib/personas'
 import { GaShot } from './GaShot'
@@ -70,9 +71,7 @@ export function AboutStory() {
               <p className="mt-6 max-w-[520px] text-ga-body-lg text-ga-muted">{t('hero.sub')}</p>
               <a href="#ch1" className="mt-7 inline-flex min-h-11 items-center gap-2 border-b-2 border-ga-yellow text-ga-body font-semibold text-ga-ink">
                 {t('hero.readOn')}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-                  <path d="M12 5v14M6 13l6 6 6-6" />
-                </svg>
+                <ArrowDown size={16} aria-hidden />
               </a>
             </div>
             <figure className="relative mx-auto w-full max-w-[420px] md:max-w-none">

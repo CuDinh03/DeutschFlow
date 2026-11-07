@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Headphones, PenLine, PenTool, Send } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Headphones, PenLine, Send } from 'lucide-react'
 import api, { apiMessage } from '@/lib/api'
 import { getAccessToken } from '@/lib/authSession'
 import {
@@ -473,7 +473,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
           onClick={goNextStage}
           className="ga-ui inline-flex min-h-11 items-center justify-center gap-1.5 rounded-ga-touch border-[1.5px] border-ga-line-strong bg-ga-card px-4 text-ga-body font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
         >
-          {after === 1 ? <Headphones size={15} aria-hidden /> : <PenTool size={15} aria-hidden />}
+          {after === 1 ? <Headphones size={15} aria-hidden /> : <PenLine size={15} aria-hidden />}
           {after === 1 ? t('toHoeren') : t('toSchreiben')}
         </button>
       )}

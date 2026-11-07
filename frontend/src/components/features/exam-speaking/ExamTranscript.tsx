@@ -1,7 +1,7 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
-import { Bot, Sparkles } from 'lucide-react'
+import { Bot, Gauge, Timer } from 'lucide-react'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import type { DrillTurnEval, RoomLine } from '@/types/exam-speaking'
 
@@ -42,7 +42,8 @@ export function ExamTranscript({ lines, mode }: Props) {
             </div>
             {typeof l.latencyMs === 'number' && l.role !== 'CANDIDATE' && (
               <p className="ga-ui mt-0.5 text-[11px] text-ga-muted" data-testid="turn-latency">
-                ⏱ {(l.latencyMs / 1000).toFixed(1)}s
+                <Timer size={11} className="mr-1 inline align-[-1px] text-ga-muted" aria-hidden />
+                {(l.latencyMs / 1000).toFixed(1)}s
               </p>
             )}
             {mode === 'DRILL' && l.role === 'CANDIDATE' && l.eval && <DrillEvalCard eval={l.eval} />}
@@ -62,7 +63,7 @@ function DrillEvalCard({ eval: ev }: { eval: DrillTurnEval }) {
   return (
     <div className="mt-2 rounded-ga border border-ga-line bg-ga-card p-3 text-left" data-testid="drill-eval">
       <div className="flex items-center gap-2">
-        <Sparkles size={14} className="text-ga-accent" aria-hidden />
+        <Gauge size={14} className="text-ga-muted" aria-hidden />
         <span className="font-ga-display text-[16px] font-medium text-ga-ink">
           {t('score', { score: ev.score ?? 0 })}
         </span>

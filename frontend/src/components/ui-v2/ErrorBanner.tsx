@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { GaGlyph } from './GaGlyph'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { GaIcon } from './GaIcon'
@@ -39,9 +40,7 @@ export function ErrorBanner({
           className,
         )}
       >
-        <span className="grid h-12 w-12 place-items-center rounded-ga-pill bg-ga-red-soft text-ga-red">
-          <GaIcon name="error" size={24} />
-        </span>
+        <GaGlyph name="error" tone="red" size="lg" />
         <div className="space-y-1">
           <p className="font-ga-display text-[18px] font-medium text-ga-ink">{title}</p>
           <p className="ga-ui mx-auto max-w-sm text-[13px] text-ga-muted">{message}</p>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ArrowUpRight } from 'lucide-react'
 import type { AusbildungCopy } from '@/content/ausbildung'
 import type { AusbildungCompany } from '@/lib/ausbildung'
 import { WORKPLACES, type Workplace } from '@/lib/occupationTypes'
@@ -49,7 +50,7 @@ export function AusbildungCompanies({
               <span className="text-ga-body font-semibold text-ga-ink">{c.name}</span>
               <span className="flex items-center justify-between gap-3 text-ga-caption text-ga-muted">
                 <span>{copy.groups[c.workplace]}</span>
-                <span className="shrink-0 font-semibold text-ga-ink">{copy.open} <span aria-hidden>↗</span></span>
+                <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-ga-ink">{copy.open} <ArrowUpRight size={14} aria-hidden /></span>
               </span>
             </a>
           </li>

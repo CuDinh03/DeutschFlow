@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useTracking } from '@/hooks/useTracking'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
+import { Plus } from 'lucide-react'
 import { GaBtn, GaCap } from '@/components/ui-v2'
 import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
 import type { GlyphName } from '@/lib/galerieGlyphs'
@@ -422,7 +423,7 @@ export function GaLanding() {
             <details key={f.q} className="group border-b border-ga-border">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-4 text-ga-h3 text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus">
                 {f.q}
-                <span aria-hidden className="shrink-0 text-ga-muted transition-transform group-open:rotate-45">+</span>
+                <Plus size={18} aria-hidden className="shrink-0 text-ga-muted transition-transform group-open:rotate-45" />
               </summary>
               <p className="max-w-[760px] pb-5 text-ga-body text-ga-muted">{f.a}</p>
             </details>

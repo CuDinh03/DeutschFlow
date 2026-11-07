@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, CheckCircle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { GaBtn, GaIcon } from "@/components/ui-v2";
+import { GaBtn, GaGlyph } from "@/components/ui-v2";
 import {
   liteProfilePayload,
   normalizePresetLevel,
@@ -82,7 +82,7 @@ export function OrgLiteWizard({ ctx, loading, onSubmit }: Props) {
           <p className="text-ga-small text-ga-muted">{t("orgLite.levelSub")}</p>
           {LITE_LEVELS.map((l) => (
             <button key={l.value} type="button" aria-pressed={currentLevel === l.value} onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel === l.value)}>
-              <GaIcon name={l.icon} size={22} className="text-ga-muted" />
+              <GaGlyph name={l.icon} size="md" tone="plain" />
               <div className="min-w-0 flex-1">
                 <p className="ga-ui text-ga-small font-bold text-ga-ink">{t(`level.${l.value}.label`)}</p>
                 <p className="text-ga-caption text-ga-muted">{t(`level.${l.value}.desc`)}</p>
@@ -99,7 +99,7 @@ export function OrgLiteWizard({ ctx, loading, onSubmit }: Props) {
         <h2 id="org-lite-pace" className="font-ga-display text-ga-h2 text-ga-ink">{t("orgLite.paceHeading")}</h2>
         {WEEKLY.map((w) => (
           <button key={w.value} type="button" aria-pressed={weeklyTarget === w.value} onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget === w.value)}>
-            <GaIcon name={w.icon} size={24} className="text-ga-muted" />
+            <GaGlyph name={w.icon} size="md" tone="plain" />
             <div className="min-w-0 flex-1">
               <p className="ga-ui text-ga-small font-bold text-ga-ink">{t(`pace.w${w.value}.label`)}</p>
               <p className="text-ga-caption text-ga-muted">{t(`pace.w${w.value}.desc`)}</p>

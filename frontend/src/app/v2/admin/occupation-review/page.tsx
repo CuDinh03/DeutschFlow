@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { CheckCircle2, XCircle, Loader2, Pencil, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn } from '@/components/ui-v2'
+import { EmptyState, GaPageHdr, GaBtn } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Duyệt lớp câu hỏi theo nghề (admin) — đợt 2b định hướng A + B + E.
@@ -219,10 +219,7 @@ export default function V2AdminOccupationReviewPage() {
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 border border-dashed border-ga-line px-4 py-10 text-center text-ga-muted sm:px-6 lg:px-10 lg:py-[52px]">
-            <CheckCircle2 size={36} className="opacity-30" />
-            <p className="text-ga-body font-medium">{t('emptyQueue')}</p>
-          </div>
+          <EmptyState variant="invite" icon="check_circle" title={t('emptyQueue')} />
         ) : (
           <div className="flex flex-col gap-4">
             {items.map((o) => (

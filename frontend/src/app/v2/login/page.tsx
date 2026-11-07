@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
+import { TriangleAlert, X } from 'lucide-react'
 import api from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
 import { landingAfterLogin } from '@/lib/roleRouting'
@@ -64,13 +65,7 @@ function MaintenanceBanner() {
       <span className="relative mt-0.5 flex shrink-0">
         <span className="absolute inline-flex h-[18px] w-[18px] animate-ping rounded-full bg-ga-gold opacity-60" />
         <span className="relative inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ga-gold">
-          <svg className="h-2.5 w-2.5 text-ga-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-            />
-          </svg>
+          <TriangleAlert size={11} className="text-ga-ink" aria-hidden />
         </span>
       </span>
       <div className="min-w-0 flex-1">
@@ -83,9 +78,7 @@ function MaintenanceBanner() {
         aria-label={t('maintenance.dismiss')}
         className="mt-0.5 shrink-0 rounded-full p-0.5 text-ga-muted transition-colors hover:text-ga-ink"
       >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <X size={16} aria-hidden />
       </button>
     </div>
   )

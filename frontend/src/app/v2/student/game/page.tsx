@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, CircleCheck, CircleX, Heart, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { GaBtn, GaCap, GaCard, GaPageHdr, LoadingState } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaCard, GaGlyph, GaPageHdr, LoadingState } from '@/components/ui-v2'
 import { GameModeSwitch } from './GameModeSwitch'
 
 /**
@@ -394,9 +394,7 @@ export default function V2StudentGamePage() {
         <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
           <div className="mx-auto max-w-xl">
             <GaCard className="flex flex-col items-center gap-4 px-4 py-12 text-center sm:px-6 lg:py-14">
-              <span className="grid h-14 w-14 place-items-center rounded-ga-pill bg-ga-yellow-soft text-ga-gold">
-                <Trophy size={28} aria-hidden />
-              </span>
+              <GaGlyph icon={Trophy} size="lg" tone="yellow" />
               <div className="space-y-1">
                 <p className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">
                   {finished ? t('doneTitle', { score, total: questions.length }) : t('emptyTitle')}

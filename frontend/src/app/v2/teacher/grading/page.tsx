@@ -5,12 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   Mic, PenLine, FileText, BookOpen, SpellCheck, Sparkles, Save, Loader2,
-  CheckCircle2, AlertCircle, AlertTriangle, Play, ExternalLink, Clock, X,
+  CheckCircle2, CircleCheckBig, AlertCircle, AlertTriangle, AudioLines, ClipboardCheck, ExternalLink, Clock, X,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkSeg, type TkSegOption } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph, TkSeg, type TkSegOption } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Trung tâm Chấm bài (GaGrading) — violet. 3-column: queue · submission · scoring.
@@ -92,7 +92,7 @@ const TYPE_META: Record<string, { labelKey: string; tone: Tone; Icon: typeof Mic
   SPEAKING_SCENARIO: { labelKey: 'SPEAKING_SCENARIO', tone: 'violet', Icon: Mic },
   ESSAY: { labelKey: 'ESSAY', tone: 'blue', Icon: PenLine },
   WRITING: { labelKey: 'WRITING', tone: 'blue', Icon: PenLine },
-  MOCK_TEST: { labelKey: 'MOCK_TEST', tone: 'orange', Icon: FileText },
+  MOCK_TEST: { labelKey: 'MOCK_TEST', tone: 'orange', Icon: ClipboardCheck },
   VOCABULARY: { labelKey: 'VOCABULARY', tone: 'green', Icon: BookOpen },
   GRAMMAR: { labelKey: 'GRAMMAR', tone: 'teal', Icon: SpellCheck },
   GENERAL: { labelKey: 'GENERAL', tone: 'muted', Icon: FileText },
@@ -467,7 +467,7 @@ function V2TeacherGradingPage() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] font-semibold text-ga-ink">{g.studentName}</span>
                     <span className="mt-[3px] flex items-center gap-1.5">
-                      <m.Icon size={13} style={{ color: TONE_FG[m.tone] }} />
+                      <m.Icon size={13} className="shrink-0 text-ga-muted" aria-hidden />
                       <span className="truncate text-[11px] text-ga-muted">{t(`types.${m.labelKey}`)}</span>
                       {awaitingConfirm && (
                         <span
@@ -501,7 +501,7 @@ function V2TeacherGradingPage() {
           ) : !active ? (
             <div className="grid h-full min-h-[180px] place-items-center text-center lg:min-h-0">
               <div>
-                <CheckCircle2 size={40} className="mx-auto mb-3 text-ga-green" />
+                <GaGlyph icon={CircleCheckBig} tone="green" size="lg" className="mx-auto mb-3" />
                 <p className="font-ga-display text-[22px] font-medium text-ga-ink">{t('allGraded')}</p>
                 <p className="ga-ui mt-1.5 text-[14px] text-ga-muted">{t('allGradedSub')}</p>
               </div>
@@ -607,9 +607,7 @@ function Submission({ item }: { item: GradingQueueItem }) {
       {isSpeaking && item.submissionFileUrl && (
         <div className="mt-3.5 border border-ga-line bg-ga-card px-4 py-3">
           <div className="flex items-center gap-3.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: 'var(--ga-ink)' }}>
-              <Play size={16} className="text-ga-bg" fill="currentColor" />
-            </span>
+            <GaGlyph icon={AudioLines} tone="plain" size="md" />
             <span className="flex h-7 flex-1 items-center gap-[2px]" aria-hidden>
               {waveBars(item.id).map((h, i) => (
                 <span key={i} className="flex-1" style={{ height: h, background: i < 8 ? 'var(--ga-yellow)' : 'var(--ga-line)' }} />
@@ -695,9 +693,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiPro
         <div className="mb-[18px] border p-4" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 35%, transparent)' }}>
           <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap">
             <div className="min-w-0">
-              <p className="ga-ui flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-[0.04em]" style={{ color: 'var(--ga-violet)' }}>
-                <Sparkles size={14} /> {t('aiGradeCap')}
-              </p>
+              <GaCap>{t('aiGradeCap')}</GaCap>
               <p className="ga-ui mt-1 text-[12px] text-ga-muted">
                 {hasImage ? t('aiGradeImageDesc') : t('aiGradeDesc')}
               </p>
@@ -707,11 +703,11 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiPro
               onClick={hasImage ? onAiImage : onAi}
               disabled={aiLoading || !canAiGrade || alreadyProposed}
               title={alreadyProposed ? t('aiAlreadyProposedTitle') : (!canAiGrade ? t('aiNoTextTitle') : undefined)}
-              className="ga-ui inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60 lg:min-h-0"
+              className="ga-ui inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-ga-card transition-opacity disabled:cursor-not-allowed disabled:opacity-60 lg:min-h-0"
               style={{ background: 'var(--ga-violet)' }}
             >
               {aiLoading
-                ? <><Loader2 size={15} className="animate-spin" /> {t('aiGradeButtonBusy')}</>
+                ? <><Loader2 size={15} className="ga-spin" aria-hidden /> {t('aiGradeButtonBusy')}</>
                 : alreadyProposed
                   ? <><CheckCircle2 size={15} /> {t('aiAlreadyProposed')}</>
                   : <><Sparkles size={15} /> {hasImage ? t('aiGradeImageButton') : t('aiGradeButton')}</>}
@@ -741,9 +737,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiPro
       {aiProposal && (aiProposal.aiScore != null || aiProposal.aiFeedback) && (
         <div className="mb-[18px] border border-ga-line bg-ga-card p-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <span className="ga-ui flex items-center gap-1.5 text-ga-small font-semibold text-ga-ink">
-              <Sparkles size={14} style={{ color: 'var(--ga-violet)' }} /> {t('aiProposalCap')}
-            </span>
+            <GaCap>{t('aiProposalCap')}</GaCap>
             {aiProposal.aiScore != null && (
               <span className="ga-ui rounded-full px-2.5 py-0.5 text-ga-caption font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
                 {t('aiProposalScore', { score: aiProposal.aiScore })}
@@ -763,9 +757,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiPro
       {(criteria || confidence != null) && (
         <div className="mb-[18px] border border-ga-line bg-ga-card p-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="ga-ui flex items-center gap-1.5 text-[13px] font-semibold text-ga-ink">
-              <Sparkles size={14} style={{ color: 'var(--ga-violet)' }} /> {t('aiCriteriaCap')}
-            </span>
+            <GaCap>{t('aiCriteriaCap')}</GaCap>
             {confidence != null && (
               <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
                 {t('aiConfidence', { value: confidence })}

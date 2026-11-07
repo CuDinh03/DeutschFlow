@@ -10,7 +10,7 @@ import { MicCheck } from '@/components/features/exam-speaking/MicCheck'
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
 import type { BlueprintSummary, ExamProvider, ExamResultView } from '@/types/exam-speaking'
-import { GaPageHdr, GaCard, GaCap, GaBtn, TkSeg, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { GaPageHdr, GaCard, GaCap, GaBtn, GaGlyph, TkSeg, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 const SESSION_HREF = (id: number) => `/v2/student/speaking/exam/session/${id}`
 // Đợt 1 A1, Đợt 2 A2, Đợt 3 B1, Đợt 4 B2 (ngân hàng đề V277–V279 + V281). MVP A1–B2 đã mở trọn.
@@ -211,9 +211,7 @@ export default function V2ExamSpeakingCatalogPage() {
               className="mt-[22px] flex items-center justify-between gap-3 rounded-ga border border-ga-line bg-ga-card p-5 hover:bg-ga-surface"
             >
               <span className="flex min-w-0 items-center gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-ga bg-ga-yellow-soft text-ga-ink">
-                  <Target size={18} aria-hidden />
-                </span>
+                <GaGlyph icon={Target} size="md" tone="navy" />
                 <span className="min-w-0">
                   <span className="ga-ui block text-[14.5px] font-semibold text-ga-ink">{t('weaknessTitle')}</span>
                   <span className="ga-ui block text-[13px] text-ga-muted">{t('weaknessDesc')}</span>
@@ -231,8 +229,8 @@ export default function V2ExamSpeakingCatalogPage() {
               {results.map((r) => (
                 <li key={r.sessionId}>
                   <a href={SESSION_HREF(r.sessionId)} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-ga-surface">
-                    <span className="ga-ui text-[14px] text-ga-ink">
-                      <GraduationCap size={14} aria-hidden className="mr-1.5 inline" />
+                    <span className="ga-ui flex min-w-0 items-center gap-2 text-[14px] text-ga-ink">
+                      <GaGlyph icon={GraduationCap} size="sm" tone="plain" />
                       {r.provider === 'GOETHE' ? 'Goethe' : 'telc'} {r.level} · {new Date(r.createdAt).toLocaleDateString()}
                     </span>
                     <span className="flex items-center gap-2">

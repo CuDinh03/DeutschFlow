@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Check, Headphones, Play } from 'lucide-react'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { cn } from '@/lib/utils'
 
 const COUNTDOWN = 10
@@ -36,7 +37,7 @@ export function HoerenRitual({ onStart, onBack }: { onStart: () => void; onBack:
         aria-labelledby="ritual-title"
         className="ga-ritual flex w-full max-w-[560px] flex-col items-center gap-3.5 bg-ga-ink px-6 py-10 text-center text-ga-card"
       >
-        <Headphones size={40} strokeWidth={1.9} className="text-ga-yellow" aria-hidden />
+        <GaGlyph icon={Headphones} tone="yellow" size="lg" />
         <h2 id="ritual-title" lang="de" className="font-ga-display text-ga-h1">Hörverstehen</h2>
         <p className="ga-ui max-w-[40ch] text-ga-body opacity-80">{t('body')}</p>
         <div className="relative my-1 grid h-[76px] w-[76px] place-items-center" aria-live="polite">
@@ -101,7 +102,7 @@ export function GradingSteps({ title, steps }: { title: string; steps: { label: 
                 s.state === 'wait' && 'border-[1.5px] border-dashed border-ga-line-strong',
               )}
             >
-              {s.state === 'done' && <Check size={14} strokeWidth={3} />}
+              {s.state === 'done' && <Check size={14} />}
             </span>
             <span>
               {s.label}

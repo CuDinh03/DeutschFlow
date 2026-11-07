@@ -4,8 +4,17 @@ import * as React from 'react'
 import { toast } from 'sonner'
 import { GaIcon } from './GaIcon'
 import { GaBtn } from './GaBtn'
-import { TYPE_TONE, TYPE_ICON, toneSoft } from '@/lib/notificationDisplay'
+import { GaGlyph } from './GaGlyph'
+import { ArrowRight } from 'lucide-react'
+import { notifTone, TYPE_ICON, type NotifTone } from '@/lib/notificationDisplay'
 import type { RoleId } from './nav'
+
+const TONE_BAR: Record<NotifTone, string> = {
+  navy: 'bg-ga-navy',
+  red: 'bg-ga-red',
+  green: 'bg-ga-green',
+  plain: 'bg-ga-line-strong',
+}
 
 /**
  * GaNotificationToast — thẻ thông báo realtime (Galerie 2.0) thay cho toast mặc định
@@ -49,23 +58,17 @@ export function GaNotificationToast({
   onView,
   onClose,
 }: GaNotificationToastProps) {
-  const tone = TYPE_TONE[type] ?? 'var(--ga-muted)'
+  const tone = notifTone(type)
   return (
     <div
       data-role={role}
       // 22.25rem = 356px — đúng bề rộng viewport mặc định của sonner để thẻ không tràn ol.
       className="ga-scope relative w-[min(calc(100vw-2rem),22.25rem)] overflow-hidden rounded-ga border border-ga-line bg-ga-card text-ga-ink shadow-ga-panel"
     >
-      <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: tone }} />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${TONE_BAR[tone]}`} />
 
       <div className="flex items-start gap-3 py-3.5 pl-4 pr-2.5">
-        <span
-          aria-hidden
-          className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-ga"
-          style={{ background: toneSoft(tone), color: tone }}
-        >
-          <GaIcon name={TYPE_ICON[type] ?? 'notifications'} size={17} />
-        </span>
+        <GaGlyph name={TYPE_ICON[type] ?? 'notifications'} tone={tone} className="mt-1" />
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-[10.5px] font-semibold uppercase tracking-[0.09em] text-ga-subtle">
@@ -85,7 +88,7 @@ export function GaNotificationToast({
             <div className="mt-2.5 pb-0.5">
               <GaBtn variant="ink" size="sm" onClick={onView}>
                 {labels.view}
-                <span aria-hidden>→</span>
+                <ArrowRight size={14} aria-hidden />
               </GaBtn>
             </div>
           )}

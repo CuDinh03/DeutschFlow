@@ -6,8 +6,8 @@ import { useLocale, useTranslations } from 'next-intl'
 import { CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { notificationApi, type NotificationItem } from '@/lib/notificationApi'
-import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, dayBucket, resolveNotificationHref } from '@/lib/notificationDisplay'
-import { GaPageHdr, GaBtn, ErrorBanner, LoadingState, GaIcon } from '@/components/ui-v2'
+import { notifTone, TYPE_ICON, notifTitle, notifBody, relTime, dayBucket, resolveNotificationHref } from '@/lib/notificationDisplay'
+import { GaPageHdr, GaBtn, ErrorBanner, LoadingState, GaGlyph } from '@/components/ui-v2'
 import { RoleShell, useViewerRole } from '../RoleShell'
 
 // Reuse notificationApi (list / markRead / markAllRead) 1:1. LIST pattern + date groups +
@@ -112,7 +112,6 @@ function NotificationsBody() {
                 </p>
                 <div className="border border-ga-line bg-ga-card">
                   {bucket.rows.map((n, i) => {
-                    const tone = TYPE_TONE[n.type] ?? 'var(--ga-muted)'
                     const body = notifBody(n)
                     return (
                       <button
@@ -123,12 +122,8 @@ function NotificationsBody() {
                           i ? 'border-t border-ga-border' : ''
                         }`}
                       >
-                        <span
-                          className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-ga"
-                          style={{ background: `${tone}1a`, color: tone }}
-                        >
-                          <GaIcon name={TYPE_ICON[n.type] ?? 'notifications'} size={18} />
-                        </span>
+                        {/* Trước đây nền là `${tone}1a` với tone = `var(--ga-…)` → CSS hỏng, icon trôi không ô. */}
+                        <GaGlyph name={TYPE_ICON[n.type] ?? 'notifications'} tone={notifTone(n.type)} className="mt-0.5" />
                         <div className="min-w-0 flex-1">
                           <p className="break-words text-[14px] font-semibold capitalize text-ga-ink">{notifTitle(n, tn)}</p>
                           {body && <p className="ga-ui mt-0.5 break-words text-[13px] text-ga-muted">{body}</p>}

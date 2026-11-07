@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { UploadCloud, CheckCircle2 } from 'lucide-react'
+import { Check, UploadCloud } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
 import type { VocabularyImageReviewResponse } from '@/lib/vocabularyImageApi'
-import { GaPageHdr, GaBtn, GaCap, GaStatStrip, TkModal } from '@/components/ui-v2'
+import { EmptyState, GaPageHdr, GaBtn, GaCap, GaStatStrip, TkModal } from '@/components/ui-v2'
 import VocabReviewQueue from './VocabReviewQueue'
 import GalerieReviewGrid from './GalerieReviewGrid'
 import { useFmt } from '@/lib/i18n/useFmt'
@@ -166,10 +166,7 @@ export default function V2AdminVocabPage() {
             </GaBtn>
           </div>
         ) : queue.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-4 py-10 text-center sm:px-6 lg:px-10">
-            <CheckCircle2 size={32} className="mx-auto mb-2" style={{ color: GREEN }} aria-hidden />
-            <p className="font-ga-display text-[18px] italic text-ga-ink">{t('queueDone')}</p>
-          </div>
+          <EmptyState variant="invite" icon="check_circle" title={t('queueDone')} />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {queue.slice(0, QUEUE_CAP).map((w) => (
@@ -342,10 +339,9 @@ function AttachImageModal({
                 <img src={s.thumbUrl} alt={s.altText ?? word.de} className="h-full w-full object-cover" />
                 {on && (
                   <span
-                    className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full text-white"
-                    style={{ background: GREEN }}
+                    className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-ga-green text-ga-card"
                   >
-                    <CheckCircle2 size={14} />
+                    <Check size={14} aria-hidden />
                   </span>
                 )}
               </button>

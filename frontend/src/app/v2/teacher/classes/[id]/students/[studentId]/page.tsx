@@ -3,11 +3,11 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Sparkles, AlertCircle, Mic, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Sparkles, Loader2, Mic, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
 import {
-  GaPageHdr, GaBtn, GaCap, GaStatStrip,
+  GaPageHdr, GaBtn, GaCap, GaGlyph, GaStatStrip,
   TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
   ErrorBanner,
 } from '@/components/ui-v2'
@@ -22,7 +22,6 @@ import {
 //   trả transcript = null).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const VIOLET = '#7C56C8'
 
 interface Metrics {
   totalAssignmentsCompleted: number; averageScore: number
@@ -168,7 +167,7 @@ function StudentReport() {
               ) : assignmentsError ? (
                 <ErrorBanner message={assignmentsError} onRetry={() => void load()} />
               ) : assignments.length === 0 ? (
-                <Empty icon={BookOpen} text={t('assignmentsEmpty')} />
+                <Empty icon={ClipboardList} text={t('assignmentsEmpty')} />
               ) : (
                 <div className="border border-ga-line bg-ga-card">
                   {assignments.map((a, i) => (
@@ -206,7 +205,7 @@ function StudentReport() {
             <TkTabsContent value="analysis">
               {reportLoading ? (
                 <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
-                  <Sparkles size={28} className="mx-auto mb-3 animate-pulse" style={{ color: VIOLET }} />
+                  <Loader2 size={28} className="ga-spin mx-auto mb-3 text-ga-muted" aria-hidden />
                   <p className="text-[14px] text-ga-muted">{t('analysisLoading')}</p>
                 </div>
               ) : reportError ? (
@@ -292,8 +291,7 @@ function SpeakingRow({ s, first, statusLabel }: {
                 {lines.map((l, i) => (
                   <li key={i} className="text-ga-body">
                     <span
-                      className="ga-ui mr-2 text-ga-eyebrow uppercase text-ga-muted"
-                      style={l.role === 'USER' ? { color: VIOLET } : undefined}
+                      className={`ga-ui mr-2 text-ga-eyebrow uppercase ${l.role === 'USER' ? 'text-ga-violet' : 'text-ga-muted'}`}
                     >
                       {l.role === 'USER' ? t('transcriptStudent') : t('transcriptAi')}
                     </span>
@@ -317,7 +315,7 @@ function SpeakingRow({ s, first, statusLabel }: {
 function Empty({ icon: Icon, text }: { icon: typeof Mic; text: string }) {
   return (
     <div className="border border-dashed border-ga-line px-4 py-8 text-center sm:px-6 lg:px-10 lg:py-[40px]">
-      <Icon size={36} className="mx-auto mb-3 text-ga-faint" />
+      <GaGlyph icon={Icon} tone="plain" size="lg" className="mx-auto mb-3" />
       <p className="text-[14px] text-ga-muted">{text}</p>
     </div>
   )
@@ -334,8 +332,8 @@ const METRIC_ROWS: [keyof Metrics, boolean][] = [
 function MetricCard({ title, m, accent }: { title: string; m: Metrics | null; accent: boolean }) {
   const t = useTranslations('v2.teacher.studentDetail')
   return (
-    <div className="border border-ga-line bg-ga-card p-4 lg:p-[18px]" style={accent ? { borderColor: VIOLET } : undefined}>
-      <GaCap className="mb-3 block" style={accent ? { color: VIOLET } : undefined}>{title}</GaCap>
+    <div className={`border bg-ga-card p-4 lg:p-[18px] ${accent ? 'border-ga-violet' : 'border-ga-line'}`}>
+      <GaCap className="mb-3 block">{title}</GaCap>
       <ul className="flex flex-col gap-2">
         {METRIC_ROWS.map(([k, pct]) => (
           <li key={k} className="flex items-center justify-between border-b border-ga-line pb-1.5 text-[13px] last:border-b-0 last:pb-0">
@@ -359,7 +357,7 @@ function Analysis({ report }: { report: Report }) {
 
       {report.topWeaknesses?.length > 0 && (
         <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
-          <GaCap className="mb-3 flex items-center gap-1.5"><AlertCircle size={13} className="text-ga-red" /> {t('weaknessesCap')}</GaCap>
+          <GaCap className="mb-3 block">{t('weaknessesCap')}</GaCap>
           <ul className="list-disc break-words pl-5 text-[13.5px] text-ga-ink">
             {report.topWeaknesses.map((w, i) => <li key={i} className="mb-1">{w}</li>)}
           </ul>
@@ -377,7 +375,7 @@ function Analysis({ report }: { report: Report }) {
 
       {report.aiAdvisoryReport && (
         <div className="border border-ga-line p-4 lg:p-[22px]" style={{ background: 'var(--ga-violet-soft)' }}>
-          <GaCap className="mb-3 flex items-center gap-1.5" style={{ color: VIOLET }}><Sparkles size={14} /> {t('aiRoadmapCap')}</GaCap>
+          <GaCap className="mb-3 block">{t('aiRoadmapCap')}</GaCap>
           <div className="whitespace-pre-line break-words text-[14px] leading-relaxed text-ga-ink">{report.aiAdvisoryReport}</div>
         </div>
       )}

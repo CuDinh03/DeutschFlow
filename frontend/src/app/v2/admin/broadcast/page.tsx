@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, GaIcon, TkModal } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph, GaIcon, TkModal } from '@/components/ui-v2'
+import { TYPE_ICON } from '@/lib/notificationDisplay'
 import { cn } from '@/lib/utils'
 import { useFmt } from '@/lib/i18n/useFmt'
 
@@ -25,7 +25,7 @@ const CAT: Record<string, { color: string; descKey: 'info' | 'action' | 'broadca
 const TPL: { id: string; type: string; icon: string }[] = [
   { id: 'system', type: 'ADMIN_BROADCAST', icon: 'campaign' },
   { id: 'feature', type: 'ADMIN_BROADCAST', icon: 'auto_awesome' },
-  { id: 'review', type: 'REVIEW_DUE', icon: 'library_books' },
+  { id: 'review', type: 'REVIEW_DUE', icon: 'repeat' },
   { id: 'streak', type: 'STREAK_REMINDER', icon: 'local_fire_department' },
 ]
 
@@ -298,7 +298,7 @@ export default function V2AdminBroadcastPage() {
             className="flex gap-3.5 border border-ga-line px-4 py-4 lg:px-[18px]"
             style={{ background: `${catColor}10`, borderLeft: `3px solid ${catColor}` }}
           >
-            <Megaphone size={22} aria-hidden style={{ color: catColor, flexShrink: 0 }} />
+            <GaGlyph name={TYPE_ICON[tpl.type] ?? 'campaign'} size="md" />
             <div className="min-w-0">
               <div
                 className="mb-1.5 inline-flex border bg-white px-1.5 py-[3px] text-[9px] font-bold tracking-[0.06em]"

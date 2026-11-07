@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Star, Download, Tag, X } from 'lucide-react'
+import { Sparkles, Star, Download, Tag, CircleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateAiImages } from '@/lib/aiImageApi'
 import type { MediaAsset } from '@/lib/mediaApi'
 import { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tạo ảnh AI (GaAiImages) — violet, 2-col (config · gallery).
@@ -18,7 +18,6 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 // the real error state. preset/style/size are free-form (prompt-builder interpolates them).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const VIOLET = '#7C56C8'
 const STYLES = ['Ảnh thực tế', 'Minh hoạ', 'Hoạt hình', 'Phẳng (flat)']
 const RATIOS: [string, string, string][] = [
   ['1:1', '1024²', '1024x1024'],
@@ -89,7 +88,7 @@ export default function V2AiImagesPage() {
                     fontWeight: on ? 600 : 400,
                     background: on ? 'var(--ga-side-active)' : 'transparent',
                     color: on ? 'var(--ga-ink)' : 'var(--ga-muted)',
-                    border: `1px solid ${on ? VIOLET : 'var(--ga-line)'}`,
+                    border: `1px solid ${on ? 'var(--ga-violet)' : 'var(--ga-line)'}`,
                   }}
                 >
                   {s}
@@ -155,7 +154,7 @@ export default function V2AiImagesPage() {
           ) : phase === 'error' ? (
             <div className="grid h-full place-items-center text-center">
               <div>
-                <X size={32} className="mx-auto mb-3 text-ga-red" />
+                <GaGlyph icon={CircleAlert} tone="red" size="lg" className="mx-auto mb-3" />
                 <p className="font-ga-display text-[20px] font-medium text-ga-ink">Không tạo được ảnh</p>
                 <p className="ga-ui mx-auto mt-1.5 max-w-sm text-[13.5px] text-ga-muted">{error}</p>
                 <GaBtn variant="primary" className="mt-4" onClick={gen}>Thử lại</GaBtn>
@@ -183,8 +182,7 @@ export default function V2AiImagesPage() {
                             type="button"
                             aria-label="Yêu thích"
                             onClick={() => setFav((f) => ({ ...f, [i]: !f[i] }))}
-                            className="absolute right-2.5 top-2.5 grid h-[30px] w-[30px] place-items-center"
-                            style={{ background: fav[i] ? 'var(--ga-yellow)' : 'rgba(255,255,255,0.9)', color: fav[i] ? 'var(--ga-ink)' : 'var(--ga-muted)' }}
+                            className={`absolute right-2.5 top-2.5 grid h-[30px] w-[30px] place-items-center ${fav[i] ? 'bg-ga-yellow text-ga-ink' : 'bg-ga-card text-ga-muted'}`}
                           >
                             <Star size={15} fill={fav[i] ? 'currentColor' : 'none'} />
                           </button>

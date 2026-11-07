@@ -183,7 +183,7 @@ export default function OrgCurriculaPage() {
           <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
             {/* Danh sách bộ giáo trình + phiên bản */}
             <div className="flex flex-col gap-3">
-              {curricula.length === 0 && <EmptyState title={t('emptyList')} description={t('listHint')} />}
+              {curricula.length === 0 && <EmptyState icon="menu_book" title={t('emptyList')} description={t('listHint')} />}
               {curricula.map((c) => (
                 <div key={c.id} className="border border-ga-line bg-ga-card p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -221,7 +221,7 @@ export default function OrgCurriculaPage() {
             <div className="min-w-0">
               {detailLoading && <LoadingState variant="skeleton" rows={5} />}
               {!detailLoading && !detail && (
-                <EmptyState title={t('detailEmpty')} description={t('detailEmptyHint')} />
+                <EmptyState icon="menu_book" title={t('detailEmpty')} description={t('detailEmptyHint')} />
               )}
               {!detailLoading && detail && (
                 <div className="flex flex-col gap-4">

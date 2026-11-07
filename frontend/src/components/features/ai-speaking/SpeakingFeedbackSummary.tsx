@@ -85,7 +85,7 @@ export function SpeakingFeedbackSummary({ onSuggestionSelect, phonemeLoading, su
           disabled={suggestionsLoading}
           className="flex w-full items-center gap-2 rounded-ga border border-ga-line bg-ga-surface p-3 transition-colors hover:border-ga-accent disabled:opacity-60"
         >
-          <Lightbulb size={14} className="shrink-0 text-ga-gold" aria-hidden />
+          <Lightbulb size={14} className="shrink-0 text-ga-muted" aria-hidden />
           <span className="text-[12px] font-semibold text-ga-ink">
             {suggestionsLoading ? t("suggestionsLoading") : t("suggestionsRequest")}
           </span>

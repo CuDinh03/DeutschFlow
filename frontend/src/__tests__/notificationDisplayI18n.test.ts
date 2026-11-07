@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TYPE_ICON, TYPE_TONE, dayBucket, notifTitle, relTime, resolveNotificationHref, type NotifT } from '@/lib/notificationDisplay'
+import { TYPE_ICON, notifTone, dayBucket, notifTitle, relTime, resolveNotificationHref, type NotifT } from '@/lib/notificationDisplay'
 import chromeVi from '../../messages/v2/chrome.vi.json'
 import chromeDe from '../../messages/v2/chrome.de.json'
 
@@ -50,7 +50,7 @@ describe('notificationDisplay — i18n', () => {
     expect(notifTitle(item('TIMESHEET_PERIOD_RETURNED'))).toBe('Kỳ công bị trả lại')
     for (const type of ['SCHEDULE_CHANGE_REJECTED', 'TIMESHEET_PERIOD_APPROVED', 'TIMESHEET_PERIOD_RETURNED']) {
       expect(TYPE_ICON[type]).toBeTruthy()
-      expect(TYPE_TONE[type]).toMatch(/^var\(--ga-/)
+      expect(['navy', 'red', 'green', 'plain']).toContain(notifTone(type))
     }
   })
 
@@ -60,7 +60,7 @@ describe('notificationDisplay — i18n', () => {
     expect(notifTitle(item('BIRTH_DATE_UPDATED'), tDe)).toBe('Geburtsdatum aktualisiert')
     expect(notifTitle(item('BIRTH_DATE_UPDATED'))).toBe('Ngày sinh được cập nhật')
     expect(TYPE_ICON.BIRTH_DATE_UPDATED).toBeTruthy()
-    expect(TYPE_TONE.BIRTH_DATE_UPDATED).toMatch(/^var\(--ga-/)
+    expect(notifTone('BIRTH_DATE_UPDATED')).toBe('navy')
     // Về hồ sơ của chính mình, không phải danh sách lớp: giá trị bị sửa nằm ở đó.
     expect(resolveNotificationHref(item('BIRTH_DATE_UPDATED'), 'student')).toBe('/v2/profile')
   })

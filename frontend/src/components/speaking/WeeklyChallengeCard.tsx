@@ -3,13 +3,13 @@
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Calendar, ChevronDown, ChevronUp, Mic, SendHorizontal } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Mic, SendHorizontal } from "lucide-react";
 import { getAccessToken } from "@/lib/authSession";
 import { apiMessage, httpStatus } from "@/lib/api";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import { weeklySpeakingApi, type WeeklyPromptResponse, type WeeklySubmissionResponse } from "@/lib/weeklySpeakingApi";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
-import { CYAN, PURPLE } from "./types";
+import { CYAN } from "./types";
 
 type Props = {
   /** Must match learner CEFR band used on the backend (e.g. A2, B1). */
@@ -194,11 +194,8 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="min-w-0">
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold mb-2"
-            style={{ background: `${PURPLE}18`, border: `1px solid ${PURPLE}40`, color: PURPLE }}
-          >
-            <Calendar size={11} /> {t("weeklyBadge")}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold mb-2 bg-ga-side-active text-ga-muted">
+            <CalendarDays size={11} className="text-ga-muted" aria-hidden /> {t("weeklyBadge")}
           </div>
           <h3 className="text-[#121212] font-bold text-sm leading-snug pr-2 break-words">{prompt.title}</h3>
           <p className="text-[11px] mt-1 text-[#64748B]">
@@ -206,9 +203,9 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
           </p>
         </div>
         {expanded ? (
-          <ChevronUp size={18} className="text-[#94A3B8] flex-shrink-0 mt-1" />
+          <ChevronUp size={18} className="text-ga-subtle flex-shrink-0 mt-1" aria-hidden />
         ) : (
-          <ChevronDown size={18} className="text-[#94A3B8] flex-shrink-0 mt-1" />
+          <ChevronDown size={18} className="text-ga-subtle flex-shrink-0 mt-1" aria-hidden />
         )}
       </button>
 
@@ -276,21 +273,16 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
                   type="button"
                   onClick={() => void toggleWeeklyMic()}
                   disabled={submitting}
-                  className="flex-shrink-0 w-11 h-11 rounded-[12px] flex items-center justify-center self-start border bg-[#F8FAFC]"
-                  style={{
-                    borderColor:
-                      weeklyRec === "listening" ? "rgba(248,113,113,0.55)" : "#E2E8F0",
-                    backgroundColor:
-                      weeklyRec === "listening"
-                        ? "rgba(254,226,226,0.5)"
-                        : weeklyRec === "processing"
-                          ? "#F1F5F9"
-                          : "#F8FAFC",
-                    color: weeklyRec === "listening" ? "#dc2626" : CYAN,
-                  }}
+                  className={`flex-shrink-0 w-11 h-11 rounded-[12px] flex items-center justify-center self-start border ${
+                    weeklyRec === "listening"
+                      ? "border-ga-red bg-ga-red-soft text-ga-red"
+                      : weeklyRec === "processing"
+                        ? "border-ga-line bg-ga-side-active text-ga-ink"
+                        : "border-ga-line bg-ga-surface text-ga-ink"
+                  }`}
                   title={weeklyRec === "listening" ? t("micPressToStop") : t("micPressToRecord")}
                 >
-                  <Mic size={18} />
+                  <Mic size={18} aria-hidden />
                 </button>
               </div>
               {weeklyRec === "listening" && (
@@ -305,15 +297,10 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
                 disabled={submitting || weeklyRec !== "idle"}
                 onClick={() => void handleSubmit()}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-[14px] text-sm font-bold ${
-                  submitting || weeklyRec !== "idle" ? "bg-slate-300 text-slate-700" : "text-white"
+                  submitting || weeklyRec !== "idle" ? "bg-ga-side-active text-ga-muted" : "bg-ga-ink text-ga-card"
                 }`}
-                style={
-                  submitting || weeklyRec !== "idle"
-                    ? undefined
-                    : { background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})` }
-                }
               >
-                <SendHorizontal size={16} />
+                <SendHorizontal size={16} aria-hidden />
                 {submitting ? t("weeklySubmitting") : t("weeklySubmit")}
               </button>
             </>

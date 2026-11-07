@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Briefcase } from "lucide-react";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import { occupationApi } from "@/lib/occupationApi";
 import { occupationName, type OccupationDetail } from "@/lib/occupationTypes";
@@ -90,8 +89,7 @@ export function OccupationInterviewCard({ occupationCode, cefrLevel, chatHref, q
 
   return (
     <section aria-label={tc("occupation.cap")} className="rounded-ga border border-ga-ink bg-ga-card p-4 space-y-3">
-      <p className="ga-ui flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ga-gold">
-        <Briefcase size={13} aria-hidden />
+      <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">
         {tc("occupation.cap")}
       </p>
       <div className="flex items-center gap-3">

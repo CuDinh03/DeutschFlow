@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { BookOpen, Check, CircleHelp, Clock, Eye, EyeOff, Headphones, Lightbulb, PenTool, Puzzle, X } from 'lucide-react'
+import { BookOpen, Check, CircleHelp, Clock, Eye, EyeOff, Headphones, Lightbulb, PenLine, Puzzle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useImmersiveChrome } from '@/components/ui-v2/useImmersiveChrome'
 import { formatClock } from './practiceModel'
@@ -47,7 +47,7 @@ const SECTION_ICON: Record<string, typeof BookOpen> = {
   LESEN: BookOpen,
   SPRACHBAUSTEINE: Puzzle,
   HOEREN: Headphones,
-  SCHREIBEN: PenTool,
+  SCHREIBEN: PenLine,
 }
 
 /**

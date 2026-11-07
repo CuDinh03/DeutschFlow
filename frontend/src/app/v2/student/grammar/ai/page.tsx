@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Brain, BookOpen, CheckCircle2, Globe, RotateCcw } from 'lucide-react'
+import { Brain, BookOpen, CheckCircle2, Globe, Landmark, RotateCcw } from 'lucide-react'
 import api from '@/lib/api'
 import { recordAbilityScore, scorePercentToItem } from '@/lib/abilityApi'
 import { localAiApi } from '@/lib/localAiApi'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { useTracking } from '@/hooks/useTracking'
-import { GaCap, GaCard, GaPageHdr, LoadingState, TkSeg } from '@/components/ui-v2'
+import { GaCap, GaCard, GaGlyph, GaPageHdr, LoadingState, TkSeg } from '@/components/ui-v2'
 
 /**
  * /v2/student/grammar/ai — công cụ NGỮ PHÁP AI (vỏ Galerie).
@@ -263,9 +263,7 @@ export default function V2StudentGrammarAiPage() {
               {culturalResult && (
                 <GaCard className="p-4 lg:p-6">
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="shrink-0 text-[20px]" aria-hidden>
-                      🇩🇪
-                    </span>
+                    <GaGlyph icon={Landmark} size="md" tone="navy" />
                     <p className="min-w-0 break-words font-ga-display text-[20px] font-medium text-ga-ink">{culturalResult.topic}</p>
                   </div>
                   <p className="ga-ui whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ga-muted">

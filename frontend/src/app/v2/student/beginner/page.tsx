@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, CheckCircle2, Mic, Sparkles, Star, Volume2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, CircleCheck, Mic, Volume2 } from 'lucide-react'
 import { beginnerApi, type BeginnerItem, type BeginnerSessionResponse } from '@/lib/beginnerApi'
 import { celebrateHref, readFirstCompletion } from '@/features/onboarding/celebrate'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
-import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaCard, GaGlyph, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /v2/student/beginner — "Ngày 1", the very first session (Galerie shell).
@@ -100,10 +100,7 @@ export default function V2StudentBeginnerPage() {
 
             {/* Hero */}
             <div className="bg-ga-ink p-5 text-ga-bg lg:p-7">
-              <GaCap className="mb-2 flex items-center gap-1.5" style={{ color: '#A39E94' }}>
-                <Sparkles size={13} style={{ color: 'var(--ga-yellow)' }} aria-hidden />
-                {t('heroCap')}
-              </GaCap>
+              <GaCap className="mb-2 text-ga-subtle">{t('heroCap')}</GaCap>
               <p className="font-ga-display text-[22px] font-medium sm:text-[26px] lg:text-[28px]">{t('heroTitle')}</p>
               <p className="ga-ui mt-2 max-w-2xl text-[14.5px] leading-relaxed" style={{ color: '#A39E94' }}>
                 {session?.welcomeMessage}
@@ -149,12 +146,7 @@ export default function V2StudentBeginnerPage() {
               className="flex flex-wrap items-center gap-4 border p-5"
               style={{ background: 'var(--ga-yellow-soft)', borderColor: 'color-mix(in srgb, var(--ga-gold) 40%, transparent)' }}
             >
-              <span
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-ga"
-                style={{ background: 'var(--ga-yellow)', color: 'var(--ga-ink)' }}
-              >
-                <Mic size={20} aria-hidden />
-              </span>
+              <GaGlyph icon={Mic} size="lg" tone="yellow" />
               <div className="min-w-0 flex-1">
                 <p className="text-[14.5px] font-semibold text-ga-ink break-words">{t('speakingCta')}</p>
                 <p className="ga-ui mt-0.5 text-[13px] text-ga-muted break-words">{session?.firstSpeakingPrompt}</p>
@@ -180,7 +172,7 @@ export default function V2StudentBeginnerPage() {
                   className="inline-flex items-center gap-2 font-ga-display text-[20px] font-medium"
                   style={{ color: 'var(--ga-green)' }}
                 >
-                  <Star size={16} className="fill-current" aria-hidden />
+                  <CircleCheck size={16} className="text-ga-green" aria-hidden />
                   {t('completedTitle')}
                 </p>
                 <p className="ga-ui text-[13px] text-ga-muted">{session?.encouragement}</p>

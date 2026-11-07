@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Plus, Pencil, Siren, Wrench } from 'lucide-react'
+import { Check, Plus, Pencil, Siren, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { GaPageHdr, GaBtn, GaCap, TkModal, ConfirmDialog } from '@/components/ui-v2'
 import {
   listMaintenanceWindows,
@@ -72,11 +73,11 @@ function fmtWhen(f: Fmt, iso: string | null): string {
   return f.dateTime(d, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 }
 
-const STATUS_STYLE: Record<MaintenanceWindowDto['status'], CSSProperties> = {
-  SCHEDULED: { background: 'var(--ga-yellow-soft, #FFF3BF)', color: '#8A6C00' },
-  ACTIVE: { background: '#FAE6E2', color: '#A8241C' },
-  COMPLETED: { background: '#E1F0E3', color: '#2E6E41' },
-  CANCELLED: { background: 'var(--ga-side-active, #EFEBDD)', color: 'var(--ga-muted, #6A6149)' },
+const STATUS_CLASS: Record<MaintenanceWindowDto['status'], string> = {
+  SCHEDULED: 'bg-ga-yellow-soft text-ga-gold',
+  ACTIVE: 'bg-ga-red-soft text-ga-red',
+  COMPLETED: 'bg-ga-green-soft text-ga-green',
+  CANCELLED: 'bg-ga-side-active text-ga-muted',
 }
 
 type PendingAction =
@@ -275,10 +276,10 @@ export default function V2AdminMaintenancePage() {
             <GaBtn
               variant="ghost"
               size="sm"
-              className="border-red-700 text-red-700 hover:bg-red-50"
+              className="border-ga-red text-ga-red hover:bg-ga-red-soft"
               onClick={() => setPending({ kind: 'emergency' })}
             >
-              <Siren size={15} /> {t('emergency')}
+              <Siren size={15} aria-hidden /> {t('emergency')}
             </GaBtn>
             <GaBtn variant="yellow" size="sm" onClick={openCreate}>
               <Plus size={15} /> {t('createNew')}
@@ -290,15 +291,14 @@ export default function V2AdminMaintenancePage() {
       <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {active && (
           <div
-            className="mb-5 flex flex-wrap items-center gap-3 border px-4 py-3.5"
-            style={{ background: '#FAE6E2', borderColor: '#E8C7C0' }}
+            className="mb-5 flex flex-wrap items-center gap-3 border border-ga-line bg-ga-red-soft px-4 py-3.5"
           >
-            <Wrench size={18} style={{ color: '#A8241C' }} aria-hidden />
+            <TriangleAlert size={18} className="shrink-0 text-ga-red" aria-hidden />
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-bold" style={{ color: '#7C1D16' }}>
+              <p className="text-[14px] font-bold text-ga-red">
                 {t('activeBanner.title')}
               </p>
-              <p className="ga-ui text-[12.5px]" style={{ color: '#A8241C' }}>
+              <p className="ga-ui text-[12.5px] text-ga-red">
                 {active.title}
                 {' · '}
                 {active.endsAtUtc ? t('activeBanner.until', { time: fmtWhen(fmt, active.endsAtUtc) }) : t('activeBanner.noEnd')}
@@ -341,7 +341,7 @@ export default function V2AdminMaintenancePage() {
                 className="flex flex-wrap items-start gap-3.5 border border-ga-line bg-ga-card px-4 py-4 lg:flex-nowrap lg:px-[18px]"
                 style={{ opacity: w.status === 'COMPLETED' || w.status === 'CANCELLED' ? 0.65 : 1 }}
               >
-                <span className="px-2 py-1 text-[10.5px] font-bold" style={STATUS_STYLE[w.status]}>
+                <span className={cn('px-2 py-1 text-[10.5px] font-bold', STATUS_CLASS[w.status])}>
                   {t(`status.${w.status}`)}
                 </span>
                 <div className="min-w-0 flex-1">

@@ -5,7 +5,6 @@ import { motion, useAnimation, useMotionValue, useTransform } from 'framer-motio
 import { Check, RefreshCw, Volume2, X } from 'lucide-react'
 import { speakGerman } from '@/lib/speechDe'
 import { ARTICLE_COLOR, cleanExample, type WordListItem } from '@/lib/vocabWords'
-import { GaIcon } from '@/components/ui-v2'
 
 /**
  * SwipeCard — thẻ vuốt der/die/das (port từ /student/swipe-cards, giữ nguyên cơ chế).
@@ -29,31 +28,10 @@ export type SwipeCardData = {
   phonetic: string
   sentence: string
   sentenceEN: string
-  /** Tên icon trang trí (bảng `GaIcon`), suy từ id từ — KHÔNG phải dữ liệu backend. */
-  iconName: string
   level: string
   /** Đáp án tiếng Đức: "Der Tisch" (danh từ) hoặc lemma — so khớp chính xác ở chế độ type. */
   expectedAnswer: string
 }
-
-/**
- * Hoạ tiết thẻ: thuần trang trí, chọn theo id từ để cùng một từ luôn ra cùng hình. Trước đây là
- * mảng emoji — mỗi hệ điều hành vẽ một kiểu, luôn nhiều màu, không nhận `currentColor` — nên ba mặt
- * thẻ (nền gradient, mặt trước, mặt sau) hiện ba sắc độ khác hẳn phần còn lại của giao diện.
- * Tên phải CÓ THẬT trong bảng của `GaIcon`; `gaIconCoverage.test.ts` canh điều đó.
- */
-const CARD_ICONS = [
-  'menu_book',
-  'target',
-  'auto_awesome',
-  'lightbulb',
-  'draw',
-  'record_voice_over',
-  'star',
-  'alphabet',
-  'library_books',
-  'school',
-]
 
 export const CARD_COLOR: Record<
   CardType,
@@ -148,7 +126,6 @@ export function mapWordToSwipe(w: WordListItem, locale: string): SwipeCardData {
     phonetic: w.phonetic?.trim() || '',
     sentence: cleanExample(w.exampleDe ?? w.example),
     sentenceEN: w.exampleEn ?? '',
-    iconName: CARD_ICONS[Math.abs(w.id) % CARD_ICONS.length],
     level: (w.cefrLevel ?? 'A1').toUpperCase(),
     expectedAnswer: articleCap ? `${articleCap} ${w.baseForm}` : w.baseForm,
   }
@@ -270,7 +247,7 @@ export function SwipeCard({
             className="grid h-16 w-16 place-items-center rounded-full"
             style={{ background: ARTICLE_COLOR.das }}
           >
-            <Check size={32} className="text-white" strokeWidth={3} aria-hidden />
+            <Check size={32} className="text-ga-card" aria-hidden />
           </span>
           <span className="ga-ui mt-1 text-[16px] font-bold" style={{ color: ARTICLE_COLOR.das }}>
             {t('learned')}
@@ -294,7 +271,7 @@ export function SwipeCard({
             className="grid h-16 w-16 place-items-center rounded-full"
             style={{ background: ARTICLE_COLOR.die }}
           >
-            <X size={30} className="text-white" strokeWidth={3} aria-hidden />
+            <X size={30} className="text-ga-card" aria-hidden />
           </span>
           <span className="ga-ui mt-1 text-[16px] font-bold" style={{ color: ARTICLE_COLOR.die }}>
             {t('review')}
@@ -424,7 +401,6 @@ export function SwipeCard({
                 <Volume2 size={13} aria-hidden />
                 {audioPlaying ? '…' : t('listen')}
               </button>
-              <GaIcon name={card.iconName} size={20} className="text-white/90" />
             </div>
           </div>
         </div>
@@ -463,7 +439,6 @@ export function SwipeCard({
           {/* Mặt trước — mạo từ + từ */}
           <div className="absolute inset-0 flex flex-col" style={{ backfaceVisibility: 'hidden' }}>
             <div className="flex flex-1 flex-col items-center justify-center px-6" style={{ background: c.gradient }}>
-              <GaIcon name={card.iconName} size={40} className="mb-3 text-white/90" />
               <span className="ga-ui mb-2 rounded-ga-pill bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white/90">
                 {c.label}
               </span>
@@ -498,9 +473,6 @@ export function SwipeCard({
                     {card.english}
                   </p>
                 </div>
-                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-ga border-2 border-white/30 bg-white/20">
-                  <GaIcon name={card.iconName} size={26} className="text-white" />
-                </span>
               </div>
             </div>
             <div className="flex flex-1 flex-col gap-3 overflow-hidden px-6 py-4">

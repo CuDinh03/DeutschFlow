@@ -152,37 +152,37 @@ export const adminNav: RoleNav = {
     {
       items: [
         { id: 'admin', label: 'Tổng quan', href: '/v2/admin', icon: 'dashboard' },
-        { id: 'admin-revenue', label: 'Doanh thu', href: '/v2/admin/revenue', icon: 'payments' },
+        { id: 'admin-revenue', label: 'Doanh thu', href: '/v2/admin/revenue', icon: 'paid' },
         { id: 'admin-tokens', label: 'AI Token', href: '/v2/admin/tokens', icon: 'toll' },
         { id: 'admin-orgs', label: 'Tổ chức', href: '/v2/admin/organizations', icon: 'corporate_fare' },
         { id: 'admin-free-teachers', label: 'Giáo viên tự do', href: '/v2/admin/free-teachers', icon: 'person_search' },
         { id: 'admin-users', label: 'Người dùng', href: '/v2/admin/users', icon: 'group' },
-        { id: 'admin-classes', label: 'Lớp học', href: '/v2/admin/classes', icon: 'groups' },
+        { id: 'admin-classes', label: 'Lớp học', href: '/v2/admin/classes', icon: 'school_building' },
         { id: 'admin-plans', label: 'Gói', href: '/v2/admin/plans', icon: 'sell' },
-        { id: 'admin-mock-packs', label: 'Bộ đề thi', href: '/v2/admin/mock-exam-packs', icon: 'quiz' },
+        { id: 'admin-mock-packs', label: 'Bộ đề thi', href: '/v2/admin/mock-exam-packs', icon: 'layers' },
         // 04/11/2026: chọn học viên được dùng luyện đề telc (practice.telc.access / allowlist).
-        { id: 'admin-practice-access', label: 'Quyền luyện đề', href: '/v2/admin/practice-access', icon: 'fact_check' },
+        { id: 'admin-practice-access', label: 'Quyền luyện đề', href: '/v2/admin/practice-access', icon: 'key' },
         { id: 'admin-vocab', label: 'Từ vựng', href: '/v2/admin/vocabulary', icon: 'menu_book' },
         { id: 'admin-grammar-review', label: 'Duyệt ngữ pháp', href: '/v2/admin/grammar-review', icon: 'spellcheck' },
         // Đợt 2b A+B+E: câu hỏi + từ chuyên môn AI tạo cho từng nghề → giáo viên tiếng Đức duyệt.
         { id: 'admin-occupation-review', label: 'Duyệt câu hỏi nghề', href: '/v2/admin/occupation-review', icon: 'work' },
         { id: 'admin-media', label: 'Ảnh', href: '/v2/admin/media', icon: 'photo_library' },
-        { id: 'admin-ai', label: 'Cấu hình AI', href: '/v2/admin/ai-config', icon: 'tune' },
+        { id: 'admin-ai', label: 'Cấu hình AI', href: '/v2/admin/ai-config', icon: 'brain_cog' },
         { id: 'admin-broadcast', label: 'Thông báo', href: '/v2/admin/broadcast', icon: 'campaign' },
         { id: 'admin-maintenance', label: 'Bảo trì', href: '/v2/admin/maintenance', icon: 'build' },
         { id: 'admin-marketing', label: 'Tăng trưởng', href: '/v2/admin/marketing', icon: 'trending_up' },
         { id: 'admin-analytics', label: 'Phân tích', href: '/v2/admin/analytics', icon: 'monitoring' },
         { id: 'admin-weekly', label: 'Speaking tuần', href: '/v2/admin/weekly-speaking', icon: 'mic' },
         // G.1 Golden set: giám khảo người chấm tay phiên mock → đồng thuận máy↔người (gate ra mắt).
-        { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'grading' },
+        { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'scale' },
         // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
-        { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'quiz' },
+        { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'library_big' },
         // N0.6/T.3: chi phí AI thật theo feature × model × phiên (token, giây STT, USD/VND ước tính) từ ledger.
-        { id: 'admin-ai-usage', label: 'AI usage', href: '/v2/admin/ai-usage', icon: 'query_stats' },
-        { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'assessment' },
-        { id: 'admin-personas', label: 'Persona', href: '/v2/admin/personas', icon: 'record_voice_over' },
+        { id: 'admin-ai-usage', label: 'AI usage', href: '/v2/admin/ai-usage', icon: 'gauge' },
+        { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'file_chart' },
+        { id: 'admin-personas', label: 'Persona', href: '/v2/admin/personas', icon: 'theater_comedy' },
         { id: 'admin-interviews', label: 'Phỏng vấn', href: '/v2/admin/interviews', icon: 'forum' },
-        { id: 'admin-audit', label: 'Nhật ký', href: '/v2/admin/audit', icon: 'admin_panel_settings' },
+        { id: 'admin-audit', label: 'Nhật ký', href: '/v2/admin/audit', icon: 'history' },
         { id: 'admin-training', label: 'Training data', href: '/v2/admin/training-dataset', icon: 'database' },
         { id: 'admin-settings', label: 'Cấu hình', href: '/v2/admin/settings', icon: 'settings' },
       ],
@@ -213,7 +213,7 @@ const ORG_ITEM = {
   // ẩn với MANAGER ngay trong trang; backend gác assertOrgOwner). KHÔNG ownerOnly: MANAGER cần xem.
   certificates: { id: 'org-certificates', label: 'Chứng nhận', href: '/v2/org/certificates', icon: 'workspace_premium' },
   schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
-  teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
+  teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'co_present' },
   analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
   // "Tài chính" đã gỡ (Đợt 0 OWNER, F01): trang cũ chỉ là hóa đơn license đội lốt doanh thu.
   // Slot này để dành cho Tài chính trung tâm THẬT (học phí/thu chi) ở Đợt 2; /v2/org/finance
@@ -614,7 +614,7 @@ export const studentAreas: RoleAreas = {
       glyph: 'thithu',
       match: ['/v2/student/mock-exam', '/v2/student/assessment', '/v2/student/exam-plan'],
       local: [
-        { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school', glyph: 'muctieu' },
+        { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school', glyph: 'thithu' },
       ],
     },
     {

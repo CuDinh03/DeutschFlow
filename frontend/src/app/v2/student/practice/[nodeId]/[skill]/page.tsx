@@ -4,7 +4,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, Check, CircleCheck, CircleX, Lightbulb, Mic, RefreshCw, Sparkles, TreeDeciduous, Trophy, Volume2, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  BookOpen,
+  Check,
+  CircleCheck,
+  CircleX,
+  Headphones,
+  Lightbulb,
+  Mic,
+  PenLine,
+  RefreshCw,
+  Sparkles,
+  TreeDeciduous,
+  Trophy,
+  Volume2,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { pickExplanation } from '@/lib/practice/explanation'
@@ -14,8 +31,8 @@ import { LeafProgress } from '@/components/practice/LeafProgress'
 import { SeedlingWait } from '@/components/practice/SeedlingWait'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
-import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
-import { GaCap, GaCard, ErrorBanner, LoadingState, SkillIcon } from '@/components/ui-v2'
+import { SKILL_COLORS, SKILL_ICON, SKILL_LABELS } from '@/lib/skills'
+import { GaCap, GaCard, GaGlyph, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { LessonShell } from '@/components/learn/LessonShell'
 import {
   clearLessonDraft,
@@ -762,12 +779,7 @@ export default function V2StudentPracticeRunnerPage() {
           {/* Đầu bài + điểm hiện tại */}
           {session && (
             <GaCard className="flex items-center gap-3 p-4 lg:gap-4 lg:p-5">
-              <span
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-full"
-                style={{ background: accent }}
-              >
-                <SkillIcon paths={SKILL_ICONS[skill]} size={22} color="#FFFFFF" strokeWidth={2.4} />
-              </span>
+              <GaGlyph icon={SKILL_ICON[skill]} size="lg" tone="navy" />
               <div className="min-w-0 flex-1">
                 <p className="break-words text-[15px] font-semibold text-ga-ink">
                   {SKILL_LABELS[skill]} · {SKILL_LABELS_DE[skill]}
@@ -817,8 +829,7 @@ export default function V2StudentPracticeRunnerPage() {
                 type="button"
                 onClick={() => void handleGenerateNext()}
                 disabled={generatingNext}
-                className="ga-ui mt-4 inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0"
-                style={{ background: accent }}
+                className="ga-ui mt-4 inline-flex min-h-10 items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0"
               >
                 {generatingNext ? (
                   <RefreshCw size={14} className="animate-spin" aria-hidden />
@@ -833,10 +844,7 @@ export default function V2StudentPracticeRunnerPage() {
           {/* Bài đọc (LESEN) */}
           {readingPassage && (
             <GaCard className="p-4 lg:p-5" style={{ borderColor: accent }}>
-              <div className="mb-3 flex items-center gap-2">
-                <BookOpen size={15} className="shrink-0" style={{ color: accent }} aria-hidden />
-                <GaCap>{readingPassage.text_type || 'Lesetext'}</GaCap>
-              </div>
+              <GaCap className="mb-3">{readingPassage.text_type || 'Lesetext'}</GaCap>
               <p className="ga-ui whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ga-ink">
                 {readingPassage.text_de}
               </p>
@@ -885,11 +893,11 @@ export default function V2StudentPracticeRunnerPage() {
                   submitResult.scorePercent >= 60 ? 'var(--ga-green-soft)' : 'var(--ga-yellow-soft)',
               }}
             >
-              <Trophy
-                size={36}
+              <GaGlyph
+                icon={Trophy}
+                size="lg"
+                tone={submitResult.scorePercent >= 60 ? 'green' : 'yellow'}
                 className="mx-auto mb-3"
-                style={{ color: submitResult.scorePercent >= 60 ? 'var(--ga-green)' : 'var(--ga-orange)' }}
-                aria-hidden
               />
               <p className="font-ga-display text-[24px] font-medium text-ga-ink lg:text-[30px]">
                 {submitResult.scorePercent}%
@@ -924,13 +932,8 @@ export default function V2StudentPracticeRunnerPage() {
                   disabled={generatingNext}
                   className={
                     submitResult.scorePercent >= MASTERY_PERCENT
-                      ? 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga border-2 bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold transition-colors hover:bg-ga-surface disabled:opacity-60 lg:min-h-0'
-                      : 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0'
-                  }
-                  style={
-                    submitResult.scorePercent >= MASTERY_PERCENT
-                      ? { borderColor: accent, color: accent }
-                      : { background: accent }
+                      ? 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga border-2 border-ga-line bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface disabled:opacity-60 lg:min-h-0'
+                      : 'ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0'
                   }
                 >
                   {generatingNext ? (

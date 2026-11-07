@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Mic } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import api from '@/lib/api'
 import { WeeklyChallengeCard } from '@/components/speaking/WeeklyChallengeCard'
 import {
@@ -153,7 +153,7 @@ export default function WeeklySpeakingClient() {
             href="/v2/student/speaking"
             className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
           >
-            <Mic size={14} aria-hidden /> {t('backToSpeaking')}
+            <ArrowLeft size={14} aria-hidden /> {t('backToSpeaking')}
           </a>
         }
       />

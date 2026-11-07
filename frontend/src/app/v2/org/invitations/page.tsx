@@ -11,7 +11,7 @@ import {
   type OrgInvitation, type OrgSummary, type OrgRole,
 } from '@/lib/orgApi'
 import { seatMetaOf } from '@/lib/orgSeats'
-import { GaPageHdr, GaBtn, GaCap, GaStatStrip, ConfirmDialog } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph, GaStatStrip, ConfirmDialog } from '@/components/ui-v2'
 import { OrgWriteGate } from '../../OrgLicenseGate'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ export default function V2OrgInvitationsPage() {
               const isPending = iv.status === 'PENDING'
               return (
                 <div key={iv.id} className="flex flex-wrap items-center gap-3.5 px-4 py-3.5 lg:flex-nowrap lg:px-5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center" style={{ background: 'var(--ga-side-active)' }}><Mail size={15} className="text-ga-muted" /></span>
+                  <GaGlyph icon={Mail} tone="plain" size="md" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[14px] font-semibold text-ga-ink">{iv.email}</div>
                     <div className="text-[12px] text-ga-muted">{t('sentMeta', { role: roleLabel(iv.role), date: fmtDate(iv.createdAt) })}</div>
