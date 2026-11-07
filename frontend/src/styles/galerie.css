@@ -304,3 +304,23 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
 @media (prefers-reduced-motion: reduce) {
   .ga-pupil, .ga-fix-wrong, .ga-fix-line, .ga-fix-why { transition: none; }
 }
+
+/* ── Khung làm bài luyện thi (đợt (a) 07/11/2026) ──────────────────────────────
+   Thanh cuộn của hai cột chỉ hiện khi đang lướt: SplitPanes gắn [data-scrolling] trong lúc cuộn
+   và gỡ sau 900ms đứng yên. Bộ chọn có `.ga-scope` để thắng luật thanh cuộn chung
+   `html:not(.native) *` trong globals.css. Đồng hồ còn 1 phút nhấp nháy nhẹ (tắt khi giảm chuyển động). */
+.ga-scope .ga-autoscroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  overscroll-behavior: contain;
+}
+.ga-scope .ga-autoscroll[data-scrolling] {
+  scrollbar-color: var(--ga-line-strong) transparent;
+}
+.ga-timer-pulse { animation: gaTimerPulse 1s var(--ga-ease-out) infinite; }
+@keyframes gaTimerPulse { 50% { opacity: 0.6; } }
+.ga-evidence-glow { animation: gaEvidenceGlow 1.2s var(--ga-ease-out) 2; }
+@keyframes gaEvidenceGlow { 50% { background: var(--ga-yellow); } }
+@media (prefers-reduced-motion: reduce) {
+  .ga-timer-pulse, .ga-evidence-glow { animation: none; }
+}

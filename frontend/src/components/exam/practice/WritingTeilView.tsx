@@ -7,6 +7,7 @@ import { WritingStimulus } from '@/components/exam/telc/WritingStimulus'
 import { isWritingStimulus } from '@/components/exam/telc/writingTask'
 import { wordCount, type displayedPoints, type PracticeTeilData } from './practiceModel'
 import { Seg } from './WritingResultView'
+import { SplitPanes } from './SplitPanes'
 
 /** Cụm hay dùng trong thư bạn bè telc B1 — chèn vào CHỖ CON TRỎ. */
 const REDEMITTEL = [
@@ -174,10 +175,6 @@ export function WritingTeilView({ teil, points, text, onText, ticks, onTick, wid
       </div>
     )
   }
-  return (
-    <div className="grid h-full grid-cols-2">
-      <div className="min-h-0 overflow-y-auto px-6 py-5">{task}</div>
-      <div className="min-h-0 overflow-y-auto border-l border-ga-line bg-ga-card px-5 py-5">{editor}</div>
-    </div>
-  )
+  // Máy tính: đề | ô viết, hai cột cuộn riêng, vạch chia kéo được như các Teil khác.
+  return <SplitPanes wide source={task} answers={editor} sourceLabel={t('tabTask')} answersLabel={t('yourText')} />
 }

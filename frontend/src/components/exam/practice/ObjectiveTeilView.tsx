@@ -1,13 +1,16 @@
 'use client'
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Flag, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PracticeItemResult, PracticeTeilResult } from '@/lib/telcPracticeApi'
 import { ReadingPassage } from '@/components/exam/telc/ReadingPassage'
 import { parseGappedText } from '@/components/exam/telc/telcTeil'
 import { ItemAnalysis, LetterBadge } from './ItemAnalysis'
+import { PracticeFootSlot } from './PracticeShell'
+import { SplitPanes, type SheetSnap } from './SplitPanes'
 import {
   NONE_OF_THEM,
   itemLabel,
@@ -27,7 +30,7 @@ interface Props {
   onAnswer: (itemId: string, value: string | null) => void
   /** Có sau khi bấm "Kiểm tra Teil này" (hoặc mở lại Teil đã kiểm tra). */
   result: PracticeTeilResult | null
-  /** ≥1024px: hai khung (bài bên trái, kho/phân tích bên phải). Dưới đó: một cột + bảng chọn từ đáy. */
+  /** ≥760px: hai cột cuộn riêng. Dưới đó: cột nguồn làm nền, cột trả lời trong ngăn kéo lên xuống. */
   wide: boolean
   tips: React.ReactNode
   /** Khối đặt ngay dưới câu lệnh (Hören: bài nghe cấp Teil). */
@@ -36,78 +39,182 @@ interface Props {
   itemExtra?: (item: PracticeItem) => React.ReactNode
 }
 
+type Req<T> = { n: number } & T
+
 /**
- * Một Teil khách quan của chế độ luyện đề telc. Thao tác (owner chốt phương án A, 03/11/2026):
- * chạm vào câu → chạm vào đáp án; lựa chọn đã dùng ở câu khác thì viền đứt + chữ nhạt + ghi "ở câu N"
- * (vẫn chọn được — nó chuyển sang câu đang chọn); đúng/sai chỉ hiện sau khi kiểm tra cả Teil.
+ * Một Teil khách quan của luyện đề telc, trong khung hai vùng (đợt (a) 07/11/2026).
+ *
+ * Bên trái là NGUỒN, bên phải là TRẢ LỜI, mỗi bên cuộn riêng:
+ * Lesen 1 — các text có ô chọn | kho tiêu đề · Lesen 2 — bài đọc | câu a/b/c ·
+ * Lesen 3 — các mẩu rao vặt | tình huống + "không mẩu nào" · Sprachbausteine — thư có chỗ trống |
+ * phương án của chỗ đang chọn + tổng quan các chỗ · Hören — bài nghe | richtig/falsch.
+ *
+ * Thao tác owner chốt (phương án A, 03/11/2026): chạm câu → chạm đáp án; lựa chọn đã dùng ở câu khác
+ * thì viền đứt + "ở câu N" (vẫn chọn được — nó chuyển sang câu đang chọn); đúng/sai chỉ hiện sau khi
+ * kiểm tra cả Teil. Hàng ô số câu nằm ở thanh dưới của vỏ (portal).
  */
 export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra }: Props) {
   const t = useTranslations('v2.student.practice')
+  const tf = useTranslations('v2.student.practice.frame')
   const items = React.useMemo(() => teil.items ?? [], [teil.items])
   const checked = result != null
   const byId = React.useMemo(() => new Map(result?.items.map((r) => [r.id, r]) ?? []), [result])
+  const isMc = kind === 'mc'
+  const isGap = kind === 'gap-mc' || kind === 'gap-bank'
+  const isAds = kind === 'match' && teil.type === 'MATCH_AD_X'
+  const footSlot = React.useContext(PracticeFootSlot)
 
+  // Câu đang chọn đáp án (nối / chỗ trống) · câu đang làm (trắc nghiệm, cho phím tắt và ô số câu).
   const [active, setActive] = React.useState<string | null>(() => nextUnanswered(items, answers))
+  const [current, setCurrent] = React.useState<string | null>(() => nextUnanswered(items, answers) ?? items[0]?.id ?? null)
   const [selected, setSelected] = React.useState<string | null>(null)
-  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [flags, setFlags] = React.useState<Set<string>>(() => new Set())
+  const [snapReq, setSnapReq] = React.useState<Req<{ snap: SheetSnap }> | undefined>()
+  const [revealReq, setRevealReq] = React.useState<Req<{ selector: string }> | undefined>()
   const scrollTarget = React.useRef<string | null>(null)
+  const requestSnap = (snap: SheetSnap) => !wide && setSnapReq((r) => ({ snap, n: (r?.n ?? 0) + 1 }))
+  const reveal = (selector: string) => setRevealReq((r) => ({ selector, n: (r?.n ?? 0) + 1 }))
 
   // Sau khi kiểm tra: mở sẵn câu sai đầu tiên — đó là câu người học cần đọc nhất.
   React.useEffect(() => {
     if (!result) return
     const firstWrong = result.items.find((r) => !r.isCorrect) ?? result.items[0]
     setSelected(firstWrong?.id ?? null)
+    setCurrent(firstWrong?.id ?? null)
     setActive(null)
+    if (firstWrong) scrollTarget.current = firstWrong.id
   }, [result])
 
   React.useEffect(() => {
     if (!scrollTarget.current) return
-    const el = document.getElementById(`pq-${scrollTarget.current}`)
+    const id = scrollTarget.current
     scrollTarget.current = null
+    const el = document.getElementById(`pq-${id}`) ?? document.getElementById(`pg-${id}`)
     if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   })
 
   const pick = (key: string) => {
     if (!active || checked) return
     // Mỗi lựa chọn của kho dùng một lần: lấy lại từ câu đang giữ nó (trừ `x`).
-    const holder = sharedPool(teil).length > 0 ? ownerOf(answers, key, items) : undefined
+    const holder = sharedPool(teil).length > 0 && key !== NONE_OF_THEM ? ownerOf(answers, key, items) : undefined
     if (holder && holder !== active) onAnswer(holder, null)
     onAnswer(active, answers[active] === key ? null : key)
     const nextAnswers = { ...answers, [active]: key }
     if (holder && holder !== active) delete nextAnswers[holder]
     const next = nextUnanswered(items, nextAnswers, active)
-    setSheetOpen(false)
-    if (wide && next) {
+    if (next) {
       setActive(next)
       scrollTarget.current = next
-    } else if (!wide) {
-      setActive(next)
     }
+    // Màn hẹp: chọn xong thu ngăn để đọc tiếp; Lesen 3 ngược lại (mẩu rao vặt nằm ở nền).
+    requestSnap(isAds ? 1 : 0)
   }
 
-  const openItem = (id: string) => {
+  /** Bấm câu / chỗ trống ở cột nguồn. */
+  const openFromSource = (id: string) => {
     if (checked) {
-      setSelected((cur) => (!wide && cur === id ? null : id))
+      setSelected(id)
+      setCurrent(id)
+      requestSnap(1)
       return
     }
     setActive(id)
-    if (!wide && kind !== 'mc') setSheetOpen(true)
+    setCurrent(id)
+    requestSnap(1)
   }
 
+  /** Bấm ô số câu ở thanh dưới. */
+  const jumpTo = (id: string) => {
+    setCurrent(id)
+    if (checked) setSelected(id)
+    else if (!isMc) setActive(id)
+    scrollTarget.current = id
+    requestSnap(isAds && !checked ? 0 : 1)
+  }
+
+  const toggleFlag = (id: string) =>
+    setFlags((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const answerMc = (id: string, value: string) => {
+    if (checked) return
+    setCurrent(id)
+    onAnswer(id, value)
+  }
+
+  // ── phím tắt ───────────────────────────────────────────────────────────────
+  const keyState = React.useRef({ items, answers, current, active, checked, isMc })
+  keyState.current = { items, answers, current, active, checked, isMc }
+  // Hàm mới nhất của mỗi lần vẽ — trình nghe phím chỉ gắn một lần cho mỗi Teil.
+  const act = React.useRef({ pick, jumpTo, answerMc, toggleFlag })
+  act.current = { pick, jumpTo, answerMc, toggleFlag }
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const s = keyState.current
+      if (s.checked || e.metaKey || e.ctrlKey || e.altKey) return
+      const target = e.target instanceof Element ? e.target : null
+      if (target?.closest('input, textarea, select, [role="separator"], [contenteditable="true"]')) return
+      if (document.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"]')) return
+      const k = e.key.toLowerCase()
+      if (s.isMc) {
+        const idx = s.items.findIndex((it) => it.id === s.current)
+        const cur = s.items[idx]
+        if (!cur) return
+        const opt = optionsFor(teil, cur).find((o) => o.key.toLowerCase().charAt(0) === k)
+        if (k.length === 1 && opt) {
+          e.preventDefault()
+          act.current.answerMc(cur.id, opt.key)
+        } else if (k === 'j' || k === 'k') {
+          const next = s.items[Math.min(s.items.length - 1, Math.max(0, idx + (k === 'j' ? 1 : -1)))]
+          if (next) act.current.jumpTo(next.id)
+        } else if (k === 'f') {
+          act.current.toggleFlag(cur.id)
+        }
+        return
+      }
+      const cur = s.items.find((it) => it.id === s.active)
+      if (!cur) return
+      const keys = optionsFor(teil, cur).map((o) => o.key.toLowerCase())
+      if (teil.allow_none) keys.push(NONE_OF_THEM)
+      if (k.length === 1 && keys.includes(k)) {
+        e.preventDefault()
+        const real = optionsFor(teil, cur).find((o) => o.key.toLowerCase() === k)?.key ?? k
+        act.current.pick(real)
+      } else if (e.key === 'Enter') {
+        const idx = s.items.findIndex((it) => it.id === cur.id)
+        const next = s.items[(idx + 1) % s.items.length]
+        if (next) {
+          e.preventDefault()
+          act.current.jumpTo(next.id)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teil])
+
   const activeItem = items.find((it) => it.id === active) ?? null
+  const currentItem = items.find((it) => it.id === current) ?? null
   const answered = items.filter((it) => answers[it.id]).length
+  const selectedRes = selected ? byId.get(selected) ?? null : null
 
   // ── kho lựa chọn cho câu đang chọn ─────────────────────────────────────────
-  const optionList = (forItem: PracticeItem | null) => {
+  const optionList = (forItem: PracticeItem | null, onlyNone = false) => {
     if (!forItem) return null
-    const opts = optionsFor(teil, forItem)
+    const opts = onlyNone ? [] : optionsFor(teil, forItem)
     const shared = sharedPool(teil).length > 0
     const withNone = teil.allow_none ? [...opts, { key: NONE_OF_THEM, label: t('noneOfThem') }] : opts
+    if (withNone.length === 0) return null
     return (
       <div className={cn(kind === 'gap-bank' ? 'grid grid-cols-2 gap-2' : 'space-y-2')} role="radiogroup" aria-label={t('pickFor', { n: itemLabel(forItem) })}>
         {withNone.map((o) => {
           const mine = answers[forItem.id] === o.key
-          const holder = shared ? ownerOf(answers, o.key, items) : undefined
+          const holder = shared && o.key !== NONE_OF_THEM ? ownerOf(answers, o.key, items) : undefined
           const used = !!holder && holder !== forItem.id
           return (
             <button
@@ -117,10 +224,11 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
               aria-checked={mine}
               onClick={() => pick(o.key)}
               className={cn(
-                'ga-ui flex min-h-12 w-full items-center gap-3 rounded-ga-touch px-3 py-2 text-left text-ga-body-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-1',
+                'ga-ui flex min-h-12 w-full items-center gap-3 rounded-ga-touch px-3 py-2 text-left text-ga-body-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-1 active:scale-[0.995]',
                 mine && 'border-[1.5px] border-ga-navy bg-ga-navy text-ga-card',
                 !mine && used && 'border-[1.5px] border-dashed border-ga-line text-ga-muted hover:bg-ga-bg',
-                !mine && !used && 'border-[1.5px] border-ga-line-strong bg-ga-card text-ga-ink hover:bg-ga-navy-soft',
+                !mine && !used && o.key === NONE_OF_THEM && 'border-[1.5px] border-dashed border-ga-line-strong bg-ga-card text-ga-ink hover:bg-ga-navy-soft',
+                !mine && !used && o.key !== NONE_OF_THEM && 'border-[1.5px] border-ga-line-strong bg-ga-card text-ga-ink hover:bg-ga-navy-soft',
               )}
             >
               <LetterBadge value={o.key} tone={mine ? 'inverse' : used ? 'muted' : 'outline'} />
@@ -137,65 +245,85 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     )
   }
 
-  // ── bên trái ───────────────────────────────────────────────────────────────
-  const left = (
-    <div>
+  const cardFor = (item: PracticeItem, analysisInline: boolean) => (
+    <ItemCard
+      key={item.id}
+      item={item}
+      kind={kind}
+      teil={teil}
+      answer={answers[item.id]}
+      active={!checked && !isMc && active === item.id}
+      current={isMc && !checked && current === item.id}
+      flagged={flags.has(item.id)}
+      onFlag={isMc && !checked ? () => toggleFlag(item.id) : undefined}
+      res={byId.get(item.id)}
+      selected={selected === item.id}
+      wide={!analysisInline}
+      extra={itemExtra?.(item)}
+      onOpen={() => (isMc ? setSelected((cur) => (cur === item.id ? null : item.id)) : openFromSource(item.id))}
+      onMc={(v) => answerMc(item.id, v)}
+      onShowEvidence={isMc && teil.context ? () => reveal('mark[data-evidence]') : undefined}
+    />
+  )
+
+  // ── cột nguồn ──────────────────────────────────────────────────────────────
+  const passageHighlights = isMc && checked && selectedRes ? selectedRes.evidence : []
+  const source = (
+    <div className="mx-auto w-full max-w-[720px]">
       {tips}
       <TaskLine teil={teil} />
       {intro}
       {result && <ScoreLine result={result} />}
       {teil.examples && teil.examples.length > 0 && <Examples examples={teil.examples} />}
-      {kind === 'mc' && teil.context && <div className="mb-5"><ReadingPassage teil={teil} /></div>}
-      {(kind === 'gap-mc' || kind === 'gap-bank') ? (
-        <GappedText
+      {isMc && teil.context && <ReadingPassage teil={teil} highlights={passageHighlights} />}
+      {isGap && (
+        <GappedText teil={teil} items={items} answers={answers} active={active} selected={selected} byId={byId} onOpen={openFromSource} />
+      )}
+      {kind === 'match' && !isAds && items.map((item) => cardFor(item, false))}
+      {isAds && (
+        <AdPool
           teil={teil}
           items={items}
           answers={answers}
-          active={active}
-          selected={selected}
-          byId={byId}
-          onOpen={openItem}
+          active={activeItem}
+          checked={checked}
+          onPick={(key) => pick(key)}
         />
-      ) : (
-        items.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            kind={kind}
-            teil={teil}
-            answer={answers[item.id]}
-            active={!checked && active === item.id}
-            res={byId.get(item.id)}
-            selected={selected === item.id}
-            wide={wide}
-            extra={itemExtra?.(item)}
-            onOpen={() => openItem(item.id)}
-            onMc={(v) => !checked && onAnswer(item.id, v)}
-          />
-        ))
       )}
-      {!wide && checked && (kind === 'gap-mc' || kind === 'gap-bank') && selected && byId.get(selected) && (
-        <div className="mt-4 rounded-ga border border-ga-line bg-ga-card p-4">
-          <ItemAnalysis item={byId.get(selected)!} title={t('gapTitle', { n: byId.get(selected)!.label })} />
-        </div>
-      )}
-      {!wide && checked && result && result.unusedOptions.length > 0 && <UnusedOptions result={result} />}
     </div>
   )
 
-  // ── bên phải (≥1024px) ─────────────────────────────────────────────────────
-  let right: React.ReactNode = null
-  if (wide && checked && result) {
-    const sel = selected ? byId.get(selected) : null
-    right = (
+  // ── cột trả lời ────────────────────────────────────────────────────────────
+  let answersPane: React.ReactNode
+  if (isMc) {
+    answersPane = (
       <div>
+        {!checked && <p className="ga-ui mb-2.5 text-ga-eyebrow uppercase text-ga-muted">{t('answeredCount', { done: answered, total: items.length })}</p>}
+        {items.map((item) => cardFor(item, true))}
+      </div>
+    )
+  } else if (checked && result) {
+    answersPane = (
+      <div>
+        {selectedRes && (
+          <div className="mb-5">
+            <ItemAnalysis
+              item={selectedRes}
+              title={itemTitle(t, kind, selectedRes)}
+              onShowEvidence={kind === 'match' && !isAds && selectedRes.evidence.length > 0 ? () => reveal(`#pq-${selectedRes.id} mark`) : undefined}
+            />
+          </div>
+        )}
         <p className="ga-ui mb-2.5 text-ga-eyebrow uppercase text-ga-muted">{t('resultsEach')}</p>
         <ul className="mb-4 overflow-hidden rounded-ga-touch border border-ga-line">
           {result.items.map((r) => (
             <li key={r.id}>
               <button
                 type="button"
-                onClick={() => setSelected(r.id)}
+                onClick={() => {
+                  setSelected(r.id)
+                  setCurrent(r.id)
+                }}
                 aria-current={selected === r.id}
                 className={cn(
                   'ga-ui flex min-h-12 w-full items-center gap-3 border-b border-ga-line px-3 text-left text-ga-body last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus',
@@ -211,50 +339,150 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
             </li>
           ))}
         </ul>
-        {sel && <ItemAnalysis item={sel} title={itemTitle(t, kind, sel)} />}
         {result.unusedOptions.length > 0 && <UnusedOptions result={result} />}
       </div>
     )
-  } else if (wide && kind !== 'mc' && activeItem) {
-    right = (
+  } else if (isAds) {
+    answersPane = (
+      <div>
+        <p className="ga-ui mb-2.5 text-ga-small text-ga-muted">
+          {activeItem ? (wide ? tf('pickAdLeft', { n: itemLabel(activeItem) }) : tf('pickAdAbove', { n: itemLabel(activeItem) })) : t('answeredCount', { done: answered, total: items.length })}
+        </p>
+        {teil.allow_none && <div className="mb-4">{optionList(activeItem, true)}</div>}
+        <div className="space-y-2.5">
+          {items.map((item) => (
+            <SituationRow
+              key={item.id}
+              item={item}
+              answer={answers[item.id]}
+              answerText={answerLabel(teil, item, answers[item.id], t('noneOfThem'))}
+              active={active === item.id}
+              onOpen={() => {
+                setActive(item.id)
+                setCurrent(item.id)
+                requestSnap(0)
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  } else {
+    answersPane = activeItem ? (
       <div>
         <p className="ga-ui mb-2.5 text-ga-eyebrow uppercase text-ga-muted">
           {kind === 'match' ? t('pickFor', { n: itemLabel(activeItem) }) : t('pickForGap', { n: itemLabel(activeItem) })}
         </p>
         {optionList(activeItem)}
         {kind === 'gap-bank' && <p className="ga-ui mt-3 text-ga-caption text-ga-muted">{t('singleUseHint')}</p>}
+        {isGap && <GapOverview teil={teil} items={items} answers={answers} active={active} onOpen={(id) => jumpTo(id)} />}
       </div>
+    ) : (
+      <p className="ga-ui text-ga-body text-ga-muted">{t('answeredCount', { done: answered, total: items.length })}</p>
     )
   }
 
+  const sheetItem = checked ? selectedRes : isMc ? currentItem : activeItem
+  const sheetLabel = checked
+    ? selectedRes
+      ? tf('sheetReview', { n: selectedRes.label })
+      : t('resultsEach')
+    : sheetItem
+      ? `${isGap ? t('gapTitle', { n: itemLabel(sheetItem) }) : t('itemTitle', { n: itemLabel(sheetItem) })} · ${answered}/${items.length}`
+      : t('answeredCount', { done: answered, total: items.length })
+
   return (
     <>
-      {wide && right != null ? (
-        <div className="grid h-full grid-cols-[minmax(0,1fr)_420px]">
-          <div className="min-h-0 overflow-y-auto px-6 py-5">{left}</div>
-          <aside className="min-h-0 overflow-y-auto border-l border-ga-line bg-ga-card px-5 py-5">{right}</aside>
-        </div>
-      ) : (
-        <div className="mx-auto w-full max-w-[760px] px-3 py-4 lg:px-6 lg:py-5">{left}</div>
-      )}
-
-      {!wide && sheetOpen && activeItem && !checked && (
-        <BottomSheet
-          title={kind === 'match' ? t('pickFor', { n: itemLabel(activeItem) }) : t('pickForGap', { n: itemLabel(activeItem) })}
-          hint={activeItem.text ?? activeItem.question}
-          onClose={() => setSheetOpen(false)}
-        >
-          {optionList(activeItem)}
-        </BottomSheet>
-      )}
+      <SplitPanes
+        wide={wide}
+        source={source}
+        answers={answersPane}
+        sheetLabel={sheetLabel}
+        snapRequest={snapReq}
+        revealRequest={revealReq}
+        sourceLabel={tf('sourceLabel')}
+        answersLabel={tf('answersLabel')}
+      />
+      {footSlot &&
+        createPortal(
+          <QuestionDots
+            items={items}
+            answers={answers}
+            byId={byId}
+            current={checked ? selected : isMc ? current : active}
+            flags={flags}
+            onPick={jumpTo}
+          />,
+          footSlot,
+        )}
       <span className="sr-only" aria-live="polite">{t('answeredCount', { done: answered, total: items.length })}</span>
     </>
   )
 }
 
+function answerLabel(teil: PracticeTeilData, item: PracticeItem, key: string | undefined, none: string): string | undefined {
+  if (!key) return undefined
+  if (key === NONE_OF_THEM) return none
+  return optionsFor(teil, item).find((o) => o.key === key)?.label
+}
+
 function itemTitle(t: ReturnType<typeof useTranslations>, kind: Props['kind'], r: PracticeItemResult): string {
   if (kind === 'gap-mc' || kind === 'gap-bank') return t('gapTitle', { n: r.label })
   return t('itemTitle', { n: r.label })
+}
+
+/** Hàng ô số câu ở thanh dưới: đã làm (navy), đang chọn (viền vàng), đánh dấu (chấm vàng), đúng/sai sau khi kiểm tra. */
+function QuestionDots({
+  items,
+  answers,
+  byId,
+  current,
+  flags,
+  onPick,
+}: {
+  items: PracticeItem[]
+  answers: Record<string, string>
+  byId: Map<string, PracticeItemResult>
+  current: string | null
+  flags: Set<string>
+  onPick: (id: string) => void
+}) {
+  const t = useTranslations('v2.student.practice.frame')
+  const checked = byId.size > 0
+  const done = items.filter((it) => answers[it.id]).length
+  return (
+    <div role="group" aria-label={t('dotsLabel')} className="ga-autoscroll -mx-1 flex min-w-0 flex-1 basis-full items-center gap-1.5 overflow-x-auto px-1 py-1 sm:basis-auto sm:flex-wrap sm:overflow-visible">
+      {items.map((it, i) => {
+        const res = byId.get(it.id)
+        const label = itemLabel(it)
+        const state = res ? (res.isCorrect ? t('dotRight') : t('dotWrong')) : answers[it.id] ? t('dotDone') : t('dotOpen')
+        return (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => onPick(it.id)}
+            aria-label={`${t('dotItem', { n: label })}, ${state}${flags.has(it.id) ? `, ${t('dotFlagged')}` : ''}`}
+            aria-current={current === it.id}
+            style={res ? { transitionDelay: `${i * 60}ms` } : undefined}
+            className={cn(
+              'ga-ui relative h-9 min-w-9 shrink-0 rounded-ga-touch border-[1.5px] px-1 text-ga-small font-semibold tabular-nums transition-colors duration-[240ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus motion-reduce:transition-none',
+              !res && answers[it.id] && 'border-ga-navy bg-ga-navy text-ga-card',
+              !res && !answers[it.id] && 'border-ga-line-strong bg-ga-card text-ga-ink',
+              res?.isCorrect && 'border-ga-green bg-ga-green-soft text-ga-green',
+              res && !res.isCorrect && 'border-ga-red bg-ga-red-soft text-ga-red',
+              current === it.id && 'shadow-[0_0_0_2px_var(--ga-card),0_0_0_4px_var(--ga-yellow)]',
+            )}
+          >
+            {label}
+            {flags.has(it.id) && !res && (
+              <span aria-hidden className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-ga-card bg-ga-yellow" />
+            )}
+          </button>
+        )
+      })}
+      {!checked && <span className="ga-ui ml-1 shrink-0 text-ga-caption tabular-nums text-ga-muted">{t('dotsCount', { done, total: items.length })}</span>}
+    </div>
+  )
 }
 
 function TaskLine({ teil }: { teil: PracticeTeilData }) {
@@ -315,7 +543,7 @@ function highlight(text: string, evidence: string[]): React.ReactNode {
     if (!best) break
     if (best.at > 0) parts.push(rest.slice(0, best.at))
     parts.push(
-      <mark key={key++} className="rounded-ga bg-ga-yellow-soft text-ga-ink shadow-[inset_0_-2px_0_var(--ga-yellow)]">
+      <mark key={key++} className="ga-evidence-glow rounded-ga bg-ga-yellow-soft text-ga-ink shadow-[inset_0_-2px_0_var(--ga-yellow)]">
         {best.ev}
       </mark>,
     )
@@ -331,26 +559,36 @@ function ItemCard({
   teil,
   answer,
   active,
+  current,
+  flagged,
+  onFlag,
   res,
   selected,
   wide,
   extra,
   onOpen,
   onMc,
+  onShowEvidence,
 }: {
   item: PracticeItem
   kind: Props['kind']
   teil: PracticeTeilData
   answer?: string
   active: boolean
+  current: boolean
+  flagged: boolean
+  onFlag?: () => void
   res?: PracticeItemResult
   selected: boolean
+  /** `true` = phân tích nằm ở cột khác (không mở ngay trong thẻ). */
   wide: boolean
   extra?: React.ReactNode
   onOpen: () => void
   onMc: (value: string) => void
+  onShowEvidence?: () => void
 }) {
   const t = useTranslations('v2.student.practice')
+  const tf = useTranslations('v2.student.practice.frame')
   const label = itemLabel(item)
   const checked = res != null
   const pool = optionsFor(teil, item)
@@ -361,8 +599,9 @@ function ItemCard({
     <article
       id={`pq-${item.id}`}
       className={cn(
-        'mb-3.5 scroll-mt-3 border bg-ga-card',
+        'mb-3.5 scroll-mt-14 border bg-ga-card transition-[border-color,box-shadow] duration-150',
         active ? 'border-ga-navy shadow-ga-selected-bar' : 'border-ga-line',
+        current && 'shadow-[inset_3px_0_0_var(--ga-yellow)]',
         checked && (res.isCorrect ? 'shadow-[inset_4px_0_0_var(--ga-green)]' : 'shadow-[inset_4px_0_0_var(--ga-red)]'),
       )}
     >
@@ -370,6 +609,21 @@ function ItemCard({
         <span className="font-ga-display text-ga-h2 text-ga-ink">{label}</span>
         {active && <span className="ga-ui text-ga-caption font-semibold text-ga-navy">{t('picking')}</span>}
         {checked && <StatusPill res={res} />}
+        {onFlag && (
+          <button
+            type="button"
+            onClick={onFlag}
+            aria-pressed={flagged}
+            aria-label={tf('flag', { n: label })}
+            title={tf('flag', { n: label })}
+            className={cn(
+              'ml-auto inline-flex h-9 w-9 items-center justify-center rounded-ga-touch transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+              flagged ? 'text-ga-ink' : 'text-ga-subtle hover:bg-ga-side-active hover:text-ga-ink',
+            )}
+          >
+            <Flag size={17} aria-hidden fill={flagged ? 'var(--ga-yellow)' : 'none'} />
+          </button>
+        )}
       </div>
       {extra && <div className="px-4 pt-2">{extra}</div>}
       {body && (
@@ -393,7 +647,8 @@ function ItemCard({
                 disabled={checked}
                 onClick={() => onMc(o.key)}
                 className={cn(
-                  'ga-ui flex min-h-12 w-full items-center gap-3 rounded-ga-touch px-3 py-2 text-left text-ga-body-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+                  'ga-ui flex min-h-12 w-full items-center gap-3 rounded-ga-touch px-3 py-2 text-left text-ga-body-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+                  !checked && 'active:scale-[0.995]',
                   !checked && mine && 'border-[1.5px] border-ga-navy bg-ga-navy text-ga-card',
                   !checked && !mine && 'border-[1.5px] border-ga-line-strong bg-ga-card hover:bg-ga-navy-soft',
                   checked && isRight && 'border-[1.5px] border-ga-green bg-ga-green-soft',
@@ -403,6 +658,16 @@ function ItemCard({
               >
                 <LetterBadge value={o.key} tone={isRight ? 'ok' : isWrongPick ? 'bad' : !checked && mine ? 'inverse' : 'outline'} />
                 <span lang="de" className="min-w-0 flex-1">{o.label}</span>
+                {isRight && (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-ga-caption font-semibold text-ga-green">
+                    <Check size={14} aria-hidden /> {t('correct')}
+                  </span>
+                )}
+                {isWrongPick && (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-ga-caption font-semibold text-ga-red">
+                    <X size={14} aria-hidden /> {tf('yourPick')}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -417,9 +682,9 @@ function ItemCard({
           {answer ? (
             <span lang="de" className="min-w-0 flex-1 break-words">{answerText}</span>
           ) : (
-            <span className="min-w-0 flex-1 text-ga-muted">{wide ? t('pickRight') : t('tapToPick')}</span>
+            <span className="min-w-0 flex-1 text-ga-muted">{t('tapToPick')}</span>
           )}
-          {!wide && <ChevronRight size={16} className="shrink-0 text-ga-subtle" aria-hidden />}
+          <ChevronRight size={16} className="shrink-0 text-ga-subtle" aria-hidden />
         </button>
       ) : null}
 
@@ -451,7 +716,7 @@ function ItemCard({
       )}
       {checked && !wide && selected && (
         <div className="border-t border-ga-line px-4 py-4">
-          <ItemAnalysis item={res} title={t('itemTitle', { n: label })} />
+          <ItemAnalysis item={res} title={t('itemTitle', { n: label })} onShowEvidence={res.evidence.length > 0 ? onShowEvidence : undefined} />
         </div>
       )}
     </article>
@@ -470,6 +735,140 @@ function StatusPill({ res }: { res: PracticeItemResult }) {
     <span className="ga-ui inline-flex items-center gap-1 rounded-ga-pill bg-ga-red-soft px-2 py-0.5 text-ga-caption font-semibold text-ga-ink">
       <X size={13} aria-hidden /> {res.answered ? t('wrong') : t('notAnswered')}
     </span>
+  )
+}
+
+/** Lesen 3: các mẩu rao vặt ở cột nguồn — bấm một mẩu để gán cho tình huống đang chọn. */
+function AdPool({
+  teil,
+  items,
+  answers,
+  active,
+  checked,
+  onPick,
+}: {
+  teil: PracticeTeilData
+  items: PracticeItem[]
+  answers: Record<string, string>
+  active: PracticeItem | null
+  checked: boolean
+  onPick: (key: string) => void
+}) {
+  const t = useTranslations('v2.student.practice')
+  const pool = items[0] ? optionsFor(teil, items[0]) : []
+  return (
+    <div className="grid gap-2.5 sm:grid-cols-2" role="radiogroup" aria-label={active ? t('pickFor', { n: itemLabel(active) }) : undefined}>
+      {pool.map((o) => {
+        const holder = ownerOf(answers, o.key, items)
+        const mine = !!active && holder === active.id
+        const used = !!holder && !mine
+        return (
+          <button
+            key={o.key}
+            type="button"
+            role="radio"
+            aria-checked={mine}
+            disabled={checked || !active}
+            onClick={() => onPick(o.key)}
+            className={cn(
+              'ga-ui flex min-h-[7rem] flex-col items-start gap-2 rounded-ga border-[1.5px] bg-ga-card p-3 text-left text-ga-body transition-[border-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:cursor-default',
+              mine && 'border-ga-navy bg-ga-navy-soft',
+              used && 'border-dashed border-ga-line opacity-60',
+              !mine && !used && 'border-ga-line enabled:hover:-translate-y-px enabled:hover:border-ga-line-strong',
+            )}
+          >
+            <span className="flex w-full items-center gap-2">
+              <LetterBadge value={o.key} tone={mine ? 'filled' : used ? 'muted' : 'outline'} />
+              {used && <span className="ml-auto text-ga-caption text-ga-muted">{t('usedAt', { n: itemLabel(items.find((it) => it.id === holder)!) })}</span>}
+            </span>
+            <span lang="de" className="whitespace-pre-wrap break-words">{o.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Lesen 3: một tình huống ở cột trả lời — bấm để chọn, ô bên dưới cho biết đã gán mẩu nào. */
+function SituationRow({
+  item,
+  answer,
+  answerText,
+  active,
+  onOpen,
+}: {
+  item: PracticeItem
+  answer?: string
+  answerText?: string
+  active: boolean
+  onOpen: () => void
+}) {
+  const t = useTranslations('v2.student.practice')
+  return (
+    <button
+      id={`pq-${item.id}`}
+      type="button"
+      onClick={onOpen}
+      aria-pressed={active}
+      className={cn(
+        'ga-ui flex w-full scroll-mt-14 flex-col gap-2 rounded-ga border bg-ga-card px-3.5 py-3 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+        active ? 'border-ga-navy bg-ga-yellow-soft shadow-[inset_3px_0_0_var(--ga-yellow)]' : 'border-ga-line hover:bg-ga-bg',
+      )}
+    >
+      <span className="flex items-start gap-2.5">
+        <span className="font-ga-display text-ga-h3 leading-none text-ga-ink">{itemLabel(item)}</span>
+        <span lang="de" className="min-w-0 flex-1 text-ga-body text-ga-ink">{item.text ?? item.question}</span>
+      </span>
+      <span className="flex items-center gap-2 text-ga-small">
+        <LetterBadge value={answer ?? '?'} tone={answer ? 'filled' : 'empty'} />
+        <span lang="de" className={cn('min-w-0 flex-1 truncate', answer ? 'text-ga-ink' : 'text-ga-muted')}>
+          {answerText ?? t('tapToPick')}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+/** Sprachbausteine: tổng quan các chỗ trống dưới kho lựa chọn — bấm để nhảy tới chỗ đó. */
+function GapOverview({
+  teil,
+  items,
+  answers,
+  active,
+  onOpen,
+}: {
+  teil: PracticeTeilData
+  items: PracticeItem[]
+  answers: Record<string, string>
+  active: string | null
+  onOpen: (id: string) => void
+}) {
+  const t = useTranslations('v2.student.practice.frame')
+  return (
+    <div className="mt-5">
+      <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{t('gapsOverview')}</p>
+      <div className="grid grid-cols-5 gap-1.5">
+        {items.map((it) => {
+          const a = answers[it.id]
+          const word = a ? optionsFor(teil, it).find((o) => o.key === a)?.label ?? a : '–'
+          return (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => onOpen(it.id)}
+              aria-current={active === it.id}
+              className={cn(
+                'ga-ui flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-ga border px-1 text-ga-caption focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+                active === it.id ? 'border-ga-yellow bg-ga-yellow-soft' : 'border-ga-line bg-ga-card hover:bg-ga-bg',
+              )}
+            >
+              <span className="tabular-nums text-ga-muted">{itemLabel(it)}</span>
+              <b lang="de" className="max-w-full truncate text-ga-ink">{word}</b>
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -512,17 +911,19 @@ function GappedText({
           return (
             <button
               key={i}
+              id={`pg-${it.id}`}
               type="button"
               onClick={() => onOpen(it.id)}
               aria-label={t('gapTitle', { n: seg.gap })}
+              aria-current={isActive || (res != null && selected === it.id)}
               className={cn(
-                'mx-0.5 inline-flex min-h-9 min-w-[5.5rem] items-center gap-1.5 rounded-ga-touch px-2.5 align-middle text-ga-body leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+                'mx-0.5 inline-flex min-h-9 min-w-[5.5rem] scroll-mt-14 items-center gap-1.5 rounded-ga-touch px-2.5 align-middle text-ga-body leading-tight transition-[background-color,border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
                 !res && !a && !isActive && 'border-[1.5px] border-ga-line-strong bg-ga-card',
-                !res && isActive && 'border-[1.5px] border-ga-navy bg-ga-navy-soft ring-[3px] ring-ga-navy/20',
+                !res && isActive && 'border-[1.5px] border-ga-navy bg-ga-navy-soft shadow-[0_0_0_3px_var(--ga-yellow)]',
                 !res && a && !isActive && 'border-[1.5px] border-ga-navy bg-ga-navy font-semibold text-ga-card',
                 res?.isCorrect && 'border-[1.5px] border-ga-green bg-ga-green-soft font-semibold',
                 res && !res.isCorrect && 'border-[1.5px] border-ga-red bg-ga-red-soft font-semibold',
-                res && selected === it.id && 'ring-[3px] ring-ga-navy/30',
+                res && selected === it.id && 'shadow-[0_0_0_3px_var(--ga-yellow)]',
               )}
             >
               <span className={cn('text-ga-caption font-semibold', !res && a && !isActive ? 'text-ga-card' : 'text-ga-muted')}>{seg.gap}</span>
@@ -560,41 +961,5 @@ function UnusedOptions({ result }: { result: PracticeTeilResult }) {
         ))}
       </div>
     </details>
-  )
-}
-
-function BottomSheet({
-  title,
-  hint,
-  onClose,
-  children,
-}: {
-  title: string
-  hint?: string
-  onClose: () => void
-  children: React.ReactNode
-}) {
-  const t = useTranslations('v2.student.practice')
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-[60]">
-      <button type="button" aria-label={t('close')} onClick={onClose} className="absolute inset-0 bg-ga-overlay" />
-      <div role="dialog" aria-modal="true" aria-label={title} className="absolute inset-x-0 bottom-0 flex max-h-[78%] flex-col rounded-t-[14px] bg-ga-card shadow-ga-drawer">
-        <div className="flex items-center gap-2 border-b border-ga-line py-2 pl-4 pr-1">
-          <div className="min-w-0 flex-1">
-            <p className="ga-ui text-ga-body font-semibold text-ga-ink">{title}</p>
-            {hint && <p lang="de" className="ga-ui truncate text-ga-caption text-ga-muted">{hint}</p>}
-          </div>
-          <button type="button" onClick={onClose} aria-label={t('close')} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-ga-touch text-ga-muted hover:text-ga-ink">
-            <X size={18} aria-hidden />
-          </button>
-        </div>
-        <div className="overflow-y-auto px-3.5 py-3">{children}</div>
-      </div>
-    </div>
   )
 }
