@@ -111,14 +111,18 @@ export default function V2StudentExamHubPage() {
     key: 'exam.today',
     ready: !!rows && access === true,
     steps: [
+      { target: 'diagnostic', icon: Route, title: tt('today.diagnostic.t'), body: tt('today.diagnostic.p') },
       { target: 'today', icon: Target, title: tt('today.today.t'), body: tt('today.today.p') },
       { target: 'skills', icon: ChartNoAxesColumn, title: tt('today.skills.t'), body: tt('today.skills.p') },
       { target: 'week', icon: CalendarDays, title: tt('today.week.t'), body: tt('today.week.p') },
       { target: 'exams', icon: FileText, title: tt('today.exams.t'), body: tt('today.exams.p') },
     ],
   })
+  // Người mới (chưa chẩn đoán, chưa có lịch): một việc duy nhất là bài chẩn đoán — không thẻ Hôm
+  // nay, không nút gợi ý (nghiệm thu prod 07/11/2026).
+  const newcomer = diagnostic === 'NONE' && plan?.status !== 'ACTIVE'
   // Gợi ý chỉ hiện khi đã quen màn (đã xem hướng dẫn), tối đa 3.
-  const suggestions = tour.familiar
+  const suggestions = tour.familiar && !newcomer
     ? suggestionsFor(overviews, skills, plan, card?.kind === 'TEIL' ? `${card.section}-${card.teil}` : teilKeyOf(today), !!oral, localIsoDate())
     : []
 
@@ -171,8 +175,7 @@ export default function V2StudentExamHubPage() {
         <>
           <div className="flex flex-col gap-3">
             {(diagnostic === 'NONE' || diagnostic === 'IN_PROGRESS') && <DiagnosticCard resume={diagnostic === 'IN_PROGRESS'} />}
-            {/* Người mới (chưa chẩn đoán, chưa có lịch): một việc duy nhất là bài chẩn đoán. */}
-            {card && !(diagnostic === 'NONE' && plan?.status !== 'ACTIVE') && <TodayCard card={card} />}
+            {card && !newcomer && <TodayCard card={card} />}
             {suggestions.length > 0 && <SuggestionRow items={suggestions} />}
             {/* Chưa làm bài chẩn đoán thì ngày thi khai trong bài chẩn đoán, không hiện ô riêng. */}
             {diagnostic !== 'NONE' && diagnostic !== 'IN_PROGRESS' && plan && (plan.status === 'NEEDS_DATE' || plan.status === 'EXAM_PASSED') && (
@@ -339,7 +342,7 @@ function TodayCard({ card }: { card: TodayCardModel }) {
 function DiagnosticCard({ resume }: { resume: boolean }) {
   const t = useTranslations('v2.student.examHub')
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-[1.5px] border-ga-ink bg-ga-card p-[18px] sm:p-5">
+    <div data-tour="diagnostic" className="flex flex-wrap items-center gap-x-5 gap-y-3 border-[1.5px] border-ga-ink bg-ga-card p-[18px] sm:p-5">
       <Glyph icon={Route} />
       <div className="min-w-[12rem] flex-1">
         <p className="ga-ui text-ga-body-lg font-semibold text-ga-ink">{resume ? t('diagResumeTitle') : t('diagTitle')}</p>

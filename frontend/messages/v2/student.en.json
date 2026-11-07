@@ -2912,7 +2912,9 @@
         "writingPending": "Waiting for grading",
         "rowCorrect": "{done}/{total} correct",
         "planUpdated": "Your study plan for the coming weeks has been recalculated from this result.",
-        "backToday": "Back to today"
+        "backToday": "Back to today",
+        "lostWritingEmpty": "No letter written",
+        "planNoDate": "Set your exam date on the Today screen to get a study plan based on this result."
       }
     },
     "tour": {
@@ -2938,6 +2940,10 @@
         "exams": {
           "t": "Exam sets",
           "p": "Open a set to practise part by part or take a mock exam."
+        },
+        "diagnostic": {
+          "t": "Start here",
+          "p": "The diagnostic test shows what to practise first and builds a plan around your exam date."
         }
       },
       "set": {

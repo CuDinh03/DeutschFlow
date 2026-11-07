@@ -2912,7 +2912,9 @@
         "writingPending": "Đang chờ chấm",
         "rowCorrect": "{done}/{total} câu đúng",
         "planUpdated": "Lịch ôn các tuần tới đã tính lại theo kết quả này.",
-        "backToday": "Về hôm nay"
+        "backToday": "Về hôm nay",
+        "lostWritingEmpty": "Chưa viết bài",
+        "planNoDate": "Đặt ngày thi ở màn Hôm nay để có lịch ôn theo kết quả này."
       }
     },
     "tour": {
@@ -2938,6 +2940,10 @@
         "exams": {
           "t": "Đề luyện",
           "p": "Mở một đề để luyện từng Teil hoặc thi thử."
+        },
+        "diagnostic": {
+          "t": "Bắt đầu ở đây",
+          "p": "Bài chẩn đoán cho biết nên luyện gì trước và xếp lịch ôn theo ngày thi."
         }
       },
       "set": {

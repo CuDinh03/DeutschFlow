@@ -169,6 +169,14 @@ describe('Kết quả thi thử', () => {
     expect(screen.getByRole('link', { name: /Về hôm nay/ })).toHaveAttribute('href', '/hub')
   })
 
+  it('bài Viết bỏ trống ghi "Chưa viết bài"; chưa có lịch ôn thì không nói "lịch đã tính lại"', async () => {
+    const empty = { ...analysis, writingText: '' } as AttemptAnalysis
+    render(<ResultSummary attemptId={7} result={base} analysis={empty} teile={teile} byKey={new Map()} onOpen={() => undefined} oralHref="/oral" hubHref="/hub" />)
+    expect(screen.getByText('Chưa viết bài')).toBeInTheDocument()
+    expect(await screen.findByText(/Đặt ngày thi ở màn Hôm nay/)).toBeInTheDocument()
+    expect(screen.queryByText(/đã tính lại theo kết quả này/)).toBeNull()
+  })
+
   it('chưa đỗ: "Còn thiếu N điểm phần viết"', () => {
     const failed = { ...base, gates: [{ id: 'written', raw: 126, max: 225, min: 135, status: 'FAILED' }] }
     render(<ResultSummary attemptId={6} result={failed} analysis={analysis} teile={teile} byKey={new Map()} onOpen={() => undefined} oralHref="/oral" hubHref="/hub" />)

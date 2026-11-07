@@ -1,0 +1,87 @@
+/**
+ * Luyện một Teil (sửa sau nghiệm thu prod 07/11/2026): còn câu bỏ trống thì hỏi lại trước khi kiểm tra;
+ * bấm "Vẫn kiểm tra" phải đóng hộp xác nhận và hiện kết quả (câu trống tính 0). Trước đây hộp không đóng.
+ */
+import React from 'react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const h = vi.hoisted(() => ({ check: vi.fn() }))
+vi.mock('@/lib/api', () => ({
+  default: { get: vi.fn(async () => ({ data: { seen: ['exam.teil'] } })), put: vi.fn(async () => ({ data: {} })) },
+  apiMessage: () => 'lỗi',
+}))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams('examId=7&teil=LESEN-2'),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}))
+// next-intl thật giữ nguyên `t` giữa các lần render; mock chung tạo mới mỗi lần ⇒ effect mẹo (deps có `t`)
+// chạy lặp vô hạn. Cache theo namespace cho giống thật.
+vi.mock('next-intl', async () => {
+  const base = (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi')
+  const cache = new Map<string, ReturnType<typeof base.useTranslations>>()
+  return {
+    ...base,
+    useTranslations: (ns?: string) => {
+      const k = ns ?? ''
+      if (!cache.has(k)) cache.set(k, base.useTranslations(ns))
+      return cache.get(k)!
+    },
+  }
+})
+vi.mock('@/components/exam/strategy/examStrategy', async (orig) => ({
+  ...(await orig<typeof import('@/components/exam/strategy/examStrategy')>()),
+  fetchExamStrategies: vi.fn(async () => []),
+}))
+vi.mock('@/lib/telcPracticeApi', async (orig) => ({
+  ...(await orig<typeof import('@/lib/telcPracticeApi')>()),
+  getPracticeOverview: vi.fn(async () => OVERVIEW),
+  savePracticeDraft: vi.fn(async () => undefined),
+  checkPracticeTeil: h.check,
+}))
+
+import PracticeTeilRoute from '@/app/v2/student/mock-exam/practice/teil/page'
+
+const ITEMS = [1, 2].map((n) => ({ id: String(n), question: `Frage ${n}`, options: { a: 'eins', b: 'zwei', c: 'drei' } }))
+const OVERVIEW = {
+  examId: 7,
+  title: 'Modelltest 1',
+  level: 'B1',
+  format: 'TELC',
+  sectionsJson: JSON.stringify({ sections: [{ name: 'LESEN', teile: [{ teil: 2, type: 'MULTIPLE_CHOICE', items: ITEMS }] }] }),
+  teile: [{ key: 'LESEN-2', section: 'LESEN', teil: 2, type: 'MULTIPLE_CHOICE', items: 2, maxPoints: 25, suggestMinutes: 15, progress: { answers: {}, checked: false, score: null, max: 25, elapsedSeconds: 0, updatedAt: null, result: null } }],
+}
+const RESULT = {
+  teilKey: 'LESEN-2', type: 'MULTIPLE_CHOICE', score: 0, max: 25, correctCount: 0, total: 2, unusedOptions: [],
+  items: ITEMS.map((it) => ({ id: it.id, label: it.id, given: null, givenText: null, correct: 'a', correctText: 'eins', answered: false, isCorrect: false, points: 0, whyRight: null, whyWrong: null, trap: null, evidence: [], need: null, rule: null })),
+}
+
+beforeEach(() => {
+  h.check.mockReset()
+  h.check.mockResolvedValue({ answers: {}, checked: true, score: 0, max: 25, elapsedSeconds: 0, updatedAt: null, result: RESULT })
+  window.matchMedia = ((q: string) => ({
+    matches: false, media: q, onchange: null,
+    addEventListener: () => undefined, removeEventListener: () => undefined,
+    addListener: () => undefined, removeListener: () => undefined, dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia
+  Element.prototype.getClientRects = function () {
+    return [{}] as unknown as DOMRectList
+  }
+})
+
+describe('Luyện Teil — kiểm tra khi còn câu trống', () => {
+  it('"Vẫn kiểm tra" đóng hộp xác nhận, gửi bài trống và hiện kết quả', async () => {
+    const user = userEvent.setup()
+    render(<PracticeTeilRoute />)
+    await user.click(await screen.findByRole('button', { name: /Kiểm tra Teil này/ }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Còn 2 câu chưa làm')
+    await user.click(screen.getByRole('button', { name: 'Vẫn kiểm tra' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(h.check).toHaveBeenCalledWith(7, 'LESEN-2', {}, expect.any(Number))
+    expect(await screen.findByRole('button', { name: /Làm lại/ })).toBeInTheDocument()
+  })
+})

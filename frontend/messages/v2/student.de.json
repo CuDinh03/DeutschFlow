@@ -2912,7 +2912,9 @@
         "writingPending": "Wartet auf Bewertung",
         "rowCorrect": "{done}/{total} richtig",
         "planUpdated": "Ihr Lernplan für die nächsten Wochen wurde nach diesem Ergebnis neu berechnet.",
-        "backToday": "Zurück zu heute"
+        "backToday": "Zurück zu heute",
+        "lostWritingEmpty": "Kein Brief geschrieben",
+        "planNoDate": "Legen Sie auf der Seite Heute den Prüfungstermin fest, dann gibt es einen Lernplan nach diesem Ergebnis."
       }
     },
     "tour": {
@@ -2938,6 +2940,10 @@
         "exams": {
           "t": "Modelltests",
           "p": "Öffnen Sie einen Test, um Teil für Teil zu üben oder eine Modellprüfung abzulegen."
+        },
+        "diagnostic": {
+          "t": "Hier beginnen",
+          "p": "Der Einstufungstest zeigt, was Sie zuerst üben, und erstellt einen Plan bis zum Prüfungstermin."
         }
       },
       "set": {

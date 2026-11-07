@@ -33,13 +33,20 @@ interface Options {
 export function useScreenTour({ key, steps, ready }: Options) {
   const t = useTranslations('v2.student.tour')
   const [seen, setSeen] = React.useState<boolean | null>(null)
+  // Đã xem TRƯỚC lần vào màn này — gợi ý chỉ hiện từ lần sau, không hiện ngay khi hướng dẫn vừa mở
+  // lần đầu (nghiệm thu prod 07/11/2026).
+  const [seenBefore, setSeenBefore] = React.useState<boolean | null>(null)
   const [active, setActive] = React.useState(false)
   const stepsRef = React.useRef(steps)
   stepsRef.current = steps
 
   React.useEffect(() => {
     let alive = true
-    void loadSeenTours().then((s) => alive && setSeen(s.has(key)))
+    void loadSeenTours().then((s) => {
+      if (!alive) return
+      setSeen(s.has(key))
+      setSeenBefore(s.has(key))
+    })
     return () => {
       alive = false
     }
@@ -70,7 +77,7 @@ export function useScreenTour({ key, steps, ready }: Options) {
   return {
     active,
     start,
-    familiar: seen === true,
+    familiar: seenBefore === true,
     overlay: active ? <TourOverlay steps={stepsRef.current} onClose={close} /> : null,
   }
 }
@@ -130,20 +137,25 @@ function TourOverlay({ steps: all, onClose }: { steps: TourStep[]; onClose: (don
     const top = Math.max(r.top - pad, 4)
     const left = Math.max(r.left - pad, 4)
     const width = Math.min(r.width + pad * 2, window.innerWidth - 8)
-    const height = Math.min(r.height + pad * 2, window.innerHeight - 8)
+    // Vùng tràn khỏi màn: khung vàng cắt theo mép màn, không vẽ ra ngoài.
+    const height = Math.max(0, Math.min(r.bottom + pad, window.innerHeight - 4) - top)
     setSpot({ top, left, width, height })
     const cw = cardRef.current?.offsetWidth ?? 320
     const ch = cardRef.current?.offsetHeight ?? 180
     let cy = top + height + 12
     if (cy + ch > window.innerHeight - 12) cy = top - ch - 12
-    if (cy < 12) cy = Math.min(window.innerHeight - ch - 12, Math.max(12, top + 12))
+    // Không đủ chỗ trên/dưới (vùng cao gần bằng màn): thẻ nằm sát đáy màn, đè ít nội dung nhất.
+    if (cy < 12) cy = Math.max(12, window.innerHeight - ch - 16)
     setCard({ top: cy, left: Math.min(Math.max(12, left + width / 2 - cw / 2), window.innerWidth - cw - 12) })
   }, [step])
 
   React.useEffect(() => {
     if (!step) return
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    visibleTarget(step.target)?.scrollIntoView?.({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })
+    const el = visibleTarget(step.target)
+    // Vùng cao hơn ~60% màn: cuộn tới ĐẦU vùng để thấy tiêu đề, thay vì giữa vùng.
+    const tall = !!el && el.getBoundingClientRect().height > window.innerHeight * 0.6
+    el?.scrollIntoView?.({ block: tall ? 'start' : 'center', behavior: reduce ? 'auto' : 'smooth' })
     place()
     const id = window.setTimeout(() => {
       place()
