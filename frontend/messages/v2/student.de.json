@@ -2692,7 +2692,9 @@
         "strategyFor": "Strategie für {name}",
         "chartLabel": "Punkte schriftlich in den Modellprüfungen: {scores}; Bestehensgrenze {mark}",
         "passLine": "Grenze {n}",
-        "today": "Heute"
+        "today": "Heute",
+        "rowPartial": "Vorzeitig beendet · {done}/{total} Teile bearbeitet",
+        "partialPill": "Vorzeitig beendet"
       },
       "rewrite": "Diesen Brief neu schreiben",
       "estPass": "Schätzung · 60 % dieses Teils erreicht",
@@ -2920,6 +2922,30 @@
         "backToday": "Zurück zu heute",
         "lostWritingEmpty": "Kein Brief geschrieben",
         "planNoDate": "Legen Sie auf der Seite Heute den Prüfungstermin fest, dann gibt es einen Lernplan nach diesem Ergebnis."
+      },
+      "closedPrevious": "Ihr letzter Versuch ist abgelaufen, während Sie weg waren. Das Bearbeitete steht im Verlauf als „Vorzeitig beendet“.",
+      "stopTitle": "Probeprüfung beenden?",
+      "stopBody": "Die Zeit läuft weiter, wenn Sie gehen. Beenden Sie jetzt, wird dieser Versuch als „Vorzeitig beendet“ gespeichert: Nur bearbeitete Teile werden bewertet, es gibt kein Bestanden/Nicht bestanden, und Sie können nicht weitermachen.",
+      "stopCounted": "Wird bewertet: {list}",
+      "stopTeilFull": "{teil} ({done}/{total} Aufgaben)",
+      "stopTeilBlank": "{teil} ({done}/{total} Aufgaben, {blank} leere zählen 0)",
+      "stopWriting": "Schreiben: geschrieben, aber nicht bewertet. Die KI bewertet erst beim Abgeben.",
+      "stopSkipped": "Nicht bewertet: {list}",
+      "stopFailed": "Der Versuch konnte nicht beendet werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut; Ihre Antworten werden weiter gespeichert.",
+      "stopRetry": "Erneut versuchen",
+      "stopConfirm": "Beenden und Bearbeitetes speichern",
+      "keepGoing": "Weitermachen",
+      "partial": {
+        "title": "Vorzeitig beendet",
+        "leadStopped": "Sie haben diesen Versuch beendet. Nur bearbeitete Teile werden bewertet (leere Aufgaben darin zählen 0); ein beendeter Versuch hat keine Gesamtpunktzahl und kein Bestanden/Nicht bestanden.",
+        "leadExpired": "Dieser Versuch ist abgelaufen, während Sie weg waren. Das Bearbeitete wird nach dem zuletzt gespeicherten Stand bewertet; ein beendeter Versuch hat keine Gesamtpunktzahl und kein Bestanden/Nicht bestanden.",
+        "doneOf": "{done} von {total} Teilen bearbeitet",
+        "rowScored": "{answered}/{total} Aufgaben beantwortet · zum Ansehen tippen",
+        "rowWritten": "Geschrieben, nicht bewertet (die KI bewertet erst beim Abgeben)",
+        "rowSkipped": "Nicht begonnen · nicht bewertet",
+        "note": "Die Punkte pro Teil zeigen, wo Sie stehen. Für Gesamtpunkte und Bestanden/Nicht bestanden geben Sie die ganze Prüfung ab.",
+        "again": "Diese Probeprüfung wiederholen",
+        "toHub": "Zurück zu Heute"
       }
     },
     "tour": {

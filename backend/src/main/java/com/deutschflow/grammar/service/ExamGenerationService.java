@@ -32,7 +32,7 @@ public class ExamGenerationService {
                    MAX(a.started_at) AS last_attempt
             FROM mock_exams e
             LEFT JOIN mock_exam_attempts a
-                   ON a.exam_id = e.id AND a.user_id = ?
+                   ON a.exam_id = e.id AND a.user_id = ? AND a.status <> 'CANCELLED'
             WHERE e.cefr_level = ? AND e.is_active = TRUE
             GROUP BY e.id
             ORDER BY last_attempt ASC NULLS FIRST, e.id ASC
@@ -57,7 +57,7 @@ public class ExamGenerationService {
                    MAX(a.total_score)                              AS best_score,
                    MAX(a.started_at)                               AS last_attempted_at
             FROM mock_exams e
-            LEFT JOIN mock_exam_attempts a ON a.exam_id = e.id AND a.user_id = ?
+            LEFT JOIN mock_exam_attempts a ON a.exam_id = e.id AND a.user_id = ? AND a.status <> 'CANCELLED'
             WHERE e.cefr_level = ? AND e.is_active = TRUE
             GROUP BY e.id, e.title
             ORDER BY e.id
@@ -71,7 +71,7 @@ public class ExamGenerationService {
     public ExamCoverageDto getExamCoverage(String cefrLevel) {
         var exams = jdbc.queryForList("""
             SELECT id, title, is_active,
-                   (SELECT COUNT(*) FROM mock_exam_attempts WHERE exam_id = e.id) AS attempt_count
+                   (SELECT COUNT(*) FROM mock_exam_attempts WHERE exam_id = e.id AND status <> 'CANCELLED') AS attempt_count
             FROM mock_exams e
             WHERE cefr_level = ?
             ORDER BY id

@@ -4,7 +4,8 @@
 > trọn đề, kết quả, lịch ôn, hướng dẫn lần đầu, bài chẩn đoán. Phòng thi **nói** (`/v2/student/speaking/exam`)
 > là module riêng (`examspeaking`), ở đây chỉ nói chỗ hai phần nối nhau.
 >
-> Cập nhật: 07/11/2026, sau đợt làm mới giao diện (a)–(f), PR #760–#765. Repo PUBLIC: tài liệu không chứa
+> Cập nhật: 07/11/2026, sau đợt làm mới giao diện (a)–(f), PR #760–#765, và phần thoát giữa chừng
+> (hộp xác nhận, lượt thi thử "Dừng giữa chừng", mục 2.8). Repo PUBLIC: tài liệu không chứa
 > địa chỉ máy chủ, khoá hay giá trị cấu hình bí mật. Quy trình merge/deploy: `docs/QUY_TRINH_PHAT_HANH.md`.
 > Đặc tả nghiệp vụ (SRS): `TAI_LIEU_DAC_TA_SAN_PHAM/chi-tiet/modules/07-luyen-thi-va-thi-thu.md` (chỉ ở máy owner).
 
@@ -97,7 +98,8 @@ Chọn đề để mở một Teil (`pickExamFor`): đề đang làm dở Teil �
 | `WritingTeilView.tsx` | Đề + 4 ý tự đánh dấu \| ô viết, đếm tới 80 từ, cụm chèn nhanh; điện thoại hai thẻ Đề bài \| Bài viết |
 | `WritingResultView.tsx` | Bài viết đã chấm: ô điểm /45 có vạch 60% và nhãn **"Ước tính"**, VI/DE nhớ `df.practice.writingLang`, lỗi tô vàng trong bài, ý thiếu là nhãn đỏ, thẻ ghi chú, 3 tiêu chí A–D, bài mẫu |
 
-Trang luyện Teil: `app/v2/student/mock-exam/practice/teil/page.tsx` — lưu nháp tự động (`PUT .../draft`), nộp
+Trang luyện Teil: `app/v2/student/mock-exam/practice/teil/page.tsx` — lưu nháp tự động (`PUT .../draft`, hook
+`usePracticeDraft`: hẹn giờ 1,5 s, lưu ngay khi thoát, `keepalive` khi đóng/ẩn tab), nộp
 (`POST .../check`) hoặc chấm Viết (`POST .../schreiben`, job nền), "Làm lại", "Viết lại bài này", nộp dưới 60% có
 nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoải mái và khi hướng dẫn đang mở.
 
@@ -111,6 +113,7 @@ nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoả
    xác nhận; chặng lưu theo lượt ở `df.fullExam.stage.{attemptId}`. Nháp lưu lên server (`PATCH /attempts/{id}/draft`,
    có phiên bản chống ghi đè, rời trang thì `fetch keepalive`). Hết giờ ⇒ tự nộp, màn "Hết giờ. Bài đã tự nộp." + các bước chấm.
 3. **Nộp**: `POST /attempts/{id}/finish` → job chấm nền (Viết bằng AI) → client chờ `/async-jobs` → mở kết quả.
+4. **Dừng giữa chừng**: bấm thoát (mục 2.8) → `POST /attempts/{id}/stop` → kết quả "Dừng giữa chừng" (`PartialSummary`).
 
 ### 2.5 Kết quả thi thử — `components/exam/mock/ResultSummary.tsx`
 
@@ -162,6 +165,29 @@ nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoả
 Thêm bước cho màn mới: đặt `data-tour` lên vùng, khai `steps` (chuỗi trong `v2.student.tour.*`), gọi hook trước mọi
 `return` sớm, render `tour.overlay`.
 
+
+### 2.8 Thoát giữa chừng (owner chốt 07/11/2026)
+
+Nút thoát của `PracticeShell` nhận `onExit`: màn làm bài hỏi trước khi rời. Luật chung: **Teil đã làm = đã trả lời
+ít nhất 1 câu** (câu trống trong Teil đó tính 0); Teil chưa chạm không tính; **Viết dở không chấm**, AI chỉ chấm khi
+bấm nộp.
+
+| Màn | Chưa làm gì | Đã làm |
+|---|---|---|
+| Luyện Teil | Thoát thẳng | "Thoát khỏi …?" → "Lưu và thoát" lưu nháp ngay rồi rời; lỗi thì ở lại. Nháp không tính điểm kỹ năng |
+| Bài chẩn đoán | Thoát thẳng | "Rời bài chẩn đoán?" → lưu nháp phần đang làm; vào lại nạp nháp, đồng hồ phần chạy tiếp |
+| Thi thử | Huỷ lượt (`CANCELLED`, không vào lịch sử), rời | "Dừng lượt thi thử?" liệt kê Sẽ tính / Viết không chấm / Không tính → `/stop` → lượt `PARTIAL` |
+
+**Lượt `PARTIAL`**: điểm từng Teil đã làm ở `detailed_scores_json` (`partial` = lý do `STOPPED`/`EXPIRED` + số Teil;
+`teile` = `SCORED`/`WRITTEN_NOT_GRADED`/`NOT_ATTEMPTED`), `total_score`/`passed` rỗng, `finished_at` = mốc dừng đồng
+hồ. Không vào xét đỗ, chứng nhận, điểm cao nhất, B1, lịch ôn, ngày thi thử của tuần (các chỗ đó lọc `COMPLETED`).
+Lịch sử màn Đề hiện dòng "Dừng giữa chừng · đã làm N/M Teil", không vào biểu đồ; kết quả xem lại được từng câu.
+
+**Đồng hồ server** không phải tiến trình (hạn giờ = `started_at + time_limit`). Lượt bỏ dở ngoài ý muốn quá hạn +
+2 phút được **chốt lười** (`MockExamStopService.closeExpired`) khi chính người học gọi `/start`, `/attempts/me`,
+`/exam-plan` — không có job định kỳ. `/start` khi đó mở lượt mới và trả `closed_attempt_id` để web báo một dòng. Hết
+giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
+
 ---
 
 ## 3. Backend
@@ -181,7 +207,8 @@ Thêm bước cho màn mới: đặt `data-tour` lên vùng, khai `steps` (chu�
 | POST | `/mock-exams/{examId}/start` | Bắt đầu / làm tiếp thi thử (idempotent) | `MockExamController` |
 | PATCH | `/mock-exams/attempts/{id}/draft` | Lưu nháp thi thử (có phiên bản) | 〃 |
 | POST | `/mock-exams/attempts/{id}/finish` | Nộp ⇒ job chấm nền | 〃 |
-| GET | `/mock-exams/attempts/me`, `/mock-exams/attempts/{id}/result` | Lịch sử, kết quả (`gates`, `budget`) | 〃 |
+| POST | `/mock-exams/attempts/{id}/stop` | Dừng giữa chừng ⇒ `PARTIAL` (chấm theo Teil) / `CANCELLED` (chưa chạm câu); idempotent | 〃 + `MockExamStopService` |
+| GET | `/mock-exams/attempts/me[?includePartial=true]`, `/mock-exams/attempts/{id}/result` | Lịch sử (mặc định không có `PARTIAL` cho mobile), kết quả (`gates`, `budget`; lượt `PARTIAL` không có) | 〃 |
 | GET | `/exam-strategies?provider&level&lang` | Chiến thuật từng Teil (LT2) | `ExamStrategyController` |
 | GET | `/exam-plan` | Lộ trình đếm ngược; tuần hiện tại có `days` | `ExamPlanController` |
 | PUT | `/exam-plan/target-date` | Đặt ngày thi | 〃 |

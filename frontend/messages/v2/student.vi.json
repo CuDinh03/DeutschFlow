@@ -2692,7 +2692,9 @@
         "strategyFor": "Chiến thuật {name}",
         "chartLabel": "Điểm phần viết qua các lần thi thử: {scores}; ngưỡng {mark}",
         "passLine": "ngưỡng {n}",
-        "today": "Hôm nay"
+        "today": "Hôm nay",
+        "rowPartial": "Dừng giữa chừng · đã làm {done}/{total} Teil",
+        "partialPill": "Dừng giữa chừng"
       },
       "rewrite": "Viết lại bài này",
       "estPass": "Ước tính · Đạt 60% của phần này",
@@ -2920,6 +2922,30 @@
         "backToday": "Về hôm nay",
         "lostWritingEmpty": "Chưa viết bài",
         "planNoDate": "Đặt ngày thi ở màn Hôm nay để có lịch ôn theo kết quả này."
+      },
+      "closedPrevious": "Lượt thi trước đã hết giờ khi bạn rời đi. Phần đã làm được lưu vào lịch sử với nhãn “Dừng giữa chừng”.",
+      "stopTitle": "Dừng lượt thi thử?",
+      "stopBody": "Đồng hồ không dừng khi bạn rời đi. Dừng bây giờ thì lượt này ghi “Dừng giữa chừng”: chỉ Teil đã làm được tính điểm, không xét đỗ/chưa đỗ và không làm tiếp được.",
+      "stopCounted": "Sẽ tính: {list}",
+      "stopTeilFull": "{teil} ({done}/{total} câu)",
+      "stopTeilBlank": "{teil} ({done}/{total} câu, {blank} câu trống tính 0)",
+      "stopWriting": "Schreiben: đã viết nhưng không chấm. AI chỉ chấm khi bạn nộp bài.",
+      "stopSkipped": "Không tính: {list}",
+      "stopFailed": "Chưa dừng được lượt thi. Kiểm tra kết nối mạng rồi thử lại; bài vẫn đang được lưu.",
+      "stopRetry": "Thử lại",
+      "stopConfirm": "Dừng và lưu phần đã làm",
+      "keepGoing": "Ở lại làm tiếp",
+      "partial": {
+        "title": "Dừng giữa chừng",
+        "leadStopped": "Bạn đã dừng lượt thi này. Chỉ Teil đã làm được tính điểm (câu bỏ trống trong Teil đó tính 0); lượt dừng không có tổng điểm và không xét đỗ/chưa đỗ.",
+        "leadExpired": "Lượt này hết giờ khi bạn rời đi. Phần đã làm được chấm theo bản lưu cuối cùng; lượt dừng không có tổng điểm và không xét đỗ/chưa đỗ.",
+        "doneOf": "Đã làm {done}/{total} Teil",
+        "rowScored": "{answered}/{total} câu đã trả lời · bấm để xem lại",
+        "rowWritten": "Đã viết, không chấm (AI chỉ chấm khi nộp bài)",
+        "rowSkipped": "Chưa làm · không tính",
+        "note": "Điểm từng Teil giúp bạn biết mình đang ở đâu. Muốn có tổng điểm và kết luận đỗ/chưa đỗ, hãy nộp cả đề.",
+        "again": "Thi thử lại đề này",
+        "toHub": "Về Hôm nay"
       }
     },
     "tour": {

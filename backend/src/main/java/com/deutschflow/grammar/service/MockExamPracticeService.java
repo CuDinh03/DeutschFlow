@@ -175,6 +175,7 @@ public class MockExamPracticeService {
      * Phân tích lượt thi thử trọn đề đã nộp (06/11/2026): chạy {@link PracticeAnalysis} cho từng Teil
      * khách quan (Lesen, Sprachbausteine, Hören) trên đáp án đã nộp, kèm bài Viết và phiếu chấm đã
      * lưu ở {@code detailed_scores_json.SCHREIBEN.teil2_email}. Chỉ chủ lượt thi; lượt chưa nộp xong ⇒ 404.
+     * Lượt dừng giữa chừng ({@code PARTIAL}, 07/11/2026) cũng xem lại được; Viết của lượt đó không có phiếu chấm.
      */
     @SuppressWarnings("unchecked")
     public PracticeDtos.AttemptAnalysis attemptAnalysis(User user, long attemptId) {
@@ -182,7 +183,7 @@ public class MockExamPracticeService {
                 SELECT a.exam_id, a.answers_submitted_json::text AS answers, a.detailed_scores_json::text AS detailed,
                        e.sections_json::text AS sections_json
                 FROM mock_exam_attempts a JOIN mock_exams e ON e.id = a.exam_id
-                WHERE a.id = ? AND a.user_id = ? AND a.status = 'COMPLETED'
+                WHERE a.id = ? AND a.user_id = ? AND a.status IN ('COMPLETED', 'PARTIAL')
                 """, attemptId, user.getId());
         if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy lượt thi.");
         Map<String, Object> row = rows.get(0);
