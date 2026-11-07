@@ -1,5 +1,6 @@
 'use client'
 
+import type * as React from 'react'
 import { useTranslations } from 'next-intl'
 
 /** Những khoá của một bài đọc dài kiểu đề thật — tập con của Teil trong `sections_json`. */
@@ -32,8 +33,23 @@ export const LINE_NUMBER_EVERY = 5
  * TÁC GIẢ ngắt (seed viết mỗi dòng ≈ 10 từ), không theo dòng trình duyệt bẻ, để cùng một số dòng
  * trỏ cùng một chỗ trên điện thoại lẫn màn rộng.
  */
-export function ReadingPassage({ teil }: { teil: RichPassageTeil }) {
+export function ReadingPassage({ teil, highlights = [] }: { teil: RichPassageTeil; highlights?: string[] }) {
   const t = useTranslations('v2.student.mockExamRun')
+  // Bằng chứng của câu đang xem lời giải: tô vàng đúng cụm trong dòng (luyện đề, sau khi kiểm tra).
+  const mark = (line: string): React.ReactNode => {
+    const ev = highlights.find((h) => h && line.includes(h))
+    if (!ev) return line
+    const at = line.indexOf(ev)
+    return (
+      <>
+        {line.slice(0, at)}
+        <mark data-evidence className="ga-evidence-glow rounded-ga bg-ga-yellow-soft text-ga-ink shadow-[inset_0_-2px_0_var(--ga-yellow)]">
+          {ev}
+        </mark>
+        {line.slice(at + ev.length)}
+      </>
+    )
+  }
   const lines = passageLines(teil.context ?? '')
   // Chỉ dòng có chữ mới được đếm — dòng trống giữa hai đoạn không phải một dòng của bài.
   let counted = 0
@@ -57,7 +73,7 @@ export function ReadingPassage({ teil }: { teil: RichPassageTeil }) {
               >
                 {showNumber ? counted : ''}
               </span>
-              <span className="min-w-0 break-words">{line}</span>
+              <span className="min-w-0 break-words">{mark(line)}</span>
             </div>
           )
         })}

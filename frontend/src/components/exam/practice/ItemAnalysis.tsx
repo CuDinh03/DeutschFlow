@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Check, X } from 'lucide-react'
+import { Check, TextSearch, TriangleAlert, X } from 'lucide-react'
 import type { PracticeItemResult } from '@/lib/telcPracticeApi'
 import { cn } from '@/lib/utils'
 
@@ -41,7 +41,16 @@ export function LetterBadge({
  * đáp án đúng và vì sao đúng, dấu hiệu trong bài, chỗ này cần gì / quy tắc nào. Câu làm đúng vẫn có
  * "vì sao đúng" để người học biết mình đúng có cơ sở hay đoán trúng.
  */
-export function ItemAnalysis({ item, title }: { item: PracticeItemResult; title: string }) {
+export function ItemAnalysis({
+  item,
+  title,
+  onShowEvidence,
+}: {
+  item: PracticeItemResult
+  title: string
+  /** Có khi bằng chứng nằm ở cột nguồn: hiện nút "Xem trong bài" để cuộn tới và tô chỗ đó. */
+  onShowEvidence?: () => void
+}) {
   const t = useTranslations('v2.student.practice')
   const status = !item.answered ? 'none' : item.isCorrect ? 'ok' : 'bad'
 
@@ -87,7 +96,10 @@ export function ItemAnalysis({ item, title }: { item: PracticeItemResult; title:
           <p>{item.whyWrong ?? t('whyWrongFallback')}</p>
           {item.trap && (
             <p className="mt-2">
-              <span className="rounded-ga-pill bg-ga-yellow-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-ink">{item.trap}</span>
+              <span className="inline-flex items-center gap-1 rounded-ga-pill bg-ga-yellow-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-ink shadow-[inset_0_0_0_1px_var(--ga-yellow)]">
+                <TriangleAlert size={13} aria-hidden />
+                {item.trap}
+              </span>
             </p>
           )}
         </Block>
@@ -114,6 +126,16 @@ export function ItemAnalysis({ item, title }: { item: PracticeItemResult; title:
                 </mark>
               ))}
             </div>
+            {onShowEvidence && (
+              <button
+                type="button"
+                onClick={onShowEvidence}
+                className="mt-2.5 inline-flex min-h-9 items-center gap-1.5 text-ga-small font-semibold text-ga-navy underline decoration-1 underline-offset-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+              >
+                <TextSearch size={15} aria-hidden />
+                {t('seeInText')}
+              </button>
+            )}
           </>
         )}
       </Block>

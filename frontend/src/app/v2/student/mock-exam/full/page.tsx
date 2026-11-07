@@ -41,7 +41,7 @@ import {
   writingKey,
   type FullTeil,
 } from '@/components/exam/practice/fullExamModel'
-import { useWide } from '@/components/exam/practice/useWide'
+import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { ExamGatePanel } from '@/components/exam/telc/ExamGatePanel'
 import { ExamBudgetPanel } from '@/components/exam/telc/ExamBudgetPanel'
 import { gateVerdict } from '@/components/exam/telc/examGates'
@@ -90,7 +90,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const t = useTranslations('v2.student.fullExam')
   const tp = useTranslations('v2.student.practice')
   const tc = useTranslations('v2.common')
-  const wide = useWide()
+  const wide = useWide(SPLIT_MIN_WIDTH)
   const { trackFeatureAction } = useTracking()
 
   const [attemptId, setAttemptId] = React.useState<number | null>(null)
@@ -373,6 +373,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
       <PracticeShell
         backHref={HUB}
         backLabel={t('backToHub')}
+        section={cur.section}
         subtitle={subtitle}
         title={title}
         progress={t('answeredOf', { done: progress.done, total: progress.total })}
@@ -417,6 +418,7 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
   const t = useTranslations('v2.student.fullExam')
   const tp = useTranslations('v2.student.practice')
   const wide = useWide()
+  const split = useWide(SPLIT_MIN_WIDTH)
   const [result, setResult] = React.useState<AttemptResult | null>(null)
   const [analysis, setAnalysis] = React.useState<AttemptAnalysis | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -476,15 +478,15 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
       const given = Object.fromEntries((r?.items ?? []).filter((i) => i.given).map((i) => [i.id, i.given as string]))
       const kind = kindOf(openTeil.data, openTeil.key)
       body = openTeil.section === 'HOEREN' ? (
-        <HoerenTeilView key={openTeil.key} teil={openTeil.data} answers={given} onAnswer={() => undefined} result={r} wide={wide} tips={null} />
+        <HoerenTeilView key={openTeil.key} teil={openTeil.data} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
       ) : kind !== 'unknown' && kind !== 'writing' ? (
-        <ObjectiveTeilView key={openTeil.key} teil={openTeil.data} kind={kind} answers={given} onAnswer={() => undefined} result={r} wide={wide} tips={null} />
+        <ObjectiveTeilView key={openTeil.key} teil={openTeil.data} kind={kind} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
       ) : (
         <div className="p-6"><ErrorBanner message={tp('teilMissing')} /></div>
       )
     }
     return (
-      <PracticeShell backHref={HUB} backLabel={t('backToHub')} subtitle={subtitle} title={title} footer={back}>
+      <PracticeShell backHref={HUB} backLabel={t('backToHub')} section={openTeil.section} subtitle={subtitle} title={title} footer={back}>
         {body}
       </PracticeShell>
     )

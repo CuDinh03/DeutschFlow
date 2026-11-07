@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ChevronRight, Sparkles } from 'lucide-react'
+import { ChevronRight, Send, Sparkles } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
   WRITING_KEY,
@@ -19,14 +19,14 @@ import {
   type WritingEvaluation,
 } from '@/lib/telcPracticeApi'
 import { fetchExamStrategies, findStrategy } from '@/components/exam/strategy/examStrategy'
-import { LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { ConfirmDialog, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { PracticeShell, TipsCard, type PracticeSaveState } from '@/components/exam/practice/PracticeShell'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
 import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
-import { useWide } from '@/components/exam/practice/useWide'
+import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 
 export default function PracticeTeilRoute() {
   return (
@@ -45,7 +45,11 @@ function PracticeTeilPage() {
   const params = useSearchParams()
   const examId = Number(params.get('examId'))
   const teilKey = params.get('teil') ?? ''
-  const wide = useWide()
+  const tf = useTranslations('v2.student.practice.frame')
+  // Khung làm bài chia hai cột từ 760px; màn kết quả Viết giữ mốc 1024px như cũ.
+  const wide = useWide(SPLIT_MIN_WIDTH)
+  const wideResult = useWide()
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
 
   const [overview, setOverview] = React.useState<PracticeOverview | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -273,6 +277,7 @@ function PracticeTeilPage() {
     return (
       <PracticeShell
         backHref={mapHref}
+        section={meta.section}
         subtitle={showResult ? t('writingResultSub') : subtitle}
         title={title}
         progress={showResult ? undefined : t('pointsProgress', { done, total: points.length })}
@@ -284,7 +289,7 @@ function PracticeTeilPage() {
         footer={footer}
       >
         {showResult ? (
-          <WritingResultView evaluation={evaluation!} text={text} points={points} wide={wide} />
+          <WritingResultView evaluation={evaluation!} text={text} points={points} wide={wideResult} />
         ) : (
           <WritingTeilView
             teil={teil}
@@ -317,18 +322,18 @@ function PracticeTeilPage() {
   ) : (
     <>
       {errorBar}
-      <span className="ga-ui min-w-0 flex-1 basis-full text-ga-small text-ga-muted lg:basis-auto">
-        {t('footAnswered', { done: answered, total })}
-        {answered < total ? ` · ${t('checkAnytime')}` : ''}
-      </span>
       <FootLink href={mapHref}>{t('saveExit')}</FootLink>
-      <FootBtn primary disabled={busy} onClick={check}>{busy ? t('checking') : t('check')}</FootBtn>
+      <FootBtn primary disabled={busy} onClick={() => (answered < total ? setConfirmOpen(true) : void check())}>
+        <Send size={15} aria-hidden /> {busy ? t('checking') : t('check')}
+      </FootBtn>
     </>
   )
 
   return (
+    <>
     <PracticeShell
       backHref={mapHref}
+      section={meta.section}
       subtitle={subtitle}
       title={title}
       progress={`${result ? result.correctCount : answered}/${total}`}
@@ -353,6 +358,17 @@ function PracticeTeilPage() {
         />
       )}
     </PracticeShell>
+    <ConfirmDialog
+      open={confirmOpen}
+      onOpenChange={setConfirmOpen}
+      title={tf('confirmTitle', { n: total - answered })}
+      description={tf('confirmBody')}
+      confirmLabel={tf('confirmGo')}
+      cancelLabel={tf('keepGoing')}
+      destructive={false}
+      onConfirm={() => void check()}
+    />
+    </>
   )
 }
 
