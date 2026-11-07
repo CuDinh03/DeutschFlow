@@ -2494,12 +2494,14 @@
       "section": {
         "LESEN": "Lesen",
         "SPRACHBAUSTEINE": "Grammatik und Wortschatz",
-        "SCHREIBEN": "Schreiben"
+        "SCHREIBEN": "Schreiben",
+        "HOEREN": "Hörverstehen"
       },
       "sectionDe": {
         "LESEN": "Leseverstehen",
         "SPRACHBAUSTEINE": "Sprachbausteine",
-        "SCHREIBEN": "Schriftlicher Ausdruck"
+        "SCHREIBEN": "Schriftlicher Ausdruck",
+        "HOEREN": "Hörverstehen"
       },
       "teilTitle": {
         "MATCH_HEADLINE": "Überschriften zuordnen",
@@ -2507,7 +2509,8 @@
         "MATCH_AD_X": "Anzeigen zuordnen",
         "GAP_MC": "Lückentext · a/b/c",
         "GAP_WORDBANK": "Lückentext · Wortkasten",
-        "SCHREIBEN": "Antwort-E-Mail"
+        "SCHREIBEN": "Antwort-E-Mail",
+        "HOEREN": "Hören, richtig/falsch wählen"
       },
       "fallbackTips": {
         "LESEN": {
@@ -2524,6 +2527,11 @@
           "t1": "Zu jedem Punkt P1–P4 mindestens einen eigenen Satz; ein fehlender Punkt kostet eine Stufe in Kriterium I.",
           "t2": "Sätze mit weil, deshalb, außerdem verbinden; unverbundene Sätze kosten das A in Kriterium II.",
           "t3": "Anrede und Gruß wie in einer Mail an Freunde, Register einheitlich."
+        },
+        "HOEREN": {
+          "t1": "Nutzen Sie die Lesezeit, um in jeder Aussage die Schlüsselwörter zu markieren.",
+          "t2": "Die Aussagen folgen der Reihenfolge des Hörtexts — entscheiden Sie, sobald die Stelle kommt.",
+          "t3": "Typische Falle: Es wird das Gegenteil gesagt oder es geht um eine andere Person oder Zeit."
         }
       },
       "notInHistory": "Übungsergebnisse zählen nicht zur Prüfungshistorie.",
@@ -2552,7 +2560,6 @@
       "oralSub": "Mündlich · Bewertung im Sprechprüfungsraum",
       "oralTitle": "Im Sprechprüfungsraum üben",
       "oralDesc": "3 Teile, eigene Bewertung im Sprechmodul",
-      "hoerenOff": "Hörverstehen · im Übungsmodus noch nicht verfügbar.",
       "progressCap": "Fortschritt in dieser Prüfung",
       "teilCount": "{n} Teile",
       "progressNone": "Noch kein Teil abgeschlossen.",
@@ -2571,7 +2578,77 @@
       "rowAnswered": "{done}/{total} Aufgaben",
       "rowNew": "Offen",
       "metaWriting": "4 Leitpunkte · etwa 80 Wörter · empfohlen {minutes} Min.",
-      "metaItems": "{n} Aufgaben · empfohlen {minutes} Min."
+      "metaItems": "{n} Aufgaben · empfohlen {minutes} Min.",
+      "hoerenHidden": "Die Aufgaben erscheinen, wenn Sie auf Start drücken — wie beim Öffnen des Prüfungsbogens."
+    },
+    "examHub": {
+      "title": "Prüfungsvorbereitung",
+      "subtitle": "telc Deutsch B1 — Teil für Teil üben oder eine ganze Modellprüfung",
+      "loading": "Prüfungen werden geladen…",
+      "loadError": "Die Prüfungen konnten nicht geladen werden.",
+      "notOpen": "Die Prüfungsvorbereitung ist für dieses Konto noch nicht freigeschaltet. Bitte wenden Sie sich an Ihr Zentrum oder einen Admin.",
+      "lead": "Jede Prüfung geht auf zwei Arten. Teil für Teil üben, um zu verstehen, warum etwas richtig oder falsch ist; die ganze Modellprüfung zeigt, wo Sie gegenüber den Bestehensgrenzen stehen.",
+      "empty": "Noch keine Prüfungen.",
+      "lockedPack": "Erfordert ein kostenpflichtiges Paket.",
+      "oralDesc": "Die mündliche Prüfung legen Sie mit einem KI-Prüfer ab — die Punkte zählen für die mündliche Grenze.",
+      "modesCap": "Zwei Arbeitsweisen",
+      "practiceMode": "Teil für Teil üben",
+      "practiceModeDesc": "ohne Zeitdruck, jeder Teil einzeln prüfen, jede Aufgabe erklärt. Nicht im Prüfungsverlauf.",
+      "fullMode": "Ganze Modellprüfung",
+      "fullModeDesc": "eine Gesamtuhr, automatische Abgabe bei Zeitende, einmal abgeben. Punkte pro Teil, beide Bestehensgrenzen und Analyse jeder Aufgabe.",
+      "comingSoon": "Demnächst",
+      "comingSoonHint": "Diese Prüfung wird noch geprüft.",
+      "practiceProgress": "Teil-für-Teil-Übung",
+      "teilDone": "{done}/{total} Teile geprüft",
+      "lastMock": "Letzte Modellprüfung",
+      "lastMockValue": "{score} Punkte · {date}",
+      "noMock": "Noch nicht abgelegt",
+      "practiceCta": "Teil für Teil üben",
+      "fullCta": "Ganze Modellprüfung",
+      "fullContinue": "Modellprüfung fortsetzen",
+      "minutes": "{n} Min.",
+      "historyCap": "Verlauf der Modellprüfungen",
+      "historyEmpty": "Noch keine Modellprüfung."
+    },
+    "fullExam": {
+      "badLink": "Ungültiger Link zur Modellprüfung.",
+      "loading": "Prüfung wird geöffnet…",
+      "noContent": "Diese Prüfung hat noch keinen Inhalt.",
+      "startError": "Die Prüfung konnte nicht geöffnet werden.",
+      "examCap": "Ganze Modellprüfung",
+      "backToHub": "Zur Prüfungsvorbereitung",
+      "subtitle": "Modellprüfung · {section} · Teil {n}",
+      "answeredOf": "{done}/{total}",
+      "prevTeil": "Voriger Teil",
+      "nextTeil": "Nächster Teil",
+      "jumpLabel": "Zu Teil wechseln",
+      "jumpOption": "{section} {n} · {done}/{total}",
+      "submit": "Abgeben",
+      "grading": "Wird bewertet…",
+      "gradingDesc": "Der schriftliche Teil wird von der KI bewertet, das kann ein bis zwei Minuten dauern. Bitte die Seite offen lassen.",
+      "confirmTitle": "Modellprüfung abgeben?",
+      "confirmBodyLeft": "Noch {n} Aufgaben sind offen. Nach der Abgabe lässt sich nichts mehr ändern.",
+      "confirmBodyAll": "Alle Aufgaben sind beantwortet. Nach der Abgabe lässt sich nichts mehr ändern.",
+      "timeUp": "Die Zeit ist um — die Prüfung wurde automatisch abgegeben.",
+      "draftConflict": "Die Prüfung wurde auf einem anderen Gerät fortgesetzt — der neueste Stand wurde geladen.",
+      "draftRestored": "{count} Antworten wiederhergestellt.",
+      "submitError": "Abgabe fehlgeschlagen. Ihre Antworten sind gespeichert — bitte erneut versuchen.",
+      "alreadySubmitted": "Diese Prüfung wurde bereits abgegeben.",
+      "resultCap": "Ergebnis der Modellprüfung",
+      "resultTitle": "Ergebnis",
+      "resultError": "Das Ergebnis konnte nicht geladen werden.",
+      "backToResult": "Zum Ergebnis",
+      "writingPending": "Der schriftliche Teil wartet noch auf die KI-Bewertung. Schauen Sie in ein paar Minuten wieder vorbei.",
+      "writingPendingShort": "Bewertung ausstehend",
+      "passed": "Bestanden",
+      "failed": "Nicht bestanden",
+      "pending": "Noch kein Ergebnis — die mündliche Prüfung fehlt",
+      "oralCta": "Mündliche Prüfung ablegen",
+      "oralCtaDesc": "Mit einem KI-Prüfer; die Punkte zählen für die mündliche Grenze.",
+      "reviewCap": "Jeden Teil ansehen",
+      "rowWriting": "{score}/{max} Punkte",
+      "rowCorrect": "{done}/{total} richtig · {score}/{max} Punkte",
+      "practiceWeak": "Teil für Teil üben"
     }
   }
 }

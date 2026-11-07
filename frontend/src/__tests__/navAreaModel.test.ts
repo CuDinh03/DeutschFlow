@@ -274,7 +274,8 @@ describe('resolveArea — suy ra area theo pathname', () => {
     ['/v2/student/interviews', 'sprechen'],
     ['/v2/student/weekly-speaking', 'sprechen'],
     ['/v2/student/exam', 'pruefung'],
-    ['/v2/student/mock-exam/run', 'pruefung'],
+    ['/v2/student/mock-exam/full', 'pruefung'],
+    ['/v2/student/mock-exam/practice/teil', 'pruefung'],
     ['/v2/student/assessment', 'pruefung'],
     ['/v2/student/progress', 'fortschritt'],
     ['/v2/student/certificates', 'fortschritt'],
@@ -304,7 +305,7 @@ describe('resolveArea — suy ra area theo pathname', () => {
 
 describe('isImmersiveRoute — ẩn bottom nav trong mode toàn màn hình (S-13)', () => {
   it('bật cho Exam Room và phiên nói đang chạy', () => {
-    expect(isImmersiveRoute('/v2/student/mock-exam/run')).toBe(true)
+    expect(isImmersiveRoute('/v2/student/mock-exam/full')).toBe(true)
     expect(isImmersiveRoute('/v2/student/speaking/live')).toBe(true)
   })
 
@@ -313,7 +314,7 @@ describe('isImmersiveRoute — ẩn bottom nav trong mode toàn màn hình (S-13
   })
 
   it('tắt cho màn thường (kể cả trang chuẩn bị của cùng area)', () => {
-    expect(isImmersiveRoute('/v2/student/mock-exam')).toBe(false)
+    expect(isImmersiveRoute('/v2/student/exam')).toBe(false)
     expect(isImmersiveRoute('/v2/student/speaking')).toBe(false)
     expect(isImmersiveRoute('/v2/student/dashboard')).toBe(false)
   })

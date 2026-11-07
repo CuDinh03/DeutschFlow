@@ -19,13 +19,13 @@ export default function PracticeMapRoute() {
   )
 }
 
-const SECTION_ORDER = ['LESEN', 'SPRACHBAUSTEINE', 'SCHREIBEN'] as const
+const SECTION_ORDER = ['LESEN', 'SPRACHBAUSTEINE', 'HOEREN', 'SCHREIBEN'] as const
 const fmt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 })
 
 /**
  * Bản đồ đề của chế độ luyện đề telc: thấy cả đề trên một màn, mỗi Teil một hàng bấm được với trạng
  * thái + điểm + thời lượng gợi ý; khối "Đang làm dở · Làm tiếp"; tiến độ tính trên PHẦN ĐÃ LÀM
- * (không chia cho cả đề — 20/150 sau một Teil làm người học nản). Hören tạm thời không có.
+ * (không chia cho cả đề — 20/150 sau một Teil làm người học nản). Hören có từ 06/11/2026.
  */
 function PracticeMapPage() {
   const t = useTranslations('v2.student.practice')
@@ -112,7 +112,7 @@ function PracticeMapPage() {
                   <span className="ga-ui text-ga-small text-ga-muted">{t('oralSub')}</span>
                 </div>
                 <Link
-                  href="/v2/student/speaking"
+                  href="/v2/student/speaking/exam"
                   className="ga-ui flex min-h-16 items-center gap-3.5 px-4 py-2.5 hover:bg-ga-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
                 >
                   <Mic size={18} className="shrink-0 text-ga-muted" aria-hidden />
@@ -124,10 +124,6 @@ function PracticeMapPage() {
                 </Link>
               </section>
 
-              <section className="mb-4 border border-ga-line bg-ga-side-active px-4 py-3">
-                <h2 className="font-ga-display text-ga-h2 text-ga-muted">Hörverstehen</h2>
-                <p className="ga-ui mt-0.5 text-ga-small text-ga-muted">{t('hoerenOff')}</p>
-              </section>
             </div>
 
             <aside className="space-y-3.5">
@@ -157,7 +153,7 @@ function PracticeMapPage() {
                 <p className="ga-ui mb-1.5 text-ga-eyebrow uppercase text-ga-muted">{t('modeCap')}</p>
                 <p className="ga-ui text-ga-small text-ga-muted">{t('modeDesc')}</p>
                 <Link
-                  href={`/v2/student/mock-exam/run?examId=${examId}&level=${encodeURIComponent(overview.level)}`}
+                  href={`/v2/student/mock-exam/full?examId=${examId}`}
                   className="ga-ui mt-2.5 inline-flex min-h-10 items-center gap-1 rounded-ga-touch border-[1.5px] border-ga-line-strong px-3 text-ga-small font-semibold hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
                 >
                   {t('fullExam')} <ChevronRight size={14} aria-hidden />

@@ -89,7 +89,7 @@ describe('GaBottomNav (S-13)', () => {
   })
 
   it('ẩn HOÀN TOÀN trong route toàn màn hình (Exam Room)', () => {
-    pathname = '/v2/student/mock-exam/run'
+    pathname = '/v2/student/mock-exam/full'
     const { container } = renderBottom()
     expect(container.querySelector('nav')).toBeNull()
   })

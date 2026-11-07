@@ -185,7 +185,15 @@ public final class PracticeAnalysis {
             ((Map<String, Object>) m).forEach((k, v) -> out.put(k, String.valueOf(v)));
             return out;
         }
+        if (pool.isEmpty() && isTrueFalse(str(item.get("correct")))) return TRUE_FALSE;
         return pool;
+    }
+
+    /** Câu Hören (và Lesen Goethe) đúng/sai không khai {@code options}: đáp án là "richtig"/"falsch". */
+    private static final Map<String, String> TRUE_FALSE = Map.of("richtig", "Richtig", "falsch", "Falsch");
+
+    private static boolean isTrueFalse(String correct) {
+        return correct != null && TRUE_FALSE.containsKey(correct.toLowerCase(Locale.ROOT));
     }
 
     private static String optionText(Map<String, String> options, String key) {

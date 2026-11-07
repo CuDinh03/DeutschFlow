@@ -360,11 +360,9 @@ export const studentNav: RoleNav = {
         // Bài nói theo tuần: admin ra đề (/v2/admin/weekly-speaking) → học viên nộp + nhận rubric.
         // Luồng RIÊNG, không phải engine chat AI ở /v2/student/speaking.
         { id: 'weekly-speaking', label: 'Speaking tuần', href: '/v2/student/weekly-speaking', icon: 'calendar_month' },
-        { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz' },
+        // 06/11/2026: một lối vào duy nhất — luyện từng Teil + thi thử trọn đề telc. Thi thử cũ,
+        // Đánh giá B1 và kế hoạch thi đã bỏ khỏi web (route cũ chuyển về đây).
         { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school' },
-        // Đánh giá B1 (GET/POST /assessment/b1/*): 5 tiêu chí readiness + điểm tốt nghiệp.
-        // KHÁC 'mock-exam' (làm đề) — đây là bảng tổng hợp điều kiện đạt chuẩn B1.
-        { id: 'b1-assessment', label: 'Đánh giá B1', href: '/v2/student/assessment', icon: 'fact_check' },
       ],
     },
     {
@@ -617,8 +615,6 @@ export const studentAreas: RoleAreas = {
       match: ['/v2/student/mock-exam', '/v2/student/assessment', '/v2/student/exam-plan'],
       local: [
         { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school', glyph: 'muctieu' },
-        { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz', glyph: 'thithu' },
-        { id: 'b1-assessment', label: 'Đánh giá B1', href: '/v2/student/assessment', icon: 'fact_check', glyph: 'capdo' },
       ],
     },
     {
@@ -772,7 +768,7 @@ export function resolveArea(role: RoleAreas, pathname: string): AreaNav | undefi
  * Danh sách là route THẬT đang tồn tại — mode shell của Wave 2 sẽ kế thừa quy tắc này.
  */
 const IMMERSIVE_ROUTES = [
-  '/v2/student/mock-exam/run',
+  '/v2/student/mock-exam/full',
   '/v2/student/speaking/live',
   // `/v2/student/interviews` ĐÃ RỜI danh sách này ở B-15: nó là màn CHỦ của Interview (bắt đầu
   // phiên mới · phiên đang dở · báo cáo cũ), không phải phòng phỏng vấn. Ẩn nav ở đó là ẩn nhầm

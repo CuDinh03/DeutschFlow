@@ -31,4 +31,12 @@ public final class PracticeDtos {
     public record Access(boolean enabled) {}
 
     public record JobAccepted(String jobId, String status) {}
+
+    /**
+     * Phân tích một lượt thi thử trọn đề (06/11/2026) bằng cùng bộ phân tích của chế độ luyện:
+     * mỗi Teil khách quan một {@code TeilResult}; bài Viết = văn bản đã nộp + phiếu chấm AI đã lưu.
+     */
+    public record AttemptAnalysis(long attemptId, long examId, String sectionsJson,
+                                  List<com.deutschflow.grammar.service.PracticeAnalysis.TeilResult> teile,
+                                  String writingText, Object writing) {}
 }

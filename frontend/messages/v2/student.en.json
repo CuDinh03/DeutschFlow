@@ -2494,12 +2494,14 @@
       "section": {
         "LESEN": "Reading",
         "SPRACHBAUSTEINE": "Grammar and vocabulary",
-        "SCHREIBEN": "Writing"
+        "SCHREIBEN": "Writing",
+        "HOEREN": "Listening"
       },
       "sectionDe": {
         "LESEN": "Leseverstehen",
         "SPRACHBAUSTEINE": "Sprachbausteine",
-        "SCHREIBEN": "Schriftlicher Ausdruck"
+        "SCHREIBEN": "Schriftlicher Ausdruck",
+        "HOEREN": "Hörverstehen"
       },
       "teilTitle": {
         "MATCH_HEADLINE": "Match the headlines",
@@ -2507,7 +2509,8 @@
         "MATCH_AD_X": "Match the ads",
         "GAP_MC": "Fill the gaps · a/b/c",
         "GAP_WORDBANK": "Fill the gaps · word box",
-        "SCHREIBEN": "Write a reply"
+        "SCHREIBEN": "Write a reply",
+        "HOEREN": "Listen, choose richtig/falsch"
       },
       "fallbackTips": {
         "LESEN": {
@@ -2524,6 +2527,11 @@
           "t1": "Write at least one sentence for each point P1–P4; a missing point costs a band in criterion I.",
           "t2": "Link sentences with weil, deshalb, außerdem; unlinked sentences cost the A in criterion II.",
           "t3": "Open and close the email like a message to a friend, with consistent register."
+        },
+        "HOEREN": {
+          "t1": "Use the reading time to underline the key words of each statement before listening.",
+          "t2": "Statements follow the order of the recording — decide as soon as you hear the point.",
+          "t3": "Common traps: the speaker says the opposite, or says it about another person or time."
         }
       },
       "notInHistory": "Practice results do not count towards your mock exam history.",
@@ -2552,7 +2560,6 @@
       "oralSub": "Speaking · graded in the speaking exam room",
       "oralTitle": "Practise in the speaking exam room",
       "oralDesc": "3 parts, graded separately in the speaking module",
-      "hoerenOff": "Listening · not yet available in practice mode.",
       "progressCap": "Progress on this exam",
       "teilCount": "{n} parts",
       "progressNone": "No part finished yet.",
@@ -2571,7 +2578,77 @@
       "rowAnswered": "{done}/{total} items",
       "rowNew": "Not started",
       "metaWriting": "4 required points · about 80 words · suggested {minutes} min",
-      "metaItems": "{n} items · suggested {minutes} min"
+      "metaItems": "{n} items · suggested {minutes} min",
+      "hoerenHidden": "The questions appear when you press start — just like opening the paper in the exam room."
+    },
+    "examHub": {
+      "title": "Exam prep",
+      "subtitle": "telc Deutsch B1 — practise part by part or take a full mock exam",
+      "loading": "Loading exams…",
+      "loadError": "Could not load the exams.",
+      "notOpen": "Exam prep is not open for this account yet. Please contact your centre or an admin.",
+      "lead": "Every exam can be done two ways. Practise part by part to understand why answers are right or wrong; take the full mock to see where you stand against the pass marks.",
+      "empty": "No exams yet.",
+      "lockedPack": "Requires a paid plan.",
+      "oralDesc": "The speaking part is taken with an AI examiner — the score counts towards the oral pass mark.",
+      "modesCap": "Two ways to work",
+      "practiceMode": "Practise part by part",
+      "practiceModeDesc": "no time pressure, check each Teil, every item explained. Not saved to exam history.",
+      "fullMode": "Full mock exam",
+      "fullModeDesc": "one overall timer, auto-submit when time is up, submit once. Section scores, both pass marks and item analysis.",
+      "comingSoon": "Coming soon",
+      "comingSoonHint": "This exam is being reviewed.",
+      "practiceProgress": "Part-by-part practice",
+      "teilDone": "{done}/{total} parts checked",
+      "lastMock": "Latest mock exam",
+      "lastMockValue": "{score} points · {date}",
+      "noMock": "Not taken yet",
+      "practiceCta": "Practise part by part",
+      "fullCta": "Full mock exam",
+      "fullContinue": "Continue mock exam",
+      "minutes": "{n} min",
+      "historyCap": "Mock exam history",
+      "historyEmpty": "No mock exams yet."
+    },
+    "fullExam": {
+      "badLink": "Invalid mock exam link.",
+      "loading": "Opening the exam…",
+      "noContent": "This exam has no content yet.",
+      "startError": "Could not open the exam.",
+      "examCap": "Full mock exam",
+      "backToHub": "Back to exam prep",
+      "subtitle": "Mock exam · {section} · Teil {n}",
+      "answeredOf": "{done}/{total}",
+      "prevTeil": "Previous part",
+      "nextTeil": "Next part",
+      "jumpLabel": "Go to part",
+      "jumpOption": "{section} {n} · {done}/{total}",
+      "submit": "Submit",
+      "grading": "Grading…",
+      "gradingDesc": "Writing is graded by AI, which can take a minute or two. Please keep this page open.",
+      "confirmTitle": "Submit the mock exam?",
+      "confirmBodyLeft": "{n} items are still unanswered. You cannot change anything after submitting.",
+      "confirmBodyAll": "You have answered every item. You cannot change anything after submitting.",
+      "timeUp": "Time is up — the exam was submitted automatically.",
+      "draftConflict": "The exam was continued on another device — the latest version was loaded.",
+      "draftRestored": "Restored {count} answers.",
+      "submitError": "Submitting failed. Your answers are saved — please try again.",
+      "alreadySubmitted": "This exam was already submitted.",
+      "resultCap": "Mock exam result",
+      "resultTitle": "Result",
+      "resultError": "Could not load the result.",
+      "backToResult": "Back to result",
+      "writingPending": "Your writing is still waiting for AI grading. Check back in a few minutes.",
+      "writingPendingShort": "Waiting for grading",
+      "passed": "Passed",
+      "failed": "Not passed",
+      "pending": "Not conclusive yet — the speaking part is missing",
+      "oralCta": "Take the speaking part",
+      "oralCtaDesc": "With an AI examiner; the score counts towards the oral pass mark.",
+      "reviewCap": "Review each part",
+      "rowWriting": "{score}/{max} points",
+      "rowCorrect": "{done}/{total} correct · {score}/{max} points",
+      "practiceWeak": "Practise part by part"
     }
   }
 }

@@ -64,6 +64,13 @@ public class MockExamPracticeController {
         return new PracticeDtos.Access(practice.hasAccess(user));
     }
 
+    /** Phân tích lượt thi thử trọn đề đã nộp — màn kết quả của luồng luyện thi mới (06/11/2026). */
+    @GetMapping("/attempts/{attemptId}/analysis")
+    public PracticeDtos.AttemptAnalysis attemptAnalysis(@PathVariable long attemptId,
+                                                        @AuthenticationPrincipal User user) {
+        return practice.attemptAnalysis(user, attemptId);
+    }
+
     @GetMapping("/{examId}")
     public PracticeDtos.Overview overview(@PathVariable long examId, @AuthenticationPrincipal User user) {
         return practice.overview(user, examId);

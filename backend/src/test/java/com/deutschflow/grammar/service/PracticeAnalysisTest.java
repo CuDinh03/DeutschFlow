@@ -113,4 +113,23 @@ class PracticeAnalysisTest {
         assertThat(item.whyWrong()).contains("mẩu a đáp ứng đúng tình huống");
         assertThat(item.label()).isEqualTo("14");
     }
+
+    @Test
+    void hoerenDungSai_khongKhaiOptions_vanCoChuDapAn() {
+        Map<String, Object> teil = Map.of("teil", 1, "point_per_item", 5, "items", List.of(
+                Map.of("id", "HV1-41", "question", "Sie fährt auch im Winter.", "correct", "richtig",
+                        "explanation_vi", "„auch im Winter“ ⇒ ĐÚNG."),
+                Map.of("id", "HV1-42", "question", "Kein Bus.", "correct", "falsch",
+                        "explanation_vi", "Ban ngày có xe buýt ⇒ SAI.")));
+
+        var r = PracticeAnalysis.analyse("HOEREN-1", teil, Map.of(), Map.of("HV1-41", "richtig", "HV1-42", "richtig"));
+
+        assertThat(r.score()).isEqualTo(5.0);
+        assertThat(r.max()).isEqualTo(10.0);
+        var wrong = r.items().get(1);
+        assertThat(wrong.label()).isEqualTo("42");
+        assertThat(wrong.givenText()).isEqualTo("Richtig");
+        assertThat(wrong.correctText()).isEqualTo("Falsch");
+        assertThat(wrong.whyRight()).isEqualTo("Ban ngày có xe buýt ⇒ SAI.");
+    }
 }

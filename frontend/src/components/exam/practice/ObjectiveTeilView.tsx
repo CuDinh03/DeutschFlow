@@ -30,6 +30,10 @@ interface Props {
   /** ≥1024px: hai khung (bài bên trái, kho/phân tích bên phải). Dưới đó: một cột + bảng chọn từ đáy. */
   wide: boolean
   tips: React.ReactNode
+  /** Khối đặt ngay dưới câu lệnh (Hören: bài nghe cấp Teil). */
+  intro?: React.ReactNode
+  /** Khối đặt trên câu hỏi của từng câu (Hören: bài nghe của câu). */
+  itemExtra?: (item: PracticeItem) => React.ReactNode
 }
 
 /**
@@ -37,7 +41,7 @@ interface Props {
  * chạm vào câu → chạm vào đáp án; lựa chọn đã dùng ở câu khác thì viền đứt + chữ nhạt + ghi "ở câu N"
  * (vẫn chọn được — nó chuyển sang câu đang chọn); đúng/sai chỉ hiện sau khi kiểm tra cả Teil.
  */
-export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips }: Props) {
+export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra }: Props) {
   const t = useTranslations('v2.student.practice')
   const items = React.useMemo(() => teil.items ?? [], [teil.items])
   const checked = result != null
@@ -138,9 +142,10 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     <div>
       {tips}
       <TaskLine teil={teil} />
+      {intro}
       {result && <ScoreLine result={result} />}
       {teil.examples && teil.examples.length > 0 && <Examples examples={teil.examples} />}
-      {kind === 'mc' && <div className="mb-5"><ReadingPassage teil={teil} /></div>}
+      {kind === 'mc' && teil.context && <div className="mb-5"><ReadingPassage teil={teil} /></div>}
       {(kind === 'gap-mc' || kind === 'gap-bank') ? (
         <GappedText
           teil={teil}
@@ -163,6 +168,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
             res={byId.get(item.id)}
             selected={selected === item.id}
             wide={wide}
+            extra={itemExtra?.(item)}
             onOpen={() => openItem(item.id)}
             onMc={(v) => !checked && onAnswer(item.id, v)}
           />
@@ -328,6 +334,7 @@ function ItemCard({
   res,
   selected,
   wide,
+  extra,
   onOpen,
   onMc,
 }: {
@@ -339,6 +346,7 @@ function ItemCard({
   res?: PracticeItemResult
   selected: boolean
   wide: boolean
+  extra?: React.ReactNode
   onOpen: () => void
   onMc: (value: string) => void
 }) {
@@ -363,6 +371,7 @@ function ItemCard({
         {active && <span className="ga-ui text-ga-caption font-semibold text-ga-navy">{t('picking')}</span>}
         {checked && <StatusPill res={res} />}
       </div>
+      {extra && <div className="px-4 pt-2">{extra}</div>}
       {body && (
         <p lang="de" className="ga-ui px-4 pb-3 pt-1.5 text-ga-body-lg leading-relaxed text-ga-ink">
           {checked && selected ? highlight(body, res.evidence) : body}

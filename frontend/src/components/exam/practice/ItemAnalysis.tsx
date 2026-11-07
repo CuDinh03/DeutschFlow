@@ -30,7 +30,8 @@ export function LetterBadge({
         className,
       )}
     >
-      {value}
+      {/* Khoá dài (richtig/falsch của Hören) không vừa vòng 32px: hiện chữ đầu, R / F. */}
+      {value.length > 2 ? value.charAt(0).toUpperCase() : value}
     </span>
   )
 }

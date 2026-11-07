@@ -15,7 +15,6 @@ import { TodayList, type TodayTask } from '@/components/learning/TodayList'
 import { HabitStrip } from '@/components/learning/HabitStrip'
 import { JourneyPreview } from '@/components/learning/JourneyPreview'
 import { StarterChecklist } from '@/components/learning/StarterChecklist'
-import { ExamCountdownCard } from '@/components/exam/plan/ExamCountdownCard'
 
 /**
  * Heute (Student Dashboard) — S-02.
@@ -137,9 +136,6 @@ export default function V2StudentDashboardPage() {
                 không có hàng / đã xong / quá 7 ngày. Đứng trên Continue: tuần đầu ưu tiên "thử hết
                 công cụ" hơn "học tiếp". */}
             <StarterChecklist />
-
-            {/* LT3: chỉ hiện với người có ngày thi và có kế hoạch cho kỳ thi đó. */}
-            <ExamCountdownCard />
 
             <ContinueLearning node={continueNode} isFirstSession={isFirstSession} />
 

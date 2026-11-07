@@ -2494,12 +2494,14 @@
       "section": {
         "LESEN": "Đọc hiểu",
         "SPRACHBAUSTEINE": "Từ vựng, ngữ pháp",
-        "SCHREIBEN": "Viết"
+        "SCHREIBEN": "Viết",
+        "HOEREN": "Nghe hiểu"
       },
       "sectionDe": {
         "LESEN": "Leseverstehen",
         "SPRACHBAUSTEINE": "Sprachbausteine",
-        "SCHREIBEN": "Schriftlicher Ausdruck"
+        "SCHREIBEN": "Schriftlicher Ausdruck",
+        "HOEREN": "Hörverstehen"
       },
       "teilTitle": {
         "MATCH_HEADLINE": "Ghép tiêu đề",
@@ -2507,7 +2509,8 @@
         "MATCH_AD_X": "Ghép mẩu rao vặt",
         "GAP_MC": "Điền chỗ trống · a/b/c",
         "GAP_WORDBANK": "Điền chỗ trống · hộp từ",
-        "SCHREIBEN": "Viết thư trả lời"
+        "SCHREIBEN": "Viết thư trả lời",
+        "HOEREN": "Nghe, chọn richtig/falsch"
       },
       "fallbackTips": {
         "LESEN": {
@@ -2524,6 +2527,11 @@
           "t1": "Mỗi điểm P1–P4 cần ít nhất một câu riêng; thiếu một điểm là mất bậc ở tiêu chí I.",
           "t2": "Nối câu bằng weil, deshalb, außerdem; câu rời rạc làm mất bậc A ở tiêu chí II.",
           "t3": "Mở đầu và kết thư đúng kiểu thư bạn bè, xưng hô nhất quán."
+        },
+        "HOEREN": {
+          "t1": "Dùng thời gian đọc để gạch từ khoá của từng câu trước khi nghe.",
+          "t2": "Câu hỏi đi theo thứ tự bài nghe — nghe tới ý nào thì chọn ngay câu đó.",
+          "t3": "Bẫy hay gặp: bài nói ngược lại, hoặc nói điều đó cho người/thời điểm khác."
         }
       },
       "notInHistory": "Kết quả luyện đề không tính vào lịch sử thi thử.",
@@ -2552,7 +2560,6 @@
       "oralSub": "Nói · chấm ở phòng luyện thi Nói",
       "oralTitle": "Luyện ở phòng thi Nói",
       "oralDesc": "3 Teil, chấm riêng ở module luyện nói",
-      "hoerenOff": "Nghe hiểu · tạm thời chưa có trong chế độ luyện đề.",
       "progressCap": "Tiến độ đề này",
       "teilCount": "{n} Teil",
       "progressNone": "Chưa có Teil nào làm xong.",
@@ -2571,7 +2578,77 @@
       "rowAnswered": "{done}/{total} câu",
       "rowNew": "Chưa làm",
       "metaWriting": "4 điểm yêu cầu · khoảng 80 từ · gợi ý {minutes} phút",
-      "metaItems": "{n} câu · gợi ý {minutes} phút"
+      "metaItems": "{n} câu · gợi ý {minutes} phút",
+      "hoerenHidden": "Câu hỏi hiện ra khi bạn bấm bắt đầu — như lúc mở đề trong phòng thi."
+    },
+    "examHub": {
+      "title": "Luyện thi",
+      "subtitle": "telc Deutsch B1 — luyện từng Teil hoặc thi thử trọn đề",
+      "loading": "Đang tải đề…",
+      "loadError": "Không tải được danh sách đề.",
+      "notOpen": "Luyện thi chưa mở cho tài khoản này. Hãy liên hệ trung tâm hoặc quản trị viên.",
+      "lead": "Mỗi đề có hai cách làm. Luyện từng Teil để hiểu vì sao đúng, vì sao sai; thi thử trọn đề để đo mình đang ở đâu so với ngưỡng đỗ.",
+      "empty": "Chưa có đề nào.",
+      "lockedPack": "Cần gói trả phí để mở bộ đề này.",
+      "oralDesc": "Phần Nói thi với giám khảo AI — điểm tự vào ngưỡng đỗ phần Nói.",
+      "modesCap": "Hai cách làm",
+      "practiceMode": "Luyện từng Teil",
+      "practiceModeDesc": "không ép giờ, kiểm tra từng Teil, mỗi câu có phân tích vì sao đúng/sai. Không vào lịch sử thi.",
+      "fullMode": "Thi thử trọn đề",
+      "fullModeDesc": "đồng hồ tổng, hết giờ tự nộp, nộp một lần. Có điểm từng phần, hai ngưỡng đỗ và phân tích từng câu.",
+      "comingSoon": "Sắp có",
+      "comingSoonHint": "Đề đang được duyệt.",
+      "practiceProgress": "Luyện từng Teil",
+      "teilDone": "{done}/{total} Teil đã kiểm tra",
+      "lastMock": "Thi thử gần nhất",
+      "lastMockValue": "{score} điểm · {date}",
+      "noMock": "Chưa thi",
+      "practiceCta": "Luyện từng Teil",
+      "fullCta": "Thi thử trọn đề",
+      "fullContinue": "Làm tiếp bài thi thử",
+      "minutes": "{n} phút",
+      "historyCap": "Lịch sử thi thử",
+      "historyEmpty": "Chưa có lượt thi thử nào."
+    },
+    "fullExam": {
+      "badLink": "Link thi thử không hợp lệ.",
+      "loading": "Đang mở đề…",
+      "noContent": "Đề này chưa có nội dung.",
+      "startError": "Không mở được bài thi.",
+      "examCap": "Thi thử trọn đề",
+      "backToHub": "Về Luyện thi",
+      "subtitle": "Thi thử · {section} · Teil {n}",
+      "answeredOf": "{done}/{total}",
+      "prevTeil": "Teil trước",
+      "nextTeil": "Teil sau",
+      "jumpLabel": "Chuyển tới Teil",
+      "jumpOption": "{section} {n} · {done}/{total}",
+      "submit": "Nộp bài",
+      "grading": "Đang chấm bài…",
+      "gradingDesc": "Phần Viết chấm bằng AI nên có thể mất một đến hai phút. Đừng đóng trang.",
+      "confirmTitle": "Nộp bài thi thử?",
+      "confirmBodyLeft": "Còn {n} câu chưa làm. Nộp rồi thì không sửa được nữa.",
+      "confirmBodyAll": "Bạn đã làm hết các câu. Nộp rồi thì không sửa được nữa.",
+      "timeUp": "Hết giờ — bài được nộp tự động.",
+      "draftConflict": "Bài đã được làm tiếp ở thiết bị khác — đã tải bản mới nhất.",
+      "draftRestored": "Đã khôi phục {count} câu đã làm.",
+      "submitError": "Nộp bài không thành công. Bài vẫn được lưu — hãy thử lại.",
+      "alreadySubmitted": "Bài này đã được nộp trước đó.",
+      "resultCap": "Kết quả thi thử",
+      "resultTitle": "Kết quả",
+      "resultError": "Không tải được kết quả.",
+      "backToResult": "Về kết quả",
+      "writingPending": "Bài Viết đang chờ AI chấm. Quay lại sau ít phút.",
+      "writingPendingShort": "Đang chờ chấm",
+      "passed": "Đạt",
+      "failed": "Chưa đạt",
+      "pending": "Chưa đủ kết luận — còn thiếu phần Nói",
+      "oralCta": "Thi phần Nói",
+      "oralCtaDesc": "Thi với giám khảo AI; điểm tự vào ngưỡng đỗ phần Nói.",
+      "reviewCap": "Xem lại từng Teil",
+      "rowWriting": "{score}/{max} điểm",
+      "rowCorrect": "{done}/{total} câu đúng · {score}/{max} điểm",
+      "practiceWeak": "Luyện lại từng Teil"
     }
   }
 }

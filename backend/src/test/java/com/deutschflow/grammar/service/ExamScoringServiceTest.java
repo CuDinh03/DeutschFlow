@@ -246,7 +246,7 @@ class ExamScoringServiceTest {
     @Test
     @DisplayName("đề telc: E-Mail của bạn (văn bản kích thích) đi theo đề bài gửi AI — để AI biết bài có trả lời đúng điều được hỏi không")
     void scoreSchreibenSection_sendsStimulusEmailToAi() {
-        when(aiEvaluator.evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any()))
+        when(aiEvaluator.evaluateSchreibenPractice(anyLong(), anyString(), anyString(), anyString()))
                 .thenReturn(aiScore(27, "AI_EVALUATED"));
         Map<String, Object> section = new HashMap<>();
         section.put("max_points", 45);
@@ -262,7 +262,9 @@ class ExamScoringServiceTest {
         service.scoreSchreibenSection(7L, answers, section, "B1", "TELC");
 
         org.mockito.ArgumentCaptor<String> task = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(aiEvaluator).evaluateSchreibenEmail(anyLong(), anyString(), task.capture(), anyString(), org.mockito.ArgumentMatchers.eq("TELC"));
+        // 06/11/2026: đề telc chấm bằng phiếu có chỉ lỗi trong bài (annotations), không dùng prompt cũ.
+        verify(aiEvaluator).evaluateSchreibenPractice(anyLong(), anyString(), task.capture(), anyString());
+        verify(aiEvaluator, never()).evaluateSchreibenEmail(anyLong(), anyString(), anyString(), anyString(), any());
         assertThat(task.getValue())
                 .contains("E-Mail, auf die geantwortet wird")
                 .contains("Von: Lena")

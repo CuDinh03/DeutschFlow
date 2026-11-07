@@ -31,16 +31,20 @@ public class MockExamPracticeService {
     public static final String ALLOWLIST_KEY = "practice.telc.allowlist";
     public static final String WRITING_KEY = "SCHREIBEN-1";
 
-    /** Phần có trong luyện đề. Hören tạm bỏ (chưa có audio cho luyện đề); Sprechen ở module Nói. */
-    private static final List<String> SECTIONS = List.of("LESEN", "SPRACHBAUSTEINE", "SCHREIBEN");
+    /**
+     * Phần có trong luyện đề, theo thứ tự đề telc. Hören vào từ 06/11/2026 (audio đọc bằng TTS như thi
+     * thử); Sprechen ở module Nói.
+     */
+    private static final List<String> SECTIONS = List.of("LESEN", "SPRACHBAUSTEINE", "HOEREN", "SCHREIBEN");
 
     /**
      * Giờ gợi ý từng Teil telc B1: 90 phút cho Leseverstehen + Sprachbausteine chia theo khối lượng,
-     * 30 phút cho Schreiben. Chỉ để người học tự đo, không ai bị nộp bài khi hết giờ.
+     * 30 phút cho Hören (gồm thời gian đọc câu hỏi), 30 phút cho Schreiben. Chỉ để người học tự đo, không ai bị nộp bài khi hết giờ.
      */
     private static final Map<String, Integer> SUGGEST_MINUTES = Map.of(
             "LESEN-1", 15, "LESEN-2", 20, "LESEN-3", 15,
-            "SPRACHBAUSTEINE-1", 10, "SPRACHBAUSTEINE-2", 10, WRITING_KEY, 30);
+            "SPRACHBAUSTEINE-1", 10, "SPRACHBAUSTEINE-2", 10,
+            "HOEREN-1", 8, "HOEREN-2", 12, "HOEREN-3", 10, WRITING_KEY, 30);
 
     private static final int MAX_ELAPSED = 6 * 3600;
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
@@ -166,6 +170,41 @@ public class MockExamPracticeService {
     }
 
     // ─── nội bộ ──────────────────────────────────────────────────────────────
+
+    /**
+     * Phân tích lượt thi thử trọn đề đã nộp (06/11/2026): chạy {@link PracticeAnalysis} cho từng Teil
+     * khách quan (Lesen, Sprachbausteine, Hören) trên đáp án đã nộp, kèm bài Viết và phiếu chấm đã
+     * lưu ở {@code detailed_scores_json.SCHREIBEN.teil2_email}. Chỉ chủ lượt thi; lượt chưa nộp xong ⇒ 404.
+     */
+    @SuppressWarnings("unchecked")
+    public PracticeDtos.AttemptAnalysis attemptAnalysis(User user, long attemptId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT a.exam_id, a.answers_submitted_json::text AS answers, a.detailed_scores_json::text AS detailed,
+                       e.sections_json::text AS sections_json
+                FROM mock_exam_attempts a JOIN mock_exams e ON e.id = a.exam_id
+                WHERE a.id = ? AND a.user_id = ? AND a.status = 'COMPLETED'
+                """, attemptId, user.getId());
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy lượt thi.");
+        Map<String, Object> row = rows.get(0);
+        long examId = ((Number) row.get("exam_id")).longValue();
+        String sections = (String) row.get("sections_json");
+        Map<String, String> answers = new LinkedHashMap<>();
+        read((String) row.get("answers")).forEach((k, v) -> answers.put(k, v == null ? null : String.valueOf(v)));
+
+        List<PracticeAnalysis.TeilResult> teile = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Object>> e : practiceTeile(read(sections)).entrySet()) {
+            if (e.getKey().startsWith("SCHREIBEN")) continue;
+            teile.add(PracticeAnalysis.analyse(e.getKey(), e.getValue(), notes(examId, e.getKey()), answers));
+        }
+        Object writing = null;
+        if (read((String) row.get("detailed")).get("SCHREIBEN") instanceof Map<?, ?> w) {
+            writing = ((Map<String, Object>) w).get("teil2_email");
+        }
+        String text = answers.get("email_1");
+        if (text == null) text = answers.get("schreiben_1");
+        return new PracticeDtos.AttemptAnalysis(attemptId, examId, sanitizer.stripAnswerKey(sections), teile,
+                text, writing);
+    }
 
     private record Exam(long id, String title, String level, String format, String sectionsJson,
                         Map<String, Object> structure) {}
