@@ -452,6 +452,22 @@ app:
     # chính mình thêm vào — nên kẻ tấn công KHÔNG thể giả mạo XFF để né rate-limit.
     # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
     trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
+    # Kiểm "người thật" ở đăng ký — Cloudflare Turnstile (owner chốt 07/11/2026). Mặc định TẮT.
+    # Bật: Cloudflare dashboard → Turnstile → Add widget (mode Managed, hostname mydeutschflow.com);
+    # secret vào backend.env (TURNSTILE_SECRET), site key vào frontend-build.env
+    # (NEXT_PUBLIC_TURNSTILE_SITE_KEY) rồi build lại web, SAU ĐÓ mới TURNSTILE_ENABLED=true.
+    # Bật mà thiếu secret ⇒ backend không boot.
+    # require-for-mobile=false: app chưa có widget (cần build native) nên request X-Platform ios|android
+    # được miễn — LỖ ĐÃ BIẾT (header giả được), chặn tạm bằng mã PIN + rate-limit; đổi true khi app có widget.
+    # fail-open=true: Cloudflare không trả lời thì cho qua và đếm registration.human_check{outcome=error_allowed};
+    # đặt false khi đang bị tấn công thật.
+    turnstile:
+      enabled: ${TURNSTILE_ENABLED:false}
+      secret: ${TURNSTILE_SECRET:}
+      require-for-mobile: ${TURNSTILE_REQUIRE_FOR_MOBILE:false}
+      fail-open: ${TURNSTILE_FAIL_OPEN:true}
+      expected-hostname: ${TURNSTILE_EXPECTED_HOSTNAME:}
+      timeout-ms: ${TURNSTILE_TIMEOUT_MS:4000}
     # Bearer token TĨNH cho Prometheus scrape /actuator/prometheus (PrometheusScrapeTokenFilter).
     # RỖNG = tắt (fail-closed, endpoint giữ ADMIN-only → scrape 401 như trước). Bật: sinh chuỗi
     # ngẫu nhiên ≥32 ký tự, đặt PROMETHEUS_SCRAPE_TOKEN trong .env.production VÀ ghi CÙNG giá trị
@@ -561,6 +577,9 @@ app:
       registration-send-window-seconds: ${APP_AUTH_REG_SEND_RL_WINDOW:3600}
       registration-verify-ip-max-per-window: ${APP_AUTH_REG_VERIFY_IP_RL_MAX:30}
       registration-verify-ip-window-seconds: ${APP_AUTH_REG_VERIFY_IP_RL_WINDOW:600}
+      # Tạo phiên onboarding khách theo IP (bộ lọc chung 120 req/phút/IP vẫn áp lên mọi request).
+      guest-session-create-max-per-window: ${APP_GUEST_SESSION_CREATE_RL_MAX:60}
+      guest-session-create-window-seconds: ${APP_GUEST_SESSION_CREATE_RL_WINDOW:3600}
 
     # Xác nhận đăng ký bằng mã PIN 6 số (plans/2026-11-05-thiet-ke-ma-pin-xac-nhan-dang-ky.md).
     # enabled=false (MẶC ĐỊNH) ⇒ /register/start trả 501 và client tự rơi về /register cũ — đây là nút

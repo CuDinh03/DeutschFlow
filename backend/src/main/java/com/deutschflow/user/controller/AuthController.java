@@ -12,6 +12,7 @@ import com.deutschflow.user.service.AuthConcurrencyLimiter;
 import com.deutschflow.user.service.AuthRateLimiterService;
 import com.deutschflow.user.activation.AccountActivationService;
 import com.deutschflow.user.service.PasswordResetService;
+import com.deutschflow.user.registration.RegistrationAbuseGuard;
 import com.deutschflow.user.registration.RegistrationVerificationConfig;
 import com.deutschflow.user.registration.RegistrationVerificationException;
 import com.deutschflow.user.registration.RegistrationVerificationService;
@@ -63,6 +64,10 @@ public class AuthController {
     private final RegistrationVerificationService registrationVerificationService;
     private final RegistrationVerificationConfig registrationVerificationConfig;
     private final MeterRegistry meterRegistry;
+    private final RegistrationAbuseGuard registrationAbuseGuard;
+
+    /** Token widget Cloudflare Turnstile — header thay vì field body để DTO đăng ký không đổi hợp đồng. */
+    static final String TURNSTILE_HEADER = "X-Turnstile-Token";
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
@@ -91,6 +96,8 @@ public class AuthController {
                     "Too many registration attempts. Please try again later.",
                     authRateLimiterService.registerRetryAfterSeconds());
         }
+        registrationAbuseGuard.check(request, httpRequest.getHeader(TURNSTILE_HEADER), ip,
+                isMobileRequest(httpRequest));
         AuthResponse authResp = withAuthBulkhead(() -> authService.register(request));
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
         return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
@@ -122,6 +129,10 @@ public class AuthController {
                     "Too many verification emails. Please try again later.",
                     authRateLimiterService.registrationSendRetryAfterSeconds());
         }
+        // Sau nhánh 501 ở trên: token Turnstile chỉ dùng được MỘT lần, nên khi công tắc mã PIN tắt thì
+        // token phải còn nguyên cho lần gọi /register mà client lùi về.
+        registrationAbuseGuard.check(request, httpRequest.getHeader(TURNSTILE_HEADER), ip,
+                isMobileRequest(httpRequest));
         return withAuthBulkhead(() -> registrationVerificationService.start(request, ip));
     }
 

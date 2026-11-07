@@ -79,6 +79,15 @@ public class AuthRateLimiterService {
     @Value("${app.auth.rate-limit.registration-verify-ip-window-seconds:600}")
     private long registrationVerifyIpWindow = 600;
 
+    // Tạo phiên onboarding khách (chống bot 07/11/2026). Bộ lọc công khai chung cho 120 request/phút/IP —
+    // đủ cho PATCH dồn dập của một người, nhưng nghĩa là một IP tạo được ~170k phiên/ngày (mỗi phiên một
+    // dòng DB). Một người chỉ cần vài phiên; 60/giờ/IP vẫn đủ cho cả một lớp học sau cùng một NAT.
+    private final ConcurrentHashMap<String, Deque<Instant>> guestSessionCreateAttempts = new ConcurrentHashMap<>();
+    @Value("${app.auth.rate-limit.guest-session-create-max-per-window:60}")
+    private int  guestSessionCreateMax = 60;
+    @Value("${app.auth.rate-limit.guest-session-create-window-seconds:3600}")
+    private long guestSessionCreateWindow = 3600;
+
     // Redis sliding window (primary). May be null if no Redis is configured.
     private final StringRedisTemplate redis;
     private final DefaultRedisScript<Long> slidingWindowScript;
@@ -178,6 +187,13 @@ public class AuthRateLimiterService {
                 Math.max(1, registrationVerifyIpMax), Math.max(1L, registrationVerifyIpWindow));
     }
 
+    /** Trần TẠO phiên onboarding khách theo IP. */
+    public boolean allowGuestSessionCreate(String ip) {
+        return check(guestSessionCreateAttempts, "guest-create|" + safe(ip),
+                Math.max(1, guestSessionCreateMax), Math.max(1L, guestSessionCreateWindow));
+    }
+
+    public int guestSessionCreateRetryAfterSeconds()   { return (int) guestSessionCreateWindow; }
     public int registrationSendRetryAfterSeconds()     { return (int) registrationSendWindow; }
     public int registrationVerifyIpRetryAfterSeconds() { return (int) registrationVerifyIpWindow; }
 

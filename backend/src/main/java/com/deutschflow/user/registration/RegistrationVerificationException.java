@@ -20,7 +20,11 @@ public class RegistrationVerificationException extends RuntimeException {
         /** Công tắc tắt ⇒ client rơi về /register cũ. */
         DISABLED(HttpStatus.NOT_IMPLEMENTED),
         /** /register cũ đã tắt ⇒ client cũ cần cập nhật. */
-        LEGACY_REGISTER_DISABLED(HttpStatus.GONE);
+        LEGACY_REGISTER_DISABLED(HttpStatus.GONE),
+        /** Honeypot hoặc Turnstile không qua — cố ý không nói lớp nào (RegistrationAbuseGuard). */
+        HUMAN_CHECK_FAILED(HttpStatus.BAD_REQUEST),
+        /** Email của dịch vụ hộp thư tạm. */
+        DISPOSABLE_EMAIL(HttpStatus.BAD_REQUEST);
 
         private final HttpStatus status;
         Reason(HttpStatus status) { this.status = status; }

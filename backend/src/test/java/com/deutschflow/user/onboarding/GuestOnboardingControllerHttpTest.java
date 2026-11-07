@@ -48,12 +48,31 @@ class GuestOnboardingControllerHttpTest {
 
     @BeforeEach
     void setUp() {
-        var controller = new GuestOnboardingController(guestOnboardingService);
+        // Bộ đếm thật (in-memory), trần TẠO phiên hạ xuống 3 để ca 429 chạy nhanh.
+        var limiter = new com.deutschflow.user.service.AuthRateLimiterService(3, 60, 5, 120, 2, 600, 4, 60, 2, 900, null);
+        org.springframework.test.util.ReflectionTestUtils.setField(limiter, "guestSessionCreateMax", 3);
+        var controller = new GuestOnboardingController(guestOnboardingService, limiter,
+                new com.deutschflow.common.security.ClientIpResolver(0));
         mvc = MockMvcWithValidation.standalone(controller, new GlobalExceptionHandler(), null);
         when(guestOnboardingService.create(any()))
                 .thenReturn(new SessionResponse(SID, "INTRO", "onb_v3", Instant.now().plusSeconds(3600)));
         when(guestOnboardingService.update(any(), any()))
                 .thenReturn(new SessionResponse(SID, "PROFILE", "onb_v3", Instant.now().plusSeconds(3600)));
+    }
+
+    @Test
+    @DisplayName("chống bot: quá trần TẠO phiên theo IP ⇒ 429 (PATCH không bị trần này)")
+    void createIsRateLimitedPerIp() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            mvc.perform(post("/api/onboarding/guest-session")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"platform\":\"WEB\",\"locale\":\"vi\"}"))
+                    .andExpect(status().isCreated());
+        }
+        mvc.perform(post("/api/onboarding/guest-session")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"platform\":\"WEB\",\"locale\":\"vi\"}"))
+                .andExpect(status().isTooManyRequests());
     }
 
     @Test
