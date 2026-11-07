@@ -1818,17 +1818,10 @@
         "notesPlaceholder": "Ihre Notizen (Konzeptpapier)…",
         "enterExam": "Prüfung beginnen",
         "teilCap": "Teil {n}",
-        "step": "Schritt {i}/{n}",
         "myNotes": "Meine Notizen",
         "skipPart": "Nächster Teil",
         "finishMock": "Beenden & bewerten",
         "finishDrill": "Beenden",
-        "action": {
-          "ASK": "Sie sind dran: eine FRAGE stellen / eine Bitte formulieren. Zum Sprechen tippen.",
-          "ANSWER": "Sie sind dran: ANTWORTEN. Zum Sprechen tippen.",
-          "SPEAK": "Sie sind dran. Zum Starten tippen.",
-          "REACT": "Auf Ihre/n Partner/in reagieren. Zum Sprechen tippen."
-        },
         "grading": "Die Prüfer bewerten…",
         "gradingDesc": "Zwei unabhängige Bewertungen nach den Kriterien der Prüfung — meist unter einer Minute.",
         "gradingFailed": "Bewertung fehlgeschlagen — deine Prüfung ist gespeichert.",
@@ -1885,20 +1878,64 @@
           "ANSWER_PRUEFER_TOPIC": "Beantworte die Frage des Prüfers / der Prüferin zum Thema."
         },
         "partnerAi": "Partner/in · KI",
-        "turn": {
-          "prueferSpeaking": "Der Prüfer / die Prüferin spricht — hör zu, du bist noch nicht dran.",
-          "partnerSpeaking": "Dein Partner / deine Partnerin (KI) spricht — warte, bis er/sie fertig ist.",
-          "processing": "Dein Beitrag wird verarbeitet…",
-          "yourTurn": "Du bist dran — sprich jetzt!",
-          "waitHint": "Warte, bis du dran bist…"
-        },
         "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht.",
         "beta": "Beta",
         "retryTurn": "Letzten Beitrag erneut senden",
         "retryTurnHint": "Aufnahme/Antwort liegt noch auf deinem Gerät — erneutes Senden zählt nicht als neuer Beitrag.",
         "gradingFailedQuota": "Noch nicht bewertet: dein KI-Budget ist aufgebraucht — deine Prüfung ist gespeichert.",
         "gradingFailedQuotaDesc": "Alles Gesagte bleibt erhalten. Lade auf oder warte auf die nächste Periode und drücke dann „Neu bewerten“ — keine Wiederholung nötig.",
-        "upgradeCta": "Tarife ansehen / aufladen"
+        "upgradeCta": "Tarife ansehen / aufladen",
+        "oral": {
+          "eyebrow": "Mündliche Prüfung",
+          "conversation": "Gespräch im Prüfungsraum",
+          "taskCard": "Aufgabenblatt",
+          "turns": "Beiträge",
+          "nextTeil": "Weiter zu Teil {n}",
+          "people": {
+            "pruefer": "Prüfer/in",
+            "partner": "Partner/in",
+            "ai": "KI",
+            "you": "Sie"
+          },
+          "me": {
+            "turn": "Sie sind dran",
+            "listen": "Zuhören",
+            "recording": "Sie sprechen",
+            "sending": "Wird gesendet"
+          },
+          "status": {
+            "prueferTalking": "Die Prüferin / der Prüfer spricht",
+            "partnerTalking": "Ihr/e Partner/in (KI) spricht",
+            "listen": "Hören Sie zu, Sie sind noch nicht dran",
+            "processing": "Ihr Beitrag wird verarbeitet",
+            "processingSub": "Warten auf Antwort",
+            "recording": "Aufnahme läuft",
+            "recordingSub": "Noch einmal tippen, um zu stoppen und zu senden",
+            "yourTurn": "Sie sind dran",
+            "tap": "Zum Sprechen tippen",
+            "tapWithAction": "{action} · zum Sprechen tippen"
+          },
+          "action": {
+            "ASK": "Eine Frage stellen oder eine Bitte äußern",
+            "ANSWER": "Antworten",
+            "SPEAK": "Zur Aufgabe sprechen",
+            "REACT": "Auf den Partner reagieren"
+          },
+          "confirm": {
+            "finishMockTitle": "Mündliche Prüfung beenden?",
+            "finishMockBody": "Bewertet wird, was Sie bisher gesagt haben. Danach können Sie den Prüfungsraum nicht mehr betreten.",
+            "finishMockGo": "Beenden und bewerten",
+            "finishDrillTitle": "Übung beenden?",
+            "finishDrillBody": "Sie sehen eine Zusammenfassung Ihrer Beiträge.",
+            "finishDrillGo": "Beenden",
+            "keepGoing": "Weitermachen",
+            "keepPractising": "Weiter üben",
+            "nextTitle": "Weiter zu Teil {n}?",
+            "nextBody": "Zu Teil {cur} können Sie nicht zurück.",
+            "nextGo": "Weiter zu Teil {n}",
+            "stay": "Bleiben"
+          }
+        }
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",

@@ -14,6 +14,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import studentVi from '../../../messages/v2/student.vi.json'
+import chromeVi from '../../../messages/v2/chrome.vi.json'
 import { ExamRoom } from '@/components/features/exam-speaking/ExamRoom'
 
 const api = vi.hoisted(() => ({
@@ -68,7 +69,7 @@ function session(state: string, extra: Record<string, unknown> = {}) {
 
 function renderRoom() {
   return render(
-    <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi } }}>
+    <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi, ...chromeVi } }}>
       <ExamRoom sessionId={601} catalogHref="/v2/student/speaking/exam" />
     </NextIntlClientProvider>,
   )

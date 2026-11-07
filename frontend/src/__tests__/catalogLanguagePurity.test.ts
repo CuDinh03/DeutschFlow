@@ -47,6 +47,8 @@ const GERMAN_ON_PURPOSE: readonly string[] = [
   'v2.student.exam.skills.schreibenName',
   'v2.student.exam.skills.sprechenName',
   'v2.student.mockExamRun.hoertext',
+  // Tên phần thi trên thanh trên phòng thi nói, như "Mündliche Prüfung" ở màn Đề (mẫu 07/11/2026).
+  'v2.student.examSpeaking.room.oral.eyebrow',
   'v2.student.examResult.audioPlayer.defaultLabel',
   'v2.teacher.tcChecklist.lektion',
   'v2.teacher.classDetail.skillTitle',
