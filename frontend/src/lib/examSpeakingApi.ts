@@ -6,6 +6,7 @@ import type {
   ExamProvider,
   ExamResultView,
   ExamSessionView,
+  TranscriptLine,
   TurnResponse,
 } from '@/types/exam-speaking'
 
@@ -76,6 +77,8 @@ export const examSpeakingApi = {
   saveNotes: (id: number, notes: string) => api.put<ExamSessionView>(`/speaking/exam/sessions/${id}/notes`, { notes }),
   getResult: (id: number) => api.get<ExamResultView>(`/speaking/exam/sessions/${id}/result`),
   listResults: () => api.get<ExamResultView[]>('/speaking/exam/results'),
+  /** Hội thoại đã lưu của phiên — "Xem lại hội thoại" ở màn kết quả (Đợt 3 phòng thi nói). */
+  getTranscript: (id: number) => api.get<TranscriptLine[]>(`/speaking/exam/sessions/${id}/transcript`),
 
   /** Đợt 5a — màn Ôn yếu điểm: yếu điểm theo dạng bài + gói Redemittel. */
   getWeakness: (params?: { provider?: ExamProvider; level?: string }) =>

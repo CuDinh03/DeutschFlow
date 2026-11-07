@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamResultView;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
+import com.deutschflow.examspeaking.dto.TranscriptLineView;
 import com.deutschflow.examspeaking.dto.TurnResponse;
 import com.deutschflow.examspeaking.entity.SpeakingExamSession;
 import com.deutschflow.examspeaking.entity.SpeakingExamTurn;
@@ -207,6 +208,19 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(turns.stream().filter(t -> SpeakingExamTurn.ROLE_PARTNER.equals(t.getRole())).count()).isEqualTo(4);
         assertThat(turns.get(0).getRole()).isEqualTo(SpeakingExamTurn.ROLE_PRUEFER);
         assertThat(turns.stream().filter(t -> t.getTurnEvalJson() != null).count()).isEqualTo(4);
+
+        // "Xem lại hội thoại" (Đợt 3 phòng thi nói): đủ lời theo thứ tự, chấm nhanh chỉ ở lượt thí sinh.
+        List<TranscriptLineView> transcript = sessionService.transcript(userId, s.id());
+        assertThat(transcript).hasSize(turns.size());
+        assertThat(transcript.get(0).role()).isEqualTo(SpeakingExamTurn.ROLE_PRUEFER);
+        assertThat(transcript.get(1).role()).isEqualTo(SpeakingExamTurn.ROLE_CANDIDATE);
+        assertThat(transcript.get(1).text()).isEqualTo("Was essen Sie gern zum Frühstück?");
+        assertThat(transcript.get(1).eval()).containsEntry("score", 7);
+        assertThat(transcript.get(2).role()).isEqualTo(SpeakingExamTurn.ROLE_PARTNER);
+        assertThat(transcript.get(2).eval()).isNull();
+        assertThat(transcript).allMatch(l -> l.teilNo() == 2);
+        assertThat(transcript).extracting(TranscriptLineView::seq).isSorted();
+        assertThatThrownBy(() -> sessionService.transcript(userId + 99_999, s.id())).isInstanceOf(NotFoundException.class);
     }
 
     @Test

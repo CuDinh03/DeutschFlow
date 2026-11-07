@@ -24,6 +24,7 @@ import com.deutschflow.examspeaking.config.ExamSpeakingProperties;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamResultView;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
+import com.deutschflow.examspeaking.dto.TranscriptLineView;
 import com.deutschflow.examspeaking.dto.TurnResponse;
 import com.deutschflow.examspeaking.entity.SpeakingExamResult;
 import com.deutschflow.examspeaking.entity.SpeakingExamSession;
@@ -532,6 +533,21 @@ public class ExamSessionService {
     }
 
     // ── kết quả ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Hội thoại đã lưu của một phiên ("Xem lại hội thoại", Đợt 3 phòng thi nói 07/11/2026): lời giám khảo,
+     * bạn thi và thí sinh theo thứ tự; chỉ chủ phiên đọc được (phiên người khác → 404). Lời rỗng bị bỏ.
+     */
+    @Transactional(readOnly = true)
+    public List<TranscriptLineView> transcript(long userId, long sessionId) {
+        SpeakingExamSession s = load(userId, sessionId);
+        return turnRepository.findBySessionIdOrderBySeqAsc(s.getId()).stream()
+                .filter(t -> t.getTranscript() != null && !t.getTranscript().isBlank())
+                .map(t -> new TranscriptLineView(t.getPartNo(), t.getSeq(), t.getRole(), t.getTranscript(),
+                        SpeakingExamTurn.ROLE_CANDIDATE.equals(t.getRole()) ? t.getTurnEvalJson() : null))
+                .toList();
+    }
+
 
     @Transactional(readOnly = true)
     public ExamResultView result(long userId, long sessionId) {

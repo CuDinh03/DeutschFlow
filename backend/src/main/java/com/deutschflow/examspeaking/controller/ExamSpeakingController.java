@@ -7,6 +7,7 @@ import com.deutschflow.examspeaking.api.model.ExamProvider;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamResultView;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
+import com.deutschflow.examspeaking.dto.TranscriptLineView;
 import com.deutschflow.examspeaking.dto.TurnResponse;
 import com.deutschflow.examspeaking.dto.WeaknessView;
 import com.deutschflow.examspeaking.session.ExamSessionService;
@@ -140,6 +141,12 @@ public class ExamSpeakingController {
     @GetMapping("/sessions/{id}/result")
     public ExamResultView result(@AuthenticationPrincipal User user, @PathVariable long id) {
         return sessionService.result(user.getId(), id);
+    }
+
+    /** Hội thoại đã lưu của phiên — màn kết quả "Xem lại hội thoại" (Đợt 3 phòng thi nói). */
+    @GetMapping("/sessions/{id}/transcript")
+    public List<TranscriptLineView> transcript(@AuthenticationPrincipal User user, @PathVariable long id) {
+        return sessionService.transcript(user.getId(), id);
     }
 
     @GetMapping("/results")

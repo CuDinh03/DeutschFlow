@@ -1,15 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { Volume2, VolumeX, ChevronRight, RotateCcw, ArrowLeft, Loader2, X } from 'lucide-react'
+import { Volume2, VolumeX, RotateCcw, ArrowLeft, Loader2, X, CircleAlert } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { newClientTurnId } from '@/lib/exam/clientTurnId'
 import { apiMessage, httpStatus } from '@/lib/api'
 import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
-import { ConfirmDialog, GaCap, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
+import { ConfirmDialog, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
 import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
@@ -21,7 +22,8 @@ import { OralPrep } from './OralPrep'
 import { oralEntryHref } from '@/lib/exam/oralRoutes'
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
-import { Ergebnisbogen } from './Ergebnisbogen'
+import { OralResult } from './OralResult'
+import { cn } from '@/lib/utils'
 import { DrillSummary } from './DrillSummary'
 import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from './examTts'
 
@@ -119,6 +121,14 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
       if (data.state === 'RESULTS') {
         const r = await examSpeakingApi.getResult(sessionId)
         setResult(r.data)
+      }
+      // Drill đã xong mà mở lại trang (tải lại, mở từ lịch sử): tổng kết dựng từ hội thoại đã lưu.
+      if (data.state === 'DONE') {
+        const tr = await examSpeakingApi.getTranscript(sessionId).catch(() => null)
+        if (tr?.data?.length) {
+          setLines(tr.data.map((l) => ({ id: `t${l.seq}`, role: l.role, text: l.text, teilNo: l.teilNo, eval: l.eval })))
+          return
+        }
       }
       if (data.directive?.prueferText) {
         setLines((prev) =>
@@ -647,97 +657,119 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <div className="border-b border-ga-line bg-ga-card px-4 py-3 sm:px-6 lg:px-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <GaCap className="block">{providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} · <span data-testid="beta-label">{t('beta')}</span></GaCap>
-            {blueprint && <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />}
+    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 py-6 sm:px-6 lg:py-8">
+      {notices}
+
+      {session.state === 'GRADING' && (
+        <StateCard testId="exam-grading" icon={<Loader2 size={22} className="animate-spin" aria-hidden />} title={t('grading')} body={t('gradingDesc')}>
+          <p className="ga-ui text-ga-small text-ga-muted">{t('oral.result.gradingLeave')}</p>
+          <Link href={returnHref} className={ghostBtn}>
+            <ArrowLeft size={16} aria-hidden /> {t('backToCatalog')}
+          </Link>
+        </StateCard>
+      )}
+
+      {session.state === 'GRADING_FAILED' && (
+        <StateCard
+          testId="exam-grading-failed"
+          data={{ 'data-grading-error': session.gradingError ?? '' }}
+          icon={<CircleAlert size={22} aria-hidden />}
+          // F-08: hết quota ≠ job chết — người học cần nạp/chờ kỳ mới rồi bấm Chấm lại, không phải "thử lại sau".
+          title={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuota') : t('gradingFailed')}
+          body={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuotaDesc') : t('gradingFailedDesc')}
+        >
+          <div className="flex flex-wrap justify-center gap-2">
+            {session.gradingError === 'QUOTA_EXCEEDED' && (
+              <Link href="/v2/student/tuition" data-testid="quota-upgrade-link" className={cn(primaryBtn, 'bg-ga-yellow text-ga-ink')}>
+                {t('upgradeCta')}
+              </Link>
+            )}
+            <button type="button" onClick={regrade} disabled={busy} data-testid="regrade-btn" className={primaryBtn}>
+              <RotateCcw size={16} aria-hidden /> {t('regradeCta')}
+            </button>
+            <Link href={returnHref} className={ghostBtn}>
+              <ArrowLeft size={16} aria-hidden /> {t('backToCatalog')}
+            </Link>
           </div>
-          <div className="flex items-center gap-2">{muteButton}</div>
-        </div>
-      </div>
+        </StateCard>
+      )}
 
-      <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10">
-        {notices}
+      {session.state === 'RESULTS' && !result && (
+        <section className="mx-auto w-full max-w-xl py-10" data-testid="result-load-failed">
+          <ErrorBanner variant="page" message={t('resultLoadFailed')} onRetry={retryResult} retryLabel={t('retryResult')} />
+        </section>
+      )}
 
-        {session.state === 'GRADING' && (
-          <section className="mx-auto max-w-xl py-10 text-center" data-testid="exam-grading">
-            <LoadingState label={t('grading')} />
-            <p className="ga-ui mt-3 text-[13px] text-ga-muted">{t('gradingDesc')}</p>
-          </section>
-        )}
+      {session.state === 'RESULTS' && result && (
+        <OralResult result={result} blueprint={blueprint} sessionId={sessionId} againHref={againHref} returnHref={returnHref} />
+      )}
 
-        {session.state === 'GRADING_FAILED' && (
-          <section className="mx-auto max-w-xl py-10" data-testid="exam-grading-failed" data-grading-error={session.gradingError ?? ''}>
-            {/* F-08: hết quota ≠ job chết — người học cần nạp/chờ kỳ mới rồi bấm Chấm lại, không phải "thử lại sau". */}
-            <ErrorBanner variant="page" message={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuota') : t('gradingFailed')} />
-            <p className="ga-ui mt-3 text-[13px] text-ga-muted">
-              {session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuotaDesc') : t('gradingFailedDesc')}
+      {session.state === 'DONE' && (
+        <div className="flex flex-col gap-6" data-testid="oral-drill-done">
+          <header>
+            <p className="ga-ui text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">
+              <span lang="de">{t('oral.eyebrow')}</span> · {providerName} {session.level} · {t('modeDrill')}
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {session.gradingError === 'QUOTA_EXCEEDED' && (
-                <a href="/v2/student/tuition" data-testid="quota-upgrade-link" className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-yellow px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
-                  {t('upgradeCta')}
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={regrade}
-                disabled={busy}
-                data-testid="regrade-btn"
-                className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2.5 text-[13px] font-semibold text-ga-bg disabled:opacity-60"
-              >
-                <RotateCcw size={14} aria-hidden /> {t('regradeCta')}
-              </button>
-              <a href={returnHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
-                <ArrowLeft size={14} aria-hidden /> {t('backToCatalog')}
-              </a>
-            </div>
-          </section>
-        )}
+            <h1 className="mt-1 font-ga-display text-ga-h1 text-ga-ink">{t('oral.result.drillDone', { n: session.currentPart })}</h1>
+          </header>
+          <DrillSummary lines={lines} />
+          <RoomFooter againHref={againHref} returnHref={returnHref} />
+        </div>
+      )}
 
-        {session.state === 'RESULTS' && !result && (
-          <section className="mx-auto max-w-xl py-10" data-testid="result-load-failed">
-            <ErrorBanner variant="page" message={t('resultLoadFailed')} onRetry={retryResult} retryLabel={t('retryResult')} />
-          </section>
-        )}
-
-        {session.state === 'RESULTS' && result && (
-          <div className="mx-auto max-w-3xl">
-            <Ergebnisbogen sheet={result.scoreSheet} />
-            <RoomFooter againHref={againHref} returnHref={returnHref} />
-          </div>
-        )}
-
-        {session.state === 'DONE' && (
-          <div className="mx-auto max-w-3xl">
-            <DrillSummary lines={lines} />
-            <RoomFooter againHref={againHref} returnHref={returnHref} />
-          </div>
-        )}
-
-        {session.state === 'ABORTED' && (
-          <div className="mx-auto max-w-xl">
-            <ErrorBanner variant="page" message={t('aborted')} />
-            <RoomFooter againHref={againHref} returnHref={returnHref} />
-          </div>
-        )}
-      </div>
+      {session.state === 'ABORTED' && (
+        <div className="mx-auto w-full max-w-xl">
+          <ErrorBanner variant="page" message={t('aborted')} />
+          <RoomFooter againHref={againHref} returnHref={returnHref} />
+        </div>
+      )}
     </div>
+  )
+}
+
+const primaryBtn =
+  'ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch bg-ga-ink px-4 text-ga-body font-semibold text-ga-bg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 disabled:opacity-50'
+const ghostBtn =
+  'ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch border border-ga-line bg-ga-card px-4 text-ga-body font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus'
+
+/** Thẻ trạng thái giữa màn (mẫu "Trạng thái" 07/11/2026): ô icon, tiêu đề, một dòng giải thích, nút. */
+function StateCard({
+  testId,
+  data,
+  icon,
+  title,
+  body,
+  children,
+}: {
+  testId: string
+  data?: Record<string, string>
+  icon: ReactNode
+  title: string
+  body: string
+  children?: ReactNode
+}) {
+  return (
+    <section className="mx-auto flex w-full max-w-md flex-col items-center gap-3 py-10 text-center" data-testid={testId} {...data}>
+      <span aria-hidden className="grid h-12 w-12 place-items-center rounded-ga bg-ga-side-active text-ga-ink">
+        {icon}
+      </span>
+      <h1 className="font-ga-display text-ga-h2 text-ga-ink">{title}</h1>
+      <p className="ga-ui text-ga-body text-ga-muted">{body}</p>
+      {children}
+    </section>
   )
 }
 
 function RoomFooter({ againHref, returnHref }: { againHref: string; returnHref: string }) {
   const t = useTranslations('v2.student.examSpeaking.room')
   return (
-    <div className="mt-5 flex flex-wrap gap-2">
-      <a href={againHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2.5 text-[13px] font-semibold text-ga-bg" data-testid="room-again">
-        <RotateCcw size={14} aria-hidden /> {t('again')}
-      </a>
-      <a href={returnHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink" data-testid="room-back">
-        <ArrowLeft size={14} aria-hidden /> {t('backToCatalog')}
-      </a>
+    <div className="flex flex-wrap justify-end gap-2">
+      <Link href={againHref} className={ghostBtn} data-testid="room-again">
+        <RotateCcw size={16} aria-hidden /> {t('again')}
+      </Link>
+      <Link href={returnHref} className={primaryBtn} data-testid="room-back">
+        <ArrowLeft size={16} aria-hidden /> {t('backToCatalog')}
+      </Link>
     </div>
   )
 }
