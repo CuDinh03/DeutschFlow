@@ -1,6 +1,8 @@
 package com.deutschflow.user.service;
 
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
+import com.deutschflow.testsupport.SentMails;
+import jakarta.mail.internet.MimeMessage;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
 /**
  * Guards the forgot-password flow against a class of bug that the mock-only unit test cannot catch:
@@ -43,7 +47,8 @@ class PasswordResetServiceIntegrationTest extends AbstractPostgresIntegrationTes
 
     @Test
     void requestReset_activeAccount_issuesTokenWithoutError() {
-        doNothing().when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
+        SentMails.stub(mailSender);
+        doNothing().when(mailSender).send(any(MimeMessage.class));
         String email = "pwd-reset-it-active@test.com";
         userRepository.save(User.builder()
                 .email(email)
@@ -60,6 +65,13 @@ class PasswordResetServiceIntegrationTest extends AbstractPostgresIntegrationTes
                 "SELECT COUNT(*) FROM password_reset_tokens WHERE email = ? AND NOT used",
                 Integer.class, email.toLowerCase());
         assertThat(tokenCount).isEqualTo(1);
+
+        // Thư đi trên taskExecutor SAU khi commit (chống đo thời gian) — vẫn phải tới, mã ở tiêu đề.
+        var captor = org.mockito.ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender, timeout(5_000)).send(captor.capture());
+        String code = jdbc.queryForObject(
+                "SELECT code FROM password_reset_tokens WHERE email = ? AND NOT used", String.class, email.toLowerCase());
+        assertThat(SentMails.read(captor.getValue()).subject()).startsWith(code);
     }
 
     @Test

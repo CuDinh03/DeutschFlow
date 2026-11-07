@@ -2,10 +2,16 @@ package com.deutschflow.common.mail;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailPreparationException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * Lối DUY NHẤT để tạo và gửi thư giao dịch (plan hòm thư 05/11, giai đoạn 3).
@@ -69,6 +75,36 @@ public class TransactionalMail {
         try {
             mailSender.send(msg);
             counter(mailer, "ok").increment();
+        } catch (RuntimeException e) {
+            counter(mailer, "fail").increment();
+            throw e;
+        }
+    }
+
+    /**
+     * Gửi thư hai phần ({@code multipart/alternative}: chữ thuần + HTML), cùng {@code From}/{@code Reply-To}
+     * và cùng bộ đếm như {@link #send}. Ném lại mọi lỗi.
+     *
+     * <p>Vì sao có phần chữ thuần: nhà cung cấp (Brevo) tự bọc thư chỉ-có-chữ thành HTML một ảnh pixel,
+     * bộ lọc thư rác trừ điểm "chỉ có HTML, toàn ảnh" (mail-tester 07/11: 7.6/10). Thư tự mang cả hai phần
+     * thì người đọc bằng trình chỉ-chữ vẫn đọc được mã, và điểm không bị trừ vì lý do đó.
+     *
+     * @param mailer nhãn ngắn, cố định — thành tag Micrometer
+     */
+    public void sendRich(String mailer, String to, String subject, String text, String html) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            var helper = new MimeMessageHelper(msg, true, StandardCharsets.UTF_8.name());
+            helper.setFrom(from);
+            helper.setReplyTo(replyTo);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(text, html);
+            mailSender.send(msg);
+            counter(mailer, "ok").increment();
+        } catch (MessagingException e) {
+            counter(mailer, "fail").increment();
+            throw new MailPreparationException("Không dựng được thư " + mailer, e);
         } catch (RuntimeException e) {
             counter(mailer, "fail").increment();
             throw e;
