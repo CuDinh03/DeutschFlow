@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { MessageCircle, Briefcase, CalendarDays, ArrowRight, History, Mic, GraduationCap } from 'lucide-react'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
 import { weeklySpeakingApi } from '@/lib/weeklySpeakingApi'
-import { GaPageHdr, GaCard, GaCap, LoadingState } from '@/components/ui-v2'
+import { GaPageHdr, GaCard, GaCap, GaGlyph, LoadingState } from '@/components/ui-v2'
 
 // Speaking launcher (v2). The live conversation engine (mic streaming + SSE + TTS) now runs on
 // /v2/student/speaking/setup → /v2/student/speaking/live (same engine code as legacy, v2 shell),
@@ -61,7 +61,6 @@ const MODES = [
     titleKey: 'modes.freeTitle',
     descKey: 'modes.freeDesc',
     href: SETUP_HREF,
-    tone: 'var(--ga-violet)',
     weekly: false,
     exam: false,
   },
@@ -70,7 +69,6 @@ const MODES = [
     titleKey: 'modes.interviewTitle',
     descKey: 'modes.interviewDesc',
     href: `${SETUP_HREF}?mode=INTERVIEW`,
-    tone: 'var(--ga-blue)',
     weekly: false,
     exam: false,
   },
@@ -79,7 +77,6 @@ const MODES = [
     titleKey: 'modes.weeklyTitle',
     descKey: 'modes.weeklyDesc',
     href: WEEKLY_HREF,
-    tone: 'var(--ga-teal)',
     weekly: true,
     exam: false,
   },
@@ -91,7 +88,6 @@ const MODES = [
     titleKey: 'modes.examTitle',
     descKey: 'modes.examDesc',
     href: '/v2/student/speaking/exam',
-    tone: 'var(--ga-gold)',
     weekly: false,
     exam: true,
   },
@@ -170,7 +166,6 @@ export default function V2StudentSpeakingPage() {
         <GaCap className="mb-3 block">{t('modesCap')}</GaCap>
         <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-4">
           {MODES.filter((m) => !m.weekly || weekHasPrompts).map((m) => {
-            const Icon = m.icon
             // Ô "Speaking tuần" → trang nộp bài tuần (kèm ?cefBand gợi ý nếu backend có trả),
             // các ô còn lại → engine luyện nói (kèm ?return để thoát về đúng launcher này).
             const href = m.weekly
@@ -181,12 +176,7 @@ export default function V2StudentSpeakingPage() {
             return (
               <a key={m.titleKey} href={href}>
                 <GaCard hover className="group h-full p-5">
-                  <span
-                    className="mb-3 grid h-11 w-11 place-items-center rounded-ga"
-                    style={{ background: `${m.tone}1a`, color: m.tone }}
-                  >
-                    <Icon size={22} aria-hidden />
-                  </span>
+                  <GaGlyph icon={m.icon} size="lg" tone="navy" className="mb-3" />
                   <p className="font-ga-display text-[18px] font-medium text-ga-ink">{t(m.titleKey)}</p>
                   <p className="ga-ui mt-1 text-[13.5px] text-ga-muted">{t(m.descKey)}</p>
                   <span className="ga-ui mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent">

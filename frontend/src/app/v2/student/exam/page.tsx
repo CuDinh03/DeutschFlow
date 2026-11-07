@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ArrowRight, CalendarClock, CalendarDays, ChartNoAxesColumn, Check, ChevronRight, CircleCheck, CircleX, Clock, FileText, Headphones, Lock, Mic, RotateCcw, Route, Target, type LucideIcon } from 'lucide-react'
+import { ArrowRight, CalendarClock, CalendarDays, ChartNoAxesColumn, Check, ChevronRight, CircleCheck, CircleX, FileText, Headphones, Lock, Mic, RotateCcw, Route, Target, type LucideIcon } from 'lucide-react'
 import { getMockPack, getMockPacks, type PackExam } from '@/lib/mockPackApi'
 import { getPracticeAccess, getPracticeOverview, type PracticeOverview } from '@/lib/telcPracticeApi'
 import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
@@ -313,8 +313,7 @@ function TodayCard({ card }: { card: TodayCardModel }) {
     <div data-tour="today" className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-4 border border-ga-line bg-ga-yellow-soft p-[18px] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:p-6">
       <Glyph icon={done ? Check : icon} tone="yellow" size="lg" />
       <div className="min-w-0">
-        <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-          <Clock size={14} aria-hidden />
+        <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">
           {done ? t('todayDone') : minutes ? t('todayMinutes', { n: minutes }) : t('today')}
         </p>
         <h2 lang={card.kind === 'TEIL' || card.kind === 'ORAL_DRILL' ? 'de' : undefined} className="mt-0.5 break-words font-ga-display text-ga-h2 text-ga-ink">

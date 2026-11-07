@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, ListChecks, MessageSquareText, PenTool, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, ListChecks, MessageSquareText, PenLine, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WritingEvaluation } from '@/lib/telcPracticeApi'
 import { essaySegments, labelForLogical, relabelLeitpunkte, type displayedPoints } from './practiceModel'
@@ -57,7 +57,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
     key: 'exam.writingResult',
     ready: evaluation.status === 'AI_EVALUATED',
     steps: [
-      { target: 'essay', icon: PenTool, title: tt('writingResult.essay.t'), body: tt('writingResult.essay.p') },
+      { target: 'essay', icon: PenLine, title: tt('writingResult.essay.t'), body: tt('writingResult.essay.p') },
       { target: 'note', icon: MessageSquareText, title: tt('writingResult.note.t'), body: tt('writingResult.note.p') },
       { target: 'criteria', icon: ListChecks, title: tt('writingResult.criteria.t'), body: tt('writingResult.criteria.p') },
     ],
@@ -258,9 +258,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   const header = (
     <div className="ga-ui mb-4 flex flex-col gap-2.5 border-y border-ga-line px-1 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-          <PenTool size={14} aria-hidden /> <span lang="de">Schriftlicher Ausdruck</span>
-        </span>
+        <span className="text-ga-eyebrow uppercase text-ga-muted" lang="de">Schriftlicher Ausdruck</span>
         <div className="flex items-center gap-2">
           <Seg
             value={lang}

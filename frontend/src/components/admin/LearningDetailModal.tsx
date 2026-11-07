@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import api, { apiMessage, isAxiosErr } from "@/lib/api";
-import { BookOpen, Brain, Briefcase, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar, Save, Pencil, Check, Bot, User } from "lucide-react";
-import { CompleteBauhausLogo } from "@/components/BauhausLogo";
+import { BookA, BookOpen, Briefcase, ChartPie, CircleAlert, Lock, Mic, SpellCheck, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar, Save, Pencil, Check, Bot, User } from "lucide-react";
+import { EmptyState, GaGlyph, LoadingState } from "@/components/ui-v2";
 import { useFmt } from '@/lib/i18n/useFmt'
 
 const P = {
@@ -31,11 +31,11 @@ type LearningDetail = {
 type Tab = "profile" | "xp" | "speaking" | "vocab" | "interview";
 
 const TABS: { key: Tab; labelKey: string; icon: React.ReactNode }[] = [
-  { key: "profile", labelKey: "tabs.profile", icon: <BookOpen size={14} /> },
-  { key: "xp", labelKey: "tabs.xp", icon: <Flame size={14} /> },
-  { key: "speaking", labelKey: "tabs.speaking", icon: <Mic size={14} /> },
-  { key: "vocab", labelKey: "tabs.vocab", icon: <Brain size={14} /> },
-  { key: "interview", labelKey: "tabs.interview", icon: <Briefcase size={14} /> },
+  { key: "profile", labelKey: "tabs.profile", icon: <BookOpen size={14} aria-hidden /> },
+  { key: "xp", labelKey: "tabs.xp", icon: <Star size={14} aria-hidden /> },
+  { key: "speaking", labelKey: "tabs.speaking", icon: <Mic size={14} aria-hidden /> },
+  { key: "vocab", labelKey: "tabs.vocab", icon: <BookA size={14} aria-hidden /> },
+  { key: "interview", labelKey: "tabs.interview", icon: <Briefcase size={14} aria-hidden /> },
 ];
 
 
@@ -261,7 +261,7 @@ function XpTab({ d }: { d: LearningDetail }) {
         <Stat label={t('xp.stat.streak')} value={t('xp.streakDays', { n: String(s.currentStreak ?? 0) })} color={P.orange} />
         <Stat label={t('xp.stat.sessions')} value={fmt.num(Number(s.totalCompletedSessions ?? 0))} color={P.green} />
       </div>
-      <SectionCard title={t('xp.levelProgress')} icon={<Star size={14} style={{ color: P.yellow }} />}>
+      <SectionCard title={t('xp.levelProgress')} icon={<GaGlyph icon={Star} size="sm" />}>
         <div className="mb-2 flex justify-between text-[10px] font-bold" style={{ color: P.muted }}>
           <span>Lv.{level}</span><span>{progress}/{needed} XP ({pct}%)</span><span>Lv.{level + 1}</span>
         </div>
@@ -270,7 +270,7 @@ function XpTab({ d }: { d: LearningDetail }) {
         </div>
       </SectionCard>
 
-      <SectionCard title={t('xp.achievementsTitle', { unlocked: String(unlocked.length), total: String(achievements.length > 0 ? achievements.length : (xp.achievementsTotal ?? 14)) })} icon={<Trophy size={14} style={{ color: P.orange }} />}>
+      <SectionCard title={t('xp.achievementsTitle', { unlocked: String(unlocked.length), total: String(achievements.length > 0 ? achievements.length : (xp.achievementsTotal ?? 14)) })} icon={<GaGlyph icon={Trophy} size="sm" />}>
         {achievements.length === 0 ? (
           <p className="text-xs italic" style={{ color: P.muted }}>{t('xp.achievementsLoading')}</p>
         ) : (
@@ -279,14 +279,14 @@ function XpTab({ d }: { d: LearningDetail }) {
             {unlocked.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.green }}>
-                  <Unlock size={10} /> {t('xp.unlocked', { n: String(unlocked.length) })}
+                  <Unlock size={10} aria-hidden /> {t('xp.unlocked', { n: String(unlocked.length) })}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
                   {unlocked.map(a => {
                     const rs = RARITY_STYLE[a.rarity] ?? RARITY_STYLE.COMMON;
                     return (
                       <div key={a.code} className="flex items-center gap-3 rounded-[10px] px-3 py-2" style={{ background: rs.bg, border: `1px solid ${rs.color}30` }}>
-                        <span className="text-xl leading-none">{a.iconEmoji}</span>
+                        <GaGlyph emoji={a.iconEmoji} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold truncate" style={{ color: P.text }}>{a.nameVi}</p>
                           <p className="text-[10px] truncate" style={{ color: P.muted }}>{a.descriptionVi}</p>
@@ -305,17 +305,17 @@ function XpTab({ d }: { d: LearningDetail }) {
             {locked.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.muted }}>
-                  <Lock size={10} /> {t('xp.locked', { n: String(locked.length) })}
+                  <Lock size={10} aria-hidden /> {t('xp.locked', { n: String(locked.length) })}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
                   {locked.map(a => (
                     <div key={a.code} className="flex items-center gap-3 rounded-[10px] px-3 py-2 opacity-50" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                      <span className="text-xl leading-none grayscale">{a.iconEmoji}</span>
+                      <GaGlyph emoji={a.iconEmoji} size="sm" tone="plain" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold truncate" style={{ color: P.muted }}>{a.nameVi}</p>
                         <p className="text-[10px] truncate" style={{ color: P.muted }}>{a.descriptionVi}</p>
                       </div>
-                      <Lock size={12} style={{ color: P.muted, flexShrink: 0 }} />
+                      <Lock size={12} className="shrink-0 text-ga-subtle" aria-hidden />
                     </div>
                   ))}
                 </div>
@@ -342,7 +342,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
         <Stat label={t('speaking.stat.messages')} value={fmt.num(Number(sp.totalMessages ?? 0))} color={P.purple} />
       </div>
       {weakPoints.length > 0 && (
-        <SectionCard title={t('speaking.weakPointsTitle')} icon={<Target size={14} style={{ color: P.red }} />}>
+        <SectionCard title={t('speaking.weakPointsTitle')} icon={<GaGlyph icon={Target} size="sm" />}>
           <div className="space-y-2">{weakPoints.map((wp, i) => (
             <div key={i} className="flex items-center justify-between gap-2 text-xs">
               <span className="min-w-0 break-words font-semibold" style={{ color: P.text }}>{wp.grammarPoint}</span>
@@ -352,7 +352,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
         </SectionCard>
       )}
       {errorSkills.length > 0 && (
-        <SectionCard title={t('speaking.errorSkillsTitle')} icon={<Star size={14} style={{ color: P.orange }} />}>
+        <SectionCard title={t('speaking.errorSkillsTitle')} icon={<GaGlyph icon={CircleAlert} size="sm" />}>
           <div className="space-y-2">{errorSkills.map((s, i) => {
             const openCount = Number(s.openCount ?? 0);
             const resolvedCount = Number(s.resolvedCount ?? 0);
@@ -376,7 +376,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
         </SectionCard>
       )}
       {recentErrors.length > 0 && (
-        <SectionCard title={t('speaking.recentErrorsTitle')} icon={<Mic size={14} style={{ color: P.orange }} />}>
+        <SectionCard title={t('speaking.recentErrorsTitle')} icon={<GaGlyph icon={SpellCheck} size="sm" />}>
           <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: P.border }}>
             <table className="w-full min-w-[420px] lg:min-w-0 text-[11px]">
               <thead style={{ background: P.navyLt }}>
@@ -427,7 +427,7 @@ function VocabTab({ d }: { d: LearningDetail }) {
         <Stat label={t('vocab.stat.learning')} value={fmt.num(learning)} color={P.blue} />
       </div>
       {total > 0 && (
-        <SectionCard title={t('vocab.distributionTitle')} icon={<Brain size={14} style={{ color: P.purple }} />}>
+        <SectionCard title={t('vocab.distributionTitle')} icon={<GaGlyph icon={ChartPie} size="sm" />}>
           <div className="h-4 rounded-full overflow-hidden flex" style={{ background: P.bg }}>
             {mastered > 0 && <div style={{ width: `${(mastered / total) * 100}%`, background: P.green }} title={t('vocab.barMastered', { n: String(mastered) })} />}
             {learning > 0 && <div style={{ width: `${(learning / total) * 100}%`, background: P.blue }} title={t('vocab.barLearning', { n: String(learning) })} />}
@@ -516,16 +516,13 @@ function InterviewTab({ userId }: { userId: number }) {
   if (loading) return <p className="text-xs animate-pulse" style={{ color: P.muted }}>{t('interview.loading')}</p>;
   if (error) return <p className="text-xs" style={{ color: P.red }}>{error}</p>;
   if (sessions.length === 0) return (
-    <div className="rounded-[14px] p-6 text-center" style={{ border: `2px dashed ${P.border}` }}>
-      <Briefcase size={32} className="mx-auto mb-2 opacity-30" />
-      <p className="text-sm font-medium" style={{ color: P.muted }}>{t('interview.empty')}</p>
-    </div>
+    <EmptyState variant="invite" icon="work" title={t('interview.empty')} />
   );
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
-        <MessageSquare size={14} style={{ color: P.blue }} />
+        <GaGlyph icon={MessageSquare} size="sm" />
         <span className="text-xs font-bold" style={{ color: P.muted }}>{t('interview.count', { n: String(sessions.length) })}</span>
       </div>
       {sessions.map(s => {
@@ -562,16 +559,16 @@ function InterviewTab({ userId }: { userId: number }) {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]" style={{ color: P.muted }}>
                   {date && (
                     <span className="flex items-center gap-1">
-                      <Calendar size={10} />
+                      <Calendar size={10} aria-hidden />
                       {fmt.date(date)} — {fmt.time(date, { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   )}
                   <span className="flex items-center gap-1">
-                    <MessageSquare size={10} /> {t('interview.messageCount', { n: String(s.messageCount ?? 0) })}
+                    <MessageSquare size={10} aria-hidden /> {t('interview.messageCount', { n: String(s.messageCount ?? 0) })}
                   </span>
                 </div>
               </div>
-              {isExpanded ? <ChevronUp size={16} style={{ color: P.muted }} /> : <ChevronDown size={16} style={{ color: P.muted }} />}
+              {isExpanded ? <ChevronUp size={16} className="text-ga-muted" aria-hidden /> : <ChevronDown size={16} className="text-ga-muted" aria-hidden />}
             </button>
 
             {/* Transcript */}
@@ -652,8 +649,8 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
             <h3 className="font-bold text-base" style={{ color: P.text }}>{t('title')}</h3>
             <p className="text-xs break-words" style={{ color: P.muted }}>#{userId} · {userName}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400">
-            <X size={16} />
+          <button onClick={onClose} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-ga-muted hover:bg-ga-side-active">
+            <X size={16} aria-hidden />
           </button>
         </div>
 
@@ -670,10 +667,7 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-6 lg:py-5" style={{ background: P.bg }}>
           {loading && (
-            <div className="flex flex-col items-center justify-center py-12 gap-4">
-              <CompleteBauhausLogo variant="icon-only" size={120} animated />
-              <p className="text-xs font-medium animate-pulse" style={{ color: P.muted }}>{t('loading')}</p>
-            </div>
+            <LoadingState label={t('loading')} />
           )}
           {(error || timedOut) && <p className="text-sm text-center py-8" style={{ color: P.red }}>{timedOut ? t('backendBusy') : error}</p>}
           {detail && !loading && (

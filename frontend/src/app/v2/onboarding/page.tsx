@@ -42,7 +42,7 @@ import { MotivationStep } from "@/features/onboarding/steps/MotivationStep";
 import { LevelStep } from "@/features/onboarding/steps/LevelStep";
 import { RhythmStep } from "@/features/onboarding/steps/RhythmStep";
 import { FocusStep } from "@/features/onboarding/steps/FocusStep";
-import { GaBtn, GaIcon } from "@/components/ui-v2";
+import { GaBtn, GaGlyph, GaIcon } from "@/components/ui-v2";
 import { GaAuthShell } from "../authShared";
 import { OrgLiteWizard, type LiteProfilePayload } from "./OrgLiteWizard";
 
@@ -504,7 +504,7 @@ function V2OnboardingFunnel() {
   const mentorCard = mentor ? (
     <div className="space-y-1.5">
       <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3">
-        <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center shrink-0"><GaIcon name="school" size={22} className="text-ga-ink" /></div>
+        <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center shrink-0"><GaIcon name="person" size={22} className="text-ga-ink" /></div>
         <div className="min-w-0">
           <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t("pace.mentorLabel")}</p>
           <p className="ga-ui text-ga-small font-bold text-ga-ink">{mentor.displayName}</p>
@@ -622,7 +622,7 @@ function V2OnboardingFunnel() {
 
           {step === STEP_TASTE && isGuest && (
             <motion.div key="s5qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
-              <div className="inline-flex w-16 h-16 rounded-ga-pill items-center justify-center bg-ga-yellow-soft text-ga-gold mx-auto"><GaIcon name="record_voice_over" size={30} /></div>
+              <GaGlyph name="record_voice_over" size="lg" tone="yellow" className="mx-auto" />
               <h1 ref={headingRef} tabIndex={-1} className="font-ga-display text-ga-h1-m text-ga-ink outline-none">{t("quickWin.heading")}</h1>
               <p className="text-ga-small text-ga-muted">{t("quickWin.prompt")}</p>
               <div className="space-y-2 text-left" role="group" aria-label={t("quickWin.prompt")}>
@@ -666,7 +666,7 @@ function V2OnboardingFunnel() {
             <motion.div key="s6" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} onAnimationComplete={focusHeading} className={`${card} text-center`}>
               {mentor && (
                 <div className="rounded-ga border border-ga-gold bg-ga-yellow-soft p-3 flex items-center gap-3 text-left">
-                  <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center shrink-0"><GaIcon name="school" size={22} className="text-ga-ink" /></div>
+                  <div className="w-11 h-11 rounded-ga-pill bg-ga-yellow flex items-center justify-center shrink-0"><GaIcon name="person" size={22} className="text-ga-ink" /></div>
                   <div className="min-w-0">
                     <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t("pace.mentorLabel")}</p>
                     <p className="ga-ui text-ga-small font-bold text-ga-ink">{mentor.displayName}</p>

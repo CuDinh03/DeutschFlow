@@ -22,6 +22,7 @@ import {
   GaBtn,
   GaCap,
   GaCard,
+  GaGlyph,
   GaPageHdr,
   LoadingState,
   TkBadge,
@@ -170,9 +171,7 @@ export default function V2StudentExerciseRunnerPage() {
           {/* Kết quả sau khi nộp */}
           {grade && (
             <GaCard className="flex flex-col items-center gap-3 px-4 py-8 text-center lg:px-6 lg:py-10">
-              <span className="grid h-14 w-14 place-items-center rounded-ga-pill bg-ga-yellow-soft text-ga-gold">
-                <Trophy size={28} aria-hidden />
-              </span>
+              <GaGlyph icon={Trophy} size="lg" tone="yellow" />
               <p className="font-ga-display text-[24px] font-medium text-ga-ink">
                 {canGrade
                   ? t('resultTitle', { correct: grade.correct, total: grade.total })

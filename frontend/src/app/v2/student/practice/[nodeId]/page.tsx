@@ -3,13 +3,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Check, ChevronRight, Sparkles, Trophy } from 'lucide-react'
+import {
+  ArrowLeft,
+  BookOpen,
+  Check,
+  ChevronRight,
+  Headphones,
+  Mic,
+  PenLine,
+  Sparkles,
+  Trophy,
+  type LucideIcon,
+} from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
-import { SKILL_COLORS, SKILL_LABELS, SKILL_ICONS } from '@/lib/skills'
-import { GaCap, GaCard, GaGlyph, GaPageHdr, ErrorBanner, LoadingState, SkillIcon } from '@/components/ui-v2'
+import { SKILL_COLORS, SKILL_ICON, SKILL_LABELS } from '@/lib/skills'
+import { GaCap, GaCard, GaGlyph, GaPageHdr, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import type { Skill } from '@/lib/skills'
 
 /**
@@ -25,8 +36,8 @@ import type { Skill } from '@/lib/skills'
  * chưa có bài trong cache (S-5 — sinh bài chạy nền). Bản v1 chỉ đọc `sessions`/`sessionId` nên
  * đứng im ở lần sinh đầu. Ở đây ta poll job qua `waitForAsyncJob` rồi mới điều hướng.
  *
- * Màu/nhãn kỹ năng lấy từ palette cây học tập (`SKILL_COLORS`/`SKILL_LABELS`) để bề mặt luyện tập
- * và cây/legend ở /v2/student/roadmap dùng chung một bộ mã màu.
+ * Nhãn kỹ năng lấy từ `SKILL_LABELS`; `SKILL_COLORS` chỉ còn tô thanh điểm. Ô icon kỹ năng đi qua
+ * `GaGlyph` (token `ga-*`) như mọi ô nhận diện khác.
  */
 
 const SKILLS: Skill[] = ['hoeren', 'sprechen', 'lesen', 'schreiben']
@@ -191,7 +202,7 @@ export default function V2StudentPracticeNodePage() {
               {/* Chưa có session nào → mời sinh cả 4 */}
               {!overview?.sessions?.length && (
                 <div className="rounded-ga border-2 border-dashed border-ga-border bg-ga-surface px-4 py-8 text-center sm:px-6 lg:py-10">
-                  <Sparkles size={34} className="mx-auto mb-3 text-ga-yellow" aria-hidden />
+                  <GaGlyph icon={Sparkles} size="lg" tone="yellow" className="mx-auto mb-3" />
                   <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
                   <p className="ga-ui mx-auto mt-2 max-w-sm text-[13.5px] text-ga-muted">{t('emptyDesc')}</p>
                   <button
@@ -224,16 +235,11 @@ export default function V2StudentPracticeNodePage() {
                         className="w-full p-4 text-left transition-colors hover:bg-ga-surface disabled:cursor-wait lg:p-5"
                       >
                         <div className="flex items-center gap-3">
-                          <span
-                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full"
-                            style={{ background: color }}
-                          >
-                            {isCompleted ? (
-                              <Check size={20} strokeWidth={3} color="#FFFFFF" aria-hidden />
-                            ) : (
-                              <SkillIcon paths={SKILL_ICONS[skill]} size={20} color="#FFFFFF" strokeWidth={2.4} />
-                            )}
-                          </span>
+                          {isCompleted ? (
+                            <GaGlyph icon={Check} size="md" tone="green" />
+                          ) : (
+                            <GaGlyph icon={SKILL_ICON[skill]} size="md" tone="navy" />
+                          )}
                           <span className="min-w-0 flex-1">
                             <span className="block text-[15px] font-semibold text-ga-ink">
                               {SKILL_LABELS[skill]}
@@ -250,7 +256,7 @@ export default function V2StudentPracticeNodePage() {
                             <span className="animate-pulse text-ga-muted">{t('generatingOne')}</span>
                           ) : session ? (
                             <>
-                              <span className="inline-flex items-center gap-1 font-semibold" style={{ color }}>
+                              <span className="inline-flex items-center gap-1 font-semibold text-ga-muted">
                                 <Trophy size={12} aria-hidden />
                                 {session.score_percent ?? '—'}%
                               </span>

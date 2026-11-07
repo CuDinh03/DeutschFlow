@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import { ArrowLeft, RefreshCw, Lock, CheckCircle2, Crown, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
-import { GaCard, GaCardBody, GaCardHeader, GaCardTitle, GaBtn, GaCap, TkModal } from '@/components/ui-v2'
+import { GaCard, GaCardBody, GaCardHeader, GaCardTitle, GaBtn, GaCap, GaGlyph, TkModal } from '@/components/ui-v2'
 import { GaAuthShell } from '../../authShared'
 import { usePlanHelpers } from '@/contexts/PlanContext'
 
@@ -213,7 +213,7 @@ export default function V2ErrorReportPage() {
           <GaCard>
             <GaCardHeader>
               <GaCardTitle className="flex items-center gap-2 text-ga-red">
-                <AlertTriangle size={18} /> {t('topErrorsTitle')}
+                <GaGlyph icon={AlertTriangle} size="sm" tone="red" /> {t('topErrorsTitle')}
               </GaCardTitle>
             </GaCardHeader>
             <GaCardBody>

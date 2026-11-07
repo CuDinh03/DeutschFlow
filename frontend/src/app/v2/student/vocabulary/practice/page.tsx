@@ -28,7 +28,7 @@ import type { TagItem, WordListItem, WordListResponse } from '@/lib/vocabWords'
 import { KlausCharacter } from '@/components/speaking/characters/KlausCharacter'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { useTracking } from '@/hooks/useTracking'
-import { GaBtn, GaCap, GaCard, GaPageHdr, ErrorBanner, LoadingState, TkSeg } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaCard, GaGlyph, GaPageHdr, ErrorBanner, LoadingState, TkSeg } from '@/components/ui-v2'
 
 /**
  * /v2/student/vocabulary/practice — luyện NÓI từ vựng (port của /student/vocab-practice).
@@ -587,12 +587,7 @@ function VocabPractice() {
           {screen === 'summary' && (
             <>
               <GaCard className="p-4 text-center sm:p-6 lg:p-8">
-                <Trophy
-                  size={40}
-                  className="mx-auto mb-3"
-                  style={{ color: pct >= 70 ? 'var(--ga-gold)' : 'var(--ga-subtle)' }}
-                  aria-hidden
-                />
+                <GaGlyph icon={Trophy} size="lg" tone={pct >= 70 ? 'yellow' : 'plain'} className="mx-auto mb-3" />
                 <p className="font-ga-display text-[32px] font-medium leading-none text-ga-ink sm:text-[38px] lg:text-[44px]">
                   {pct}%
                 </p>

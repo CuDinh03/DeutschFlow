@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Loader2, Target, Users } from 'lucide-react'
+import { Check, CircleAlert, Loader2, Minus, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaBtn, GaCap, GaPageHdr, TkBadge } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaGlyph, GaPageHdr, TkBadge } from '@/components/ui-v2'
 import { ClassPicker, useTeacherClasses } from '../tcShared'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,10 +27,10 @@ const NEXT_STATUS: Record<Cell['status'], Cell['status']> = {
   NEEDS_PRACTICE: 'NOT_ASSESSED',
 }
 
-const CELL_STYLE: Record<Cell['status'], { bg: string; fg: string; label: string }> = {
-  NOT_ASSESSED: { bg: 'transparent', fg: 'var(--ga-subtle)', label: '—' },
-  ACHIEVED: { bg: 'var(--ga-green-soft)', fg: 'var(--ga-green)', label: '✓' },
-  NEEDS_PRACTICE: { bg: 'var(--ga-red-soft)', fg: 'var(--ga-red)', label: '!' },
+const CELL_STYLE: Record<Cell['status'], { bg: string; fg: string; Icon: LucideIcon }> = {
+  NOT_ASSESSED: { bg: 'transparent', fg: 'var(--ga-subtle)', Icon: Minus },
+  ACHIEVED: { bg: 'var(--ga-green-soft)', fg: 'var(--ga-green)', Icon: Check },
+  NEEDS_PRACTICE: { bg: 'var(--ga-red-soft)', fg: 'var(--ga-red)', Icon: CircleAlert },
 }
 
 export default function V2ObjectiveMatrixPage() {
@@ -110,9 +110,7 @@ export default function V2ObjectiveMatrixPage() {
                     const obj = matrix.objectives.find((o) => o.id === s.objectiveId)
                     return (
                       <li key={s.objectiveId} className="flex flex-wrap items-center gap-2 border border-ga-line bg-ga-card px-3.5 py-2.5">
-                        {s.kind === 'GROUP_REVIEW'
-                          ? <Users size={14} className="shrink-0" style={{ color: 'var(--ga-orange)' }} />
-                          : <Target size={14} className="shrink-0" style={{ color: 'var(--ga-violet)' }} />}
+                        <GaGlyph icon={s.kind === 'GROUP_REVIEW' ? UsersRound : UserRound} tone="navy" size="sm" />
                         <span className="min-w-0 flex-1 text-[13px] text-ga-ink">
                           <strong>{obj?.text}</strong>
                           {' — '}
@@ -176,7 +174,7 @@ export default function V2ObjectiveMatrixPage() {
                               className="grid h-8 w-8 place-items-center rounded-ga border text-[13px] font-bold transition-colors disabled:opacity-50"
                               style={{ background: st.bg, color: st.fg, borderColor: 'var(--ga-line)' }}
                             >
-                              {savingCell === key ? <Loader2 size={12} className="animate-spin" /> : st.label}
+                              {savingCell === key ? <Loader2 size={12} className="ga-spin" aria-hidden /> : <st.Icon size={14} aria-hidden />}
                             </button>
                           </td>
                         )

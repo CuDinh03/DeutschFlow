@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
-import { LockOpen } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { grantRecordUnlock, listActiveRecordUnlocks, type RecordUnlock } from '@/lib/sessionWorkspaceApi'
@@ -83,7 +83,7 @@ export function RecordUnlockSection() {
         className="ga-ui flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-ga-muted hover:text-ga-ink"
         aria-expanded={open}
       >
-        <LockOpen size={13} /> {t('heading')} {open ? '▾' : '▸'}
+        {t('heading')} {open ? <ChevronDown size={13} aria-hidden /> : <ChevronRight size={13} aria-hidden />}
       </button>
 
       {open && (

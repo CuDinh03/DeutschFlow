@@ -4,6 +4,7 @@ import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide';
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Square, RotateCcw, Loader2, PartyPopper, Bot, Lightbulb, Check, TriangleAlert, X, CircleCheck } from "lucide-react";
+import { GaGlyph } from "@/components/ui-v2";
 import { AudioButton } from "./LearnComponents";
 import api from "@/lib/api";
 import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio";
@@ -233,7 +234,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   if (drills.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
-        <Mic size={40} className="mb-3 text-ga-subtle" aria-hidden />
+        <GaGlyph icon={Mic} size="lg" tone="plain" className="mb-3" />
         <p className="text-sm text-ga-muted">{t("empty")}</p>
       </div>
     );

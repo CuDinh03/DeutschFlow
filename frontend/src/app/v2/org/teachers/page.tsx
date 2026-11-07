@@ -11,7 +11,7 @@ import {
   listMembers, listInvitations, revokeInvitation, getOrgTeacherClasses,
   type OrgMember, type OrgInvitation, type OrgTeacherClass,
 } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap, ConfirmDialog } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph, ConfirmDialog } from '@/components/ui-v2'
 import { CreateTeacherModal } from './CreateTeacherModal'
 import { OrgWriteGate } from '../../OrgLicenseGate'
 import { AssignClassModal } from './AssignClassModal'
@@ -141,7 +141,7 @@ export default function V2OrgTeachersPage() {
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {invites.map((inv) => (
                     <div key={inv.id} className="flex items-center gap-3 border border-ga-line bg-ga-card px-4 py-3.5 lg:gap-3.5 lg:px-5">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center" style={{ background: 'var(--ga-orange-soft)' }}><Mail size={17} style={{ color: 'var(--ga-orange)' }} /></span>
+                      <GaGlyph icon={Mail} tone="plain" size="md" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[14px] font-semibold text-ga-ink">{inv.email}</div>
                         <div className="text-[11.5px] text-ga-muted">{t('awaitingAccept', { date: fmtDate(inv.expiresAt) })}</div>

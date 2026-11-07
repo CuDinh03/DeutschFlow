@@ -84,6 +84,15 @@
       "text-[11px]": 1
     }
   },
+  "src/app/v2/admin/exam-golden/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 4,
+      "text-[13.5px]": 4,
+      "text-[12px]": 7,
+      "text-[12.5px]": 2,
+      "text-[28px]": 2
+    }
+  },
   "src/app/v2/admin/exam-golden/[id]/page.tsx": {
     "arbitrary-font-size": {
       "text-[13px]": 3,
@@ -92,15 +101,6 @@
       "text-[11px]": 1,
       "text-[12.5px]": 2,
       "text-[11.5px]": 1
-    }
-  },
-  "src/app/v2/admin/exam-golden/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[13px]": 4,
-      "text-[13.5px]": 4,
-      "text-[12px]": 7,
-      "text-[12.5px]": 2,
-      "text-[28px]": 2
     }
   },
   "src/app/v2/admin/free-teachers/page.tsx": {
@@ -116,7 +116,7 @@
       "text-[12px]": 3,
       "text-[20px]": 1,
       "text-[24px]": 1,
-      "text-[14px]": 3,
+      "text-[14px]": 2,
       "text-[10px]": 2,
       "text-[11px]": 1,
       "text-[12.5px]": 2
@@ -132,17 +132,7 @@
   },
   "src/app/v2/admin/maintenance/page.tsx": {
     "hex-literal": {
-      "#488": 1,
-      "#FFF3BF": 1,
-      "#8A6C00": 1,
-      "#FAE6E2": 2,
-      "#A8241C": 3,
-      "#E1F0E3": 1,
-      "#2E6E41": 1,
-      "#EFEBDD": 1,
-      "#6A6149": 1,
-      "#E8C7C0": 1,
-      "#7C1D16": 1
+      "#488": 1
     },
     "arbitrary-font-size": {
       "text-[14.5px]": 2,
@@ -369,14 +359,6 @@
       "text-[12px]": 2
     }
   },
-  "src/app/v2/admin/users/UserDetailModal.tsx": {
-    "arbitrary-font-size": {
-      "text-[13px]": 10,
-      "text-[12px]": 6,
-      "text-[12.5px]": 1,
-      "text-[11px]": 1
-    }
-  },
   "src/app/v2/admin/users/page.tsx": {
     "hex-literal": {
       "#2F6FC9": 1,
@@ -397,6 +379,14 @@
     },
     "arbitrary-radius": {
       "rounded-[3px]": 2
+    }
+  },
+  "src/app/v2/admin/users/UserDetailModal.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 10,
+      "text-[12px]": 6,
+      "text-[12.5px]": 1,
+      "text-[11px]": 1
     }
   },
   "src/app/v2/admin/vocabulary/GalerieReviewGrid.tsx": {
@@ -420,19 +410,6 @@
       "text-[11.5px]": 3
     }
   },
-  "src/app/v2/admin/vocabulary/VocabReviewQueue.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1
-    },
-    "arbitrary-font-size": {
-      "text-[14px]": 1,
-      "text-[12px]": 5,
-      "text-[18px]": 2,
-      "text-[12.5px]": 1,
-      "text-[10.5px]": 1,
-      "text-[13px]": 4
-    }
-  },
   "src/app/v2/admin/vocabulary/page.tsx": {
     "hex-literal": {
       "#1E9E61": 1,
@@ -446,11 +423,24 @@
       "text-[26px]": 1,
       "text-[14.5px]": 1,
       "text-[12px]": 1,
-      "text-[18px]": 2,
       "text-[10px]": 1,
       "text-[11px]": 1,
+      "text-[18px]": 1,
       "text-[11.5px]": 3,
       "text-[14px]": 2
+    }
+  },
+  "src/app/v2/admin/vocabulary/VocabReviewQueue.tsx": {
+    "hex-literal": {
+      "#1E9E61": 1
+    },
+    "arbitrary-font-size": {
+      "text-[14px]": 1,
+      "text-[12px]": 5,
+      "text-[12.5px]": 1,
+      "text-[18px]": 1,
+      "text-[10.5px]": 1,
+      "text-[13px]": 4
     }
   },
   "src/app/v2/admin/weekly-speaking/page.tsx": {
@@ -607,52 +597,6 @@
       "text-[12px]": 2
     }
   },
-  "src/app/v2/onboarding/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[12px]": 15,
-      "text-[14px]": 3,
-      "text-[12.5px]": 2,
-      "text-[24px]": 8,
-      "text-[13.5px]": 16,
-      "text-[13px]": 3,
-      "text-[10.5px]": 3,
-      "text-[20px]": 1,
-      "text-[10px]": 1
-    }
-  },
-  "src/app/v2/org/ManagerDashboard.tsx": {
-    "hex-literal": {
-      "#11888A": 1
-    },
-    "arbitrary-font-size": {
-      "text-[20px]": 1,
-      "text-[24px]": 1,
-      "text-[14px]": 3,
-      "text-[12.5px]": 3,
-      "text-[13.5px]": 8,
-      "text-[11.5px]": 4,
-      "text-[11px]": 2,
-      "text-[12px]": 1
-    }
-  },
-  "src/app/v2/org/OwnerDashboard.tsx": {
-    "hex-literal": {
-      "#11888A": 1
-    },
-    "arbitrary-font-size": {
-      "text-[20px]": 4,
-      "text-[24px]": 1,
-      "text-[14px]": 2,
-      "text-[13.5px]": 6,
-      "text-[13px]": 2,
-      "text-[15px]": 1,
-      "text-[26px]": 2,
-      "text-[12.5px]": 4,
-      "text-[12px]": 2,
-      "text-[11.5px]": 1,
-      "text-[11px]": 1
-    }
-  },
   "src/app/v2/org/analytics/page.tsx": {
     "hex-literal": {
       "#11888A": 1
@@ -698,20 +642,6 @@
       "text-[12px]": 1
     }
   },
-  "src/app/v2/org/classes/[id]/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[20px]": 1,
-      "text-[24px]": 1,
-      "text-[14px]": 10,
-      "text-[12px]": 2,
-      "text-[10px]": 5,
-      "text-[13px]": 6,
-      "text-[11.5px]": 3,
-      "text-[12.5px]": 4,
-      "text-[15px]": 1,
-      "text-[11px]": 2
-    }
-  },
   "src/app/v2/org/classes/page.tsx": {
     "hex-literal": {
       "#11888A": 1
@@ -725,6 +655,20 @@
       "text-[10px]": 1,
       "text-[13px]": 1,
       "text-[12.5px]": 1
+    }
+  },
+  "src/app/v2/org/classes/[id]/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[20px]": 1,
+      "text-[24px]": 1,
+      "text-[14px]": 10,
+      "text-[12px]": 2,
+      "text-[10px]": 5,
+      "text-[13px]": 6,
+      "text-[11.5px]": 3,
+      "text-[12.5px]": 4,
+      "text-[15px]": 1,
+      "text-[11px]": 2
     }
   },
   "src/app/v2/org/curricula/AssignModal.tsx": {
@@ -775,6 +719,39 @@
       "text-[11px]": 2
     }
   },
+  "src/app/v2/org/ManagerDashboard.tsx": {
+    "hex-literal": {
+      "#11888A": 1
+    },
+    "arbitrary-font-size": {
+      "text-[20px]": 1,
+      "text-[24px]": 1,
+      "text-[14px]": 3,
+      "text-[12.5px]": 3,
+      "text-[13.5px]": 8,
+      "text-[11.5px]": 4,
+      "text-[11px]": 2,
+      "text-[12px]": 1
+    }
+  },
+  "src/app/v2/org/OwnerDashboard.tsx": {
+    "hex-literal": {
+      "#11888A": 1
+    },
+    "arbitrary-font-size": {
+      "text-[20px]": 4,
+      "text-[24px]": 1,
+      "text-[14px]": 2,
+      "text-[13.5px]": 6,
+      "text-[13px]": 2,
+      "text-[15px]": 1,
+      "text-[26px]": 2,
+      "text-[12.5px]": 4,
+      "text-[12px]": 2,
+      "text-[11.5px]": 1,
+      "text-[11px]": 1
+    }
+  },
   "src/app/v2/org/roles/ApproverSection.tsx": {
     "arbitrary-font-size": {
       "text-[12.5px]": 2,
@@ -808,13 +785,6 @@
       "text-[11px]": 1
     }
   },
-  "src/app/v2/org/schedule/RecordUnlockSection.tsx": {
-    "arbitrary-font-size": {
-      "text-[13px]": 1,
-      "text-[12px]": 1,
-      "text-[12.5px]": 2
-    }
-  },
   "src/app/v2/org/schedule/page.tsx": {
     "arbitrary-font-size": {
       "text-[17px]": 1,
@@ -826,21 +796,17 @@
       "text-[10px]": 1
     }
   },
+  "src/app/v2/org/schedule/RecordUnlockSection.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[12px]": 1,
+      "text-[12.5px]": 2
+    }
+  },
   "src/app/v2/org/settings/page.tsx": {
     "arbitrary-font-size": {
       "text-[13.5px]": 5,
       "text-[12px]": 2
-    }
-  },
-  "src/app/v2/org/students/[id]/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[20px]": 1,
-      "text-[24px]": 1,
-      "text-[14px]": 4,
-      "text-[12px]": 1,
-      "text-[22px]": 2,
-      "text-[18px]": 1,
-      "text-[13.5px]": 1
     }
   },
   "src/app/v2/org/students/page.tsx": {
@@ -858,6 +824,17 @@
       "text-[10.5px]": 1,
       "text-[12.5px]": 1,
       "text-[11px]": 1
+    }
+  },
+  "src/app/v2/org/students/[id]/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[20px]": 1,
+      "text-[24px]": 1,
+      "text-[14px]": 4,
+      "text-[12px]": 1,
+      "text-[22px]": 2,
+      "text-[18px]": 1,
+      "text-[13.5px]": 1
     }
   },
   "src/app/v2/org/teachers/AssignClassModal.tsx": {
@@ -920,21 +897,13 @@
       "text-[13px]": 1
     }
   },
-  "src/app/v2/profile/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[12px]": 2,
-      "text-[14px]": 2,
-      "text-[13px]": 1
-    }
-  },
   "src/app/v2/register/page.tsx": {
     "arbitrary-font-size": {
       "text-[26px]": 1,
       "text-[30px]": 1,
       "text-[38px]": 1,
-      "text-[15px]": 2,
+      "text-[15px]": 1,
       "text-[12px]": 2,
-      "text-[13px]": 1,
       "text-[14px]": 1
     }
   },
@@ -957,12 +926,9 @@
       "#76716A": 1,
       "#2F6FC9": 1,
       "#7C56C8": 1,
-      "#C79A00": 2,
-      "#9BA3AF": 1,
-      "#CD7F32": 1
+      "#C79A00": 1
     },
     "arbitrary-font-size": {
-      "text-[28px]": 1,
       "text-[13.5px]": 3,
       "text-[11.5px]": 2,
       "text-[11px]": 2,
@@ -970,31 +936,9 @@
       "text-[12px]": 1
     }
   },
-  "src/app/v2/student/assessment/page.tsx": {
-    "hex-literal": {
-      "#C79A00": 1,
-      "#2F6FC9": 1,
-      "#1E9E61": 1,
-      "#E07B39": 1,
-      "#7C56C8": 1,
-      "#A39E94": 2
-    },
-    "arbitrary-font-size": {
-      "text-[22px]": 1,
-      "text-[24px]": 2,
-      "text-[28px]": 2,
-      "text-[14.5px]": 2,
-      "text-[36px]": 1,
-      "text-[14px]": 1,
-      "text-[16px]": 1,
-      "text-[18px]": 2,
-      "text-[13px]": 2,
-      "text-[12.5px]": 2
-    }
-  },
   "src/app/v2/student/beginner/page.tsx": {
     "hex-literal": {
-      "#A39E94": 2
+      "#A39E94": 1
     },
     "arbitrary-font-size": {
       "text-[22px]": 1,
@@ -1028,6 +972,46 @@
       "text-[11.5px]": 1
     }
   },
+  "src/app/v2/student/classes/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[15px]": 1,
+      "text-[14px]": 2,
+      "text-[24px]": 1,
+      "text-[14.5px]": 1,
+      "text-[20px]": 1,
+      "text-[16px]": 1,
+      "text-[13px]": 1,
+      "text-[11px]": 1,
+      "text-[12.5px]": 1
+    }
+  },
+  "src/app/v2/student/classes/[id]/assignments/[aid]/AssignmentMaterials.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[14px]": 1,
+      "text-[10px]": 1,
+      "text-[11px]": 1,
+      "text-[12px]": 1
+    }
+  },
+  "src/app/v2/student/classes/[id]/assignments/[aid]/page.tsx": {
+    "hex-literal": {
+      "#2F6FC9": 1,
+      "#7C56C8": 1
+    },
+    "arbitrary-font-size": {
+      "text-[11.5px]": 1,
+      "text-[14px]": 6,
+      "text-[15px]": 1,
+      "text-[13px]": 7,
+      "text-[14.5px]": 3,
+      "text-[28px]": 1,
+      "text-[32px]": 1,
+      "text-[40px]": 1,
+      "text-[12.5px]": 3,
+      "text-[13.5px]": 1
+    }
+  },
   "src/app/v2/student/classes/[id]/EvaluationTab.tsx": {
     "arbitrary-font-size": {
       "text-[14px]": 2,
@@ -1045,43 +1029,6 @@
       "text-[12px]": 3,
       "text-[12.5px]": 1,
       "text-[11px]": 1
-    }
-  },
-  "src/app/v2/student/classes/[id]/ScheduleTab.tsx": {
-    "arbitrary-font-size": {
-      "text-[14px]": 1,
-      "text-[15px]": 1,
-      "text-[12px]": 1,
-      "text-[14.5px]": 1,
-      "text-[12.5px]": 2,
-      "text-[13.5px]": 1
-    }
-  },
-  "src/app/v2/student/classes/[id]/assignments/[aid]/AssignmentMaterials.tsx": {
-    "arbitrary-font-size": {
-      "text-[13px]": 1,
-      "text-[14px]": 1,
-      "text-[10px]": 1,
-      "text-[11px]": 1,
-      "text-[12px]": 1
-    }
-  },
-  "src/app/v2/student/classes/[id]/assignments/[aid]/page.tsx": {
-    "hex-literal": {
-      "#2F6FC9": 2,
-      "#7C56C8": 1
-    },
-    "arbitrary-font-size": {
-      "text-[11.5px]": 1,
-      "text-[14px]": 6,
-      "text-[15px]": 1,
-      "text-[13px]": 7,
-      "text-[14.5px]": 3,
-      "text-[28px]": 1,
-      "text-[32px]": 1,
-      "text-[40px]": 1,
-      "text-[12.5px]": 3,
-      "text-[13.5px]": 1
     }
   },
   "src/app/v2/student/classes/[id]/page.tsx": {
@@ -1103,17 +1050,14 @@
       "text-[11px]": 1
     }
   },
-  "src/app/v2/student/classes/page.tsx": {
+  "src/app/v2/student/classes/[id]/ScheduleTab.tsx": {
     "arbitrary-font-size": {
+      "text-[14px]": 1,
       "text-[15px]": 1,
-      "text-[14px]": 2,
-      "text-[24px]": 1,
+      "text-[12px]": 1,
       "text-[14.5px]": 1,
-      "text-[20px]": 1,
-      "text-[16px]": 1,
-      "text-[13px]": 1,
-      "text-[11px]": 1,
-      "text-[12.5px]": 1
+      "text-[12.5px]": 2,
+      "text-[13.5px]": 1
     }
   },
   "src/app/v2/student/errors/page.tsx": {
@@ -1142,6 +1086,13 @@
       "text-[13px]": 1
     }
   },
+  "src/app/v2/student/exercises/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[19px]": 1,
+      "text-[12.5px]": 3,
+      "text-[13px]": 1
+    }
+  },
   "src/app/v2/student/exercises/[id]/page.tsx": {
     "arbitrary-font-size": {
       "text-[24px]": 1,
@@ -1150,13 +1101,6 @@
       "text-[13.5px]": 1,
       "text-[14px]": 1,
       "text-[12.5px]": 1
-    }
-  },
-  "src/app/v2/student/exercises/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[19px]": 1,
-      "text-[12.5px]": 3,
-      "text-[13px]": 1
     }
   },
   "src/app/v2/student/game/lego/page.tsx": {
@@ -1203,7 +1147,7 @@
   "src/app/v2/student/grammar/ai/page.tsx": {
     "arbitrary-font-size": {
       "text-[12.5px]": 2,
-      "text-[20px]": 3,
+      "text-[20px]": 2,
       "text-[13px]": 4,
       "text-[15px]": 1,
       "text-[14px]": 3,
@@ -1255,46 +1199,6 @@
       "text-[14px]": 1
     }
   },
-  "src/app/v2/student/mock-exam/page.tsx": {
-    "hex-literal": {
-      "#1E9E61": 1,
-      "#2F6FC9": 1,
-      "#7C56C8": 1,
-      "#E07B39": 1,
-      "#DA291C": 1
-    },
-    "arbitrary-font-size": {
-      "text-[20px]": 1,
-      "text-[14px]": 2,
-      "text-[16px]": 1,
-      "text-[15px]": 1,
-      "text-[13px]": 2,
-      "text-[12px]": 2,
-      "text-[12.5px]": 1
-    }
-  },
-  "src/app/v2/student/mock-exam/run/ExamTaking.tsx": {
-    "arbitrary-font-size": {
-      "text-[20px]": 1,
-      "text-[13px]": 4
-    }
-  },
-  "src/app/v2/student/mock-exam/run/page.tsx": {
-    "hex-literal": {
-      "#409": 1
-    },
-    "arbitrary-font-size": {
-      "text-[13px]": 6,
-      "text-[18px]": 3,
-      "text-[20px]": 3,
-      "text-[22px]": 2,
-      "text-[14px]": 2,
-      "text-[12px]": 7,
-      "text-[12.5px]": 2,
-      "text-[13.5px]": 1,
-      "text-[15px]": 1
-    }
-  },
   "src/app/v2/student/news/page.tsx": {
     "arbitrary-font-size": {
       "text-[13px]": 2,
@@ -1304,10 +1208,19 @@
       "text-[12.5px]": 1
     }
   },
+  "src/app/v2/student/practice/[nodeId]/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 1,
+      "text-[20px]": 2,
+      "text-[22px]": 1,
+      "text-[13.5px]": 5,
+      "text-[11px]": 2,
+      "text-[15px]": 1,
+      "text-[12.5px]": 1,
+      "text-[12px]": 1
+    }
+  },
   "src/app/v2/student/practice/[nodeId]/[skill]/page.tsx": {
-    "hex-literal": {
-      "#FFFFFF": 1
-    },
     "arbitrary-font-size": {
       "text-[11px]": 3,
       "text-[10px]": 1,
@@ -1325,25 +1238,10 @@
       "shadow-lg": 1
     }
   },
-  "src/app/v2/student/practice/[nodeId]/page.tsx": {
-    "hex-literal": {
-      "#FFFFFF": 2
-    },
-    "arbitrary-font-size": {
-      "text-[13px]": 1,
-      "text-[20px]": 2,
-      "text-[22px]": 1,
-      "text-[13.5px]": 5,
-      "text-[11px]": 2,
-      "text-[15px]": 1,
-      "text-[12.5px]": 1,
-      "text-[12px]": 1
-    }
-  },
   "src/app/v2/student/progress/page.tsx": {
     "hex-literal": {
       "#A39E94": 2,
-      "#2F6FC9": 5
+      "#2F6FC9": 2
     },
     "arbitrary-font-size": {
       "text-[20px]": 1,
@@ -1353,7 +1251,6 @@
       "text-[36px]": 1,
       "text-[44px]": 1,
       "text-[52px]": 1,
-      "text-[9px]": 1,
       "text-[18px]": 1,
       "text-[12.5px]": 3,
       "text-[12px]": 1,
@@ -1557,6 +1454,19 @@
       "text-[15px]": 1
     }
   },
+  "src/app/v2/student/vocabulary/swipe/page.tsx": {
+    "arbitrary-font-size": {
+      "text-[14px]": 1,
+      "text-[13px]": 1,
+      "text-[20px]": 1,
+      "text-[24px]": 1,
+      "text-[19px]": 1,
+      "text-[22px]": 1,
+      "text-[11px]": 2,
+      "text-[12.5px]": 1,
+      "text-[12px]": 1
+    }
+  },
   "src/app/v2/student/vocabulary/swipe/SwipeCard.tsx": {
     "hex-literal": {
       "#EBF3FB": 1,
@@ -1589,19 +1499,6 @@
       "text-[20px]": 1,
       "text-[11.5px]": 2,
       "text-[15px]": 1
-    }
-  },
-  "src/app/v2/student/vocabulary/swipe/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[14px]": 1,
-      "text-[13px]": 1,
-      "text-[20px]": 1,
-      "text-[24px]": 1,
-      "text-[19px]": 1,
-      "text-[22px]": 1,
-      "text-[11px]": 2,
-      "text-[12.5px]": 1,
-      "text-[12px]": 1
     }
   },
   "src/app/v2/student/weekly-speaking/client-page.tsx": {
@@ -1697,9 +1594,6 @@
     }
   },
   "src/app/v2/teacher/classes/[id]/students/[studentId]/page.tsx": {
-    "hex-literal": {
-      "#7C56C8": 1
-    },
     "arbitrary-font-size": {
       "text-[14px]": 6,
       "text-[12px]": 4,
@@ -1708,16 +1602,12 @@
     }
   },
   "src/app/v2/teacher/grade-image/page.tsx": {
-    "hex-literal": {
-      "#7C56C8": 1
-    },
     "arbitrary-font-size": {
       "text-[20px]": 3,
       "text-[13.5px]": 2,
       "text-[13px]": 1,
       "text-[11.5px]": 3,
       "text-[14px]": 4,
-      "text-[11px]": 1,
       "text-[44px]": 1,
       "text-[14.5px]": 1
     }
@@ -1729,9 +1619,9 @@
       "#fff": 1
     },
     "arbitrary-font-size": {
-      "text-[12.5px]": 5,
+      "text-[12.5px]": 4,
       "text-[11.5px]": 3,
-      "text-[13px]": 7,
+      "text-[13px]": 6,
       "text-[14px]": 4,
       "text-[11px]": 5,
       "text-[10px]": 1,
@@ -1831,12 +1721,6 @@
       "text-[11px]": 2
     }
   },
-  "src/app/v2/teacher/schedule/TeacherRequestsPanel.tsx": {
-    "arbitrary-font-size": {
-      "text-[13px]": 4,
-      "text-[12px]": 1
-    }
-  },
   "src/app/v2/teacher/schedule/page.tsx": {
     "arbitrary-font-size": {
       "text-[20px]": 2,
@@ -1855,6 +1739,12 @@
       "text-[13.5px]": 3,
       "text-[12px]": 4,
       "text-[13px]": 4
+    }
+  },
+  "src/app/v2/teacher/schedule/TeacherRequestsPanel.tsx": {
+    "arbitrary-font-size": {
+      "text-[13px]": 4,
+      "text-[12px]": 1
     }
   },
   "src/app/v2/teacher/session/[id]/page.tsx": {
@@ -1885,8 +1775,7 @@
   },
   "src/app/v2/teacher/sessions/page.tsx": {
     "hex-literal": {
-      "#7C56C8": 1,
-      "#E0A23A": 1
+      "#7C56C8": 1
     },
     "arbitrary-font-size": {
       "text-[24px]": 1,
@@ -1971,8 +1860,7 @@
   "src/app/v2/teacher/tc-progress/page.tsx": {
     "hex-literal": {
       "#7C56C8": 1,
-      "#A39E94": 4,
-      "#fff": 1
+      "#A39E94": 4
     },
     "arbitrary-font-size": {
       "text-[24px]": 1,
@@ -2015,7 +1903,7 @@
       "text-[13.5px]": 1,
       "text-[13px]": 4,
       "text-[14px]": 2,
-      "text-[12px]": 12
+      "text-[12px]": 11
     }
   },
   "src/app/v2/teacher/tc-reports/FourAxisPanel.tsx": {
@@ -2063,14 +1951,6 @@
       "text-[12px]": 1
     }
   },
-  "src/app/v2/teacher/tc-reports/SkillReportTab.tsx": {
-    "arbitrary-font-size": {
-      "text-[14px]": 1,
-      "text-[13px]": 2,
-      "text-[11px]": 4,
-      "text-[12px]": 4
-    }
-  },
   "src/app/v2/teacher/tc-reports/page.tsx": {
     "arbitrary-font-size": {
       "text-[14px]": 2,
@@ -2083,6 +1963,14 @@
       "text-[12px]": 5,
       "text-[10px]": 2,
       "text-[18px]": 1
+    }
+  },
+  "src/app/v2/teacher/tc-reports/SkillReportTab.tsx": {
+    "arbitrary-font-size": {
+      "text-[14px]": 1,
+      "text-[13px]": 2,
+      "text-[11px]": 4,
+      "text-[12px]": 4
     }
   },
   "src/app/v2/teacher/tc-timesheet/page.tsx": {
@@ -2111,9 +1999,6 @@
     }
   },
   "src/app/v2/teacher/tools/images/page.tsx": {
-    "hex-literal": {
-      "#7C56C8": 1
-    },
     "arbitrary-font-size": {
       "text-[14px]": 3,
       "text-[12.5px]": 4,
@@ -2125,9 +2010,6 @@
     }
   },
   "src/app/v2/teacher/tools/materials/page.tsx": {
-    "hex-literal": {
-      "#7C56C8": 1
-    },
     "arbitrary-font-size": {
       "text-[13px]": 1,
       "text-[13.5px]": 2,
@@ -2272,49 +2154,23 @@
     }
   },
   "src/components/landing-v2/GaLanding.tsx": {
-    "hex-literal": {
-      "#D8D3C8": 2,
-      "#A39E94": 3,
-      "#76716A": 1
-    },
     "arbitrary-font-size": {
       "text-[32px]": 1,
       "text-[38px]": 1,
       "text-[44px]": 1,
-      "text-[14.5px]": 5,
-      "text-[13px]": 6,
-      "text-[15px]": 11,
       "text-[11px]": 2,
       "text-[40px]": 2,
       "text-[54px]": 1,
       "text-[68px]": 1,
-      "text-[18px]": 5,
-      "text-[16px]": 2,
-      "text-[12.5px]": 6,
-      "text-[11.5px]": 2,
-      "text-[26px]": 1,
-      "text-[34px]": 2,
-      "text-[42px]": 3,
-      "text-[14px]": 7,
-      "text-[20px]": 1,
-      "text-[22px]": 1,
-      "text-[56px]": 1,
-      "text-[17px]": 4,
-      "text-[36px]": 2,
-      "text-[9.5px]": 1,
-      "text-[15.5px]": 2,
+      "text-[18px]": 1,
+      "text-[13px]": 2,
+      "text-[17px]": 1,
       "text-[24px]": 1,
-      "text-[13.5px]": 2,
+      "text-[12.5px]": 1,
+      "text-[13.5px]": 1,
       "text-[19px]": 1,
       "text-[21px]": 1,
-      "text-[30px]": 1,
-      "text-[16.5px]": 1,
-      "text-[10.5px]": 1
-    },
-    "arbitrary-shadow": {
-      "shadow-[0_16px_40px_rgba(22,21,19,0.1)]": 1,
-      "shadow-[0_8px_48px_rgba(22,21,19,0.07)]": 1,
-      "shadow-[var(--ga-shadow-card-hover)]": 1
+      "text-[14.5px]": 1
     }
   }
 }

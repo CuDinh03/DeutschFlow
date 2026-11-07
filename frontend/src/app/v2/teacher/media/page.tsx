@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Copy, ExternalLink, Pencil, Trash2, UploadCloud, X } from 'lucide-react'
+import { Check, Copy, ExternalLink, ImageUp, Pencil, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { deleteMedia, listMedia, updateMediaMetadata, uploadMedia, type MediaAsset } from '@/lib/mediaApi'
-import { GaBtn, GaPageHdr, LoadingState, EmptyState, TkModal, TkSearch, TkSeg } from '@/components/ui-v2'
+import { GaBtn, GaGlyph, GaPageHdr, LoadingState, EmptyState, TkModal, TkSearch, TkSeg } from '@/components/ui-v2'
 import { GaSection } from '../../sectionShared'
 
 // Port 1:1 của /teacher/media (v1) sang vỏ Galerie. Cùng plumbing, cùng ràng buộc backend:
@@ -262,7 +262,7 @@ export default function V2TeacherMediaPage() {
                     background: dragActive ? 'var(--ga-accent-soft)' : 'var(--ga-surface)',
                   }}
                 >
-                  <UploadCloud size={22} className="text-ga-accent" aria-hidden />
+                  <GaGlyph icon={ImageUp} tone="navy" size="lg" />
                   <span className="ga-ui text-[13.5px] font-semibold text-ga-ink">{t('dropHint')}</span>
                   <span className="ga-ui text-[12px] text-ga-muted">{t('dropFormats')}</span>
                 </button>

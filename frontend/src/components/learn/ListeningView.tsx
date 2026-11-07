@@ -3,7 +3,8 @@
 import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Play, Pause, RotateCcw, Volume2, CheckCircle, Mic, Headphones, PartyPopper, ThumbsUp, CircleX, RefreshCw, CircleCheck } from "lucide-react";
+import { Play, Pause, RotateCcw, CheckCircle, Mic, Headphones, PartyPopper, ThumbsUp, CircleX, RefreshCw, CircleCheck } from "lucide-react";
+import { GaGlyph } from "@/components/ui-v2";
 import { PronunciationFeedback } from "@/components/speaking/PronunciationFeedback";
 
 export default function ListeningView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
@@ -128,7 +129,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
   if (!audio?.url) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
-        <Headphones size={40} className="mb-3 text-ga-subtle" aria-hidden />
+        <GaGlyph icon={Headphones} size="lg" tone="plain" className="mb-3" />
         <p className="text-sm text-ga-muted">{t("empty")}</p>
       </div>
     );
@@ -141,7 +142,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
       {/* ── Audio Player ── */}
       <div className="rounded-ga bg-gradient-to-r from-ga-ink to-ga-ink p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Volume2 size={16} className="text-ga-yellow" />
+          <Headphones size={16} className="text-ga-yellow" aria-hidden />
           <span className="text-sm font-bold text-white">Bài nghe</span>
           <button
             type="button"

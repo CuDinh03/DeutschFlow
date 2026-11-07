@@ -320,7 +320,7 @@ function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: 
                 <span>{s.durationMinutes} phút</span>
                 <span className="font-semibold text-ga-ink">{fullVnd(s.priceVnd)}</span>
                 {s.teacherRating != null && (
-                  <span className="flex items-center gap-0.5" style={{ color: '#E0A23A' }}><Star size={11} fill="currentColor" /> {s.teacherRating}/5</span>
+                  <span className="flex items-center gap-0.5 text-ga-gold"><Star size={11} fill="currentColor" aria-hidden /> {s.teacherRating}/5</span>
                 )}
               </div>
             </div>

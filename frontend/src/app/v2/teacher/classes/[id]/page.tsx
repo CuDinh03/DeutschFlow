@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
-  Plus, Mail, ChevronRight, AlertTriangle, Trophy,
+  Plus, Mail, ChevronRight, Hourglass, Info, ClipboardCheck,
   ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck, UserPlus, Trash2, Pencil,
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -74,7 +74,7 @@ const TYPE_META: Record<string, { labelKey: string; tone: string; Icon: typeof M
   SPEAKING_SCENARIO: { labelKey: 'SPEAKING_SCENARIO', tone: 'var(--ga-violet)', Icon: Mic },
   ESSAY: { labelKey: 'ESSAY', tone: 'var(--ga-blue)', Icon: PenLine },
   WRITING: { labelKey: 'WRITING', tone: 'var(--ga-blue)', Icon: PenLine },
-  MOCK_TEST: { labelKey: 'MOCK_TEST', tone: 'var(--ga-orange)', Icon: FileText },
+  MOCK_TEST: { labelKey: 'MOCK_TEST', tone: 'var(--ga-orange)', Icon: ClipboardCheck },
   VOCABULARY: { labelKey: 'VOCABULARY', tone: 'var(--ga-green)', Icon: BookOpen },
   GRAMMAR: { labelKey: 'GRAMMAR', tone: 'var(--ga-teal)', Icon: SpellCheck },
   GENERAL: { labelKey: 'GENERAL', tone: 'var(--ga-muted)', Icon: FileText },
@@ -652,7 +652,7 @@ export default function V2ClassDetailPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           {pending > 0 && (
                             <span className="inline-flex items-center gap-1 px-3 py-[7px] text-[11.5px] font-bold" style={{ color: 'var(--ga-ink)', background: 'var(--ga-yellow-soft)', border: '1px solid var(--ga-yellow)' }}>
-                              <AlertTriangle size={13} /> {t('pendingGrade', { count: pending })}
+                              <Hourglass size={13} aria-hidden /> {t('pendingGrade', { count: pending })}
                             </span>
                           )}
                           {isPrimary && task.status === 'DRAFT' && (
@@ -779,7 +779,7 @@ export default function V2ClassDetailPage() {
               ))}
 
               <p className="mt-3 flex items-start gap-1.5 text-[12px] text-ga-faint">
-                <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {t('coTeacherAccessNote')}
+                <Info size={13} className="mt-0.5 shrink-0" aria-hidden /> {t('coTeacherAccessNote')}
               </p>
             </TkTabsContent>
           </TkTabs>
@@ -890,7 +890,7 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
 
         {/* XP ranking (derived from roster) */}
         <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
-          <GaCap className="mb-4 flex items-center gap-1.5"><Trophy size={13} /> {t('xpRankingCap')}</GaCap>
+          <GaCap className="mb-4">{t('xpRankingCap')}</GaCap>
           {ranking.length === 0 ? (
             <p className="py-6 text-center text-[13px] text-ga-muted">{t('noStudentsYet')}</p>
           ) : (

@@ -59,7 +59,9 @@ Chấm theo tiêu chí telc từng trình độ A1–C1 là việc của đợt 
 ## 2. Các màn (frontend)
 
 Tất cả nằm dưới `frontend/src/`. Giao diện Galerie (`.ga-scope`, token `ga-*` trong `tailwind.config.ts`,
-`styles/galerie.css`), icon Lucide 0.487 nét 1.9, không có giao diện tối.
+`styles/galerie.css`), icon Lucide 0.487 nét 1.9, không có giao diện tối. Ô icon `Glyph` (`components/exam/today/visual.tsx`)
+chính là `GaGlyph` dùng chung của web (`components/ui-v2/GaGlyph.tsx`); eyebrow là chữ trơn, không icon; Viết dùng `PenLine`
+(không dùng `PenTool` — đó là bút vẽ vector). Quy ước icon chung của web: `frontend/ICON_WEB.md`.
 
 ### 2.1 Hôm nay — `app/v2/student/exam/page.tsx`
 

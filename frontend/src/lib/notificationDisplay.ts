@@ -8,8 +8,8 @@ import { formatDate } from '@/lib/i18n/format'
 // (com.deutschflow.notification.NotificationType). Unknown types fall back to a generic
 // bell + muted tone below.
 export const TYPE_ICON: Record<string, string> = {
-  REVIEW_DUE: 'schedule',
-  STREAK_REMINDER: 'schedule',
+  REVIEW_DUE: 'repeat',
+  STREAK_REMINDER: 'local_fire_department',
   NEW_ASSIGNMENT: 'assignment',
   NEW_CLASS_ASSIGNMENT: 'assignment',
   ASSIGNMENT_GRADED: 'grading',
@@ -47,42 +47,22 @@ export const TYPE_ICON: Record<string, string> = {
   CERTIFICATE_ISSUED: 'workspace_premium',
 }
 
-export const TYPE_TONE: Record<string, string> = {
-  REVIEW_DUE: 'var(--ga-orange)',
-  STREAK_REMINDER: 'var(--ga-orange)',
-  NEW_ASSIGNMENT: 'var(--ga-blue)',
-  NEW_CLASS_ASSIGNMENT: 'var(--ga-blue)',
-  ASSIGNMENT_GRADED: 'var(--ga-green)',
-  QUIZ_SUBMISSION_RECEIVED: 'var(--ga-blue)',
-  ACHIEVEMENT_UNLOCKED: 'var(--ga-gold)',
-  LEVEL_UP: 'var(--ga-gold)',
-  ADDED_TO_CLASS: 'var(--ga-violet)',
-  CLASS_STUDENT_ADDED: 'var(--ga-violet)',
-  CLASS_STUDENT_REMOVED: 'var(--ga-muted)',
-  JOIN_REQUEST_APPROVED: 'var(--ga-green)',
-  JOIN_REQUEST_REJECTED: 'var(--ga-muted)',
-  CLASS_JOIN_REQUEST_CREATED: 'var(--ga-violet)',
-  ADMIN_BROADCAST: 'var(--ga-teal)',
-  TEACHER_ANNOUNCEMENT: 'var(--ga-teal)',
-  CLASS_SESSION_SCHEDULED: 'var(--ga-teal)',
-  CLASS_SESSION_CANCELLED: 'var(--ga-red)',
-  CLASS_SESSION_RESCHEDULED: 'var(--ga-orange)',
-  NEW_MESSAGE: 'var(--ga-blue)',
-  CLASS_CHANNEL_MESSAGE: 'var(--ga-blue)',
-  USER_REGISTERED: 'var(--ga-muted)',
-  LEARNER_PLAN_UPDATED: 'var(--ga-blue)',
-  ADMIN_LEARNER_PLAN_CHANGED: 'var(--ga-blue)',
-  ADMIN_LEARNER_SUBSCRIBED: 'var(--ga-green)',
-  ACCOUNT_DELETED: 'var(--ga-red)',
-  ADMIN_LEARNER_SUBSCRIPTION_ENDED: 'var(--ga-orange)',
-  ADMIN_SYSTEM_ALERT: 'var(--ga-red)',
-  ADMIN_ORG_CREATED: 'var(--ga-teal)',
-  ADMIN_ORG_INVOICE_PAID: 'var(--ga-green)',
-  SCHEDULE_CHANGE_REJECTED: 'var(--ga-red)',
-  TIMESHEET_PERIOD_APPROVED: 'var(--ga-green)',
-  TIMESHEET_PERIOD_RETURNED: 'var(--ga-orange)',
-  BIRTH_DATE_UPDATED: 'var(--ga-blue)',
-  CERTIFICATE_ISSUED: 'var(--ga-gold)',
+/**
+ * Tông ô icon theo loại (rà icon 07/11/2026). Trước đây mỗi loại một màu (cam, xanh, tím, ngọc, vàng…)
+ * nên chuông thông báo thành cầu vồng, lệch hệ ô nhận diện `GaGlyph` của mọi màn khác. Giờ chỉ còn nghĩa:
+ * navy mặc định · red việc hỏng/huỷ/cảnh báo · green việc đã thành · plain việc phụ, chỉ để biết.
+ */
+export type NotifTone = 'navy' | 'red' | 'green' | 'plain'
+
+const RED: string[] = ['CLASS_SESSION_CANCELLED', 'ACCOUNT_DELETED', 'ADMIN_SYSTEM_ALERT', 'SCHEDULE_CHANGE_REJECTED']
+const GREEN: string[] = ['ASSIGNMENT_GRADED', 'JOIN_REQUEST_APPROVED', 'ADMIN_LEARNER_SUBSCRIBED', 'ADMIN_ORG_INVOICE_PAID', 'TIMESHEET_PERIOD_APPROVED', 'CERTIFICATE_ISSUED']
+const PLAIN: string[] = ['CLASS_STUDENT_REMOVED', 'JOIN_REQUEST_REJECTED', 'USER_REGISTERED']
+
+export function notifTone(type: string): NotifTone {
+  if (RED.includes(type)) return 'red'
+  if (GREEN.includes(type)) return 'green'
+  if (PLAIN.includes(type) || !(type in TYPE_ICON)) return 'plain'
+  return 'navy'
 }
 
 /**
@@ -127,13 +107,6 @@ export const TYPE_LABEL: Record<string, string> = {
   CERTIFICATE_ISSUED: 'Có chứng nhận mới',
 }
 
-/**
- * Nền mờ ~13% từ màu tone cho icon tile. Tone là chuỗi `var(--ga-…)` nên không thể nối
- * hex-alpha kiểu `${tone}1a` (CSS không hợp lệ → browser lặng lẽ bỏ, nền trong suốt).
- */
-export function toneSoft(tone: string): string {
-  return `color-mix(in srgb, ${tone} 13%, transparent)`
-}
 
 function pick(payload: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {

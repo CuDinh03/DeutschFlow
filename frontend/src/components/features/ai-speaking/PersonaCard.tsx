@@ -1,5 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Check } from "lucide-react";
 import { spring } from "@/lib/motion";
 import { PersonaToken } from "@/lib/personas";
 import { usePersonaText } from "./personaText";
@@ -172,15 +173,7 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
             exit={{ scale: 0, opacity: 0 }}
             transition={spring.snappy}
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path
-                d="M 2 7 L 6 11 L 12 4"
-                stroke="white"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <Check size={14} className="text-ga-card" aria-hidden />
           </motion.div>
         )}
       </AnimatePresence>

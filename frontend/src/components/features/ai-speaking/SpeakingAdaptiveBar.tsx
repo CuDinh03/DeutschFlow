@@ -4,7 +4,7 @@ import { Target } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { AdaptiveMeta } from "@/lib/aiSpeakingApi";
 import { speakingPersonaVisualTokens } from "@/components/speaking/personaTheme";
-import { personaInk, personaSoft } from "@/lib/personaPaper";
+import { personaSoft } from "@/lib/personaPaper";
 
 interface Props {
   adaptive: AdaptiveMeta | null;
@@ -25,8 +25,6 @@ export function SpeakingAdaptiveBar({ adaptive, repairBlocking, personaId }: Pro
   if (!hasFocus && !repairBlocking) return null;
 
   const rawAccent = speakingPersonaVisualTokens(personaId).accent;
-  // On paper the persona hue only carries text once darkened to AA (lib/personaPaper).
-  const accent = personaInk(rawAccent);
 
   return (
     <div
@@ -38,7 +36,7 @@ export function SpeakingAdaptiveBar({ adaptive, repairBlocking, personaId }: Pro
       )}
       {hasFocus && (
         <div className="flex items-start gap-2 flex-wrap">
-          <Target size={14} className="flex-shrink-0 mt-0.5" style={{ color: accent }} />
+          <Target size={14} className="flex-shrink-0 mt-0.5 text-ga-muted" aria-hidden />
           <span className="text-[11px] text-ga-muted italic truncate max-w-full">
             → {adaptive.topicSuggestion}
           </span>

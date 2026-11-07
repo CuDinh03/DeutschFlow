@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { AlertCircle, Check, ChevronRight, ShieldAlert, Trophy } from 'lucide-react'
+import { Check, ChevronRight, ShieldAlert, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { GaBtn, GaCap, GaPageHdr, LoadingState, ErrorBanner, TkBadge, GaStatStrip } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaGlyph, GaPageHdr, LoadingState, ErrorBanner, TkBadge, GaStatStrip } from '@/components/ui-v2'
 import { GaSection, GaBars, GaChartData, GaMultiBars, GaArea, GaBarRow } from '../../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
 
@@ -304,12 +304,7 @@ export default function V2StudentStatsPage() {
 
                 {/* Điểm yếu */}
                 <GaSection
-                  title={
-                    <span className="flex items-center gap-2">
-                      <AlertCircle size={16} className="text-ga-gold" aria-hidden />
-                      {t('weakPointsTitle')}
-                    </span>
-                  }
+                  title={t('weakPointsTitle')}
                 >
                   {analytics.topWeakPoints.length === 0 ? (
                     <p className="ga-ui py-8 text-center text-[13.5px] text-ga-muted">{t('noWeakPoints')}</p>
@@ -402,7 +397,7 @@ export default function V2StudentStatsPage() {
 
               {/* Huy hiệu sống ở /v2/student/achievements — không dựng lại ở đây */}
               <div className="flex flex-wrap items-center gap-3 border border-ga-line bg-ga-card px-4 py-4 lg:flex-nowrap lg:px-5">
-                <Trophy size={20} className="shrink-0 text-ga-gold" aria-hidden />
+                <GaGlyph icon={Trophy} size="md" tone="yellow" />
                 <div className="min-w-0 flex-1">
                   <GaCap className="block">{t('badgesCap')}</GaCap>
                   <p className="ga-ui mt-0.5 text-[13px] text-ga-muted">{t('badgesHint')}</p>

@@ -74,7 +74,7 @@ export function GaBottomNav({ role }: { role: RoleId }) {
           className={cn(itemClass, 'font-medium text-ga-muted')}
         >
           <span aria-hidden className="h-0.5 w-6 rounded-ga-pill bg-transparent" />
-          <GaIcon name="menu" size={20} className="text-ga-subtle" />
+          <GaIcon name="more_horiz" size={20} className="text-ga-subtle" />
           <span className="max-w-full truncate">{t('nav.areas.more')}</span>
         </button>
       )}

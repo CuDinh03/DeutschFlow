@@ -22,7 +22,7 @@ export function TkSearch({ containerClassName, className, ...props }: TkSearchPr
         containerClassName,
       )}
     >
-      <Search size={15} strokeWidth={2} className="shrink-0 text-ga-subtle" />
+      <Search size={15} className="shrink-0 text-ga-subtle" />
       <input
         type="search"
         className={cn(

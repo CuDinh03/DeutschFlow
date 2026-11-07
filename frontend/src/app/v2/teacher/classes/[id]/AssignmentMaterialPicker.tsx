@@ -8,13 +8,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2, Paperclip, X, Plus, Search, Check, ExternalLink, FileText, Music, Video, Image as ImageIcon, Link as LinkIcon } from 'lucide-react'
+import { Loader2, Paperclip, X, Plus, Search, Check, ExternalLink, FileText, FileAudio, Video, Image as ImageIcon, Link as LinkIcon } from 'lucide-react'
 import { listMaterials, type Material, type MaterialKind } from '@/lib/materialApi'
 import { GaCap } from '@/components/ui-v2'
 
 const KIND_ICON: Record<MaterialKind, typeof FileText> = {
   PDF: FileText, DOCX: FileText, PPTX: FileText, OTHER: FileText,
-  AUDIO: Music, VIDEO: Video, IMAGE: ImageIcon, LINK: LinkIcon,
+  AUDIO: FileAudio, VIDEO: Video, IMAGE: ImageIcon, LINK: LinkIcon,
 }
 
 interface AssignmentMaterialPickerProps {
@@ -104,7 +104,7 @@ export function AssignmentMaterialPicker({ selected, onChange }: AssignmentMater
 
       {loading ? (
         <span className="ga-ui inline-flex items-center gap-1.5 text-[12.5px] text-ga-subtle">
-          <Loader2 size={13} className="animate-spin" /> {t('materialsLoading')}
+          <Loader2 size={13} className="ga-spin" /> {t('materialsLoading')}
         </span>
       ) : library.length === 0 ? (
         <p className="text-[12px] text-ga-subtle">{t('materialsNoLibrary')}</p>
@@ -160,8 +160,8 @@ export function AssignmentMaterialPicker({ selected, onChange }: AssignmentMater
                           onClick={() => toggle(m)}
                           className={`ga-ui flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] transition-colors hover:bg-ga-surface ${isSel ? 'text-ga-accent' : 'text-ga-ink'}`}
                         >
-                          <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-[4px] border ${isSel ? 'border-ga-accent bg-ga-accent text-white' : 'border-ga-line'}`}>
-                            {isSel && <Check size={11} strokeWidth={3} />}
+                          <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-[4px] border ${isSel ? 'border-ga-accent bg-ga-accent text-ga-card' : 'border-ga-line'}`}>
+                            {isSel && <Check size={11} />}
                           </span>
                           <Icon size={14} className="shrink-0 text-ga-subtle" />
                           <span className="min-w-0 flex-1 truncate font-medium">{m.title}</span>

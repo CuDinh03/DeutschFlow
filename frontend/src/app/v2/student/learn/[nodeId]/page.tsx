@@ -388,9 +388,7 @@ export default function V2StudentLearnNodePage() {
           {/* Node A2/B1 chưa có nội dung */}
           {session && !session.hasContent && !loading && !error && (
             <GaCard className="px-6 py-12 text-center">
-              <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-ga-surface text-ga-ink">
-                <GraduationCap size={30} aria-hidden />
-              </span>
+              <GaGlyph icon={GraduationCap} size="lg" tone="plain" className="mx-auto mb-4" />
               <span className="ga-ui mb-2 inline-block rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 text-[11px] font-bold text-ga-accent">
                 {session.cefrLevel}
               </span>

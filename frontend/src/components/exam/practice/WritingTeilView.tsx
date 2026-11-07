@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { WritingStimulus } from '@/components/exam/telc/WritingStimulus'
@@ -115,7 +116,7 @@ export function WritingTeilView({ teil, points, text, onText, ticks, onTick, wid
                 ticks[p.label] ? 'border-ga-navy bg-ga-navy text-ga-card' : 'border-ga-line-strong bg-ga-card text-ga-ink',
               )}
             >
-              {ticks[p.label] ? '✓ ' : ''}
+              {ticks[p.label] && <Check size={14} aria-hidden className="mr-1 inline align-[-2px]" />}
               {p.label}
             </button>
           ))}

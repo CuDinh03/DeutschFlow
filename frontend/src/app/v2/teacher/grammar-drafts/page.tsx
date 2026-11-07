@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  Brain, FileEdit, Send, SendHorizonal, Loader2, ChevronDown, ChevronUp,
+  Sparkles, FilePen, Send, Loader2, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, EmptyState, LoadingState } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph, EmptyState, LoadingState } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ngân hàng bài tập ngữ pháp (giáo viên) — nơi GV *tạo* bản nháp mà admin *duyệt*
@@ -242,7 +242,7 @@ export default function V2TeacherGrammarDraftsPage() {
                             disabled={generatingFor === topic.id}
                             onClick={() => generate(topic)}
                           >
-                            <Brain size={13} /> {t('generate', { count: GENERATE_COUNT })}
+                            <Sparkles size={13} /> {t('generate', { count: GENERATE_COUNT })}
                           </GaBtn>
                           <GaBtn
                             variant="ghost"
@@ -252,7 +252,7 @@ export default function V2TeacherGrammarDraftsPage() {
                             disabled={submittingAll === topic.id}
                             onClick={() => submitAll(topic.id)}
                           >
-                            <SendHorizonal size={13} /> {t('submitAll')}
+                            <Send size={13} /> {t('submitAll')}
                           </GaBtn>
                         </div>
                       )}
@@ -291,12 +291,7 @@ export default function V2TeacherGrammarDraftsPage() {
                   return (
                     <div key={ex.id} className="border border-ga-line bg-ga-card">
                       <div className="flex items-start gap-3 p-4">
-                        <span
-                          className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center"
-                          style={{ color: 'var(--ga-accent)', background: 'var(--ga-accent-soft)' }}
-                        >
-                          <FileEdit size={14} />
-                        </span>
+                        <GaGlyph icon={FilePen} tone="navy" size="md" className="mt-0.5" />
                         <div className="min-w-0 flex-1">
                           <p className="break-words text-[14px] font-semibold text-ga-ink">{parsed.prompt ?? t('exerciseFallback')}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -367,7 +362,7 @@ export default function V2TeacherGrammarDraftsPage() {
                               className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 border px-3 py-1.5 text-[11.5px] font-bold transition-colors disabled:opacity-60 lg:min-h-0"
                               style={{ color: 'var(--ga-accent)', borderColor: 'var(--ga-accent)' }}
                             >
-                              {submittingId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                              {submittingId === ex.id ? <Loader2 size={12} className="ga-spin" aria-hidden /> : <Send size={12} />}
                               {t('submitOne')}
                             </button>
                           )}

@@ -3,6 +3,7 @@
 import { NodeContent, VocabItem, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useMemo } from "react";
 import { BookOpenText, FileQuestion, Lightbulb, Save, X, Check, CircleCheck } from "lucide-react";
+import { GaGlyph } from "@/components/ui-v2";
 import { GenderBadge, AudioButton } from "./LearnComponents";
 import { reviewApi } from "@/lib/reviewApi";
 import { apiMessage } from "@/lib/api";
@@ -152,7 +153,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
   if (!passage) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line">
-        <BookOpenText size={40} className="mb-3 text-ga-subtle" aria-hidden />
+        <GaGlyph icon={BookOpenText} size="lg" tone="plain" className="mb-3" />
         <p className="text-sm text-ga-muted">{t("empty")}</p>
       </div>
     );
@@ -165,7 +166,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
         {/* Text (60%) */}
         <div className="md:w-[60%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-6 h-6 rounded bg-ga-ink text-white flex items-center justify-center"><BookOpenText size={13} aria-hidden /></span>
+            <GaGlyph icon={BookOpenText} size="sm" tone="navy" />
             <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">{t("readingCap")}</h2>
           </div>
 
@@ -186,7 +187,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
         {/* Questions (40%) */}
         <div className="md:w-[40%] space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-6 h-6 rounded bg-ga-yellow text-ga-ink flex items-center justify-center"><FileQuestion size={13} aria-hidden /></span>
+            <GaGlyph icon={FileQuestion} size="sm" tone="navy" />
             <h2 className="text-sm font-bold text-ga-ink uppercase tracking-wide">{t("questionsCap")}</h2>
           </div>
 

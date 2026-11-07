@@ -2,7 +2,8 @@
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Loader2, CheckCircle, AlertCircle, PenLine, CircleCheck } from "lucide-react";
+import { Loader2, CheckCircle, PenLine, CircleCheck, TriangleAlert } from "lucide-react";
+import { GaGlyph } from "@/components/ui-v2";
 import api from "@/lib/api";
 import { useTranslations } from "next-intl";
 
@@ -85,7 +86,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
   if (!prompt) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-ga-card rounded-ga border border-ga-line space-y-4">
-        <PenLine size={40} className="mb-3 text-ga-subtle" aria-hidden />
+        <GaGlyph icon={PenLine} size="lg" tone="plain" className="mb-3" />
         <p className="text-sm text-ga-muted">{t("empty")}</p>
         <button
           onClick={() => markTabCompleted("writing")}
@@ -110,7 +111,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
       {/* ── Prompt card ── */}
       <div className="rounded-ga bg-gradient-to-br from-ga-ink to-ga-ink p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-ga-yellow text-ga-ink flex items-center justify-center"><PenLine size={13} aria-hidden /></span>
+          <GaGlyph icon={PenLine} size="sm" tone="yellow" />
           <span className="text-sm font-bold text-white">Aufgabe</span>
         </div>
         <p className="text-sm text-white/90">{prompt.task_de}</p>
@@ -178,7 +179,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
       {correction && correction.errors.length > 0 && (
         <div className="rounded-ga bg-ga-card border border-ga-line p-4 space-y-3 animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
-            <AlertCircle size={16} className="text-ga-orange" />
+            <GaGlyph icon={TriangleAlert} size="sm" tone="red" />
             <h3 className="text-sm font-bold text-ga-ink">
               {t("errorsFound", { count: correction.errors.length })}
             </h3>

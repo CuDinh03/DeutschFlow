@@ -5,13 +5,15 @@ import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { spring } from "@/lib/motion";
 import {
-  Clock, TrendingUp, Check, AlertTriangle,
+  Clock, MessagesSquare, Check, AlertTriangle,
   BookOpen, RotateCcw, ArrowLeft, Star,
-  Briefcase, Users, Heart, Zap, MessageSquare,
+  SpellCheck, MessageSquare,
   ThumbsUp, ThumbsDown, Target, Lightbulb, Sparkles,
-  ClipboardList, CircleCheck, CircleX, PartyPopper,
-  Mic, Repeat, Library,
+  CircleCheck, CircleX, PartyPopper,
+  Mic, Repeat, Library, ListChecks, WandSparkles, Route, Gauge,
 } from "lucide-react";
+import { GaGlyph } from "@/components/ui-v2";
+import { SpeakAi } from "@/components/ui-v2/glyphs";
 import type { ChatMessage } from "@/stores/useChatStore";
 import type { ConversationReport } from "@/lib/aiSpeakingApi";
 import { labelForCode } from "@/lib/errors/errorTaxonomy";
@@ -96,8 +98,8 @@ function computeScoresFromMessages(messages: ChatMessage[]) {
   const fluencyScore = Math.min(10, Math.round(totalExchanges >= 3 ? 7 + Math.min(totalPerfect, 3) : totalExchanges * 2.5));
   const rubric: RubricScore[] = [
     { labelKey: "rubricVocabulary", score: vocabScore, icon: BookOpen, color: CYAN },
-    { labelKey: "rubricGrammar", score: grammarScore, icon: Zap, color: PURPLE },
-    { labelKey: "rubricTask", score: taskScore, icon: Check, color: MINT },
+    { labelKey: "rubricGrammar", score: grammarScore, icon: SpellCheck, color: PURPLE },
+    { labelKey: "rubricTask", score: taskScore, icon: ListChecks, color: MINT },
     { labelKey: "rubricFluency", score: fluencyScore, icon: MessageSquare, color: AMBER },
   ];
   const overallScore = Math.round(rubric.reduce((s, r) => s + r.score, 0) / rubric.length * 10);
@@ -245,12 +247,11 @@ export function SessionSummary({
       {/* Header */}
       <div className="text-center pt-2">
         <motion.div
-          className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center"
-          style={{ background: "var(--ga-yellow-soft)", border: "1px solid var(--ga-yellow)", color: "var(--ga-gold)" }}
+          className="mx-auto mb-3 w-fit"
           initial={{ scale: 0 }} animate={{ scale: 1 }}
           transition={{ ...spring.gentle, delay: 0.1 }}
         >
-          {hasAiReport ? <ClipboardList size={26} strokeWidth={1.7} aria-hidden /> : <Target size={26} strokeWidth={1.7} aria-hidden />}
+          <GaGlyph icon={SpeakAi} size="lg" tone="navy" />
         </motion.div>
         <h2 className="font-ga-display text-ga-ink font-medium text-2xl">
           {isInterviewMode ? t("interviewEndedTitle") : t("sessionEndedTitle")}
@@ -300,7 +301,7 @@ export function SessionSummary({
                     className="flex flex-col items-center justify-center rounded-full text-center px-4"
                     style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
                   >
-                    <Mic size={22} strokeWidth={1.7} className="mb-1" style={{ color: "var(--ga-muted)" }} aria-hidden />
+                    <GaGlyph icon={Mic} size="md" tone="plain" className="mb-1" />
                     <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
                       {interviewInsufficient ? <>{t("circleTooEarlyLine1")}<br />{t("circleTooEarlyLine2")}</> : <>{t("circleNotScoredLine1")}<br />{t("circleNotScoredLine2")}</>}
                     </span>
@@ -335,7 +336,7 @@ export function SessionSummary({
                   className="flex flex-col items-center justify-center rounded-full text-center px-4"
                   style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
                 >
-                  <MessageSquare size={22} strokeWidth={1.7} className="mb-1" style={{ color: "var(--ga-muted)" }} aria-hidden />
+                  <GaGlyph icon={MessageSquare} size="md" tone="plain" className="mb-1" />
                   <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
                     {t("circleSpeakMoreLine1")}<br />{t("circleSpeakMoreLine2")}
                   </span>
@@ -346,13 +347,13 @@ export function SessionSummary({
           {/* Stats grid */}
           <div className="w-full grid grid-cols-2 gap-2.5 sm:w-auto sm:flex-1">
             {[
-              { icon: Clock, label: t("statDuration"), value: duration, color: CYAN },
-              { icon: TrendingUp, label: t("statTurns"), value: `${totalExchanges}`, color: PURPLE },
-              { icon: Check, label: t("statPerfect"), value: `${totalPerfect}`, color: MINT },
-              { icon: AlertTriangle, label: t("statErrors"), value: `${totalErrors}`, color: CORAL },
-            ].map(({ icon: Icon, label, value, color }) => (
+              { icon: Clock, label: t("statDuration"), value: duration },
+              { icon: MessagesSquare, label: t("statTurns"), value: `${totalExchanges}` },
+              { icon: Check, label: t("statPerfect"), value: `${totalPerfect}` },
+              { icon: AlertTriangle, label: t("statErrors"), value: `${totalErrors}` },
+            ].map(({ icon, label, value }) => (
               <div key={label} className="min-w-0 rounded-[12px] p-2.5 flex flex-col gap-1" style={{ background: "var(--ga-surface)" }}>
-                <Icon size={13} style={{ color }} />
+                <GaGlyph icon={icon} size="sm" tone="plain" />
                 <span className="text-ga-ink font-bold text-base leading-none break-words">{value}</span>
                 <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>{label}</span>
               </div>
@@ -372,7 +373,7 @@ export function SessionSummary({
       {hasAiReport && aiReport?.categories && aiReport.categories.length > 0 && (
         <div className="rounded-[20px] overflow-hidden" style={glass}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
-            <Target size={14} style={{ color: AMBER }} />
+            <GaGlyph icon={Target} size="sm" tone="navy" />
             <span className="text-ga-ink font-semibold text-sm">{t("detailedAiTitle")}</span>
           </div>
           {aiReport.categories.map((cat, i) => (
@@ -380,13 +381,13 @@ export function SessionSummary({
               initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.1 }}>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="min-w-0 break-words text-sm font-semibold text-ga-ink">{cat.name_vi}</span>
-                <span className="text-sm font-bold" style={{ color: cat.score >= 7 ? MINT : cat.score >= 5 ? "#FBBF24" : "#F87171" }}>
+                <span className="text-sm font-bold" style={{ color: cat.score >= 7 ? MINT : cat.score >= 5 ? "var(--ga-gold)" : "var(--ga-red)" }}>
                   {cat.score}/10
                 </span>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: "var(--ga-surface)" }}>
                 <motion.div className="h-full rounded-full"
-                  style={{ background: cat.score >= 7 ? MINT : cat.score >= 5 ? "#FBBF24" : "#F87171" }}
+                  style={{ background: cat.score >= 7 ? MINT : cat.score >= 5 ? "var(--ga-gold)" : "var(--ga-red)" }}
                   initial={{ width: 0 }} animate={{ width: `${cat.score * 10}%` }}
                   transition={{ duration: 0.8, delay: 0.6 + i * 0.1, ease: "easeOut" }} />
               </div>
@@ -398,7 +399,7 @@ export function SessionSummary({
               ))}
               {cat.red_flags_vi && cat.red_flags_vi.length > 0 && cat.red_flags_vi.map((f, j) => (
                 <div key={j} className="flex items-start gap-1.5 mb-1">
-                  <ThumbsDown size={11} style={{ color: "#F87171", flexShrink: 0, marginTop: 2 }} />
+                  <ThumbsDown size={11} className="text-ga-red" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden />
                   <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{f}</span>
                 </div>
               ))}
@@ -414,7 +415,7 @@ export function SessionSummary({
       {hasAiReport && aiReport?.german_language && (
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
-            <MessageSquare size={14} style={{ color: PURPLE }} />
+            <GaGlyph icon={MessageSquare} size="sm" tone="navy" />
             <span className="text-ga-ink font-semibold text-sm">{t("germanInInterviewTitle")}</span>
           </div>
           {/* grammar_accuracy_pct đã bỏ: % do LLM tự bịa, độ chính xác giả (report cũ trong DB còn field này nhưng không render nữa). */}
@@ -434,7 +435,7 @@ export function SessionSummary({
               <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--ga-subtle)" }}>{t("commonErrorsCap")}</span>
               {aiReport.german_language.common_errors_vi.map((e, i) => (
                 <div key={i} className="flex items-center gap-1.5 mt-1">
-                  <AlertTriangle size={10} style={{ color: "#FBBF24", flexShrink: 0 }} />
+                  <AlertTriangle size={10} className="shrink-0 text-ga-gold" aria-hidden />
                   <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{e}</span>
                 </div>
               ))}
@@ -447,13 +448,12 @@ export function SessionSummary({
       {hasAiReport && aiReport?.remediation_vi && aiReport.remediation_vi.length > 0 && (
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
-            <Lightbulb size={14} style={{ color: AMBER }} />
+            <GaGlyph icon={Lightbulb} size="sm" tone="navy" />
             <span className="text-ga-ink font-semibold text-sm">{t("remediationTitle")}</span>
           </div>
           {aiReport.remediation_vi.map((r, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5"
-                style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5 border border-ga-yellow bg-ga-yellow-soft text-ga-gold">
                 {i + 1}
               </div>
               <span className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>{r}</span>
@@ -466,7 +466,7 @@ export function SessionSummary({
       {hasAiReport && (aiReport?.answer_upgrades?.length ?? 0) > 0 && (
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
-            <MessageSquare size={14} style={{ color: MINT }} />
+            <GaGlyph icon={WandSparkles} size="sm" tone="navy" />
             <span className="text-ga-ink font-semibold text-sm">{t("answerUpgradesTitle")}</span>
           </div>
           {aiReport!.answer_upgrades!.map((u, i) => (
@@ -486,7 +486,7 @@ export function SessionSummary({
       {hasAiReport && (aiReport?.next_steps?.length ?? 0) > 0 && (
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
-            <Target size={14} style={{ color: CYAN }} />
+            <GaGlyph icon={Route} size="sm" tone="navy" />
             <span className="text-ga-ink font-semibold text-sm">{t("nextStepsTitle")}</span>
           </div>
           {aiReport!.next_steps!.filter((st) => NEXT_STEP_LABEL_KEYS[st.code]).map((st, i) => (
@@ -522,7 +522,7 @@ export function SessionSummary({
       {hasAiReport && aiReport?.encouragement_vi && (
         <div className="rounded-[20px] p-4" style={{ ...glass, background: "rgba(34,211,238,0.06)", border: `1px solid ${CYAN}22` }}>
           <div className="flex items-start gap-2">
-            <Star size={14} style={{ color: "#FBBF24", flexShrink: 0, marginTop: 1 }} />
+            <Star size={14} className="text-ga-gold" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden />
             <p className="text-sm leading-relaxed" style={{ color: "var(--ga-ink)" }}>{aiReport.encouragement_vi}</p>
           </div>
         </div>
@@ -541,7 +541,7 @@ export function SessionSummary({
           {conversationReport.strengths.length > 0 && (
             <div className="rounded-[20px] p-4" style={glass}>
               <div className="flex items-center gap-2 mb-3">
-                <Check size={14} style={{ color: MINT }} />
+                <GaGlyph icon={Check} size="sm" tone="navy" />
                 <span className="text-ga-ink font-semibold text-sm">{t("strengthsTitle")}</span>
               </div>
               {conversationReport.strengths.map((s, i) => (
@@ -556,7 +556,7 @@ export function SessionSummary({
           {conversationReport.improvements.length > 0 && (
             <div className="rounded-[20px] p-4" style={glass}>
               <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle size={14} style={{ color: CORAL }} />
+                <GaGlyph icon={AlertTriangle} size="sm" tone="navy" />
                 <span className="text-ga-ink font-semibold text-sm">{t("improvementsTitle")}</span>
               </div>
               {conversationReport.improvements.map((s, i) => (
@@ -572,7 +572,7 @@ export function SessionSummary({
             <div className="rounded-[20px] p-4" style={glass}>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2">
-                  <Zap size={14} style={{ color: PURPLE }} />
+                  <GaGlyph icon={SpellCheck} size="sm" tone="navy" />
                   <span className="text-ga-ink font-semibold text-sm">{t("grammarTitle")}</span>
                 </div>
                 {conversationReport.grammarAccuracy && (
@@ -608,7 +608,7 @@ export function SessionSummary({
           {conversationReport.recommendedNext.length > 0 && (
             <div className="rounded-[20px] p-4" style={glass}>
               <div className="flex items-center gap-2 mb-3">
-                <Target size={14} style={{ color: AMBER }} />
+                <GaGlyph icon={Route} size="sm" tone="navy" />
                 <span className="text-ga-ink font-semibold text-sm">{t("recommendedNextTitle")}</span>
               </div>
               {conversationReport.recommendedNext.map((s, i) => (
@@ -643,7 +643,7 @@ export function SessionSummary({
       {/* INTERVIEW chưa có điểm thật: giải thích + hướng hành động (Đợt A 10/08) */}
       {interviewNotScored && (
         <div className="rounded-[20px] p-4 flex items-start gap-3" style={glass}>
-          <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
+          <GaGlyph icon={MessageSquare} size="md" tone="plain" />
           <div>
             <p className="text-sm font-semibold text-ga-ink mb-1">
               {interviewInsufficient ? t("interviewTooEarlyTitle") : t("interviewNotScoredTitle")}
@@ -664,7 +664,7 @@ export function SessionSummary({
       {/* Chưa đủ dữ liệu để chấm — mời nói thêm thay vì hiện điểm ảo (R-G1) */}
       {!isInterviewMode && !hasAiReport && !hasConversationReport && !showScore && (
         <div className="rounded-[20px] p-4 flex items-start gap-3" style={glass}>
-          <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
+          <GaGlyph icon={MessageSquare} size="md" tone="plain" />
           <div>
             <p className="text-sm font-semibold text-ga-ink mb-1">{t("notEnoughTitle")}</p>
             <p className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>
@@ -679,7 +679,7 @@ export function SessionSummary({
       {!isInterviewMode && !hasAiReport && !hasConversationReport && showScore && (
         <div className="rounded-[20px] overflow-hidden" style={glass}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
-            <Star size={14} style={{ color: AMBER }} />
+            <GaGlyph icon={Gauge} size="sm" tone="navy" />
             <span className="text-ga-ink font-semibold text-sm">{t("quickSelfAssessTitle")}</span>
             <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>{t("quickSelfAssessHint")}</span>
           </div>
@@ -688,7 +688,7 @@ export function SessionSummary({
               <motion.div key={r.labelKey} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 + i * 0.1 }}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <r.icon size={13} style={{ color: r.color }} />
+                    <r.icon size={13} className="text-ga-muted" aria-hidden />
                     <span className="text-sm font-semibold text-ga-ink">{t(r.labelKey)}</span>
                   </div>
                   <span className="text-sm font-bold" style={{ color: r.color }}>{r.score}/10</span>
@@ -708,7 +708,7 @@ export function SessionSummary({
       {speakingErrors.length > 0 && (
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle size={14} style={{ color: AMBER }} />
+            <GaGlyph icon={AlertTriangle} size="sm" tone="navy" />
             <span className="text-ga-ink font-semibold text-sm">{t("errorsToReviewTitle")}</span>
           </div>
           <div className="space-y-2 mb-3">

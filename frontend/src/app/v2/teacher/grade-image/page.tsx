@@ -2,11 +2,11 @@
 
 import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Upload, ScanText, Sparkles, X, Copy, RefreshCw, Loader2, ImageIcon } from 'lucide-react'
+import { ImageUp, CircleAlert, Sparkles, Copy, RefreshCw, Loader2, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { gradeHandwritingImage, type GradeImageResult } from '@/lib/teacherGradingApi'
 import { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chấm bài qua ảnh (GaGradeImage) — violet, upload · result.
@@ -22,7 +22,6 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 //   is what forced teachers to download the photo, re-upload it, and retype the score by hand.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const VIOLET = '#7C56C8'
 const MAX_BYTES = 10 * 1024 * 1024
 
 type Phase = 'idle' | 'loading' | 'done' | 'error'
@@ -85,12 +84,10 @@ export default function V2GradeImagePage() {
               onDragLeave={() => setDragging(false)}
               onDrop={(e) => { e.preventDefault(); setDragging(false); pickFile(e.dataTransfer.files?.[0]) }}
               className="grid h-[240px] w-full place-items-center border-2 border-dashed text-center transition-colors lg:h-[360px]"
-              style={{ borderColor: dragging ? VIOLET : 'var(--ga-line)', background: dragging ? 'var(--ga-violet-soft)' : 'var(--ga-bg)' }}
+              style={{ borderColor: dragging ? 'var(--ga-violet)' : 'var(--ga-line)', background: dragging ? 'var(--ga-violet-soft)' : 'var(--ga-bg)' }}
             >
               <div>
-                <span className="mx-auto mb-3 grid h-14 w-14 place-items-center" style={{ background: 'var(--ga-violet-soft)' }}>
-                  <Upload size={26} style={{ color: VIOLET }} />
-                </span>
+                <GaGlyph icon={ImageUp} tone="navy" size="lg" className="mx-auto mb-3" />
                 <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('dropTitle')}</p>
                 <p className="ga-ui mt-1.5 text-[13.5px] text-ga-muted">{t('dropDesc')}</p>
               </div>
@@ -135,14 +132,14 @@ export default function V2GradeImagePage() {
           {phase === 'loading' ? (
             <div className="grid h-full min-h-[160px] place-items-center text-center text-ga-muted lg:min-h-0">
               <div>
-                <Loader2 size={28} className="mx-auto mb-3 animate-spin text-ga-accent" />
+                <Loader2 size={28} className="ga-spin mx-auto mb-3 text-ga-accent" aria-hidden />
                 <p className="ga-ui text-[14px]">{t('grading')}</p>
               </div>
             </div>
           ) : phase === 'error' ? (
             <div className="grid h-full min-h-[160px] place-items-center text-center lg:min-h-0">
               <div>
-                <X size={32} className="mx-auto mb-3 text-ga-red" />
+                <GaGlyph icon={CircleAlert} tone="red" size="lg" className="mx-auto mb-3" />
                 <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('gradeError')}</p>
                 <p className="ga-ui mx-auto mt-1.5 max-w-xs text-[13.5px] text-ga-muted">{error}</p>
                 <GaBtn variant="primary" className="mt-4" onClick={grade}>{tc('retry')}</GaBtn>
@@ -156,9 +153,7 @@ export default function V2GradeImagePage() {
             <>
               {/* Score */}
               <div className="mb-5 border px-4 py-4 text-center lg:px-5" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 35%, transparent)' }}>
-                <div className="ga-ui flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: VIOLET }}>
-                  <Sparkles size={13} /> {t('aiScoreCap')}
-                </div>
+                <GaCap>{t('aiScoreCap')}</GaCap>
                 <div className="mt-2 font-ga-display text-[44px] font-medium leading-none" style={{ color: scoreColor(result.score) }}>
                   {result.score}<span className="text-[20px] text-ga-muted">/100</span>
                 </div>
@@ -166,7 +161,7 @@ export default function V2GradeImagePage() {
 
               {/* OCR transcription */}
               <div className="mb-4 border border-ga-line bg-ga-bg px-4 py-4 lg:px-[18px]">
-                <GaCap className="mb-2 flex items-center gap-1.5"><ScanText size={13} /> {t('ocrCap')}</GaCap>
+                <GaCap className="mb-2 block">{t('ocrCap')}</GaCap>
                 <p className="m-0 whitespace-pre-wrap break-words font-ga-display text-[14.5px] italic leading-[1.65] text-ga-ink">{result.transcription}</p>
                 <p className="ga-ui mt-2 text-[11.5px] text-ga-subtle">{t('ocrReviewHint')}</p>
               </div>

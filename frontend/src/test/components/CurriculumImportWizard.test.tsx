@@ -56,6 +56,7 @@ vi.mock('@/lib/curriculumImportApi', async (importOriginal) => {
 })
 
 vi.mock('@/components/ui-v2', () => ({
+  GaGlyph: () => <span aria-hidden />,
   TkModal: ({
     open,
     title,

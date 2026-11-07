@@ -20,7 +20,7 @@ import {
   ListChecks,
   Mic,
   Newspaper,
-  PenTool,
+  PenLine,
   Puzzle,
   Repeat1,
   Repeat2,
@@ -49,7 +49,7 @@ export default function PracticeMapRoute() {
 }
 
 const SECTION_ORDER = ['LESEN', 'SPRACHBAUSTEINE', 'HOEREN', 'SCHREIBEN'] as const
-const SECTION_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, SPRACHBAUSTEINE: Puzzle, HOEREN: Headphones, SCHREIBEN: PenTool }
+const SECTION_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, SPRACHBAUSTEINE: Puzzle, HOEREN: Headphones, SCHREIBEN: PenLine }
 const TYPE_ICON: Record<string, LucideIcon> = {
   MATCH_HEADLINE: Heading,
   MULTIPLE_CHOICE: ListChecks,
@@ -306,7 +306,7 @@ function TeilRow({ teil, overview, href, today, onStrategy }: { teil: PracticeTe
   const p = teil.progress
   const isWriting = teil.key === WRITING_KEY
   const Icon =
-    teil.section === 'HOEREN' ? (data?.max_plays === 1 ? Repeat1 : Repeat2) : isWriting ? PenTool : TYPE_ICON[data?.type ?? ''] ?? ListChecks
+    teil.section === 'HOEREN' ? (data?.max_plays === 1 ? Repeat1 : Repeat2) : isWriting ? PenLine : TYPE_ICON[data?.type ?? ''] ?? ListChecks
 
   let tag: React.ReactNode
   if (p?.checked) {
