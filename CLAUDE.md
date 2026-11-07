@@ -9,6 +9,7 @@ Repo PUBLIC — không commit credential. Trả lời tiếng Việt; giữ nguy
 | Việc | Đọc |
 |---|---|
 | **Merge vào `main`, deploy frontend/backend/mobile, đổi hạ tầng (env, nginx, backup, migration)** | **`docs/QUY_TRINH_PHAT_HANH.md`** (đọc hết, mỗi lần) |
+| Luyện thi telc trên web (Hôm nay, luyện Teil, thi thử, kết quả, lịch ôn, hướng dẫn lần đầu, bài chẩn đoán) | `docs/LUYEN_THI.md` |
 | Thêm/đổi biểu tượng trên mobile (bộ glyph Galerie, emoji policy, luật hình học, cách thêm glyph) | `mobile/GALERIE_GLYPHS.md` |
 | Runbook mobile: build/submit/OTA, fingerprint, QA simulator | `mobile/README.md` (nếu có) và handoff mới nhất trong `plans/` (`*handoff*mobile*`) |
 | Đặc tả sản phẩm (SRS) — nguồn duy nhất là `chi-tiet/`, bản gộp sinh bằng `node pdf/pipeline/merge-md.mjs` | `TAI_LIEU_DAC_TA_SAN_PHAM/chi-tiet/` |
