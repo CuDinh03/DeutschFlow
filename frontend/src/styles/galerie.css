@@ -314,6 +314,37 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
   .ga-pupil, .ga-fix-wrong, .ga-fix-line, .ga-fix-why { transition: none; }
 }
 
+/* ── Chuyển động trang công khai (kế hoạch animation 08/11/2026) ──────────────────────────────
+   Trạng thái nghỉ là trạng thái cuối: gạch vàng đầy, chữ đầy. Animation chỉ chạy khi không bật giảm
+   chuyển động. */
+/* #2 Gạch vàng dưới tiêu đề hero: dải cao 32% nằm ở 58–90% chiều cao dòng (y 85%), mỗi dòng một dải. */
+.ga-hero-mark {
+  background: linear-gradient(var(--ga-yellow), var(--ga-yellow)) no-repeat 0 85% / 100% 32%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* #3 Con trỏ của câu hỏi đang gõ. */
+.ga-type-caret {
+  display: inline-block;
+  width: 0;
+  height: 1em;
+  margin-left: 1px;
+  border-left: 1.5px solid currentColor;
+  vertical-align: -0.12em;
+}
+/* Phần hiện sau khi gõ xong: fade + rise 6px (§7 feedback reveal). */
+.ga-rise { animation: gaRise var(--ga-duration-base) var(--ga-ease-out) both; }
+@keyframes gaRise { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: no-preference) {
+  .ga-hero-mark { animation: gaHeroMark 700ms var(--ga-ease-ritual) 250ms both; }
+  .ga-type-caret { animation: gaCaret 530ms steps(1) infinite; }
+}
+@keyframes gaHeroMark { from { background-size: 0% 32%; } }
+@keyframes gaCaret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ga-rise { animation: none; }
+}
+
 /* ── Khung làm bài luyện thi (đợt (a) 07/11/2026) ──────────────────────────────
    Thanh cuộn của hai cột chỉ hiện khi đang lướt: SplitPanes gắn [data-scrolling] trong lúc cuộn
    và gỡ sau 900ms đứng yên. Bộ chọn có `.ga-scope` để thắng luật thanh cuộn chung

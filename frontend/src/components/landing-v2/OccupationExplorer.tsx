@@ -13,7 +13,9 @@ import {
   type OccupationSummary,
 } from '@/lib/occupationTypes'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
+import { LayoutGroup, m } from 'framer-motion'
 import { InterviewerPortrait, PersonaPortrait } from './PersonaPortrait'
+import { LandingMotion } from './LandingMotion'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { QualityLabel } from './QualityLabel'
 import { QuestionTranslation } from './QuestionTranslation'
@@ -60,6 +62,17 @@ const POPULAR_IDS = ['line_cook', 'kellner', 'backend_dev', 'mfa', 'maschinenbed
 const DEFAULT_ID = 'line_cook'
 const MAX_SUGGESTIONS = 6
 const MAX_TERMS = 6
+/** Lò xo của nền chip (#4): tới nơi trong khoảng 250ms, không nảy quá đà. */
+const CHIP_SPRING = { type: 'spring', stiffness: 500, damping: 40 } as const
+/** Câu hỏi số 1 gõ trong khoảng ngân sách này (#3); câu dài thì gõ nhanh hơn. */
+const TYPE_BUDGET_MS = 1600
+/** Khựng một nhịp trước khi gõ, như người phỏng vấn lấy hơi. */
+const TYPE_LEAD_MS = 300
+/** Nhịp một ký tự, ms. */
+const TYPE_STEP_MIN = 14
+const TYPE_STEP_MAX = 34
+/** Độ trễ giữa các phần hiện lần lượt sau khi gõ xong. */
+const REVEAL_STAGGER_MS = 120
 
 /** So khớp không phân biệt hoa thường, dấu tiếng Việt và umlaut tiếng Đức. */
 function fold(s: string): string {
@@ -217,19 +230,36 @@ export function OccupationExplorer({
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2" aria-label={t('popular')}>
-        {popular.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            onClick={() => choose(c)}
-            aria-pressed={c.key === selectedChoice?.key}
-            className={`min-h-9 border px-3 py-1.5 text-ga-small transition-colors ${c.key === selectedChoice?.key ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-border bg-ga-bg text-ga-ink hover:border-ga-ink'}`}
-          >
-            {c.labelDe}
-          </button>
-        ))}
-      </div>
+      {/* #4: nền đen của chip đang chọn trượt sang chip mới (`layoutId`). Hai nhóm id riêng cho bản tĩnh
+          và bản backend, để lúc danh mục tải xong nền không trượt khi khách chưa bấm gì. */}
+      <LandingMotion>
+        <LayoutGroup id={remote ? 'occ-remote' : 'occ-static'}>
+          <div className="mt-3 flex flex-wrap gap-2" aria-label={t('popular')}>
+            {popular.map((c) => {
+              const on = c.key === selectedChoice?.key
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => choose(c)}
+                  aria-pressed={on}
+                  className={`relative min-h-9 border px-3 py-1.5 text-ga-small transition-colors ${on ? 'border-ga-ink text-ga-bg' : 'border-ga-border bg-ga-bg text-ga-ink hover:border-ga-ink'}`}
+                >
+                  {on && (
+                    <m.span
+                      layoutId="ga-occ-chip"
+                      aria-hidden
+                      className="absolute -inset-px z-[1] bg-ga-ink"
+                      transition={CHIP_SPRING}
+                    />
+                  )}
+                  <span className={on ? 'relative z-[2]' : 'relative'}>{c.labelDe}</span>
+                </button>
+              )
+            })}
+          </div>
+        </LayoutGroup>
+      </LandingMotion>
 
       <div aria-live="polite" className="mt-5 border-t border-ga-border pt-5">
         {noMatch ? (
@@ -275,11 +305,80 @@ function useTalkBurst(key: string | undefined, ms = 2000) {
   return talking
 }
 
+type TypePhase = 'rest' | 'typing' | 'after'
+
+/**
+ * #3: câu hỏi số 1 được gõ ra như người phỏng vấn đang hỏi, chạy mỗi khi `runKey` (nghề) đổi.
+ * `skipFirst` bỏ qua nghề có sẵn từ HTML của server (bản tĩnh), để chữ đang đọc được không biến mất
+ * rồi gõ lại. `shown` = số ký tự đã gõ, `null` = hiện đủ câu (trạng thái nghỉ).
+ */
+function useTypewriter(text: string, runKey: string | undefined, skipFirst: boolean) {
+  const calm = usePrefersReducedMotion()
+  const [shown, setShown] = React.useState<number | null>(null)
+  const [phase, setPhase] = React.useState<TypePhase>('rest')
+  // So theo mã nghề chứ không theo "lần chạy đầu": StrictMode chạy effect hai lần ở dev.
+  const initialKey = React.useRef(skipFirst ? runKey : undefined)
+  React.useEffect(() => {
+    if (!runKey || !text) return
+    if (runKey === initialKey.current) return
+    initialKey.current = undefined
+    if (calm) return
+    const step = Math.max(TYPE_STEP_MIN, Math.min(TYPE_STEP_MAX, TYPE_BUDGET_MS / text.length))
+    let i = 0
+    let id: ReturnType<typeof setTimeout>
+    const tick = () => {
+      i += 1
+      if (i >= text.length) {
+        setShown(null)
+        setPhase('after')
+        return
+      }
+      setShown(i)
+      id = setTimeout(tick, text[i - 1] === ' ' ? step * 2 : step * (0.6 + Math.random() * 0.8))
+    }
+    setShown(0)
+    setPhase('typing')
+    id = setTimeout(tick, TYPE_LEAD_MS)
+    return () => {
+      clearTimeout(id)
+      setShown(null)
+      setPhase('rest')
+    }
+  }, [runKey, text, calm])
+  return { shown, phase }
+}
+
+/** Lớp cho phần hiện sau câu đang gõ: ẩn lúc gõ (vẫn ở trong cây trợ năng), hiện lần lượt khi gõ xong. */
+function revealProps(phase: TypePhase, order: number): { className: string; style?: React.CSSProperties } {
+  if (phase === 'typing') return { className: 'opacity-0' }
+  if (phase === 'after') return { className: 'ga-rise', style: { animationDelay: `${order * REVEAL_STAGGER_MS}ms` } }
+  return { className: '' }
+}
+
+/**
+ * Câu hỏi trong ngoặc kép Đức. Lúc gõ, câu đủ vẫn nằm đó (trong suốt) để giữ chiều cao và cho trình
+ * đọc màn hình đọc trọn câu; phần đang gõ phủ lên trên, `aria-hidden`.
+ */
+function TypedQuestion({ text, shown, className }: { text: string; shown: number | null; className: string }) {
+  return (
+    <span lang="de" className={`relative block ${className}`}>
+      <span className={shown === null ? undefined : 'opacity-0'}>„{text}“</span>
+      {shown !== null && (
+        <span aria-hidden className="absolute inset-0">
+          „{text.slice(0, shown)}<span className="ga-type-caret" />
+        </span>
+      )}
+    </span>
+  )
+}
+
 /** Kết quả bằng dữ liệu tĩnh của đợt 1 — giữ nguyên khi chưa có danh mục backend. */
 function StaticResult({ position, startHref, onStart }: { position: Position; startHref: string; onStart: () => void }) {
   const t = useTranslations('v2.landing.explorer')
   const questions = [COMMON_INTRO_QUESTION, ...INTERVIEW_SAMPLES[position.persona]].map((q) => fillPosition(q, position.labelDe))
-  const talking = useTalkBurst(position.id)
+  const burst = useTalkBurst(position.id)
+  const { shown, phase } = useTypewriter(questions[0] ?? '', position.id, true)
+  const talking = burst || phase === 'typing'
   return (
     <div>
       <div className="mb-4 flex items-center gap-4">
@@ -297,12 +396,17 @@ function StaticResult({ position, startHref, onStart }: { position: Position; st
       </div>
       <GaCap className="mb-2">{t('questionsCap')}</GaCap>
       <ol className="mb-4 flex flex-col gap-2.5">
-        {questions.map((q, i) => (
-          <li key={i} className="flex items-start gap-3">
-            <span className="shrink-0 font-ga-display text-ga-body-lg font-semibold text-ga-gold">{i + 1}</span>
-            <span className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q}“</span>
-          </li>
-        ))}
+        {questions.map((q, i) => {
+          const rv = i ? revealProps(phase, i) : { className: '' }
+          return (
+            <li key={i} className={`flex items-start gap-3 ${rv.className}`} style={rv.style}>
+              <span className="shrink-0 font-ga-display text-ga-body-lg font-semibold text-ga-gold">{i + 1}</span>
+              {i === 0
+                ? <TypedQuestion text={q} shown={shown} className="font-ga-display text-ga-body-lg italic text-ga-ink" />
+                : <span lang="de" className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q}“</span>}
+            </li>
+          )
+        })}
       </ol>
       <p className="mb-4 border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-muted">{t('sourceNote')}</p>
       <GaBtn asChild variant="ink" size="md" className="w-full sm:w-auto">
@@ -326,7 +430,11 @@ function RemoteResult({
 }) {
   const t = useTranslations('v2.landing.explorer')
   const tl = useTranslations('v2.landing')
-  const talking = useTalkBurst(detail && detail !== 'error' ? detail.occupation.code : undefined)
+  const ready = detail && detail !== 'error' ? detail : undefined
+  const burst = useTalkBurst(ready?.occupation.code)
+  // Bản backend chỉ hiện sau khi tải xong (không có trong HTML server), nên gõ ngay cả lần đầu.
+  const { shown, phase } = useTypewriter(ready?.sampleQuestions[0]?.questionDe ?? '', ready?.occupation.code, false)
+  const talking = burst || phase === 'typing'
   if (!detail) return <p className="text-ga-body text-ga-muted">{t('loading')}</p>
   if (detail === 'error') {
     return (
@@ -361,13 +469,20 @@ function RemoteResult({
       <ol className="mb-4 flex flex-col gap-3">
         {detail.sampleQuestions.map((q, i) => {
           const kind = questionLabel(q.source, o.questionSet)
+          // Câu 1: phần dịch + nhãn hiện sau khi gõ xong (thứ tự 0); câu 2, 3 hiện tiếp theo.
+          const rvItem = i ? revealProps(phase, i) : { className: '' }
+          const rvMeta = i ? { className: '' } : revealProps(phase, 0)
           return (
-            <li key={i} className="flex items-start gap-3">
+            <li key={i} className={`flex items-start gap-3 ${rvItem.className}`} style={rvItem.style}>
               <span className="shrink-0 font-ga-display text-ga-body-lg font-semibold text-ga-gold">{i + 1}</span>
               <div className="min-w-0">
-                <span lang="de" className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q.questionDe}“</span>
-                <QuestionTranslation q={q} locale={locale} className="mt-0.5 text-ga-small" />
-                <div className="mt-1"><QualityLabel kind={kind} text={t(`labels.${kind}`)} /></div>
+                {i === 0
+                  ? <TypedQuestion text={q.questionDe} shown={shown} className="font-ga-display text-ga-body-lg italic text-ga-ink" />
+                  : <span lang="de" className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q.questionDe}“</span>}
+                <div className={rvMeta.className} style={rvMeta.style}>
+                  <QuestionTranslation q={q} locale={locale} className="mt-0.5 text-ga-small" />
+                  <div className="mt-1"><QualityLabel kind={kind} text={t(`labels.${kind}`)} /></div>
+                </div>
               </div>
             </li>
           )
