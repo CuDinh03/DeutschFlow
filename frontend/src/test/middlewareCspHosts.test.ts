@@ -148,6 +148,15 @@ describe('Đối chiếu chéo với next.config.mjs', () => {
     expect(nextConfig).not.toMatch(/hostname:\s*'/)
   })
 
+  it('Turnstile (chống bot 07/11): có site key ⇒ frame-src + script-src thêm challenges.cloudflare.com; không key ⇒ không có', async () => {
+    const withKey = await reportOnlyPolicy({ NEXT_PUBLIC_TURNSTILE_SITE_KEY: '0x4AAAA-test' })
+    expect(directive(withKey, 'frame-src')).toContain('https://challenges.cloudflare.com')
+    expect(directive(withKey, 'script-src')).toContain('https://challenges.cloudflare.com')
+
+    const withoutKey = await reportOnlyPolicy({ NEXT_PUBLIC_TURNSTILE_SITE_KEY: undefined })
+    expect(withoutKey).not.toContain('challenges.cloudflare.com')
+  })
+
   it('mediaOrigins: chỉ nhận https, bỏ mục hỏng, bỏ đường dẫn, khử trùng', () => {
     expect(
       mediaOrigins(` ${R2_ORIGIN}/deutschflow-media/ , http://evil.test, không-phải-url, ${R2_ORIGIN}`),

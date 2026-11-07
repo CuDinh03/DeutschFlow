@@ -66,7 +66,11 @@
       "phoneInvalid": "Số này chưa phải số di động Việt Nam hợp lệ — cần đủ 10 chữ số và bắt đầu bằng 03, 05, 07, 08 hoặc 09",
       "passwordRequired": "Vui lòng nhập mật khẩu",
       "passwordTooShort": "Mật khẩu cần ít nhất 8 ký tự",
-      "failed": "Không tạo được tài khoản. Vui lòng thử lại."
+      "failed": "Không tạo được tài khoản. Vui lòng thử lại.",
+      "humanCheckPending": "Đang xác minh bạn là người thật, vui lòng đợi vài giây rồi bấm lại.",
+      "humanCheckFailed": "Chưa xác minh được bạn là người thật. Vui lòng thử lại.",
+      "humanCheckLoadFailed": "Không tải được bước xác minh người thật. Hãy tắt trình chặn quảng cáo cho trang này hoặc thử trình duyệt khác.",
+      "emailDisposable": "Không dùng được email tạm thời. Vui lòng dùng email bạn dùng hằng ngày."
     },
     "forgot": {
       "cap": "Khôi phục tài khoản",

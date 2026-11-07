@@ -66,7 +66,11 @@
       "phoneInvalid": "This is not a valid Vietnamese mobile number — it needs 10 digits and must start with 03, 05, 07, 08 or 09",
       "passwordRequired": "Please enter your password",
       "passwordTooShort": "Password must be at least 8 characters",
-      "failed": "Could not create the account. Please try again."
+      "failed": "Could not create the account. Please try again.",
+      "humanCheckPending": "We are checking that you are a real person. Please wait a few seconds and try again.",
+      "humanCheckFailed": "We could not confirm that you are a real person. Please try again.",
+      "humanCheckLoadFailed": "The verification step could not load. Turn off your ad blocker for this page or try another browser.",
+      "emailDisposable": "Temporary email addresses are not accepted. Please use the email you use every day."
     },
     "forgot": {
       "cap": "Account recovery",

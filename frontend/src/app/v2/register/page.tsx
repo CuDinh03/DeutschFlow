@@ -11,6 +11,7 @@ import { useTracking } from '@/hooks/useTracking'
 import { GaCap, GaBtn } from '@/components/ui-v2'
 import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE, pwStrength } from '../authShared'
 import { readPendingSignup, savePendingSignup, useCompleteSignup, type RegisterPayload } from '../authSignup'
+import { TURNSTILE_SITE_KEY, TurnstileWidget, type TurnstileHandle } from '../turnstile'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Đăng ký (GaRegister) — Galerie 2.0 reskin of /register. Plumbing reused 1:1
@@ -42,6 +43,9 @@ type FieldErrors = Record<string, string>
 /** Mã từ /auth/register/start nghĩa là "đường mã PIN chưa dùng được" ⇒ lùi về /auth/register. */
 const START_FALLBACK_STATUSES = new Set([401, 403, 404, 405, 501])
 
+// Chống bot (07/11/2026): token Cloudflare Turnstile đi trong header (DTO đăng ký giữ nguyên hợp đồng).
+const TURNSTILE_HEADER = 'X-Turnstile-Token'
+
 export default function V2RegisterPage() {
   // Đợt 2 onboarding (17/09): rời màn này mà CHƯA đăng ký xong thì vứt con trỏ phiên khách trên máy —
   // khách A bỏ dở ở đây, B đăng ký sau trên cùng máy không được claim phiên (câu trả lời) của A.
@@ -71,6 +75,10 @@ export default function V2RegisterPage() {
   const [errs, setErrs] = useState<FieldErrors>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Chống bot: token Turnstile (rỗng = chưa có/đã dùng) + ô honeypot `website` người thật không thấy.
+  const [humanToken, setHumanToken] = useState('')
+  const [trap, setTrap] = useState('')
+  const turnstileRef = useRef<TurnstileHandle>(null)
   const set = (k: keyof typeof f, v: string) => { setF((s) => ({ ...s, [k]: v })); setErrs((e) => ({ ...e, [k]: '' })) }
   const st = pwStrength(f.pw)
 
@@ -89,6 +97,11 @@ export default function V2RegisterPage() {
     else if (f.pw.length < 8) e.pw = t('register.passwordTooShort')
     setErrs(e)
     if (Object.keys(e).filter((k) => e[k]).length) return
+    if (TURNSTILE_SITE_KEY && !humanToken) {
+      // Widget chưa trả token (đang kiểm, hoặc Cloudflare đang hỏi thêm) — gửi đi chắc chắn bị từ chối.
+      setError(t('register.humanCheckPending'))
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -103,11 +116,14 @@ export default function V2RegisterPage() {
         password: f.pw,
         displayName,
         locale: f.locale,
+        website: trap,
       }
+      const config = humanToken ? { headers: { [TURNSTILE_HEADER]: humanToken } } : undefined
 
       let started: { email: string; expiresInSeconds: number; resendAfterSeconds: number } | null = null
       try {
-        const { data } = await api.post('/auth/register/start', payload)
+        // Backend trả 501 TRƯỚC khi kiểm token ⇒ khi lùi về /auth/register, token vẫn còn dùng được.
+        const { data } = await api.post('/auth/register/start', payload, config)
         started = data
       } catch (startErr: unknown) {
         // 501 = công tắc mã PIN tắt ở backend ⇒ đường cũ. 401/403/404/405 = backend CHƯA có endpoint
@@ -130,13 +146,24 @@ export default function V2RegisterPage() {
         return
       }
 
-      const { data } = await api.post('/auth/register', payload)
+      const { data } = await api.post('/auth/register', payload, config)
       await completeSignup(data, f.locale, () => { signedUpRef.current = true })
     } catch (err: unknown) {
-      const resp = (err as { response?: { status?: number; data?: { detail?: string; errors?: FieldErrors } } })?.response
+      // Token Turnstile chỉ dùng được một lần ⇒ lấy token mới cho lần thử sau.
+      turnstileRef.current?.reset()
+      const resp = (err as {
+        response?: { status?: number; data?: { detail?: string; errors?: FieldErrors; extensions?: { reason?: string } } }
+      })?.response
       const res = resp?.data
+      const reason = res?.extensions?.reason
       if (res?.errors) setErrs(res.errors)
-      else if (resp?.status === 503) {
+      else if (reason === 'DISPOSABLE_EMAIL') {
+        setErrs((x) => ({ ...x, email: t('register.emailDisposable') }))
+        trackEvent('register_failed', { reason })
+      } else if (reason === 'HUMAN_CHECK_FAILED') {
+        setError(t('register.humanCheckFailed'))
+        trackEvent('register_failed', { reason })
+      } else if (resp?.status === 503) {
         // Backend KHÔNG báo "đã gửi" khi chưa gửi được mã — email là lối vào duy nhất.
         setError(t('verify.sendFailed'))
         trackEvent('register_failed', { reason: 'SEND_FAILED' })
@@ -204,6 +231,23 @@ export default function V2RegisterPage() {
             </div>
           </div>
         )}
+
+        {/* Honeypot: lệch khỏi màn hình (không display:none — bot hay bỏ qua ô ẩn kiểu đó), không nhận
+            focus bằng Tab, trình đọc màn hình bỏ qua, trình duyệt không tự điền. Người thật không bao giờ
+            thấy ô này; có giá trị ⇒ backend từ chối. */}
+        <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>
+          <label>
+            Website
+            <input type="text" name="website" tabIndex={-1} autoComplete="off" value={trap} onChange={(e) => setTrap(e.target.value)} />
+          </label>
+        </div>
+
+        <TurnstileWidget
+          ref={turnstileRef}
+          locale={f.locale}
+          onToken={(tok) => { setHumanToken(tok); if (tok) setError('') }}
+          onLoadError={() => setError(t('register.humanCheckLoadFailed'))}
+        />
 
         <GaBtn type="submit" variant="yellow" size="lg" className="mb-3.5 mt-1.5 w-full" loading={loading} disabled={loading}>
           {loading ? t('register.submitting') : t('register.submit')}
