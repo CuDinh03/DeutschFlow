@@ -107,6 +107,19 @@ class PracticeExplanationsDe4Test {
         assertThat(v328).contains("\"options\": { \"a\": \"gern\", \"b\": \"gerne\", \"c\": \"lieber\" }, \"correct\": \"a\"");
     }
 
+    @Test
+    void cau39De2KhongConHaiDapAn() throws IOException {
+        String v362 = read("db/migration/V362__sua_de2_sb2_cau39_wurden.sql");
+        String v343 = read("db/migration/V343__mock_exam_telc_b1_set2_nhap.sql");
+        // chuỗi thay phải có đúng một lần trong đề gốc thì replace mới đổi đúng ô o
+        assertThat(v343.split("\"o\": \"WÜRDEN\"", -1)).hasSize(2);
+        assertThat(v343).contains("WÜRDEN (o) là ngôi „wir/sie“, sai chủ ngữ.");
+        assertThat(v362).contains("'\"o\": \"WURDEN\"'");
+        // đáp án câu 39 vẫn là KÖNNEN (f), và không chỗ nào dùng ô o
+        assertThat(v343).contains("{ \"id\": \"SB2-39\", \"gap\": 39, \"correct\": \"f\"");
+        assertThat(v343).doesNotContain("\"correct\": \"o\"");
+    }
+
     private static String teilText(JsonNode teil) {
         StringBuilder sb = new StringBuilder();
         teil.path("items").forEach(it -> sb.append(it.path("text").asText("")).append('\n'));
