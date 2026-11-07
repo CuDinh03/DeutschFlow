@@ -50,6 +50,8 @@ function PracticeTeilPage() {
   const wide = useWide(SPLIT_MIN_WIDTH)
   const wideResult = useWide()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
+  // Hören "luyện thoải mái": nghe lại tuỳ ý, xem lời thoại, không đồng hồ.
+  const [relaxed, setRelaxed] = React.useState(false)
 
   const [overview, setOverview] = React.useState<PracticeOverview | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -117,7 +119,7 @@ function PracticeTeilPage() {
   }, [overview, meta, locale, t])
 
   // ── đồng hồ theo Teil: chỉ chạy khi đang làm và tab đang mở ────────────────
-  const running = !!overview && !result && !(isWriting && writingView === 'result')
+  const running = !!overview && !result && !relaxed && !(isWriting && writingView === 'result')
   React.useEffect(() => {
     if (!running) return
     const id = window.setInterval(() => {
@@ -337,7 +339,7 @@ function PracticeTeilPage() {
       subtitle={subtitle}
       title={title}
       progress={`${result ? result.correctCount : answered}/${total}`}
-      seconds={result ? null : seconds}
+      seconds={result || relaxed ? null : seconds}
       suggestMinutes={meta.suggestMinutes}
       tipsOpen={tipsOpen}
       onToggleTips={() => setTipsOpen((v) => !v)}
@@ -345,7 +347,7 @@ function PracticeTeilPage() {
       footer={footer}
     >
       {meta.section === 'HOEREN' ? (
-        <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} />
+        <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} />
       ) : (
         <ObjectiveTeilView
           teil={teil}

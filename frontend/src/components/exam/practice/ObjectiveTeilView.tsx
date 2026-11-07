@@ -37,6 +37,12 @@ interface Props {
   intro?: React.ReactNode
   /** Khối đặt trên câu hỏi của từng câu (Hören: bài nghe của câu). */
   itemExtra?: (item: PracticeItem) => React.ReactNode
+  /** Thay cột trả lời (Hören: câu hỏi còn khoá khi chưa bắt đầu / đang đọc hướng dẫn). */
+  answersOverride?: React.ReactNode
+  /** Câu cần đưa lên làm câu đang làm (Hören: đoạn đang nghe ứng với câu này). */
+  focusId?: string | null
+  /** Khối đặt trên cùng cột trả lời (Hören màn hẹp: trình phát của đoạn đang nghe). */
+  answersTop?: React.ReactNode
 }
 
 type Req<T> = { n: number } & T
@@ -53,7 +59,7 @@ type Req<T> = { n: number } & T
  * thì viền đứt + "ở câu N" (vẫn chọn được — nó chuyển sang câu đang chọn); đúng/sai chỉ hiện sau khi
  * kiểm tra cả Teil. Hàng ô số câu nằm ở thanh dưới của vỏ (portal).
  */
-export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra }: Props) {
+export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop }: Props) {
   const t = useTranslations('v2.student.practice')
   const tf = useTranslations('v2.student.practice.frame')
   const items = React.useMemo(() => teil.items ?? [], [teil.items])
@@ -84,6 +90,13 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     setActive(null)
     if (firstWrong) scrollTarget.current = firstWrong.id
   }, [result])
+
+  // Hören: đoạn đang nghe đổi ⇒ câu tương ứng thành câu đang làm và cuộn tới.
+  React.useEffect(() => {
+    if (!focusId) return
+    setCurrent(focusId)
+    scrollTarget.current = focusId
+  }, [focusId])
 
   React.useEffect(() => {
     if (!scrollTarget.current) return
@@ -147,15 +160,16 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
   }
 
   // ── phím tắt ───────────────────────────────────────────────────────────────
-  const keyState = React.useRef({ items, answers, current, active, checked, isMc })
-  keyState.current = { items, answers, current, active, checked, isMc }
+  const locked = answersOverride != null
+  const keyState = React.useRef({ items, answers, current, active, checked, isMc, locked })
+  keyState.current = { items, answers, current, active, checked, isMc, locked }
   // Hàm mới nhất của mỗi lần vẽ — trình nghe phím chỉ gắn một lần cho mỗi Teil.
   const act = React.useRef({ pick, jumpTo, answerMc, toggleFlag })
   act.current = { pick, jumpTo, answerMc, toggleFlag }
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = keyState.current
-      if (s.checked || e.metaKey || e.ctrlKey || e.altKey) return
+      if (s.checked || s.locked || e.metaKey || e.ctrlKey || e.altKey) return
       const target = e.target instanceof Element ? e.target : null
       if (target?.closest('input, textarea, select, [role="separator"], [contenteditable="true"]')) return
       if (document.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"]')) return
@@ -396,7 +410,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       <SplitPanes
         wide={wide}
         source={source}
-        answers={answersPane}
+        answers={answersOverride ?? (answersTop ? <>{answersTop}{answersPane}</> : answersPane)}
         sheetLabel={sheetLabel}
         snapRequest={snapReq}
         revealRequest={revealReq}
@@ -599,7 +613,7 @@ function ItemCard({
     <article
       id={`pq-${item.id}`}
       className={cn(
-        'mb-3.5 scroll-mt-14 border bg-ga-card transition-[border-color,box-shadow] duration-150',
+        'mb-3.5 scroll-mt-14 border bg-ga-card transition-[border-color,box-shadow] duration-150 max-[759px]:scroll-mt-44',
         active ? 'border-ga-navy shadow-ga-selected-bar' : 'border-ga-line',
         current && 'shadow-[inset_3px_0_0_var(--ga-yellow)]',
         checked && (res.isCorrect ? 'shadow-[inset_4px_0_0_var(--ga-green)]' : 'shadow-[inset_4px_0_0_var(--ga-red)]'),
