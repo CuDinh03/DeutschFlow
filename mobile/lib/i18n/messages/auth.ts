@@ -1,7 +1,7 @@
 import { defineMessages } from '@/lib/i18n'
 
 /**
- * Bốn màn auth (`app/(auth)/register|login|forgot-password|reset-password.tsx`) — Đợt 3 PR-3 (Q-D).
+ * Các màn auth (`app/(auth)/register|login|forgot-password|reset-password|verify-email.tsx`) — Đợt 3 PR-3 (Q-D).
  * vi là nguồn; en/de phải khớp từng khoá (tsc). `common.*` = chuỗi dùng chung giữa các màn.
  * Thông điệp lỗi từ server (`apiMessage`) KHÔNG nằm đây — giữ nguyên chuỗi server.
  */
@@ -91,6 +91,28 @@ export const authMessages = defineMessages(
       successTitle: 'Thành công',
       successBody: 'Mật khẩu đã được đặt lại. Vui lòng đăng nhập lại.',
     },
+    verify: {
+      title: 'Nhập mã xác minh',
+      subtitle: 'Chúng tôi đã gửi mã 6 chữ số tới {email}. Mã có hiệu lực {minutes} phút. Tài khoản chỉ được tạo sau khi bạn nhập đúng mã.',
+      code: 'Mã xác minh',
+      submit: 'Xác minh và tạo tài khoản',
+      resend: 'Gửi lại mã',
+      resendIn: 'Gửi lại mã sau {seconds} giây',
+      resentTitle: 'Đã gửi mã mới',
+      resentBody: 'Hãy kiểm tra hộp thư {email}.',
+      resendFailed: 'Chưa gửi lại được mã. Vui lòng thử lại.',
+      changeEmail: 'Đổi email',
+      spamHint: 'Không thấy thư? Hãy xem thư mục Spam hoặc Quảng cáo, rồi bấm "Gửi lại mã" nếu vẫn chưa có.',
+      failedTitle: 'Chưa xác minh được',
+      wrong: 'Mã không đúng hoặc đã hết hạn.',
+      wrongWithRemaining: 'Mã không đúng. Bạn còn {count} lần thử.',
+      locked: 'Bạn đã nhập sai quá nhiều lần. Hãy bấm "Gửi lại mã" để nhận mã mới.',
+      expired: 'Mã đã hết hạn. Hãy bấm "Gửi lại mã" để nhận mã mới.',
+      accountExists: 'Email này vừa có tài khoản. Hãy đăng nhập, hoặc dùng "Quên mật khẩu".',
+      tooMany: 'Bạn thao tác quá nhanh. Vui lòng đợi một lúc rồi thử lại.',
+      network: 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.',
+      sendFailed: 'Chưa gửi được mã xác minh. Vui lòng thử lại sau ít phút.',
+    },
   },
   {
     en: {
@@ -178,6 +200,28 @@ export const authMessages = defineMessages(
         successTitle: 'Success',
         successBody: 'Your password has been reset. Please log in again.',
       },
+      verify: {
+        title: 'Enter your verification code',
+        subtitle: 'We sent a 6-digit code to {email}. It is valid for {minutes} minutes. Your account is created only after you enter the correct code.',
+        code: 'Verification code',
+        submit: 'Verify and create account',
+        resend: 'Resend code',
+        resendIn: 'Resend code in {seconds} s',
+        resentTitle: 'New code sent',
+        resentBody: 'Check the inbox of {email}.',
+        resendFailed: 'We could not resend the code. Please try again.',
+        changeEmail: 'Change email',
+        spamHint: 'No email? Check your Spam or Promotions folder, then tap "Resend code" if it is still missing.',
+        failedTitle: 'Could not verify',
+        wrong: 'The code is incorrect or has expired.',
+        wrongWithRemaining: 'Incorrect code. Attempts left: {count}.',
+        locked: 'Too many incorrect attempts. Tap "Resend code" to get a new one.',
+        expired: 'The code has expired. Tap "Resend code" to get a new one.',
+        accountExists: 'This email now has an account. Log in, or use "Forgot password".',
+        tooMany: 'Too many attempts. Please wait a moment and try again.',
+        network: 'Cannot reach the server. Check your connection and try again.',
+        sendFailed: 'We could not send the verification code. Please try again in a few minutes.',
+      },
     },
     de: {
       common: {
@@ -263,6 +307,28 @@ export const authMessages = defineMessages(
         mismatchBody: 'Beide Passworteingaben müssen gleich sein.',
         successTitle: 'Erledigt',
         successBody: 'Dein Passwort wurde zurückgesetzt. Bitte melde dich erneut an.',
+      },
+      verify: {
+        title: 'Bestätigungscode eingeben',
+        subtitle: 'Wir haben einen 6-stelligen Code an {email} gesendet. Er ist {minutes} Minuten gültig. Dein Konto wird erst angelegt, wenn du den richtigen Code eingibst.',
+        code: 'Bestätigungscode',
+        submit: 'Bestätigen und Konto anlegen',
+        resend: 'Code erneut senden',
+        resendIn: 'Code erneut senden in {seconds} s',
+        resentTitle: 'Neuer Code gesendet',
+        resentBody: 'Sieh im Postfach von {email} nach.',
+        resendFailed: 'Der Code konnte nicht erneut gesendet werden. Bitte versuche es noch einmal.',
+        changeEmail: 'E-Mail ändern',
+        spamHint: 'Keine E-Mail? Sieh im Spam- oder Werbeordner nach und tippe auf „Code erneut senden“, falls sie fehlt.',
+        failedTitle: 'Bestätigung fehlgeschlagen',
+        wrong: 'Der Code ist falsch oder abgelaufen.',
+        wrongWithRemaining: 'Falscher Code. Verbleibende Versuche: {count}.',
+        locked: 'Zu viele falsche Versuche. Tippe auf „Code erneut senden“, um einen neuen Code zu erhalten.',
+        expired: 'Der Code ist abgelaufen. Tippe auf „Code erneut senden“, um einen neuen Code zu erhalten.',
+        accountExists: 'Für diese E-Mail gibt es jetzt ein Konto. Melde dich an oder nutze „Passwort vergessen“.',
+        tooMany: 'Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.',
+        network: 'Server nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.',
+        sendFailed: 'Der Bestätigungscode konnte nicht gesendet werden. Bitte versuche es in ein paar Minuten erneut.',
       },
     },
   },
