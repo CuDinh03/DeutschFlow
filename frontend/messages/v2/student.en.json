@@ -1908,7 +1908,8 @@
             "recordingSub": "Tap again to stop and send",
             "yourTurn": "Your turn to speak",
             "tap": "Tap to speak",
-            "tapWithAction": "{action} · tap to speak"
+            "tapWithAction": "{action} · tap to speak",
+            "recordingAutoSub": "2 seconds of silence sends it, or tap again"
           },
           "action": {
             "ASK": "Ask a question or make a request",
@@ -1976,7 +1977,9 @@
             "back": "Go back",
             "gradingLeave": "You can leave this page; the result appears under past mock exams on the exam page.",
             "drillDone": "Teil {n} practice done"
-          }
+          },
+          "autoStop": "Auto-stop on silence",
+          "autoStopHint": "On: after you have spoken, 2 seconds of silence stops and sends. Off: tap the microphone again to send."
         }
       },
       "mic": {
@@ -2029,7 +2032,8 @@
         "meinungHint": "Relay this opinion to your partner, then talk about your own experience and view.",
         "yourTopic": "Your topic",
         "debate": "Debate",
-        "debateHint": "State your position, respond to your partner, then sum up: for or against?"
+        "debateHint": "State your position, respond to your partner, then sum up: for or against?",
+        "pointCovered": "covered"
       },
       "result": {
         "sheetCap": "Simulated score sheet",

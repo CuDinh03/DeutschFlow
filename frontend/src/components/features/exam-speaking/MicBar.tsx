@@ -6,6 +6,7 @@ import { Mic, Square, Keyboard, Send, Loader2 } from 'lucide-react'
 import { DEFAULT_MAX_RECORDING_MS, startRecorder, type RecorderHandle } from '@/lib/voiceRecorder'
 import { classifyMicError, type MicErrorKind } from '@/lib/micErrors'
 import { useMicPermission } from '@/hooks/useMicPermission'
+import { createSilenceDetector, peakOf } from '@/lib/exam/silenceDetector'
 import { GaBtn } from '@/components/ui-v2'
 
 interface Props {
@@ -25,7 +26,12 @@ interface Props {
   meta?: ReactNode
   /** Báo phòng thi đang thu để hàng người nói hiện sóng âm ở ô "Bạn". */
   onRecordingChange?: (recording: boolean) => void
+  /** Tự dừng và gửi khi đã nói rồi im liền 2 giây (Đợt 5 phòng thi nói; công tắc ở phòng thi). */
+  autoStop?: boolean
 }
+
+/** Nhịp đọc mức âm cho tự dừng (ms). */
+const VAD_TICK_MS = 100
 
 /** mm:ss cho đồng hồ đếm ngược của lượt thu. */
 function mmss(ms: number): string {
@@ -38,7 +44,7 @@ function mmss(ms: number): string {
  * nền đỏ + vòng đỏ, bấm lại để dừng và gửi; trái là ô trạng thái, phải là đếm lượt. Drill có thêm
  * nút bàn phím để gõ thay nói.
  */
-export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourTurn = false, status, meta, onRecordingChange }: Props) {
+export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourTurn = false, status, meta, onRecordingChange, autoStop = false }: Props) {
   const t = useTranslations('v2.student.examSpeaking.mic')
   const [recording, setRecording] = useState(false)
   const [remainingMs, setRemainingMs] = useState(DEFAULT_MAX_RECORDING_MS)
@@ -76,6 +82,25 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourT
   useEffect(() => {
     onRecordingChangeRef.current?.(recording)
   }, [recording])
+
+  // Tự dừng khi im: đọc mức âm của chính recorder đang thu (không mở mic lần hai). Đã nói rồi im liền
+  // 2 giây → dừng-và-gửi y như bấm tay; chưa nói gì thì không bao giờ cắt.
+  useEffect(() => {
+    if (!recording || !autoStop) return
+    const handle = recorderRef.current
+    if (!handle?.analyser) return
+    const detector = createSilenceDetector()
+    const buf = new Uint8Array(handle.analyser.fftSize)
+    const id = window.setInterval(() => {
+      if (recorderRef.current !== handle) return
+      handle.analyser.getByteTimeDomainData(buf)
+      if (detector.update(peakOf(buf), performance.now())) {
+        window.clearInterval(id)
+        handle.stop()
+      }
+    }, VAD_TICK_MS)
+    return () => window.clearInterval(id)
+  }, [recording, autoStop])
 
   // Người dùng vừa cấp quyền trong cài đặt trình duyệt → lỗi "denied" hết hiệu lực, tự dọn (QS-1).
   useEffect(() => {

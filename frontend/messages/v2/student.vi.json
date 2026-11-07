@@ -1908,7 +1908,8 @@
             "recordingSub": "Bấm lại để dừng và gửi",
             "yourTurn": "Đến lượt bạn nói",
             "tap": "Bấm để nói",
-            "tapWithAction": "{action} · bấm để nói"
+            "tapWithAction": "{action} · bấm để nói",
+            "recordingAutoSub": "Im 2 giây sẽ tự gửi, hoặc bấm lại"
           },
           "action": {
             "ASK": "Đặt câu hỏi hoặc đưa đề nghị",
@@ -1976,7 +1977,9 @@
             "back": "Quay lại",
             "gradingLeave": "Bạn có thể rời trang; kết quả nằm ở mục Thi thử đã làm của màn Đề.",
             "drillDone": "Luyện xong Teil {n}"
-          }
+          },
+          "autoStop": "Tự dừng khi im",
+          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi."
         }
       },
       "mic": {
@@ -2029,7 +2032,8 @@
         "meinungHint": "Thuật lại ý kiến này cho bạn thi, rồi kể trải nghiệm và ý kiến của chính bạn.",
         "yourTopic": "Chủ đề của bạn",
         "debate": "Tranh luận",
-        "debateHint": "Nêu quan điểm, phản hồi bạn thi, rồi tóm lại: ủng hộ hay phản đối?"
+        "debateHint": "Nêu quan điểm, phản hồi bạn thi, rồi tóm lại: ủng hộ hay phản đối?",
+        "pointCovered": "đã nói tới"
       },
       "result": {
         "sheetCap": "Phiếu kết quả mô phỏng",

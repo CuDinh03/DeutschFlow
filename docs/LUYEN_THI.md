@@ -57,6 +57,12 @@ Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về 
 - Hướng dẫn lần đầu (khoá `exam.oral`): tự mở lần đầu vào Đang thi (cả luyện lẫn thi thử), 3 bước Ba phần thi → Nút
   micro → Thẻ đề; nút dấu hỏi trên thanh trên mở lại. Đồng hồ thi do server giữ nên không dừng được: giám khảo chờ tới
   khi hướng dẫn đóng (`useScreenTour().settled`), bước đầu nói rõ đồng hồ vẫn chạy (owner chốt 07/11/2026).
+- Ý trên thẻ đề tự gạch: thẻ có `prompts` (telc B1 T3, Goethe B1 T1…) thì lời gọi AI bạn thi/giám khảo của mỗi lượt trả
+  thêm `covered` (chỉ số ý đã bàn tới) — không tốn thêm lượt AI. Server chỉ cộng thêm, lưu theo Teil trong `plan_json`
+  (`SessionPlan.PartPlan.coveredPoints`, không cần migration), trả về `directive.coveredPoints`.
+- Tự dừng khi im (`lib/exam/silenceDetector.ts`): đã nói ≥ 300ms rồi im liền 2 giây thì dừng-và-gửi như bấm tay; chưa
+  nói thì không cắt; mức âm phẳng (Safari/iOS chặn AudioContext) thì không tự dừng. Công tắc dưới dòng trạng thái, mặc
+  định bật, nhớ theo máy (`localStorage df.oral.autoStop`).
 
 ### 1.2 Hiện có cho kỳ thi nào
 

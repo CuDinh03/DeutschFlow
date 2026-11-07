@@ -58,7 +58,7 @@ export function OralTaskCard({ directive, provider, level, hint, notesText, dril
             {directive.title}
           </h2>
         </div>
-        <StimulusCard stimulus={directive.stimulus} stepIndex={directive.stepIndex} candidateAction={directive.candidateAction} />
+        <StimulusCard stimulus={directive.stimulus} stepIndex={directive.stepIndex} candidateAction={directive.candidateAction} coveredPoints={directive.coveredPoints} />
         <div className="ga-ui flex gap-2 rounded-ga-touch bg-ga-yellow-soft p-3 text-ga-small text-ga-ink">
           <Lightbulb size={16} className="mt-0.5 shrink-0" aria-hidden />
           <div className="min-w-0">

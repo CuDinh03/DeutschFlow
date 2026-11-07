@@ -344,3 +344,36 @@ describe('Phòng thi nói — hướng dẫn lần đầu', () => {
     expect((await screen.findByRole('dialog')).textContent).toContain('Ba phần thi')
   })
 })
+
+describe('Phòng thi nói — ý đã nói, tự dừng khi im', () => {
+  it('ý trên thẻ đề đã nói tới thì gạch và đánh dấu', async () => {
+    const s = mockSession(3)
+    api.getSession.mockResolvedValue({
+      data: {
+        ...s,
+        directive: {
+          ...s.directive,
+          stimulus: { type: 'TASK_SITUATION', situation: 'Abschiedsfeier für Frau Klein', prompts: ['Wann?', 'Wo?', 'Essen?', 'Geschenk?'] },
+          coveredPoints: [0, 2],
+        },
+      },
+    })
+    renderRoom()
+    expect(await screen.findByTestId('stimulus-point-0')).toHaveAttribute('data-covered', 'true')
+    expect(screen.getByTestId('stimulus-point-1')).toHaveAttribute('data-covered', 'false')
+    expect(screen.getByTestId('stimulus-point-2')).toHaveAttribute('data-covered', 'true')
+    expect(screen.getByTestId('stimulus-point-0').textContent).toContain('đã nói tới')
+  })
+
+  it('công tắc tự dừng: mặc định bật, bấm thì tắt và nhớ trên máy', async () => {
+    window.localStorage.removeItem('df.oral.autoStop')
+    const user = userEvent.setup()
+    renderRoom()
+    const toggle = await screen.findByTestId('auto-stop-toggle')
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(window.localStorage.getItem('df.oral.autoStop')).toBe('0')
+    window.localStorage.removeItem('df.oral.autoStop')
+  })
+})
