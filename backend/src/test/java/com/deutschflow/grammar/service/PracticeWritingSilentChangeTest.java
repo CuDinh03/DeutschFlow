@@ -65,6 +65,66 @@ class PracticeWritingSilentChangeTest {
         assertThat(AiExamEvaluatorService.silentChangeNotes(BAI_A, BAI_A, List.of())).isEmpty();
     }
 
+    /** Cặp bài thật từ prod 07/11/2026 (bản 653a4ad): mô hình viết hoa sau lời chào và xoá một câu của học viên. */
+    static final String PROD_GOC = "Liebe Lena,\ndanke für deine E-Mail! Ich mich freue sehr, dass du Urlaub hast. Im Juli ich habe Zeit, nur am 15. Juli ich muss arbeiten. Du kannst gern kommen.\nMeine neue Stadt ist schön. Es gibt viele Parks und ein alter Markt. Am Wochenende ich gehe oft am Fluss spazieren.\nDu kannst in der Jugendherberge schlafen, sie kostet nur 25 Euro pro Nacht. Oder du schläfst bei mir auf dem Sofa.\nIch freue mich auf dich!\nLiebe Grüße\nMinh";
+    static final String PROD_SUA = "Liebe Lena,\nDanke für deine E‑Mail! Ich freue mich sehr, dass du Urlaub hast. Im Juli habe ich Zeit, nur am 15. Juli muss ich arbeiten. Du kannst gern kommen.\nMeine neue Stadt ist schön. Es gibt viele Parks und ein alter Markt. Seit meinem Umzug habe ich einen neuen Job gefunden und lerne die Nachbarschaft kennen.\nDu kannst in der Jugendherberge schlafen, sie kostet nur 25 Euro pro Nacht. Oder du schläfst bei mir auf dem Sofa.\nIch freue mich auf dich!\nLiebe Grüße\nMinh";
+
+    @Test
+    void baiThatTuProd() {
+        List<Map<String, Object>> notes = new java.util.ArrayList<>(List.of(
+                note("Ich mich freue sehr", "Ich freue mich sehr"),
+                note("Im Juli ich habe Zeit", "Im Juli habe ich Zeit"),
+                note("nur am 15. Juli ich muss arbeiten", "nur am 15. Juli muss ich arbeiten"),
+                note(null, "Seit meinem Umzug habe ich einen neuen Job gefunden und lerne die Nachbarschaft kennen.")));
+        String sua = AiExamEvaluatorService.keepLowercaseAfterSalutation(PROD_GOC, PROD_SUA);
+        // „Danke" sau „Liebe Lena," trả về chữ thường; gạch nối U+2011 coi như "-"
+        assertThat(sua).startsWith("Liebe Lena,\ndanke für deine E‑Mail!");
+        assertThat(AiExamEvaluatorService.silentChangeNotes(PROD_GOC, sua, notes)).isEmpty();
+        // câu „Am Wochenende ich gehe …" bị thay mà không ghi chú nào nói tới ⇒ bài đã sửa không tin được
+        assertThat(AiExamEvaluatorService.dropsStudentContent(PROD_GOC, sua, notes)).isTrue();
+        // lỗi liền kề không dính thành một cụm: sửa ngầm „danke" (chữ hoa) vẫn tách ra được
+        assertThat(AiExamEvaluatorService.silentChangeNotes(PROD_GOC, PROD_SUA, notes))
+                .extracting(x -> x.get("quote")).containsExactly("danke");
+    }
+
+    @Test
+    void baiDaSuaXoaCauCuaHocVienThiKhongTinDuoc() {
+        String goc = "Hallo Lena,\nja, Juli ist gut. Komm! Du kannst bei mir wohnen. Tschüss, Minh";
+        String sua = "Hallo Lena,\nja, Juli ist gut. Die Stadt gefällt mir sehr gut, sie hat viele schöne Parks und ein tolles Kulturangebot. Du kannst bei mir wohnen. Seit dem Umzug habe ich ein neues Büro. Tschüss, Minh";
+        List<Map<String, Object>> notes = List.of(
+                note(null, "Die Stadt gefällt mir sehr gut, sie hat viele schöne Parks und ein tolles Kulturangebot."),
+                note(null, "Seit dem Umzug habe ich ein neues Büro."));
+        assertThat(AiExamEvaluatorService.dropsStudentContent(goc, sua, notes)).isTrue();
+        // chèn mà giữ „Komm!" thì vẫn tin được
+        String suaGiu = sua.replace("gut. Die Stadt", "gut. Komm! Die Stadt");
+        assertThat(AiExamEvaluatorService.dropsStudentContent(goc, suaGiu, notes)).isFalse();
+    }
+
+    @Test
+    void cauSuaVietHoaSauLoiChaoThiTraChuThuong() {
+        String goc = "Hallo Lena,\nvielen dank für deine mail. Bis bald";
+        assertThat(AiExamEvaluatorService.lowercaseAfterSalutation(goc, "vielen dank für deine mail.", "Vielen Dank für deine Mail."))
+                .isEqualTo("vielen Dank für deine Mail.");
+        // không phải đầu dòng sau lời chào: giữ nguyên
+        assertThat(AiExamEvaluatorService.lowercaseAfterSalutation(goc, "dank für", "Dank für")).isEqualTo("Dank für");
+        // dòng đầu không kết thúc bằng dấu phẩy (vd. „Hallo Lena!"): viết hoa là đúng
+        assertThat(AiExamEvaluatorService.lowercaseAfterSalutation("Hallo Lena!\nvielen Dank.", "vielen", "Vielen")).isEqualTo("Vielen");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void readAnnotationsBoGhiChuChiDoiVietHoaSauLoiChao() {
+        String goc = "Hallo Lena,\nvielen Dank für deine Mail. Bis bald";
+        String raw = """
+                {"annotations": [
+                  {"quote": "vielen Dank", "correction": "Vielen Dank", "category": "RECHTSCHREIBUNG", "why_vi": "Đầu câu viết hoa."}
+                ], "musterloesung_de": "Hallo Lena,\\nVielen Dank für deine Mail. Bis bald"}""";
+        Map<String, Object> eval = new LinkedHashMap<>();
+        new AiExamEvaluatorService(null, null, null).readAnnotations(raw, goc, eval);
+        assertThat((List<Map<String, Object>>) eval.get("annotations")).isEmpty();
+        assertThat(eval.get("musterloesung")).isEqualTo(goc);
+    }
+
     @Test
     void nhanDienTiengViet() {
         assertThat(AiExamEvaluatorService.looksVietnamese("Câu trần thuật: động từ chia luôn đứng vị trí 2.")).isTrue();

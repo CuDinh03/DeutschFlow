@@ -144,7 +144,7 @@ export function relabelLeitpunkte(text: string | null | undefined, points: Retur
   if (!text) return text ?? ''
   const map = (d: string) => labelForLogical(points, Number(d)) ?? d
   return text.replace(
-    /(Leitpunkte?)\s*((?:[1-4](?!\d)(?:\s*\([^)]*\))?(?:\s*(?:,|và|und|and|&)\s*)?)+)/gi,
+    /(Leitpunkte?|Punkte?|điểm(?: yêu cầu)?)\s+((?:[1-4](?![\d,.]\d)(?![\d])(?:\s*\([^)]*\))?(?:\s*(?:,|và|und|and|&)\s*)?)+)/gi,
     (_m, word: string, list: string) =>
       `${word} ${list.replace(/\([^)]*\)|(^|[^\d])([1-4])(?!\d)/g, (x: string, pre?: string, d?: string) => (d ? (pre ?? '') + map(d) : x))}`,
   )

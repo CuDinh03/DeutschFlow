@@ -34,7 +34,7 @@ class PracticeWritingAnnotationsTest {
                   {"quote": "Ich wohne in Köln", "correction": "x", "category": "LAUNE", "kriterium": "IV", "why_vi": "Trích sai."},
                   {"quote": "", "correction": "", "why_vi": ""}
                 ],
-                "musterloesung_de": "Hallo Lena, ich gratuliere dir zur neuen Arbeit."}
+                "musterloesung_de": "Hallo Lena,\\nich gratuliere dir zur neuen Arbeit. Das ist toll. Was machst du dort genau? Bis bald, Tim"}
                 ```""";
         Map<String, Object> eval = new LinkedHashMap<>();
 
@@ -49,7 +49,7 @@ class PracticeWritingAnnotationsTest {
         // trích dẫn không có trong bài, nhóm và tiêu chí lạ: giữ ghi chú, bỏ phần không tin được
         assertThat(notes.get(2)).containsEntry("quote", null).containsEntry("category", "GRAMMATIK")
                 .containsEntry("kriterium", null);
-        assertThat(eval.get("musterloesung")).isEqualTo("Hallo Lena, ich gratuliere dir zur neuen Arbeit.");
+        assertThat(eval.get("musterloesung")).isEqualTo("Hallo Lena,\nich gratuliere dir zur neuen Arbeit. Das ist toll. Was machst du dort genau? Bis bald, Tim");
     }
 
     @Test

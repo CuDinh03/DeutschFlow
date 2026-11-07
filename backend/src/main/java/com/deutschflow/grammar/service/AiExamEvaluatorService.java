@@ -485,6 +485,8 @@ public class AiExamEvaluatorService {
                 if (why.isEmpty() && correction.isEmpty()) continue;
                 String rawQuote = n.path("quote").asText("");
                 // "Nên viết" trùng "bạn viết": mô hình báo lỗi ở chỗ đã đúng — thà bỏ một lỗi còn hơn báo sai.
+                // Đòi viết hoa từ đầu dòng sau „Hallo Lena," là sai luật thư tiếng Đức: trả chữ thường.
+                correction = lowercaseAfterSalutation(emailContent, exactPassage(emailContent, rawQuote), correction);
                 if (!rawQuote.isBlank() && sameText(rawQuote, correction)) continue;
                 Map<String, Object> a = new LinkedHashMap<>();
                 a.put("quote", exactPassage(emailContent, rawQuote));
@@ -507,9 +509,13 @@ public class AiExamEvaluatorService {
                 a.put("ruleVi", catalogRule != null ? catalogRule : (ruleReadable(modelRule) ? modelRule : ""));
                 out.add(a);
             }
-            String muster = node.path("musterloesung_de").asText("").trim();
+            String muster = keepLowercaseAfterSalutation(emailContent, node.path("musterloesung_de").asText("").trim());
             if (!muster.isEmpty() && addsNewContent(emailContent, muster, out)) {
                 log.warn("[Practice] Bỏ musterloesung: dài/khác bài gốc quá mức cho phép (thêm ý mới).");
+                muster = "";
+            }
+            if (!muster.isEmpty() && dropsStudentContent(emailContent, muster, out)) {
+                log.warn("[Practice] Bỏ musterloesung: xoá/thay một đoạn của học viên mà không có ghi chú.");
                 muster = "";
             }
             // Bài đã sửa đổi chỗ nào mà không ghi chú nào nói tới thì thêm ghi chú cho chỗ đó — người học
@@ -535,7 +541,8 @@ public class AiExamEvaluatorService {
     private static String normalizeForCompare(String s) {
         if (s == null) return "";
         String t = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFC)
-                .replaceAll("[„“”«»]", "\"").replaceAll("[‚‘’]", "'");
+                .replaceAll("[„“”«»]", "\"").replaceAll("[‚‘’]", "'")
+                .replaceAll("[\\u2010\\u2011\\u2012\\u2212]", "-").replace(' ', ' ').replace(' ', ' ');
         return t.replaceAll("\\s+", " ").trim();
     }
 
@@ -618,61 +625,123 @@ public class AiExamEvaluatorService {
     static List<Map<String, Object>> silentChangeNotes(String original, String muster,
                                                        List<Map<String, Object>> notes) {
         List<Map<String, Object>> added = new ArrayList<>();
-        if (original == null || muster == null) return added;
-        List<Tok> a = tokens(original);
-        List<Tok> b = tokens(muster);
-        int n = a.size(), m = b.size();
-        if (n == 0 || m == 0 || (long) n * m > 400_000) return added;
-        int[][] lcs = new int[n + 1][m + 1];
-        for (int i = n - 1; i >= 0; i--)
-            for (int j = m - 1; j >= 0; j--)
-                lcs[i][j] = sameText(a.get(i).text(), b.get(j).text())
-                        ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
-
-        // Đoạn đã có ghi chú: vị trí trích dẫn trong bài gốc, và chữ của mọi câu sửa.
-        List<int[]> covered = new ArrayList<>();
-        StringBuilder corrections = new StringBuilder();
-        for (Map<String, Object> note : notes) {
-            Object q = note.get("quote");
-            if (q instanceof String qs && !qs.isEmpty()) {
-                int at = original.indexOf(qs);
-                if (at >= 0) covered.add(new int[]{at, at + qs.length()});
-            }
-            corrections.append(' ').append(normalizeForCompare(String.valueOf(note.getOrDefault("correction", ""))));
-        }
-
-        // Cụm khác nhau {i0, i1, j0, j1}. Đổi chỗ từ („ich gehe" → „gehe ich") ra một cụm xoá và một cụm
-        // chèn cách nhau một từ chung, nên cụm nào cách cụm trước ≤ 2 từ chung thì gộp lại.
-        List<int[]> hunks = new ArrayList<>();
-        int i = 0, j = 0;
-        while (i < n || j < m) {
-            if (i < n && j < m && sameText(a.get(i).text(), b.get(j).text())) { i++; j++; continue; }
-            int i0 = i, j0 = j;
-            while ((i < n || j < m) && !(i < n && j < m && sameText(a.get(i).text(), b.get(j).text()))) {
-                if (j >= m || (i < n && lcs[i + 1][j] >= lcs[i][j + 1])) i++; else j++;
-            }
-            int[] h = {i0, i, j0, j};
-            int[] prev = hunks.isEmpty() ? null : hunks.get(hunks.size() - 1);
-            if (prev != null && i0 - prev[1] <= 2 && j0 - prev[3] == i0 - prev[1]) {
-                prev[1] = i;
-                prev[3] = j;
-            } else {
-                hunks.add(h);
-            }
-        }
-        for (int[] h : hunks) {
+        Diff d = Diff.of(original, muster, notes);
+        if (d == null) return added;
+        for (int[] h : d.hunks()) {
             int i0 = h[0], i1 = h[1], j0 = h[2], j1 = h[3];
             int origLen = i1 - i0, musLen = j1 - j0;
             if (origLen == 0 || musLen == 0 || origLen > 6 || musLen > 8) continue;
-            int s = a.get(i0).start(), e = a.get(i1 - 1).end();
-            boolean overlaps = covered.stream().anyMatch(c -> c[0] < e && s < c[1]);
-            String fixed = String.join(" ", b.subList(j0, j1).stream().map(Tok::text).toList());
-            if (overlaps || corrections.toString().contains(normalizeForCompare(fixed))) continue;
-            String quote = original.substring(s, e);
+            int s = d.a().get(i0).start(), e = d.a().get(i1 - 1).end();
+            String fixed = String.join(" ", d.b().subList(j0, j1).stream().map(Tok::text).toList());
+            if (d.covered(s, e) || d.corrections().contains(normalizeForCompare(fixed))) continue;
             if (added.size() >= MAX_SILENT_CHANGE_NOTES) break;
-            added.add(silentNote(quote, fixed));
+            added.add(silentNote(original.substring(s, e), fixed));
         }
         return added;
+    }
+
+    /**
+     * Bài đã sửa xoá hoặc thay hẳn một đoạn của học viên mà không ghi chú nào nói tới, và đoạn đó cũng
+     * không hiện được thành ghi chú "đã sửa" (bị xoá hẳn, hoặc dài quá) — gặp 07/11/2026: câu
+     * „Am Wochenende …" và „Komm!" bị thay bằng câu chèn cho ý thiếu. Bản viết lại đó không tin được.
+     */
+    static boolean dropsStudentContent(String original, String muster, List<Map<String, Object>> notes) {
+        Diff d = Diff.of(original, muster, notes);
+        if (d == null) return false;
+        for (int[] h : d.hunks()) {
+            int origLen = h[1] - h[0], musLen = h[3] - h[2];
+            if (origLen == 0) continue;                       // chỉ chèn thêm: không mất gì của học viên
+            boolean shownAsNote = origLen <= 6 && musLen >= 1 && musLen <= 8;
+            if (shownAsNote) continue;                        // silentChangeNotes sẽ hiện chỗ này
+            int s = d.a().get(h[0]).start(), e = d.a().get(h[1] - 1).end();
+            if (!d.covered(s, e)) return true;                // bị xoá/thay hẳn mà không ai nói tới
+        }
+        return false;
+    }
+
+    /**
+     * So từng từ giữa bài gốc và bài đã sửa (LCS). Cụm khác nhau {i0, i1, j0, j1}. Đổi chỗ từ („ich gehe"
+     * → „gehe ich") ra một cụm chỉ-xoá và một cụm chỉ-chèn cách nhau ≤ 2 từ chung, nên CHỈ cặp đó được gộp —
+     * gộp mọi cụm gần nhau thì các lỗi liền kề dính thành một cụm dài và bị bỏ qua.
+     */
+    private record Diff(List<Tok> a, List<Tok> b, List<int[]> hunks, List<int[]> coveredRanges, String corrections) {
+        static Diff of(String original, String muster, List<Map<String, Object>> notes) {
+            if (original == null || muster == null) return null;
+            List<Tok> a = tokens(original);
+            List<Tok> b = tokens(muster);
+            int n = a.size(), m = b.size();
+            if (n == 0 || m == 0 || (long) n * m > 400_000) return null;
+            int[][] lcs = new int[n + 1][m + 1];
+            for (int i = n - 1; i >= 0; i--)
+                for (int j = m - 1; j >= 0; j--)
+                    lcs[i][j] = sameText(a.get(i).text(), b.get(j).text())
+                            ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+            List<int[]> hunks = new ArrayList<>();
+            int i = 0, j = 0;
+            while (i < n || j < m) {
+                if (i < n && j < m && sameText(a.get(i).text(), b.get(j).text())) { i++; j++; continue; }
+                int i0 = i, j0 = j;
+                while ((i < n || j < m) && !(i < n && j < m && sameText(a.get(i).text(), b.get(j).text()))) {
+                    if (j >= m || (i < n && lcs[i + 1][j] >= lcs[i][j + 1])) i++; else j++;
+                }
+                int[] prev = hunks.isEmpty() ? null : hunks.get(hunks.size() - 1);
+                boolean swap = prev != null && i0 - prev[1] <= 2 && j0 - prev[3] == i0 - prev[1]
+                        && ((prev[3] == prev[2] && i == i0) || (prev[1] == prev[0] && j == j0));
+                if (swap) {
+                    prev[1] = i;
+                    prev[3] = j;
+                } else {
+                    hunks.add(new int[]{i0, i, j0, j});
+                }
+            }
+            List<int[]> covered = new ArrayList<>();
+            StringBuilder corrections = new StringBuilder();
+            for (Map<String, Object> note : notes) {
+                Object q = note.get("quote");
+                if (q instanceof String qs && !qs.isEmpty()) {
+                    int at = original.indexOf(qs);
+                    if (at >= 0) covered.add(new int[]{at, at + qs.length()});
+                }
+                corrections.append(' ').append(normalizeForCompare(String.valueOf(note.getOrDefault("correction", ""))));
+            }
+            return new Diff(a, b, hunks, covered, corrections.toString());
+        }
+
+        boolean covered(int s, int e) {
+            return coveredRanges.stream().anyMatch(c -> c[0] < e && s < c[1]);
+        }
+    }
+
+    /**
+     * Luật thư tiếng Đức: sau lời chào kết thúc bằng dấu phẩy („Hallo Lena,") dòng sau bắt đầu bằng chữ
+     * THƯỜNG. Mô hình hay viết hoa chữ đó (07/11/2026) — trả lại chữ thường trong bài đã sửa.
+     */
+    static String keepLowercaseAfterSalutation(String original, String muster) {
+        if (original == null || muster == null) return muster;
+        var o = java.util.regex.Pattern.compile("\\A\\s*[^\\n]*,[ \\t]*\\n\\s*(\\p{Ll}\\p{L}*)").matcher(original);
+        if (!o.find()) return muster;
+        String word = o.group(1);
+        String upper = Character.toUpperCase(word.charAt(0)) + word.substring(1);
+        var mm = java.util.regex.Pattern.compile("\\A(\\s*[^\\n]*,[ \\t]*\\n\\s*)" + java.util.regex.Pattern.quote(upper) + "(?!\\p{L})").matcher(muster);
+        return mm.find() ? mm.group(1) + word + muster.substring(mm.end()) : muster;
+    }
+
+    /**
+     * Câu sửa của một ghi chú trỏ vào từ đầu dòng ngay sau lời chào có dấu phẩy: nếu mô hình viết hoa chữ
+     * đầu (sai luật thư tiếng Đức) thì trả về chữ thường. Ghi chú chỉ đòi viết hoa sẽ thành "nên viết"
+     * trùng "bạn viết" và bị bỏ ở bước sau.
+     */
+    static String lowercaseAfterSalutation(String original, String quote, String correction) {
+        if (original == null || quote == null || correction == null || quote.isBlank() || correction.isBlank()) {
+            return correction;
+        }
+        var o = java.util.regex.Pattern.compile("\\A\\s*[^\\n]*,[ \\t]*\\n\\s*").matcher(original);
+        if (!o.find() || !original.startsWith(quote, o.end())) return correction;
+        char q0 = quote.charAt(0), c0 = correction.charAt(0);
+        if (Character.isLowerCase(q0) && c0 == Character.toUpperCase(q0)) {
+            return q0 + correction.substring(1);
+        }
+        return correction;
     }
 
     private static Map<String, Object> silentNote(String quote, String fixed) {
