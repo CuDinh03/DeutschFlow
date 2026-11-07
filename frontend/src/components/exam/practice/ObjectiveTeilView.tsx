@@ -447,21 +447,21 @@ function QuestionDots({
   flags: Set<string>
   onPick: (id: string) => void
 }) {
-  const t = useTranslations('v2.student.practice.frame')
+  const tf = useTranslations('v2.student.practice.frame')
   const checked = byId.size > 0
   const done = items.filter((it) => answers[it.id]).length
   return (
-    <div role="group" aria-label={t('dotsLabel')} className="ga-autoscroll -mx-1 flex min-w-0 flex-1 basis-full items-center gap-1.5 overflow-x-auto px-1 py-1 sm:basis-auto sm:flex-wrap sm:overflow-visible">
+    <div role="group" aria-label={tf('dotsLabel')} className="ga-autoscroll -mx-1 flex min-w-0 flex-1 basis-full items-center gap-1.5 overflow-x-auto px-1 py-1 sm:basis-auto sm:flex-wrap sm:overflow-visible">
       {items.map((it, i) => {
         const res = byId.get(it.id)
         const label = itemLabel(it)
-        const state = res ? (res.isCorrect ? t('dotRight') : t('dotWrong')) : answers[it.id] ? t('dotDone') : t('dotOpen')
+        const state = res ? (res.isCorrect ? tf('dotRight') : tf('dotWrong')) : answers[it.id] ? tf('dotDone') : tf('dotOpen')
         return (
           <button
             key={it.id}
             type="button"
             onClick={() => onPick(it.id)}
-            aria-label={`${t('dotItem', { n: label })}, ${state}${flags.has(it.id) ? `, ${t('dotFlagged')}` : ''}`}
+            aria-label={`${tf('dotItem', { n: label })}, ${state}${flags.has(it.id) ? `, ${tf('dotFlagged')}` : ''}`}
             aria-current={current === it.id}
             style={res ? { transitionDelay: `${i * 60}ms` } : undefined}
             className={cn(
@@ -480,7 +480,7 @@ function QuestionDots({
           </button>
         )
       })}
-      {!checked && <span className="ga-ui ml-1 shrink-0 text-ga-caption tabular-nums text-ga-muted">{t('dotsCount', { done, total: items.length })}</span>}
+      {!checked && <span className="ga-ui ml-1 shrink-0 text-ga-caption tabular-nums text-ga-muted">{tf('dotsCount', { done, total: items.length })}</span>}
     </div>
   )
 }
@@ -843,10 +843,10 @@ function GapOverview({
   active: string | null
   onOpen: (id: string) => void
 }) {
-  const t = useTranslations('v2.student.practice.frame')
+  const tf = useTranslations('v2.student.practice.frame')
   return (
     <div className="mt-5">
-      <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{t('gapsOverview')}</p>
+      <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{tf('gapsOverview')}</p>
       <div className="grid grid-cols-5 gap-1.5">
         {items.map((it) => {
           const a = answers[it.id]
