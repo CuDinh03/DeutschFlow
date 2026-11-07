@@ -1,0 +1,128 @@
+name: Deploy production
+
+# Deploy lên máy chủ tự host deutschflow-srv từ bất cứ đâu (điện thoại, máy không có khoá SSH).
+# Đường đi: runner GitHub → cloudflared access ssh (Cloudflare Tunnel + Access service token)
+#   → user deploy, khoá bị ép chạy /usr/local/sbin/deutschflow-remote-deploy (deploy/self-host/remote-deploy-guard.sh)
+#   → deploy/self-host/deploy-{backend,frontend}-vm.sh từ main.
+#
+# Không tự chạy khi merge (luật §0.2 của docs/QUY_TRINH_PHAT_HANH.md): chỉ workflow_dispatch, chỉ từ main,
+# và mỗi lần chạy phải được owner duyệt ở environment `production` (required reviewer).
+# Repo PUBLIC ⇒ log của workflow ai cũng đọc được: không in secret, không bật `set -x`.
+# Cài đặt một lần (máy chủ, Cloudflare, GitHub): §5.0 của tài liệu trên.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Phần cần chạy (both = backend xong mới tới frontend)'
+        type: choice
+        options: [both, backend, frontend]
+        default: both
+      mode:
+        description: 'deploy = lên main mới nhất · check = chỉ kiểm kết nối + trạng thái · rollback = quay về :prev (chọn backend hoặc frontend)'
+        type: choice
+        options: [deploy, check, rollback]
+        default: deploy
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARED_VERSION: 2026.10.1
+  CLOUDFLARED_SHA256: 200573c872174ab449965655febadef8edfbb144ebcaa391b700b2dedbadb3cd # cloudflared-linux-amd64.deb, theo release notes
+
+jobs:
+  deploy:
+    name: 🚀 ${{ inputs.mode }} ${{ inputs.target }}
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 60
+    steps:
+      - name: Kiểm tham số
+        env:
+          TARGET: ${{ inputs.target }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$MODE" = rollback ] && [ "$TARGET" = both ]; then
+            echo "::error::Rollback từng phần một — chọn backend hoặc frontend (§10)"
+            exit 1
+          fi
+
+      - name: Cài cloudflared ${{ env.CLOUDFLARED_VERSION }}
+        run: |
+          curl -fsSLo /tmp/cloudflared.deb \
+            "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64.deb"
+          echo "${CLOUDFLARED_SHA256}  /tmp/cloudflared.deb" | sha256sum -c -
+          sudo dpkg -i /tmp/cloudflared.deb >/dev/null
+          cloudflared --version
+
+      - name: Cấu hình SSH qua Cloudflare Access
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          SSH_HOSTNAME: ${{ secrets.DEPLOY_SSH_HOSTNAME }}
+        run: |
+          for v in SSH_KEY KNOWN_HOSTS SSH_HOSTNAME; do
+            [ -n "${!v}" ] || { echo "::error::Thiếu secret cho $v trong environment production (§5.0)"; exit 1; }
+          done
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # HostKeyAlias: known_hosts ghi theo tên deutschflow-srv, không phụ thuộc hostname của Access.
+          cat > ~/.ssh/config <<EOF
+          Host deutschflow-srv
+            HostName ${SSH_HOSTNAME}
+            HostKeyAlias deutschflow-srv
+            User deploy
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ProxyCommand cloudflared access ssh --hostname %h
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+          EOF
+
+      - name: ${{ inputs.mode }} ${{ inputs.target }} trên máy chủ
+        env:
+          # cloudflared đọc service token từ hai biến này (khỏi lộ trên dòng lệnh).
+          TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          TARGET: ${{ inputs.target }}
+          MODE: ${{ inputs.mode }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$TARGET" = both ]; then parts=(backend frontend); else parts=("$TARGET"); fi
+          for part in "${parts[@]}"; do
+            echo "::group::$MODE $part @ ${SHA:0:8}"
+            ssh deutschflow-srv "$part $MODE $SHA"
+            echo "::endgroup::"
+          done
+          echo "### $MODE $TARGET @ \`${SHA:0:8}\` — xong trên máy chủ" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Kiểm sau deploy (§9)
+        if: inputs.mode != 'check'
+        run: |
+          fail=0
+          health=$(curl -s -m 20 https://api.mydeutschflow.com/actuator/health || true)
+          if [[ "$health" == *'"status":"UP"'* ]]; then echo "API health: UP"
+          else echo "::error::API health không UP: ${health:0:200}"; fail=1; fi
+          for path in / /en/ /v2/login/; do
+            code=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "https://mydeutschflow.com$path" || true)
+            echo "mydeutschflow.com$path → $code"
+            [ "$code" = 200 ] || { echo "::error::mydeutschflow.com$path trả $code"; fail=1; }
+          done
+          {
+            echo "| Kiểm | Kết quả |"
+            echo "|---|---|"
+            echo "| API health | ${health:0:60} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$fail"
+
+      - name: Dọn khoá
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
