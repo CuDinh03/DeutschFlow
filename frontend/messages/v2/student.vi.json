@@ -2797,7 +2797,12 @@
       "suggestReview": "Ôn {n} câu sai · {name}",
       "suggestMinutes": "{n} phút",
       "suggestMock": "Thi thử {day}",
-      "suggestOral": "Thi nói lần đầu"
+      "suggestOral": "Thi nói lần đầu",
+      "diagTitle": "Làm bài chẩn đoán",
+      "diagResumeTitle": "Bài chẩn đoán đang làm dở",
+      "diagLead": "Khoảng 35 phút. Xong là có lịch ôn theo từng ngày.",
+      "diagStart": "Bắt đầu",
+      "diagResume": "Làm tiếp"
     },
     "fullExam": {
       "badLink": "Link thi thử không hợp lệ.",
@@ -3032,6 +3037,68 @@
           "t": "Ba tiêu chí",
           "p": "Mỗi tiêu chí có bậc A–D và cách lên bậc."
         }
+      }
+    },
+    "diagnostic": {
+      "loading": "Đang tải…",
+      "formTitle": "Khoảng {n} phút để biết nên luyện gì trước",
+      "formLead": "Mỗi kỹ năng một phần ngắn. Xong là có lịch ôn theo từng ngày.",
+      "partsLabel": "Các phần",
+      "examLabel": "Kỳ thi",
+      "examHint": "Hiện có telc Deutsch B1. Mục tiêu học sẽ đặt là kỳ thi này.",
+      "dateLabel": "Ngày thi",
+      "dateBad": "Ngày thi phải sau hôm nay.",
+      "daysLeft": "Còn {n} ngày",
+      "dateEmpty": "Chọn ngày thi để xếp lịch ôn.",
+      "minutesLabel": "Mỗi ngày ôn được",
+      "minutes": "{n} phút",
+      "start": "Bắt đầu",
+      "skip": "Bỏ qua",
+      "startError": "Không bắt đầu được bài chẩn đoán.",
+      "leave": "Rời bài chẩn đoán (phần đã làm được giữ)",
+      "runSubtitle": "Bài chẩn đoán · phần {n}/{total}",
+      "progressLabel": "Phần {n}/{total}",
+      "nextPart": "Phần tiếp",
+      "seeResult": "Xem kết quả",
+      "finishing": "Đang tổng hợp kết quả…",
+      "selfHint": "Chọn mức gần đúng nhất. Phần này là tự đánh giá, không chấm điểm.",
+      "self": {
+        "SCHREIBEN": {
+          "q": "Viết một lá thư khoảng 80 từ trả lời bạn, đủ bốn ý — bạn làm được đến đâu?",
+          "l1": "Chưa viết được",
+          "l2": "Viết được nhưng còn nhiều lỗi",
+          "l3": "Viết được, ít lỗi",
+          "l4": "Viết tốt, đủ ý"
+        },
+        "SPRECHEN": {
+          "q": "Nói chuyện với giám khảo về một chủ đề quen thuộc khoảng 3 phút — bạn làm được đến đâu?",
+          "l1": "Chưa nói được",
+          "l2": "Nói được vài câu",
+          "l3": "Nói được, đôi khi ngắt quãng",
+          "l4": "Nói trôi chảy"
+        }
+      },
+      "resultTitle": "{skill} cần luyện trước",
+      "resultTitlePlain": "Kết quả bài chẩn đoán",
+      "selfTag": "Tự đánh giá",
+      "planReady": "Lịch ôn {n} tuần đã sẵn sàng",
+      "planReadyPlain": "Lịch ôn đã sẵn sàng",
+      "planMeta": "{m} phút mỗi ngày · {k} lần thi thử",
+      "seeToday": "Xem hôm nay",
+      "retake": "Làm lại bài chẩn đoán",
+      "part": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "partShort": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Bausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
       }
     }
   }

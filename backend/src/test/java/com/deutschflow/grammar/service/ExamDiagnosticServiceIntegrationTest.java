@@ -1,0 +1,107 @@
+package com.deutschflow.grammar.service;
+
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.common.quota.QuotaSnapshot;
+import com.deutschflow.grammar.dto.ExamPlanDto;
+import com.deutschflow.grammar.dto.PracticeDtos;
+import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
+import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
+
+/**
+ * Bài chẩn đoán (V365) trên PostgreSQL thật: bắt đầu ghi hồ sơ + chọn đề seed, tự đánh giá ghép JSONB,
+ * chốt kết quả, và lộ trình đếm ngược xếp Teil yếu nhất của bài chẩn đoán lên đầu tuần 1.
+ * Đường luyện đề được giả lập (chấm từng Teil đã có test riêng).
+ */
+@SpringBootTest
+@DisplayName("Bài chẩn đoán (ExamDiagnosticService) trên Postgres")
+class ExamDiagnosticServiceIntegrationTest extends AbstractPostgresIntegrationTest {
+
+    private static final long UID = 990_365L;
+
+    @MockBean private QuotaService quotaService;
+    @MockBean private MockExamPracticeService practice;
+
+    @Autowired private ExamDiagnosticService service;
+    @Autowired private ExamPlanService planService;
+    @Autowired private UserRepository users;
+    @Autowired private JdbcTemplate jdbc;
+
+    private User user;
+
+    @BeforeEach
+    void setUp() {
+        jdbc.update("""
+            INSERT INTO users (id, email, password_hash, display_name, role, created_at)
+            VALUES (?, ?, 'x', 'Test chẩn đoán', 'STUDENT', NOW())
+            ON CONFLICT (id) DO NOTHING
+            """, UID, "diag-" + UID + "@test.local");
+        jdbc.update("""
+            INSERT INTO user_learning_profiles
+              (user_id, goal_type, target_level, current_level, sessions_per_week, minutes_per_session, created_at, updated_at)
+            VALUES (?, 'CERT', 'A2', 'A2', 5, 40, NOW(), NOW())
+            """, UID);
+        user = users.findById(UID).orElseThrow();
+        when(quotaService.getSnapshotReadOnly(anyLong(), any()))
+                .thenReturn(new QuotaSnapshot("PRO", false, null, null, 0L, 0L, 0L, 0L, 0L, null, null));
+    }
+
+    @AfterEach
+    void cleanUp() {
+        jdbc.update("DELETE FROM exam_diagnostics WHERE user_id = ?", UID);
+        jdbc.update("DELETE FROM exam_plan_state WHERE user_id = ?", UID);
+        jdbc.update("DELETE FROM user_learning_profiles WHERE user_id = ?", UID);
+        jdbc.update("DELETE FROM users WHERE id = ?", UID);
+    }
+
+    private static PracticeDtos.Overview overview(long id, double lesen, double bausteine, double hoeren) {
+        return new PracticeDtos.Overview(id, "Đề", "B1", "TELC", "{}", List.of(
+                teil("LESEN-1", 25, lesen), teil("SPRACHBAUSTEINE-1", 15, bausteine), teil("HOEREN-1", 25, hoeren)));
+    }
+
+    private static PracticeDtos.Teil teil(String key, double max, double score) {
+        PracticeDtos.Progress p = score < 0 ? null : new PracticeDtos.Progress(Map.of(), true, score, max, 0, null, null);
+        return new PracticeDtos.Teil(key, key.substring(0, key.indexOf('-')), 1, null, 5, max, 10, p);
+    }
+
+    @Test
+    @DisplayName("Bắt đầu → tự đánh giá → chốt; lộ trình lấy Lesen (yếu nhất) làm trọng tâm tuần 1")
+    void fullFlow() {
+        when(practice.overview(any(), anyLong())).thenReturn(overview(1, -1, -1, -1));
+        ExamDiagnosticService.View started = service.start(user, LocalDate.now().plusWeeks(4), 30);
+        assertThat(started.status()).isEqualTo(ExamDiagnosticService.STATUS_IN_PROGRESS);
+        Map<String, Object> profile = jdbc.queryForMap(
+                "SELECT exam_type, target_level, daily_goal_minutes, target_date FROM user_learning_profiles WHERE user_id = ?", UID);
+        assertThat(profile).containsEntry("exam_type", "TELC").containsEntry("target_level", "B1").containsEntry("daily_goal_minutes", 30);
+
+        service.saveSelf(user, "SCHREIBEN", 4);
+        assertThat(service.saveSelf(user, "SPRECHEN", 4).self()).containsEntry("SCHREIBEN", 4).containsEntry("SPRECHEN", 4);
+
+        when(practice.overview(any(), anyLong())).thenReturn(overview(started.examId(), 5, 13, 22));
+        ExamDiagnosticService.View done = service.finish(user);
+        assertThat(done.status()).isEqualTo(ExamDiagnosticService.STATUS_DONE);
+        // (5 + 13) / 40 = 45%
+        assertThat(done.skills()).containsEntry("LESEN", 45).containsEntry("HOEREN", 88).containsEntry("SCHREIBEN", 80);
+
+        ExamPlanDto plan = planService.planFor(UID, LocalDate.now());
+        assertThat(plan.status()).isEqualTo(ExamPlanService.STATUS_ACTIVE);
+        assertThat(plan.weeks().get(0).focus()).extracting(ExamPlanDto.FocusDto::section).contains("LESEN");
+    }
+}

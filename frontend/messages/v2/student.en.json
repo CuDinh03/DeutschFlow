@@ -2797,7 +2797,12 @@
       "suggestReview": "Review {n} wrong · {name}",
       "suggestMinutes": "{n} min",
       "suggestMock": "Mock exam {day}",
-      "suggestOral": "First oral exam"
+      "suggestOral": "First oral exam",
+      "diagTitle": "Take the diagnostic test",
+      "diagResumeTitle": "Diagnostic test in progress",
+      "diagLead": "About 35 minutes. Then you get a day-by-day study plan.",
+      "diagStart": "Start",
+      "diagResume": "Continue"
     },
     "fullExam": {
       "badLink": "Invalid mock exam link.",
@@ -3032,6 +3037,68 @@
           "t": "Three criteria",
           "p": "Each criterion has bands A–D and how to move up."
         }
+      }
+    },
+    "diagnostic": {
+      "loading": "Loading…",
+      "formTitle": "About {n} minutes to know what to practise first",
+      "formLead": "One short part per skill. Then you get a day-by-day study plan.",
+      "partsLabel": "Parts",
+      "examLabel": "Exam",
+      "examHint": "telc Deutsch B1 is available. Your learning goal will be set to this exam.",
+      "dateLabel": "Exam date",
+      "dateBad": "The exam date must be after today.",
+      "daysLeft": "{n} days to go",
+      "dateEmpty": "Pick your exam date to build the plan.",
+      "minutesLabel": "Time per day",
+      "minutes": "{n} minutes",
+      "start": "Start",
+      "skip": "Skip",
+      "startError": "Could not start the diagnostic test.",
+      "leave": "Leave the diagnostic test (finished parts are kept)",
+      "runSubtitle": "Diagnostic test · part {n}/{total}",
+      "progressLabel": "Part {n}/{total}",
+      "nextPart": "Next part",
+      "seeResult": "See result",
+      "finishing": "Putting your result together…",
+      "selfHint": "Pick the closest level. This part is a self-assessment, not scored.",
+      "self": {
+        "SCHREIBEN": {
+          "q": "Writing an 80-word reply to a friend that covers four points — how well can you do it?",
+          "l1": "I can't yet",
+          "l2": "I can, with many mistakes",
+          "l3": "I can, with few mistakes",
+          "l4": "Well, covering every point"
+        },
+        "SPRECHEN": {
+          "q": "Talking with an examiner about a familiar topic for about 3 minutes — how well can you do it?",
+          "l1": "I can't yet",
+          "l2": "A few sentences",
+          "l3": "I can, with some pauses",
+          "l4": "Fluently"
+        }
+      },
+      "resultTitle": "Practise {skill} first",
+      "resultTitlePlain": "Diagnostic test result",
+      "selfTag": "Self-assessed",
+      "planReady": "Your {n}-week study plan is ready",
+      "planReadyPlain": "Your study plan is ready",
+      "planMeta": "{m} minutes a day · {k} mock exams",
+      "seeToday": "See today",
+      "retake": "Retake the diagnostic test",
+      "part": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "partShort": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Bausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
       }
     }
   }

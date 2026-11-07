@@ -86,6 +86,15 @@ const GERMAN_ON_PURPOSE: readonly string[] = [
   'v2.student.fullExam.start.part.HOEREN',
   'v2.student.fullExam.start.part.SCHREIBEN',
   'v2.student.fullExam.start.part.SPRECHEN',
+  // Đợt (f): tên phần trên bài chẩn đoán (hàng nhãn, thanh 5 đoạn) — cùng thuật ngữ thi.
+  'v2.student.diagnostic.part.LESEN',
+  'v2.student.diagnostic.part.HOEREN',
+  'v2.student.diagnostic.part.SCHREIBEN',
+  'v2.student.diagnostic.part.SPRECHEN',
+  'v2.student.diagnostic.partShort.LESEN',
+  'v2.student.diagnostic.partShort.HOEREN',
+  'v2.student.diagnostic.partShort.SCHREIBEN',
+  'v2.student.diagnostic.partShort.SPRECHEN',
 
   // (c) nhân vật người Đức (bản vi giữ nguyên nghề/nơi chốn)
   'v2.student.personas.emma.tag',

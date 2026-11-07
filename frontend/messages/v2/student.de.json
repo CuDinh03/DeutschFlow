@@ -2797,7 +2797,12 @@
       "suggestReview": "{n} Fehler wiederholen · {name}",
       "suggestMinutes": "{n} Min.",
       "suggestMock": "Modellprüfung {day}",
-      "suggestOral": "Erste mündliche Prüfung"
+      "suggestOral": "Erste mündliche Prüfung",
+      "diagTitle": "Einstufungstest machen",
+      "diagResumeTitle": "Einstufungstest begonnen",
+      "diagLead": "Etwa 35 Minuten. Danach gibt es einen Lernplan Tag für Tag.",
+      "diagStart": "Starten",
+      "diagResume": "Fortsetzen"
     },
     "fullExam": {
       "badLink": "Ungültiger Link zur Modellprüfung.",
@@ -3032,6 +3037,68 @@
           "t": "Drei Kriterien",
           "p": "Jedes Kriterium hat die Stufen A–D und den Weg nach oben."
         }
+      }
+    },
+    "diagnostic": {
+      "loading": "Wird geladen…",
+      "formTitle": "Etwa {n} Minuten, um zu wissen, was Sie zuerst üben",
+      "formLead": "Ein kurzer Teil pro Fertigkeit. Danach gibt es einen Lernplan Tag für Tag.",
+      "partsLabel": "Teile",
+      "examLabel": "Prüfung",
+      "examHint": "Verfügbar ist telc Deutsch B1. Ihr Lernziel wird auf diese Prüfung gesetzt.",
+      "dateLabel": "Prüfungstermin",
+      "dateBad": "Der Termin muss nach heute liegen.",
+      "daysLeft": "Noch {n} Tage",
+      "dateEmpty": "Wählen Sie den Termin für Ihren Lernplan.",
+      "minutesLabel": "Zeit pro Tag",
+      "minutes": "{n} Minuten",
+      "start": "Starten",
+      "skip": "Überspringen",
+      "startError": "Der Einstufungstest konnte nicht starten.",
+      "leave": "Einstufungstest verlassen (erledigte Teile bleiben)",
+      "runSubtitle": "Einstufungstest · Teil {n}/{total}",
+      "progressLabel": "Teil {n}/{total}",
+      "nextPart": "Nächster Teil",
+      "seeResult": "Ergebnis ansehen",
+      "finishing": "Ergebnis wird zusammengestellt…",
+      "selfHint": "Wählen Sie die passendste Stufe. Dieser Teil ist eine Selbsteinschätzung ohne Punkte.",
+      "self": {
+        "SCHREIBEN": {
+          "q": "Einen Brief mit etwa 80 Wörtern an eine Freundin schreiben, alle vier Punkte — wie gut gelingt Ihnen das?",
+          "l1": "Noch nicht",
+          "l2": "Mit vielen Fehlern",
+          "l3": "Mit wenigen Fehlern",
+          "l4": "Gut, alle Punkte"
+        },
+        "SPRECHEN": {
+          "q": "Etwa 3 Minuten mit einer Prüferin über ein vertrautes Thema sprechen — wie gut gelingt Ihnen das?",
+          "l1": "Noch nicht",
+          "l2": "Ein paar Sätze",
+          "l3": "Mit einigen Pausen",
+          "l4": "Flüssig"
+        }
+      },
+      "resultTitle": "Zuerst {skill} üben",
+      "resultTitlePlain": "Ergebnis des Einstufungstests",
+      "selfTag": "Selbsteinschätzung",
+      "planReady": "Ihr Lernplan für {n} Wochen ist bereit",
+      "planReadyPlain": "Ihr Lernplan ist bereit",
+      "planMeta": "{m} Minuten pro Tag · {k} Modellprüfungen",
+      "seeToday": "Zu heute",
+      "retake": "Einstufungstest wiederholen",
+      "part": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "partShort": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Bausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
       }
     }
   }
