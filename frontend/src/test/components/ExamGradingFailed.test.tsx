@@ -70,7 +70,7 @@ function session(state: string, extra: Record<string, unknown> = {}) {
 function renderRoom() {
   return render(
     <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi, ...chromeVi } }}>
-      <ExamRoom sessionId={601} catalogHref="/v2/student/speaking/exam" />
+      <ExamRoom sessionId={601} returnHref="/v2/student/exam" />
     </NextIntlClientProvider>,
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { oralEntryHref } from '@/lib/exam/oralRoutes'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { Check, Clock, X } from 'lucide-react'
@@ -90,7 +91,7 @@ export function ExamGatePanel({ gates }: { gates: ExamGate[] }) {
           làm gì tiếp là một ngõ cụt. */}
       {conThieu.some((g) => g.id === 'oral') && (
         <Link
-          href="/v2/student/speaking/exam"
+          href={oralEntryHref()}
           className="ga-ui mt-4 inline-flex min-h-11 items-center rounded-ga bg-ga-accent px-4 py-2 text-ga-small font-bold text-ga-accent-ink transition-opacity hover:opacity-90"
         >
           {t('gateGoToSpeaking')}

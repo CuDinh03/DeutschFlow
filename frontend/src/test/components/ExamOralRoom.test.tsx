@@ -109,7 +109,7 @@ function mockSession(teil: number, mode: 'MOCK' | 'DRILL' = 'MOCK') {
 function renderRoom() {
   return render(
     <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi, ...chromeVi } }}>
-      <ExamRoom sessionId={701} catalogHref="/v2/student/speaking/exam" />
+      <ExamRoom sessionId={701} returnHref="/v2/student/exam" />
     </NextIntlClientProvider>,
   )
 }
@@ -199,5 +199,77 @@ describe('Phòng thi nói — màn Đang thi', () => {
     await user.click(screen.getByTestId('finish-session'))
     expect(await screen.findByText('Kết thúc buổi luyện?')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Luyện tiếp' })).toBeInTheDocument()
+  })
+})
+
+function prepSession(chosenIndex: number | null) {
+  return {
+    ...mockSession(1),
+    state: 'PREP',
+    directive: null,
+    partDeadlineAt: null,
+    prepDeadlineAt: new Date(NOW.getTime() + 600_000).toISOString(),
+    prepSec: 1200,
+    notesText: 'Freitag?',
+    prepMaterials: [
+      {
+        teilNo: 2,
+        title: 'Über ein Thema sprechen',
+        archetype: 'DEBATE',
+        choiceRequired: true,
+        chosenIndex,
+        stimuli: [
+          { type: 'PROMPT_CARD', thema: 'Handy in der Schule', prompts: ['Vorteile?'] },
+          { type: 'PROMPT_CARD', thema: 'Homeoffice', prompts: ['Nachteile?'] },
+        ],
+      },
+    ],
+  }
+}
+
+describe('Phòng thi nói — màn Chuẩn bị', () => {
+  it('toàn màn hình, đề bên trái + thứ tự thi bên phải; phải chọn chủ đề rồi mới vào thi', async () => {
+    api.getSession.mockResolvedValue({ data: prepSession(null) })
+    api.choose.mockResolvedValue({ data: prepSession(1) })
+    api.advance.mockResolvedValue({ data: mockSession(1) })
+    const user = userEvent.setup()
+    renderRoom()
+
+    expect(await screen.findByTestId('oral-prep-room')).toBeInTheDocument()
+    expect(document.body.getAttribute('data-immersive-mode')).toBe('on')
+    expect(screen.getByRole('heading', { level: 1, name: 'Chuẩn bị' })).toBeInTheDocument()
+    const order = screen.getByTestId('prep-order')
+    expect(order.textContent).toContain('Kontakt aufnehmen')
+    expect(order.textContent).toContain('6 phút')
+    expect(screen.getByTestId('prep-notes')).toHaveValue('Freitag?')
+
+    expect(screen.getByTestId('prep-enter')).toBeDisabled()
+    await user.click(screen.getByTestId('choose-2-1'))
+    await waitFor(() => expect(api.choose).toHaveBeenCalledWith(701, 2, 1))
+    await waitFor(() => expect(screen.getByTestId('prep-enter')).toBeEnabled())
+    await user.click(screen.getByTestId('prep-enter'))
+    await waitFor(() => expect(api.advance).toHaveBeenCalledWith(701))
+    expect(await screen.findByTestId('oral-room')).toBeInTheDocument()
+  })
+
+  it('X hỏi trước khi rời phòng chuẩn bị; Rời phòng thì về trang đã vào', async () => {
+    api.getSession.mockResolvedValue({ data: prepSession(0) })
+    const assign = vi.fn()
+    const original = window.location
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...original, assign } })
+    try {
+      const user = userEvent.setup()
+      renderRoom()
+      await user.click(await screen.findByTestId('prep-leave'))
+      expect(await screen.findByText('Rời phòng chuẩn bị?')).toBeInTheDocument()
+      expect(screen.getByText(/không được chấm/)).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Ở lại' }))
+      expect(assign).not.toHaveBeenCalled()
+      await user.click(screen.getByTestId('prep-leave'))
+      await user.click(await screen.findByRole('button', { name: 'Rời phòng' }))
+      expect(assign).toHaveBeenCalledWith('/v2/student/exam')
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: original })
+    }
   })
 })

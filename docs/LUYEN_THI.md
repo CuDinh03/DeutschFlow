@@ -1,8 +1,8 @@
 # Luyện thi (telc) và Thi thử — tài liệu kỹ thuật
 
 > Phạm vi: phần **Luyện thi** trên web (`/v2/student/exam` và các màn con), gồm luyện từng Teil, thi thử
-> trọn đề, kết quả, lịch ôn, hướng dẫn lần đầu, bài chẩn đoán. Phòng thi **nói** (`/v2/student/speaking/exam`)
-> là module riêng (`examspeaking`), ở đây chỉ nói chỗ hai phần nối nhau.
+> trọn đề, kết quả, lịch ôn, hướng dẫn lần đầu, bài chẩn đoán. Phòng thi **nói** nằm trong khu Luyện thi
+> (`/v2/student/mock-exam/oral/**`, từ 07/11/2026), backend là module riêng (`examspeaking`); mục 1.3 tóm tắt luồng.
 >
 > Cập nhật: 07/11/2026, sau đợt làm mới giao diện (a)–(f), PR #760–#765. Repo PUBLIC: tài liệu không chứa
 > địa chỉ máy chủ, khoá hay giá trị cấu hình bí mật. Quy trình merge/deploy: `docs/QUY_TRINH_PHAT_HANH.md`.
@@ -28,10 +28,26 @@ Bài chẩn đoán ──► Hôm nay ──► Đề ──► Làm bài (luy�
 | Làm bài | `/v2/student/mock-exam/practice/teil?examId=&teil=` | Luyện một Teil, không ép giờ, nộp xong có phân tích |
 | Thi thử | `/v2/student/mock-exam/full?examId=` | Màn trước khi thi → làm bài có đồng hồ tổng của server |
 | Kết quả | `/v2/student/mock-exam/full?attemptId=` | Kết luận, điểm "Ước tính", lấy lại điểm, xem lại từng Teil |
-| Phòng thi nói | `/v2/student/speaking/exam?provider=TELC&level=B1` | Module `examspeaking` (giám khảo AI) |
+| Phòng thi nói — lối vào | `/v2/student/mock-exam/oral?provider=&level=&mode=MOCK\|DRILL&teil=&return=` | Thi thử: Kiểm tra micro (lần đầu hoặc micro chưa cho phép) rồi tạo phiên; luyện Teil: tạo phiên ngay |
+| Phòng thi nói — phòng | `/v2/student/mock-exam/oral/{id}?return=` | Chuẩn bị → Đang thi (toàn màn hình) → Đang chấm → Kết quả |
+| Kỳ thi khác | `/v2/student/mock-exam/oral/other` | Chọn Goethe/telc × cấp để thi/luyện nói, không đổi lịch ôn |
+| Ôn yếu điểm (nói) | `/v2/student/mock-exam/oral/weakness` | Lỗi hay gặp theo dạng bài + gói Redemittel |
 
-Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về Hôm nay. Đề Goethe ẩn trên web
+Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về Hôm nay. Route cũ của phòng thi nói
+`/v2/student/speaking/exam/**` đã **xoá hẳn** (owner chốt 07/11/2026, không chuyển hướng); hub Luyện nói không còn thẻ
+"Luyện thi nói". Đường dẫn dựng qua `frontend/src/lib/exam/oralRoutes.ts` (`oralEntryHref`, `oralSessionHref`,
+`safeReturn` chỉ nhận `/v2/student/…`). Đề Goethe ẩn trên web
 (dữ liệu và lịch sử giữ nguyên; mobile vẫn dùng đường cũ).
+
+### 1.1b Phòng thi nói (giao diện mới, kế hoạch 5 đợt)
+
+- Lối vào: Hôm nay (thẻ `ORAL_MOCK` / `ORAL_DRILL`, thanh Sprechen) dùng `oralHref(plan, teil?)`; màn Đề có nhóm
+  "Mündliche Prüfung" (`OralTeilGroup`: thi thử phần nói + mỗi Teil một dòng, nhãn theo lần thi nói gần nhất) và lịch sử
+  thi nói trong "Thi thử đã làm" (`OralHistory`); Thi thử chọn "Phần nói"; Kết quả thi thử; bài chẩn đoán.
+- Màn Kiểm tra micro đứng **trước** khi tạo phiên (A1/A2 không có giờ chuẩn bị: tạo phiên là đồng hồ chạy). Đã qua thì
+  ghi khoá `exam.oralMicCheck` vào kho hướng dẫn đã xem (`/auth/me/tours`).
+- Chuẩn bị và Đang thi mở toàn màn hình (`useImmersiveChrome` theo trạng thái); rời phòng chuẩn bị, kết thúc, sang Teil
+  khi thi thử đều hỏi trước. Chi tiết và các đợt còn lại: SRS module 07, EXAM-100 trở đi.
 
 ### 1.2 Hiện có cho kỳ thi nào
 

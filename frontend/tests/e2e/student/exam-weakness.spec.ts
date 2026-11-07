@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens';
 
 /**
- * E2E Đợt 5a — Màn "Ôn yếu điểm" (/v2/student/speaking/exam/weakness). Backend mock bằng page.route
+ * E2E Đợt 5a — Màn "Ôn yếu điểm" (/v2/student/mock-exam/oral/weakness). Backend mock bằng page.route
  * theo hợp đồng GET /api/speaking/exam/weakness. Ba luồng:
  *   1. Catalog → link Ôn yếu điểm → danh sách yếu điểm + ví dụ sửa + gói Redemittel.
  *   2. Lọc theo dạng bài (archetype) → ẩn yếu điểm/gói không khớp; CTA "Luyện lại Teil này"
@@ -60,14 +60,14 @@ async function baseMocks(page: Page) {
   await page.route('**/api/speaking/exam/results', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
 }
 
-test.describe('Ôn yếu điểm (/v2/student/speaking/exam/weakness)', () => {
+test.describe('Ôn yếu điểm (/v2/student/mock-exam/oral/weakness)', () => {
   test('danh sách yếu điểm: mã lỗi, ví dụ sửa, ngữ cảnh dạng bài, gói Redemittel', async ({ page }) => {
     await baseMocks(page);
     await page.route('**/api/speaking/exam/weakness*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(WEAKNESS) }),
     );
 
-    await page.goto('/v2/student/speaking/exam/weakness');
+    await page.goto('/v2/student/mock-exam/oral/weakness');
     const first = page.getByTestId('weak-WORD_ORDER.V2_MAIN_CLAUSE');
     await expect(first).toBeVisible();
     await expect(first).toContainText('Động từ chia luôn đứng vị trí 2');
@@ -104,7 +104,7 @@ test.describe('Ôn yếu điểm (/v2/student/speaking/exam/weakness)', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 601 }) }),
     );
 
-    await page.goto('/v2/student/speaking/exam/weakness');
+    await page.goto('/v2/student/mock-exam/oral/weakness');
     await expect(page.getByTestId('weak-WORD_ORDER.V2_MAIN_CLAUSE')).toBeVisible();
 
     // Lọc REQUEST_RESPOND: cả hai mã lỗi đều còn (đều có ngữ cảnh REQUEST_RESPOND) nhưng gói CARD_QA ẩn
@@ -114,7 +114,7 @@ test.describe('Ôn yếu điểm (/v2/student/speaking/exam/weakness)', () => {
 
     // CTA trong ngữ cảnh lọc REQUEST_RESPOND → drill Teil 3 (không phải Teil 2 của CARD_QA)
     await page.getByTestId('drill-WORD_ORDER.V2_MAIN_CLAUSE').click();
-    await page.waitForURL(/\/v2\/student\/speaking\/exam\/session\/601\/?$/);
+    await page.waitForURL(/\/v2\/student\/mock-exam\/oral\/601\/?(\?.*)?$/);
     expect(created).toMatchObject({ provider: 'GOETHE', level: 'A1', mode: 'DRILL', teil: 3 });
   });
 
@@ -138,9 +138,9 @@ test.describe('Ôn yếu điểm (/v2/student/speaking/exam/weakness)', () => {
     );
 
     // Lối vào từ catalog
-    await page.goto('/v2/student/speaking/exam');
+    await page.goto('/v2/student/mock-exam/oral/other');
     await page.getByTestId('weakness-link').click();
-    await page.waitForURL(/\/v2\/student\/speaking\/exam\/weakness\/?$/);
+    await page.waitForURL(/\/v2\/student\/mock-exam\/oral\/weakness\/?$/);
 
     await expect(page.getByText('Chưa có lỗi nào được ghi nhận')).toBeVisible();
     await expect(page.getByTestId('redemittel-packs')).toContainText('Ich heiße');

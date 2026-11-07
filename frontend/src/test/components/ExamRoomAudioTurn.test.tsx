@@ -113,7 +113,7 @@ function axios413() {
 async function renderRoom() {
   render(
     <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi, ...chromeVi } }}>
-      <ExamRoom sessionId={501} catalogHref="/v2/student/speaking/exam" />
+      <ExamRoom sessionId={501} returnHref="/v2/student/exam" />
     </NextIntlClientProvider>,
   )
   await screen.findByTestId('mic-bar')
