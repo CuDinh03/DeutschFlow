@@ -2327,7 +2327,9 @@
       "comingSoon": "Strategy for this Teil: coming soon.",
       "steps": "Steps",
       "traps": "Common traps",
-      "fixes": "Losing points because… → fix"
+      "fixes": "Losing points because… → fix",
+      "drawerTitle": "Strategy",
+      "close": "Close"
     },
     "examPlan": {
       "title": "Road to your exam date",
@@ -2665,6 +2667,28 @@
         "play": "Play",
         "transcript": "Show transcript",
         "hideTranscript": "Hide transcript"
+      },
+      "map": {
+        "back": "Exam practice",
+        "teilDone": "{done}/{total} parts practised",
+        "lastMock": "Mock exam {score}/{max}",
+        "continueMock": "Continue mock exam",
+        "fullMock": "Full mock exam",
+        "teileTitle": "Practise part by part",
+        "groupDone": "{done}/{total} practised",
+        "historyTitle": "Mock exams taken",
+        "historyEmpty": "No mock exam for this set yet. Practise every part, then take the full mock exam.",
+        "rowRunning": "In progress",
+        "rowScore": "{score}/{max} written points",
+        "passed": "Passed",
+        "failed": "Not passed",
+        "tagPass": "Passed {pct}%",
+        "tagScore": "{score}/{max} · {pct}%",
+        "tagDoingWords": "Writing · {n} words",
+        "tagDoing": "In progress · {done}/{total}",
+        "strategyFor": "Strategy for {name}",
+        "chartLabel": "Written score across mock exams: {scores}; pass mark {mark}",
+        "passLine": "pass mark {n}"
       }
     },
     "examHub": {
