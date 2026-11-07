@@ -4,12 +4,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { Award, Copy, Download, ExternalLink, Lock, ShieldCheck, Star } from 'lucide-react'
+import { Award, BadgeCheck, Copy, Download, ExternalLink, Lock, ShieldCheck } from 'lucide-react'
 import api, { isAxiosErr } from '@/lib/api'
 import { certificateVerifyUrl, listMyCertificates, type StudentCertificate } from '@/lib/certificateApi'
 import { getAccessToken } from '@/lib/authSession'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
-import { ErrorBanner, GaBtn, GaCap, GaPageHdr, LoadingState, GaStatStrip, TkBadge } from '@/components/ui-v2'
+import { ErrorBanner, GaBtn, GaCap, GaGlyph, GaPageHdr, LoadingState, GaStatStrip, TkBadge } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /v2/student/certificates — chứng nhận trung tâm cấp + ghi nhận thi thử (Galerie shell).
@@ -219,9 +219,7 @@ export default function V2StudentCertificatesPage() {
                       className="flex flex-wrap items-center gap-3 px-4 py-4 sm:flex-nowrap lg:gap-4 lg:px-5"
                       style={{ borderTop: i ? '1px solid var(--ga-border)' : 'none' }}
                     >
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-ga bg-ga-side-active text-ga-subtle">
-                        <Lock size={20} aria-hidden />
-                      </span>
+                      <GaGlyph icon={Lock} size="lg" tone="plain" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[14.5px] font-semibold text-ga-ink">{t('lockedTitle', { level })}</p>
                         <p className="ga-ui text-[12.5px] text-ga-muted">{t(`levels.${level}`)}</p>
@@ -295,12 +293,7 @@ function CertificateCard({ cert, onDownload }: { cert: Certificate; onDownload: 
   return (
     <div className="border bg-ga-card p-4 lg:p-5" style={{ borderColor: `${c}55` }}>
       <div className="flex items-start gap-3 lg:gap-4">
-        <span
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-ga text-white lg:h-14 lg:w-14"
-          style={{ background: c }}
-        >
-          <Award size={28} aria-hidden />
-        </span>
+        <GaGlyph icon={Award} size="lg" tone="navy" />
         <div className="min-w-0 flex-1">
           <p className="font-ga-display text-[22px] font-medium leading-none lg:text-[26px]" style={{ color: c }}>
             {cert.cefr_level}
@@ -330,11 +323,11 @@ function CertificateCard({ cert, onDownload }: { cert: Certificate; onDownload: 
         style={{ borderColor: `${c}33` }}
       >
         <span className="ga-ui inline-flex min-w-0 items-center gap-1.5 break-all font-mono text-[12px]" style={{ color: c }}>
-          <ShieldCheck size={13} className="shrink-0" aria-hidden />
+          <ShieldCheck size={13} className="shrink-0 text-ga-muted" aria-hidden />
           {cert.certificate_code}
         </span>
         <span className="ga-ui inline-flex shrink-0 items-center gap-1 text-[11.5px] text-ga-muted">
-          <Star size={12} className="fill-current" style={{ color: 'var(--ga-gold)' }} aria-hidden />
+          <BadgeCheck size={12} className="text-ga-gold" aria-hidden />
           {t('verified')}
         </span>
       </div>

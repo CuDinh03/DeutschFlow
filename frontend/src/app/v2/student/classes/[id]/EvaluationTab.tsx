@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
-import { Loader2, MessageSquareQuote } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
   fetchMySkillReport, fetchMyAttendance,
@@ -133,7 +133,6 @@ export function EvaluationTab({ classId }: { classId: number }) {
         <GaCap className="mb-3 block">{t('commentCap')}</GaCap>
         {report?.teacherComment ? (
           <blockquote className="border border-ga-line bg-ga-card p-4 lg:p-6" style={{ borderLeft: '3px solid var(--ga-violet)' }}>
-            <MessageSquareQuote size={16} className="mb-2" style={{ color: 'var(--ga-violet)' }} />
             <p className="whitespace-pre-wrap text-[14.5px] leading-[1.65] text-ga-ink">{report.teacherComment}</p>
             {report.evaluatedAt && (
               <footer className="ga-ui mt-3 text-[12px] text-ga-subtle">{t('evaluatedAt', { date: fmtDate(report.evaluatedAt) })}</footer>

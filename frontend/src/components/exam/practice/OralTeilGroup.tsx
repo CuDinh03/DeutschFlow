@@ -9,6 +9,7 @@ import { ORAL_OTHER, oralEntryHref, oralSessionHref } from '@/lib/exam/oralRoute
 import { latestOral } from '@/components/exam/today/todayModel'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { cn } from '@/lib/utils'
+import { GaGlyph } from '@/components/ui-v2'
 import type { BlueprintSummary, ExamProvider, ExamResultView } from '@/types/exam-speaking'
 
 const PASS_PCT = 60
@@ -59,9 +60,7 @@ export function OralTeilGroup({ provider = 'TELC', level = 'B1', ret }: Props) {
   return (
     <div data-testid="oral-group">
       <div className="mb-2.5 flex items-center gap-2.5">
-        <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy">
-          <Mic size={18} strokeWidth={1.9} />
-        </span>
+        <GaGlyph icon={Mic} />
         <h3 lang="de" className="min-w-0 flex-1 font-ga-display text-ga-h3 text-ga-ink">
           Mündliche Prüfung
         </h3>
@@ -199,9 +198,7 @@ function OralRow({
       className="group relative grid min-h-16 grid-cols-[36px_minmax(0,1fr)_18px] items-center gap-x-3.5 gap-y-1 border-b border-ga-line px-1 py-2.5 transition-colors duration-150 hover:bg-ga-side-active has-[a:focus-visible]:outline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-ga-focus sm:grid-cols-[36px_minmax(0,1fr)_150px_18px]"
       data-testid={testId}
     >
-      <span aria-hidden className="grid h-9 w-9 place-items-center rounded-ga bg-ga-side-active text-ga-muted">
-        <Icon size={17} strokeWidth={1.9} />
-      </span>
+      <GaGlyph icon={Icon} tone="plain" />
       <Link href={href} className="ga-ui min-w-0 text-ga-ink after:absolute after:inset-0 focus-visible:outline-none">
         <b className="block truncate text-ga-body font-semibold">{title}</b>
         <span className="block truncate text-ga-small text-ga-muted">{meta}</span>

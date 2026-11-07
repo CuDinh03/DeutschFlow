@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Target } from "lucide-react";
+import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 /**
@@ -63,8 +63,7 @@ export function SpeakingContextRail({
       </div>
 
       <div className="rounded-ga border border-ga-line bg-ga-surface p-3">
-        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ga-subtle">
-          <Target size={11} aria-hidden />
+        <p className="text-[10px] font-bold uppercase tracking-wide text-ga-subtle">
           {t("contextGoal")}
         </p>
         <p className="mt-1 text-[13px] leading-relaxed text-ga-ink">

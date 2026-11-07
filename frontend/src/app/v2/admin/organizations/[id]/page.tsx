@@ -110,10 +110,9 @@ export default function V2AdminOrgDetailPage() {
 
       <div className="flex-1 space-y-5 px-4 py-6 sm:px-6 lg:px-10">
         <div
-          className="flex items-start gap-3 border px-4 py-3 lg:items-center"
-          style={{ background: 'var(--ga-navy-soft)', borderColor: 'var(--ga-line)' }}
+          className="flex items-start gap-3 border border-ga-line bg-ga-navy-soft px-4 py-3 lg:items-center"
         >
-          <ShieldCheck size={18} aria-hidden style={{ color: 'var(--ga-navy)', flexShrink: 0 }} />
+          <ShieldCheck size={18} aria-hidden className="shrink-0 text-ga-navy" />
           <p className="ga-ui text-ga-small text-ga-ink">{t('detail.privacy')}</p>
         </div>
 

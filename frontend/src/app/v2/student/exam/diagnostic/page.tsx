@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, BookOpen, CalendarDays, CircleAlert, Headphones, Mic, PenTool, Puzzle, RotateCcw, Route, type LucideIcon } from 'lucide-react'
+import { ArrowRight, BookOpen, CalendarDays, CircleAlert, Headphones, Mic, PenLine, Puzzle, RotateCcw, Route, type LucideIcon } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { checkPracticeTeil, getPracticeOverview, gradePracticeWriting, WRITING_KEY, type PracticeOverview } from '@/lib/telcPracticeApi'
 import { examDiagnosticApi, ORAL_PART, type DiagnosticView } from '@/lib/examDiagnosticApi'
@@ -25,7 +25,7 @@ const HUB = '/v2/student/exam'
 const MINUTES = [20, 30, 45, 60]
 /** Lesen T1 15' + Sprachbausteine T1 10' + Hören T1 8' + Schreiben 30' + thi nói ~20'. */
 const ABOUT_MINUTES = 85
-const PART_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, SPRACHBAUSTEINE: Puzzle, HOEREN: Headphones, SCHREIBEN: PenTool, SPRECHEN: Mic }
+const PART_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, SPRACHBAUSTEINE: Puzzle, HOEREN: Headphones, SCHREIBEN: PenLine, SPRECHEN: Mic }
 const sectionOf = (part: string) => (part.includes('-') ? part.slice(0, part.lastIndexOf('-')) : part)
 
 /**

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, Check, Loader2, Info, X, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, BookOpen, CalendarRange, FileUp } from 'lucide-react'
+import { Plus, Check, Loader2, Info, X, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, BookLock, CalendarRange, FileUp, Target } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -166,8 +166,7 @@ function KnowledgePointsEditor({
       <button
         type="button"
         onClick={addRow}
-        className="flex min-h-[40px] items-center gap-1.5 self-start text-[13px] font-semibold lg:min-h-0"
-        style={{ color: VIOLET }}
+        className="flex min-h-[40px] items-center gap-1.5 self-start text-[13px] font-semibold text-ga-violet lg:min-h-0"
       >
         <Plus size={14} /> {addLabel}
       </button>
@@ -624,7 +623,7 @@ export default function V2TcChecklistPage() {
               disabled={creating || !classId || !newTitle.trim()}
               className="flex min-h-[40px] shrink-0 items-center gap-2 rounded-ga bg-ga-ink px-[22px] text-[14px] font-semibold text-ga-bg disabled:opacity-60 lg:min-h-0"
             >
-              {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={18} />} {t('addLesson')}
+              {creating ? <Loader2 size={16} className="ga-spin" /> : <Plus size={18} />} {t('addLesson')}
             </button>
           </div>
 
@@ -675,7 +674,7 @@ export default function V2TcChecklistPage() {
                 disabled={creatingModule || !classId || !newModuleTitle.trim()}
                 className="flex min-h-[40px] shrink-0 items-center gap-2 rounded-ga bg-ga-ink px-[18px] text-[14px] font-semibold text-ga-bg disabled:opacity-60 lg:min-h-0"
               >
-                {creatingModule ? <Loader2 size={16} className="animate-spin" /> : <FolderPlus size={16} />} {t('module.add')}
+                {creatingModule ? <Loader2 size={16} className="ga-spin" /> : <FolderPlus size={16} />} {t('module.add')}
               </button>
             </div>
             {orderedModules.length > 0 ? (
@@ -748,7 +747,7 @@ export default function V2TcChecklistPage() {
                         // chỉnh phần PHÂN PHỐI (ngày dự kiến, số tiết) + tài liệu của lớp.
                         <>
                           <div className="flex items-start gap-2 border px-3 py-2.5" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 25%, transparent)' }}>
-                            <BookOpen size={15} style={{ color: VIOLET }} className="mt-0.5 shrink-0" />
+                            <BookLock size={15} className="mt-0.5 shrink-0 text-ga-violet" aria-hidden />
                             <p className="ga-ui m-0 text-[12.5px] leading-[1.5] text-ga-ink">{t('curriculumLockedNote')}</p>
                           </div>
                           <div className="text-[15px] font-semibold text-ga-ink">{l.title}</div>
@@ -789,7 +788,7 @@ export default function V2TcChecklistPage() {
                       <div className="flex items-center justify-end gap-2">
                         <GaBtn variant="ghost" size="sm" onClick={cancelEdit} disabled={savingEdit}>{t('cancel')}</GaBtn>
                         <GaBtn variant="primary" size="sm" onClick={() => saveEdit(l)} disabled={savingEdit || (l.lektionId == null && !editTitle.trim())}>
-                          {savingEdit ? <Loader2 size={14} className="animate-spin" /> : t('save')}
+                          {savingEdit ? <Loader2 size={14} className="ga-spin" /> : t('save')}
                         </GaBtn>
                       </div>
                     </div>
@@ -807,7 +806,7 @@ export default function V2TcChecklistPage() {
                         className="relative mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-colors after:absolute after:-inset-2 after:content-[''] lg:after:hidden"
                         style={{ borderColor: l.completed ? 'var(--ga-green)' : 'var(--ga-line)', background: l.completed ? 'var(--ga-green)' : 'transparent' }}
                       >
-                        {busy === l.id ? <Loader2 size={12} className="animate-spin text-ga-muted" /> : l.completed ? <Check size={14} className="text-white" /> : null}
+                        {busy === l.id ? <Loader2 size={12} className="ga-spin text-ga-muted" /> : l.completed ? <Check size={14} className="text-ga-card" /> : null}
                       </button>
                       {/* Trên khổ hẹp cột nội dung chiếm gần trọn hàng (trừ nút tick + gap) để 2 cụm
                           nút xuống dòng dưới, thay vì bóp tiêu đề còn ~78px ở 320px. Từ lg: basis-0
@@ -817,7 +816,7 @@ export default function V2TcChecklistPage() {
                           <span className="ga-ui text-[10px] font-bold uppercase tracking-[0.08em] text-ga-subtle">{t('lektion', { index: seqById.get(l.id) ?? 0 })}</span>
                           {l.lektionId != null && (
                             <span className="ga-ui flex items-center gap-1 rounded-ga px-1.5 text-[10px] font-bold" style={{ background: 'var(--ga-violet-soft)', color: VIOLET }} title={t('curriculumLockedNote')}>
-                              <BookOpen size={10} aria-hidden /> {t('curriculumBadge')}
+                              <BookLock size={10} className="text-ga-violet" aria-hidden /> {t('curriculumBadge')}
                             </span>
                           )}
                           {l.supplementary && (
@@ -841,7 +840,7 @@ export default function V2TcChecklistPage() {
                           <ul className="mt-1.5 flex flex-col gap-1">
                             {points.map((p, idx) => (
                               <li key={idx} className="flex gap-2 text-[12.5px] leading-[1.5] text-ga-muted">
-                                <span className="mt-[1px] shrink-0" style={{ color: VIOLET }}>•</span>
+                                <span className="mt-[1px] shrink-0 text-ga-violet">•</span>
                                 <span className="min-w-0 break-words">{p}</span>
                               </li>
                             ))}
@@ -853,7 +852,7 @@ export default function V2TcChecklistPage() {
                             <ul className="mt-1 flex flex-col gap-1">
                               {l.canDoStatements.map((c) => (
                                 <li key={c.id ?? c.orderIndex} className="flex gap-2 text-[12.5px] leading-[1.5] text-ga-muted">
-                                  <Check size={13} aria-hidden className="mt-[2px] shrink-0" style={{ color: VIOLET }} />
+                                  <Target size={13} aria-hidden className="mt-[2px] shrink-0 text-ga-muted" />
                                   <span className="min-w-0 break-words">
                                     {c.text}
                                     {c.cefrLevel && (
@@ -909,8 +908,7 @@ export default function V2TcChecklistPage() {
                             aria-label={t('allocate')}
                             title={t('allocate')}
                             onClick={() => setAllocLesson(l)}
-                            className="grid h-10 w-10 place-items-center rounded-ga transition-colors hover:bg-ga-side-active lg:h-8 lg:w-8"
-                            style={{ color: VIOLET }}
+                            className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink lg:h-8 lg:w-8"
                           >
                             <CalendarRange size={15} />
                           </button>
@@ -932,7 +930,7 @@ export default function V2TcChecklistPage() {
                             disabled={deletingId === l.id}
                             className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red lg:h-8 lg:w-8"
                           >
-                            {deletingId === l.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={15} />}
+                            {deletingId === l.id ? <Loader2 size={14} className="ga-spin" /> : <Trash2 size={15} />}
                           </button>
                         )}
                       </div>
@@ -947,7 +945,7 @@ export default function V2TcChecklistPage() {
         )}
 
         <div className="mt-4 flex items-center gap-3 border px-4 py-3.5 lg:px-[18px]" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 25%, transparent)' }}>
-          <Info size={18} style={{ color: VIOLET }} className="shrink-0" />
+          <Info size={18} className="shrink-0 text-ga-muted" aria-hidden />
           <p className="ga-ui m-0 min-w-0 text-[13px] leading-[1.5] text-ga-ink">
             {t.rich('infoNote', { b: (chunks) => <strong>{chunks}</strong> })}
           </p>

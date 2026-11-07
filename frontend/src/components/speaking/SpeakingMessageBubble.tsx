@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { Volume2, Info, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { Volume2, Info, CheckCircle2, AlertCircle, Heart } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { speakGerman } from "@/lib/speechDe";
 import { cn } from "@/lib/utils";
@@ -172,7 +172,7 @@ export function SpeakingMessageBubble({
           )}
           {msg.userInterestDetected && (
             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border border-ga-yellow bg-ga-yellow-soft text-ga-gold">
-              <Sparkles size={9} aria-hidden /> {msg.userInterestDetected}
+              <Heart size={9} className="text-ga-muted" aria-hidden /> {msg.userInterestDetected}
             </span>
           )}
           {msg.errors?.map((e) => (

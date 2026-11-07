@@ -6,7 +6,7 @@ import { BadgeCheck, Clock, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 import { MARKETPLACE_ENABLED } from '@/lib/features'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ function BookSessionBody({ preselectId }: { preselectId: number | null }) {
                   const sm = SESSION_STATUS[(s.status ?? '').toUpperCase()] ?? { label: s.status, color: 'var(--ga-muted)' }
                   return (
                     <div key={s.id} className="flex items-center gap-3 px-4 py-3.5 lg:gap-3.5 lg:px-5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                      <span className="grid h-9 w-9 shrink-0 place-items-center" style={{ background: 'var(--ga-side-active)' }}><CalendarClock size={16} className="text-ga-muted" /></span>
+                      <GaGlyph icon={CalendarClock} size="md" tone="plain" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[14px] font-semibold text-ga-ink">{s.title}</div>
                         <div className="text-[12.5px] text-ga-muted">{fmtWhen(s.scheduledAt)} · {s.durationMinutes}&apos;</div>

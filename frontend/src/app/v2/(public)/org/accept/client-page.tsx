@@ -14,7 +14,7 @@ import {
 import { homeFor } from '@/lib/roleRouting'
 import { useUserStore } from '@/stores/useUserStore'
 import { apiMessage } from '@/lib/api'
-import { GaBtn, GaCap, LoadingState } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaGlyph, LoadingState } from '@/components/ui-v2'
 import { GaAuthShell, GaField, AuthErrorBanner } from '../../../authShared'
 import {
   Building2, AlertTriangle, CheckCircle2, ShieldCheck,
@@ -193,9 +193,7 @@ export default function V2OrgAcceptPage() {
 
         <div className="mb-6 rounded-ga border border-ga-line bg-ga-card p-[15px]">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-ga bg-ga-accent-soft text-ga-accent">
-              <Building2 size={20} />
-            </span>
+            <GaGlyph icon={Building2} size="lg" />
             <div className="min-w-0">
               <p className="ga-ui m-0 text-[12px] font-semibold text-ga-muted">{t('orgLabel')}</p>
               <p className="m-0 truncate font-ga-display text-[17px] font-medium text-ga-ink lg:text-[19px]">{preview.orgName}</p>
@@ -276,13 +274,16 @@ function StatusCard({
   message: React.ReactNode
   cta: string
 }) {
-  const toneClass = tone === 'red' ? 'bg-ga-red-soft text-ga-red' : 'bg-ga-orange-soft text-ga-orange'
   return (
     <GaAuthShell>
       <div className="flex flex-col items-center rounded-ga border border-ga-line bg-ga-card px-4 py-8 text-center sm:px-6 lg:py-10">
-        <span className={`grid h-14 w-14 place-items-center rounded-ga-pill ${toneClass}`}>
-          <AlertTriangle size={26} />
-        </span>
+        {/* Hết hạn (cam) khác lỗi (đỏ): GaGlyph không có tông cam nên đè màu nền/chữ bằng token cam. */}
+        <GaGlyph
+          icon={AlertTriangle}
+          size="lg"
+          tone="red"
+          className={tone === 'orange' ? 'bg-ga-orange-soft text-ga-orange' : undefined}
+        />
         <h1 className="mb-2 mt-5 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">{title}</h1>
         <p className="ga-ui m-0 max-w-sm break-words text-[13.5px] leading-relaxed text-ga-muted">{message}</p>
         <GaBtn variant="ink" size="lg" className="mt-6" asChild>

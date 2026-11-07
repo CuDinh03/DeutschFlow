@@ -1,11 +1,11 @@
 'use client'
 
-import { BookOpen, Headphones, PenTool, Mic2 } from 'lucide-react'
+import { BookOpen, Headphones, PenLine, Mic2 } from 'lucide-react'
 
 const SECTION_ICONS: Record<string, React.ReactNode> = {
   LESEN: <BookOpen size={14} />,
   HOEREN: <Headphones size={14} />,
-  SCHREIBEN: <PenTool size={14} />,
+  SCHREIBEN: <PenLine size={14} />,
   SPRECHEN: <Mic2 size={14} />,
 }
 

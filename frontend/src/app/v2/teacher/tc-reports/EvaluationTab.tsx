@@ -255,7 +255,7 @@ export function EvaluationTab(props: EvaluationTabProps) {
                     <Pencil size={13} aria-hidden /> {t('evaluation.edit')}
                   </GaBtn>
                   <GaBtn type="button" variant="ghost" size="sm" onClick={() => setIssuingFor(evaluation)} disabled={saving}>
-                    <GaIcon name="mail" size={13} /> {t('reportIssue.openButton')}
+                    <GaIcon name="description" size={13} /> {t('reportIssue.openButton')}
                   </GaBtn>
                   {evaluation.certificateEligible && (
                     <GaBtn type="button" variant="ghost" size="sm" onClick={() => setCertifyingFor(evaluation)} disabled={saving}>

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { EmptyState, GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Duyệt bài tập ngữ pháp (admin) — navy review queue (W1.7 migrate admin/grammar-review).
@@ -133,10 +133,7 @@ export default function V2AdminGrammarReviewPage() {
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 border border-dashed border-ga-line px-4 py-10 text-center text-ga-muted sm:px-6 lg:px-10 lg:py-[52px]">
-            <CheckCircle2 size={36} className="opacity-30" />
-            <p className="text-[14px] font-medium">{t('emptyQueue')}</p>
-          </div>
+          <EmptyState variant="invite" icon="check_circle" title={t('emptyQueue')} />
         ) : (
           <div className="flex flex-col gap-2.5">
             {filtered.map((ex) => {

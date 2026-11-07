@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, PlayCircle, Lightbulb } from 'lucide-react'
+import { BookOpen, Check, Lightbulb } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { fetchMyClasses, fetchClassLessons, type MyClassroom, type ClassLesson } from '@/lib/studentClassesApi'
 import { resolvePointTexts } from '@/lib/knowledgePoints'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tiến độ khóa học — học viên (GaStProgress, proto-checklist.jsx) — yellow,
@@ -104,10 +104,10 @@ export default function V2StProgressPage() {
 
             {/* Now learning callout */}
             {current && (
-              <div className="mt-3.5 flex flex-wrap items-center gap-3.5 border border-l-4 p-[14px_18px] lg:flex-nowrap" style={{ background: 'rgba(47,111,201,0.08)', borderColor: 'rgba(47,111,201,0.27)', borderLeftColor: '#2F6FC9' }}>
-                <PlayCircle size={26} className="shrink-0" style={{ color: '#2F6FC9' }} />
+              <div className="mt-3.5 flex flex-wrap items-center gap-3.5 border border-ga-line bg-ga-card p-[14px_18px] lg:flex-nowrap">
+                <GaGlyph icon={BookOpen} size="md" tone="navy" />
                 <div className="min-w-0 flex-1">
-                  <div className="ga-ui text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: '#2F6FC9' }}>{t('nowLearning')}</div>
+                  <GaCap>{t('nowLearning')}</GaCap>
                   <div className="mt-0.5 font-ga-display text-[18px] font-medium text-ga-ink break-words">{current.title}</div>
                 </div>
                 <span className="w-full break-words text-[12.5px] text-ga-muted lg:w-auto">{t('nextUp', { title: next?.title ?? t('nextFallback') })}</span>
@@ -153,7 +153,7 @@ export default function V2StProgressPage() {
             )}
 
             <div className="mt-4 flex items-center gap-3 border p-[14px_18px]" style={{ background: 'var(--ga-yellow-soft)', borderColor: 'color-mix(in srgb, var(--ga-gold) 40%, transparent)' }}>
-              <Lightbulb size={20} className="shrink-0" style={{ color: 'var(--ga-gold)' }} />
+              <GaGlyph icon={Lightbulb} size="sm" tone="yellow" />
               <div className="min-w-0 text-[13.5px] leading-relaxed text-ga-ink">{t.rich('teacherNote', { strong: (chunks) => <strong>{chunks}</strong> })}</div>
             </div>
           </>

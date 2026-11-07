@@ -142,6 +142,18 @@ import {
   BanknoteX,
   Building,
   CircleDollarSign,
+  Copy,
+  ExternalLink,
+  Cake,
+  Ellipsis,
+  School,
+  Layers,
+  LibraryBig,
+  Scale,
+  KeyRound,
+  FileChartColumn,
+  Gauge,
+  BrainCog,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -316,6 +328,23 @@ const ICONS: Record<string, LucideIcon> = {
   money_off: BanknoteX,
   apartment: Building,
   paid: CircleDollarSign,
+  // Hộp cấp chứng nhận (tc-reports) gọi hai khoá này từ trước nhưng bảng chưa có — vẽ ra vòng tròn rỗng.
+  content_copy: Copy,
+  open_in_new: ExternalLink,
+  // Thông báo BIRTH_DATE_UPDATED trỏ `cake` từ 14/09/2026 nhưng bảng chưa có → vòng tròn rỗng.
+  cake: Cake,
+  // "Thêm" ở thanh dưới điện thoại: khác hamburger `menu` của nút mở ngăn kéo.
+  more_horiz: Ellipsis,
+  // Thanh bên admin (rà icon 07/11/2026): trước đây Người dùng/Lớp học cùng Users, Bộ đề thi/Ngân hàng
+  // đề Nói cùng FileQuestion, Speaking tuần/Persona cùng Mic — mỗi mục giờ một hình đúng nghĩa.
+  school_building: School,
+  layers: Layers,
+  library_big: LibraryBig,
+  scale: Scale,
+  key: KeyRound,
+  file_chart: FileChartColumn,
+  gauge: Gauge,
+  brain_cog: BrainCog,
 }
 
 /** Tên icon hợp lệ có trong bảng — dùng để test bao phủ, không dùng để render. */

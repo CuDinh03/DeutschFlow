@@ -3,9 +3,10 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { BookOpen, Check, CircleHelp, Clock, Eye, EyeOff, Headphones, Lightbulb, PenTool, Puzzle, X } from 'lucide-react'
+import { BookOpen, Check, CircleHelp, Clock, Eye, EyeOff, Headphones, Lightbulb, PenLine, Puzzle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useImmersiveChrome } from '@/components/ui-v2/useImmersiveChrome'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { formatClock } from './practiceModel'
 
 export type PracticeSaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -54,7 +55,7 @@ const SECTION_ICON: Record<string, typeof BookOpen> = {
   LESEN: BookOpen,
   SPRACHBAUSTEINE: Puzzle,
   HOEREN: Headphones,
-  SCHREIBEN: PenTool,
+  SCHREIBEN: PenLine,
 }
 
 /**
@@ -145,9 +146,7 @@ export function PracticeShell({
             </Link>
           )}
           {Icon && (
-            <span aria-hidden className="hidden h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy sm:grid">
-              <Icon size={18} strokeWidth={1.9} />
-            </span>
+            <GaGlyph icon={Icon} className="hidden sm:grid" />
           )}
           <div className="min-w-0 flex-1">
             <p className="ga-ui truncate text-ga-caption text-ga-muted">{subtitle}</p>

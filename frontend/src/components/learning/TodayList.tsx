@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, Mic, Repeat, Wrench, CalendarCheck } from 'lucide-react'
-import { GaCap } from '@/components/ui-v2'
+import { GaCap, GaGlyph } from '@/components/ui-v2'
 
 /**
  * TodayList — "Heute": tối đa 4 việc cần làm hôm nay, xếp sau ContinueLearning (S-02).
@@ -50,7 +50,7 @@ export function TodayList({ tasks }: { tasks: TodayTask[] }) {
                 href={task.href}
                 className="flex min-h-11 items-center gap-3 py-3 transition-colors hover:bg-ga-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset"
               >
-                <Icon size={18} className="shrink-0 text-ga-subtle" aria-hidden />
+                <GaGlyph icon={Icon} size="sm" tone="plain" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-ga-body font-medium text-ga-ink">{task.label}</span>
                   {task.meta && <span className="block truncate text-ga-caption text-ga-muted">{task.meta}</span>}

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, FastForward, Headphones, List, Lock, Megaphone, MessagesSquare, Play, Repeat1, Repeat2, Timer, Volume2 } from 'lucide-react'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { cn } from '@/lib/utils'
 import type { PracticeTeilResult } from '@/lib/telcPracticeApi'
 import { speakExamLine } from '@/components/features/exam-speaking/examTts'
@@ -287,9 +288,7 @@ export function HoerenTeilView({ teil, answers, onAnswer, result, wide, tips, al
 
   const lockedPane = locked ? (
     <div className="ga-ui flex min-h-[16rem] flex-col items-center justify-center gap-2.5 rounded-ga-touch border border-dashed border-ga-line-strong px-6 py-8 text-center text-ga-muted">
-      <span className="grid h-11 w-11 place-items-center rounded-ga bg-ga-side-active">
-        <Lock size={20} aria-hidden />
-      </span>
+      <GaGlyph icon={Lock} tone="plain" size="lg" />
       <b className="text-ga-body text-ga-ink">{t('lockedTitle')}</b>
       <span className="text-ga-small">{t('lockedDesc')}</span>
     </div>
@@ -370,24 +369,22 @@ function PrepCard({
     <div className="mb-5 space-y-5" data-tour="hoeren-prep">
       <Steps phase="prep" steps={steps} />
       <div>
-        <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-          <Headphones size={14} aria-hidden /> Hörverstehen
-        </p>
+        <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted" lang="de">Hörverstehen</p>
         <h2 className="mt-1 font-ga-display text-ga-h2 text-ga-ink">{t('prepTitle', { n: teilNo })}</h2>
       </div>
       <div className="ga-ui grid gap-2 sm:grid-cols-3">
         <div className={fact}>
-          {multi ? <List size={18} className="text-ga-navy" aria-hidden /> : <MessagesSquare size={18} className="text-ga-navy" aria-hidden />}
+          <GaGlyph icon={multi ? List : MessagesSquare} size="sm" />
           <b className="text-ga-body-lg text-ga-ink">{multi ? t('factSegments', { n: segmentCount }) : t('factDialogue')}</b>
           <span className="text-ga-small text-ga-muted">{t('factRange', { range })}</span>
         </div>
         <div className={cn(fact, 'border-ga-ink shadow-[inset_0_0_0_1px_var(--ga-ink)]')}>
-          <PlaysIcon size={18} className="text-ga-navy" aria-hidden />
+          <GaGlyph icon={PlaysIcon} size="sm" />
           <b className="text-ga-body-lg text-ga-ink">{maxPlays ? t('factPlays', { n: maxPlays }) : t('factPlaysFree')}</b>
           <span className="text-ga-small text-ga-muted">{multi ? t('factEach') : t('factWhole')}</span>
         </div>
         <div className={fact}>
-          <Timer size={18} className="text-ga-navy" aria-hidden />
+          <GaGlyph icon={Timer} size="sm" />
           <b className="text-ga-body-lg text-ga-ink">{readingSeconds > 0 ? t('factRead', { s: readingSeconds }) : t('factReadNone')}</b>
           <span className="text-ga-small text-ga-muted">{t('factReadSub')}</span>
         </div>

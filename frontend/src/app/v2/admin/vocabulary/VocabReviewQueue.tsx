@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
+import { EmptyState, GaBtn, GaCap, GaStatStrip } from '@/components/ui-v2'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 // Wires the previously-orphaned admin review endpoints (A-3):
@@ -155,10 +154,7 @@ export default function VocabReviewQueue() {
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="border border-dashed border-ga-line px-4 py-10 text-center">
-          <CheckCircle2 size={32} className="mx-auto mb-2" style={{ color: GREEN }} aria-hidden />
-          <p className="font-ga-display text-[18px] italic text-ga-ink">{t('reviewEmpty')}</p>
-        </div>
+        <EmptyState variant="invite" icon="check_circle" title={t('reviewEmpty')} />
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((w) => (

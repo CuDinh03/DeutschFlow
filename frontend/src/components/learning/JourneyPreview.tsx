@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, Check, Lock } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { GaCap } from '@/components/ui-v2'
 import { journeySlice, nodeStatus, courseCompletion } from '@/lib/learning/currentNode'
 import { useNodeTitles } from '@/lib/learning/nodeTitle'
@@ -55,9 +55,7 @@ export function JourneyPreview({ nodes, compact = false }: { nodes: RoadmapNode[
                       : 'border-ga-line bg-ga-card hover:bg-ga-surface',
                 ].join(' ')}
               >
-                <span className="flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-subtle">
-                  {status === 'completed' && <Check size={12} className="text-ga-green" aria-hidden />}
-                  {locked && <Lock size={12} aria-hidden />}
+                <span className="text-ga-eyebrow uppercase text-ga-subtle">
                   {/* Trạng thái luôn có NHÃN CHỮ, không chỉ truyền bằng màu/icon. */}
                   {t(`status.${status}`)}
                 </span>

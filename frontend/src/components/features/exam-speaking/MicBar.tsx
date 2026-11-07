@@ -240,7 +240,7 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourT
                 }`}
                 data-testid="mic-start"
               >
-                {busy ? <Loader2 size={26} className="animate-spin" aria-hidden /> : <Mic size={28} strokeWidth={1.9} aria-hidden />}
+                {busy ? <Loader2 size={26} className="animate-spin" aria-hidden /> : <Mic size={28} aria-hidden />}
               </button>
             )}
             {recording && (

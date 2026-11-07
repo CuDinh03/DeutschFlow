@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { BookOpen, Check, Dumbbell, Lock } from 'lucide-react'
-import { GaIcon, GaProgress, iconNameForEmoji, TkBadge } from '@/components/ui-v2'
+import { GaGlyph, GaProgress, TkBadge } from '@/components/ui-v2'
 import { nodeStatus, nodeProgressPercent } from '@/lib/learning/currentNode'
 import { useNodeTitles } from '@/lib/learning/nodeTitle'
 import type { RoadmapNode } from '@/lib/roadmap-tree/types'
@@ -41,23 +41,15 @@ export function NodeList({ nodes }: { nodes: RoadmapNode[] }) {
         return (
           <li key={node.id} className="py-4">
             <div className="flex items-start gap-3 lg:gap-4">
-              <span
-                aria-hidden
-                className={[
-                  'grid h-11 w-11 shrink-0 place-items-center rounded-ga text-ga-h2',
-                  locked ? 'bg-ga-locked-bg' : 'bg-ga-surface',
-                ].join(' ')}
-              >
-                {locked ? (
-                  <Lock size={18} className="text-ga-locked-fg" />
-                ) : done ? (
-                  <Check size={20} className="text-ga-green" />
-                ) : (
-                  // `node.emoji` là dữ liệu backend; in thẳng thì mỗi máy vẽ một kiểu và luôn
-                  // nhiều màu, cạnh ổ khoá/dấu tích Lucide ngay bên trên là lộ.
-                  <GaIcon name={iconNameForEmoji(node.emoji)} size={20} className="text-ga-muted" />
-                )}
-              </span>
+              {locked ? (
+                <GaGlyph icon={Lock} size="md" tone="plain" />
+              ) : done ? (
+                <GaGlyph icon={Check} size="md" tone="green" />
+              ) : (
+                // `node.emoji` là dữ liệu backend; in thẳng thì mỗi máy vẽ một kiểu và luôn
+                // nhiều màu — dịch qua emojiIconMap trong GaGlyph.
+                <GaGlyph emoji={node.emoji} size="md" tone="plain" />
+              )}
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

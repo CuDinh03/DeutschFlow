@@ -7,7 +7,7 @@ import { Volume2, RotateCcw, Check, PartyPopper } from 'lucide-react'
 import { toast } from 'sonner'
 import { reviewApi, type VocabReviewCard, type ErrorReviewTaskDto, type SrsStats } from '@/lib/reviewApi'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
-import { GaPageHdr, GaCard, GaCap, GaBtn, LoadingState, ErrorBanner, TkBadge } from '@/components/ui-v2'
+import { GaPageHdr, GaCard, GaCap, GaBtn, GaGlyph, LoadingState, ErrorBanner, TkBadge } from '@/components/ui-v2'
 
 // Reuse reviewApi 1:1: getDueVocab + gradeVocab (FSRS flashcards) + getTodayTasks + completeTask
 // (grammar error tasks). SRS quality buttons map 0/2/4/5 → forgot/hard/good/easy.
@@ -197,7 +197,7 @@ export default function V2StudentReviewPage() {
               </GaCard>
             ) : (
               <GaCard className="px-4 py-12 text-center sm:px-7 lg:py-14">
-                <PartyPopper size={40} strokeWidth={1.4} className="mx-auto text-ga-accent" aria-hidden />
+                <GaGlyph icon={PartyPopper} size="lg" tone="yellow" className="mx-auto" />
                 <p className="mt-3 font-ga-display text-[22px] font-medium text-ga-ink">
                   {cards.length > 0
                     ? t('doneCount', { count: reviewed })

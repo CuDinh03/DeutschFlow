@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Download, ChevronRight, Scale, Mic, Trash2, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Download, ChevronRight, Scale, Trash2, Plus, RefreshCw } from 'lucide-react'
 import {
   adminExamGoldenApi,
   REGRADE_BATCH_MAX,
@@ -282,7 +282,7 @@ function ParticipantsCard({ t }: { t: ReturnType<typeof useTranslations> }) {
   return (
     <GaCard className="p-4 lg:p-6" data-testid="calibration-participants">
       <GaCap className="mb-1 block">
-        <Mic size={13} aria-hidden className="mr-1 inline" /> {t('participants.cap')}
+        {t('participants.cap')}
       </GaCap>
       <p className="ga-ui mb-3 text-[12.5px] text-ga-muted">{t('participants.desc')}</p>
 

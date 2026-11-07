@@ -4,7 +4,7 @@ import { type ReactNode } from 'react'
 import { format } from 'date-fns'
 import { Users } from 'lucide-react'
 import type { Conversation } from '@/lib/messagesApi'
-import { GaCap, LoadingState } from '@/components/ui-v2'
+import { GaCap, GaGlyph, LoadingState } from '@/components/ui-v2'
 import { isSameSelection, type ChannelClass, type Selection } from './types'
 import { initial } from './ThreadShell'
 import { useTranslations } from 'next-intl'
@@ -114,9 +114,7 @@ export function ConversationList({
                   active={isSameSelection(selection, { kind: 'class', classId: c.id, name: c.name })}
                   onClick={() => onSelect({ kind: 'class', classId: c.id, name: c.name })}
                   avatar={
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ga-accent-soft text-ga-accent">
-                      <Users size={17} />
-                    </span>
+                    <GaGlyph icon={Users} tone="navy" size="md" />
                   }
                   title={c.name}
                   preview={c.subtitle}

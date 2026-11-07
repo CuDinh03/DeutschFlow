@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, EyeOff, FileText, Headphones, Layers, Lock, Mic, PenLine, PenTool, Play, Sparkles, Timer, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, BookOpen, EyeOff, Headphones, Layers, Lock, Mic, PenLine, Play, Sparkles, Timer, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Glyph } from '@/components/exam/today/visual'
 import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
@@ -14,7 +14,7 @@ const MODES: { id: ModeId; icon: LucideIcon }[] = [
   { id: 'written', icon: PenLine },
   { id: 'oral', icon: Mic },
 ]
-const PART_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, HOEREN: Headphones, SCHREIBEN: PenTool, SPRECHEN: Mic }
+const PART_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, HOEREN: Headphones, SCHREIBEN: PenLine, SPRECHEN: Mic }
 const RULES: { key: string; icon: LucideIcon }[] = [
   { key: 'ruleTimer', icon: Timer },
   { key: 'ruleHoeren', icon: Lock },
@@ -75,9 +75,7 @@ export function MockStart({ examTitle, points, running, oralTaken = true, backHr
       </Link>
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-            <FileText size={14} aria-hidden /> {t('eyebrow')}
-          </p>
+          <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t('eyebrow')}</p>
           <h1 className="mt-1 break-words font-ga-display text-ga-h1 text-ga-ink">{examTitle}</h1>
         </div>
         <TourHelpButton onClick={tour.start} />

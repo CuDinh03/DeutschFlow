@@ -116,7 +116,7 @@ function PaymentSuccessContent() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 flex flex-col items-center justify-center text-white px-4">
       <div className="text-center max-w-md bg-white/5 backdrop-blur-sm p-8 rounded-3xl border border-white/10 shadow-2xl">
-        <PartyPopper size={64} strokeWidth={1.4} className="mx-auto mb-6 animate-bounce text-amber-300" aria-hidden />
+        <PartyPopper size={64} className="mx-auto mb-6 animate-bounce text-amber-300" aria-hidden />
 
         <h1 className="text-3xl font-extrabold bg-gradient-to-r from-violet-300 via-white to-purple-300 bg-clip-text text-transparent mb-4">
           {plan ? "Thanh toán thành công!" : "Đang hoàn tất kích hoạt gói"}

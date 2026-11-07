@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { ArrowRight, Dumbbell, Sparkles } from 'lucide-react'
-import { GaPageHdr, GaCard } from '@/components/ui-v2'
+import { GaPageHdr, GaCard, GaGlyph } from '@/components/ui-v2'
 
 // Launcher cho hai công cụ ngữ pháp trong /v2. Trước đây trang này còn fetch GET /grammar/topics để
 // duyệt chủ đề, nhưng endpoint đó KHÔNG tồn tại trên backend (chỉ có /grammar/syllabus/*) nên trang
@@ -22,9 +22,7 @@ export default function V2StudentGrammarPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <a href={PRACTICE_HREF} className="group block">
             <GaCard className="flex h-full items-center gap-4 px-5 py-6 transition-colors hover:bg-ga-surface">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-ga bg-ga-accent text-ga-accent-ink">
-                <Dumbbell size={22} aria-hidden />
-              </span>
+              <GaGlyph icon={Dumbbell} size="lg" tone="navy" />
               <span className="block min-w-0 flex-1 text-[16px] font-semibold text-ga-ink">{t('practiceCta')}</span>
               <ArrowRight size={18} className="shrink-0 text-ga-subtle transition-transform group-hover:translate-x-0.5" aria-hidden />
             </GaCard>
@@ -32,9 +30,7 @@ export default function V2StudentGrammarPage() {
 
           <a href={AI_HREF} className="group block">
             <GaCard className="flex h-full items-center gap-4 px-5 py-6 transition-colors hover:bg-ga-surface">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-ga border border-ga-line bg-ga-card text-ga-ink">
-                <Sparkles size={22} aria-hidden />
-              </span>
+              <GaGlyph icon={Sparkles} size="lg" tone="navy" />
               <span className="block min-w-0 flex-1 text-[16px] font-semibold text-ga-ink">{t('aiCta')}</span>
               <ArrowRight size={18} className="shrink-0 text-ga-subtle transition-transform group-hover:translate-x-0.5" aria-hidden />
             </GaCard>

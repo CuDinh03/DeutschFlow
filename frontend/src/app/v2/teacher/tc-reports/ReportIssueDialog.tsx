@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+import { FileDown } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { ReportSheet } from '@/components/report/ReportSheet'
 import {
@@ -189,7 +190,7 @@ export function ReportIssueDialog({ open, onOpenChange, classId, evaluation }: R
                 {copied ? t('copied') : t('copyLink')}
               </GaBtn>
               <GaBtn variant="ghost" size="sm" loading={pdfBusy} onClick={() => void savePdf()}>
-                <GaIcon name="description" size={14} /> {t('downloadPdf')}
+                <FileDown size={14} aria-hidden /> {t('downloadPdf')}
               </GaBtn>
             </div>
           </section>

@@ -124,6 +124,15 @@
   color: var(--ga-ink);
 }
 
+/* Một nét cho mọi icon (rà icon 07/11/2026): Lucide mặc định nét 2, còn GaIcon, ô GaGlyph và glyph tự vẽ
+   (`components/ui-v2/glyphs/`) đều 1.9 — đặt cạnh nhau là lộ. Thuộc tính CSS thắng thuộc tính trình bày
+   `stroke-width` của SVG, nên ~1.000 chỗ gọi Lucide trần trong khu Galerie cùng về 1.9 mà không phải
+   sửa từng nơi. Muốn nét khác thì đừng dùng icon: vẽ hình riêng. */
+.ga-scope svg.lucide,
+.ga-scope svg.ga-line-glyph {
+  stroke-width: 1.9;
+}
+
 /* Role identity (chrome + sidebar active). Maps tokens.color.roleAccent.
    Compound selector `.ga-scope[data-role=…]` (không khoảng trắng) phục vụ PORTAL SCOPE CONTRACT
    (W0-C4): nội dung Radix portal render trên document.body — NGOÀI subtree `.ga-scope` — nên phải

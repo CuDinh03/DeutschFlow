@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Plus, ShieldCheck, UserCog, FileText } from 'lucide-react'
+import { Plus, ReceiptText, ShieldCheck, UserCog } from 'lucide-react'
 import { format } from 'date-fns'
 import useAdminData from '@/hooks/useAdminData'
 import { listOrganizations, listOrgInvoices, type AdminOrg, type OrgInvoice } from '@/lib/adminOrgApi'
@@ -235,7 +235,7 @@ export default function V2AdminOrgsPage() {
               href={`/v2/admin/organizations/${org.id}`}
               className="inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line px-[10px] py-[6px] text-ga-caption font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
             >
-              <FileText size={13} aria-hidden />
+              <ReceiptText size={13} aria-hidden />
               {t('openDetail')}
             </Link>
             {/* DEC-13 / A6: đường khôi phục quyền giám đốc — mở ConfirmDialog nêu hệ quả + lý do bắt buộc,
@@ -271,10 +271,9 @@ export default function V2AdminOrgsPage() {
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* Privacy notice — platform admin sees finance only */}
         <div
-          className="mb-[22px] flex items-start gap-3 border px-4 py-[13px] lg:items-center lg:px-[18px]"
-          style={{ background: 'var(--ga-navy-soft)', borderColor: 'rgba(39,64,107,0.20)' }}
+          className="mb-[22px] flex items-start gap-3 border border-ga-line bg-ga-navy-soft px-4 py-[13px] lg:items-center lg:px-[18px]"
         >
-          <ShieldCheck size={20} aria-hidden style={{ color: 'var(--ga-navy)', flexShrink: 0 }} />
+          <ShieldCheck size={20} aria-hidden className="shrink-0 text-ga-navy" />
           <p className="text-[13.5px] leading-[1.5] text-ga-ink">
             {t.rich('privacyNotice', { strong: (chunks) => <strong>{chunks}</strong> })}
           </p>

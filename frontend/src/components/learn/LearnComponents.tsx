@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { playTTS } from "@/lib/tts";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { Loader2, Volume2 } from "lucide-react";
 
 // ── Gender Badge (Accessibility: color + letter) ──
 export function GenderBadge({ gender, label }: { gender: string | null; label: string | null }) {
@@ -72,20 +73,13 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
       title={t("listenPronunciation")}
     >
       {state === "loading" && (
-        <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
+        <Loader2 size={14} className="ga-spin" aria-hidden />
       )}
       {state === "playing" && (
-        <svg className="w-3.5 h-3.5 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-        </svg>
+        <Volume2 size={14} className="animate-pulse" aria-hidden />
       )}
       {state === "idle" && (
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
-        </svg>
+        <Volume2 size={14} aria-hidden />
       )}
     </button>
   );
@@ -127,9 +121,7 @@ export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoP
           </div>
           <div className="absolute top-3 right-3">
             <button onClick={handleAudio} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F1F5F9] text-[#64748B] hover:bg-[#FFCD00]/20 hover:text-[#121212] transition-colors shadow-sm">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
-              </svg>
+              <Volume2 size={16} aria-hidden />
             </button>
           </div>
           <span className="max-w-full font-bold text-[#0F172A] text-xl lg:text-2xl mt-3 text-center break-words">{vocab.german}</span>

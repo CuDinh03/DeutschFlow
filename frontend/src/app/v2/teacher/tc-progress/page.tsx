@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, Clock, TrendingUp, TrendingDown, CircleCheck } from 'lucide-react'
+import { Check, Clock, Target, TrendingUp, TrendingDown, CircleCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
@@ -205,7 +205,7 @@ export default function V2TcProgressPage() {
                       className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[11px] font-bold"
                       style={{
                         background: l.completed ? 'var(--ga-green)' : 'transparent',
-                        color: l.completed ? '#fff' : 'var(--ga-muted)',
+                        color: l.completed ? 'var(--ga-card)' : 'var(--ga-muted)',
                         borderColor: l.completed ? 'var(--ga-green)' : 'var(--ga-line)',
                       }}
                     >
@@ -228,7 +228,7 @@ export default function V2TcProgressPage() {
                         <ul className="mt-1 flex flex-col gap-0.5">
                           {points.map((p, idx) => (
                             <li key={idx} className="flex gap-1.5 text-[12px] leading-[1.4] text-ga-muted">
-                              <span className="mt-[1px] shrink-0" style={{ color: VIOLET }}>•</span>
+                              <span className="mt-[1px] shrink-0 text-ga-violet">•</span>
                               <span className="min-w-0 break-words">{p}</span>
                             </li>
                           ))}
@@ -237,8 +237,8 @@ export default function V2TcProgressPage() {
                       {l.canDoStatements && l.canDoStatements.length > 0 && (
                         <ul className="mt-1 flex flex-col gap-0.5">
                           {l.canDoStatements.map((c) => (
-                            <li key={c.id ?? c.orderIndex} className="flex gap-1.5 text-[12px] leading-[1.4]" style={{ color: VIOLET }}>
-                              <Check size={12} aria-hidden className="mt-[2px] shrink-0" />
+                            <li key={c.id ?? c.orderIndex} className="flex gap-1.5 text-[12px] leading-[1.4] text-ga-violet">
+                              <Target size={12} aria-hidden className="mt-[2px] shrink-0 text-ga-muted" />
                               <span className="min-w-0 break-words">{c.text}</span>
                             </li>
                           ))}

@@ -15,7 +15,7 @@ import { interviewDomainApi, type InterviewPhaseResultInfo } from '@/lib/intervi
 import { useAiSpeakingQuota } from '@/hooks/useAiSpeakingQuota'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
-import { GaCap, GaCard, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
+import { GaCap, GaCard, GaGlyph, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 /**
@@ -396,7 +396,7 @@ export default function V2StudentInterviewsPage() {
             <LoadingState label={t('loading')} />
           ) : sessions.length === 0 ? (
             <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
-              <Briefcase size={36} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
+              <GaGlyph icon={Briefcase} size="lg" tone="plain" className="mx-auto mb-3" />
               <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
               <p className="ga-ui mt-2 text-[13px] text-ga-muted">{t('emptyDesc')}</p>
               <a
@@ -416,12 +416,7 @@ export default function V2StudentInterviewsPage() {
                     onClick={() => openSession(sess)}
                     className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:gap-4 lg:px-5"
                   >
-                    <span
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-ga"
-                      style={{ background: 'var(--ga-yellow-soft)', color: 'var(--ga-ink)' }}
-                    >
-                      <Briefcase size={18} aria-hidden />
-                    </span>
+                    <GaGlyph icon={Briefcase} size="md" tone="navy" />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="min-w-0 truncate text-[15px] font-semibold text-ga-ink">

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { Mic, UserRound, type LucideIcon } from 'lucide-react'
+import { GaGlyph } from '@/components/ui-v2'
 
 export type OralSpeaker = 'PRUEFER' | 'PARTNER' | 'ME' | null
 
@@ -22,17 +23,12 @@ export function OralPeople({ speaker, hasPartner, meSub }: Props) {
   return (
     <div className="flex gap-2 border-b border-ga-line px-3 py-3 sm:gap-2.5 sm:px-4" data-testid="oral-people">
       <Person id="PRUEFER" icon={UserRound} tone="ink" name={t('pruefer')} sub={t('ai')} talking={speaker === 'PRUEFER'} />
-      {hasPartner && <Person id="PARTNER" icon={UserRound} tone="plain" name={t('partner')} sub={t('ai')} talking={speaker === 'PARTNER'} />}
+      {hasPartner && <Person id="PARTNER" icon={UserRound} tone="navy" name={t('partner')} sub={t('ai')} talking={speaker === 'PARTNER'} />}
       <Person id="ME" icon={Mic} tone="yellow" name={t('you')} sub={meSub} talking={speaker === 'ME'} />
     </div>
   )
 }
 
-const GLYPH_TONE = {
-  ink: 'bg-ga-ink text-ga-bg',
-  plain: 'bg-ga-navy-soft text-ga-navy',
-  yellow: 'bg-ga-yellow text-ga-ink',
-} as const
 
 function Person({
   id,
@@ -44,7 +40,7 @@ function Person({
 }: {
   id: string
   icon: LucideIcon
-  tone: keyof typeof GLYPH_TONE
+  tone: 'ink' | 'navy' | 'yellow'
   name: string
   sub: string
   talking: boolean
@@ -57,9 +53,7 @@ function Person({
       data-person={id}
       data-talking={talking ? 'true' : 'false'}
     >
-      <span aria-hidden className={`grid h-8 w-8 shrink-0 place-items-center rounded-ga sm:h-9 sm:w-9 ${GLYPH_TONE[tone]}`}>
-        <Icon size={18} strokeWidth={1.9} />
-      </span>
+      <GaGlyph icon={Icon} tone={tone} />
       <span className="ga-ui w-full min-w-0 text-center text-ga-small sm:flex-1 sm:text-left sm:text-ga-body">
         <b className="block truncate font-semibold text-ga-ink">{name}</b>
         <span className="hidden truncate text-ga-small text-ga-muted sm:block">{sub}</span>

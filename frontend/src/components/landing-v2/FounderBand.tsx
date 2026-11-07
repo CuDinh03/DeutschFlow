@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
+import { ArrowRight } from 'lucide-react'
 import { GaCap } from '@/components/ui-v2'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import founderInk from '../../assets/landing/founder/founder-ink-square.webp'
@@ -38,9 +39,7 @@ export function FounderBand() {
             className="mt-7 inline-flex min-h-11 items-center gap-2.5 bg-ga-yellow px-5 text-ga-body font-semibold text-ga-ink hover:opacity-90"
           >
             {t('link')}
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
+            <ArrowRight size={16} aria-hidden />
           </Link>
         </div>
       </div>

@@ -5,7 +5,7 @@ import { MessageSquare } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { getThread, sendMessage, sameMessageIds, type ChatMessage } from '@/lib/messagesApi'
 import { usePollWhileVisible } from '@/hooks/usePollWhileVisible'
-import { LoadingState } from '@/components/ui-v2'
+import { GaGlyph, LoadingState } from '@/components/ui-v2'
 import { Composer } from './Composer'
 import { ThreadShell, fmtDay, initial } from './ThreadShell'
 import { useTranslations } from 'next-intl'
@@ -80,7 +80,7 @@ export function DirectThread({ userId, name, onBack, onSent }: DirectThreadProps
         <LoadingState label={t('loading')} />
       ) : thread.length === 0 ? (
         <p className="ga-ui flex flex-col items-center gap-2 py-8 text-center text-[13px] text-ga-muted">
-          <MessageSquare size={20} aria-hidden />
+          <GaGlyph icon={MessageSquare} tone="plain" size="lg" />
           {t('directEmpty')}
         </p>
       ) : (

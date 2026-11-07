@@ -6,12 +6,12 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2, Paperclip, ExternalLink, FileText, Music, Video, Image as ImageIcon, Link as LinkIcon } from 'lucide-react'
+import { Loader2, Paperclip, ExternalLink, FileText, FileAudio, Video, Image as ImageIcon, Link as LinkIcon } from 'lucide-react'
 import { listAssignmentMaterials, type Material, type MaterialKind } from '@/lib/materialApi'
 
 const KIND_ICON: Record<MaterialKind, typeof FileText> = {
   PDF: FileText, DOCX: FileText, PPTX: FileText, OTHER: FileText,
-  AUDIO: Music, VIDEO: Video, IMAGE: ImageIcon, LINK: LinkIcon,
+  AUDIO: FileAudio, VIDEO: Video, IMAGE: ImageIcon, LINK: LinkIcon,
 }
 
 export function AssignmentMaterialsStrip({ assignmentId }: { assignmentId: number }) {
@@ -29,7 +29,7 @@ export function AssignmentMaterialsStrip({ assignmentId }: { assignmentId: numbe
     return () => { active = false }
   }, [assignmentId])
 
-  if (loading) return <Loader2 size={13} className="mt-2 animate-spin text-ga-subtle" />
+  if (loading) return <Loader2 size={13} className="mt-2 ga-spin text-ga-subtle" />
   if (items.length === 0) return null
 
   // The list URL is a presigned GET (~1h), used immediately on click — open in a new tab.

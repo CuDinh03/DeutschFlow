@@ -127,16 +127,16 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
         {!recording ? (
           <button
             onClick={startRecording}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700"
+            className="flex items-center gap-2 rounded-xl bg-ga-ink text-ga-card px-4 py-2.5 text-sm font-semibold hover:opacity-90"
           >
-            <Mic size={16} /> {t("startRecording")}
+            <Mic size={16} className="text-ga-card" aria-hidden /> {t("startRecording")}
           </button>
         ) : (
           <button
             onClick={stopRecording}
-            className="flex items-center gap-2 rounded-xl bg-red-500 text-white px-4 py-2.5 text-sm font-semibold hover:bg-red-600 animate-pulse"
+            className="flex items-center gap-2 rounded-xl bg-ga-red text-ga-card px-4 py-2.5 text-sm font-semibold hover:opacity-90 animate-pulse"
           >
-            <MicOff size={16} /> {t("stopAndScore")}
+            <MicOff size={16} className="text-ga-card" aria-hidden /> {t("stopAndScore")}
           </button>
         )}
         {result && (

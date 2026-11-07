@@ -3,9 +3,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock, MessageCircle, GraduationCap, Check } from "lucide-react";
+import { ChevronRight, ArrowLeft, Briefcase, Lock, MessageCircle, GraduationCap, Check, Loader2 } from "lucide-react";
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
-import { GaIcon } from "@/components/ui-v2";
+import { GaGlyph, GaIcon } from "@/components/ui-v2";
 import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { PersonaCard } from "./PersonaCard";
 import { usePersonaText } from "./personaText";
@@ -307,10 +307,8 @@ export function CompanionSelect({
               </div>
               <span className="text-sm">{returnPath ? tCommon("back") : tc("home")}</span>
             </motion.button>
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles size={16} className="text-ga-gold" />
-              <span className="ga-ui text-[11px] font-semibold tracking-[0.08em] uppercase text-ga-gold">DeutschFlow AI</span>
-            </div>
+            {/* Eyebrow chữ trơn như mọi đầu trang Galerie (Luyện thi): không icon trang trí, không vàng. */}
+            <p className="ga-ui mb-1 text-ga-eyebrow uppercase text-ga-muted">DeutschFlow AI</p>
             {/* Same title as the mobile screen so both platforms read identically. */}
             <h1 className="font-ga-display text-[28px] font-medium leading-tight text-ga-ink">{tc("title")}</h1>
             <p className="ga-ui text-sm mt-1 text-ga-muted">{tc("subtitle")}</p>
@@ -398,9 +396,7 @@ export function CompanionSelect({
                   />
                   {locked && (
                     <div className="absolute inset-0 rounded-ga flex items-center justify-center" style={{ background: "rgba(251,250,247,0.65)", backdropFilter: "blur(2px)" }}>
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full border border-ga-line bg-ga-card">
-                        <Lock size={18} className="text-ga-gold" />
-                      </span>
+                      <GaGlyph icon={Lock} size="md" tone="plain" />
                     </div>
                   )}
                 </div>
@@ -420,7 +416,7 @@ export function CompanionSelect({
                 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
                 className="mt-3 rounded-ga border border-ga-yellow bg-ga-yellow-soft px-4 py-3 flex items-start gap-3"
               >
-                <Lock size={16} className="text-ga-gold mt-0.5 shrink-0" />
+                <Lock size={16} className="text-ga-ink mt-0.5 shrink-0" aria-hidden />
                 <div className="flex-1 min-w-0">
                   <p className="ga-ui text-sm text-ga-ink font-semibold">{tc("pro.title")}</p>
                   <p className="ga-ui text-xs text-ga-muted mt-0.5">{tc("pro.desc")}</p>
@@ -441,10 +437,7 @@ export function CompanionSelect({
           {sessionMode === "INTERVIEW" && selectedPersona && (
             <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={spring.gentle}>
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Briefcase size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>{tc("positionLabel")}</span>
-                </div>
+                <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{tc("positionLabel")}</p>
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
                     return (selectedPersona.interviewPositions || []).map((pos) => (
@@ -465,7 +458,7 @@ export function CompanionSelect({
                         </div>
                         {interviewPosition === pos.label && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
-                            <Check size={12} className="text-white" aria-hidden />
+                            <Check size={12} className="text-ga-card" aria-hidden />
                           </motion.div>
                         )}
                       </motion.button>
@@ -475,10 +468,7 @@ export function CompanionSelect({
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <BookOpen size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>{tc("experienceLabel")}</span>
-                </div>
+                <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{tc("experienceLabel")}</p>
                 <div className="flex flex-wrap gap-2">
                   {EXPERIENCE_LEVELS.map((exp) => (
                     <motion.button
@@ -506,10 +496,7 @@ export function CompanionSelect({
           {sessionMode === "LESSON" && selectedPersona && (
             <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={spring.gentle}>
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <BookOpen size={14} style={{ color: selectedInk }} />
-                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>{tc("scenarioLabel")}</span>
-                </div>
+                <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{tc("scenarioLabel")}</p>
                 <div className="grid grid-cols-1 gap-2">
                   {(selectedPersona.lessonScenarios || []).map((sc) => (
                     <motion.button key={sc.id} onClick={() => setLessonScenario(sc.label)}
@@ -524,7 +511,7 @@ export function CompanionSelect({
                       </div>
                       {lessonScenario === sc.label && (
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
-                          <Check size={12} className="text-white" aria-hidden />
+                          <Check size={12} className="text-ga-card" aria-hidden />
                         </motion.div>
                       )}
                     </motion.button>
@@ -549,9 +536,7 @@ export function CompanionSelect({
                 transition={spring.gentle}
                 whileTap={{ scale: 0.97, y: 3 }} onClick={handleConfirm} disabled={confirming || quotaBlocked || quotaLoading}>
                 {confirming ? (
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.7, repeat: Infinity, ease: "linear" }}>
-                    <Sparkles size={18} />
-                  </motion.div>
+                  <Loader2 size={18} className="ga-spin" aria-hidden />
                 ) : (
                   <>
                     {sessionMode === "INTERVIEW" ? tc("cta.interview", { name: selectedPersona.name })

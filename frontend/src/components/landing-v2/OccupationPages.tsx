@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref, type PublicLocale } from '@/lib/publicLocale'
@@ -116,7 +117,7 @@ export async function OccupationDetailView({ detail, showTraining = false }: { d
         href={localizedHref(locale, '/phong-van')}
         className="mb-6 inline-flex min-h-11 items-center gap-2 text-ga-small font-semibold text-ga-muted hover:text-ga-ink"
       >
-        <span aria-hidden>←</span>{t('occupationPages.detail.back')}
+        <ArrowLeft size={16} aria-hidden />{t('occupationPages.detail.back')}
       </Link>
 
       <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_320px] md:gap-14">

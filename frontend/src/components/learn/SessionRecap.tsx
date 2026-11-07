@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, BookOpen, Flame, PartyPopper } from "lucide-react";
+import { Star, BookOpen, Flame, PartyPopper } from "lucide-react";
+import { GaGlyph } from "@/components/ui-v2";
 
 interface SessionRecapProps {
   /**
@@ -102,11 +103,8 @@ export default function SessionRecap({
           className="relative w-full max-w-sm mx-4 rounded-3xl bg-white shadow-2xl overflow-hidden"
         >
           {/* Header gradient */}
-          <div
-            className="px-6 pt-8 pb-6 text-center"
-            style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
-          >
-            <PartyPopper size={44} strokeWidth={1.6} className="mx-auto mb-3 text-white" aria-hidden />
+          <div className="bg-ga-ink px-6 pt-8 pb-6 text-center">
+            <GaGlyph icon={PartyPopper} size="lg" tone="yellow" className="mx-auto mb-3" />
             <h2 className="text-white text-xl font-bold">{t("doneTitle")}</h2>
             <p className="text-white/70 text-sm mt-1">{t("doneDesc")}</p>
           </div>
@@ -114,48 +112,48 @@ export default function SessionRecap({
           {/* Stats */}
           <div className="px-6 py-5 space-y-3">
             {/* XP */}
-            <div className="flex items-center justify-between rounded-2xl bg-[#FFFBEA] border border-[#FFCD00]/40 px-4 py-3">
+            <div className="flex items-center justify-between rounded-ga border border-ga-line bg-ga-card px-4 py-3">
               <div className="flex items-center gap-2">
-                <Zap size={22} className="text-[#92400E]" aria-hidden />
-                <span className="text-sm font-medium text-[#92400E]">{t("xpEarned")}</span>
+                <GaGlyph icon={Star} size="md" tone="navy" />
+                <span className="text-sm font-medium text-ga-muted">{t("xpEarned")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-2xl font-black text-[#92400E]"
+                className="text-2xl font-black text-ga-ink"
               >
                 +{xpEarned}
               </motion.span>
             </div>
 
             {/* Vocab */}
-            <div className="flex items-center justify-between rounded-2xl bg-[#F0FDF4] border border-[#22C55E]/30 px-4 py-3">
+            <div className="flex items-center justify-between rounded-ga border border-ga-line bg-ga-card px-4 py-3">
               <div className="flex items-center gap-2">
-                <BookOpen size={22} className="text-[#166534]" aria-hidden />
-                <span className="text-sm font-medium text-[#166534]">{t("newVocab")}</span>
+                <GaGlyph icon={BookOpen} size="md" tone="navy" />
+                <span className="text-sm font-medium text-ga-muted">{t("newVocab")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.45 }}
-                className="text-2xl font-black text-[#166534]"
+                className="text-2xl font-black text-ga-ink"
               >
                 {t("wordCount", { n: vocabCount })}
               </motion.span>
             </div>
 
             {/* Streak */}
-            <div className="flex items-center justify-between rounded-2xl bg-[#FFF7ED] border border-[#F97316]/30 px-4 py-3">
+            <div className="flex items-center justify-between rounded-ga border border-ga-line bg-ga-card px-4 py-3">
               <div className="flex items-center gap-2">
-                <Flame size={22} className="text-[#9A3412]" aria-hidden />
-                <span className="text-sm font-medium text-[#9A3412]">{t("streak")}</span>
+                <GaGlyph icon={Flame} size="md" tone="navy" />
+                <span className="text-sm font-medium text-ga-muted">{t("streak")}</span>
               </div>
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6 }}
-                className="text-2xl font-black text-[#9A3412]"
+                className="text-2xl font-black text-ga-ink"
               >
                 {t("dayCount", { n: streakDays })}
               </motion.span>

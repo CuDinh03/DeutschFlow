@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { PauseCircle, PlayCircle, Sparkles } from 'lucide-react'
+import { PauseCircle, PlayCircle, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { activateEntitlements, updateOrganization, type AdminOrgDetail } from '@/lib/adminOrgApi'
@@ -112,7 +112,7 @@ export function OrgStatusCard({ org, onChanged }: OrgStatusCardProps) {
           </GaBtn>
         )}
         <GaBtn variant="ghost" disabled={busy} onClick={() => setPending('regrant')} data-testid="status-regrant">
-          <Sparkles size={15} aria-hidden />
+          <RefreshCcw size={15} aria-hidden />
           {t('regrant')}
         </GaBtn>
         <p className="ga-ui text-ga-caption text-ga-subtle">{t('regrantHint')}</p>

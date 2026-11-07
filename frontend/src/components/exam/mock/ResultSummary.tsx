@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, CalendarCheck, ChevronRight, CircleAlert, CircleCheck, FileText, Mic, PenLine, Play, RotateCcw } from 'lucide-react'
+import { ArrowRight, CalendarCheck, ChevronRight, CircleAlert, CircleCheck, FileText, Play, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { sectionScores, type AttemptAnalysis, type AttemptResult } from '@/lib/exam/mockAttemptApi'
@@ -127,8 +127,8 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
     <div className="mx-auto flex w-full max-w-[880px] flex-col gap-7 px-4 py-6 sm:px-6">
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-            <FileText size={14} aria-hidden /> {examTitle}
+          <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">
+            {examTitle}
             {when && <> · {fmtd.date(when)}</>}
           </p>
           <h1 className="mt-1 break-words font-ga-display text-ga-h1 text-ga-ink">{heading}</h1>
@@ -139,10 +139,9 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
 
       <div>
         <div data-tour="scores" className="grid grid-cols-1 border-y border-ga-line sm:grid-cols-2">
-          <ScoreBox label={t('written')} icon={PenLine} gate={written} animate={first} />
+          <ScoreBox label={t('written')} gate={written} animate={first} />
           <ScoreBox
             label={t('oral')}
-            icon={Mic}
             gate={oral}
             animate={first}
             className="border-t border-ga-line sm:border-l sm:border-t-0 sm:pl-7"
@@ -265,14 +264,12 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
 
 function ScoreBox({
   label,
-  icon: Icon,
   gate,
   animate,
   className,
   action,
 }: {
   label: string
-  icon: typeof PenLine
   gate: GateView | null
   animate: boolean
   className?: string
@@ -284,9 +281,7 @@ function ScoreBox({
   const ok = gate?.status === 'PASSED'
   return (
     <div className={cn('flex flex-col gap-2.5 px-1 py-5', className)}>
-      <span className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-        <Icon size={14} aria-hidden /> {label}
-      </span>
+      <span className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{label}</span>
       <span className={cn('font-ga-display text-ga-stat leading-none tabular-nums', has ? 'text-ga-ink' : 'text-ga-muted')}>
         {has ? (animate ? shown : fmt(gate!.raw)) : '–'} <small className="ga-ui text-ga-body font-medium text-ga-muted">/ {gate ? fmt(gate.max) : '–'}</small>
       </span>

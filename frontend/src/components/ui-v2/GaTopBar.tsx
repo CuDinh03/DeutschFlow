@@ -77,7 +77,8 @@ export function GaTopBar({ role }: GaTopBarProps) {
             aria-label={t('messages')}
             className="group grid h-11 w-11 shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
           >
-            <GaNavIcon icon={inbox.icon} glyph={inbox.glyph} size={20} />
+            {/* Nút điều khiển trên thanh trên đều là Lucide (chuông, trợ giúp) — không đặt glyph thương hiệu lẫn vào. */}
+            <GaIcon name={inbox.icon} size={20} />
           </Link>
         )}
 

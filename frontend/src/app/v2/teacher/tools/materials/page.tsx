@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Sparkles, FileText, Info } from 'lucide-react'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, GaGlyph } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tạo Tài liệu AI (GaMaterialsAI) — violet, 2-col (config · preview).
@@ -16,7 +16,6 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 // worksheet-generation endpoint when it exists (backend backlog).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const VIOLET = '#7C56C8'
 const MAT_TYPES = ['Bài đọc hiểu', 'Bài nghe', 'Bài kiểm tra từ vựng', 'Bài tập ngữ pháp', 'Đề phỏng vấn', 'Bài tập tình huống']
 const MAT_TOPICS = ['Krankenhaus & Pflege', 'Arbeitsalltag', 'Bewerbungsgespräch', 'Freizeit & Familie', 'Stadtleben & Wohnen', 'Technik & IT']
 const LEVELS = ['A2', 'B1', 'B2', 'C1']
@@ -35,7 +34,7 @@ export default function V2MaterialsAiPage() {
       {/* A6/F13: màn này là PROTOTYPE (chưa có backend sinh worksheet) — phải nói thẳng ngay đầu
           trang, không để giáo viên tin nút Generate sắp cho ra tài liệu thật. */}
       <div className="flex items-start gap-2.5 border-b border-ga-line bg-ga-side-active px-4 py-3 sm:px-6">
-        <Info size={15} className="mt-0.5 shrink-0" style={{ color: VIOLET }} aria-hidden />
+        <Info size={15} className="mt-0.5 shrink-0 text-ga-muted" aria-hidden />
         <p className="ga-ui text-[13px] leading-relaxed text-ga-muted">{tProto('prototypeNotice')}</p>
       </div>
 
@@ -118,7 +117,7 @@ export default function V2MaterialsAiPage() {
             value={count}
             onChange={(e) => setCount(Number(e.target.value))}
             className="mb-6 w-full"
-            style={{ accentColor: VIOLET }}
+            style={{ accentColor: 'var(--ga-violet)' }}
           />
 
           <GaBtn
@@ -137,9 +136,7 @@ export default function V2MaterialsAiPage() {
         {/* Preview (idle — no fabricated content until backend exists) */}
         <div className="grid place-items-center bg-ga-bg px-4 py-8 sm:px-6 lg:overflow-auto lg:px-9 lg:py-7">
           <div className="max-w-md text-center">
-            <span className="mx-auto mb-4 grid h-14 w-14 place-items-center" style={{ background: 'var(--ga-violet-soft)' }}>
-              <FileText size={26} style={{ color: VIOLET }} />
-            </span>
+            <GaGlyph icon={FileText} tone="plain" size="lg" className="mx-auto mb-4" />
             <h2 className="font-ga-display text-[20px] font-medium leading-[1.25] text-ga-ink lg:text-[22px]">Bản xem trước tài liệu</h2>
             <p className="ga-ui mt-2 text-[14px] leading-[1.65] text-ga-muted">
               Cấu hình sẽ tạo: <strong className="text-ga-ink">{type}</strong> · chủ đề{' '}

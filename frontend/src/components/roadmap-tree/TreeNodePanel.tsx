@@ -2,9 +2,22 @@
 
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowUpLeft, BookOpen, Check, Lock, Play } from 'lucide-react'
-import { SKILL_ICONS } from '@/lib/skills'
-import { GaIcon, iconNameForEmoji, SkillIcon } from '@/components/ui-v2'
+import {
+  ArrowUpLeft,
+  BookOpen,
+  Check,
+  Flower2,
+  Headphones,
+  Leaf,
+  Lock,
+  Mic,
+  PenLine,
+  Play,
+  type LucideIcon,
+} from 'lucide-react'
+import { SKILL_ICON, type Skill } from '@/lib/skills'
+import { GaGlyph, type GaGlyphIcon } from '@/components/ui-v2'
+import { TreeBud, TreeNub } from '@/components/ui-v2/glyphs'
 import type { TreeMotif } from '@/lib/roadmap-tree/treeLayout'
 import {
   isSkillMastered,
@@ -71,17 +84,13 @@ export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps)
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-dashed border-ga-line px-4 py-3">
-        <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">
+        <p className="flex items-center gap-2 font-ga-display text-[17px] font-medium text-ga-ink">
           {/* `emoji` là cột dữ liệu của node, không phải lựa chọn giao diện — dịch sang icon để
               cùng nét với phần còn lại của bảng (xem `emojiIconMap`). */}
-          {node.emoji && (
-            <GaIcon
-              name={iconNameForEmoji(node.emoji)}
-              size={16}
-              className="mr-1.5 inline align-[-2px] text-ga-muted"
-            />
-          )}
-          {node.dayNumber ? t('tree.dayTitle', { day: node.dayNumber, title }) : title}
+          {node.emoji && <GaGlyph emoji={node.emoji} size="sm" tone="navy" />}
+          <span className="min-w-0 break-words">
+            {node.dayNumber ? t('tree.dayTitle', { day: node.dayNumber, title }) : title}
+          </span>
         </p>
         <p className="ga-ui mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ga-subtle">
           {node.weekNumber ? <span>{t('tree.weekShort', { week: node.weekNumber })} ·</span> : null}
@@ -151,11 +160,7 @@ export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps)
                       href={`/v2/student/practice/${node.id}/${skill}`}
                       className="group flex min-h-11 items-center gap-2.5 rounded-ga border border-ga-line bg-ga-card px-3 py-2 transition-colors hover:border-ga-subtle hover:bg-ga-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus lg:min-h-0"
                     >
-                      <SkillIcon
-                        paths={SKILL_ICONS[skill]}
-                        size={16}
-                        color={mastered ? 'var(--ga-green)' : 'var(--ga-subtle)'}
-                      />
+                      <GaGlyph icon={SKILL_ICON[skill]} size="sm" tone={mastered ? 'green' : 'plain'} />
                       <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-ga-ink">
                         {t(`tree.skillNames.${skill}`)}
                         {count > 0 && (
@@ -214,19 +219,17 @@ export function TreeNodePanel({ node, stats, onJumpToNode }: TreeNodePanelProps)
 
 function Legend() {
   const t = useTranslations('v2.student.roadmap')
-  const items: { motif: TreeMotif; color: string; glyph: string }[] = [
-    { motif: 'leaf', color: 'var(--ga-green)', glyph: '▲' },
-    { motif: 'flower', color: 'var(--ga-gold)', glyph: '✿' },
-    { motif: 'bud', color: '#7fae8a', glyph: '◗' },
-    { motif: 'nub', color: 'var(--ga-subtle)', glyph: '●' },
+  const items: { motif: TreeMotif; icon: GaGlyphIcon; className: string }[] = [
+    { motif: 'leaf', icon: Leaf, className: 'text-ga-green' },
+    { motif: 'flower', icon: Flower2, className: 'text-ga-gold' },
+    { motif: 'bud', icon: TreeBud, className: 'text-ga-green' },
+    { motif: 'nub', icon: TreeNub, className: 'text-ga-subtle' },
   ]
   return (
     <ul className="ga-ui grid grid-cols-2 gap-x-3 gap-y-1 rounded-ga border border-ga-line px-3 py-2 text-[11.5px] text-ga-muted">
       {items.map((item) => (
         <li key={item.motif} className="flex items-center gap-1.5">
-          <span style={{ color: item.color }} aria-hidden>
-            {item.glyph}
-          </span>
+          <item.icon size={14} className={`shrink-0 ${item.className}`} aria-hidden />
           {t(`tree.legend.${item.motif}`)}
         </li>
       ))}

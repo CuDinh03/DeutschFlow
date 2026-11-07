@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, BarChart2, RefreshCw, TrendingUp } from 'lucide-react'
+import { ArrowLeft, RefreshCw } from 'lucide-react'
 import api from '@/lib/api'
 import { ARTICLE_COLOR } from '@/lib/vocabWords'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
@@ -207,10 +207,7 @@ export default function V2StudentVocabAnalyticsPage() {
               </GaCard>
 
               <GaCard className="p-4 lg:p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <BarChart2 size={17} className="text-ga-accent" aria-hidden />
-                  <GaCap>{t('vocabDetails')}</GaCap>
-                </div>
+                <GaCap className="mb-4">{t('vocabDetails')}</GaCap>
                 <div className="space-y-4">
                   {[
                     {
@@ -246,10 +243,7 @@ export default function V2StudentVocabAnalyticsPage() {
 
               {history.length >= 2 && (
                 <GaCard className="p-4 lg:p-6">
-                  <div className="mb-4 flex items-center gap-2">
-                    <TrendingUp size={17} className="text-ga-accent" aria-hidden />
-                    <GaCap>{t('historyTitle')}</GaCap>
-                  </div>
+                  <GaCap className="mb-4">{t('historyTitle')}</GaCap>
                   <LineChart data={history} emptyLabel={t('historyEmpty')} />
                   <p className="ga-ui mt-2 text-center text-[11px] text-ga-subtle">{t('historyNote')}</p>
                 </GaCard>

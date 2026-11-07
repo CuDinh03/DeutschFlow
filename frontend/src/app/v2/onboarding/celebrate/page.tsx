@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight, BookOpen, Flame, ListChecks, Map, Mic, Repeat, Star, Target } from 'lucide-react'
-import { GaBtn, GaIcon } from '@/components/ui-v2'
+import { GaBtn, GaGlyph, GaIcon } from '@/components/ui-v2'
 import { useTracking } from '@/hooks/useTracking'
 import { getMyLearningProfile } from '@/lib/profileApi'
 import { MENTOR_META } from '@/lib/mentorMeta'
@@ -109,9 +109,7 @@ function CelebrateContent() {
         aria-live="polite"
       >
         <div className="flex flex-col items-center gap-3 text-center">
-          <span className="grid h-16 w-16 place-items-center rounded-ga-pill bg-ga-yellow text-ga-ink" aria-hidden="true">
-            <KindIcon size={30} />
-          </span>
+          <GaGlyph icon={KindIcon} size="lg" tone="yellow" />
           <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t('celebrate.cap')}</p>
           <h1 tabIndex={-1} className="font-ga-display text-ga-display-m text-ga-ink outline-none">{t('celebrate.title')}</h1>
           <p className="max-w-md text-ga-small text-ga-muted">{t(bodyKey(kind, passed))}</p>
@@ -125,7 +123,7 @@ function CelebrateContent() {
         {mentorName && (
           <div className="mt-5 flex items-center gap-3 rounded-ga border border-ga-gold bg-ga-yellow-soft p-3" data-testid="celebrate-mentor">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-ga-pill bg-ga-yellow">
-              <GaIcon name="school" size={22} className="text-ga-ink" />
+              <GaIcon name="person" size={22} className="text-ga-ink" />
             </div>
             <div className="min-w-0">
               <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">{t('celebrate.mentorLabel')}</p>

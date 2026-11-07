@@ -25,7 +25,7 @@ import {
 } from '@/components/game/gameAdapters'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { useTracking } from '@/hooks/useTracking'
-import { GaBtn, GaCap, GaCard, GaPageHdr, LoadingState } from '@/components/ui-v2'
+import { GaBtn, GaCap, GaCard, GaGlyph, GaPageHdr, LoadingState } from '@/components/ui-v2'
 import { GameModeSwitch } from '../GameModeSwitch'
 
 /**
@@ -317,9 +317,7 @@ export default function V2StudentLegoGamePage() {
           <GameModeSwitch active="lego" />
           <div className="mx-auto max-w-xl">
             <GaCard className="flex flex-col items-center gap-4 px-4 py-12 text-center sm:px-6 lg:py-14">
-              <span className="grid h-14 w-14 place-items-center rounded-ga-pill bg-ga-yellow-soft text-ga-gold">
-                <Trophy size={28} aria-hidden />
-              </span>
+              <GaGlyph icon={Trophy} size="lg" tone="yellow" />
               <div className="space-y-1">
                 <p className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">
                   {finished ? t('doneTitle', { score }) : t('emptyTitle')}

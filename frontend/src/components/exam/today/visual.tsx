@@ -8,12 +8,13 @@ import {
   FileText,
   Headphones,
   Mic,
-  PenTool,
+  PenLine,
   Puzzle,
   Route,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import type { ExamPlanDay } from '@/lib/examPlanApi'
 import { PASS_PCT, type SkillStatus } from './todayModel'
 
@@ -21,7 +22,7 @@ export const SECTION_ICON: Record<string, LucideIcon> = {
   LESEN: BookOpen,
   SPRACHBAUSTEINE: Puzzle,
   HOEREN: Headphones,
-  SCHREIBEN: PenTool,
+  SCHREIBEN: PenLine,
   SPRECHEN: Mic,
 }
 
@@ -43,17 +44,12 @@ export function dayIcon(day: Pick<ExamPlanDay, 'kind' | 'section'>): LucideIcon 
   }
 }
 
-/** Ô icon kiểu GaGlyph: vuông bo nhẹ, nền mềm. */
-export function Glyph({ icon: Icon, tone = 'navy', size = 'md', className }: { icon: LucideIcon; tone?: 'navy' | 'yellow' | 'plain' | 'ink'; size?: 'sm' | 'md' | 'lg'; className?: string }) {
-  const box = size === 'lg' ? 'h-12 w-12' : size === 'sm' ? 'h-7 w-7' : 'h-9 w-9'
-  const px = size === 'lg' ? 24 : size === 'sm' ? 15 : 18
-  const bg =
-    tone === 'yellow' ? 'bg-ga-yellow text-ga-ink' : tone === 'plain' ? 'bg-ga-side-active text-ga-muted' : tone === 'ink' ? 'bg-ga-ink text-ga-card' : 'bg-ga-navy-soft text-ga-navy'
-  return (
-    <span aria-hidden className={cn('grid shrink-0 place-items-center rounded-ga', box, bg, className)}>
-      <Icon size={px} strokeWidth={1.9} />
-    </span>
-  )
+/**
+ * Ô icon nhận diện của Luyện thi — chính là `GaGlyph` dùng chung của web (cùng cỡ, cùng tông ở mọi
+ * khu), giữ tên `Glyph` cho các màn đã dùng.
+ */
+export function Glyph({ icon, tone = 'navy', size = 'md', className }: { icon: LucideIcon; tone?: 'navy' | 'yellow' | 'plain' | 'ink'; size?: 'sm' | 'md' | 'lg'; className?: string }) {
+  return <GaGlyph icon={icon} tone={tone} size={size} className={className} />
 }
 
 /** Thanh tiến độ có vạch ngưỡng 60%; phần tô chạy từ 0 khi mới hiện. */

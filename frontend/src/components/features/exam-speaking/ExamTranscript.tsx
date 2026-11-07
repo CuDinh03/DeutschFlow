@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Sparkles, Timer } from 'lucide-react'
+import { Gauge, Timer } from 'lucide-react'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import type { DrillTurnEval, RoomLine } from '@/types/exam-speaking'
 
@@ -80,7 +80,7 @@ function DrillEvalCard({ eval: ev }: { eval: DrillTurnEval }) {
   return (
     <div className="mt-2 rounded-ga border border-ga-line bg-ga-card p-3 text-left" data-testid="drill-eval">
       <div className="flex items-center gap-2">
-        <Sparkles size={14} className="text-ga-accent" aria-hidden />
+        <Gauge size={14} className="text-ga-muted" aria-hidden />
         <span className="font-ga-display text-[16px] font-medium text-ga-ink">
           {t('score', { score: ev.score ?? 0 })}
         </span>

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
+import { Menu, X } from 'lucide-react'
 import { GaLogo, GaBtn } from '@/components/ui-v2'
 import { LanguageToggle } from '@/components/ui-v2/LanguageToggle'
 import { useTracking } from '@/hooks/useTracking'
@@ -100,13 +101,7 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
             aria-label={menuOpen ? t('header.closeMenu') : t('header.openMenu')}
             className="flex h-11 w-11 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
           >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-              {menuOpen ? (
-                <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.8" />
-              ) : (
-                <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.8" />
-              )}
-            </svg>
+            {menuOpen ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
           </button>
         </div>
       </div>

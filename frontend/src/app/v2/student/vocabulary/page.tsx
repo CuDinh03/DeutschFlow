@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowRight, BarChart3, HelpCircle, Layers, Mic, RotateCcw, Volume2 } from 'lucide-react'
+import { ArrowRight, BarChart3, Layers, ListChecks, Mic, Repeat, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
 
 import { cleanExample, colorForArticle } from '@/lib/vocabWords'
-import { GaPageHdr, TkSearch, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { GaPageHdr, TkSearch, GaCap, GaGlyph, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { useDueCount } from './dueCount'
 import {
   CEFR_ORDER,
@@ -50,7 +50,7 @@ const FRESH_HREF = '/v2/student/vocabulary/swipe'
 const DRILLS = [
   { key: 'practice', href: '/v2/student/vocabulary/practice', Icon: Mic },
   { key: 'swipe', href: '/v2/student/vocabulary/swipe', Icon: Layers },
-  { key: 'articleQuiz', href: '/v2/student/vocabulary/article-quiz', Icon: HelpCircle },
+  { key: 'articleQuiz', href: '/v2/student/vocabulary/article-quiz', Icon: ListChecks },
   { key: 'analytics', href: '/v2/student/vocabulary/analytics', Icon: BarChart3 },
 ] as const
 
@@ -292,7 +292,7 @@ export default function V2StudentVocabularyPage() {
   // Một CTA chính thay bốn ô đồng hạng: bốn lối vào ngang nhau không trả lời được câu "giờ tôi làm gì".
   // Còn thẻ đến hạn thì ôn trước — đó là việc SRS đòi hôm nay; hết hạn mới mời học từ mới.
   const cta = dueCount > 0
-    ? { href: REVIEW_HREF, Icon: RotateCcw, title: t('cta.due', { count: dueCount }), desc: t('cta.dueDesc') }
+    ? { href: REVIEW_HREF, Icon: Repeat, title: t('cta.due', { count: dueCount }), desc: t('cta.dueDesc') }
     : { href: FRESH_HREF, Icon: Layers, title: t('cta.fresh'), desc: t('cta.freshDesc') }
   // Không lặp lại lối vào mà CTA đã dẫn tới.
   const secondaryDrills = DRILLS.filter((d) => d.href !== cta.href)
@@ -311,7 +311,7 @@ export default function V2StudentVocabularyPage() {
           href={cta.href}
           className="group mb-3 flex items-center gap-4 rounded-ga bg-ga-accent px-5 py-5 text-ga-accent-ink transition-transform duration-200 hover:-translate-y-0.5 sm:px-7 sm:py-6"
         >
-          <cta.Icon size={26} aria-hidden className="shrink-0" />
+          <GaGlyph icon={cta.Icon} size="lg" tone="ink" />
           <span className="min-w-0 flex-1">
             <span className="ga-ui block text-[11px] font-semibold uppercase tracking-[0.12em] opacity-70">
               {t('cta.cap')}
@@ -337,7 +337,7 @@ export default function V2StudentVocabularyPage() {
               href={href}
               className="group flex min-w-[9.5rem] flex-1 items-center gap-2.5 border border-ga-line bg-ga-card px-3 py-2.5 transition-colors hover:border-ga-accent"
             >
-              <Icon size={15} aria-hidden className="shrink-0 text-ga-accent" />
+              <GaGlyph icon={Icon} size="sm" tone="navy" />
               <span className="ga-ui truncate text-[13px] font-semibold text-ga-ink group-hover:text-ga-accent">
                 {t(`drills.${key}.title`)}
               </span>

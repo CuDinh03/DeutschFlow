@@ -12,6 +12,7 @@ import { SpeakingAdaptiveBar } from "@/components/features/ai-speaking/SpeakingA
 import { InterviewPhaseBar } from "@/components/interview/InterviewPhaseBar";
 import { useImmersiveChrome } from "@/components/ui-v2/useImmersiveChrome";
 import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
+import { GaGlyph } from "@/components/ui-v2";
 import { SpeakingChatHeader } from "@/components/features/ai-speaking/SpeakingChatHeader";
 import { SpeakingChatEmptyState } from "@/components/features/ai-speaking/SpeakingChatEmptyState";
 import { SpeakingInputDock } from "@/components/features/ai-speaking/SpeakingInputDock";
@@ -21,7 +22,7 @@ import { MicPermissionBanner } from "@/components/features/ai-speaking/MicPermis
 import { SpeakingMessageBubble } from "@/components/speaking/SpeakingMessageBubble";
 import ErrorRepairDrill from "@/components/errors/ErrorRepairDrill";
 import { chatMessageToBubble } from "@/lib/chatMessageMapper";
-import { CheckCircle } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useSpeakingRecorderMic } from "@/hooks/useSpeakingRecorderMic";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
@@ -786,9 +787,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
               className="relative z-10 w-full max-w-sm rounded-ga border border-ga-line bg-ga-card shadow-ga-panel overflow-hidden"
             >
               <div className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ga-green-soft flex items-center justify-center">
-                  <CheckCircle size={32} className="text-ga-green" />
-                </div>
+                <GaGlyph icon={CircleCheck} size="lg" tone="green" className="mx-auto mb-4" />
                 <h3
                   id="speaking-end-popup-title"
                   className="font-ga-display text-lg font-medium text-ga-ink mb-2"
