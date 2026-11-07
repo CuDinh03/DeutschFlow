@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import {
   Clock, Smartphone, BookOpen, AppWindow, DoorOpen, Pen, Glasses, KeyRound, Coffee, Wine, Lamp,
   Armchair, Scissors, FileText, Radio, Shirt, ShoppingBag, CircleDot, Apple, Newspaper, Laptop,
-  Phone, Table2, Lightbulb, Image as ImageIcon,
+  Phone, Table2, Lightbulb, Image as ImageIcon, CircleCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { GaCap } from '@/components/ui-v2'
@@ -22,13 +22,15 @@ interface Props {
   /** Bước hiện tại trong Teil — thẻ tự giới thiệu chỉ lộ từ đánh vần/số khi giám khảo yêu cầu. */
   stepIndex: number
   candidateAction: string
+  /** Ý trên thẻ (prompts) đã được nói tới — gạch và đánh dấu xanh (Đợt 5 phòng thi nói). */
+  coveredPoints?: number[] | null
 }
 
 /**
  * Thẻ đề như trong phòng thi thật: Themenkarte (Thema + Wort), Bildkarte (hình), thẻ từ khóa
  * tự giới thiệu, và fallback khóa–giá trị cho các stimulus khác (A2+ ở đợt sau).
  */
-export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
+export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoints }: Props) {
   const t = useTranslations('v2.student.examSpeaking.stimulus')
   if (!stimulus) {
     return (
@@ -186,11 +188,27 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction }: Props) {
         <p className="ga-ui text-[15px] text-ga-ink">{String(stimulus.situation ?? '')}</p>
         {prompts.length > 0 && (
           <ul className="mt-3 space-y-1.5">
-            {prompts.map((p) => (
-              <li key={p} className="ga-ui flex items-start gap-2 text-[14px] text-ga-ink">
-                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-ga-ink" aria-hidden /> {p}
-              </li>
-            ))}
+            {prompts.map((p, i) => {
+              const done = coveredPoints?.includes(i) ?? false
+              return (
+                <li
+                  key={`${i}-${p}`}
+                  className={`ga-ui flex items-start gap-2 text-[14px] transition-colors duration-[240ms] ${done ? 'text-ga-muted line-through' : 'text-ga-ink'}`}
+                  data-covered={done ? 'true' : 'false'}
+                  data-testid={`stimulus-point-${i}`}
+                >
+                  {done ? (
+                    <CircleCheck size={16} className="mt-0.5 shrink-0 text-ga-green" aria-hidden />
+                  ) : (
+                    <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-ga-ink" aria-hidden />
+                  )}
+                  <span>
+                    {p}
+                    {done && <span className="sr-only"> ({t('pointCovered')})</span>}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         )}
         <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">{instruction ?? t('planningHint')}</p>

@@ -52,6 +52,8 @@ public record ExamSessionView(
             String prueferText,
             String prueferVoice,
             String lastAiRole,
-            String lastAiText
+            String lastAiText,
+            /** Chỉ số các ý trên thẻ đề (`stimulus.prompts`) đã được nói tới — thẻ không có ý thì rỗng. */
+            List<Integer> coveredPoints
     ) {}
 }

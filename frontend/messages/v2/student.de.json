@@ -1908,7 +1908,8 @@
             "recordingSub": "Noch einmal tippen, um zu stoppen und zu senden",
             "yourTurn": "Sie sind dran",
             "tap": "Zum Sprechen tippen",
-            "tapWithAction": "{action} · zum Sprechen tippen"
+            "tapWithAction": "{action} · zum Sprechen tippen",
+            "recordingAutoSub": "2 Sekunden Stille senden automatisch, oder erneut tippen"
           },
           "action": {
             "ASK": "Eine Frage stellen oder eine Bitte äußern",
@@ -1976,7 +1977,9 @@
             "back": "Zurück",
             "gradingLeave": "Sie können die Seite verlassen; das Ergebnis steht unter den Probeprüfungen der Prüfungsseite.",
             "drillDone": "Übung Teil {n} abgeschlossen"
-          }
+          },
+          "autoStop": "Automatisch stoppen bei Stille",
+          "autoStopHint": "An: Nach dem Sprechen stoppen und senden 2 Sekunden Stille die Aufnahme. Aus: Zum Senden erneut auf das Mikrofon tippen."
         }
       },
       "mic": {
@@ -2029,7 +2032,8 @@
         "meinungHint": "Berichten Sie Ihrem Partner / Ihrer Partnerin von dieser Meinung und erzählen Sie dann von Ihren eigenen Erfahrungen.",
         "yourTopic": "Ihr Thema",
         "debate": "Diskussion",
-        "debateHint": "Nennen Sie Ihren Standpunkt, reagieren Sie auf Ihre Partnerin oder Ihren Partner und fassen Sie zusammen: dafür oder dagegen?"
+        "debateHint": "Nennen Sie Ihren Standpunkt, reagieren Sie auf Ihre Partnerin oder Ihren Partner und fassen Sie zusammen: dafür oder dagegen?",
+        "pointCovered": "besprochen"
       },
       "result": {
         "sheetCap": "Simulierter Bewertungsbogen",

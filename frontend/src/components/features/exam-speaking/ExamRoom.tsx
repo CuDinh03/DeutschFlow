@@ -20,6 +20,7 @@ import { OralPeople, type OralSpeaker } from './OralPeople'
 import { OralTaskCard } from './OralTaskCard'
 import { OralPrep } from './OralPrep'
 import { oralEntryHref } from '@/lib/exam/oralRoutes'
+import { readAutoStop, writeAutoStop } from '@/lib/exam/silenceDetector'
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
 import { OralResult } from './OralResult'
@@ -80,6 +81,15 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
   // ── cơ chế lượt: AI đang nói → khoá mic/text, xong → báo "đến lượt bạn" ────────────────
   const [aiSpeaking, setAiSpeaking] = useState<'PRUEFER' | 'PARTNER' | null>(null)
   const [recording, setRecording] = useState(false)
+  // Tự dừng khi im 2 giây (Đợt 5): mặc định bật, nhớ theo máy; đọc sau khi mount để khớp lúc dựng trang.
+  const [autoStop, setAutoStop] = useState(true)
+  useEffect(() => setAutoStop(readAutoStop()), [])
+  const toggleAutoStop = () => {
+    setAutoStop((v) => {
+      writeAutoStop(!v)
+      return !v
+    })
+  }
   const speakGenRef = useRef(0)
   const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
   // Hỏi trước khi kết thúc / sang Teil (thi thử không quay lại được) — luật thoát giữa chừng 07/11.
@@ -553,7 +563,7 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
       : busy
         ? [t('oral.status.processing'), t('oral.status.processingSub')]
         : recording
-          ? [t('oral.status.recording'), t('oral.status.recordingSub')]
+          ? [t('oral.status.recording'), autoStop ? t('oral.status.recordingAutoSub') : t('oral.status.recordingSub')]
           : [t('oral.status.yourTurn'), action ? t('oral.status.tapWithAction', { action }) : t('oral.status.tap')]
     const nextTeil = session.currentPart + 1
     const advanceLabel = isMock ? (isLastPart ? null : t('oral.nextTeil', { n: nextTeil })) : t('skipPart')
@@ -614,14 +624,31 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
               hint={statusSub}
               yourTurn={yourTurn}
               onRecordingChange={setRecording}
+              autoStop={autoStop}
               status={
-                <div role="status" aria-live="polite" data-testid="turn-status" className="ga-ui min-w-0 text-ga-small text-ga-muted">
-                  <b className="flex items-center gap-1.5 text-ga-body font-semibold text-ga-ink">
-                    {busy && <Loader2 size={15} aria-hidden className="shrink-0 animate-spin" />}
-                    <span className="min-w-0">{statusTitle}</span>
-                  </b>
-                  <span className="mt-0.5 block">{statusSub}</span>
-                </div>
+                <>
+                  <div role="status" aria-live="polite" data-testid="turn-status" className="ga-ui min-w-0 text-ga-small text-ga-muted">
+                    <b className="flex items-center gap-1.5 text-ga-body font-semibold text-ga-ink">
+                      {busy && <Loader2 size={15} aria-hidden className="shrink-0 animate-spin" />}
+                      <span className="min-w-0">{statusTitle}</span>
+                    </b>
+                    <span className="mt-0.5 block">{statusSub}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={autoStop}
+                    onClick={toggleAutoStop}
+                    title={t('oral.autoStopHint')}
+                    className="ga-ui mt-1.5 inline-flex min-h-8 items-center gap-1.5 rounded-ga-pill text-ga-caption font-semibold text-ga-muted hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+                    data-testid="auto-stop-toggle"
+                  >
+                    <span aria-hidden className={`relative h-3.5 w-6 shrink-0 rounded-ga-pill transition-colors duration-150 ${autoStop ? 'bg-ga-navy' : 'bg-ga-line-strong'}`}>
+                      <span className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-ga-card transition-[left] duration-150 ${autoStop ? 'left-3' : 'left-0.5'}`} />
+                    </span>
+                    {t('oral.autoStop')}
+                  </button>
+                </>
               }
               meta={
                 <div className="ga-ui text-right text-ga-small text-ga-muted" data-testid="turn-count">

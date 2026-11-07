@@ -44,6 +44,8 @@ export interface ExamDirective {
   prueferVoice: string | null
   lastAiRole: string | null
   lastAiText: string | null
+  /** Chỉ số các ý trên thẻ đề (`stimulus.prompts`) đã được nói tới (Đợt 5 phòng thi nói); phiên cũ: thiếu. */
+  coveredPoints?: number[] | null
 }
 
 export interface DrillTurnEval {
