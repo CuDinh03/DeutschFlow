@@ -227,6 +227,8 @@ function PracticeTeilPage() {
   }
 
   const check = async () => {
+    // ConfirmDialog không tự đóng khi xác nhận — đóng ở đây (cả khi còn câu bỏ trống, câu đó tính 0).
+    setConfirmOpen(false)
     setBusy(true)
     try {
       const p = await checkPracticeTeil(examId, teilKey, answers, seconds)
