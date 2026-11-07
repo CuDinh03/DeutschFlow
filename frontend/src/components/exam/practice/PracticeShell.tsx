@@ -32,9 +32,16 @@ interface PracticeShellProps {
   backLabel?: string
   /** Thi thử trọn đề: `seconds` là thời gian CÒN LẠI; còn 5 phút đổi cam, còn 1 phút đổi đỏ. */
   countdown?: boolean
+  /**
+   * Có thì nút thoát là nút bấm gọi hàm này (màn làm bài hỏi "chắc chắn thoát?" trước khi rời);
+   * không có thì là liên kết thẳng tới `backHref` như cũ.
+   */
+  onExit?: () => void
 }
 
 const HIDE_CLOCK_KEY = 'df.practice.hideClock'
+const EXIT_CLASS =
+  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus'
 const SAVED_VISIBLE_MS = 1200
 
 /**
@@ -75,6 +82,7 @@ export function PracticeShell({
   children,
   backLabel,
   countdown = false,
+  onExit,
 }: PracticeShellProps) {
   const t = useTranslations('v2.student.practice')
   useImmersiveChrome()
@@ -127,14 +135,15 @@ export function PracticeShell({
     <div className="fixed inset-0 z-50 flex flex-col bg-ga-bg">
       <header className="shrink-0 border-b border-ga-line bg-ga-card">
         <div className="flex min-h-14 items-center gap-2 px-2 py-1.5 lg:gap-3 lg:px-4">
-          <Link
-            href={backHref}
-            aria-label={back}
-            title={back}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
-          >
-            <X size={18} aria-hidden />
-          </Link>
+          {onExit ? (
+            <button type="button" onClick={onExit} aria-label={back} title={back} className={EXIT_CLASS}>
+              <X size={18} aria-hidden />
+            </button>
+          ) : (
+            <Link href={backHref} aria-label={back} title={back} className={EXIT_CLASS}>
+              <X size={18} aria-hidden />
+            </Link>
+          )}
           {Icon && (
             <span aria-hidden className="hidden h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy sm:grid">
               <Icon size={18} strokeWidth={1.9} />

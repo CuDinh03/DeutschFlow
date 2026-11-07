@@ -13,7 +13,6 @@ import {
   getPracticeOverview,
   gradePracticeWriting,
   resetPracticeTeil,
-  savePracticeDraft,
   type PracticeOverview,
   type PracticeTeilResult,
   type WritingEvaluation,
@@ -21,7 +20,8 @@ import {
 import { fetchExamStrategies, findStrategy } from '@/components/exam/strategy/examStrategy'
 import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
 import { ConfirmDialog, LoadingState, ErrorBanner } from '@/components/ui-v2'
-import { PracticeShell, TipsCard, type PracticeSaveState } from '@/components/exam/practice/PracticeShell'
+import { PracticeShell, TipsCard } from '@/components/exam/practice/PracticeShell'
+import { usePracticeDraft } from '@/components/exam/practice/usePracticeDraft'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
@@ -38,8 +38,6 @@ export default function PracticeTeilRoute() {
     </Suspense>
   )
 }
-
-const AUTOSAVE_MS = 1500
 
 function PracticeTeilPage() {
   const t = useTranslations('v2.student.practice')
@@ -62,7 +60,6 @@ function PracticeTeilPage() {
   const [answers, setAnswers] = React.useState<Record<string, string>>({})
   const [result, setResult] = React.useState<PracticeTeilResult | null>(null)
   const [seconds, setSeconds] = React.useState(0)
-  const [saveState, setSaveState] = React.useState<PracticeSaveState>('idle')
   const [tipsOpen, setTipsOpen] = React.useState(false)
   const [tipSteps, setTipSteps] = React.useState<string[]>([])
   // Nút bóng đèn mở ngăn Chiến thuật (đợt c); thẻ mẹo trong bài chỉ tự hiện lần đầu vào Teil.
@@ -75,7 +72,10 @@ function PracticeTeilPage() {
   const [ticks, setTicks] = React.useState<Record<string, boolean>>({})
   const [warn, setWarn] = React.useState(false)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
-  const dirty = React.useRef(false)
+  // Hộp "chắc chắn thoát?" (07/11/2026): lưu nháp ngay rồi mới rời màn.
+  const [exitOpen, setExitOpen] = React.useState(false)
+  const [leaving, setLeaving] = React.useState(false)
+  const [exitFailed, setExitFailed] = React.useState(false)
 
   const meta = overview?.teile.find((x) => x.key === teilKey) ?? null
   const teil = React.useMemo(() => (overview ? findTeil(overview.sectionsJson, teilKey) : null), [overview, teilKey])
@@ -106,7 +106,7 @@ function PracticeTeilPage() {
           }
           if (carried) {
             setText(carried)
-            dirty.current = true
+            markDirtyRef.current()
             if (p?.checked && p.result) setEvaluation(p.result as WritingEvaluation)
           } else {
             setText(p?.answers?.text ?? '')
@@ -183,23 +183,26 @@ function PracticeTeilPage() {
     return () => window.clearInterval(id)
   }, [running])
 
-  // ── tự lưu nháp ─────────────────────────────────────────────────────────────
+  // ── tự lưu nháp (usePracticeDraft: hẹn giờ 1,5 s, lưu ngay khi thoát, keepalive khi đóng tab) ──
   const secondsRef = React.useRef(seconds)
   secondsRef.current = seconds
-  React.useEffect(() => {
-    if (!dirty.current || !overview || result) return
-    setSaveState('saving')
-    const id = window.setTimeout(() => {
-      const payload = isWriting ? { text } : answers
-      savePracticeDraft(examId, teilKey, payload, secondsRef.current)
-        .then(() => setSaveState('saved'))
-        .catch(() => setSaveState('error'))
-    }, AUTOSAVE_MS)
-    return () => window.clearTimeout(id)
-  }, [answers, text, examId, teilKey, isWriting, overview, result])
+  const draftPayload = React.useMemo<Record<string, string>>(() => (isWriting ? { text } : answers), [isWriting, text, answers])
+  const touched = isWriting ? text.trim() !== '' : Object.keys(answers).length > 0
+  const draftOpen = !!overview && !result && !(isWriting && writingView === 'result')
+  const draft = usePracticeDraft({
+    examId,
+    teilKey: overview ? teilKey : null,
+    payload: draftPayload,
+    elapsed: () => secondsRef.current,
+    enabled: draftOpen,
+    hasWork: touched || meta?.progress != null,
+  })
+  const saveState = draft.saveState
+  const markDirtyRef = React.useRef(draft.markDirty)
+  markDirtyRef.current = draft.markDirty
 
   const onAnswer = React.useCallback((id: string, value: string | null) => {
-    dirty.current = true
+    markDirtyRef.current()
     setAnswers((prev) => {
       const next = { ...prev }
       if (value == null) delete next[id]
@@ -209,7 +212,7 @@ function PracticeTeilPage() {
   }, [])
 
   const onText = (v: string) => {
-    dirty.current = true
+    markDirtyRef.current()
     setText(v)
   }
 
@@ -234,7 +237,7 @@ function PracticeTeilPage() {
       const p = await checkPracticeTeil(examId, teilKey, answers, seconds)
       setResult(p.result as PracticeTeilResult)
       setTipsOpen(false)
-      dirty.current = false
+      draft.reset()
     } catch (e) {
       setError(apiMessage(e))
     } finally {
@@ -249,7 +252,7 @@ function PracticeTeilPage() {
       setResult(null)
       setAnswers({})
       setSeconds(0)
-      dirty.current = false
+      draft.reset()
     } catch (e) {
       setError(apiMessage(e))
     } finally {
@@ -269,7 +272,7 @@ function PracticeTeilPage() {
       const ev = await gradePracticeWriting(examId, text, seconds)
       setEvaluation(ev)
       setWritingView('result')
-      dirty.current = false
+      draft.reset()
     } catch (e) {
       setError(apiMessage(e))
     } finally {
@@ -282,6 +285,27 @@ function PracticeTeilPage() {
   const order = overview?.teile.map((x) => x.key) ?? []
   const nextKey = order[order.indexOf(teilKey) + 1] ?? null
   const goNext = () => router.push(nextKey ? `/v2/student/mock-exam/practice/teil?examId=${examId}&teil=${nextKey}` : mapHref)
+
+  // ── thoát: đã làm gì thì hỏi trước, lưu nháp xong mới rời (nháp không tính vào điểm kỹ năng) ──
+  const saveAndLeave = async () => {
+    setLeaving(true)
+    setExitFailed(false)
+    const ok = await draft.flush()
+    setLeaving(false)
+    if (!ok) {
+      setExitFailed(true)
+      setExitOpen(true)
+      return
+    }
+    setExitOpen(false)
+    router.push(mapHref)
+  }
+  const requestExit = () => {
+    if (draftOpen && touched) {
+      setExitFailed(false)
+      setExitOpen(true)
+    } else router.push(mapHref)
+  }
 
   if (!examId || !teilKey) return <ErrorBanner message={t('badLink')} />
   if (!overview) {
@@ -316,6 +340,26 @@ function PracticeTeilPage() {
     />
   )
 
+  const exitDialog = (
+    <ConfirmDialog
+      open={exitOpen}
+      onOpenChange={setExitOpen}
+      title={tf('exitTitle', { teil: subtitle })}
+      description={
+        exitFailed
+          ? tf('exitFailed')
+          : isWriting
+            ? tf('exitBodyWriting', { words: wordCount(text) })
+            : tf('exitBody', { done: Object.keys(answers).filter((k) => teil.items?.some((it) => it.id === k)).length, total: teil.items?.length ?? 0 })
+      }
+      confirmLabel={exitFailed ? tf('exitRetry') : t('saveExit')}
+      cancelLabel={tf('keepGoing')}
+      destructive={false}
+      loading={leaving}
+      onConfirm={() => void saveAndLeave()}
+    />
+  )
+
   if (isWriting) {
     const showResult = writingView === 'result' && evaluation
     const done = points.filter((p) => ticks[p.label]).length
@@ -341,7 +385,7 @@ function PracticeTeilPage() {
           <Sparkles size={14} className="mr-1 inline" aria-hidden />
           {t('aiNote')}
         </span>
-        <FootLink href={mapHref}>{t('saveExit')}</FootLink>
+        <FootBtn quiet disabled={leaving} onClick={() => void saveAndLeave()}>{t('saveExit')}</FootBtn>
         <FootBtn primary tour="submit" disabled={busy || wordCount(text) === 0} onClick={() => grade(false)}>
           {busy ? t('grading') : t('gradeAi')}
         </FootBtn>
@@ -351,6 +395,7 @@ function PracticeTeilPage() {
       <>
       <PracticeShell
         backHref={mapHref}
+        onExit={requestExit}
         section={meta.section}
         subtitle={showResult ? t('writingResultSub') : subtitle}
         title={title}
@@ -381,6 +426,7 @@ function PracticeTeilPage() {
       </PracticeShell>
       {drawer}
       {tour.overlay}
+      {exitDialog}
       </>
     )
   }
@@ -405,7 +451,7 @@ function PracticeTeilPage() {
   ) : (
     <>
       {errorBar}
-      <FootLink href={mapHref}>{t('saveExit')}</FootLink>
+      <FootBtn quiet disabled={leaving} onClick={() => void saveAndLeave()}>{t('saveExit')}</FootBtn>
       <FootBtn primary tour="submit" disabled={busy} onClick={() => (answered < total ? setConfirmOpen(true) : void check())}>
         <Send size={15} aria-hidden /> {busy ? t('checking') : t('check')}
       </FootBtn>
@@ -416,6 +462,7 @@ function PracticeTeilPage() {
     <>
     <PracticeShell
       backHref={mapHref}
+      onExit={requestExit}
       section={meta.section}
       subtitle={subtitle}
       title={title}
@@ -454,6 +501,7 @@ function PracticeTeilPage() {
       destructive={false}
       onConfirm={() => void check()}
     />
+    {exitDialog}
     </>
   )
 }
@@ -461,14 +509,14 @@ function PracticeTeilPage() {
 const btnBase =
   'ga-ui inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-ga-touch px-4 text-ga-body font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-50 lg:flex-none'
 
-function FootBtn({ primary, tour, disabled, onClick, children }: { primary?: boolean; tour?: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
+function FootBtn({ primary, quiet, tour, disabled, onClick, children }: { primary?: boolean; quiet?: boolean; tour?: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       data-tour={tour}
       disabled={disabled}
       onClick={onClick}
-      className={`${btnBase} ${primary ? 'bg-ga-yellow text-ga-ink hover:opacity-90' : 'border-[1.5px] border-ga-line-strong bg-ga-card text-ga-ink hover:bg-ga-side-active'}`}
+      className={`${btnBase} ${primary ? 'bg-ga-yellow text-ga-ink hover:opacity-90' : quiet ? 'text-ga-muted hover:bg-ga-side-active hover:text-ga-ink' : 'border-[1.5px] border-ga-line-strong bg-ga-card text-ga-ink hover:bg-ga-side-active'}`}
     >
       {children}
     </button>

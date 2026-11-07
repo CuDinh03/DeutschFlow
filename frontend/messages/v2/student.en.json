@@ -2605,7 +2605,12 @@
         "confirmBody": "Empty answers score 0 points. Check this part now?",
         "confirmGo": "Check anyway",
         "keepGoing": "Keep working",
-        "suggestStrategy": "See the strategy"
+        "suggestStrategy": "See the strategy",
+        "exitTitle": "Leave {teil}?",
+        "exitBody": "You have answered {done} of {total} questions. Your work is saved as a draft so you can continue later. Drafts do not count towards your skill scores; press “Check this part” to count them.",
+        "exitBodyWriting": "Your text ({words} words) is saved as a draft so you can continue later. The AI only grades it when you press “Grade with AI”.",
+        "exitFailed": "The draft could not be saved. Check your connection and try again.",
+        "exitRetry": "Try again"
       },
       "seeInText": "Show in text",
       "hoeren": {
@@ -3099,7 +3104,13 @@
       "oralBack": "When you are done, come back here and tap \"Check oral result\".",
       "oralCheck": "Check oral result",
       "oralNotYet": "No scored oral exam found since you started the diagnostic test.",
-      "aiTag": "AI-scored on telc criteria · estimate"
+      "aiTag": "AI-scored on telc criteria · estimate",
+      "exitTitle": "Leave the diagnostic test?",
+      "exitBody": "Finished parts are kept. The {part} part you are working on is saved as a draft; next time you open the diagnostic test you continue from here.",
+      "exitFailed": "The draft could not be saved. Check your connection and try again.",
+      "exitRetry": "Try again",
+      "exitConfirm": "Save and leave",
+      "keepGoing": "Keep going"
     }
   }
 }

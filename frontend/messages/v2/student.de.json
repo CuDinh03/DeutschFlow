@@ -2605,7 +2605,12 @@
         "confirmBody": "Leere Antworten zählen 0 Punkte. Diesen Teil jetzt prüfen?",
         "confirmGo": "Trotzdem prüfen",
         "keepGoing": "Weiterarbeiten",
-        "suggestStrategy": "Strategie ansehen"
+        "suggestStrategy": "Strategie ansehen",
+        "exitTitle": "{teil} verlassen?",
+        "exitBody": "Sie haben {done} von {total} Aufgaben beantwortet. Ihre Antworten werden als Entwurf gespeichert, Sie können später weitermachen. Entwürfe zählen nicht für Ihre Kompetenzwerte; mit „Diesen Teil prüfen“ werden sie gewertet.",
+        "exitBodyWriting": "Ihr Text ({words} Wörter) wird als Entwurf gespeichert, Sie können später weiterschreiben. Die KI bewertet ihn erst, wenn Sie „Mit KI bewerten“ wählen.",
+        "exitFailed": "Der Entwurf konnte nicht gespeichert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "exitRetry": "Erneut versuchen"
       },
       "seeInText": "Im Text zeigen",
       "hoeren": {
@@ -3099,7 +3104,13 @@
       "oralBack": "Danach hierher zurückkehren und \"Ergebnis prüfen\" antippen.",
       "oralCheck": "Ergebnis prüfen",
       "oralNotYet": "Seit dem Start des Einstufungstests gibt es noch keine bewertete mündliche Prüfung.",
-      "aiTag": "KI-Bewertung nach telc-Kriterien · Schätzung"
+      "aiTag": "KI-Bewertung nach telc-Kriterien · Schätzung",
+      "exitTitle": "Einstufungstest verlassen?",
+      "exitBody": "Fertige Teile bleiben erhalten. Der Teil {part}, an dem Sie arbeiten, wird als Entwurf gespeichert; beim nächsten Mal machen Sie hier weiter.",
+      "exitFailed": "Der Entwurf konnte nicht gespeichert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "exitRetry": "Erneut versuchen",
+      "exitConfirm": "Speichern und verlassen",
+      "keepGoing": "Weitermachen"
     }
   }
 }

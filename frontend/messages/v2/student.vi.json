@@ -2605,7 +2605,12 @@
         "confirmBody": "Câu bỏ trống tính 0 điểm. Kiểm tra Teil này bây giờ?",
         "confirmGo": "Vẫn kiểm tra",
         "keepGoing": "Làm tiếp",
-        "suggestStrategy": "Xem chiến thuật"
+        "suggestStrategy": "Xem chiến thuật",
+        "exitTitle": "Thoát khỏi {teil}?",
+        "exitBody": "Bạn đã làm {done}/{total} câu. Bài được lưu nháp, lần sau mở lại làm tiếp. Nháp chưa tính vào điểm kỹ năng; bấm “Kiểm tra Teil này” để tính.",
+        "exitBodyWriting": "Bài viết ({words} từ) được lưu nháp, lần sau mở lại viết tiếp. AI chỉ chấm khi bạn bấm “Chấm bằng AI”.",
+        "exitFailed": "Chưa lưu được nháp. Kiểm tra kết nối mạng rồi thử lại.",
+        "exitRetry": "Thử lại"
       },
       "seeInText": "Xem trong bài",
       "hoeren": {
@@ -3099,7 +3104,13 @@
       "oralBack": "Thi xong quay lại đây và bấm \"Kiểm tra kết quả thi nói\".",
       "oralCheck": "Kiểm tra kết quả thi nói",
       "oralNotYet": "Chưa thấy lượt thi nói nào có điểm từ lúc bắt đầu bài chẩn đoán.",
-      "aiTag": "AI chấm theo tiêu chí telc · ước tính"
+      "aiTag": "AI chấm theo tiêu chí telc · ước tính",
+      "exitTitle": "Rời bài chẩn đoán?",
+      "exitBody": "Các phần đã xong được giữ lại. Phần {part} đang làm được lưu nháp; lần sau vào bài chẩn đoán sẽ làm tiếp từ đây.",
+      "exitFailed": "Chưa lưu được nháp. Kiểm tra kết nối mạng rồi thử lại.",
+      "exitRetry": "Thử lại",
+      "exitConfirm": "Lưu và rời",
+      "keepGoing": "Ở lại làm tiếp"
     }
   }
 }
