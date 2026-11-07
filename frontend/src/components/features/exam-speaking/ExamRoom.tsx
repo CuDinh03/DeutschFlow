@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft, Mic, Ear, Loader2 } from 'lucide-react'
+import { Volume2, VolumeX, ChevronRight, RotateCcw, ArrowLeft, Loader2, X } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { newClientTurnId } from '@/lib/exam/clientTurnId'
 import { apiMessage, httpStatus } from '@/lib/api'
 import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
-import { GaBtn, GaCap, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { ConfirmDialog, GaBtn, GaCap, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
 import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { StimulusCard } from './StimulusCard'
 import { TeilStrategy } from '@/components/exam/strategy/TeilStrategy'
@@ -17,6 +17,8 @@ import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
 import { ExamTranscript } from './ExamTranscript'
 import { MicBar } from './MicBar'
+import { OralPeople, type OralSpeaker } from './OralPeople'
+import { OralTaskCard } from './OralTaskCard'
 import { MicCheck } from './MicCheck'
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
@@ -74,9 +76,13 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const spokenRef = useRef<string | null>(null)
   // ── cơ chế lượt: AI đang nói → khoá mic/text, xong → báo "đến lượt bạn" ────────────────
   const [aiSpeaking, setAiSpeaking] = useState<'PRUEFER' | 'PARTNER' | null>(null)
-  const [yourTurnPulse, setYourTurnPulse] = useState(false)
+  const [recording, setRecording] = useState(false)
   const speakGenRef = useRef(0)
   const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
+  // Hỏi trước khi kết thúc / sang Teil (thi thử không quay lại được) — luật thoát giữa chừng 07/11.
+  const [confirm, setConfirm] = useState<'finish' | 'advance' | null>(null)
+  // Đang thi = toàn màn hình, ẩn thanh điều hướng để không bấm nhầm thoát; màn kết quả lấy lại nav.
+  useImmersiveChrome(session?.state === 'IN_PART')
 
   /**
    * Đọc lần lượt các lời AI và giữ trạng thái lượt trong suốt chuỗi. Generation guard: mỗi hành động
@@ -91,7 +97,6 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       if (speakGenRef.current !== gen) return
     }
     setAiSpeaking(null)
-    setYourTurnPulse(true)
   }, [])
 
   /** Người dùng chủ động hành động → cắt mọi lời AI đang phát và mở khoá ngay. */
@@ -99,15 +104,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     speakGenRef.current += 1
     stopExamTts()
     setAiSpeaking(null)
-    setYourTurnPulse(false)
   }, [])
-
-  // Hiệu ứng "đến lượt bạn" chỉ nhấp nháy một nhịp ngắn rồi đứng yên.
-  useEffect(() => {
-    if (!yourTurnPulse) return
-    const id = window.setTimeout(() => setYourTurnPulse(false), 2500)
-    return () => window.clearTimeout(id)
-  }, [yourTurnPulse])
 
   // ── nạp phiên + blueprint (để vẽ stepper có tên Teil) ───────────────────────────────────
   const load = useCallback(async () => {
@@ -383,6 +380,192 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
 
   const isMock = session.mode === 'MOCK'
   const providerName = session.provider === 'GOETHE' ? 'Goethe' : 'telc'
+  const partCount = blueprint?.parts.length ?? session.totalParts
+  const isLastPart = session.currentPart >= partCount
+  const teilTitles = blueprint ? Object.fromEntries(blueprint.parts.map((p) => [p.teilNo, p.title])) : undefined
+
+  const notices = (
+    <>
+      {minorBlocked && (
+        <div className="mb-4">
+          <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4" data-testid={pendingTurn ? 'turn-retry-banner' : undefined}>
+          <ErrorBanner
+            message={pendingTurn ? `${error} ${t('retryTurnHint')}` : error}
+            onRetry={pendingTurn ? retryPendingTurn : () => setError(null)}
+            retryLabel={pendingTurn ? t('retryTurn') : t('dismiss')}
+          />
+        </div>
+      )}
+
+      {session.state !== 'RESULTS' && session.state !== 'DONE' && <MicDeniedGuide className="mb-4" />}
+
+      {/* Minh bạch: phiên hiệu chuẩn có lưu audio — thí sinh phải biết mình đang được ghi âm,
+          kể cả khi đã ký đồng ý trước đó (đồng ý một lần ≠ được im lặng mọi lần sau). */}
+      {session.retainAudio && session.state !== 'RESULTS' && (
+        <p
+          className="ga-ui mb-4 rounded-ga border border-ga-line bg-ga-surface px-3 py-2 text-ga-small text-ga-muted"
+          role="note"
+          data-testid="audio-retention-notice"
+        >
+          {t('audioRetained')}
+        </p>
+      )}
+    </>
+  )
+
+  const muteButton = (
+    <button
+      type="button"
+      onClick={toggleMute}
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+      aria-pressed={muted}
+      aria-label={muted ? t('unmute') : t('mute')}
+      title={muted ? t('unmute') : t('mute')}
+      data-testid="tts-mute"
+    >
+      {muted ? <VolumeX size={17} aria-hidden /> : <Volume2 size={17} aria-hidden />}
+    </button>
+  )
+
+  // ── Đang thi: phòng toàn màn hình theo mẫu 07/11/2026 ─────────────────────────────────────
+  if (session.state === 'IN_PART' && session.directive) {
+    const d = session.directive
+    const speaker: OralSpeaker = aiSpeaking ?? (recording ? 'ME' : null)
+    const yourTurn = !aiSpeaking && !busy && !recording
+    const hasPartner = currentPartSummary?.hasPartner ?? lines.some((l) => l.role === 'PARTNER')
+    const hint = d.hintKey && t.has(`hints.${d.hintKey}`) ? t(`hints.${d.hintKey}`) : d.hintVi
+    const action = t.has(`oral.action.${d.candidateAction}`) ? t(`oral.action.${d.candidateAction}`) : ''
+    const meSub = aiSpeaking ? t('oral.me.listen') : busy ? t('oral.me.sending') : recording ? t('oral.me.recording') : t('oral.me.turn')
+    const [statusTitle, statusSub] = aiSpeaking
+      ? [aiSpeaking === 'PARTNER' ? t('oral.status.partnerTalking') : t('oral.status.prueferTalking'), t('oral.status.listen')]
+      : busy
+        ? [t('oral.status.processing'), t('oral.status.processingSub')]
+        : recording
+          ? [t('oral.status.recording'), t('oral.status.recordingSub')]
+          : [t('oral.status.yourTurn'), action ? t('oral.status.tapWithAction', { action }) : t('oral.status.tap')]
+    const nextTeil = session.currentPart + 1
+    const advanceLabel = isMock ? (isLastPart ? null : t('oral.nextTeil', { n: nextTeil })) : t('skipPart')
+
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-ga-bg" data-testid="oral-room">
+        <header className="shrink-0 border-b border-ga-line bg-ga-card">
+          <div className="flex min-h-14 items-center gap-2 px-2 py-1.5 lg:gap-3 lg:px-4">
+            <button
+              type="button"
+              onClick={() => setConfirm('finish')}
+              disabled={busy}
+              aria-label={isMock ? t('finishMock') : t('finishDrill')}
+              title={isMock ? t('finishMock') : t('finishDrill')}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-50"
+              data-testid="finish-session"
+            >
+              <X size={18} aria-hidden />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="ga-ui mb-0.5 truncate text-ga-caption text-ga-muted">
+                <span lang="de">{t('oral.eyebrow')}</span> · {providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} ·{' '}
+                <span data-testid="beta-label">{t('beta')}</span>
+              </p>
+              {blueprint ? (
+                <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />
+              ) : (
+                <p className="font-ga-display text-ga-h3 text-ga-ink">{t('teilCap', { n: d.teilNo })}</p>
+              )}
+            </div>
+            {muteButton}
+            <ExamTimer
+              variant="pill"
+              deadlineAt={session.partDeadlineAt}
+              serverNow={session.serverNow}
+              totalSec={currentPartSummary?.durationSec ?? 0}
+              onExpire={isMock ? () => void advance() : () => setDrillTimeUp(true)}
+              label={t('timeLeft')}
+            />
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="flex min-h-0 flex-1 flex-col" aria-label={t('oral.conversation')}>
+            <OralPeople speaker={speaker} hasPartner={hasPartner} meSub={meSub} />
+            <div className="ga-autoscroll min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+              {notices}
+              <ExamTranscript lines={lines} mode={session.mode} teilTitles={teilTitles} />
+            </div>
+            <MicBar
+              disabled={busy || aiSpeaking !== null}
+              busy={busy}
+              allowText={!isMock}
+              onAudio={submitAudio}
+              onText={submitText}
+              hint={statusSub}
+              yourTurn={yourTurn}
+              onRecordingChange={setRecording}
+              status={
+                <div role="status" aria-live="polite" data-testid="turn-status" className="ga-ui min-w-0 text-ga-small text-ga-muted">
+                  <b className="flex items-center gap-1.5 text-ga-body font-semibold text-ga-ink">
+                    {busy && <Loader2 size={15} aria-hidden className="shrink-0 animate-spin" />}
+                    <span className="min-w-0">{statusTitle}</span>
+                  </b>
+                  <span className="mt-0.5 block">{statusSub}</span>
+                </div>
+              }
+              meta={
+                <div className="ga-ui text-right text-ga-small text-ga-muted" data-testid="turn-count">
+                  <b className="block text-ga-body font-semibold tabular-nums text-ga-ink">
+                    {d.stepIndex + 1}/{d.stepCount}
+                  </b>
+                  {t('oral.turns')}
+                </div>
+              }
+            />
+          </section>
+          <OralTaskCard
+            directive={d}
+            provider={session.provider}
+            level={session.level}
+            hint={hint}
+            notesText={session.notesText}
+            drillTimeUp={drillTimeUp && !isMock}
+            advanceLabel={advanceLabel}
+            onAdvance={() => (isMock ? setConfirm('advance') : void advance())}
+            busy={busy}
+          />
+        </div>
+
+        <ConfirmDialog
+          open={confirm === 'finish'}
+          onOpenChange={(o) => !o && setConfirm(null)}
+          title={isMock ? t('oral.confirm.finishMockTitle') : t('oral.confirm.finishDrillTitle')}
+          description={isMock ? t('oral.confirm.finishMockBody') : t('oral.confirm.finishDrillBody')}
+          confirmLabel={isMock ? t('oral.confirm.finishMockGo') : t('oral.confirm.finishDrillGo')}
+          cancelLabel={isMock ? t('oral.confirm.keepGoing') : t('oral.confirm.keepPractising')}
+          destructive={false}
+          onConfirm={() => {
+            setConfirm(null)
+            void finish()
+          }}
+        />
+        <ConfirmDialog
+          open={confirm === 'advance'}
+          onOpenChange={(o) => !o && setConfirm(null)}
+          title={t('oral.confirm.nextTitle', { n: nextTeil })}
+          description={t('oral.confirm.nextBody', { cur: session.currentPart })}
+          confirmLabel={t('oral.confirm.nextGo', { n: nextTeil })}
+          cancelLabel={t('oral.confirm.stay')}
+          destructive={false}
+          onConfirm={() => {
+            setConfirm(null)
+            void advance()
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-full flex-col">
@@ -392,61 +575,12 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
             <GaCap className="block">{providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} · <span data-testid="beta-label">{t('beta')}</span></GaCap>
             {blueprint && <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />}
           </div>
-          <div className="flex items-center gap-2">
-            {session.state === 'IN_PART' && (
-              <ExamTimer
-                deadlineAt={session.partDeadlineAt}
-                serverNow={session.serverNow}
-                totalSec={currentPartSummary?.durationSec ?? 0}
-                onExpire={isMock ? () => void advance() : () => setDrillTimeUp(true)}
-                label={t('timeLeft')}
-              />
-            )}
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="grid h-10 w-10 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-ink"
-              aria-pressed={muted}
-              aria-label={muted ? t('unmute') : t('mute')}
-              data-testid="tts-mute"
-            >
-              {muted ? <VolumeX size={16} aria-hidden /> : <Volume2 size={16} aria-hidden />}
-            </button>
-          </div>
+          <div className="flex items-center gap-2">{muteButton}</div>
         </div>
       </div>
 
       <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10">
-        {minorBlocked && (
-          <div className="mb-4">
-            <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-4" data-testid={pendingTurn ? 'turn-retry-banner' : undefined}>
-            <ErrorBanner
-              message={pendingTurn ? `${error} ${t('retryTurnHint')}` : error}
-              onRetry={pendingTurn ? retryPendingTurn : () => setError(null)}
-              retryLabel={pendingTurn ? t('retryTurn') : t('dismiss')}
-            />
-          </div>
-        )}
-
-        {session.state !== 'RESULTS' && session.state !== 'DONE' && <MicDeniedGuide className="mb-4" />}
-
-        {/* Minh bạch: phiên hiệu chuẩn có lưu audio — thí sinh phải biết mình đang được ghi âm,
-            kể cả khi đã ký đồng ý trước đó (đồng ý một lần ≠ được im lặng mọi lần sau). */}
-        {session.retainAudio && session.state !== 'RESULTS' && (
-          <p
-            className="ga-ui mb-4 rounded-ga border border-ga-line bg-ga-surface px-3 py-2 text-[12.5px] text-ga-muted"
-            role="note"
-            data-testid="audio-retention-notice"
-          >
-            {t('audioRetained')}
-          </p>
-        )}
-
+        {notices}
         {session.state === 'PREP' && (
           <section className="mx-auto max-w-3xl space-y-4" data-testid="exam-prep">
             <GaCap className="block">{t('prepCap')}</GaCap>
@@ -520,96 +654,6 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
               {t('enterExam')} <ChevronRight size={16} aria-hidden className="ml-1" />
             </GaBtn>
           </section>
-        )}
-
-        {session.state === 'IN_PART' && session.directive && (
-          <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-            <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-              <div>
-                <GaCap className="mb-1 block">{t('teilCap', { n: session.directive.teilNo })}</GaCap>
-                <p className="font-ga-display text-[20px] font-medium text-ga-ink">{session.directive.title}</p>
-                <p className="ga-ui mt-1 text-[13px] text-ga-muted">
-                  {t('step', { i: session.directive.stepIndex + 1, n: session.directive.stepCount })}
-                </p>
-                <TeilStrategy provider={session.provider} level={session.level} section="SPRECHEN" teil={session.directive.teilNo} />
-              </div>
-              <StimulusCard stimulus={session.directive.stimulus} stepIndex={session.directive.stepIndex} candidateAction={session.directive.candidateAction} />
-              <div className="rounded-ga bg-ga-yellow-soft p-3">
-                <p className="ga-ui text-[13px] text-ga-ink" data-testid="directive-hint">
-                  {session.directive.hintKey && t.has(`hints.${session.directive.hintKey}`)
-                    ? t(`hints.${session.directive.hintKey}`)
-                    : session.directive.hintVi}
-                </p>
-                {drillTimeUp && !isMock && (
-                  <p className="ga-ui mt-1.5 text-[12.5px] font-semibold text-ga-red" data-testid="drill-time-up">
-                    {t('drillTimeUp')}
-                  </p>
-                )}
-              </div>
-              {session.notesText && (
-                <details className="rounded-ga border border-ga-line bg-ga-card p-3">
-                  <summary className="ga-ui cursor-pointer text-[13px] font-semibold text-ga-ink">{t('myNotes')}</summary>
-                  <p className="ga-ui mt-2 whitespace-pre-wrap text-[13px] text-ga-muted">{session.notesText}</p>
-                </details>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <GaBtn variant="ghost" size="sm" onClick={() => void advance()} disabled={busy} data-testid="advance-part">
-                  {t('skipPart')} <ChevronRight size={14} aria-hidden className="ml-1" />
-                </GaBtn>
-                <GaBtn variant="ghost" size="sm" onClick={() => void finish()} disabled={busy} data-testid="finish-session">
-                  <Flag size={14} aria-hidden className="mr-1" /> {isMock ? t('finishMock') : t('finishDrill')}
-                </GaBtn>
-              </div>
-            </aside>
-            <section className="flex min-h-[420px] flex-col">
-              <div className="max-h-[52vh] flex-1 overflow-y-auto rounded-ga border border-ga-line bg-ga-surface p-4 lg:max-h-none">
-                <ExamTranscript lines={lines} mode={session.mode} />
-              </div>
-              {/* Mobile: mic dính đáy để không phải cuộn qua transcript mỗi lượt; desktop: nằm dưới transcript. */}
-              <div className="sticky bottom-2 z-10 mt-3 lg:static">
-                {/* Dải trạng thái lượt: AI đang nói → chờ; xong → "đến lượt bạn". aria-live cho screen reader. */}
-                <div
-                  role="status"
-                  aria-live="polite"
-                  data-testid="turn-status"
-                  className={`ga-ui mb-2 flex items-center gap-2 rounded-ga border px-3 py-2 text-[13px] font-semibold ${
-                    aiSpeaking || busy
-                      ? 'border-ga-line bg-ga-card text-ga-muted'
-                      : `border-ga-ink bg-ga-yellow-soft text-ga-ink ${yourTurnPulse ? 'motion-safe:animate-pulse' : ''}`
-                  }`}
-                >
-                  {aiSpeaking ? (
-                    <>
-                      <Ear size={15} aria-hidden className="shrink-0" />
-                      <span>{aiSpeaking === 'PARTNER' ? t('turn.partnerSpeaking') : t('turn.prueferSpeaking')}</span>
-                      <span className="relative ml-auto flex h-2.5 w-2.5 shrink-0">
-                        <span className="absolute inline-flex h-full w-full motion-safe:animate-ping rounded-full bg-ga-red opacity-75" />
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-ga-red" />
-                      </span>
-                    </>
-                  ) : busy ? (
-                    <>
-                      <Loader2 size={15} aria-hidden className="shrink-0 animate-spin" />
-                      <span>{t('turn.processing')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic size={15} aria-hidden className="shrink-0" />
-                      <span>{t('turn.yourTurn')}</span>
-                    </>
-                  )}
-                </div>
-                <MicBar
-                  disabled={busy || aiSpeaking !== null}
-                  busy={busy}
-                  allowText={!isMock}
-                  onAudio={submitAudio}
-                  onText={submitText}
-                  hint={aiSpeaking ? t('turn.waitHint') : t(`action.${session.directive.candidateAction}`)}
-                />
-              </div>
-            </section>
-          </div>
         )}
 
         {session.state === 'GRADING' && (

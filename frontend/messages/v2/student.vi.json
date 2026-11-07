@@ -1818,17 +1818,10 @@
         "notesPlaceholder": "Ghi chú của bạn (Konzeptpapier)…",
         "enterExam": "Vào thi",
         "teilCap": "Teil {n}",
-        "step": "Bước {i}/{n}",
         "myNotes": "Ghi chú của tôi",
         "skipPart": "Sang phần kế",
         "finishMock": "Kết thúc & chấm",
         "finishDrill": "Kết thúc",
-        "action": {
-          "ASK": "Đến lượt bạn ĐẶT CÂU HỎI / đưa lời đề nghị. Bấm để nói.",
-          "ANSWER": "Đến lượt bạn TRẢ LỜI. Bấm để nói.",
-          "SPEAK": "Đến lượt bạn nói. Bấm để bắt đầu.",
-          "REACT": "Phản hồi bạn thi. Bấm để nói."
-        },
         "grading": "Giám khảo đang chấm…",
         "gradingDesc": "Hai lượt chấm độc lập theo tiêu chí của kỳ thi, thường mất dưới một phút.",
         "gradingFailed": "Chấm điểm bị lỗi — bài thi của bạn vẫn còn nguyên.",
@@ -1885,20 +1878,64 @@
           "ANSWER_PRUEFER_TOPIC": "Trả lời câu hỏi của giám khảo về chủ đề."
         },
         "partnerAi": "Bạn thi · AI",
-        "turn": {
-          "prueferSpeaking": "Giám khảo đang nói — hãy lắng nghe, chưa đến lượt bạn.",
-          "partnerSpeaking": "Bạn thi (AI) đang nói — chờ bạn ấy nói xong nhé.",
-          "processing": "Đang xử lý lượt nói của bạn…",
-          "yourTurn": "Đến lượt bạn nói!",
-          "waitHint": "Chờ đến lượt bạn…"
-        },
         "audioRetained": "Phiên này được ghi âm để phục vụ hiệu chuẩn chấm điểm (bạn đã đồng ý). Bạn có thể rút lại đồng ý bất cứ lúc nào — audio sẽ bị xoá.",
         "beta": "Beta",
         "retryTurn": "Gửi lại lượt vừa rồi",
         "retryTurnHint": "Bản ghi/câu trả lời vẫn còn trên máy bạn — gửi lại sẽ không bị tính thành lượt mới.",
         "gradingFailedQuota": "Chưa chấm được vì ngân sách AI của bạn đã hết — bài thi vẫn còn nguyên.",
         "gradingFailedQuotaDesc": "Toàn bộ phần đã nói được giữ lại. Nạp thêm hoặc chờ kỳ mới, rồi bấm \"Chấm lại\" — không phải thi lại.",
-        "upgradeCta": "Xem gói / nạp thêm"
+        "upgradeCta": "Xem gói / nạp thêm",
+        "oral": {
+          "eyebrow": "Mündliche Prüfung",
+          "conversation": "Hội thoại trong phòng thi",
+          "taskCard": "Thẻ đề",
+          "turns": "lượt",
+          "nextTeil": "Sang Teil {n}",
+          "people": {
+            "pruefer": "Giám khảo",
+            "partner": "Bạn thi",
+            "ai": "AI",
+            "you": "Bạn"
+          },
+          "me": {
+            "turn": "Đến lượt bạn",
+            "listen": "Đang nghe",
+            "recording": "Đang nói",
+            "sending": "Đang gửi"
+          },
+          "status": {
+            "prueferTalking": "Giám khảo đang nói",
+            "partnerTalking": "Bạn thi (AI) đang nói",
+            "listen": "Hãy lắng nghe, chưa đến lượt bạn",
+            "processing": "Đang xử lý lượt nói",
+            "processingSub": "Chờ phản hồi",
+            "recording": "Đang ghi",
+            "recordingSub": "Bấm lại để dừng và gửi",
+            "yourTurn": "Đến lượt bạn nói",
+            "tap": "Bấm để nói",
+            "tapWithAction": "{action} · bấm để nói"
+          },
+          "action": {
+            "ASK": "Đặt câu hỏi hoặc đưa đề nghị",
+            "ANSWER": "Trả lời",
+            "SPEAK": "Nói theo đề",
+            "REACT": "Phản hồi bạn thi"
+          },
+          "confirm": {
+            "finishMockTitle": "Kết thúc phần nói?",
+            "finishMockBody": "Bài được chấm theo những gì bạn đã nói. Kết thúc rồi thì không vào lại phòng thi này được.",
+            "finishMockGo": "Kết thúc và chấm",
+            "finishDrillTitle": "Kết thúc buổi luyện?",
+            "finishDrillBody": "Bạn sẽ xem tổng kết các lượt vừa nói.",
+            "finishDrillGo": "Kết thúc",
+            "keepGoing": "Thi tiếp",
+            "keepPractising": "Luyện tiếp",
+            "nextTitle": "Sang Teil {n}?",
+            "nextBody": "Không quay lại Teil {cur} được nữa.",
+            "nextGo": "Sang Teil {n}",
+            "stay": "Ở lại"
+          }
+        }
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",

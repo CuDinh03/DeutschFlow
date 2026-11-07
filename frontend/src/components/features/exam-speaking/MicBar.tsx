@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { Mic, Square, Keyboard, Send, Loader2 } from 'lucide-react'
 import { DEFAULT_MAX_RECORDING_MS, startRecorder, type RecorderHandle } from '@/lib/voiceRecorder'
@@ -15,7 +15,16 @@ interface Props {
   allowText: boolean
   onAudio: (blob: Blob) => Promise<void>
   onText: (text: string) => Promise<void>
-  hint: string
+  /** Gợi ý ngắn cho nút micro (tooltip). */
+  hint?: string
+  /** Đến lượt thí sinh → vòng vàng quanh nút micro. */
+  yourTurn?: boolean
+  /** Ô trạng thái bên trái nút micro (phòng thi đặt dải "đến lượt bạn" ở đây). */
+  status?: ReactNode
+  /** Ô bên phải nút micro (đếm lượt). */
+  meta?: ReactNode
+  /** Báo phòng thi đang thu để hàng người nói hiện sóng âm ở ô "Bạn". */
+  onRecordingChange?: (recording: boolean) => void
 }
 
 /** mm:ss cho đồng hồ đếm ngược của lượt thu. */
@@ -24,8 +33,12 @@ function mmss(ms: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
-/** Thanh thu âm bấm-để-nói / bấm-để-gửi + fallback bàn phím (drill). Trạng thái qua role="status". */
-export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Props) {
+/**
+ * Thanh micro phòng thi (mẫu 07/11/2026): nút tròn 72px ở giữa — đến lượt có vòng vàng, đang thu
+ * nền đỏ + vòng đỏ, bấm lại để dừng và gửi; trái là ô trạng thái, phải là đếm lượt. Drill có thêm
+ * nút bàn phím để gõ thay nói.
+ */
+export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourTurn = false, status, meta, onRecordingChange }: Props) {
   const t = useTranslations('v2.student.examSpeaking.mic')
   const [recording, setRecording] = useState(false)
   const [remainingMs, setRemainingMs] = useState(DEFAULT_MAX_RECORDING_MS)
@@ -57,6 +70,12 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
       recorderRef.current = null
     }
   }, [])
+
+  const onRecordingChangeRef = useRef(onRecordingChange)
+  onRecordingChangeRef.current = onRecordingChange
+  useEffect(() => {
+    onRecordingChangeRef.current?.(recording)
+  }, [recording])
 
   // Người dùng vừa cấp quyền trong cài đặt trình duyệt → lỗi "denied" hết hiệu lực, tự dọn (QS-1).
   useEffect(() => {
@@ -126,79 +145,108 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
     await onText(v)
   }, [onText, text])
 
+  const fallbackStatus = (
+    <p className="ga-ui text-ga-small text-ga-muted" role="status">
+      {busy ? t('sending') : recording ? t('recording') : hint}
+    </p>
+  )
+  const statusNode = status ?? fallbackStatus
+  const ringTurn = yourTurn && !disabled && !busy
+  const roundBase =
+    'relative grid h-16 w-16 shrink-0 place-items-center rounded-full transition-[transform,background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 lg:h-[72px] lg:w-[72px]'
+
   return (
-    <div className="rounded-ga border border-ga-line bg-ga-card p-3" data-testid="mic-bar">
-      <p className="ga-ui mb-2 text-[13px] text-ga-muted" role="status">
-        {busy ? (
-          t('sending')
-        ) : recording ? (
-          // tabular-nums + span riêng: đồng hồ đổi mỗi giây mà không làm câu chữ nhảy trên mobile.
-          <>
-            {t('recording')}{' '}
-            <span className="font-semibold tabular-nums text-ga-ink" data-testid="mic-remaining">
-              {mmss(remainingMs)}
-            </span>
-          </>
-        ) : (
-          hint
-        )}
-      </p>
+    <div className="border-t border-ga-line bg-ga-card px-3 py-3 sm:px-4" data-testid="mic-bar">
       {textMode ? (
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void submitText()
-          }}
-        >
-          <input
-            className="ga-ui min-h-[44px] flex-1 rounded-ga border border-ga-line bg-ga-bg px-3 text-[14.5px] text-ga-ink"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t('textPlaceholder')}
-            disabled={disabled || busy}
-            aria-label={t('textPlaceholder')}
-            data-testid="mic-text-input"
-          />
-          <GaBtn type="submit" variant="ink" size="lg" disabled={disabled || busy || !text.trim()} data-testid="mic-text-send">
-            {busy ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
-            <span className="ml-1.5">{t('send')}</span>
-          </GaBtn>
-          <GaBtn type="button" variant="ghost" size="lg" onClick={() => setTextMode(false)} aria-label={t('useMic')}>
-            <Mic size={16} aria-hidden />
-          </GaBtn>
-        </form>
+        <div className="space-y-2">
+          {statusNode}
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void submitText()
+            }}
+          >
+            <input
+              className="ga-ui min-h-11 flex-1 rounded-ga-touch border border-ga-line bg-ga-bg px-3 text-ga-body text-ga-ink"
+              lang="de"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={t('textPlaceholder')}
+              disabled={disabled || busy}
+              aria-label={t('textPlaceholder')}
+              data-testid="mic-text-input"
+            />
+            <GaBtn type="submit" variant="ink" size="lg" disabled={disabled || busy || !text.trim()} data-testid="mic-text-send">
+              {busy ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
+              <span className="ml-1.5">{t('send')}</span>
+            </GaBtn>
+            <GaBtn type="button" variant="ghost" size="lg" onClick={() => setTextMode(false)} aria-label={t('useMic')} title={t('useMic')}>
+              <Mic size={16} aria-hidden />
+            </GaBtn>
+          </form>
+        </div>
       ) : (
-        <div className="flex items-center gap-2">
-          {recording ? (
-            <GaBtn type="button" variant="yellow" size="lg" className="flex-1" onClick={stop} data-testid="mic-stop">
-              <Square size={16} aria-hidden />
-              <span className="ml-2 inline-flex items-center gap-2">
-                {t('stopSend')}
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ga-red opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-ga-red" />
-                </span>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-4">
+          <div className="min-w-0">{statusNode}</div>
+          <div className="flex flex-col items-center gap-1">
+            {recording ? (
+              <button
+                type="button"
+                onClick={stop}
+                aria-label={t('stopSend')}
+                aria-pressed
+                title={t('stopSend')}
+                className={`${roundBase} ga-oral-ring-rec bg-ga-red text-ga-bg active:scale-[0.96]`}
+                data-testid="mic-stop"
+              >
+                <Square size={24} aria-hidden />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void start()}
+                disabled={disabled || busy}
+                aria-label={busy ? t('sending') : t('start')}
+                aria-pressed={false}
+                title={hint}
+                className={`${roundBase} bg-ga-ink text-ga-bg hover:scale-[1.04] active:scale-[0.96] disabled:opacity-40 disabled:hover:scale-100 ${
+                  ringTurn ? 'ga-oral-ring-turn' : ''
+                }`}
+                data-testid="mic-start"
+              >
+                {busy ? <Loader2 size={26} className="animate-spin" aria-hidden /> : <Mic size={28} strokeWidth={1.9} aria-hidden />}
+              </button>
+            )}
+            {recording && (
+              <span className="ga-ui text-ga-small font-semibold tabular-nums text-ga-ink" data-testid="mic-remaining">
+                <span className="sr-only">{t('recording')} </span>
+                {mmss(remainingMs)}
               </span>
-            </GaBtn>
-          ) : (
-            <GaBtn type="button" variant="ink" size="lg" className="flex-1" onClick={() => void start()} disabled={disabled || busy} data-testid="mic-start">
-              {busy ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Mic size={16} aria-hidden />}
-              <span className="ml-2">{busy ? t('sending') : t('start')}</span>
-            </GaBtn>
-          )}
-          {allowText && !recording && (
-            <GaBtn type="button" variant="ghost" size="lg" onClick={() => setTextMode(true)} aria-label={t('useText')} data-testid="mic-text-mode">
-              <Keyboard size={16} aria-hidden />
-            </GaBtn>
-          )}
+            )}
+          </div>
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            {allowText && !recording && (
+              <button
+                type="button"
+                onClick={() => setTextMode(true)}
+                aria-label={t('useText')}
+                title={t('useText')}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+                data-testid="mic-text-mode"
+              >
+                <Keyboard size={18} aria-hidden />
+              </button>
+            )}
+            {meta}
+          </div>
         </div>
       )}
       {error && (
         <div className="mt-2" data-testid="mic-error">
-          <p className="ga-ui text-[12.5px] text-ga-red">{error.message}</p>
+          <p className="ga-ui text-ga-small text-ga-red">{error.message}</p>
           {error.kind === 'denied' && (
-            <ol className="ga-ui mt-1.5 list-decimal space-y-0.5 pl-5 text-[12.5px] text-ga-muted" data-testid="mic-denied-steps">
+            <ol className="ga-ui mt-1.5 list-decimal space-y-0.5 pl-5 text-ga-small text-ga-muted" data-testid="mic-denied-steps">
               <li>{t('deniedSteps.site')}</li>
               <li>{t('deniedSteps.browser')}</li>
               <li>{t('deniedSteps.os')}</li>
@@ -206,7 +254,7 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint }: Pro
           )}
           <button
             type="button"
-            className="ga-ui mt-1.5 text-[12.5px] font-semibold text-ga-ink underline underline-offset-2"
+            className="ga-ui mt-1.5 text-ga-small font-semibold text-ga-ink underline underline-offset-2"
             onClick={() => {
               setTextMode(false)
               void start()

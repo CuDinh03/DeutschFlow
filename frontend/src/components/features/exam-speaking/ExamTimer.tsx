@@ -11,10 +11,12 @@ interface Props {
   totalSec: number
   onExpire?: () => void
   label: string
+  /** `pill`: kiểu thanh trên phòng thi nói (mẫu 07/11/2026); mặc định `box` cho màn chuẩn bị. */
+  variant?: 'box' | 'pill'
 }
 
 /** Đồng hồ đếm ngược theo giờ SERVER (client chỉ hiển thị); đổi màu ở 20% cuối; gọi onExpire một lần. */
-export function ExamTimer({ deadlineAt, serverNow, totalSec, onExpire, label }: Props) {
+export function ExamTimer({ deadlineAt, serverNow, totalSec, onExpire, label, variant = 'box' }: Props) {
   const [left, setLeft] = useState<number | null>(null)
   const expiredRef = useRef(false)
   const offsetRef = useRef(0)
@@ -48,6 +50,24 @@ export function ExamTimer({ deadlineAt, serverNow, totalSec, onExpire, label }: 
   const warn = totalSec > 0 && left <= Math.ceil(totalSec * 0.2)
   const mm = String(Math.floor(left / 60)).padStart(2, '0')
   const ss = String(left % 60).padStart(2, '0')
+  if (variant === 'pill') {
+    // Thanh trên phòng thi nói: còn 20% cuối nền cam, còn 30 giây nền đỏ nhấp nháy nhẹ.
+    const danger = left <= 30
+    return (
+      <span
+        className={`ga-ui inline-flex shrink-0 items-center gap-1.5 rounded-ga-pill px-2.5 py-1 text-ga-body font-semibold tabular-nums transition-colors duration-[240ms] ${
+          danger ? 'ga-timer-pulse bg-ga-red-soft text-ga-red' : warn ? 'bg-ga-warning-soft text-ga-warning' : 'text-ga-ink'
+        }`}
+        role="timer"
+        aria-live={warn ? 'assertive' : 'off'}
+        data-testid="exam-timer"
+      >
+        <Clock size={16} aria-hidden />
+        <span className="sr-only">{label}</span>
+        {mm}:{ss}
+      </span>
+    )
+  }
   return (
     <div
       className={`inline-flex items-center gap-2 rounded-ga border px-3 py-1.5 tabular-nums ${
