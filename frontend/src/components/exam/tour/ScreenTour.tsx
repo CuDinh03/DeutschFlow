@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ArrowRight, CircleHelp, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { loadSeenTours, markTourSeen } from '@/lib/uiToursApi'
 
 export interface TourStep {
@@ -215,9 +216,7 @@ function TourOverlay({ steps: all, onClose }: { steps: TourStep[]; onClose: (don
         style={card ?? { top: -9999, left: -9999 }}
       >
         <div className="flex items-center gap-2.5">
-          <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy">
-            <Icon size={18} strokeWidth={1.9} />
-          </span>
+          <GaGlyph icon={Icon} />
           <h3 id="tour-title" className="font-ga-display text-ga-h3">{step.title}</h3>
         </div>
         <p id="tour-body" className="ga-ui text-ga-body text-ga-muted">{step.body}</p>

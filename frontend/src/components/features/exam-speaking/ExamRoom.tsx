@@ -12,6 +12,7 @@ import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
 import { ConfirmDialog, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
 import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
+import { GaGlyph, type GaGlyphIcon } from '@/components/ui-v2/GaGlyph'
 import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
 import { ExamTranscript } from './ExamTranscript'
@@ -709,7 +710,7 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
       {notices}
 
       {session.state === 'GRADING' && (
-        <StateCard testId="exam-grading" icon={<Loader2 size={22} className="animate-spin" aria-hidden />} title={t('grading')} body={t('gradingDesc')}>
+        <StateCard testId="exam-grading" icon={Loader2} title={t('grading')} body={t('gradingDesc')}>
           <p className="ga-ui text-ga-small text-ga-muted">{t('oral.result.gradingLeave')}</p>
           <Link href={returnHref} className={ghostBtn}>
             <ArrowLeft size={16} aria-hidden /> {t('backToCatalog')}
@@ -721,7 +722,8 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
         <StateCard
           testId="exam-grading-failed"
           data={{ 'data-grading-error': session.gradingError ?? '' }}
-          icon={<CircleAlert size={22} aria-hidden />}
+          icon={CircleAlert}
+          tone="red"
           // F-08: hết quota ≠ job chết — người học cần nạp/chờ kỳ mới rồi bấm Chấm lại, không phải "thử lại sau".
           title={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuota') : t('gradingFailed')}
           body={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuotaDesc') : t('gradingFailedDesc')}
@@ -785,22 +787,22 @@ function StateCard({
   testId,
   data,
   icon,
+  tone = 'plain',
   title,
   body,
   children,
 }: {
   testId: string
   data?: Record<string, string>
-  icon: ReactNode
+  icon: GaGlyphIcon
+  tone?: 'plain' | 'red'
   title: string
   body: string
   children?: ReactNode
 }) {
   return (
     <section className="mx-auto flex w-full max-w-md flex-col items-center gap-3 py-10 text-center" data-testid={testId} {...data}>
-      <span aria-hidden className="grid h-12 w-12 place-items-center rounded-ga bg-ga-side-active text-ga-ink">
-        {icon}
-      </span>
+      <GaGlyph icon={icon} size="lg" tone={tone} />
       <h1 className="font-ga-display text-ga-h2 text-ga-ink">{title}</h1>
       <p className="ga-ui text-ga-body text-ga-muted">{body}</p>
       {children}

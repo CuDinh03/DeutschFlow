@@ -34,7 +34,7 @@ import { WRITING_KEY, getPracticeOverview, type PracticeOverview, type PracticeT
 import { listMyAttempts, PARTIAL, partialInfo, type MyAttempt } from '@/lib/exam/mockAttemptApi'
 import { examPlanApi, teilKeyOf, todaySession } from '@/lib/examPlanApi'
 import { useFmt } from '@/lib/i18n/useFmt'
-import { ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { ErrorBanner, GaGlyph, LoadingState } from '@/components/ui-v2'
 import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
 import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { findTeil, wordCount } from '@/components/exam/practice/practiceModel'
@@ -205,9 +205,7 @@ function PracticeMapPage() {
                 return (
                   <div key={section}>
                     <div className="mb-2.5 flex items-center gap-2.5">
-                      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy">
-                        <Icon size={18} strokeWidth={1.9} />
-                      </span>
+                      <GaGlyph icon={Icon} />
                       <h3 lang="de" className="min-w-0 flex-1 break-words font-ga-display text-ga-h3 text-ga-ink">{sectionDe(section)}</h3>
                       <span className="ga-ui shrink-0 text-ga-small tabular-nums text-ga-muted">
                         {tm('groupDone', { done: rows.filter((r) => r.progress?.checked).length, total: rows.length })}
@@ -343,9 +341,7 @@ function TeilRow({ teil, overview, href, today, onStrategy }: { teil: PracticeTe
 
   return (
     <div className="group relative grid min-h-16 grid-cols-[36px_minmax(0,1fr)_40px_18px] items-center gap-x-3.5 gap-y-1 border-b border-ga-line px-1 py-2.5 transition-colors duration-150 hover:bg-ga-side-active has-[a:focus-visible]:outline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-ga-focus sm:grid-cols-[36px_minmax(0,1fr)_150px_40px_18px]">
-      <span aria-hidden className="grid h-9 w-9 place-items-center rounded-ga bg-ga-side-active text-ga-muted">
-        <Icon size={17} strokeWidth={1.9} />
-      </span>
+      <GaGlyph icon={Icon} tone="plain" />
       <Link href={href} className="ga-ui min-w-0 text-ga-ink after:absolute after:inset-0 focus-visible:outline-none" aria-label={`${name} · ${t(`teilTitle.${data?.type ?? teil.section}`)}`}>
         <b className="block truncate text-ga-body font-semibold">
           Teil {teil.teil} <span className="font-normal text-ga-muted">· {t(`teilTitle.${data?.type ?? teil.section}`)}</span>

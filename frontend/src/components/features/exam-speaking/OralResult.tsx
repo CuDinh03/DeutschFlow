@@ -3,11 +3,12 @@
 import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowRight, AudioLines, ChevronRight, CircleAlert, CircleCheck, CircleX, Loader2, MessageCircle, Mic, RotateCcw, Users, type LucideIcon } from 'lucide-react'
+import { ArrowRight, AudioLines, ChevronRight, CircleAlert, CircleCheck, CircleX, Loader2, MessageCircle, RotateCcw, Users, type LucideIcon } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { cn } from '@/lib/utils'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import type { BlueprintSummary, ExamResultView, RoomLine } from '@/types/exam-speaking'
 import { Ergebnisbogen } from './Ergebnisbogen'
 import { ExamTranscript } from './ExamTranscript'
@@ -80,8 +81,8 @@ export function OralResult({ result, blueprint, sessionId, againHref, returnHref
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-7" data-testid="oral-result">
       <header>
-        <p className="ga-ui inline-flex items-center gap-1.5 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">
-          <Mic size={14} aria-hidden /> <span lang="de">Mündliche Prüfung</span> · {result.provider === 'GOETHE' ? 'Goethe' : 'telc'} {result.level} ·{' '}
+        <p className="ga-ui text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">
+          <span lang="de">Mündliche Prüfung</span> · {result.provider === 'GOETHE' ? 'Goethe' : 'telc'} {result.level} ·{' '}
           {fmtd.date(result.createdAt)}
         </p>
         <h1 className="mt-1 font-ga-display text-ga-h1 text-ga-ink" data-testid="oral-result-title">
@@ -154,9 +155,7 @@ export function OralResult({ result, blueprint, sessionId, againHref, returnHref
 
       <section className="flex flex-col gap-3" aria-labelledby="oral-review-title">
         <div className="flex flex-wrap items-center gap-3 rounded-ga-touch border border-ga-line bg-ga-card p-4">
-          <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy">
-            <MessageCircle size={18} strokeWidth={1.9} />
-          </span>
+          <GaGlyph icon={MessageCircle} />
           <p id="oral-review-title" className="ga-ui min-w-[12rem] flex-1 text-ga-body text-ga-ink">
             {t('reviewDesc')}
           </p>
@@ -211,9 +210,7 @@ export function OralResult({ result, blueprint, sessionId, againHref, returnHref
 function ScoreRow({ icon: Icon, title, sub, points, max, testId }: { icon: LucideIcon; title: ReactNode; sub: string | null; points: number; max: number; testId: string }) {
   return (
     <li className="grid min-h-16 grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-3.5 border-b border-ga-line px-1 py-2.5" data-testid={testId}>
-      <span aria-hidden className="grid h-9 w-9 place-items-center rounded-ga bg-ga-side-active text-ga-muted">
-        <Icon size={17} strokeWidth={1.9} />
-      </span>
+      <GaGlyph icon={Icon} tone="plain" />
       <span className="ga-ui min-w-0">
         <b className="block text-ga-body font-semibold text-ga-ink">{title}</b>
         {sub && <span className="block text-ga-small text-ga-muted">{sub}</span>}

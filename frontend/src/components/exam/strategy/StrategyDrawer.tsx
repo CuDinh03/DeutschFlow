@@ -5,6 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight, Lightbulb, ListOrdered, TriangleAlert, Wrench, X } from 'lucide-react'
 import { fetchExamStrategies, findStrategy, type TeilStrategyDto } from './examStrategy'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 
 interface Props {
   open: boolean
@@ -58,9 +59,7 @@ export function StrategyDrawer({ open, onOpenChange, provider, level, section, t
           className="ga-scope fixed inset-y-0 right-0 z-[101] flex w-full max-w-[420px] flex-col bg-ga-card shadow-ga-drawer pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] ga-drawer-in"
         >
           <div className="flex items-center gap-3 border-b border-ga-line px-4 py-3.5">
-            <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-yellow text-ga-ink">
-              <Lightbulb size={18} strokeWidth={1.9} />
-            </span>
+            <GaGlyph icon={Lightbulb} tone="yellow" />
             <div className="min-w-0 flex-1">
               <Dialog.Title className="font-ga-display text-ga-h3 text-ga-ink">{t('drawerTitle')}</Dialog.Title>
               <Dialog.Description className="ga-ui truncate text-ga-small text-ga-muted">{title}</Dialog.Description>

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, CircleCheck, Mic, MicOff, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import { useMicLevelCheck } from './MicCheck'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { speakExamLine } from './examTts'
 
 interface Props {
@@ -40,9 +41,7 @@ export function OralMicCheckScreen({ hasPrep, busy, onGo }: Props) {
   if (errorKind === 'denied') {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3 py-8 text-center" data-testid="oral-mic-blocked">
-        <span aria-hidden className="grid h-12 w-12 place-items-center rounded-ga bg-ga-side-active text-ga-ink">
-          <MicOff size={22} strokeWidth={1.9} />
-        </span>
+        <GaGlyph icon={MicOff} size="lg" tone="plain" />
         <h1 className="font-ga-display text-ga-h2 text-ga-ink">{t('blockedTitle')}</h1>
         <p className="ga-ui text-ga-body text-ga-muted">{t('blockedBody')}</p>
         <button
@@ -59,9 +58,7 @@ export function OralMicCheckScreen({ hasPrep, busy, onGo }: Props) {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-5 py-4" data-testid="oral-mic-check">
-      <span aria-hidden className="grid h-12 w-12 place-items-center rounded-ga bg-ga-yellow text-ga-ink">
-        <Mic size={22} strokeWidth={1.9} />
-      </span>
+      <GaGlyph icon={Mic} size="lg" tone="yellow" />
       <h1 className="font-ga-display text-ga-h2 text-ga-ink">{t('title')}</h1>
       <ul className="flex flex-col divide-y divide-ga-line rounded-ga-touch border border-ga-line bg-ga-card">
         <Row icon={Mic} title={t('micTitle')} sub={t('micSub')}>
@@ -116,9 +113,7 @@ export function OralMicCheckScreen({ hasPrep, busy, onGo }: Props) {
 function Row({ icon: Icon, title, sub, children }: { icon: typeof Mic; title: string; sub: string; children: ReactNode }) {
   return (
     <li className="flex items-center gap-3 px-4 py-3">
-      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy">
-        <Icon size={18} strokeWidth={1.9} />
-      </span>
+      <GaGlyph icon={Icon} />
       <span className="ga-ui min-w-0 flex-1">
         <b className="block text-ga-body font-semibold text-ga-ink">{title}</b>
         <span className="block text-ga-small text-ga-muted">{sub}</span>

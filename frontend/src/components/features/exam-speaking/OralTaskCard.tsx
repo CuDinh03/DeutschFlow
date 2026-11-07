@@ -51,9 +51,7 @@ export function OralTaskCard({ directive, provider, level, hint, notesText, dril
       </button>
       <div className={`${open ? 'flex' : 'hidden'} flex-col gap-3 px-4 pb-4 lg:flex lg:pt-4`}>
         <div>
-          <span className="ga-ui inline-flex items-center gap-1.5 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">
-            <ClipboardList size={14} aria-hidden /> {t('teilCap', { n: directive.teilNo })}
-          </span>
+          <span className="ga-ui text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{t('teilCap', { n: directive.teilNo })}</span>
           <h2 lang="de" className="mt-1 font-ga-display text-ga-h3 text-ga-ink">
             {directive.title}
           </h2>
