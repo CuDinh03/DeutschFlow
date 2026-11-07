@@ -180,6 +180,15 @@ export interface ExamResultView {
   createdAt: string
 }
 
+/** Lời đã lưu của phiên — `GET /sessions/{id}/transcript` (Đợt 3 phòng thi nói). `eval` chỉ có ở lượt drill của thí sinh. */
+export interface TranscriptLine {
+  teilNo: number
+  seq: number
+  role: 'CANDIDATE' | 'PRUEFER' | 'PARTNER'
+  text: string
+  eval: DrillTurnEval | null
+}
+
 /** Một dòng transcript trong phòng thi (client giữ để render; server mới là nguồn sự thật). */
 export interface RoomLine {
   id: string

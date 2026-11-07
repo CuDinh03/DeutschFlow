@@ -48,6 +48,11 @@ Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về 
   ghi khoá `exam.oralMicCheck` vào kho hướng dẫn đã xem (`/auth/me/tours`).
 - Chuẩn bị và Đang thi mở toàn màn hình (`useImmersiveChrome` theo trạng thái); rời phòng chuẩn bị, kết thúc, sang Teil
   khi thi thử đều hỏi trước. Chi tiết và các đợt còn lại: SRS module 07, EXAM-100 trở đi.
+- Kết quả (`OralResult`): tiêu đề là kết luận theo ngưỡng riêng phần nói (`blueprint.speakingOnlyMin`, telc B1 45/75;
+  không có ngưỡng thì chỉ ghi điểm), nhãn "Ước tính · Đỗ/Chưa đỗ/Sát ngưỡng", điểm từng Teil kèm nhận xét giám khảo +
+  tiêu chí chung, "Xem lại hội thoại" đọc `GET /speaking/exam/sessions/{id}/transcript` (không lưu âm thanh cho mọi
+  người — owner chốt), phiếu chấm chi tiết (`Ergebnisbogen`) thu gọn. Drill đã xong mở lại trang thì tổng kết dựng từ
+  cùng API đó.
 
 ### 1.2 Hiện có cho kỳ thi nào
 
@@ -207,6 +212,7 @@ Thêm bước cho màn mới: đặt `data-tour` lên vùng, khai `steps` (chu�
 | POST | `/exam-diagnostic/finish` | Chốt kết quả (đủ 4 Teil + lượt thi nói) | 〃 |
 | GET | `/auth/me/tours` | Khoá hướng dẫn đã xem | `UiTourController` |
 | PUT | `/auth/me/tours/{key}` | Đánh dấu đã xem | 〃 |
+| GET | `/speaking/exam/sessions/{id}/transcript` | Hội thoại đã lưu của phiên (chủ phiên; người khác 404) | `ExamSpeakingController` |
 | * | `/speaking/exam/**` | Phòng thi nói | `ExamSpeakingController` |
 | * | `/admin/practice-access/**` | Admin: cờ + danh sách được vào | `AdminPracticeAccessController` |
 

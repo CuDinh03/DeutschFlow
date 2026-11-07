@@ -205,7 +205,11 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     );
 
     await page.goto('/v2/student/mock-exam/oral/777');
-    await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
+    // Đợt 3 phòng thi nói: màn kết quả mới ở trên, phiếu chấm chi tiết thu gọn bên dưới.
+    await expect(page.getByTestId('oral-result-title')).toHaveText('Phần nói: 20/25 điểm', { timeout: 30_000 });
+    await expect(page.getByTestId('oral-result-teil-1')).toContainText('Teil 1 · Sich vorstellen');
+    await page.getByTestId('result-details').locator('summary').click();
+    await expect(page.getByTestId('ergebnisbogen')).toBeVisible();
     await expect(page.getByTestId('result-total')).toContainText('20');
     await expect(page.getByTestId('result-total')).toContainText('/ 25');
     await expect(page.getByTestId('ergebnisbogen')).toContainText('18–22');
@@ -214,8 +218,6 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByTestId('result-part-3')).toContainText('NULL');
     await expect(page.getByTestId('ergebnisbogen')).toContainText('die Küche');
     await expect(page.getByTestId('result-disclaimer')).toContainText('không phải chứng nhận');
-    // Stepper: mọi Teil đã xong.
-    await expect(page.getByTestId('teil-stepper')).toBeVisible();
   });
 
   test('mock đang chấm → poll tới RESULTS', async ({ page }) => {
@@ -240,7 +242,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     );
     await page.goto('/v2/student/mock-exam/oral/778');
     await expect(page.getByTestId('exam-grading')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('oral-result')).toBeVisible({ timeout: 30_000 });
   });
 
   test('chấm lỗi (GRADING_FAILED) → thông báo + nút Chấm lại → job mới → RESULTS', async ({ page }) => {
@@ -277,7 +279,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await page.getByTestId('regrade-btn').click();
     // Quay về màn đang chấm, poll sẵn có tự nối tới phiếu điểm.
     await expect(page.getByTestId('exam-grading')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('oral-result')).toBeVisible({ timeout: 30_000 });
   });
 
   test('A2 Teil 3 lịch tuần: chỉ hiện lịch của mình, không bao giờ vẽ khóa partner*', async ({ page }) => {

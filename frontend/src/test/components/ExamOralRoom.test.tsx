@@ -25,6 +25,7 @@ const api = vi.hoisted(() => ({
   finish: vi.fn(),
   choose: vi.fn(),
   saveNotes: vi.fn(),
+  getTranscript: vi.fn(),
 }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: api }))
 
@@ -271,5 +272,31 @@ describe('Phòng thi nói — màn Chuẩn bị', () => {
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: original })
     }
+  })
+})
+
+describe('Phòng thi nói — sau khi thi', () => {
+  it('luyện đã xong mà mở lại trang → tổng kết dựng từ hội thoại đã lưu', async () => {
+    api.getSession.mockResolvedValue({ data: { ...mockSession(2, 'DRILL'), state: 'DONE', directive: null } })
+    api.getTranscript.mockResolvedValue({
+      data: [
+        { teilNo: 2, seq: 0, role: 'PRUEFER', text: 'Teil 2: Bitte beginnen Sie.', eval: null },
+        { teilNo: 2, seq: 1, role: 'CANDIDATE', text: 'Ich finde Handys in der Schule gut.', eval: { score: 8, feedbackVi: 'Ý rõ.' } },
+      ],
+    })
+    renderRoom()
+    expect(await screen.findByTestId('oral-drill-done')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Luyện xong Teil 2')
+    await waitFor(() => expect(api.getTranscript).toHaveBeenCalledWith(701))
+    expect((await screen.findByTestId('drill-summary')).textContent).toContain('8')
+    expect(document.body.getAttribute('data-immersive-mode')).toBeNull()
+  })
+
+  it('đang chấm → thẻ trạng thái có lối quay lại', async () => {
+    api.getSession.mockResolvedValue({ data: { ...mockSession(3), state: 'GRADING', directive: null } })
+    renderRoom()
+    const card = await screen.findByTestId('exam-grading')
+    expect(card.textContent).toContain('Giám khảo đang chấm')
+    expect(within(card).getByRole('link')).toHaveAttribute('href', '/v2/student/exam')
   })
 })
