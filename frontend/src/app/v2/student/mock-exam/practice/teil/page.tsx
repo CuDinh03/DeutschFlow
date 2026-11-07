@@ -19,6 +19,7 @@ import {
   type WritingEvaluation,
 } from '@/lib/telcPracticeApi'
 import { fetchExamStrategies, findStrategy } from '@/components/exam/strategy/examStrategy'
+import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
 import { ConfirmDialog, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { PracticeShell, TipsCard, type PracticeSaveState } from '@/components/exam/practice/PracticeShell'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
@@ -61,6 +62,8 @@ function PracticeTeilPage() {
   const [saveState, setSaveState] = React.useState<PracticeSaveState>('idle')
   const [tipsOpen, setTipsOpen] = React.useState(false)
   const [tipSteps, setTipSteps] = React.useState<string[]>([])
+  // Nút bóng đèn mở ngăn Chiến thuật (đợt c); thẻ mẹo trong bài chỉ tự hiện lần đầu vào Teil.
+  const [drawerOpen, setDrawerOpen] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   // Viết
   const [text, setText] = React.useState('')
@@ -246,6 +249,18 @@ function PracticeTeilPage() {
   const title = t(`teilTitle.${teil.type ?? meta.section}`)
   const tips = tipsOpen ? <TipsCard steps={tipSteps} onClose={() => setTipsOpen(false)} /> : null
   const errorBar = error ? <div className="w-full"><ErrorBanner message={error} /></div> : null
+  const drawer = (
+    <StrategyDrawer
+      open={drawerOpen}
+      onOpenChange={setDrawerOpen}
+      provider="TELC"
+      level={overview.level}
+      section={meta.section}
+      teil={meta.teil}
+      title={subtitle}
+      fallbackSteps={tipSteps}
+    />
+  )
 
   if (isWriting) {
     const showResult = writingView === 'result' && evaluation
@@ -277,6 +292,7 @@ function PracticeTeilPage() {
       </>
     )
     return (
+      <>
       <PracticeShell
         backHref={mapHref}
         section={meta.section}
@@ -285,8 +301,8 @@ function PracticeTeilPage() {
         progress={showResult ? undefined : t('pointsProgress', { done, total: points.length })}
         seconds={showResult ? null : seconds}
         suggestMinutes={meta.suggestMinutes}
-        tipsOpen={tipsOpen}
-        onToggleTips={showResult ? undefined : () => setTipsOpen((v) => !v)}
+        tipsOpen={drawerOpen}
+        onToggleTips={showResult ? undefined : () => setDrawerOpen(true)}
         saveState={showResult ? 'idle' : saveState}
         footer={footer}
       >
@@ -306,6 +322,8 @@ function PracticeTeilPage() {
           />
         )}
       </PracticeShell>
+      {drawer}
+      </>
     )
   }
 
@@ -341,8 +359,8 @@ function PracticeTeilPage() {
       progress={`${result ? result.correctCount : answered}/${total}`}
       seconds={result || relaxed ? null : seconds}
       suggestMinutes={meta.suggestMinutes}
-      tipsOpen={tipsOpen}
-      onToggleTips={() => setTipsOpen((v) => !v)}
+      tipsOpen={drawerOpen}
+      onToggleTips={() => setDrawerOpen(true)}
       saveState={result ? 'idle' : saveState}
       footer={footer}
     >
@@ -360,6 +378,7 @@ function PracticeTeilPage() {
         />
       )}
     </PracticeShell>
+    {drawer}
     <ConfirmDialog
       open={confirmOpen}
       onOpenChange={setConfirmOpen}

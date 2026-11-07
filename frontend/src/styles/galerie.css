@@ -324,3 +324,12 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
 @media (prefers-reduced-motion: reduce) {
   .ga-timer-pulse, .ga-evidence-glow { animation: none; }
 }
+
+/* Ngăn chiến thuật (đợt (c)): trượt vào từ phải 24px + mờ dần, nền tối mờ dần — --ga-duration-base. */
+.ga-drawer-in { animation: gaDrawerIn var(--ga-duration-base) var(--ga-ease-out) both; }
+.ga-fade-in { animation: gaFadeIn var(--ga-duration-base) var(--ga-ease-out) both; }
+@keyframes gaDrawerIn { from { opacity: 0; transform: translateX(24px); } }
+@keyframes gaFadeIn { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ga-drawer-in, .ga-fade-in { animation: none; }
+}

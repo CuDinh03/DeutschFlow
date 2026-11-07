@@ -2327,7 +2327,9 @@
       "comingSoon": "Chiến thuật cho Teil này: sắp có.",
       "steps": "Các bước làm",
       "traps": "Bẫy hay gặp",
-      "fixes": "Mất điểm vì… → chữa bằng…"
+      "fixes": "Mất điểm vì… → chữa bằng…",
+      "drawerTitle": "Chiến thuật",
+      "close": "Đóng"
     },
     "examPlan": {
       "title": "Lộ trình tới ngày thi",
@@ -2665,6 +2667,28 @@
         "play": "Phát",
         "transcript": "Xem lời thoại",
         "hideTranscript": "Ẩn lời thoại"
+      },
+      "map": {
+        "back": "Luyện thi",
+        "teilDone": "{done}/{total} Teil đã luyện",
+        "lastMock": "Thi thử {score}/{max}",
+        "continueMock": "Làm tiếp thi thử",
+        "fullMock": "Thi thử trọn đề",
+        "teileTitle": "Luyện từng Teil",
+        "groupDone": "{done}/{total} đã luyện",
+        "historyTitle": "Thi thử đã làm",
+        "historyEmpty": "Chưa thi thử đề này. Luyện đủ các Teil rồi thi thử trọn đề.",
+        "rowRunning": "Đang làm dở",
+        "rowScore": "{score}/{max} điểm phần viết",
+        "passed": "Đỗ",
+        "failed": "Chưa đỗ",
+        "tagPass": "Đạt {pct}%",
+        "tagScore": "{score}/{max} · {pct}%",
+        "tagDoingWords": "Đang viết · {n} từ",
+        "tagDoing": "Đang làm · {done}/{total}",
+        "strategyFor": "Chiến thuật {name}",
+        "chartLabel": "Điểm phần viết qua các lần thi thử: {scores}; ngưỡng {mark}",
+        "passLine": "ngưỡng {n}"
       }
     },
     "examHub": {

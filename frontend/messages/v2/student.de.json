@@ -2327,7 +2327,9 @@
       "comingSoon": "Strategie für diesen Teil: kommt bald.",
       "steps": "Vorgehen",
       "traps": "Typische Fallen",
-      "fixes": "Punktverlust durch… → Abhilfe"
+      "fixes": "Punktverlust durch… → Abhilfe",
+      "drawerTitle": "Strategie",
+      "close": "Schließen"
     },
     "examPlan": {
       "title": "Dein Weg zum Prüfungstag",
@@ -2665,6 +2667,28 @@
         "play": "Abspielen",
         "transcript": "Transkript zeigen",
         "hideTranscript": "Transkript ausblenden"
+      },
+      "map": {
+        "back": "Prüfungstraining",
+        "teilDone": "{done}/{total} Teile geübt",
+        "lastMock": "Modellprüfung {score}/{max}",
+        "continueMock": "Modellprüfung fortsetzen",
+        "fullMock": "Ganze Modellprüfung",
+        "teileTitle": "Teil für Teil üben",
+        "groupDone": "{done}/{total} geübt",
+        "historyTitle": "Abgelegte Modellprüfungen",
+        "historyEmpty": "Noch keine Modellprüfung zu diesem Satz. Üben Sie alle Teile und legen Sie dann die ganze Modellprüfung ab.",
+        "rowRunning": "Begonnen",
+        "rowScore": "{score}/{max} Punkte schriftlich",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "tagPass": "Bestanden {pct} %",
+        "tagScore": "{score}/{max} · {pct} %",
+        "tagDoingWords": "Wird geschrieben · {n} Wörter",
+        "tagDoing": "Begonnen · {done}/{total}",
+        "strategyFor": "Strategie für {name}",
+        "chartLabel": "Punkte schriftlich in den Modellprüfungen: {scores}; Bestehensgrenze {mark}",
+        "passLine": "Grenze {n}"
       }
     },
     "examHub": {
