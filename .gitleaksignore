@@ -34,3 +34,9 @@ b6668bd82ee38ceab0375de949048aad464a0eb3:frontend/src/components/features/ai-spe
 # trong dải quét của PR #720.
 ec53f1c7dfa929e8e7a5bc55e2d197370cb4060a:frontend/src/components/features/ai-speaking/experienceLevels.ts:generic-api-key:4
 ec53f1c7dfa929e8e7a5bc55e2d197370cb4060a:frontend/src/components/features/ai-speaking/experienceLevels.ts:generic-api-key:5
+
+# V360 (PR #757, 07/11/2026): dòng 38 so cột teil_key với tên Teil SPRACHBAUSTEINE-1 của đề luyện thi,
+# không phải secret; luật generic-api-key bắt nhầm vì tên cột có chữ "key". Commit b78e5515 chép
+# nguyên dòng đó vào chú thích ở đây nên cũng bị bắt (dòng thứ hai bên dưới).
+2bd21c67eaa246654f7659e10aa6e327cdffbaf3:backend/src/main/resources/db/migration/V360__sua_de1_cau27_gern.sql:generic-api-key:38
+b78e5515ae2e91ae9bfa837707d48800293c3f3c:.gitleaksignore:generic-api-key:38

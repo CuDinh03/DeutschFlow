@@ -59,4 +59,71 @@ class PracticeWritingAnnotationsTest {
         assertThat(eval.get("annotations")).isEqualTo(List.of());
         assertThat(eval.get("musterloesung")).isEqualTo("");
     }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void boGhiChuMaNenVietTrungBanViet() {
+        String raw = """
+                {"annotations": [
+                  {"quote": "Das ist toll.", "correction": "Das  ist toll.", "category": "GRAMMATIK", "why_vi": "Bịa."},
+                  {"quote": "zu der neuen Arbeit", "correction": "zu der neuen arbeit", "category": "RECHTSCHREIBUNG", "why_vi": "Đổi hoa/thường là sửa thật, giữ."},
+                  {"quote": "Bis bald, Tim", "correction": "Bis bald Tim", "category": "RECHTSCHREIBUNG", "why_vi": "Bỏ dấu phẩy là sửa thật, giữ."}
+                ], "musterloesung_de": ""}""";
+        Map<String, Object> eval = new LinkedHashMap<>();
+        new AiExamEvaluatorService(null, null, null).readAnnotations(raw, TEXT, eval);
+        List<Map<String, Object>> notes = (List<Map<String, Object>>) eval.get("annotations");
+        assertThat(notes).extracting(n -> n.get("quote")).containsExactly("zu der neuen Arbeit", "Bis bald, Tim");
+        assertThat(AiExamEvaluatorService.sameText("„Hallo“  Lena", "\"Hallo\" Lena")).isTrue();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void quyTacNguPhapCoMaCatalogLayTuErrorRuleCatalog() {
+        String raw = """
+                {"annotations": [
+                  {"quote": "Das ist toll.", "correction": "Toll ist das.", "category": "GRAMMATIK",
+                   "why_vi": "x", "rule_vi": "habe sau chủ ngữ", "error_code": "v2_main_clause"},
+                  {"quote": "zu der neuen Arbeit", "correction": "zur neuen Arbeit", "category": "GRAMMATIK",
+                   "why_vi": "x", "rule_vi": "zu + der → zur", "error_code": "KHONG_CO"},
+                  {"quote": "Bis bald, Tim", "correction": "Bis bald! Tim", "category": "REGISTER",
+                   "why_vi": "x", "rule_vi": "Lời chào cuối thư", "error_code": "WORD_ORDER.V2_MAIN_CLAUSE"}
+                ]}""";
+        Map<String, Object> eval = new LinkedHashMap<>();
+        new AiExamEvaluatorService(null, null, null).readAnnotations(raw, TEXT, eval);
+        List<Map<String, Object>> notes = (List<Map<String, Object>>) eval.get("annotations");
+        assertThat(notes.get(0)).containsEntry("errorCode", "WORD_ORDER.V2_MAIN_CLAUSE")
+                .containsEntry("ruleVi", "Câu trần thuật: động từ chia luôn đứng vị trí 2.");
+        // mã lạ: không có câu catalog, giữ quy tắc của mô hình
+        assertThat(notes.get(1)).containsEntry("errorCode", null).containsEntry("ruleVi", "zu + der → zur");
+        // mã chỉ áp cho nhóm ngữ pháp
+        assertThat(notes.get(2)).containsEntry("errorCode", null).containsEntry("ruleVi", "Lời chào cuối thư");
+    }
+
+    @Test
+    void boBaiDaSuaKhiThemYMoi() {
+        List<Map<String, Object>> notes = List.of(
+                Map.of("correction", "zur neuen Arbeit", "quote", "zu der neuen Arbeit"));
+        java.util.HashMap<String, Object> insert = new java.util.HashMap<>();
+        insert.put("correction", "Was machst du dort genau?");
+        insert.put("quote", null);
+        List<Map<String, Object>> withInsert = List.of(notes.get(0), insert);
+
+        String ok = "Hallo Lena, ich gratuliere dir zur neuen Arbeit. Das ist toll. Bis bald, Tim";
+        assertThat(AiExamEvaluatorService.addsNewContent(TEXT, ok, notes)).isFalse();
+        // câu chèn cho ý thiếu đã có trong ghi chú: được phép
+        String okInsert = ok.replace("Das ist toll.", "Das ist toll. Was machst du dort genau?");
+        assertThat(AiExamEvaluatorService.addsNewContent(TEXT, okInsert, withInsert)).isFalse();
+        // thêm ý mới người học chưa viết
+        String invented = ok + " Ich habe auch eine neue Wohnung in Hamburg gefunden und wir können am Wochenende zusammen ins Kino gehen.";
+        assertThat(AiExamEvaluatorService.addsNewContent(TEXT, invented, notes)).isTrue();
+    }
+
+    @Test
+    void readAnnotationsBoMusterloesungThemY() {
+        String raw = """
+                {"annotations": [], "musterloesung_de": "Hallo Lena, ich gratuliere dir zu der neuen Arbeit. Das ist toll. Ich habe auch eine neue Wohnung in Hamburg gefunden und wir gehen am Samstag zusammen ins Kino. Bis bald, Tim"}""";
+        Map<String, Object> eval = new LinkedHashMap<>();
+        new AiExamEvaluatorService(null, null, null).readAnnotations(raw, TEXT, eval);
+        assertThat(eval.get("musterloesung")).isEqualTo("");
+    }
 }
