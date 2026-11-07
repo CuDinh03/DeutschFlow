@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, CalendarCheck, ChevronRight, CircleAlert, CircleCheck, FileText, Mic, PenLine, Play } from 'lucide-react'
+import { ArrowRight, CalendarCheck, ChevronRight, CircleAlert, CircleCheck, FileText, Mic, PenLine, Play, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { sectionScores, type AttemptAnalysis, type AttemptResult } from '@/lib/exam/mockAttemptApi'
@@ -11,6 +11,7 @@ import { ExamBudgetPanel } from '@/components/exam/telc/ExamBudgetPanel'
 import type { FullTeil } from '@/components/exam/practice/fullExamModel'
 import type { PracticeTeilResult } from '@/lib/telcPracticeApi'
 import { Bar, Glyph, SECTION_ICON } from '@/components/exam/today/visual'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { gateView, lostRows, type GateView } from './mockModel'
 
 const fmt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 })
@@ -57,6 +58,15 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
   const t = useTranslations('v2.student.fullExam.result')
   const tp = useTranslations('v2.student.practice')
   const fmtd = useFmt()
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.result',
+    ready: true,
+    steps: [
+      { target: 'scores', icon: CircleCheck, title: tt('result.scores.t'), body: tt('result.scores.p') },
+      { target: 'lost', icon: RotateCcw, title: tt('result.lost.t'), body: tt('result.lost.p') },
+    ],
+  })
   const [first] = React.useState(() => {
     try {
       const k = `df.mock.resultSeen.${attemptId}`
@@ -98,16 +108,20 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
 
   return (
     <div className="mx-auto flex w-full max-w-[880px] flex-col gap-7 px-4 py-6 sm:px-6">
-      <header>
-        <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-          <FileText size={14} aria-hidden /> {examTitle}
-          {when && <> · {fmtd.date(when)}</>}
-        </p>
-        <h1 className="mt-1 break-words font-ga-display text-ga-h1 text-ga-ink">{heading}</h1>
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
+            <FileText size={14} aria-hidden /> {examTitle}
+            {when && <> · {fmtd.date(when)}</>}
+          </p>
+          <h1 className="mt-1 break-words font-ga-display text-ga-h1 text-ga-ink">{heading}</h1>
+        </div>
+        <TourHelpButton onClick={tour.start} />
       </header>
+      {tour.overlay}
 
       <div>
-        <div className="grid grid-cols-1 border-y border-ga-line sm:grid-cols-2">
+        <div data-tour="scores" className="grid grid-cols-1 border-y border-ga-line sm:grid-cols-2">
           <ScoreBox label={t('written')} icon={PenLine} gate={written} animate={first} />
           <ScoreBox
             label={t('oral')}
@@ -131,7 +145,7 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
       </div>
 
       {rows.length > 0 && (
-        <section aria-labelledby="lost-title">
+        <section aria-labelledby="lost-title" data-tour="lost">
           <h2 id="lost-title" className="mb-3 font-ga-display text-ga-h2 text-ga-ink">{t('lostTitle')}</h2>
           <ul className="border-t border-ga-line">
             {rows.map((r, i) => (

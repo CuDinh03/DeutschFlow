@@ -200,3 +200,56 @@ export function todayCard(
   const meta = overviews.flatMap((o) => o.teile).find((x) => x.key === weak.key)
   return { kind: 'TEIL', section: weak.section, teil: weak.teil, minutes: meta?.suggestMinutes ?? 15, href: examId ? teilHref(examId, weak.key) : null, pct: weak.pct, done: false, fromPlan: false }
 }
+
+export type Suggestion =
+  | { kind: 'review'; key: string; section: string; teil: number; wrong: number; href: string }
+  | { kind: 'weak'; key: string; section: string; teil: number; minutes: number; href: string }
+  | { kind: 'mock'; date: string; href: string }
+  | { kind: 'oral'; href: string }
+
+/**
+ * Nút gợi ý dưới thẻ Hôm nay (đợt (e)), tối đa 3, theo dữ liệu thật: ôn lại câu sai của Teil vừa
+ * kiểm tra gần nhất, Teil yếu kế tiếp, lần thi thử sắp tới trong tuần (chưa có thì lần thi nói đầu
+ * tiên). Bỏ Teil đang ở thẻ Hôm nay để không lặp.
+ */
+export function suggestionsFor(
+  overviews: PracticeOverview[],
+  skills: Skill[],
+  plan: ExamPlan | null,
+  todayKey: string | null,
+  oralTaken: boolean,
+  today: string,
+): Suggestion[] {
+  const out: Suggestion[] = []
+
+  let review: { key: string; section: string; teil: number; wrong: number; examId: number; at: string } | null = null
+  for (const o of overviews) {
+    for (const x of o.teile) {
+      const p = x.progress
+      const r = p?.result as { correctCount?: number; total?: number } | null | undefined
+      if (!p?.checked || x.section === 'SCHREIBEN' || x.key === todayKey || typeof r?.total !== 'number') continue
+      const wrong = r.total - (r.correctCount ?? 0)
+      const at = p.updatedAt ?? ''
+      if (wrong > 0 && (!review || at > review.at)) review = { key: x.key, section: x.section, teil: x.teil, wrong, examId: o.examId, at }
+    }
+  }
+  if (review) out.push({ kind: 'review', key: review.key, section: review.section, teil: review.teil, wrong: review.wrong, href: teilHref(review.examId, review.key) })
+
+  const weak = skills
+    .filter((s) => s.id !== 'SPRECHEN')
+    .flatMap((s) => s.teile)
+    .filter((x) => x.key !== todayKey && x.key !== review?.key && (x.pct == null || x.pct < PASS_PCT))
+    .sort((a, b) => (a.pct ?? -1) - (b.pct ?? -1))[0]
+  if (weak) {
+    const examId = pickExamFor(weak.key, overviews)
+    const minutes = overviews.flatMap((o) => o.teile).find((x) => x.key === weak.key)?.suggestMinutes ?? 15
+    if (examId) out.push({ kind: 'weak', key: weak.key, section: weak.section, teil: weak.teil, minutes, href: teilHref(examId, weak.key) })
+  }
+
+  const days = plan?.weeks.find((w) => w.weekNo === plan.currentWeek)?.days ?? []
+  const mock = days.find((d) => d.kind === 'FULL_EXAM' && d.date > today && d.status === 'UPCOMING' && d.examId)
+  if (mock) out.push({ kind: 'mock', date: mock.date, href: `/v2/student/mock-exam/full?examId=${mock.examId}` })
+  else if (!oralTaken) out.push({ kind: 'oral', href: oralHref(plan) })
+
+  return out.slice(0, 3)
+}

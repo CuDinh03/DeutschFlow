@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { BookOpen, Check, Clock, Eye, EyeOff, Headphones, Lightbulb, PenTool, Puzzle, X } from 'lucide-react'
+import { BookOpen, Check, CircleHelp, Clock, Eye, EyeOff, Headphones, Lightbulb, PenTool, Puzzle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useImmersiveChrome } from '@/components/ui-v2/useImmersiveChrome'
 import { formatClock } from './practiceModel'
@@ -23,6 +23,8 @@ interface PracticeShellProps {
   suggestMinutes?: number | null
   tipsOpen?: boolean
   onToggleTips?: () => void
+  /** Nút dấu hỏi mở lại hướng dẫn lần đầu của màn (đợt (e)). */
+  onHelp?: () => void
   saveState?: PracticeSaveState
   footer?: React.ReactNode
   children: React.ReactNode
@@ -67,6 +69,7 @@ export function PracticeShell({
   suggestMinutes = null,
   tipsOpen,
   onToggleTips,
+  onHelp,
   saveState = 'idle',
   footer,
   children,
@@ -144,9 +147,21 @@ export function PracticeShell({
           {progress != null && (
             <span className="ga-ui hidden shrink-0 text-ga-small font-semibold tabular-nums text-ga-ink sm:inline">{progress}</span>
           )}
+          {onHelp && (
+            <button
+              type="button"
+              onClick={onHelp}
+              aria-label={t('help')}
+              title={t('help')}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+            >
+              <CircleHelp size={17} aria-hidden />
+            </button>
+          )}
           {onToggleTips && (
             <button
               type="button"
+              data-tour="strategy"
               onClick={onToggleTips}
               aria-pressed={!!tipsOpen}
               aria-label={t('tips')}

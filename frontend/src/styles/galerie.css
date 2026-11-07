@@ -351,7 +351,9 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
 @keyframes gaRitualIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
 .ga-spin { animation: gaSpin 0.9s linear infinite; }
 @keyframes gaSpin { to { transform: rotate(360deg); } }
+/* Thẻ hướng dẫn lần đầu (đợt (e)) bật ra mỗi bước, không trễ. */
+.ga-pop-now { animation: gaPop var(--ga-duration-base) var(--ga-ease-out) backwards; }
 @media (prefers-reduced-motion: reduce) {
-  .ga-bar-grow, .ga-day-flash, .ga-rise, .ga-pop, .ga-ritual { animation: none; }
+  .ga-bar-grow, .ga-day-flash, .ga-rise, .ga-pop, .ga-ritual, .ga-pop-now { animation: none; }
   .ga-spin { animation-duration: 2.4s; }
 }

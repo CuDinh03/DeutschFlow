@@ -2604,7 +2604,8 @@
         "confirmTitle": "Còn {n} câu chưa làm",
         "confirmBody": "Câu bỏ trống tính 0 điểm. Kiểm tra Teil này bây giờ?",
         "confirmGo": "Vẫn kiểm tra",
-        "keepGoing": "Làm tiếp"
+        "keepGoing": "Làm tiếp",
+        "suggestStrategy": "Xem chiến thuật"
       },
       "seeInText": "Xem trong bài",
       "hoeren": {
@@ -2691,7 +2692,8 @@
       "rewrite": "Viết lại bài này",
       "estPass": "Ước tính · Đạt 60% của phần này",
       "estBelow": "Ước tính · Dưới 60% của phần này · thiếu {n} điểm",
-      "estNote": "Điểm do AI chấm theo tiêu chí telc, không phải điểm chính thức."
+      "estNote": "Điểm do AI chấm theo tiêu chí telc, không phải điểm chính thức.",
+      "help": "Xem hướng dẫn"
     },
     "examHub": {
       "title": "Luyện thi",
@@ -2790,7 +2792,12 @@
         "4": "T5",
         "5": "T6",
         "6": "T7"
-      }
+      },
+      "suggestLabel": "Gợi ý",
+      "suggestReview": "Ôn {n} câu sai · {name}",
+      "suggestMinutes": "{n} phút",
+      "suggestMock": "Thi thử {day}",
+      "suggestOral": "Thi nói lần đầu"
     },
     "fullExam": {
       "badLink": "Link thi thử không hợp lệ.",
@@ -2858,7 +2865,9 @@
         "startOral": "Bắt đầu phần nói",
         "continueWritten": "Làm tiếp phần viết",
         "runningNote": "Bạn đang có lượt dở; đồng hồ tính từ lúc bắt đầu lượt đó.",
-        "allNote": "Xong phần viết thì sang phòng thi nói."
+        "allNote": "Xong phần viết thì sang phòng thi nói.",
+        "suggestOral": "Bạn chưa thi phần nói lần nào",
+        "suggestOralMeta": "Thử 15 phút"
       },
       "ritual": {
         "body": "Bắt đầu rồi thì không quay lại Lesen và Sprachbausteine.",
@@ -2899,6 +2908,130 @@
         "rowCorrect": "{done}/{total} câu đúng",
         "planUpdated": "Lịch ôn các tuần tới đã tính lại theo kết quả này.",
         "backToday": "Về hôm nay"
+      }
+    },
+    "tour": {
+      "help": "Xem hướng dẫn",
+      "skip": "Bỏ qua",
+      "next": "Tiếp",
+      "done": "Bắt đầu",
+      "replayHint": "Bấm dấu hỏi để xem lại hướng dẫn",
+      "progress": "Bước {n}/{total}",
+      "today": {
+        "today": {
+          "t": "Việc của hôm nay",
+          "p": "Mỗi ngày bắt đầu từ đây. Buổi hôm nay lấy từ lịch ôn của bạn."
+        },
+        "skills": {
+          "t": "Bốn kỹ năng",
+          "p": "Vạch đen là ngưỡng đỗ 60%. Bấm một kỹ năng để xem từng Teil."
+        },
+        "week": {
+          "t": "Lịch tuần",
+          "p": "Bận ngày nào thì kéo buổi đó sang ngày khác, hoặc bấm hai buổi để đổi."
+        },
+        "exams": {
+          "t": "Đề luyện",
+          "p": "Mở một đề để luyện từng Teil hoặc thi thử."
+        }
+      },
+      "set": {
+        "teile": {
+          "t": "Luyện từng Teil",
+          "p": "Không ép giờ. Nộp xong có lời giải từng câu."
+        },
+        "mock": {
+          "t": "Thi thử trọn đề",
+          "p": "Có đồng hồ như thi thật. Làm khi đã luyện đủ."
+        },
+        "history": {
+          "t": "Thi thử đã làm",
+          "p": "Điểm của bạn so với ngưỡng đỗ phần viết."
+        }
+      },
+      "teil": {
+        "source": {
+          "t": "Bài đọc",
+          "p": "Đọc ở đây. Cột này cuộn riêng với câu hỏi."
+        },
+        "divider": {
+          "t": "Kéo vạch chia",
+          "p": "Kéo sang trái hoặc phải để nới cột bạn cần."
+        },
+        "handle": {
+          "t": "Kéo ngăn câu hỏi",
+          "p": "Kéo lên để làm câu hỏi, kéo xuống để đọc bài."
+        },
+        "dots": {
+          "t": "Ô số câu",
+          "p": "Bấm để nhảy tới câu. Câu cần xem lại có chấm vàng."
+        },
+        "strategy": {
+          "t": "Chiến thuật",
+          "p": "Các bước làm và bẫy hay gặp của Teil này."
+        },
+        "submit": {
+          "t": "Nộp bài",
+          "p": "Đáp án và lời giải hiện sau khi nộp."
+        }
+      },
+      "hoeren": {
+        "prep": {
+          "t": "Trước khi nghe",
+          "p": "Mỗi đoạn nghe được mấy lần, có bao lâu để đọc câu hỏi."
+        },
+        "mode": {
+          "t": "Cách luyện",
+          "p": "Như thi thật: khoá lượt nghe. Luyện thoải mái: nghe lại, xem lời thoại."
+        }
+      },
+      "writing": {
+        "task": {
+          "t": "Đề bài",
+          "p": "Bốn ý bắt buộc. Viết xong ý nào thì đánh dấu ý đó."
+        },
+        "editor": {
+          "t": "Ô viết",
+          "p": "Khoảng 80 từ. Bấm cụm từ bên dưới để chèn nhanh."
+        },
+        "grade": {
+          "t": "Chấm bằng AI",
+          "p": "AI chấm theo ba tiêu chí telc và chỉ ra từng chỗ cần sửa."
+        }
+      },
+      "mockStart": {
+        "modes": {
+          "t": "Chọn phần thi",
+          "p": "Thi trọn đề, chỉ phần viết hoặc chỉ phần nói."
+        },
+        "rules": {
+          "t": "Giống thi thật",
+          "p": "Đồng hồ không dừng. Vào Hören là không quay lại."
+        }
+      },
+      "result": {
+        "scores": {
+          "t": "Đỗ hay chưa",
+          "p": "Mỗi phần cần 60%. Vạch đen là ngưỡng."
+        },
+        "lost": {
+          "t": "Lấy lại điểm",
+          "p": "Bấm vào để xem lại đúng chỗ đã mất điểm."
+        }
+      },
+      "writingResult": {
+        "essay": {
+          "t": "Bài của bạn",
+          "p": "Chỗ tô vàng là lỗi. Nhãn đỏ là ý còn thiếu."
+        },
+        "note": {
+          "t": "Ghi chú",
+          "p": "Bạn viết gì, nên viết gì và vì sao."
+        },
+        "criteria": {
+          "t": "Ba tiêu chí",
+          "p": "Mỗi tiêu chí có bậc A–D và cách lên bậc."
+        }
       }
     }
   }

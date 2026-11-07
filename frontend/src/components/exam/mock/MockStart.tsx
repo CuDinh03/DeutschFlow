@@ -3,9 +3,10 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, BookOpen, EyeOff, FileText, Headphones, Layers, Lock, Mic, PenLine, PenTool, Play, Timer, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, BookOpen, EyeOff, FileText, Headphones, Layers, Lock, Mic, PenLine, PenTool, Play, Sparkles, Timer, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Glyph } from '@/components/exam/today/visual'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { modeMinutes, TELC_B1_PARTS, type ModeId } from './mockModel'
 
 const MODES: { id: ModeId; icon: LucideIcon }[] = [
@@ -25,6 +26,8 @@ interface Props {
   /** Điểm tối đa từng phần lấy từ đề khi có; không có thì theo định dạng telc B1. */
   points?: Partial<Record<string, number>>
   running: boolean
+  /** Đã từng thi nói (có điểm) — chưa thì gợi ý thử phần nói (đợt (e)). */
+  oralTaken?: boolean
   backHref: string
   oralHref: string
   onStart: (mode: ModeId) => void
@@ -35,8 +38,17 @@ interface Props {
  * không thi mờ đi), ba quy tắc, nút bắt đầu. Trọn đề = phần viết rồi tới phòng thi nói; điểm nói tự
  * vào ngưỡng Nói của lượt thi. Phần nói thi ở phòng thi nói AI.
  */
-export function MockStart({ examTitle, points, running, backHref, oralHref, onStart }: Props) {
+export function MockStart({ examTitle, points, running, oralTaken = true, backHref, oralHref, onStart }: Props) {
   const t = useTranslations('v2.student.fullExam.start')
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.mockStart',
+    ready: true,
+    steps: [
+      { target: 'modes', icon: Layers, title: tt('mockStart.modes.t'), body: tt('mockStart.modes.p') },
+      { target: 'rules', icon: Timer, title: tt('mockStart.rules.t'), body: tt('mockStart.rules.p') },
+    ],
+  })
   const [mode, setMode] = React.useState<ModeId>('written')
   const refs = React.useRef<(HTMLButtonElement | null)[]>([])
 
@@ -61,14 +73,27 @@ export function MockStart({ examTitle, points, running, backHref, oralHref, onSt
       >
         <ArrowLeft size={15} aria-hidden /> {t('back')}
       </Link>
-      <header>
-        <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
-          <FileText size={14} aria-hidden /> {t('eyebrow')}
-        </p>
-        <h1 className="mt-1 break-words font-ga-display text-ga-h1 text-ga-ink">{examTitle}</h1>
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
+            <FileText size={14} aria-hidden /> {t('eyebrow')}
+          </p>
+          <h1 className="mt-1 break-words font-ga-display text-ga-h1 text-ga-ink">{examTitle}</h1>
+        </div>
+        <TourHelpButton onClick={tour.start} />
       </header>
+      {tour.overlay}
+      {tour.familiar && !oralTaken && (
+        <Link
+          href={oralHref}
+          className="ga-ui -mt-3 inline-flex min-h-10 items-center gap-2 self-start rounded-ga-pill border border-ga-line bg-ga-card py-2 pl-2.5 pr-3.5 text-ga-small font-medium text-ga-ink transition-[border-color,transform] duration-ga-fast hover:-translate-y-px hover:border-ga-line-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+        >
+          <Sparkles size={16} className="text-ga-navy" aria-hidden /> {t('suggestOral')}
+          <span className="font-normal text-ga-muted">{t('suggestOralMeta')}</span>
+        </Link>
+      )}
 
-      <div role="radiogroup" aria-label={t('modeLabel')} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div role="radiogroup" data-tour="modes" aria-label={t('modeLabel')} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {MODES.map((m, i) => {
           const on = mode === m.id
           return (
@@ -121,7 +146,7 @@ export function MockStart({ examTitle, points, running, backHref, oralHref, onSt
       </ul>
 
       {mode !== 'oral' && (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <ul data-tour="rules" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {RULES.map((r) => (
             <li key={r.key} className="ga-ui flex items-start gap-2.5 text-ga-small text-ga-muted">
               <Glyph icon={r.icon} size="sm" tone="plain" />

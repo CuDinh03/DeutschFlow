@@ -2,11 +2,12 @@
 
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, PenTool, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, ListChecks, MessageSquareText, PenTool, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WritingEvaluation } from '@/lib/telcPracticeApi'
 import { essaySegments, labelForLogical, relabelLeitpunkte, type displayedPoints } from './practiceModel'
 import { Bar } from '@/components/exam/today/visual'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 
 const LANG_KEY = 'df.practice.writingLang'
 
@@ -51,6 +52,16 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
     }
   }
   const segments = React.useMemo(() => essaySegments(text, notes), [text, notes])
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.writingResult',
+    ready: evaluation.status === 'AI_EVALUATED',
+    steps: [
+      { target: 'essay', icon: PenTool, title: tt('writingResult.essay.t'), body: tt('writingResult.essay.p') },
+      { target: 'note', icon: MessageSquareText, title: tt('writingResult.note.t'), body: tt('writingResult.note.p') },
+      { target: 'criteria', icon: ListChecks, title: tt('writingResult.criteria.t'), body: tt('writingResult.criteria.p') },
+    ],
+  })
 
   if (evaluation.status !== 'AI_EVALUATED') {
     return (
@@ -67,7 +78,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   const missingLabels = (evaluation.leitpunkte_fehlt ?? []).map((n) => labelForLogical(points, n)).filter(Boolean) as string[]
 
   const essay = (
-    <section>
+    <section data-tour="essay">
       <div className="mb-2 flex flex-wrap items-center gap-2.5">
         <p className="ga-ui flex-1 text-ga-eyebrow uppercase text-ga-muted">{showModel ? t('modelHint') : t('essayHint')}</p>
         <Seg
@@ -122,7 +133,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   )
 
   const detail = note ? (
-    <section className="ga-ui text-ga-body">
+    <section data-tour="note" className="ga-ui text-ga-body">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="font-ga-display text-ga-h2 text-ga-ink">{t('noteOf', { n: current + 1, total: notes.length })}</h3>
         <span className="rounded-ga-pill bg-ga-navy-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-navy">{t(`cat.${note.category}`)}</span>
@@ -165,7 +176,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   )
 
   const criteria = (
-    <section>
+    <section data-tour="criteria">
       <p className="ga-ui mb-2.5 text-ga-eyebrow uppercase text-ga-muted">{t('criteriaTitle')}</p>
       {CRITERIA.map((c) => {
         const row = evaluation.criteria?.find((r) => r.key === c.key)
@@ -250,14 +261,18 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
         <span className="inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
           <PenTool size={14} aria-hidden /> <span lang="de">Schriftlicher Ausdruck</span>
         </span>
-        <Seg
-          value={lang}
-          onChange={(v) => setLang(v as 'vi' | 'de')}
-          options={[
-            { value: 'vi', label: 'VI' },
-            { value: 'de', label: 'DE' },
-          ]}
-        />
+        <div className="flex items-center gap-2">
+          <Seg
+            value={lang}
+            onChange={(v) => setLang(v as 'vi' | 'de')}
+            options={[
+              { value: 'vi', label: 'VI' },
+              { value: 'de', label: 'DE' },
+            ]}
+          />
+          <TourHelpButton onClick={tour.start} />
+          {tour.overlay}
+        </div>
       </div>
       <span className="font-ga-display text-ga-stat-m leading-none tabular-nums text-ga-ink">
         {evaluation.total} <small className="text-ga-body font-medium text-ga-muted">/ {evaluation.max}</small>

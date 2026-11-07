@@ -1,6 +1,6 @@
 /** Hàm thuần của màn Hôm nay (đợt (d)): bốn kỹ năng, chọn đề mở Teil, thẻ Hôm nay, đổi chỗ lạc quan. */
 import { describe, expect, it } from 'vitest'
-import { latestOral, pickExamFor, skillsFrom, statusOf, todayCard } from '@/components/exam/today/todayModel'
+import { latestOral, pickExamFor, skillsFrom, statusOf, suggestionsFor, todayCard } from '@/components/exam/today/todayModel'
 import { localIsoDate, swapLocally, teilKeyOf, todaySession, type ExamPlan } from '@/lib/examPlanApi'
 import type { PracticeOverview, PracticeProgress } from '@/lib/telcPracticeApi'
 import type { ExamResultView } from '@/types/exam-speaking'
@@ -79,5 +79,32 @@ describe('todayModel', () => {
     expect(days[0]).toMatchObject({ date: today, kind: 'REST', status: 'REST' })
     expect(days[1]).toMatchObject({ date: tomorrow, kind: 'TEIL', section: 'LESEN', status: 'UPCOMING' })
     expect(plan.weeks[0].days![0].kind).toBe('TEIL')
+  })
+
+  it('gợi ý: ôn câu sai Teil vừa kiểm tra, Teil yếu kế tiếp, thi thử sắp tới; bỏ Teil của thẻ Hôm nay', () => {
+    const withResult = (p: PracticeProgress, correctCount: number, total: number) => ({ ...p, result: { correctCount, total } as never })
+    const C = ov(3, [
+      teil('LESEN-1', withResult(prog(15, 25, '2026-11-06'), 3, 5)),
+      teil('HOEREN-2', withResult(prog(10, 25, '2026-11-07'), 4, 10)),
+      teil('SCHREIBEN-1', withResult(prog(20, 45, '2026-11-08'), 0, 1), 45),
+      teil('LESEN-3', null),
+    ])
+    const skills = skillsFrom([C], null)
+    const today = '2026-11-10'
+    const plan: ExamPlan = {
+      status: 'ACTIVE', currentWeek: 1, warnings: [],
+      weeks: [{ weekNo: 1, startDate: today, endDate: '2026-11-16', phase: 'FULL', focus: [], tasks: [], doneTasks: 0, totalTasks: 0, days: [
+        { date: '2026-11-15', kind: 'FULL_EXAM', minutes: 150, status: 'UPCOMING', movable: true, examId: 3 },
+      ] }],
+    }
+    const out = suggestionsFor([C], skills, plan, 'LESEN-3', true, today)
+    // Viết không tính "câu sai"; Teil kiểm tra gần nhất có câu sai là Hören T2
+    expect(out[0]).toMatchObject({ kind: 'review', key: 'HOEREN-2', wrong: 6 })
+    // LESEN-3 đang ở thẻ Hôm nay nên bỏ; Teil yếu kế tiếp: Schreiben 44% < Lesen 1 60%
+    expect(out[1]).toMatchObject({ kind: 'weak', key: 'SCHREIBEN-1' })
+    expect(out[2]).toMatchObject({ kind: 'mock', date: '2026-11-15', href: '/v2/student/mock-exam/full?examId=3' })
+    // không có thi thử trong tuần, chưa thi nói ⇒ gợi ý thi nói
+    expect(suggestionsFor([C], skills, null, null, false, today).at(-1)).toMatchObject({ kind: 'oral' })
+    expect(suggestionsFor([], skillsFrom([], null), null, null, true, today)).toEqual([])
   })
 })

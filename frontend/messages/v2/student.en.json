@@ -2604,7 +2604,8 @@
         "confirmTitle": "{n} questions not answered",
         "confirmBody": "Empty answers score 0 points. Check this part now?",
         "confirmGo": "Check anyway",
-        "keepGoing": "Keep working"
+        "keepGoing": "Keep working",
+        "suggestStrategy": "See the strategy"
       },
       "seeInText": "Show in text",
       "hoeren": {
@@ -2691,7 +2692,8 @@
       "rewrite": "Rewrite this letter",
       "estPass": "Estimate · 60% of this part reached",
       "estBelow": "Estimate · below 60% of this part · {n} points short",
-      "estNote": "Scored by AI against the telc criteria, not an official score."
+      "estNote": "Scored by AI against the telc criteria, not an official score.",
+      "help": "Show the guide"
     },
     "examHub": {
       "title": "Exam practice",
@@ -2790,7 +2792,12 @@
         "4": "Thu",
         "5": "Fri",
         "6": "Sat"
-      }
+      },
+      "suggestLabel": "Suggestions",
+      "suggestReview": "Review {n} wrong · {name}",
+      "suggestMinutes": "{n} min",
+      "suggestMock": "Mock exam {day}",
+      "suggestOral": "First oral exam"
     },
     "fullExam": {
       "badLink": "Invalid mock exam link.",
@@ -2858,7 +2865,9 @@
         "startOral": "Start oral part",
         "continueWritten": "Continue written part",
         "runningNote": "You have an exam in progress; the clock counts from when you started it.",
-        "allNote": "After the written part, go to the oral exam room."
+        "allNote": "After the written part, go to the oral exam room.",
+        "suggestOral": "You have not taken the oral part yet",
+        "suggestOralMeta": "Try 15 minutes"
       },
       "ritual": {
         "body": "Once you start, you cannot go back to Lesen and Sprachbausteine.",
@@ -2899,6 +2908,130 @@
         "rowCorrect": "{done}/{total} correct",
         "planUpdated": "Your study plan for the coming weeks has been recalculated from this result.",
         "backToday": "Back to today"
+      }
+    },
+    "tour": {
+      "help": "Show the guide",
+      "skip": "Skip",
+      "next": "Next",
+      "done": "Start",
+      "replayHint": "Tap the question mark to see the guide again",
+      "progress": "Step {n}/{total}",
+      "today": {
+        "today": {
+          "t": "Today's task",
+          "p": "Every day starts here. Today's session comes from your study plan."
+        },
+        "skills": {
+          "t": "Four skills",
+          "p": "The black line is the 60% pass mark. Tap a skill to see each part."
+        },
+        "week": {
+          "t": "This week",
+          "p": "Busy one day? Drag that session to another day, or tap two sessions to swap."
+        },
+        "exams": {
+          "t": "Exam sets",
+          "p": "Open a set to practise part by part or take a mock exam."
+        }
+      },
+      "set": {
+        "teile": {
+          "t": "Practise part by part",
+          "p": "No time pressure. Every question is explained after you submit."
+        },
+        "mock": {
+          "t": "Full mock exam",
+          "p": "Timed like the real exam. Take it once you have practised enough."
+        },
+        "history": {
+          "t": "Mock exams taken",
+          "p": "Your score against the written pass mark."
+        }
+      },
+      "teil": {
+        "source": {
+          "t": "Reading text",
+          "p": "Read here. This column scrolls on its own."
+        },
+        "divider": {
+          "t": "Drag the divider",
+          "p": "Drag left or right to widen the column you need."
+        },
+        "handle": {
+          "t": "Drag the question panel",
+          "p": "Drag up to answer, drag down to read."
+        },
+        "dots": {
+          "t": "Question numbers",
+          "p": "Tap to jump to a question. Flagged ones have a yellow dot."
+        },
+        "strategy": {
+          "t": "Strategy",
+          "p": "Steps and common traps for this part."
+        },
+        "submit": {
+          "t": "Submit",
+          "p": "Answers and explanations appear after you submit."
+        }
+      },
+      "hoeren": {
+        "prep": {
+          "t": "Before listening",
+          "p": "How many times each recording plays and how long you have to read."
+        },
+        "mode": {
+          "t": "How to practise",
+          "p": "Like the exam: plays are limited. Relaxed: replay and read the transcript."
+        }
+      },
+      "writing": {
+        "task": {
+          "t": "Task",
+          "p": "Four required points. Tick each one once you have written it."
+        },
+        "editor": {
+          "t": "Your letter",
+          "p": "About 80 words. Tap a phrase below to insert it."
+        },
+        "grade": {
+          "t": "AI grading",
+          "p": "The AI grades on the three telc criteria and points out each fix."
+        }
+      },
+      "mockStart": {
+        "modes": {
+          "t": "Choose the parts",
+          "p": "Full exam, written part only, or oral part only."
+        },
+        "rules": {
+          "t": "Like the real exam",
+          "p": "The clock never stops. Once in Hören, there is no going back."
+        }
+      },
+      "result": {
+        "scores": {
+          "t": "Passed or not",
+          "p": "Each part needs 60%. The black line is the pass mark."
+        },
+        "lost": {
+          "t": "Win back points",
+          "p": "Tap to review exactly where you lost points."
+        }
+      },
+      "writingResult": {
+        "essay": {
+          "t": "Your letter",
+          "p": "Yellow marks are mistakes. Red labels are missing points."
+        },
+        "note": {
+          "t": "Notes",
+          "p": "What you wrote, what to write and why."
+        },
+        "criteria": {
+          "t": "Three criteria",
+          "p": "Each criterion has bands A–D and how to move up."
+        }
       }
     }
   }

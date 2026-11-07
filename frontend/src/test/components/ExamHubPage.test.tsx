@@ -20,6 +20,8 @@ const h = vi.hoisted(() => ({
   swapDays: vi.fn(),
   updateTargetDate: vi.fn(),
   listResults: vi.fn(),
+  seenTours: vi.fn(),
+  markTourSeen: vi.fn(),
 }))
 
 vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi'))
@@ -31,6 +33,7 @@ vi.mock('@/lib/telcPracticeApi', () => ({
   getPracticeOverview: h.getPracticeOverview,
 }))
 vi.mock('@/lib/exam/mockAttemptApi', () => ({ listMyAttempts: h.listMyAttempts }))
+vi.mock('@/lib/uiToursApi', () => ({ loadSeenTours: () => h.seenTours(), markTourSeen: h.markTourSeen }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: { listResults: h.listResults } }))
 vi.mock('@/lib/examPlanApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/examPlanApi')>()),
@@ -99,6 +102,7 @@ function setup() {
   ])
   h.planGet.mockResolvedValue(planWith(DAYS))
   h.listResults.mockResolvedValue({ data: [] })
+  h.seenTours.mockResolvedValue(new Set(['exam.today']))
 }
 
 beforeEach(() => {
@@ -194,5 +198,31 @@ describe('Luyện thi · Hôm nay', () => {
 
     expect(await screen.findByText(/chưa mở cho tài khoản này/)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Bắt đầu/ })).toBeNull()
+  })
+
+  it('đã quen màn: nút gợi ý dưới thẻ Hôm nay (Teil yếu kế tiếp, thi thử sắp tới)', async () => {
+    setup()
+    render(<V2StudentExamHubPage />)
+    const nav = await screen.findByRole('navigation', { name: 'Gợi ý' })
+    // Hören T1 chưa luyện là Teil yếu kế tiếp (Lesen T2 đang ở thẻ Hôm nay); thi thử 2 ngày nữa
+    expect(within(nav).getByRole('link', { name: /Hören T1/ })).toHaveAttribute('href', '/v2/student/mock-exam/practice/teil?examId=101&teil=HOEREN-1')
+    expect(within(nav).getByRole('link', { name: /Thi thử/ })).toHaveAttribute('href', '/v2/student/mock-exam/full?examId=101')
+  })
+
+  it('lần đầu vào màn: hướng dẫn tự mở và đánh dấu đã xem theo tài khoản', async () => {
+    setup()
+    h.seenTours.mockResolvedValue(new Set())
+    const rects = Element.prototype.getClientRects
+    Element.prototype.getClientRects = function () {
+      return [{}] as unknown as DOMRectList
+    }
+    try {
+      render(<V2StudentExamHubPage />)
+      const dialog = await screen.findByRole('dialog', {}, { timeout: 3000 })
+      expect(dialog).toHaveTextContent('Việc của hôm nay')
+      expect(h.markTourSeen).toHaveBeenCalledWith('exam.today')
+    } finally {
+      Element.prototype.getClientRects = rects
+    }
   })
 })

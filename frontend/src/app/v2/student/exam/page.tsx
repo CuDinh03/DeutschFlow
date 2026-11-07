@@ -4,11 +4,11 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ArrowRight, CalendarClock, Check, ChevronRight, CircleCheck, CircleX, Clock, FileText, Lock } from 'lucide-react'
+import { ArrowRight, CalendarClock, CalendarDays, ChartNoAxesColumn, Check, ChevronRight, CircleCheck, CircleX, Clock, FileText, Headphones, Lock, Mic, RotateCcw, Target, type LucideIcon } from 'lucide-react'
 import { getMockPack, getMockPacks, type PackExam } from '@/lib/mockPackApi'
 import { getPracticeAccess, getPracticeOverview, type PracticeOverview } from '@/lib/telcPracticeApi'
 import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
-import { examPlanApi, currentWeekOf, localIsoDate, swapLocally, todaySession, type ExamPlan, type ExamPlanDay } from '@/lib/examPlanApi'
+import { examPlanApi, currentWeekOf, localIsoDate, swapLocally, teilKeyOf, todaySession, type ExamPlan, type ExamPlanDay } from '@/lib/examPlanApi'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { apiMessage } from '@/lib/api'
 import { useFmt } from '@/lib/i18n/useFmt'
@@ -18,7 +18,8 @@ import type { ExamResultView } from '@/types/exam-speaking'
 import { SkillBars } from '@/components/exam/today/SkillBars'
 import { WeekPlan } from '@/components/exam/today/WeekPlan'
 import { Glyph, dayIcon } from '@/components/exam/today/visual'
-import { latestOral, oralHref, pickExamFor, skillsFrom, teilHref, todayCard, type TodayCardModel } from '@/components/exam/today/todayModel'
+import { latestOral, oralHref, pickExamFor, skillsFrom, suggestionsFor, teilHref, todayCard, type Suggestion, type TodayCardModel } from '@/components/exam/today/todayModel'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 
 /**
  * Luyện thi · Hôm nay — `/v2/student/exam` (đợt (d) làm mới Luyện thi, 07/11/2026).
@@ -98,6 +99,22 @@ export default function V2StudentExamHubPage() {
   const card = todayCard(today, plan, overviews, skills)
   const oralLink = oralHref(plan)
 
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.today',
+    ready: !!rows && access === true,
+    steps: [
+      { target: 'today', icon: Target, title: tt('today.today.t'), body: tt('today.today.p') },
+      { target: 'skills', icon: ChartNoAxesColumn, title: tt('today.skills.t'), body: tt('today.skills.p') },
+      { target: 'week', icon: CalendarDays, title: tt('today.week.t'), body: tt('today.week.p') },
+      { target: 'exams', icon: FileText, title: tt('today.exams.t'), body: tt('today.exams.p') },
+    ],
+  })
+  // Gợi ý chỉ hiện khi đã quen màn (đã xem hướng dẫn), tối đa 3.
+  const suggestions = tour.familiar
+    ? suggestionsFor(overviews, skills, plan, card?.kind === 'TEIL' ? `${card.section}-${card.teil}` : teilKeyOf(today), !!oral, localIsoDate())
+    : []
+
   const onSwap = async (from: string, to: string) => {
     if (!plan || !week) return
     const before = plan
@@ -130,8 +147,12 @@ export default function V2StudentExamHubPage() {
           <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">telc Deutsch {plan?.level ?? 'B1'}</p>
           <h1 className="mt-1 font-ga-display text-ga-h1 text-ga-ink">{t('title')}</h1>
         </div>
-        {plan?.status === 'ACTIVE' && plan.daysLeft != null && plan.targetDate && <CountChip daysLeft={plan.daysLeft} date={plan.targetDate} />}
+        <div className="flex items-center gap-2.5">
+          {plan?.status === 'ACTIVE' && plan.daysLeft != null && plan.targetDate && <CountChip daysLeft={plan.daysLeft} date={plan.targetDate} />}
+          {rows && access === true && <TourHelpButton onClick={tour.start} />}
+        </div>
       </header>
+      {tour.overlay}
 
       {error && <ErrorBanner message={error} onRetry={load} />}
       {!rows && !error && <LoadingState label={t('loading')} />}
@@ -143,12 +164,13 @@ export default function V2StudentExamHubPage() {
         <>
           <div className="flex flex-col gap-3">
             {card && <TodayCard card={card} />}
+            {suggestions.length > 0 && <SuggestionRow items={suggestions} />}
             {plan && (plan.status === 'NEEDS_DATE' || plan.status === 'EXAM_PASSED') && (
               <DateCard passed={plan.status === 'EXAM_PASSED'} onSaved={setPlan} />
             )}
           </div>
 
-          <section aria-labelledby="skills-title">
+          <section aria-labelledby="skills-title" data-tour="skills">
             <h2 id="skills-title" className="mb-3 font-ga-display text-ga-h2 text-ga-ink">{t('skillsTitle')}</h2>
             <SkillBars
               skills={skills}
@@ -161,7 +183,7 @@ export default function V2StudentExamHubPage() {
           </section>
 
           {week?.days && week.days.length > 0 && (
-            <section aria-labelledby="week-title">
+            <section aria-labelledby="week-title" data-tour="week">
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                 <h2 id="week-title" className="font-ga-display text-ga-h2 text-ga-ink">{t('weekTitle')}</h2>
                 <span className="ga-ui text-ga-small tabular-nums text-ga-muted">
@@ -172,7 +194,7 @@ export default function V2StudentExamHubPage() {
             </section>
           )}
 
-          <section aria-labelledby="exams-title">
+          <section aria-labelledby="exams-title" data-tour="exams">
             <h2 id="exams-title" className="mb-3 font-ga-display text-ga-h2 text-ga-ink">{t('examsTitle')}</h2>
             {rows.length === 0 && locked.length === 0 ? (
               <p className="ga-ui text-ga-body text-ga-muted">{t('empty')}</p>
@@ -275,7 +297,7 @@ function TodayCard({ card }: { card: TodayCardModel }) {
   const href = 'href' in card ? card.href : null
 
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-4 border border-ga-line bg-ga-yellow-soft p-[18px] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:p-6">
+    <div data-tour="today" className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-4 border border-ga-line bg-ga-yellow-soft p-[18px] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:p-6">
       <Glyph icon={done ? Check : icon} tone="yellow" size="lg" />
       <div className="min-w-0">
         <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
@@ -424,5 +446,49 @@ function ExamRowView({ exam, overview, attempts }: { exam: PackExam; overview?: 
       {tag}
       <ChevronRight size={16} className="text-ga-subtle transition-transform duration-150 group-hover:translate-x-[3px]" aria-hidden />
     </Link>
+  )
+}
+
+const SUGGEST_ICON: Record<Suggestion['kind'], LucideIcon> = { review: RotateCcw, weak: Target, mock: FileText, oral: Mic }
+
+/** Nút gợi ý dưới thẻ Hôm nay (đợt (e)): nhấc 1px khi rê, mỗi nút một việc + thời lượng. */
+function SuggestionRow({ items }: { items: Suggestion[] }) {
+  const t = useTranslations('v2.student.examHub')
+  const name = (section: string, teil: number) => `${t(`short.${section}`)} T${teil}`
+  return (
+    <nav aria-label={t('suggestLabel')} className="flex flex-wrap gap-2">
+      {items.map((s) => {
+        const Icon = s.kind === 'weak' && s.section === 'HOEREN' ? Headphones : SUGGEST_ICON[s.kind]
+        let label: string
+        let meta: string | null = null
+        switch (s.kind) {
+          case 'review':
+            label = t('suggestReview', { n: s.wrong, name: name(s.section, s.teil) })
+            break
+          case 'weak':
+            label = name(s.section, s.teil)
+            meta = t('suggestMinutes', { n: s.minutes })
+            break
+          case 'mock':
+            label = t('suggestMock', { day: t(`wd.${new Date(`${s.date}T00:00:00`).getDay()}`) })
+            break
+          case 'oral':
+            label = t('suggestOral')
+            meta = t('suggestMinutes', { n: 15 })
+            break
+        }
+        return (
+          <Link
+            key={`${s.kind}-${s.href}`}
+            href={s.href}
+            className="ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga-pill border border-ga-line bg-ga-card py-2 pl-2.5 pr-3.5 text-ga-small font-medium text-ga-ink transition-[border-color,transform] duration-ga-fast hover:-translate-y-px hover:border-ga-line-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+          >
+            <Icon size={16} className="text-ga-navy" aria-hidden />
+            <span lang={s.kind === 'weak' ? 'de' : undefined}>{label}</span>
+            {meta && <span className="font-normal text-ga-muted">{meta}</span>}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }

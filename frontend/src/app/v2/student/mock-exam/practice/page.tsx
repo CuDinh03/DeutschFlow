@@ -26,6 +26,7 @@ import {
   Repeat2,
   Target,
   TextCursorInput,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
@@ -35,6 +36,7 @@ import { examPlanApi, teilKeyOf, todaySession } from '@/lib/examPlanApi'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { findTeil, wordCount } from '@/components/exam/practice/practiceModel'
 import { cn } from '@/lib/utils'
 
@@ -92,6 +94,17 @@ function PracticeMapPage() {
   }, [examId])
   React.useEffect(load, [load])
 
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.set',
+    ready: !!overview,
+    steps: [
+      { target: 'teile', icon: ListChecks, title: tt('set.teile.t'), body: tt('set.teile.p') },
+      { target: 'mock', icon: FileText, title: tt('set.mock.t'), body: tt('set.mock.p') },
+      { target: 'history', icon: TrendingUp, title: tt('set.history.t'), body: tt('set.history.p') },
+    ],
+  })
+
   if (!examId) return <div className="p-6"><ErrorBanner message={t('badLink')} /></div>
 
   const teile = overview?.teile ?? []
@@ -145,12 +158,16 @@ function PracticeMapPage() {
                 )}
               </div>
             </div>
+            <div className="flex items-center gap-2.5">
+            <TourHelpButton onClick={tour.start} />
             <Link
+              data-tour="mock"
               href={`/v2/student/mock-exam/full?examId=${examId}`}
               className="ga-ui inline-flex min-h-12 items-center gap-2 rounded-ga-touch bg-ga-ink px-5 text-ga-body font-semibold text-ga-card transition-[transform,filter] duration-150 hover:-translate-y-px hover:brightness-110 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2"
             >
               <FileText size={17} aria-hidden /> {running ? tm('continueMock') : tm('fullMock')}
             </Link>
+            </div>
           </header>
 
           {inProgress && (
@@ -170,7 +187,8 @@ function PracticeMapPage() {
             </div>
           )}
 
-          <section aria-labelledby="teile-title">
+          {tour.overlay}
+          <section aria-labelledby="teile-title" data-tour="teile">
             <h2 id="teile-title" className="mb-4 font-ga-display text-ga-h2 text-ga-ink">{tm('teileTitle')}</h2>
             <div className="space-y-6">
               {SECTION_ORDER.map((section) => {
@@ -218,7 +236,7 @@ function PracticeMapPage() {
             </div>
           </section>
 
-          <section aria-labelledby="history-title">
+          <section aria-labelledby="history-title" data-tour="history">
             <h2 id="history-title" className="mb-4 font-ga-display text-ga-h2 text-ga-ink">{tm('historyTitle')}</h2>
             {completed.length === 0 && !running ? (
               <p className="ga-ui text-ga-body text-ga-muted">{tm('historyEmpty')}</p>

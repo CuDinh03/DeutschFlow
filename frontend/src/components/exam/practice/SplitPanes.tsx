@@ -162,11 +162,12 @@ export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, rev
         className="grid h-full"
         style={{ gridTemplateColumns: `minmax(0,${split}fr) 12px minmax(0,${100 - split}fr)` }}
       >
-        <section ref={sourceRef} aria-label={sourceLabel} className="ga-autoscroll min-h-0 overflow-y-auto px-6 pb-10 pt-5">
+        <section ref={sourceRef} data-tour="source" aria-label={sourceLabel} className="ga-autoscroll min-h-0 overflow-y-auto px-6 pb-10 pt-5">
           {source}
         </section>
         <div
           role="separator"
+          data-tour="divider"
           aria-orientation="vertical"
           aria-label={t('gutter')}
           aria-valuemin={SPLIT_MIN}
@@ -210,6 +211,7 @@ export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, rev
     <div ref={rootRef} className="relative h-full overflow-hidden">
       <section
         ref={sourceRef}
+        data-tour="source"
         aria-label={sourceLabel}
         className="ga-autoscroll absolute inset-0 overflow-y-auto px-3 pt-4"
         style={{ paddingBottom: sheetH + 24 }}
@@ -227,6 +229,7 @@ export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, rev
       >
         <div
           role="separator"
+          data-tour="handle"
           aria-orientation="horizontal"
           aria-label={t('sheetHandle')}
           tabIndex={0}

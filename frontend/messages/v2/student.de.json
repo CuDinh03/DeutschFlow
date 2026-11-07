@@ -2604,7 +2604,8 @@
         "confirmTitle": "{n} Aufgaben sind noch offen",
         "confirmBody": "Leere Antworten zählen 0 Punkte. Diesen Teil jetzt prüfen?",
         "confirmGo": "Trotzdem prüfen",
-        "keepGoing": "Weiterarbeiten"
+        "keepGoing": "Weiterarbeiten",
+        "suggestStrategy": "Strategie ansehen"
       },
       "seeInText": "Im Text zeigen",
       "hoeren": {
@@ -2691,7 +2692,8 @@
       "rewrite": "Diesen Brief neu schreiben",
       "estPass": "Schätzung · 60 % dieses Teils erreicht",
       "estBelow": "Schätzung · unter 60 % dieses Teils · {n} Punkte fehlen",
-      "estNote": "Von der KI nach den telc-Kriterien bewertet, keine offizielle Punktzahl."
+      "estNote": "Von der KI nach den telc-Kriterien bewertet, keine offizielle Punktzahl.",
+      "help": "Anleitung anzeigen"
     },
     "examHub": {
       "title": "Prüfungstraining",
@@ -2790,7 +2792,12 @@
         "4": "Do",
         "5": "Fr",
         "6": "Sa"
-      }
+      },
+      "suggestLabel": "Vorschläge",
+      "suggestReview": "{n} Fehler wiederholen · {name}",
+      "suggestMinutes": "{n} Min.",
+      "suggestMock": "Modellprüfung {day}",
+      "suggestOral": "Erste mündliche Prüfung"
     },
     "fullExam": {
       "badLink": "Ungültiger Link zur Modellprüfung.",
@@ -2858,7 +2865,9 @@
         "startOral": "Mündlichen Teil starten",
         "continueWritten": "Schriftlichen Teil fortsetzen",
         "runningNote": "Sie haben eine begonnene Prüfung; die Zeit läuft seit dem Start.",
-        "allNote": "Nach dem schriftlichen Teil geht es in den Raum für die mündliche Prüfung."
+        "allNote": "Nach dem schriftlichen Teil geht es in den Raum für die mündliche Prüfung.",
+        "suggestOral": "Sie haben den mündlichen Teil noch nicht abgelegt",
+        "suggestOralMeta": "15 Minuten testen"
       },
       "ritual": {
         "body": "Nach dem Start geht es nicht zurück zu Lesen und Sprachbausteinen.",
@@ -2899,6 +2908,130 @@
         "rowCorrect": "{done}/{total} richtig",
         "planUpdated": "Ihr Lernplan für die nächsten Wochen wurde nach diesem Ergebnis neu berechnet.",
         "backToday": "Zurück zu heute"
+      }
+    },
+    "tour": {
+      "help": "Anleitung anzeigen",
+      "skip": "Überspringen",
+      "next": "Weiter",
+      "done": "Los geht's",
+      "replayHint": "Über das Fragezeichen sehen Sie die Anleitung erneut",
+      "progress": "Schritt {n}/{total}",
+      "today": {
+        "today": {
+          "t": "Ihre Aufgabe heute",
+          "p": "Jeder Tag beginnt hier. Die Einheit kommt aus Ihrem Lernplan."
+        },
+        "skills": {
+          "t": "Vier Fertigkeiten",
+          "p": "Die schwarze Linie ist die Grenze von 60 %. Tippen Sie auf eine Fertigkeit."
+        },
+        "week": {
+          "t": "Diese Woche",
+          "p": "Keine Zeit an einem Tag? Ziehen Sie die Einheit auf einen anderen Tag oder tippen Sie zwei an."
+        },
+        "exams": {
+          "t": "Modelltests",
+          "p": "Öffnen Sie einen Test, um Teil für Teil zu üben oder eine Modellprüfung abzulegen."
+        }
+      },
+      "set": {
+        "teile": {
+          "t": "Teil für Teil üben",
+          "p": "Ohne Zeitdruck. Nach der Abgabe gibt es zu jeder Aufgabe eine Erklärung."
+        },
+        "mock": {
+          "t": "Ganze Modellprüfung",
+          "p": "Mit Uhr wie in der Prüfung. Wenn Sie genug geübt haben."
+        },
+        "history": {
+          "t": "Abgelegte Modellprüfungen",
+          "p": "Ihre Punkte im Vergleich zur Grenze im schriftlichen Teil."
+        }
+      },
+      "teil": {
+        "source": {
+          "t": "Lesetext",
+          "p": "Hier lesen. Diese Spalte scrollt für sich."
+        },
+        "divider": {
+          "t": "Trennlinie ziehen",
+          "p": "Nach links oder rechts ziehen, um die Spalte zu verbreitern."
+        },
+        "handle": {
+          "t": "Fragenbereich ziehen",
+          "p": "Nach oben ziehen zum Antworten, nach unten zum Lesen."
+        },
+        "dots": {
+          "t": "Aufgabennummern",
+          "p": "Antippen, um zur Aufgabe zu springen. Markierte haben einen gelben Punkt."
+        },
+        "strategy": {
+          "t": "Strategie",
+          "p": "Schritte und typische Fallen für diesen Teil."
+        },
+        "submit": {
+          "t": "Abgeben",
+          "p": "Lösungen und Erklärungen erscheinen nach der Abgabe."
+        }
+      },
+      "hoeren": {
+        "prep": {
+          "t": "Vor dem Hören",
+          "p": "Wie oft jeder Text läuft und wie lange Sie Zeit zum Lesen haben."
+        },
+        "mode": {
+          "t": "Übungsart",
+          "p": "Wie in der Prüfung: begrenztes Hören. Entspannt: wiederholen und Transkript lesen."
+        }
+      },
+      "writing": {
+        "task": {
+          "t": "Aufgabe",
+          "p": "Vier Leitpunkte. Haken Sie jeden ab, sobald Sie ihn geschrieben haben."
+        },
+        "editor": {
+          "t": "Ihr Brief",
+          "p": "Etwa 80 Wörter. Tippen Sie unten auf eine Wendung, um sie einzufügen."
+        },
+        "grade": {
+          "t": "KI-Bewertung",
+          "p": "Die KI bewertet nach den drei telc-Kriterien und zeigt jede Korrektur."
+        }
+      },
+      "mockStart": {
+        "modes": {
+          "t": "Teile wählen",
+          "p": "Ganze Prüfung, nur schriftlich oder nur mündlich."
+        },
+        "rules": {
+          "t": "Wie in der Prüfung",
+          "p": "Die Uhr läuft durch. Nach Hören geht es nicht zurück."
+        }
+      },
+      "result": {
+        "scores": {
+          "t": "Bestanden oder nicht",
+          "p": "Jeder Teil braucht 60 %. Die schwarze Linie ist die Grenze."
+        },
+        "lost": {
+          "t": "Punkte zurückholen",
+          "p": "Antippen, um genau die Stellen mit Punktverlust anzusehen."
+        }
+      },
+      "writingResult": {
+        "essay": {
+          "t": "Ihr Brief",
+          "p": "Gelb markiert sind Fehler. Rote Etiketten sind fehlende Leitpunkte."
+        },
+        "note": {
+          "t": "Hinweise",
+          "p": "Was Sie geschrieben haben, was besser wäre und warum."
+        },
+        "criteria": {
+          "t": "Drei Kriterien",
+          "p": "Jedes Kriterium hat die Stufen A–D und den Weg nach oben."
+        }
       }
     }
   }

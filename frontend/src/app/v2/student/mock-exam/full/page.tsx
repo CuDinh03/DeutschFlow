@@ -26,6 +26,7 @@ import {
   type AttemptResult,
 } from '@/lib/exam/mockAttemptApi'
 import { getPracticeOverview } from '@/lib/telcPracticeApi'
+import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { useTracking } from '@/hooks/useTracking'
 import { ConfirmDialog, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { PracticeShell, type PracticeSaveState } from '@/components/exam/practice/PracticeShell'
@@ -95,13 +96,20 @@ function FullExamPage() {
 function MockEntry({ examId, autoStart, onFinished }: { examId: number; autoStart: boolean; onFinished: (attemptId: number) => void }) {
   const t = useTranslations('v2.student.fullExam')
   const [started, setStarted] = React.useState(autoStart)
-  const [info, setInfo] = React.useState<{ title: string; points: Record<string, number>; running: boolean } | null>(null)
+  const [info, setInfo] = React.useState<{ title: string; points: Record<string, number>; running: boolean; oralTaken: boolean } | null>(null)
   const fallbackTitle = t('examCap')
 
   React.useEffect(() => {
     if (started) return
     let alive = true
-    Promise.all([getPracticeOverview(examId).catch(() => null), listMyAttempts().catch(() => [])]).then(([o, mine]) => {
+    Promise.all([
+      getPracticeOverview(examId).catch(() => null),
+      listMyAttempts().catch(() => []),
+      examSpeakingApi
+        .listResults()
+        .then((r) => r.data ?? [])
+        .catch(() => null),
+    ]).then(([o, mine, orals]) => {
       if (!alive) return
       const points: Record<string, number> = {}
       for (const x of o?.teile ?? []) {
@@ -113,6 +121,8 @@ function MockEntry({ examId, autoStart, onFinished }: { examId: number; autoStar
         title: o?.title ?? own[0]?.exam_title ?? fallbackTitle,
         points,
         running: own.some((a) => a.status === 'IN_PROGRESS'),
+        // không đọc được thì coi như đã thi, để không gợi ý sai
+        oralTaken: orals == null || orals.some((r) => r.total != null),
       })
     })
     return () => {
@@ -127,6 +137,7 @@ function MockEntry({ examId, autoStart, onFinished }: { examId: number; autoStar
       examTitle={info.title}
       points={info.points}
       running={info.running}
+      oralTaken={info.oralTaken}
       backHref={`/v2/student/mock-exam/practice?examId=${examId}`}
       oralHref={oralHref(null)}
       onStart={() => setStarted(true)}
