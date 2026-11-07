@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ChevronRight, Send, Sparkles } from 'lucide-react'
+import { ChevronRight, PenLine, Send, Sparkles } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
   WRITING_KEY,
@@ -28,6 +28,7 @@ import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
 import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
+import { REWRITE_KEY } from '@/components/exam/mock/mockModel'
 
 export default function PracticeTeilRoute() {
   return (
@@ -46,6 +47,7 @@ function PracticeTeilPage() {
   const params = useSearchParams()
   const examId = Number(params.get('examId'))
   const teilKey = params.get('teil') ?? ''
+  const rewrite = params.get('rewrite') === '1'
   const tf = useTranslations('v2.student.practice.frame')
   // Khung làm bài chia hai cột từ 760px; màn kết quả Viết giữ mốc 1024px như cũ.
   const wide = useWide(SPLIT_MIN_WIDTH)
@@ -91,10 +93,26 @@ function PracticeTeilPage() {
         setSeconds(p?.elapsedSeconds ?? 0)
         setTipsOpen(!p)
         if (teilKey === WRITING_KEY) {
-          setText(p?.answers?.text ?? '')
-          if (p?.checked && p.result) {
-            setEvaluation(p.result as WritingEvaluation)
-            setWritingView('result')
+          // "Viết lại bài này" từ kết quả thi thử: mở bài của lượt thi để sửa rồi chấm lại (đợt (d)).
+          let carried: string | null = null
+          if (rewrite) {
+            try {
+              carried = window.sessionStorage.getItem(REWRITE_KEY(examId))
+              window.sessionStorage.removeItem(REWRITE_KEY(examId))
+            } catch {
+              carried = null
+            }
+          }
+          if (carried) {
+            setText(carried)
+            dirty.current = true
+            if (p?.checked && p.result) setEvaluation(p.result as WritingEvaluation)
+          } else {
+            setText(p?.answers?.text ?? '')
+            if (p?.checked && p.result) {
+              setEvaluation(p.result as WritingEvaluation)
+              setWritingView('result')
+            }
           }
         } else {
           setAnswers(p?.answers ?? {})
@@ -107,7 +125,7 @@ function PracticeTeilPage() {
     } catch {
       /* bỏ qua */
     }
-  }, [examId, teilKey, ticksKey])
+  }, [examId, teilKey, ticksKey, rewrite])
 
   // ── mẹo: chiến thuật đã duyệt (LT2), không có thì mẹo chung của Teil ────────
   React.useEffect(() => {
@@ -269,7 +287,9 @@ function PracticeTeilPage() {
     const footer = showResult ? (
       <>
         <span className="ga-ui min-w-0 flex-1 basis-full text-ga-small text-ga-muted lg:basis-auto">{t('notInHistory')}</span>
-        <FootBtn onClick={() => setWritingView('edit')}>{t('editAndRegrade')}</FootBtn>
+        <FootBtn onClick={() => setWritingView('edit')}>
+          <PenLine size={15} aria-hidden /> {t('rewrite')}
+        </FootBtn>
         <FootLink href={mapHref} primary>{t('backToMap')}</FootLink>
       </>
     ) : warn ? (

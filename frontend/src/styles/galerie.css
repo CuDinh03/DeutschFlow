@@ -333,3 +333,25 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
 @media (prefers-reduced-motion: reduce) {
   .ga-drawer-in, .ga-fade-in { animation: none; }
 }
+
+/* Hôm nay · Thi thử · Kết quả (đợt (d) 07/11/2026). Không có hiệu ứng theo cuộn.
+   - Thanh kỹ năng/điểm chạy từ 0 (lớp .ga-bar-grow trên phần tô, độ rộng đặt bằng style).
+   - Hai buổi vừa đổi chỗ loé vàng một lần (--ga-duration-slow).
+   - Dòng "Lấy lại điểm" nhô lên lần lượt (animation-delay đặt bằng style), nhãn Đỗ bật lên sau 0,9s.
+   - Màn sang Hören hiện dần (nghi thức 1,5s). */
+.ga-bar-grow { animation: gaBarGrow var(--ga-duration-slow) var(--ga-ease-out) backwards; transform-origin: left center; }
+@keyframes gaBarGrow { from { transform: scaleX(0); } to { transform: none; } }
+.ga-day-flash { animation: gaDayFlash var(--ga-duration-slow) var(--ga-ease-out) 1; }
+@keyframes gaDayFlash { 40% { background: var(--ga-yellow-soft); border-color: var(--ga-yellow); } }
+.ga-rise { animation: gaRise var(--ga-duration-base) var(--ga-ease-out) backwards; }
+@keyframes gaRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.ga-pop { animation: gaPop var(--ga-duration-base) var(--ga-ease-out) 0.9s backwards; }
+@keyframes gaPop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+.ga-ritual { animation: gaRitualIn var(--ga-duration-ritual) var(--ga-ease-ritual) backwards; }
+@keyframes gaRitualIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+.ga-spin { animation: gaSpin 0.9s linear infinite; }
+@keyframes gaSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ga-bar-grow, .ga-day-flash, .ga-rise, .ga-pop, .ga-ritual { animation: none; }
+  .ga-spin { animation-duration: 2.4s; }
+}

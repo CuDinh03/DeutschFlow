@@ -2,10 +2,13 @@
 
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, PenTool, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WritingEvaluation } from '@/lib/telcPracticeApi'
 import { essaySegments, labelForLogical, relabelLeitpunkte, type displayedPoints } from './practiceModel'
+import { Bar } from '@/components/exam/today/visual'
+
+const LANG_KEY = 'df.practice.writingLang'
 
 const BANDS = ['A', 'B', 'C', 'D'] as const
 const CRITERIA = [
@@ -31,7 +34,22 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
   const notes = React.useMemo(() => evaluation.annotations ?? [], [evaluation.annotations])
   const [current, setCurrent] = React.useState(0)
   const [showModel, setShowModel] = React.useState(false)
-  const [lang, setLang] = React.useState<'vi' | 'de'>('vi')
+  // VI/DE đổi ngôn ngữ phần giải thích chung, nhớ theo máy (đợt (d)).
+  const [lang, setLangState] = React.useState<'vi' | 'de'>(() => {
+    try {
+      return window.localStorage.getItem(LANG_KEY) === 'de' ? 'de' : 'vi'
+    } catch {
+      return 'vi'
+    }
+  })
+  const setLang = (v: 'vi' | 'de') => {
+    setLangState(v)
+    try {
+      window.localStorage.setItem(LANG_KEY, v)
+    } catch {
+      /* bỏ qua */
+    }
+  }
   const segments = React.useMemo(() => essaySegments(text, notes), [text, notes])
 
   if (evaluation.status !== 'AI_EVALUATED') {
@@ -207,15 +225,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
     <details open={wide} className="ga-ui mt-3 rounded-ga-touch border border-ga-line bg-ga-card">
       <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-ga-small font-semibold">{t('overall')}</summary>
       <div className="px-3 pb-3 text-ga-body">
-        <Seg
-          value={lang}
-          onChange={(v) => setLang(v as 'vi' | 'de')}
-          options={[
-            { value: 'vi', label: 'Tiếng Việt' },
-            { value: 'de', label: 'Deutsch' },
-          ]}
-        />
-        <p lang={lang} className="mt-2 leading-relaxed text-ga-ink">{relabelLeitpunkte(lang === 'vi' ? evaluation.feedback_vi : evaluation.feedback_de, points)}</p>
+        <p lang={lang} className="leading-relaxed text-ga-ink">{relabelLeitpunkte(lang === 'vi' ? evaluation.feedback_vi : evaluation.feedback_de, points)}</p>
         {(evaluation.strengths?.length ?? 0) > 0 && (
           <>
             <p className="mt-3 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{t('strengths')}</p>
@@ -232,16 +242,32 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
     </details>
   )
 
+  // Ô điểm (đợt (d)): /45 với thanh và vạch 60%, nhãn "Ước tính" vì AI chấm theo phiếu telc.
+  const ok = evaluation.total >= ref
   const header = (
-    <div className="ga-ui mb-4 flex flex-wrap items-center gap-4 border border-ga-line bg-ga-card px-4 py-3">
-      <span className="font-ga-display text-ga-stat-m tabular-nums text-ga-ink">
-        {evaluation.total} <span className="text-ga-body text-ga-muted">/ {evaluation.max}</span>
+    <div className="ga-ui mb-4 flex flex-col gap-2.5 border-y border-ga-line px-1 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
+          <PenTool size={14} aria-hidden /> <span lang="de">Schriftlicher Ausdruck</span>
+        </span>
+        <Seg
+          value={lang}
+          onChange={(v) => setLang(v as 'vi' | 'de')}
+          options={[
+            { value: 'vi', label: 'VI' },
+            { value: 'de', label: 'DE' },
+          ]}
+        />
+      </div>
+      <span className="font-ga-display text-ga-stat-m leading-none tabular-nums text-ga-ink">
+        {evaluation.total} <small className="text-ga-body font-medium text-ga-muted">/ {evaluation.max}</small>
       </span>
-      <p className="text-ga-small text-ga-muted">
-        <b className="text-ga-ink">{t('writingPct', { pct })}</b> · {t('writingRef', { ref })}
-        <br />
-        {t('bandScale')}
-      </p>
+      <Bar pct={pct} />
+      <span className={cn('inline-flex items-center gap-1.5 text-ga-small font-semibold', ok ? 'text-ga-green' : 'text-ga-red')}>
+        {ok ? <CircleCheck size={15} aria-hidden /> : <CircleAlert size={15} aria-hidden />}
+        {ok ? t('estPass') : t('estBelow', { n: ref - evaluation.total })}
+      </span>
+      <p className="text-ga-small text-ga-muted">{t('estNote')} {t('bandScale')}</p>
     </div>
   )
 

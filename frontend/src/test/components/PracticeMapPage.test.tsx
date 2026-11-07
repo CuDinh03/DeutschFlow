@@ -15,6 +15,11 @@ vi.mock('@/lib/telcPracticeApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/telcPracticeApi')>()),
   getPracticeOverview: vi.fn(async () => OVERVIEW),
 }))
+const planMock = vi.fn(async (): Promise<unknown> => null)
+vi.mock('@/lib/examPlanApi', async (orig) => ({
+  ...(await orig<typeof import('@/lib/examPlanApi')>()),
+  examPlanApi: { get: () => planMock() },
+}))
 vi.mock('@/lib/exam/mockAttemptApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/exam/mockAttemptApi')>()),
   listMyAttempts: vi.fn(async () => ATTEMPTS),
@@ -50,6 +55,8 @@ const ATTEMPTS = [
 
 beforeEach(() => {
   getMock.mockReset()
+  planMock.mockReset()
+  planMock.mockResolvedValue(null)
   clearStrategyCache()
 })
 
@@ -98,5 +105,18 @@ describe('Màn Đề', () => {
     const drawer = await screen.findByRole('dialog')
     expect(await within(drawer).findByText('Chiến thuật cho Teil này: sắp có.')).toBeInTheDocument()
     expect(within(drawer).getByText(/Dùng thời gian đọc để gạch từ khoá/)).toBeInTheDocument()
+  })
+
+  it('Teil của buổi hôm nay trong lịch tuần có nhãn "Hôm nay"', async () => {
+    const { localIsoDate } = await import('@/lib/examPlanApi')
+    planMock.mockResolvedValue({
+      status: 'ACTIVE', currentWeek: 1, warnings: [],
+      weeks: [{ weekNo: 1, startDate: localIsoDate(), endDate: localIsoDate(), phase: 'TEIL', focus: [], tasks: [], doneTasks: 0, totalTasks: 0,
+        days: [{ date: localIsoDate(), kind: 'TEIL', section: 'LESEN', teil: 2, minutes: 30, status: 'TODAY', movable: true }] }],
+    })
+    render(<PracticeMapRoute />)
+    const row = await screen.findByRole('link', { name: /Leseverstehen Teil 2/ })
+    expect(await within(row).findByText('Hôm nay')).toBeInTheDocument()
+    expect(within(screen.getByRole('link', { name: /Leseverstehen Teil 1/ })).queryByText('Hôm nay')).not.toBeInTheDocument()
   })
 })

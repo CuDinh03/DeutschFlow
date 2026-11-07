@@ -3,12 +3,16 @@ package com.deutschflow.grammar.service;
 import com.deutschflow.common.quota.QuotaVnCalendar;
 import com.deutschflow.grammar.dto.ExamBudgetDto;
 import com.deutschflow.grammar.dto.ExamBudgetDto.TeilLoss;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.grammar.dto.ExamPlanDto;
+import com.deutschflow.grammar.dto.ExamPlanDto.DayDto;
 import com.deutschflow.grammar.dto.ExamPlanDto.FocusDto;
 import com.deutschflow.grammar.dto.ExamPlanDto.TaskDto;
 import com.deutschflow.grammar.dto.ExamPlanDto.WeekDto;
 import com.deutschflow.grammar.service.ExamPlanBlueprints.Blueprint;
 import com.deutschflow.grammar.service.ExamPlanBlueprints.Teil;
+import com.deutschflow.grammar.service.ExamPlanDays.Kind;
+import com.deutschflow.grammar.service.ExamPlanDays.Session;
 import com.deutschflow.grammar.service.ExamPlanGenerator.Task;
 import com.deutschflow.grammar.service.ExamPlanGenerator.TaskType;
 import com.deutschflow.grammar.service.ExamPlanGenerator.Week;
@@ -58,6 +62,7 @@ public class ExamPlanService {
     public static final String STATUS_UNAVAILABLE = "UNAVAILABLE";
 
     private static final TypeReference<Map<Integer, List<String>>> LOCKED_WEEKS = new TypeReference<>() {};
+    private static final TypeReference<Map<Integer, List<Integer>>> DAY_ORDER = new TypeReference<>() {};
 
     private final JdbcTemplate jdbcTemplate;
     private final UserLearningProfileRepository profileRepository;
@@ -103,12 +108,71 @@ public class ExamPlanService {
         return new ExamPlanDto(STATUS_ACTIVE, blueprint.provider(), blueprint.level(), targetDate,
                 (int) ChronoUnit.DAYS.between(today, targetDate), totalWeeks, currentWeek, weeklyMinutes,
                 ExamPlanGenerator.warnings(weeklyMinutes, levelGap(profile), totalWeeks),
-                toDtos(weeks, currentWeek, activity, paid));
+                toDtos(weeks, currentWeek, activity, paid,
+                        new DayInput(today, targetDate, weeklyMinutes, ranked, state.dayOrder())));
+    }
+
+    /**
+     * Đổi chỗ buổi của hai ngày trong tuần hiện tại (học viên kéo thả hoặc bấm hai buổi). Chỉ buổi chưa
+     * làm, chưa qua và không phải ngày thi; thứ tự lưu theo tuần trong {@code exam_plan_state}.
+     */
+    @Transactional
+    public ExamPlanDto swapDays(long userId, int weekNo, LocalDate from, LocalDate to) {
+        return swapDays(userId, weekNo, from, to, QuotaVnCalendar.localDateOf(Instant.now()));
+    }
+
+    @Transactional
+    public ExamPlanDto swapDays(long userId, int weekNo, LocalDate from, LocalDate to, LocalDate today) {
+        ExamPlanDto plan = planFor(userId, today);
+        if (!STATUS_ACTIVE.equals(plan.status()) || plan.currentWeek() == null || plan.currentWeek() != weekNo) {
+            throw new BadRequestException("Chỉ đổi được buổi của tuần này.");
+        }
+        List<DayDto> days = plan.weeks().get(weekNo - 1).days();
+        int i = indexOf(days, from);
+        int j = indexOf(days, to);
+        if (i < 0 || j < 0) throw new BadRequestException("Ngày không thuộc tuần này.");
+        if (!days.get(i).movable() || !days.get(j).movable()) {
+            throw new BadRequestException("Buổi đã làm, đã qua hoặc ngày thi thì không đổi chỗ.");
+        }
+        if (i == j) return plan;
+        Map<Integer, List<Integer>> orders = readDayOrder(userId);
+        orders.put(weekNo, ExamPlanDays.swap(orders.get(weekNo), days.size(), i, j));
+        try {
+            jdbcTemplate.update("""
+                    UPDATE exam_plan_state SET day_order_json = ?::jsonb, updated_at = now() WHERE user_id = ?
+                    """, objectMapper.writeValueAsString(orders), userId);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("Không ghi được thứ tự buổi", e);
+        }
+        return planFor(userId, today);
+    }
+
+    private static int indexOf(List<DayDto> days, LocalDate date) {
+        for (int k = 0; days != null && k < days.size(); k++) {
+            if (days.get(k).date().equals(date)) return k;
+        }
+        return -1;
+    }
+
+    private Map<Integer, List<Integer>> readDayOrder(long userId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT day_order_json::text AS day_order FROM exam_plan_state WHERE user_id = ?", userId);
+        return rows.isEmpty() ? new TreeMap<>() : parseDayOrder((String) rows.get(0).get("day_order"));
+    }
+
+    private Map<Integer, List<Integer>> parseDayOrder(String json) {
+        if (json == null || json.isBlank()) return new TreeMap<>();
+        try {
+            return new TreeMap<>(objectMapper.readValue(json, DAY_ORDER));
+        } catch (Exception e) {
+            log.warn("[ExamPlan] Bỏ thứ tự buổi không đọc được: {}", e.getMessage());
+            return new TreeMap<>();
+        }
     }
 
     // ─── Chấm tiến độ ────────────────────────────────────────────────────────
 
-    private List<WeekDto> toDtos(List<Week> weeks, int currentWeek, Activity activity, boolean paid) {
+    private List<WeekDto> toDtos(List<Week> weeks, int currentWeek, Activity activity, boolean paid, DayInput dayInput) {
         ExamPicker picker = new ExamPicker(activity.exams(), activity.attempts());
         List<WeekDto> out = new ArrayList<>();
         for (Week week : weeks) {
@@ -126,10 +190,64 @@ public class ExamPlanService {
             int total = (int) tasks.stream().filter(TaskDto::counted).count();
             int done = (int) tasks.stream().filter(t -> t.counted() && t.done()).count();
             List<FocusDto> focus = week.focus().stream().map(ExamPlanService::focusOf).toList();
+            List<DayDto> days = week.weekNo() == currentWeek ? daysOf(week, window, tasks, activity, dayInput) : null;
             out.add(new WeekDto(week.weekNo(), week.startDate(), week.endDate(), week.phase().name(),
-                    focus, tasks, done, total));
+                    focus, tasks, done, total, days));
         }
         return out;
+    }
+
+    /**
+     * Lịch theo ngày của tuần hiện tại. Buổi "đã làm" khi có hoạt động khớp TRONG tuần, ghép lần lượt
+     * theo thứ tự ngày (mỗi hoạt động chỉ tính cho một buổi): làm sớm buổi của ngày mai vẫn được tính.
+     */
+    private List<DayDto> daysOf(Week week, Window window, List<TaskDto> tasks, Activity activity, DayInput in) {
+        List<Session> defaults = ExamPlanDays.defaultSessions(week, in.targetDate(), in.weeklyMinutes(), in.ranked());
+        List<Session> sessions = ExamPlanDays.apply(defaults, in.dayOrder().get(week.weekNo()));
+        TaskDto examTask = tasks.stream()
+                .filter(t -> t.type().equals(TaskType.FULL_EXAM.name()) || t.type().equals(TaskType.DIAGNOSTIC_EXAM.name()))
+                .findFirst().orElse(null);
+
+        List<String> practice = new ArrayList<>();
+        activity.practice().stream()
+                .filter(p -> p.teilKey() != null && window.contains(p.checkedAt()))
+                .forEach(p -> practice.add(p.teilKey()));
+        List<Integer> drills = new ArrayList<>();
+        activity.drills().stream().filter(d -> window.contains(d.finishedAt())).forEach(d -> drills.add(d.teil()));
+        int[] oral = {window.count(activity.oralMocks())};
+        int[] roadmap = {window.count(activity.roadmapNodes())};
+        int[] exam = {examTask != null && examTask.done() ? 1 : 0};
+
+        List<DayDto> out = new ArrayList<>();
+        for (int k = 0; k < sessions.size(); k++) {
+            Session s = sessions.get(k);
+            LocalDate date = ExamPlanDays.dateOf(week, k);
+            boolean done = switch (s.kind()) {
+                case TEIL -> practice.remove(s.section() + "-" + s.teil());
+                case FULL_EXAM -> consume(exam);
+                case ORAL_MOCK -> consume(oral);
+                case ORAL_DRILL -> drills.remove(s.teil()) || drills.remove((Integer) null);
+                case ROADMAP -> consume(roadmap);
+                case REST, EXAM_DAY -> false;
+            };
+            String status;
+            if (done) status = "DONE";
+            else if (s.kind() == Kind.REST) status = "REST";
+            else if (date.isBefore(in.today())) status = "MISSED";
+            else if (date.equals(in.today())) status = "TODAY";
+            else status = "UPCOMING";
+            boolean movable = s.movable() && !done && !date.isBefore(in.today());
+            boolean withExam = s.kind() == Kind.FULL_EXAM && examTask != null;
+            out.add(new DayDto(date, s.kind().name(), s.section(), s.teil(), s.minutes(), status, movable,
+                    withExam ? examTask.examId() : null, withExam ? examTask.examTitle() : null));
+        }
+        return out;
+    }
+
+    private static boolean consume(int[] left) {
+        if (left[0] <= 0) return false;
+        left[0]--;
+        return true;
     }
 
     private static TaskDto countTask(Task task, int count, boolean locked) {
@@ -281,7 +399,16 @@ public class ExamPlanService {
                 SELECT completed_at FROM skill_tree_user_progress
                 WHERE user_id = ? AND status = 'COMPLETED' AND completed_at >= ?
                 """, (rs, n) -> instant(rs.getTimestamp("completed_at")), userId, since);
-        return new Activity(exams, attempts, oralMocks, drills, roadmapNodes);
+        // Teil đã kiểm tra trong chế độ luyện đề (lần kiểm tra gần nhất của mỗi Teil mỗi đề).
+        List<Practice> practice = jdbcTemplate.query("""
+                SELECT p.teil_key, p.checked_at
+                FROM mock_exam_practice_progress p
+                JOIN mock_exams e ON e.id = p.exam_id
+                WHERE p.user_id = ? AND p.checked = TRUE AND p.checked_at >= ?
+                  AND e.exam_format = ? AND e.cefr_level = ?
+                """, (rs, n) -> new Practice(rs.getString("teil_key"), instant(rs.getTimestamp("checked_at"))),
+                userId, since, provider, level);
+        return new Activity(exams, attempts, oralMocks, drills, roadmapNodes, practice);
     }
 
     private static Instant instant(Timestamp ts) {
@@ -293,7 +420,7 @@ public class ExamPlanService {
     private PlanState loadOrCreateState(long userId, Blueprint blueprint, LocalDate targetDate, LocalDate today) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT provider, level, target_date, start_date, algorithm_version,
-                       locked_weeks_json::text AS locked
+                       locked_weeks_json::text AS locked, day_order_json::text AS day_order
                 FROM exam_plan_state WHERE user_id = ?
                 """, userId);
         if (rows.isEmpty()) {
@@ -304,7 +431,7 @@ public class ExamPlanService {
                     ON CONFLICT (user_id) DO NOTHING
                     """, userId, blueprint.provider(), blueprint.level(), java.sql.Date.valueOf(targetDate),
                     java.sql.Date.valueOf(today), ExamPlanGenerator.ALGORITHM_VERSION);
-            return new PlanState(today, new TreeMap<>());
+            return new PlanState(today, new TreeMap<>(), new TreeMap<>());
         }
         Map<String, Object> row = rows.get(0);
         LocalDate storedTarget = localDate(row.get("target_date"));
@@ -317,18 +444,18 @@ public class ExamPlanService {
             jdbcTemplate.update("""
                     UPDATE exam_plan_state
                     SET provider = ?, level = ?, target_date = ?, start_date = ?, algorithm_version = ?,
-                        locked_weeks_json = '{}'::jsonb, updated_at = now()
+                        locked_weeks_json = '{}'::jsonb, day_order_json = '{}'::jsonb, updated_at = now()
                     WHERE user_id = ?
                     """, blueprint.provider(), blueprint.level(), java.sql.Date.valueOf(targetDate),
                     java.sql.Date.valueOf(today), ExamPlanGenerator.ALGORITHM_VERSION, userId);
-            return new PlanState(today, new TreeMap<>());
+            return new PlanState(today, new TreeMap<>(), new TreeMap<>());
         }
         boolean sameAlgorithm = row.get("algorithm_version") instanceof Number n
                 && n.intValue() == ExamPlanGenerator.ALGORITHM_VERSION;
         Map<Integer, List<String>> locked = sameAlgorithm
                 ? readLocked((String) row.get("locked"), blueprint)
                 : new TreeMap<>();
-        return new PlanState(storedStart, locked);
+        return new PlanState(storedStart, locked, parseDayOrder((String) row.get("day_order")));
     }
 
     private Map<Integer, List<String>> readLocked(String json, Blueprint blueprint) {
@@ -369,7 +496,13 @@ public class ExamPlanService {
 
     // ─── Kiểu nội bộ ─────────────────────────────────────────────────────────
 
-    private record PlanState(LocalDate startDate, Map<Integer, List<String>> lockedFocus) {}
+    private record PlanState(LocalDate startDate, Map<Integer, List<String>> lockedFocus,
+                             Map<Integer, List<Integer>> dayOrder) {}
+
+    private record DayInput(LocalDate today, LocalDate targetDate, int weeklyMinutes, List<String> ranked,
+                            Map<Integer, List<Integer>> dayOrder) {}
+
+    private record Practice(String teilKey, Instant checkedAt) {}
 
     private record ExamChoice(long id, String title) {}
 
@@ -378,7 +511,7 @@ public class ExamPlanService {
     private record Drill(Integer teil, Instant finishedAt) {}
 
     private record Activity(List<ExamChoice> exams, List<ExamAttempt> attempts, List<Instant> oralMocks,
-                            List<Drill> drills, List<Instant> roadmapNodes) {
+                            List<Drill> drills, List<Instant> roadmapNodes, List<Practice> practice) {
         int drillsIn(Window window, Integer teil) {
             return (int) drills.stream()
                     .filter(d -> window.contains(d.finishedAt()) && (d.teil() == null || d.teil().equals(teil)))

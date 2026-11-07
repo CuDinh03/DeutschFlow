@@ -103,7 +103,9 @@ describe('Luyện đề telc — kết quả Viết', () => {
     const user = userEvent.setup()
     render(<WritingResultView evaluation={evaluation} text={text} points={points} wide />)
 
-    expect(screen.getByText('Được 73% điểm Viết')).toBeInTheDocument()
+    // Ô điểm (đợt (d)): nhãn Ước tính + một dòng điểm AI không phải điểm chính thức
+    expect(screen.getByText('Ước tính · Đạt 60% của phần này')).toBeInTheDocument()
+    expect(screen.getByText(/không phải điểm chính thức/)).toBeInTheDocument()
     expect(screen.getByText('zur neuen Arbeit')).toBeInTheDocument()
     expect(screen.getByText('zu + der gộp thành zur.')).toBeInTheDocument()
 

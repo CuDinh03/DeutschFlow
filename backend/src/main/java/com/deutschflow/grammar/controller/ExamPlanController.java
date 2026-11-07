@@ -43,4 +43,12 @@ public class ExamPlanController {
         profileService.updateTargetDate(user, body.targetDate());
         return planService.planFor(user.getId());
     }
+
+    /** Hai buổi của tuần hiện tại đổi chỗ cho nhau (lịch tuần ở màn Hôm nay). */
+    public record SwapDaysRequest(@NotNull Integer weekNo, @NotNull LocalDate from, @NotNull LocalDate to) {}
+
+    @PutMapping("/days/swap")
+    public ExamPlanDto swapDays(@AuthenticationPrincipal User user, @Valid @RequestBody SwapDaysRequest body) {
+        return planService.swapDays(user.getId(), body.weekNo(), body.from(), body.to());
+    }
 }

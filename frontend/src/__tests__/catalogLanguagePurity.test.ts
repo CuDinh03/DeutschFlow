@@ -72,6 +72,20 @@ const GERMAN_ON_PURPOSE: readonly string[] = [
   // Tên phần thi telc giữ nguyên tiếng Đức ở mọi ngôn ngữ, như trên đề thật (06/11/2026: Hören
   // vào chế độ luyện; Leseverstehen/Sprachbausteine không có chữ có dấu nên không cần miễn).
   'v2.student.practice.sectionDe.HOEREN',
+  // Làm mới Luyện thi đợt (d) (07/11/2026): tên bốn kỹ năng/phần thi trên màn Hôm nay (thanh kỹ năng,
+  // ô lịch tuần, thẻ Hôm nay) và màn trước khi thi thử — cùng thuật ngữ thi như `exam.skills.*`.
+  'v2.student.examHub.short.LESEN',
+  'v2.student.examHub.short.HOEREN',
+  'v2.student.examHub.short.SCHREIBEN',
+  'v2.student.examHub.short.SPRECHEN',
+  'v2.student.examHub.skill.LESEN',
+  'v2.student.examHub.skill.HOEREN',
+  'v2.student.examHub.skill.SCHREIBEN',
+  'v2.student.examHub.skill.SPRECHEN',
+  'v2.student.fullExam.start.part.LESEN',
+  'v2.student.fullExam.start.part.HOEREN',
+  'v2.student.fullExam.start.part.SCHREIBEN',
+  'v2.student.fullExam.start.part.SPRECHEN',
 
   // (c) nhân vật người Đức (bản vi giữ nguyên nghề/nơi chốn)
   'v2.student.personas.emma.tag',

@@ -3,30 +3,35 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ChevronRight, Lock, Mic } from 'lucide-react'
+import { toast } from 'sonner'
+import { ArrowRight, CalendarClock, Check, ChevronRight, CircleCheck, CircleX, Clock, FileText, Lock } from 'lucide-react'
 import { getMockPack, getMockPacks, type PackExam } from '@/lib/mockPackApi'
 import { getPracticeAccess, getPracticeOverview, type PracticeOverview } from '@/lib/telcPracticeApi'
 import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
+import { examPlanApi, currentWeekOf, localIsoDate, swapLocally, todaySession, type ExamPlan, type ExamPlanDay } from '@/lib/examPlanApi'
+import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { apiMessage } from '@/lib/api'
 import { useFmt } from '@/lib/i18n/useFmt'
-import { ErrorBanner, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
+import { cn } from '@/lib/utils'
+import { ErrorBanner, LoadingState } from '@/components/ui-v2'
+import type { ExamResultView } from '@/types/exam-speaking'
+import { SkillBars } from '@/components/exam/today/SkillBars'
+import { WeekPlan } from '@/components/exam/today/WeekPlan'
+import { Glyph, dayIcon } from '@/components/exam/today/visual'
+import { latestOral, oralHref, pickExamFor, skillsFrom, teilHref, todayCard, type TodayCardModel } from '@/components/exam/today/todayModel'
 
 /**
- * Luyện thi — `/v2/student/exam` (06/11/2026, owner chốt "bỏ toàn bộ phần luyện thi cũ").
+ * Luyện thi · Hôm nay — `/v2/student/exam` (đợt (d) làm mới Luyện thi, 07/11/2026).
  *
- * Một lối vào duy nhất cho chuẩn bị thi telc trên web: mỗi đề có hai cách làm — **Luyện từng Teil**
- * (không ép giờ, kiểm tra từng Teil, phân tích vì sao đúng/sai) và **Thi thử trọn đề** (đồng hồ tổng,
- * nộp một lần, vào lịch sử, hai ngưỡng đỗ). Phần Nói thi ở phòng thi nói AI. Đề Goethe ẩn trên web
- * cho tới đợt riêng (dữ liệu và lịch sử giữ nguyên; mobile vẫn dùng như cũ).
- *
- * Thay cho: hub cũ, danh sách gói `/mock-exam`, trình thi `/mock-exam/run`, Đánh giá B1 và kế hoạch
- * thi — các route đó giờ chuyển về đây.
+ * Thứ tự: Hôm nay → Bốn kỹ năng → Tuần này → Đề luyện. Mỗi khối chỉ có tiêu đề; giải thích nằm trong
+ * hướng dẫn lần đầu (đợt (e)). Lịch tuần lấy từ lộ trình đếm ngược `GET /exam-plan` (tuần hiện tại có
+ * buổi theo ngày, đổi chỗ được); bốn kỹ năng tính từ lần luyện từng Teil gần nhất và lần thi nói gần
+ * nhất. Chưa có ngày thi thì thẻ Hôm nay gợi ý Teil yếu nhất và có ô đặt ngày thi.
  */
 
 interface ExamRow {
   exam: PackExam
   packTitle: string
-  level: string
 }
 
 interface LockedPack {
@@ -34,191 +39,390 @@ interface LockedPack {
   title: string
 }
 
+const PASS_RATIO = 0.6
+const fmtN = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 })
+
 export default function V2StudentExamHubPage() {
   const t = useTranslations('v2.student.examHub')
   const [access, setAccess] = React.useState<boolean | null>(null)
   const [rows, setRows] = React.useState<ExamRow[] | null>(null)
   const [locked, setLocked] = React.useState<LockedPack[]>([])
   const [attempts, setAttempts] = React.useState<MyAttempt[]>([])
-  const [overviews, setOverviews] = React.useState<Record<number, PracticeOverview>>({})
+  const [overviews, setOverviews] = React.useState<PracticeOverview[]>([])
+  const [plan, setPlan] = React.useState<ExamPlan | null>(null)
+  const [oral, setOral] = React.useState<ExamResultView | null>(null)
   const [error, setError] = React.useState<string | null>(null)
+  // Hàm dịch có thể đổi danh tính mỗi lần render: giữ trong ref để `load` không chạy lại vô hạn.
+  const tRef = React.useRef(t)
+  tRef.current = t
 
   const load = React.useCallback(async () => {
     setError(null)
     try {
-      const [enabled, packs, mine] = await Promise.all([getPracticeAccess(), getMockPacks(), listMyAttempts().catch(() => [])])
+      const [enabled, packs, mine, p, orals] = await Promise.all([
+        getPracticeAccess(),
+        getMockPacks(),
+        listMyAttempts().catch(() => [] as MyAttempt[]),
+        examPlanApi.get().catch(() => null),
+        examSpeakingApi
+          .listResults()
+          .then((r) => r.data ?? [])
+          .catch(() => [] as ExamResultView[]),
+      ])
       setAccess(enabled)
       setAttempts(mine)
-      const telc = packs.filter((p) => p.examFormat?.toUpperCase() === 'TELC')
-      setLocked(telc.filter((p) => p.locked).map((p) => ({ id: p.id, title: p.title })))
-      const details = await Promise.all(telc.filter((p) => !p.locked).map((p) => getMockPack(p.id).catch(() => null)))
+      setPlan(p)
+      setOral(latestOral(orals, p?.provider ?? 'TELC', p?.level ?? 'B1'))
+      const telc = packs.filter((x) => x.examFormat?.toUpperCase() === 'TELC')
+      setLocked(telc.filter((x) => x.locked).map((x) => ({ id: x.id, title: x.title })))
+      const details = await Promise.all(telc.filter((x) => !x.locked).map((x) => getMockPack(x.id).catch(() => null)))
       const list: ExamRow[] = []
-      details.forEach((d) => d?.exams.forEach((exam) => list.push({ exam, packTitle: d.title, level: d.cefrLevel })))
+      details.forEach((d) => d?.exams.forEach((exam) => list.push({ exam, packTitle: d.title })))
       setRows(list)
       if (enabled) {
         const ready = list.filter((r) => !r.exam.comingSoon)
         const ovs = await Promise.all(ready.map((r) => getPracticeOverview(r.exam.id).catch(() => null)))
-        const map: Record<number, PracticeOverview> = {}
-        ovs.forEach((o) => {
-          if (o) map[o.examId] = o
-        })
-        setOverviews(map)
+        setOverviews(ovs.filter((o): o is PracticeOverview => !!o))
       }
     } catch (e) {
-      setError(apiMessage(e) || t('loadError'))
+      setError(apiMessage(e) || tRef.current('loadError'))
     }
-  }, [t])
+  }, [])
   React.useEffect(() => {
     void load()
   }, [load])
 
-  const examIds = new Set((rows ?? []).map((r) => r.exam.id))
-  const history = attempts.filter((a) => examIds.has(a.exam_id) && a.status === 'COMPLETED')
+  const skills = React.useMemo(() => skillsFrom(overviews, oral), [overviews, oral])
+  const week = currentWeekOf(plan)
+  const today = todaySession(plan)
+  const card = todayCard(today, plan, overviews, skills)
+  const oralLink = oralHref(plan)
+
+  const onSwap = async (from: string, to: string) => {
+    if (!plan || !week) return
+    const before = plan
+    setPlan(swapLocally(plan, from, to))
+    try {
+      setPlan(await examPlanApi.swapDays(week.weekNo, from, to))
+      toast.success(t('swapped'))
+    } catch (e) {
+      setPlan(before)
+      toast.error(apiMessage(e) || t('swapError'))
+      throw e
+    }
+  }
+
+  const dayLabel = (d: ExamPlanDay) => {
+    switch (d.kind) {
+      case 'TEIL':
+        return `${t(`short.${d.section}`)} T${d.teil}`
+      case 'ORAL_DRILL':
+        return `Sprechen T${d.teil}`
+      default:
+        return t(`kind.${d.kind}`)
+    }
+  }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        {error && (
-          <div className="mb-5">
-            <ErrorBanner message={error} onRetry={load} />
-          </div>
-        )}
-        {!rows && !error && <LoadingState label={t('loading')} />}
-        {rows && access === false && (
-          <p className="ga-ui mb-5 max-w-[60ch] border border-ga-line bg-ga-card px-4 py-3 text-ga-body text-ga-muted">{t('notOpen')}</p>
-        )}
-        {rows && access !== false && (
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="space-y-4">
-              <p className="ga-ui max-w-[62ch] text-ga-body text-ga-muted">{t('lead')}</p>
-              {rows.length === 0 && locked.length === 0 && (
-                <p className="ga-ui border border-ga-line bg-ga-card px-4 py-3 text-ga-body text-ga-muted">{t('empty')}</p>
-              )}
-              {rows.map((r) => (
-                <ExamCard key={r.exam.id} row={r} overview={overviews[r.exam.id]} attempts={attempts.filter((a) => a.exam_id === r.exam.id)} />
-              ))}
-              {locked.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 border border-ga-line bg-ga-card px-4 py-3.5">
-                  <Lock size={18} className="shrink-0 text-ga-subtle" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <b className="block text-ga-body-lg font-semibold text-ga-ink">{p.title}</b>
-                    <span className="ga-ui block text-ga-small text-ga-muted">{t('lockedPack')}</span>
-                  </span>
-                  <TkBadge tone="yellow">PRO</TkBadge>
-                </div>
-              ))}
+    <div className="mx-auto flex min-h-full w-full max-w-[960px] flex-col gap-9 px-4 py-6 sm:px-6 lg:py-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="ga-ui text-ga-eyebrow uppercase text-ga-muted">telc Deutsch {plan?.level ?? 'B1'}</p>
+          <h1 className="mt-1 font-ga-display text-ga-h1 text-ga-ink">{t('title')}</h1>
+        </div>
+        {plan?.status === 'ACTIVE' && plan.daysLeft != null && plan.targetDate && <CountChip daysLeft={plan.daysLeft} date={plan.targetDate} />}
+      </header>
 
-              <Link
-                href="/v2/student/speaking/exam"
-                className="ga-ui flex min-h-16 items-center gap-3.5 border border-ga-line bg-ga-card px-4 py-3 hover:bg-ga-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
-              >
-                <Mic size={18} className="shrink-0 text-ga-muted" aria-hidden />
-                <span className="min-w-0 flex-1">
-                  <b className="block font-ga-display text-ga-h3 text-ga-ink">Mündliche Prüfung</b>
-                  <span className="block text-ga-small text-ga-muted">{t('oralDesc')}</span>
-                </span>
-                <ChevronRight size={16} className="shrink-0 text-ga-subtle" aria-hidden />
-              </Link>
-            </div>
+      {error && <ErrorBanner message={error} onRetry={load} />}
+      {!rows && !error && <LoadingState label={t('loading')} />}
+      {rows && access === false && (
+        <p className="ga-ui max-w-[60ch] border border-ga-line bg-ga-card px-4 py-3 text-ga-body text-ga-muted">{t('notOpen')}</p>
+      )}
 
-            <aside className="space-y-3.5">
-              <div className="border border-ga-line bg-ga-card p-4">
-                <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{t('modesCap')}</p>
-                <p className="ga-ui text-ga-small text-ga-ink"><b>{t('practiceMode')}</b> — {t('practiceModeDesc')}</p>
-                <p className="ga-ui mt-2 text-ga-small text-ga-ink"><b>{t('fullMode')}</b> — {t('fullModeDesc')}</p>
-              </div>
-              <History attempts={history} />
-            </aside>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ExamCard({ row, overview, attempts }: { row: ExamRow; overview?: PracticeOverview; attempts: MyAttempt[] }) {
-  const t = useTranslations('v2.student.examHub')
-  const fmt = useFmt()
-  const { exam } = row
-  const inProgress = attempts.find((a) => a.status === 'IN_PROGRESS')
-  const last = attempts.filter((a) => a.status === 'COMPLETED').sort((a, b) => (b.finished_at ?? '').localeCompare(a.finished_at ?? ''))[0]
-  const teile = overview?.teile ?? []
-  const done = teile.filter((x) => x.progress?.checked).length
-
-  return (
-    <article className="border border-ga-line bg-ga-card">
-      <div className="flex flex-wrap items-baseline gap-2.5 border-b border-ga-line px-4 py-3">
-        <h2 className="min-w-0 flex-1 font-ga-display text-ga-h2 text-ga-ink">{exam.title}</h2>
-        {exam.comingSoon && <TkBadge tone="yellow">{t('comingSoon')}</TkBadge>}
-      </div>
-      {exam.comingSoon ? (
-        <p className="ga-ui px-4 py-3 text-ga-small text-ga-muted">{t('comingSoonHint')}</p>
-      ) : (
+      {rows && access !== false && (
         <>
-          <dl className="ga-ui grid grid-cols-1 gap-x-6 gap-y-1 px-4 py-3 text-ga-small sm:grid-cols-2">
-            <div className="flex justify-between gap-3 sm:block">
-              <dt className="text-ga-muted">{t('practiceProgress')}</dt>
-              <dd className="font-semibold text-ga-ink">{overview ? t('teilDone', { done, total: teile.length }) : '—'}</dd>
-            </div>
-            <div className="flex justify-between gap-3 sm:block">
-              <dt className="text-ga-muted">{t('lastMock')}</dt>
-              <dd className="font-semibold text-ga-ink">
-                {last ? t('lastMockValue', { score: last.total_score ?? 0, date: fmt.date(last.finished_at ?? last.started_at) }) : t('noMock')}
-              </dd>
-            </div>
-          </dl>
-          <div className="flex flex-wrap gap-2.5 border-t border-ga-line px-4 py-3">
-            <Link
-              href={`/v2/student/mock-exam/practice?examId=${exam.id}`}
-              className="ga-ui inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-ga-touch bg-ga-yellow px-4 text-ga-body font-semibold text-ga-ink hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus sm:flex-none"
-            >
-              {t('practiceCta')} <ChevronRight size={16} aria-hidden />
-            </Link>
-            <Link
-              href={`/v2/student/mock-exam/full?examId=${exam.id}`}
-              className="ga-ui inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-ga-touch border-[1.5px] border-ga-line-strong bg-ga-card px-4 text-ga-body font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus sm:flex-none"
-            >
-              {inProgress ? t('fullContinue') : t('fullCta')}
-              {exam.timeLimitMinutes != null && !inProgress && (
-                <span className="font-normal text-ga-muted">· {t('minutes', { n: exam.timeLimitMinutes })}</span>
-              )}
-            </Link>
+          <div className="flex flex-col gap-3">
+            {card && <TodayCard card={card} />}
+            {plan && (plan.status === 'NEEDS_DATE' || plan.status === 'EXAM_PASSED') && (
+              <DateCard passed={plan.status === 'EXAM_PASSED'} onSaved={setPlan} />
+            )}
           </div>
+
+          <section aria-labelledby="skills-title">
+            <h2 id="skills-title" className="mb-3 font-ga-display text-ga-h2 text-ga-ink">{t('skillsTitle')}</h2>
+            <SkillBars
+              skills={skills}
+              oralHref={oralLink}
+              teilHref={(key) => {
+                const id = pickExamFor(key, overviews)
+                return id ? teilHref(id, key) : null
+              }}
+            />
+          </section>
+
+          {week?.days && week.days.length > 0 && (
+            <section aria-labelledby="week-title">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 id="week-title" className="font-ga-display text-ga-h2 text-ga-ink">{t('weekTitle')}</h2>
+                <span className="ga-ui text-ga-small tabular-nums text-ga-muted">
+                  {t('weekOf', { n: week.weekNo, total: plan?.totalWeeks ?? week.weekNo })}
+                </span>
+              </div>
+              <WeekPlan days={week.days} labelOf={dayLabel} onSwap={onSwap} />
+            </section>
+          )}
+
+          <section aria-labelledby="exams-title">
+            <h2 id="exams-title" className="mb-3 font-ga-display text-ga-h2 text-ga-ink">{t('examsTitle')}</h2>
+            {rows.length === 0 && locked.length === 0 ? (
+              <p className="ga-ui text-ga-body text-ga-muted">{t('empty')}</p>
+            ) : (
+              <div className="border-t border-ga-line">
+                {rows.map((r) => (
+                  <ExamRowView
+                    key={r.exam.id}
+                    exam={r.exam}
+                    overview={overviews.find((o) => o.examId === r.exam.id)}
+                    attempts={attempts.filter((a) => a.exam_id === r.exam.id)}
+                  />
+                ))}
+                {locked.map((p) => (
+                  <div key={p.id} className="ga-ui grid min-h-16 grid-cols-[36px_minmax(0,1fr)] items-center gap-3.5 border-b border-ga-line px-1 py-2.5 text-ga-muted">
+                    <Glyph icon={Lock} tone="plain" />
+                    <span className="min-w-0">
+                      <b className="block truncate text-ga-body font-semibold">{p.title}</b>
+                      <span className="block text-ga-small">{t('lockedPack')}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </>
       )}
-    </article>
+    </div>
   )
 }
 
-function History({ attempts }: { attempts: MyAttempt[] }) {
+function CountChip({ daysLeft, date }: { daysLeft: number; date: string }) {
   const t = useTranslations('v2.student.examHub')
   const fmt = useFmt()
-  const list = [...attempts].sort((a, b) => (b.finished_at ?? '').localeCompare(a.finished_at ?? '')).slice(0, 8)
+  const when = fmt.date(`${date}T00:00:00`)
   return (
-    <div className="border border-ga-line bg-ga-card">
-      <p className="ga-ui border-b border-ga-line px-4 py-3 text-ga-eyebrow uppercase text-ga-muted">{t('historyCap')}</p>
-      {list.length === 0 ? (
-        <p className="ga-ui px-4 py-3 text-ga-small text-ga-muted">{t('historyEmpty')}</p>
+    <span
+      title={t('examOn', { date: when })}
+      className="ga-ui inline-flex items-center gap-2 rounded-ga-pill border border-ga-line bg-ga-card px-3 py-1.5 text-ga-small"
+    >
+      <CalendarClock size={16} className="text-ga-navy" aria-hidden />
+      {daysLeft === 0 ? (
+        <b className="text-ga-body">{t('examToday')}</b>
       ) : (
-        <ul>
-          {list.map((a) => (
-            <li key={a.id}>
-              <Link
-                href={`/v2/student/mock-exam/full?attemptId=${a.id}`}
-                className="ga-ui flex min-h-12 items-center gap-3 border-b border-ga-line px-4 py-2 text-ga-small last:border-b-0 hover:bg-ga-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
-              >
-                <span className="min-w-0 flex-1">
-                  <b className="block truncate text-ga-ink">{a.exam_title ?? '—'}</b>
-                  <span className="block text-ga-muted">{fmt.date(a.finished_at ?? a.started_at)}</span>
-                </span>
-                <span className="shrink-0 tabular-nums font-semibold text-ga-ink">{a.total_score ?? 0}</span>
-                <ChevronRight size={14} className="shrink-0 text-ga-subtle" aria-hidden />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <b className="text-ga-body tabular-nums">{t('days', { n: daysLeft })}</b>
+          <span className="text-ga-muted">{t('daysLeft')}</span>
+        </>
+      )}
+      <span className="sr-only">{t('examOn', { date: when })}</span>
+    </span>
+  )
+}
+
+function TodayCard({ card }: { card: TodayCardModel }) {
+  const t = useTranslations('v2.student.examHub')
+  const icon = dayIcon(card.kind === 'TEIL' ? { kind: 'TEIL', section: card.section } : { kind: card.kind })
+  const done = 'done' in card && card.done
+  const minutes = 'minutes' in card ? card.minutes : null
+
+  let title: string
+  let reason: string
+  switch (card.kind) {
+    case 'TEIL':
+      title = `${t(`short.${card.section}`)} · Teil ${card.teil}`
+      reason =
+        card.pct != null
+          ? card.fromPlan
+            ? t('reasonLastPct', { pct: card.pct })
+            : t('reasonWeakest', { pct: card.pct })
+          : card.fromPlan
+            ? t('reasonNew')
+            : t('reasonStart')
+      break
+    case 'FULL_EXAM':
+      title = t('todayFull')
+      reason = card.examTitle ? t('reasonFull', { title: card.examTitle }) : t('reasonNoExam')
+      break
+    case 'ORAL_MOCK':
+      title = t('todayOralMock')
+      reason = t('reasonOralMock')
+      break
+    case 'ORAL_DRILL':
+      title = `Sprechen · Teil ${card.teil ?? 1}`
+      reason = t('reasonOralDrill')
+      break
+    case 'ROADMAP':
+      title = t('todayRoadmap')
+      reason = t('reasonRoadmap')
+      break
+    case 'REST':
+      title = t('todayRest')
+      reason = t('reasonRest')
+      break
+    case 'EXAM_DAY':
+      title = t('todayExam')
+      reason = t('reasonExam')
+      break
+  }
+  const href = 'href' in card ? card.href : null
+
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-4 border border-ga-line bg-ga-yellow-soft p-[18px] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:p-6">
+      <Glyph icon={done ? Check : icon} tone="yellow" size="lg" />
+      <div className="min-w-0">
+        <p className="ga-ui inline-flex items-center gap-1.5 text-ga-eyebrow uppercase text-ga-muted">
+          <Clock size={14} aria-hidden />
+          {done ? t('todayDone') : minutes ? t('todayMinutes', { n: minutes }) : t('today')}
+        </p>
+        <h2 lang={card.kind === 'TEIL' || card.kind === 'ORAL_DRILL' ? 'de' : undefined} className="mt-0.5 break-words font-ga-display text-ga-h2 text-ga-ink">
+          {title}
+        </h2>
+        <p className="ga-ui mt-1 text-ga-body text-ga-muted">{reason}</p>
+      </div>
+      {href && (
+        <Link
+          href={href}
+          className={cn(
+            'group ga-ui col-span-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-ga-touch px-5 text-ga-body font-semibold transition-[transform,filter] duration-150 hover:-translate-y-px active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 sm:col-span-1',
+            done ? 'border-[1.5px] border-ga-line-strong bg-ga-card text-ga-ink' : 'bg-ga-ink text-ga-card hover:brightness-110',
+          )}
+        >
+          {done ? t('practiceMore') : t('start')}
+          <ArrowRight size={17} aria-hidden className="transition-transform duration-150 group-hover:translate-x-0.5" />
+        </Link>
       )}
     </div>
+  )
+}
+
+function DateCard({ passed, onSaved }: { passed: boolean; onSaved: (p: ExamPlan) => void }) {
+  const t = useTranslations('v2.student.examHub')
+  const [date, setDate] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  const [err, setErr] = React.useState<string | null>(null)
+  const tomorrow = React.useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return localIsoDate(d)
+  }, [])
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!date || date < tomorrow) {
+      setErr(t('dateInvalid'))
+      return
+    }
+    setBusy(true)
+    setErr(null)
+    try {
+      onSaved(await examPlanApi.updateTargetDate(date))
+      toast.success(t('dateSaved'))
+    } catch (x) {
+      setErr(apiMessage(x) || t('dateError'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="ga-ui flex flex-wrap items-center gap-x-4 gap-y-3 border border-ga-line bg-ga-card px-4 py-3.5" noValidate>
+      <Glyph icon={CalendarClock} tone="plain" />
+      <div className="min-w-[12rem] flex-1">
+        <p className="text-ga-body font-semibold text-ga-ink">{passed ? t('datePassed') : t('dateMissing')}</p>
+        <p className="text-ga-small text-ga-muted">{t('dateWhy')}</p>
+      </div>
+      <label className="flex flex-col">
+        <span className="sr-only">{t('dateLabel')}</span>
+        <input
+          type="date"
+          min={tomorrow}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          aria-invalid={!!err || undefined}
+          aria-describedby={err ? 'date-err' : undefined}
+          className="min-h-11 rounded-ga-touch border-[1.5px] border-ga-line-strong bg-ga-card px-3 text-ga-body text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={busy}
+        className="inline-flex min-h-11 items-center rounded-ga-touch bg-ga-ink px-4 text-ga-body font-semibold text-ga-card hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-50"
+      >
+        {t('dateSave')}
+      </button>
+      {err && (
+        <p id="date-err" role="alert" className="basis-full text-ga-small text-ga-red">{err}</p>
+      )}
+    </form>
+  )
+}
+
+function ExamRowView({ exam, overview, attempts }: { exam: PackExam; overview?: PracticeOverview; attempts: MyAttempt[] }) {
+  const t = useTranslations('v2.student.examHub')
+  if (exam.comingSoon) {
+    return (
+      <div className="ga-ui grid min-h-16 grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3.5 border-b border-ga-line px-1 py-2.5 text-ga-muted">
+        <Glyph icon={FileText} tone="plain" />
+        <b className="truncate text-ga-body font-semibold">{exam.title}</b>
+        <span className="rounded-ga-pill bg-ga-side-active px-2.5 py-0.5 text-ga-caption font-semibold">{t('comingSoon')}</span>
+      </div>
+    )
+  }
+  const teile = overview?.teile ?? []
+  const done = teile.filter((x) => x.progress?.checked).length
+  const max = teile.reduce((s, x) => s + x.maxPoints, 0)
+  const passMark = Math.round(max * PASS_RATIO)
+  const last = attempts
+    .filter((a) => a.status === 'COMPLETED')
+    .sort((a, b) => (b.finished_at ?? '').localeCompare(a.finished_at ?? ''))[0]
+  const running = attempts.some((a) => a.status === 'IN_PROGRESS')
+  const meta = [
+    overview ? t('teilDone', { done, total: teile.length }) : null,
+    last ? (max > 0 ? `${fmtN(last.total_score ?? 0)}/${fmtN(max)}` : fmtN(last.total_score ?? 0)) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const passed = last && max > 0 ? (last.total_score ?? 0) >= passMark : null
+
+  let tag: React.ReactNode
+  if (running) {
+    tag = <span className="rounded-ga-pill border border-ga-yellow bg-ga-yellow-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-ink">{t('mockRunning')}</span>
+  } else if (passed === true) {
+    tag = (
+      <span className="inline-flex items-center gap-1 rounded-ga-pill bg-ga-green-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-green">
+        <CircleCheck size={13} aria-hidden /> {t('passed')}
+      </span>
+    )
+  } else if (passed === false) {
+    tag = (
+      <span className="inline-flex items-center gap-1 rounded-ga-pill bg-ga-red-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-red">
+        <CircleX size={13} aria-hidden /> {t('failed')}
+      </span>
+    )
+  } else {
+    tag = <span className="rounded-ga-pill bg-ga-side-active px-2.5 py-0.5 text-ga-caption font-semibold text-ga-muted">{t('noMock')}</span>
+  }
+
+  return (
+    <Link
+      href={`/v2/student/mock-exam/practice?examId=${exam.id}`}
+      className="group ga-ui grid min-h-16 grid-cols-[36px_minmax(0,1fr)_auto_18px] items-center gap-3.5 border-b border-ga-line px-1 py-2.5 transition-colors duration-150 hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
+    >
+      <Glyph icon={FileText} />
+      <span className="min-w-0">
+        <b className="block truncate text-ga-body font-semibold text-ga-ink">{exam.title}</b>
+        {meta && <span className="block truncate text-ga-small tabular-nums text-ga-muted">{meta}</span>}
+      </span>
+      {tag}
+      <ChevronRight size={16} className="text-ga-subtle transition-transform duration-150 group-hover:translate-x-[3px]" aria-hidden />
+    </Link>
   )
 }
