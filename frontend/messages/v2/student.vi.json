@@ -2800,7 +2800,7 @@
       "suggestOral": "Thi nói lần đầu",
       "diagTitle": "Làm bài chẩn đoán",
       "diagResumeTitle": "Bài chẩn đoán đang làm dở",
-      "diagLead": "Khoảng 35 phút. Xong là có lịch ôn theo từng ngày.",
+      "diagLead": "Khoảng 85 phút, làm từng phần được. Xong là có lịch ôn theo từng ngày.",
       "diagStart": "Bắt đầu",
       "diagResume": "Làm tiếp"
     },
@@ -3042,7 +3042,7 @@
     "diagnostic": {
       "loading": "Đang tải…",
       "formTitle": "Khoảng {n} phút để biết nên luyện gì trước",
-      "formLead": "Mỗi kỹ năng một phần ngắn. Xong là có lịch ôn theo từng ngày.",
+      "formLead": "Mỗi kỹ năng một phần, chấm theo chuẩn telc B1 (Viết và Nói do AI chấm). Làm từng phần, lưu lại, làm dở được.",
       "partsLabel": "Các phần",
       "examLabel": "Kỳ thi",
       "examHint": "Hiện có telc Deutsch B1. Mục tiêu học sẽ đặt là kỳ thi này.",
@@ -3059,28 +3059,9 @@
       "runSubtitle": "Bài chẩn đoán · phần {n}/{total}",
       "progressLabel": "Phần {n}/{total}",
       "nextPart": "Phần tiếp",
-      "seeResult": "Xem kết quả",
       "finishing": "Đang tổng hợp kết quả…",
-      "selfHint": "Chọn mức gần đúng nhất. Phần này là tự đánh giá, không chấm điểm.",
-      "self": {
-        "SCHREIBEN": {
-          "q": "Viết một lá thư khoảng 80 từ trả lời bạn, đủ bốn ý — bạn làm được đến đâu?",
-          "l1": "Chưa viết được",
-          "l2": "Viết được nhưng còn nhiều lỗi",
-          "l3": "Viết được, ít lỗi",
-          "l4": "Viết tốt, đủ ý"
-        },
-        "SPRECHEN": {
-          "q": "Nói chuyện với giám khảo về một chủ đề quen thuộc khoảng 3 phút — bạn làm được đến đâu?",
-          "l1": "Chưa nói được",
-          "l2": "Nói được vài câu",
-          "l3": "Nói được, đôi khi ngắt quãng",
-          "l4": "Nói trôi chảy"
-        }
-      },
       "resultTitle": "{skill} cần luyện trước",
       "resultTitlePlain": "Kết quả bài chẩn đoán",
-      "selfTag": "Tự đánh giá",
       "planReady": "Lịch ôn {n} tuần đã sẵn sàng",
       "planReadyPlain": "Lịch ôn đã sẵn sàng",
       "planMeta": "{m} phút mỗi ngày · {k} lần thi thử",
@@ -3099,7 +3080,20 @@
         "HOEREN": "Hören",
         "SCHREIBEN": "Schreiben",
         "SPRECHEN": "Sprechen"
-      }
+      },
+      "grading": "Đang chấm bài viết…",
+      "gradeWriting": "Nộp bài viết",
+      "writingPending": "AI chưa chấm xong bài viết. Bấm nộp lại sau ít phút.",
+      "oralTitle": "Thi nói với giám khảo AI",
+      "oralBody": "Ba phần thi nói telc B1, chấm theo tiêu chí telc. Khoảng 20 phút, cần micro.",
+      "oralRule1": "Teil 1: làm quen, giới thiệu bản thân.",
+      "oralRule2": "Teil 2: nói về một chủ đề và trao đổi.",
+      "oralRule3": "Teil 3: cùng lên kế hoạch một việc.",
+      "oralCta": "Vào phòng thi nói",
+      "oralBack": "Thi xong quay lại đây và bấm \"Kiểm tra kết quả thi nói\".",
+      "oralCheck": "Kiểm tra kết quả thi nói",
+      "oralNotYet": "Chưa thấy lượt thi nói nào có điểm từ lúc bắt đầu bài chẩn đoán.",
+      "aiTag": "AI chấm theo tiêu chí telc · ước tính"
     }
   }
 }

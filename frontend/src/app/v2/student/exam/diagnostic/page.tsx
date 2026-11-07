@@ -5,23 +5,24 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, Headphones, Mic, PenTool, Puzzle, RotateCcw, Route, type LucideIcon } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
-import { checkPracticeTeil, getPracticeOverview, type PracticeOverview } from '@/lib/telcPracticeApi'
-import { examDiagnosticApi, SELF_SKILLS, type DiagnosticSelfSkill, type DiagnosticView } from '@/lib/examDiagnosticApi'
+import { checkPracticeTeil, getPracticeOverview, gradePracticeWriting, WRITING_KEY, type PracticeOverview } from '@/lib/telcPracticeApi'
+import { examDiagnosticApi, ORAL_PART, type DiagnosticView } from '@/lib/examDiagnosticApi'
 import { examPlanApi, localIsoDate, type ExamPlan } from '@/lib/examPlanApi'
 import { cn } from '@/lib/utils'
 import { ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { PracticeShell } from '@/components/exam/practice/PracticeShell'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
-import { findTeil, kindOf } from '@/components/exam/practice/practiceModel'
+import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
+import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { Bar, Glyph, STATUS_TEXT_CLASS } from '@/components/exam/today/visual'
-import { statusOf } from '@/components/exam/today/todayModel'
+import { oralHref, statusOf } from '@/components/exam/today/todayModel'
 
 const HUB = '/v2/student/exam'
 const MINUTES = [20, 30, 45, 60]
-/** Lesen T1 15' + Sprachbausteine T1 10' + Hören T1 8' + hai câu tự đánh giá. */
-const ABOUT_MINUTES = 35
+/** Lesen T1 15' + Sprachbausteine T1 10' + Hören T1 8' + Schreiben 30' + thi nói ~20'. */
+const ABOUT_MINUTES = 85
 const PART_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, SPRACHBAUSTEINE: Puzzle, HOEREN: Headphones, SCHREIBEN: PenTool, SPRECHEN: Mic }
 const sectionOf = (part: string) => (part.includes('-') ? part.slice(0, part.lastIndexOf('-')) : part)
 
@@ -204,20 +205,21 @@ function DiagnosticRun({
   const t = useTranslations('v2.student.diagnostic')
   const tp = useTranslations('v2.student.practice')
   const wide = useWide(SPLIT_MIN_WIDTH)
-  const parts = React.useMemo(() => [...view.teile, ...SELF_SKILLS], [view.teile])
-  const done = (part: string) =>
-    part.includes('-') ? !!overview.teile.find((x) => x.key === part)?.progress?.checked : view.self[part as DiagnosticSelfSkill] != null
+  const parts = React.useMemo(() => [...view.teile, ORAL_PART], [view.teile])
+  const done = (part: string) => (part === ORAL_PART ? view.oral != null : !!overview.teile.find((x) => x.key === part)?.progress?.checked)
   const idx = parts.findIndex((p) => !done(p))
   const part = idx >= 0 ? parts[idx] : null
   const [answers, setAnswers] = React.useState<Record<string, string>>({})
-  const [level, setLevel] = React.useState<number | null>(null)
+  const [text, setText] = React.useState('')
+  const [ticks, setTicks] = React.useState<Record<string, boolean>>({})
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const startedAt = React.useRef(Date.now())
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   React.useEffect(() => {
     setAnswers({})
-    setLevel(null)
+    setError(null)
     startedAt.current = Date.now()
   }, [part])
 
@@ -242,16 +244,24 @@ function DiagnosticRun({
     })
   }, [])
 
+  const elapsed = () => Math.round((Date.now() - startedAt.current) / 1000)
+
   const next = async () => {
     if (!part) return
     setBusy(true)
     setError(null)
     try {
-      if (part.includes('-')) {
-        const progress = await checkPracticeTeil(overview.examId, part, answers, Math.round((Date.now() - startedAt.current) / 1000))
+      if (part === ORAL_PART) {
+        const v = await examDiagnosticApi.get()
+        onView(v)
+        if (!v.oral) setError(t('oralNotYet'))
+      } else if (part === WRITING_KEY) {
+        const evaluation = await gradePracticeWriting(overview.examId, text, elapsed())
+        if (evaluation.status !== 'AI_EVALUATED') setError(t('writingPending'))
+        onOverview(await getPracticeOverview(overview.examId))
+      } else {
+        const progress = await checkPracticeTeil(overview.examId, part, answers, elapsed())
         onOverview({ ...overview, teile: overview.teile.map((x) => (x.key === part ? { ...x, progress } : x)) })
-      } else if (level != null) {
-        onView(await examDiagnosticApi.saveSelf(part as DiagnosticSelfSkill, level))
       }
     } catch (e) {
       setError(apiMessage(e))
@@ -264,20 +274,37 @@ function DiagnosticRun({
   let body: React.ReactNode
   if (!part) {
     body = <div className="p-6">{error ? <ErrorBanner message={error} /> : <LoadingState label={t('finishing')} />}</div>
-  } else if (part.includes('-')) {
+  } else if (part === ORAL_PART) {
+    body = <OralCard />
+  } else {
     const data = findTeil(overview.sectionsJson, part)
     const kind = kindOf(data, part)
-    body =
-      !data || kind === 'unknown' || kind === 'writing' ? (
-        <div className="p-6"><ErrorBanner message={tp('teilMissing')} /></div>
-      ) : section === 'HOEREN' ? (
-        <HoerenTeilView key={part} teil={data} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
-      ) : (
-        <ObjectiveTeilView key={part} teil={data} kind={kind} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+    if (!data || kind === 'unknown') {
+      body = <div className="p-6"><ErrorBanner message={tp('teilMissing')} /></div>
+    } else if (kind === 'writing') {
+      body = (
+        <WritingTeilView
+          key={part}
+          teil={data}
+          points={displayedPoints(data.writing_points, data.shuffle_points)}
+          text={text}
+          onText={setText}
+          ticks={ticks}
+          onTick={(label, on) => setTicks((prev) => ({ ...prev, [label]: on }))}
+          wide={wide}
+          tips={null}
+          textareaRef={textareaRef}
+        />
       )
-  } else {
-    body = <SelfCard skill={part as DiagnosticSelfSkill} value={level} onChange={setLevel} />
+    } else if (section === 'HOEREN') {
+      body = <HoerenTeilView key={part} teil={data} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+    } else {
+      body = <ObjectiveTeilView key={part} teil={data} kind={kind} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+    }
   }
+
+  const label =
+    part === ORAL_PART ? t('oralCheck') : part === WRITING_KEY ? (busy ? t('grading') : t('gradeWriting')) : t('nextPart')
 
   const footer = (
     <>
@@ -301,11 +328,11 @@ function DiagnosticRun({
       </ol>
       <button
         type="button"
-        disabled={busy || !part || (!part.includes('-') && level == null)}
+        disabled={busy || !part || (part === WRITING_KEY && wordCount(text) === 0)}
         onClick={() => void next()}
         className="ga-ui inline-flex min-h-11 items-center justify-center gap-1.5 rounded-ga-touch bg-ga-yellow px-4 text-ga-body font-semibold text-ga-ink hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-50"
       >
-        {idx === parts.length - 1 ? t('seeResult') : t('nextPart')} <ArrowRight size={16} aria-hidden />
+        {label} <ArrowRight size={16} aria-hidden />
       </button>
     </>
   )
@@ -314,7 +341,7 @@ function DiagnosticRun({
     <PracticeShell
       backHref={HUB}
       backLabel={t('leave')}
-      section={part?.includes('-') ? section : null}
+      section={part && part !== ORAL_PART ? section : null}
       subtitle={t('runSubtitle', { n: Math.max(0, idx) + 1, total: parts.length })}
       title={part ? t(`part.${section}`) : t('finishing')}
       footer={footer}
@@ -324,33 +351,26 @@ function DiagnosticRun({
   )
 }
 
-function SelfCard({ skill, value, onChange }: { skill: DiagnosticSelfSkill; value: number | null; onChange: (n: number) => void }) {
+/** Phần Nói: một lượt thi thử phần nói telc B1 với giám khảo AI, chấm theo tiêu chí telc. */
+function OralCard() {
   const t = useTranslations('v2.student.diagnostic')
   return (
-    <div className="mx-auto flex w-full max-w-[540px] flex-col gap-4 px-4 py-6">
-      <Glyph icon={PART_ICON[skill]} size="lg" />
-      <h2 id={`self-${skill}`} className="font-ga-display text-ga-h2 text-ga-ink">{t(`self.${skill}.q`)}</h2>
-      <p className="ga-ui text-ga-small text-ga-muted">{t('selfHint')}</p>
-      <div role="radiogroup" aria-labelledby={`self-${skill}`} className="flex flex-col gap-2.5">
-        {[1, 2, 3, 4].map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={value === n}
-            onClick={() => onChange(n)}
-            className={cn(
-              'ga-ui flex min-h-12 items-center gap-3 rounded-ga-touch border-[1.5px] bg-ga-card px-4 py-2.5 text-left text-ga-body text-ga-ink transition-[border-color] duration-ga-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
-              value === n ? 'border-ga-ink ring-1 ring-inset ring-ga-ink' : 'border-ga-line hover:border-ga-line-strong',
-            )}
-          >
-            <span aria-hidden className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-full text-ga-small font-bold', value === n ? 'bg-ga-ink text-ga-card' : 'bg-ga-side-active text-ga-muted')}>
-              {n}
-            </span>
-            {t(`self.${skill}.l${n}`)}
-          </button>
-        ))}
-      </div>
+    <div className="mx-auto flex w-full max-w-[540px] flex-col gap-4 px-4 py-8">
+      <Glyph icon={Mic} size="lg" />
+      <h2 className="font-ga-display text-ga-h2 text-ga-ink">{t('oralTitle')}</h2>
+      <p className="ga-ui text-ga-body text-ga-muted">{t('oralBody')}</p>
+      <ul className="ga-ui space-y-1.5 text-ga-small text-ga-ink">
+        <li>{t('oralRule1')}</li>
+        <li>{t('oralRule2')}</li>
+        <li>{t('oralRule3')}</li>
+      </ul>
+      <Link
+        href={oralHref({ provider: 'TELC', level: 'B1' })}
+        className="group ga-ui inline-flex min-h-12 items-center gap-2 self-start rounded-ga-touch bg-ga-ink px-5 text-ga-body font-semibold text-ga-card transition-[transform,filter] duration-150 hover:-translate-y-px hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2"
+      >
+        <Mic size={17} aria-hidden /> {t('oralCta')}
+      </Link>
+      <p className="ga-ui text-ga-small text-ga-muted">{t('oralBack')}</p>
     </div>
   )
 }
@@ -380,13 +400,12 @@ function DiagnosticResult({ view, onRetake }: { view: DiagnosticView; onRetake: 
       <div className="border-t border-ga-line">
         {rows.map((r) => {
           const status = statusOf(r.pct)
-          const self = view.selfRated.includes(r.id)
           return (
             <div key={r.id} className="ga-ui grid min-h-16 grid-cols-[36px_minmax(0,1fr)_96px] items-center gap-x-3.5 gap-y-2 border-b border-ga-line px-1 py-3 sm:grid-cols-[36px_120px_minmax(0,1fr)_110px]">
               <Glyph icon={PART_ICON[r.id]} />
               <span>
                 <span lang="de" className="block font-ga-display text-ga-h3 text-ga-ink">{th(`skill.${r.id}`)}</span>
-                {self && <span className="block text-ga-caption text-ga-muted">{t('selfTag')}</span>}
+                {(r.id === 'SCHREIBEN' || r.id === 'SPRECHEN') && <span className="block text-ga-caption text-ga-muted">{t('aiTag')}</span>}
               </span>
               <Bar pct={r.pct} className="col-span-2 col-start-2 row-start-2 sm:col-span-1 sm:col-start-auto sm:row-start-auto" />
               <span className={cn('text-right tabular-nums', STATUS_TEXT_CLASS[status])}>

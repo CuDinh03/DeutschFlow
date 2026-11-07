@@ -2800,7 +2800,7 @@
       "suggestOral": "Erste mündliche Prüfung",
       "diagTitle": "Einstufungstest machen",
       "diagResumeTitle": "Einstufungstest begonnen",
-      "diagLead": "Etwa 35 Minuten. Danach gibt es einen Lernplan Tag für Tag.",
+      "diagLead": "Etwa 85 Minuten, Teil für Teil. Danach gibt es einen Lernplan Tag für Tag.",
       "diagStart": "Starten",
       "diagResume": "Fortsetzen"
     },
@@ -3042,7 +3042,7 @@
     "diagnostic": {
       "loading": "Wird geladen…",
       "formTitle": "Etwa {n} Minuten, um zu wissen, was Sie zuerst üben",
-      "formLead": "Ein kurzer Teil pro Fertigkeit. Danach gibt es einen Lernplan Tag für Tag.",
+      "formLead": "Ein Teil pro Fertigkeit, bewertet nach telc B1 (Schreiben und Sprechen bewertet die KI). Teil für Teil, alles wird gespeichert.",
       "partsLabel": "Teile",
       "examLabel": "Prüfung",
       "examHint": "Verfügbar ist telc Deutsch B1. Ihr Lernziel wird auf diese Prüfung gesetzt.",
@@ -3059,28 +3059,9 @@
       "runSubtitle": "Einstufungstest · Teil {n}/{total}",
       "progressLabel": "Teil {n}/{total}",
       "nextPart": "Nächster Teil",
-      "seeResult": "Ergebnis ansehen",
       "finishing": "Ergebnis wird zusammengestellt…",
-      "selfHint": "Wählen Sie die passendste Stufe. Dieser Teil ist eine Selbsteinschätzung ohne Punkte.",
-      "self": {
-        "SCHREIBEN": {
-          "q": "Einen Brief mit etwa 80 Wörtern an eine Freundin schreiben, alle vier Punkte — wie gut gelingt Ihnen das?",
-          "l1": "Noch nicht",
-          "l2": "Mit vielen Fehlern",
-          "l3": "Mit wenigen Fehlern",
-          "l4": "Gut, alle Punkte"
-        },
-        "SPRECHEN": {
-          "q": "Etwa 3 Minuten mit einer Prüferin über ein vertrautes Thema sprechen — wie gut gelingt Ihnen das?",
-          "l1": "Noch nicht",
-          "l2": "Ein paar Sätze",
-          "l3": "Mit einigen Pausen",
-          "l4": "Flüssig"
-        }
-      },
       "resultTitle": "Zuerst {skill} üben",
       "resultTitlePlain": "Ergebnis des Einstufungstests",
-      "selfTag": "Selbsteinschätzung",
       "planReady": "Ihr Lernplan für {n} Wochen ist bereit",
       "planReadyPlain": "Ihr Lernplan ist bereit",
       "planMeta": "{m} Minuten pro Tag · {k} Modellprüfungen",
@@ -3099,7 +3080,20 @@
         "HOEREN": "Hören",
         "SCHREIBEN": "Schreiben",
         "SPRECHEN": "Sprechen"
-      }
+      },
+      "grading": "Brief wird bewertet…",
+      "gradeWriting": "Brief abgeben",
+      "writingPending": "Die KI ist mit der Bewertung noch nicht fertig. Bitte in ein paar Minuten erneut abgeben.",
+      "oralTitle": "Mündliche Prüfung mit KI-Prüfer",
+      "oralBody": "Die drei Teile der mündlichen Prüfung telc B1, bewertet nach den telc-Kriterien. Etwa 20 Minuten, Mikrofon nötig.",
+      "oralRule1": "Teil 1: Kontaktaufnahme.",
+      "oralRule2": "Teil 2: über ein Thema sprechen und diskutieren.",
+      "oralRule3": "Teil 3: gemeinsam etwas planen.",
+      "oralCta": "Zum Prüfungsraum",
+      "oralBack": "Danach hierher zurückkehren und \"Ergebnis prüfen\" antippen.",
+      "oralCheck": "Ergebnis prüfen",
+      "oralNotYet": "Seit dem Start des Einstufungstests gibt es noch keine bewertete mündliche Prüfung.",
+      "aiTag": "KI-Bewertung nach telc-Kriterien · Schätzung"
     }
   }
 }

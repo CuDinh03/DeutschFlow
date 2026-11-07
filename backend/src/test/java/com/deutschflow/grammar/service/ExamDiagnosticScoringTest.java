@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Chấm bài chẩn đoán (đợt (f)): tỉ lệ từng phần, bốn kỹ năng, dòng mất điểm cho lộ trình. */
 class ExamDiagnosticScoringTest {
@@ -22,31 +21,32 @@ class ExamDiagnosticScoringTest {
         s.put("LESEN-1", new double[] {10, 25});
         s.put("SPRACHBAUSTEINE-1", new double[] {12, 15});
         s.put("HOEREN-1", new double[] {20, 25});
+        s.put("SCHREIBEN-1", new double[] {33, 45});
         return s;
     }
 
     @Test
-    @DisplayName("Tỉ lệ từng phần: điểm/tối đa; tự đánh giá 1–4 ⇒ 0,3 / 0,5 / 0,65 / 0,8")
+    @DisplayName("Tỉ lệ từng phần: điểm/tối đa, Viết theo phiếu AI, Nói theo lượt thi nói")
     void ratios() {
-        Map<String, Double> r = ExamDiagnosticScoring.ratios(scores(), Map.of("SCHREIBEN", 2, "SPRECHEN", 4));
+        Map<String, Double> r = ExamDiagnosticScoring.ratios(scores(), new double[] {45, 75});
         assertThat(r).containsEntry("LESEN", 0.4).containsEntry("SPRACHBAUSTEINE", 0.8).containsEntry("HOEREN", 0.8)
-                .containsEntry("SCHREIBEN", 0.5).containsEntry("SPRECHEN", 0.8);
-        assertThatThrownBy(() -> ExamDiagnosticScoring.selfRatio(5)).isInstanceOf(IllegalArgumentException.class);
+                .containsEntry("SCHREIBEN", 0.733).containsEntry("SPRECHEN", 0.6);
+        assertThat(ExamDiagnosticScoring.ratios(scores(), null)).doesNotContainKey("SPRECHEN");
     }
 
     @Test
     @DisplayName("Bốn kỹ năng: Lesen gộp Sprachbausteine theo điểm")
     void skills() {
-        Map<String, Integer> s = ExamDiagnosticScoring.skills(scores(), Map.of("SCHREIBEN", 1, "SPRECHEN", 3));
+        Map<String, Integer> s = ExamDiagnosticScoring.skills(scores(), new double[] {45, 75});
         // (10 + 12) / (25 + 15) = 55%
         assertThat(s).containsExactly(Map.entry("LESEN", 55), Map.entry("HOEREN", 80),
-                Map.entry("SCHREIBEN", 30), Map.entry("SPRECHEN", 65));
+                Map.entry("SCHREIBEN", 73), Map.entry("SPRECHEN", 60));
     }
 
     @Test
     @DisplayName("Dòng mất điểm áp tỉ lệ của phần cho mọi Teil; lộ trình xếp Teil yếu nhất lên đầu")
     void lossesDriveRanking() {
-        Map<String, Double> r = ExamDiagnosticScoring.ratios(scores(), Map.of("SCHREIBEN", 4, "SPRECHEN", 4));
+        Map<String, Double> r = ExamDiagnosticScoring.ratios(scores(), new double[] {70, 75});
         List<TeilLoss> losses = ExamDiagnosticScoring.losses(r, TELC_B1);
         assertThat(losses).hasSize(TELC_B1.teile().size());
         TeilLoss lesen3 = losses.stream().filter(l -> l.section().equals("LESEN") && l.teil() == 3).findFirst().orElseThrow();

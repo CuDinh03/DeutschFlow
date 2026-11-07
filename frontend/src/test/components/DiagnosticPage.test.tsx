@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const h = vi.hoisted(() => ({
   get: vi.fn(),
   start: vi.fn(),
-  saveSelf: vi.fn(),
+  grade: vi.fn(),
   finish: vi.fn(),
   overview: vi.fn(),
   check: vi.fn(),
@@ -20,12 +20,13 @@ const h = vi.hoisted(() => ({
 vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi'))
 vi.mock('@/lib/examDiagnosticApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/examDiagnosticApi')>()),
-  examDiagnosticApi: { get: h.get, start: h.start, saveSelf: h.saveSelf, finish: h.finish },
+  examDiagnosticApi: { get: h.get, start: h.start, finish: h.finish },
 }))
 vi.mock('@/lib/telcPracticeApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/telcPracticeApi')>()),
   getPracticeOverview: h.overview,
   checkPracticeTeil: h.check,
+  gradePracticeWriting: h.grade,
 }))
 vi.mock('@/lib/examPlanApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/examPlanApi')>()),
@@ -36,13 +37,14 @@ import DiagnosticPage from '@/app/v2/student/exam/diagnostic/page'
 import { localIsoDate } from '@/lib/examPlanApi'
 import type { DiagnosticView } from '@/lib/examDiagnosticApi'
 
-const TEILE = ['LESEN-1', 'SPRACHBAUSTEINE-1', 'HOEREN-1']
+const TEILE = ['LESEN-1', 'SPRACHBAUSTEINE-1', 'HOEREN-1', 'SCHREIBEN-1']
 const view = (over: Partial<DiagnosticView>): DiagnosticView => ({
-  status: 'IN_PROGRESS', examId: 9, teile: TEILE, self: {}, skills: {}, selfRated: [], finishedAt: null, ...over,
+  status: 'IN_PROGRESS', examId: 9, teile: TEILE, oral: null, skills: {}, startedAt: '2026-11-07T08:00:00Z', finishedAt: null, ...over,
 })
 const checked = { answers: {}, checked: true, score: 10, max: 25, elapsedSeconds: 0, updatedAt: null, result: null }
+const WRITING = JSON.stringify({ sections: [{ name: 'SCHREIBEN', teile: [{ teil: 1, instruction_de: 'Schreiben Sie eine E-Mail.', writing_points: ['Dank', 'Grund', 'Vorschlag', 'Gruß'] }] }] })
 const overview = (done: string[]) => ({
-  examId: 9, title: 'Đề 9', level: 'B1', format: 'TELC', sectionsJson: '{}',
+  examId: 9, title: 'Đề 9', level: 'B1', format: 'TELC', sectionsJson: WRITING,
   teile: TEILE.map((key) => ({ key, section: key.split('-')[0], teil: 1, type: null, items: 5, maxPoints: 25, suggestMinutes: 10, progress: done.includes(key) ? checked : null })),
 })
 const day = (offset: number) => {
@@ -81,14 +83,13 @@ describe('Bài chẩn đoán', () => {
     expect(await screen.findByText('Bài chẩn đoán · phần 1/5')).toBeInTheDocument()
   })
 
-  it('làm dở: vào thẳng phần đang dở; nộp Teil qua luyện đề, tự đánh giá Viết/Nói rồi chốt', async () => {
-    h.get.mockResolvedValue(view({}))
-    h.overview.mockResolvedValue(overview(['LESEN-1', 'SPRACHBAUSTEINE-1']))
+  it('làm dở: vào thẳng phần đang dở; Teil qua luyện đề, Viết AI chấm, Nói lấy từ lượt thi nói rồi chốt', async () => {
+    h.get.mockResolvedValueOnce(view({}))
+    h.overview.mockResolvedValueOnce(overview(['LESEN-1', 'SPRACHBAUSTEINE-1']))
     h.check.mockResolvedValue(checked)
-    h.saveSelf.mockImplementation(async (skill: string, level: number) =>
-      view({ self: skill === 'SCHREIBEN' ? { SCHREIBEN: level } : { SCHREIBEN: 3, SPRECHEN: level } }),
-    )
-    h.finish.mockResolvedValue(view({ status: 'DONE', skills: { LESEN: 45, HOEREN: 80, SCHREIBEN: 65, SPRECHEN: 80 }, selfRated: ['SCHREIBEN', 'SPRECHEN'] }))
+    h.grade.mockResolvedValue({ status: 'AI_EVALUATED', total: 30, max: 45 })
+    h.overview.mockResolvedValue(overview(TEILE))
+    h.finish.mockResolvedValue(view({ status: 'DONE', skills: { LESEN: 45, HOEREN: 80, SCHREIBEN: 67, SPRECHEN: 60 } }))
     h.plan.mockResolvedValue({ status: 'ACTIVE', totalWeeks: 5, weeklyMinutes: 210, warnings: [], weeks: [] })
     const user = userEvent.setup()
     render(<DiagnosticPage />)
@@ -98,22 +99,28 @@ describe('Bài chẩn đoán', () => {
     await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
     expect(h.check).toHaveBeenCalledWith(9, 'HOEREN-1', {}, expect.any(Number))
 
+    // Viết: đề thật, nộp thì AI chấm
     expect(await screen.findByText('Bài chẩn đoán · phần 4/5')).toBeInTheDocument()
-    const next = screen.getByRole('button', { name: /Phần tiếp/ })
-    expect(next).toBeDisabled()
-    await user.click(screen.getByRole('radio', { name: /Viết được, ít lỗi/ }))
-    await user.click(next)
-    expect(h.saveSelf).toHaveBeenCalledWith('SCHREIBEN', 3)
+    const submit = screen.getByRole('button', { name: /Nộp bài viết/ })
+    expect(submit).toBeDisabled()
+    await user.type(screen.getByRole('textbox'), 'Liebe Anna, vielen Dank für die Einladung.')
+    await user.click(submit)
+    expect(h.grade).toHaveBeenCalledWith(9, 'Liebe Anna, vielen Dank für die Einladung.', expect.any(Number))
 
-    await user.click(await screen.findByRole('radio', { name: /Nói trôi chảy/ }))
-    await user.click(screen.getByRole('button', { name: /Xem kết quả/ }))
-    expect(h.saveSelf).toHaveBeenCalledWith('SPRECHEN', 4)
-    expect(h.finish).toHaveBeenCalled()
+    // Nói: dẫn sang phòng thi nói; chưa có lượt thi nói ⇒ báo, có rồi ⇒ chốt
+    expect(await screen.findByText('Bài chẩn đoán · phần 5/5')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Vào phòng thi nói/ })).toHaveAttribute('href', '/v2/student/speaking/exam?provider=TELC&level=B1')
+    h.get.mockResolvedValueOnce(view({}))
+    await user.click(screen.getByRole('button', { name: /Kiểm tra kết quả thi nói/ }))
+    expect(await screen.findByText(/Chưa thấy lượt thi nói nào/)).toBeInTheDocument()
+    h.get.mockResolvedValueOnce(view({ oral: { sessionId: 3, total: 45, max: 75 } }))
+    await user.click(screen.getByRole('button', { name: /Kiểm tra kết quả thi nói/ }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Lesen cần luyện trước' })).toBeInTheDocument()
+    expect(h.finish).toHaveBeenCalled()
   })
 
-  it('kết quả: bốn kỹ năng, phần tự đánh giá có nhãn, lịch ôn sẵn sàng', async () => {
-    h.get.mockResolvedValue(view({ status: 'DONE', skills: { LESEN: 45, HOEREN: 62, SCHREIBEN: 65, SPRECHEN: 50 }, selfRated: ['SCHREIBEN', 'SPRECHEN'] }))
+  it('kết quả: bốn kỹ năng, Viết/Nói ghi AI chấm ước tính, lịch ôn sẵn sàng', async () => {
+    h.get.mockResolvedValue(view({ status: 'DONE', skills: { LESEN: 45, HOEREN: 62, SCHREIBEN: 65, SPRECHEN: 50 } }))
     h.plan.mockResolvedValue({
       status: 'ACTIVE', totalWeeks: 5, weeklyMinutes: 210, warnings: [],
       weeks: [
@@ -123,7 +130,7 @@ describe('Bài chẩn đoán', () => {
     })
     render(<DiagnosticPage />)
     expect(await screen.findByRole('heading', { level: 1, name: 'Lesen cần luyện trước' })).toBeInTheDocument()
-    expect(screen.getAllByText('Tự đánh giá')).toHaveLength(2)
+    expect(screen.getAllByText('AI chấm theo tiêu chí telc · ước tính')).toHaveLength(2)
     expect(await screen.findByRole('heading', { name: 'Lịch ôn 5 tuần đã sẵn sàng' })).toBeInTheDocument()
     expect(screen.getByText('30 phút mỗi ngày · 2 lần thi thử')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Xem hôm nay/ })).toHaveAttribute('href', '/v2/student/exam')

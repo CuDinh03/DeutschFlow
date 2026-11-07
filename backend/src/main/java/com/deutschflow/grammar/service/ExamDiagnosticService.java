@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -22,14 +23,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Bài chẩn đoán đầu vào của Luyện thi (đợt (f) làm mới Luyện thi, 07/11/2026).
+ * Bài chẩn đoán đầu vào của Luyện thi (đợt (f) làm mới Luyện thi, 07/11/2026), telc Deutsch B1.
  *
  * <ol>
  *   <li>{@link #start}: học viên khai ngày thi + phút mỗi ngày ⇒ lưu vào hồ sơ (kỳ thi telc B1), chọn
- *       một đề có sẵn mà học viên ít luyện nhất trong ba Teil chẩn đoán.</li>
- *   <li>Ba Teil khách quan làm và chấm qua đường luyện đề ({@code /mock-exams/practice/.../check}) —
- *       kết quả vào luôn tiến độ luyện, bốn kỹ năng ở màn Hôm nay đọc được ngay.</li>
- *   <li>{@link #saveSelf}: tự đánh giá Viết và Nói (1–4).</li>
+ *       một đề có sẵn mà học viên ít luyện nhất trong các Teil chẩn đoán.</li>
+ *   <li>Lesen T1, Sprachbausteine T1, Hören T1 làm và chấm qua đường luyện đề; Schreiben là đề thật của
+ *       đề đó, AI chấm theo phiếu telc B1 ({@code /mock-exams/practice/{id}/schreiben}). Kết quả vào
+ *       luôn tiến độ luyện.</li>
+ *   <li>Sprechen: một lượt thi thử phần nói telc B1 với giám khảo AI (chấm theo rubric telc) làm SAU
+ *       khi bắt đầu bài chẩn đoán.</li>
  *   <li>{@link #finish}: chốt tỉ lệ đạt từng phần vào {@code result_json}; lộ trình đếm ngược dùng tỉ lệ
  *       này để xếp Teil ưu tiên khi chưa có bài thi thử nào ({@link ExamPlanService}).</li>
  * </ol>
@@ -44,8 +47,9 @@ public class ExamDiagnosticService {
     public static final String STATUS_DONE = "DONE";
     static final int MIN_DAILY_MINUTES = 10;
     static final int MAX_DAILY_MINUTES = 240;
+    static final String PROVIDER = "TELC";
+    static final String LEVEL = "B1";
 
-    private static final TypeReference<Map<String, Integer>> SELF = new TypeReference<>() {};
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
 
     private final JdbcTemplate jdbc;
@@ -55,35 +59,37 @@ public class ExamDiagnosticService {
     private final UserLearningProfileRepository profileRepository;
 
     /**
-     * @param teile  khoá Teil chẩn đoán, theo thứ tự làm
-     * @param self   phần → mức tự đánh giá đã chọn
+     * @param teile  khoá Teil chẩn đoán, theo thứ tự làm (sau đó là phần Nói)
+     * @param oral   lượt thi nói đã có điểm, làm sau khi bắt đầu bài chẩn đoán; {@code null} nếu chưa
      * @param skills kỹ năng → % (chỉ khi {@code DONE})
-     * @param selfRated kỹ năng tính từ tự đánh giá
      */
-    public record View(String status, Long examId, List<String> teile, Map<String, Integer> self,
-                       Map<String, Integer> skills, List<String> selfRated, Instant finishedAt) {
+    public record View(String status, Long examId, List<String> teile, Oral oral, Map<String, Integer> skills,
+                       Instant startedAt, Instant finishedAt) {
         static View none() {
-            return new View(STATUS_NONE, null, ExamDiagnosticScoring.TEILE, Map.of(), Map.of(), List.of(), null);
+            return new View(STATUS_NONE, null, ExamDiagnosticScoring.TEILE, null, Map.of(), null, null);
         }
     }
+
+    /** Lượt thi nói dùng cho bài chẩn đoán. */
+    public record Oral(long sessionId, double total, double max) {}
 
     @Transactional(readOnly = true)
     public View view(User user) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT exam_id, self_json::text AS self, result_json::text AS result, finished_at
+                SELECT exam_id, result_json::text AS result, started_at, finished_at
                 FROM exam_diagnostics WHERE user_id = ?
                 """, user.getId());
         if (rows.isEmpty()) return View.none();
         Map<String, Object> row = rows.get(0);
         long examId = ((Number) row.get("exam_id")).longValue();
-        Map<String, Integer> self = readSelf((String) row.get("self"));
-        Instant finished = row.get("finished_at") instanceof java.sql.Timestamp ts ? ts.toInstant() : null;
+        Instant started = instant(row.get("started_at"));
+        Instant finished = instant(row.get("finished_at"));
+        Oral oral = oralSince(user.getId(), started);
         if (finished == null) {
-            return new View(STATUS_IN_PROGRESS, examId, ExamDiagnosticScoring.TEILE, self, Map.of(), List.of(), null);
+            return new View(STATUS_IN_PROGRESS, examId, ExamDiagnosticScoring.TEILE, oral, Map.of(), started, null);
         }
-        Map<String, Integer> skills = readSkills((String) row.get("result"));
-        return new View(STATUS_DONE, examId, ExamDiagnosticScoring.TEILE, self, skills,
-                ExamDiagnosticScoring.SELF_SKILLS, finished);
+        return new View(STATUS_DONE, examId, ExamDiagnosticScoring.TEILE, oral, readSkills((String) row.get("result")),
+                started, finished);
     }
 
     /** Bắt đầu (hoặc làm lại) bài chẩn đoán: lưu ngày thi + phút mỗi ngày, chọn đề. */
@@ -100,7 +106,7 @@ public class ExamDiagnosticService {
         UserLearningProfile profile = profileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new NotFoundException("Learning profile not found. Please complete onboarding first."));
         // Màn chẩn đoán chỉ có telc Deutsch B1 — học viên chọn kỳ thi này một cách tường minh.
-        profile.setExamType("TELC");
+        profile.setExamType(PROVIDER);
         profile.setTargetLevel(UserLearningProfile.TargetLevel.B1);
         profile.setDailyGoalMinutes(dailyMinutes);
         profileRepository.save(profile);
@@ -109,28 +115,12 @@ public class ExamDiagnosticService {
         jdbc.update("""
                 INSERT INTO exam_diagnostics (user_id, exam_id) VALUES (?, ?)
                 ON CONFLICT (user_id) DO UPDATE
-                SET exam_id = EXCLUDED.exam_id, self_json = '{}'::jsonb, result_json = NULL,
-                    started_at = now(), finished_at = NULL
+                SET exam_id = EXCLUDED.exam_id, result_json = NULL, started_at = now(), finished_at = NULL
                 """, user.getId(), examId);
         return view(user);
     }
 
-    /** Lưu tự đánh giá một phần (Viết / Nói), mức 1–4. */
-    @Transactional
-    public View saveSelf(User user, String skill, Integer level) {
-        if (skill == null || !ExamDiagnosticScoring.SELF_SKILLS.contains(skill)) {
-            throw new BadRequestException("Phần tự đánh giá không hợp lệ.");
-        }
-        if (level == null || level < 1 || level > 4) throw new BadRequestException("Mức tự đánh giá phải từ 1 đến 4.");
-        int n = jdbc.update("""
-                UPDATE exam_diagnostics SET self_json = self_json || jsonb_build_object(?::text, ?::int)
-                WHERE user_id = ? AND finished_at IS NULL
-                """, skill, level, user.getId());
-        if (n == 0) throw new BadRequestException("Chưa bắt đầu bài chẩn đoán.");
-        return view(user);
-    }
-
-    /** Chốt kết quả: ba Teil phải đã kiểm tra, hai phần tự đánh giá phải đã chọn. */
+    /** Chốt kết quả: bốn Teil đã chấm (Viết đã có điểm AI) và đã có lượt thi nói sau khi bắt đầu. */
     @Transactional
     public View finish(User user) {
         View current = view(user);
@@ -146,12 +136,12 @@ public class ExamDiagnosticService {
             double max = p.max() != null ? p.max() : teil.maxPoints();
             scores.put(key, new double[] {p.score(), max});
         }
-        for (String skill : ExamDiagnosticScoring.SELF_SKILLS) {
-            if (!current.self().containsKey(skill)) throw new BadRequestException("Còn phần chưa làm: " + skill);
-        }
+        if (current.oral() == null) throw new BadRequestException("Còn phần chưa làm: " + ExamDiagnosticScoring.ORAL);
+        double[] oral = {current.oral().total(), current.oral().max()};
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("ratios", ExamDiagnosticScoring.ratios(scores, current.self()));
-        result.put("skills", ExamDiagnosticScoring.skills(scores, current.self()));
+        result.put("ratios", ExamDiagnosticScoring.ratios(scores, oral));
+        result.put("skills", ExamDiagnosticScoring.skills(scores, oral));
+        result.put("oralSessionId", current.oral().sessionId());
         try {
             jdbc.update("UPDATE exam_diagnostics SET result_json = ?::jsonb, finished_at = now() WHERE user_id = ?",
                     om.writeValueAsString(result), user.getId());
@@ -193,12 +183,23 @@ public class ExamDiagnosticService {
         return best;
     }
 
-    private Map<String, Integer> readSelf(String json) {
-        try {
-            return json == null ? Map.of() : om.readValue(json, SELF);
-        } catch (Exception e) {
-            return Map.of();
-        }
+    /** Lượt thi thử phần nói telc B1 có điểm gần nhất, làm từ lúc bắt đầu bài chẩn đoán. */
+    private Oral oralSince(long userId, Instant since) {
+        if (since == null) return null;
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT session_id, total_points, max_points FROM speaking_exam_results
+                WHERE user_id = ? AND provider = ? AND level = ? AND total_points IS NOT NULL
+                  AND max_points IS NOT NULL AND created_at >= ?
+                ORDER BY created_at DESC LIMIT 1
+                """, userId, PROVIDER, LEVEL, Timestamp.from(since));
+        if (rows.isEmpty()) return null;
+        Map<String, Object> r = rows.get(0);
+        return new Oral(((Number) r.get("session_id")).longValue(), ((Number) r.get("total_points")).doubleValue(),
+                ((Number) r.get("max_points")).doubleValue());
+    }
+
+    private static Instant instant(Object v) {
+        return v instanceof Timestamp ts ? ts.toInstant() : null;
     }
 
     @SuppressWarnings("unchecked")

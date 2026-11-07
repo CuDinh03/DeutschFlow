@@ -2800,7 +2800,7 @@
       "suggestOral": "First oral exam",
       "diagTitle": "Take the diagnostic test",
       "diagResumeTitle": "Diagnostic test in progress",
-      "diagLead": "About 35 minutes. Then you get a day-by-day study plan.",
+      "diagLead": "About 85 minutes, part by part. Then you get a day-by-day study plan.",
       "diagStart": "Start",
       "diagResume": "Continue"
     },
@@ -3042,7 +3042,7 @@
     "diagnostic": {
       "loading": "Loading…",
       "formTitle": "About {n} minutes to know what to practise first",
-      "formLead": "One short part per skill. Then you get a day-by-day study plan.",
+      "formLead": "One part per skill, scored to the telc B1 standard (writing and speaking scored by AI). Do it part by part; progress is saved.",
       "partsLabel": "Parts",
       "examLabel": "Exam",
       "examHint": "telc Deutsch B1 is available. Your learning goal will be set to this exam.",
@@ -3059,28 +3059,9 @@
       "runSubtitle": "Diagnostic test · part {n}/{total}",
       "progressLabel": "Part {n}/{total}",
       "nextPart": "Next part",
-      "seeResult": "See result",
       "finishing": "Putting your result together…",
-      "selfHint": "Pick the closest level. This part is a self-assessment, not scored.",
-      "self": {
-        "SCHREIBEN": {
-          "q": "Writing an 80-word reply to a friend that covers four points — how well can you do it?",
-          "l1": "I can't yet",
-          "l2": "I can, with many mistakes",
-          "l3": "I can, with few mistakes",
-          "l4": "Well, covering every point"
-        },
-        "SPRECHEN": {
-          "q": "Talking with an examiner about a familiar topic for about 3 minutes — how well can you do it?",
-          "l1": "I can't yet",
-          "l2": "A few sentences",
-          "l3": "I can, with some pauses",
-          "l4": "Fluently"
-        }
-      },
       "resultTitle": "Practise {skill} first",
       "resultTitlePlain": "Diagnostic test result",
-      "selfTag": "Self-assessed",
       "planReady": "Your {n}-week study plan is ready",
       "planReadyPlain": "Your study plan is ready",
       "planMeta": "{m} minutes a day · {k} mock exams",
@@ -3099,7 +3080,20 @@
         "HOEREN": "Hören",
         "SCHREIBEN": "Schreiben",
         "SPRECHEN": "Sprechen"
-      }
+      },
+      "grading": "Grading your letter…",
+      "gradeWriting": "Submit letter",
+      "writingPending": "The AI has not finished grading the letter. Submit again in a few minutes.",
+      "oralTitle": "Oral exam with an AI examiner",
+      "oralBody": "The three telc B1 speaking parts, scored on the telc criteria. About 20 minutes; a microphone is needed.",
+      "oralRule1": "Part 1: getting to know each other.",
+      "oralRule2": "Part 2: talk about a topic and discuss it.",
+      "oralRule3": "Part 3: plan something together.",
+      "oralCta": "Go to the oral exam room",
+      "oralBack": "When you are done, come back here and tap \"Check oral result\".",
+      "oralCheck": "Check oral result",
+      "oralNotYet": "No scored oral exam found since you started the diagnostic test.",
+      "aiTag": "AI-scored on telc criteria · estimate"
     }
   }
 }

@@ -77,14 +77,30 @@ class ExamDiagnosticServiceIntegrationTest extends AbstractPostgresIntegrationTe
     @AfterEach
     void cleanUp() {
         jdbc.update("DELETE FROM exam_diagnostics WHERE user_id = ?", UID);
+        jdbc.update("DELETE FROM speaking_exam_sessions WHERE user_id = ?", UID);
         jdbc.update("DELETE FROM exam_plan_state WHERE user_id = ?", UID);
         jdbc.update("DELETE FROM user_learning_profiles WHERE user_id = ?", UID);
         jdbc.update("DELETE FROM users WHERE id = ?", UID);
     }
 
-    private static PracticeDtos.Overview overview(long id, double lesen, double bausteine, double hoeren) {
+    private static PracticeDtos.Overview overview(long id, double lesen, double bausteine, double hoeren, double schreiben) {
         return new PracticeDtos.Overview(id, "Đề", "B1", "TELC", "{}", List.of(
-                teil("LESEN-1", 25, lesen), teil("SPRACHBAUSTEINE-1", 15, bausteine), teil("HOEREN-1", 25, hoeren)));
+                teil("LESEN-1", 25, lesen), teil("SPRACHBAUSTEINE-1", 15, bausteine), teil("HOEREN-1", 25, hoeren),
+                teil("SCHREIBEN-1", 45, schreiben)));
+    }
+
+    /** Một lượt thi thử phần nói telc B1 đã có điểm (như job chấm nền ghi). */
+    private void oralResult(double total) {
+        Long blueprint = jdbc.queryForObject(
+                "SELECT id FROM speaking_exam_blueprints WHERE provider = 'TELC' AND level = 'B1' ORDER BY version DESC LIMIT 1", Long.class);
+        Long session = jdbc.queryForObject("""
+            INSERT INTO speaking_exam_sessions (user_id, blueprint_id, mode, state, plan_json, finished_at)
+            VALUES (?, ?, 'MOCK', 'RESULTS', '{}'::jsonb, NOW()) RETURNING id
+            """, Long.class, UID, blueprint);
+        jdbc.update("""
+            INSERT INTO speaking_exam_results (session_id, user_id, provider, level, rubric_version, score_sheet_json, total_points, max_points)
+            VALUES (?, ?, 'TELC', 'B1', 1, '{}'::jsonb, ?, 75)
+            """, session, UID, total);
     }
 
     private static PracticeDtos.Teil teil(String key, double max, double score) {
@@ -93,23 +109,25 @@ class ExamDiagnosticServiceIntegrationTest extends AbstractPostgresIntegrationTe
     }
 
     @Test
-    @DisplayName("Bắt đầu → tự đánh giá → chốt; lộ trình lấy Lesen (yếu nhất) làm trọng tâm tuần 1")
+    @DisplayName("Bắt đầu → bốn Teil + thi nói → chốt; lộ trình lấy Lesen (yếu nhất) làm trọng tâm tuần 1")
     void fullFlow() {
-        when(practice.overview(any(), anyLong())).thenReturn(overview(1, -1, -1, -1));
+        when(practice.overview(any(), anyLong())).thenReturn(overview(1, -1, -1, -1, -1));
         ExamDiagnosticService.View started = service.start(user, LocalDate.now().plusWeeks(4), 30);
         assertThat(started.status()).isEqualTo(ExamDiagnosticService.STATUS_IN_PROGRESS);
         Map<String, Object> profile = jdbc.queryForMap(
                 "SELECT exam_type, target_level, daily_goal_minutes, target_date FROM user_learning_profiles WHERE user_id = ?", UID);
         assertThat(profile).containsEntry("exam_type", "TELC").containsEntry("target_level", "B1").containsEntry("daily_goal_minutes", 30);
 
-        service.saveSelf(user, "SCHREIBEN", 4);
-        assertThat(service.saveSelf(user, "SPRECHEN", 4).self()).containsEntry("SCHREIBEN", 4).containsEntry("SPRECHEN", 4);
+        assertThat(started.oral()).isNull();
 
-        when(practice.overview(any(), anyLong())).thenReturn(overview(started.examId(), 5, 13, 22));
+        oralResult(60);
+        assertThat(service.view(user).oral()).isNotNull();
+        when(practice.overview(any(), anyLong())).thenReturn(overview(started.examId(), 5, 13, 22, 36));
         ExamDiagnosticService.View done = service.finish(user);
         assertThat(done.status()).isEqualTo(ExamDiagnosticService.STATUS_DONE);
         // (5 + 13) / 40 = 45%
-        assertThat(done.skills()).containsEntry("LESEN", 45).containsEntry("HOEREN", 88).containsEntry("SCHREIBEN", 80);
+        assertThat(done.skills()).containsEntry("LESEN", 45).containsEntry("HOEREN", 88).containsEntry("SCHREIBEN", 80)
+                .containsEntry("SPRECHEN", 80);
 
         ExamPlanDto plan = planService.planFor(UID, LocalDate.now());
         assertThat(plan.status()).isEqualTo(ExamPlanService.STATUS_ACTIVE);

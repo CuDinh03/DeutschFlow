@@ -7,7 +7,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,8 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 
 /**
- * Bài chẩn đoán đầu vào của Luyện thi (đợt (f)). Ba Teil khách quan làm qua đường luyện đề
- * {@code /api/mock-exams/practice/{examId}/teile/{key}/check}; ở đây chỉ bắt đầu, tự đánh giá, chốt.
+ * Bài chẩn đoán đầu vào của Luyện thi (đợt (f)). Các Teil làm qua đường luyện đề (kiểm tra / chấm
+ * Viết bằng AI), phần Nói là lượt thi thử phần nói; ở đây chỉ bắt đầu, xem trạng thái, chốt.
  */
 @RestController
 @RequestMapping("/api/exam-diagnostic")
@@ -28,8 +27,6 @@ public class ExamDiagnosticController {
 
     public record StartRequest(LocalDate targetDate, Integer dailyMinutes) {}
 
-    public record SelfRequest(String skill, Integer level) {}
-
     @GetMapping
     public ExamDiagnosticService.View view(@AuthenticationPrincipal User user) {
         return service.view(user);
@@ -38,11 +35,6 @@ public class ExamDiagnosticController {
     @PostMapping("/start")
     public ExamDiagnosticService.View start(@AuthenticationPrincipal User user, @RequestBody StartRequest body) {
         return service.start(user, body.targetDate(), body.dailyMinutes());
-    }
-
-    @PutMapping("/self")
-    public ExamDiagnosticService.View saveSelf(@AuthenticationPrincipal User user, @RequestBody SelfRequest body) {
-        return service.saveSelf(user, body.skill(), body.level());
     }
 
     @PostMapping("/finish")

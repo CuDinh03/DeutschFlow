@@ -12,37 +12,31 @@ import java.util.Map;
 /**
  * Chấm bài chẩn đoán (đợt (f) làm mới Luyện thi, 07/11/2026). Hàm thuần.
  *
- * <p>Ba Teil khách quan đo Lesen, Sprachbausteine, Hören; Viết và Nói là tự đánh giá bốn mức. Mỗi
- * phần ra một tỉ lệ đạt 0–1; tỉ lệ đó áp cho mọi Teil cùng phần khi lộ trình xếp Teil ưu tiên.
+ * <p>Bốn Teil của một đề telc B1 đo Lesen, Sprachbausteine, Hören (chấm theo đáp án) và Schreiben (AI
+ * chấm theo phiếu telc B1, 45 điểm). Sprechen lấy từ một lượt thi thử phần nói telc B1 (AI chấm theo
+ * rubric telc). Mỗi phần ra một tỉ lệ đạt 0–1; tỉ lệ đó áp cho mọi Teil cùng phần khi lộ trình xếp
+ * Teil ưu tiên.
  */
 public final class ExamDiagnosticScoring {
 
-    /** Teil làm trong bài chẩn đoán, theo thứ tự làm. Ngắn nhất của mỗi phần. */
-    public static final List<String> TEILE = List.of("LESEN-1", "SPRACHBAUSTEINE-1", "HOEREN-1");
-    /** Phần tự đánh giá. */
-    public static final List<String> SELF_SKILLS = List.of("SCHREIBEN", "SPRECHEN");
-    /** Mức tự đánh giá 1–4 ⇒ tỉ lệ đạt ước lượng. Mức 1 "chưa làm được", mức 4 "làm tốt". */
-    static final double[] SELF_RATIO = {0, 0.3, 0.5, 0.65, 0.8};
+    /** Teil làm trong bài chẩn đoán, theo thứ tự làm (Teil ngắn nhất của mỗi phần; Viết đủ đề thật). */
+    public static final List<String> TEILE = List.of("LESEN-1", "SPRACHBAUSTEINE-1", "HOEREN-1", "SCHREIBEN-1");
+    public static final String ORAL = "SPRECHEN";
 
     private ExamDiagnosticScoring() {}
-
-    public static double selfRatio(int level) {
-        if (level < 1 || level > 4) throw new IllegalArgumentException("level 1–4");
-        return SELF_RATIO[level];
-    }
 
     /**
      * Tỉ lệ đạt từng phần.
      *
-     * @param scores khoá Teil → {điểm, tối đa} của ba Teil khách quan
-     * @param self   phần → mức tự đánh giá 1–4
+     * @param scores khoá Teil → {điểm, tối đa}
+     * @param oral   {điểm, tối đa} của lượt thi nói, {@code null} nếu chưa có
      */
-    public static Map<String, Double> ratios(Map<String, double[]> scores, Map<String, Integer> self) {
+    public static Map<String, Double> ratios(Map<String, double[]> scores, double[] oral) {
         Map<String, Double> out = new LinkedHashMap<>();
         scores.forEach((key, s) -> {
             if (s[1] > 0) out.put(key.substring(0, key.lastIndexOf('-')), round(s[0] / s[1]));
         });
-        self.forEach((skill, level) -> out.put(skill, selfRatio(level)));
+        if (oral != null && oral[1] > 0) out.put(ORAL, round(oral[0] / oral[1]));
         return out;
     }
 
@@ -51,7 +45,7 @@ public final class ExamDiagnosticScoring {
      *
      * @return kỹ năng → % (0–100); kỹ năng không có dữ liệu thì không có khoá
      */
-    public static Map<String, Integer> skills(Map<String, double[]> scores, Map<String, Integer> self) {
+    public static Map<String, Integer> skills(Map<String, double[]> scores, double[] oral) {
         Map<String, Integer> out = new LinkedHashMap<>();
         double score = 0;
         double max = 0;
@@ -61,13 +55,12 @@ public final class ExamDiagnosticScoring {
                 max += e.getValue()[1];
             }
         }
-        if (max > 0) out.put("LESEN", (int) Math.round(score / max * 100));
+        if (max > 0) out.put("LESEN", pct(score, max));
         double[] hoeren = scores.get("HOEREN-1");
-        if (hoeren != null && hoeren[1] > 0) out.put("HOEREN", (int) Math.round(hoeren[0] / hoeren[1] * 100));
-        for (String skill : SELF_SKILLS) {
-            Integer level = self.get(skill);
-            if (level != null) out.put(skill, (int) Math.round(selfRatio(level) * 100));
-        }
+        if (hoeren != null && hoeren[1] > 0) out.put("HOEREN", pct(hoeren[0], hoeren[1]));
+        double[] writing = scores.get("SCHREIBEN-1");
+        if (writing != null && writing[1] > 0) out.put("SCHREIBEN", pct(writing[0], writing[1]));
+        if (oral != null && oral[1] > 0) out.put(ORAL, pct(oral[0], oral[1]));
         return out;
     }
 
@@ -82,6 +75,10 @@ public final class ExamDiagnosticScoring {
                     null, null, null, false));
         }
         return out;
+    }
+
+    private static int pct(double score, double max) {
+        return (int) Math.round(score / max * 100);
     }
 
     private static double round(double v) {

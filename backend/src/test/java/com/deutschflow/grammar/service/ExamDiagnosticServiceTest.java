@@ -65,32 +65,29 @@ class ExamDiagnosticServiceTest {
     void pickExam() {
         when(jdbc.queryForList(anyString(), eq(Long.class))).thenReturn(List.of(4L, 3L, 2L, 1L));
         when(practice.overview(user, 4L)).thenThrow(new RuntimeException("khoá"));
-        when(practice.overview(user, 3L)).thenReturn(overview(3, teil("LESEN-1", true), teil("SPRACHBAUSTEINE-1", false), teil("HOEREN-1", false)));
+        when(practice.overview(user, 3L)).thenReturn(overview(3, teil("LESEN-1", true), teil("SPRACHBAUSTEINE-1", false), teil("HOEREN-1", false), teil("SCHREIBEN-1", false)));
         when(practice.overview(user, 2L)).thenReturn(overview(2, teil("LESEN-1", false), teil("HOEREN-1", false)));
-        when(practice.overview(user, 1L)).thenReturn(overview(1, teil("LESEN-1", false), teil("SPRACHBAUSTEINE-1", false), teil("HOEREN-1", false)));
+        when(practice.overview(user, 1L)).thenReturn(overview(1, teil("LESEN-1", false), teil("SPRACHBAUSTEINE-1", false), teil("HOEREN-1", false), teil("SCHREIBEN-1", false)));
         assertThat(service.pickExam(user)).isEqualTo(1L);
 
-        when(practice.overview(user, 1L)).thenReturn(overview(1, teil("LESEN-1", true), teil("SPRACHBAUSTEINE-1", false), teil("HOEREN-1", false)));
+        when(practice.overview(user, 1L)).thenReturn(overview(1, teil("LESEN-1", true), teil("SPRACHBAUSTEINE-1", false), teil("HOEREN-1", false), teil("SCHREIBEN-1", false)));
         // bằng nhau ⇒ đề mới nhất (3) — đề cũ nhất để dành cho đề full đầu tiên
         assertThat(service.pickExam(user)).isEqualTo(3L);
     }
 
     @Test
-    @DisplayName("Tự đánh giá: chỉ Viết/Nói, mức 1–4; chưa bắt đầu thì báo lỗi")
-    void saveSelf_validates() {
-        assertThatThrownBy(() -> service.saveSelf(user, "LESEN", 2)).isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> service.saveSelf(user, "SCHREIBEN", 0)).isInstanceOf(BadRequestException.class);
-        when(jdbc.update(anyString(), eq("SCHREIBEN"), eq(2), anyLong())).thenReturn(0);
-        assertThatThrownBy(() -> service.saveSelf(user, "SCHREIBEN", 2)).isInstanceOf(BadRequestException.class);
-    }
-
-    @Test
-    @DisplayName("Chốt khi còn Teil chưa kiểm tra ⇒ báo phần còn thiếu, không ghi kết quả")
+    @DisplayName("Chốt khi còn Teil chưa chấm ⇒ báo phần còn thiếu, không ghi kết quả")
     void finish_requiresAllParts() {
         when(jdbc.queryForList(anyString(), anyLong())).thenReturn(List.of(Map.of(
-                "exam_id", 3L, "self", "{\"SCHREIBEN\":2,\"SPRECHEN\":3}")));
-        when(practice.overview(user, 3L)).thenReturn(overview(3, teil("LESEN-1", true), teil("SPRACHBAUSTEINE-1", false), teil("HOEREN-1", true)));
+                "exam_id", 3L, "started_at", java.sql.Timestamp.from(java.time.Instant.now()))));
+        when(practice.overview(user, 3L)).thenReturn(overview(3, teil("LESEN-1", true), teil("SPRACHBAUSTEINE-1", false),
+                teil("HOEREN-1", true), teil("SCHREIBEN-1", true)));
         assertThatThrownBy(() -> service.finish(user)).isInstanceOf(BadRequestException.class).hasMessageContaining("SPRACHBAUSTEINE-1");
+
+        // đủ bốn Teil nhưng chưa thi nói sau khi bắt đầu ⇒ báo thiếu phần Nói
+        when(practice.overview(user, 3L)).thenReturn(overview(3, teil("LESEN-1", true), teil("SPRACHBAUSTEINE-1", true),
+                teil("HOEREN-1", true), teil("SCHREIBEN-1", true)));
+        assertThatThrownBy(() -> service.finish(user)).isInstanceOf(BadRequestException.class).hasMessageContaining("SPRECHEN");
         verify(jdbc, never()).update(org.mockito.ArgumentMatchers.contains("finished_at = now()"), any(), any());
     }
 }
