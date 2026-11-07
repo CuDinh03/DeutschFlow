@@ -135,6 +135,21 @@ export function labelForLogical(points: ReturnType<typeof displayedPoints>, logi
   return points.find((p) => p.logical === logical)?.label ?? null
 }
 
+/**
+ * Mô hình đánh số Leitpunkte theo thứ tự trong đề, còn người học thấy nhãn P1–P4 đã XÁO. Chữ tự do
+ * („thiếu Leitpunkt 2", „Leitpunkte 2 (…), 3 và 4") phải đổi sang nhãn đang hiện, không thì số trong
+ * câu chỉ sang điểm khác với nhãn ngay bên cạnh (gặp 07/11/2026).
+ */
+export function relabelLeitpunkte(text: string | null | undefined, points: ReturnType<typeof displayedPoints>): string {
+  if (!text) return text ?? ''
+  const map = (d: string) => labelForLogical(points, Number(d)) ?? d
+  return text.replace(
+    /(Leitpunkte?)\s*((?:[1-4](?!\d)(?:\s*\([^)]*\))?(?:\s*(?:,|và|und|and|&)\s*)?)+)/gi,
+    (_m, word: string, list: string) =>
+      `${word} ${list.replace(/\([^)]*\)|(^|[^\d])([1-4])(?!\d)/g, (x: string, pre?: string, d?: string) => (d ? (pre ?? '') + map(d) : x))}`,
+  )
+}
+
 export type EssaySegment =
   | { kind: 'text'; value: string }
   | { kind: 'mark'; value: string; note: number }
@@ -142,8 +157,9 @@ export type EssaySegment =
 
 /**
  * Cắt bài viết thành các mảnh để tô ghi chú của AI: đoạn trích → `mark`, chỗ thiếu ý → `insert`
- * ngay sau đoạn `insertAfter`. Ghi chú không định vị được trong bài thì bỏ qua ở đây (vẫn hiện
- * trong danh sách ghi chú). Hai trích dẫn chồng nhau: giữ cái đến trước.
+ * ngay sau đoạn `insertAfter`. Chỗ thiếu một Leitpunkt mà không định vị được (mô hình chép sai
+ * `insertAfter`) thì đặt ở cuối bài — thiếu ý vẫn phải thấy được trong bài. Ghi chú khác không định
+ * vị được thì bỏ qua ở đây (vẫn hiện trong danh sách ghi chú). Hai trích dẫn chồng nhau: giữ cái đến trước.
  */
 export function essaySegments(text: string, notes: WritingAnnotation[]): EssaySegment[] {
   type Anchor = { start: number; end: number; note: number; insert: boolean }
@@ -152,12 +168,14 @@ export function essaySegments(text: string, notes: WritingAnnotation[]): EssaySe
     if (n.quote) {
       const at = text.indexOf(n.quote)
       if (at >= 0) anchors.push({ start: at, end: at + n.quote.length, note: i, insert: false })
-    } else if (n.insertAfter) {
-      const at = text.indexOf(n.insertAfter)
-      if (at >= 0) {
-        const end = at + n.insertAfter.length
-        anchors.push({ start: end, end, note: i, insert: true })
-      }
+      return
+    }
+    const at = n.insertAfter ? text.indexOf(n.insertAfter) : -1
+    if (at >= 0) {
+      const end = at + n.insertAfter!.length
+      anchors.push({ start: end, end, note: i, insert: true })
+    } else if (n.leitpunkt) {
+      anchors.push({ start: text.length, end: text.length, note: i, insert: true })
     }
   })
   anchors.sort((a, b) => a.start - b.start || Number(b.insert) - Number(a.insert))

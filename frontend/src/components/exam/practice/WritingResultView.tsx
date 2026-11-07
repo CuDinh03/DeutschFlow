@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WritingEvaluation } from '@/lib/telcPracticeApi'
-import { essaySegments, labelForLogical, type displayedPoints } from './practiceModel'
+import { essaySegments, labelForLogical, relabelLeitpunkte, type displayedPoints } from './practiceModel'
 
 const BANDS = ['A', 'B', 'C', 'D'] as const
 const CRITERIA = [
@@ -124,7 +124,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
       )}
       <div className="mb-3 rounded-ga-touch border border-ga-line bg-ga-bg px-3.5 py-3">
         <p className="text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{t('why')}</p>
-        <p className="mt-1 leading-relaxed text-ga-ink">{note.whyVi}</p>
+        <p className="mt-1 leading-relaxed text-ga-ink">{relabelLeitpunkte(note.whyVi, points)}</p>
         {note.ruleVi && (
           <p className="mt-2">
             <span className="rounded-ga-pill bg-ga-navy-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-navy">{note.ruleVi}</span>
@@ -215,17 +215,17 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
             { value: 'de', label: 'Deutsch' },
           ]}
         />
-        <p lang={lang} className="mt-2 leading-relaxed text-ga-ink">{lang === 'vi' ? evaluation.feedback_vi : evaluation.feedback_de}</p>
+        <p lang={lang} className="mt-2 leading-relaxed text-ga-ink">{relabelLeitpunkte(lang === 'vi' ? evaluation.feedback_vi : evaluation.feedback_de, points)}</p>
         {(evaluation.strengths?.length ?? 0) > 0 && (
           <>
             <p className="mt-3 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{t('strengths')}</p>
-            <ul className="mt-1 list-disc pl-5">{evaluation.strengths!.map((s) => <li key={s}>{s}</li>)}</ul>
+            <ul className="mt-1 list-disc pl-5">{evaluation.strengths!.map((s) => <li key={s}>{relabelLeitpunkte(s, points)}</li>)}</ul>
           </>
         )}
         {(evaluation.improvements?.length ?? 0) > 0 && (
           <>
             <p className="mt-3 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{t('improvements')}</p>
-            <ul className="mt-1 list-disc pl-5">{evaluation.improvements!.map((s) => <li key={s}>{s}</li>)}</ul>
+            <ul className="mt-1 list-disc pl-5">{evaluation.improvements!.map((s) => <li key={s}>{relabelLeitpunkte(s, points)}</li>)}</ul>
           </>
         )}
       </div>

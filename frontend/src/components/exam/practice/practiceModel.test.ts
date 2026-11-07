@@ -8,6 +8,7 @@ import {
   labelForLogical,
   nextUnanswered,
   ownerOf,
+  relabelLeitpunkte,
   wordCount,
 } from './practiceModel'
 import type { WritingAnnotation } from '@/lib/telcPracticeApi'
@@ -82,6 +83,35 @@ describe('practiceModel', () => {
       { kind: 'text', value: '.' },
       { kind: 'insert', note: 1 },
       { kind: 'text', value: ' Bis bald' },
+    ])
+  })
+
+  it('chữ tự do của AI gọi Leitpunkt theo số gốc thì đổi sang nhãn P đang hiện', () => {
+    const shown = displayedPoints(['eins', 'zwei', 'drei', 'vier'], true)
+    const p = (n: number) => labelForLogical(shown, n)!
+    expect(relabelLeitpunkte('Thiếu Leitpunkt 2, ảnh hưởng tiêu chí I.', shown)).toBe(`Thiếu Leitpunkt ${p(2)}, ảnh hưởng tiêu chí I.`)
+    expect(relabelLeitpunkte('Thiếu các Leitpunkte 2 (thành phố mới), 3 (chỗ ở) và 4 (tin mới).', shown)).toBe(
+      `Thiếu các Leitpunkte ${p(2)} (thành phố mới), ${p(3)} (chỗ ở) và ${p(4)} (tin mới).`,
+    )
+    // không đụng số khác trong câu (ngày tháng, điểm)
+    expect(relabelLeitpunkte('Am 15. Juli, 3 Punkte, Leitpunkt 1.', shown)).toBe(`Am 15. Juli, 3 Punkte, Leitpunkt ${p(1)}.`)
+    expect(relabelLeitpunkte(null, shown)).toBe('')
+  })
+
+  it('ý thiếu không định vị được thì đặt cuối bài; hai ý thiếu cùng chỗ đều hiện', () => {
+    const text = 'Hallo Lena, ja. Tschüss'
+    const segs = essaySegments(text, [
+      note({ insertAfter: 'ja.', leitpunkt: 1 }),
+      note({ insertAfter: 'ja.', leitpunkt: 2 }),
+      note({ insertAfter: 'không có trong bài', leitpunkt: 4 }),
+      note({ insertAfter: 'không có trong bài' }),
+    ])
+    expect(segs).toEqual([
+      { kind: 'text', value: 'Hallo Lena, ja.' },
+      { kind: 'insert', note: 0 },
+      { kind: 'insert', note: 1 },
+      { kind: 'text', value: ' Tschüss' },
+      { kind: 'insert', note: 2 },
     ])
   })
 
