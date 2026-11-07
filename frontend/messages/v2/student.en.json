@@ -2797,7 +2797,12 @@
       "suggestReview": "Review {n} wrong · {name}",
       "suggestMinutes": "{n} min",
       "suggestMock": "Mock exam {day}",
-      "suggestOral": "First oral exam"
+      "suggestOral": "First oral exam",
+      "diagTitle": "Take the diagnostic test",
+      "diagResumeTitle": "Diagnostic test in progress",
+      "diagLead": "About 85 minutes, part by part. Then you get a day-by-day study plan.",
+      "diagStart": "Start",
+      "diagResume": "Continue"
     },
     "fullExam": {
       "badLink": "Invalid mock exam link.",
@@ -3033,6 +3038,62 @@
           "p": "Each criterion has bands A–D and how to move up."
         }
       }
+    },
+    "diagnostic": {
+      "loading": "Loading…",
+      "formTitle": "About {n} minutes to know what to practise first",
+      "formLead": "One part per skill, scored to the telc B1 standard (writing and speaking scored by AI). Do it part by part; progress is saved.",
+      "partsLabel": "Parts",
+      "examLabel": "Exam",
+      "examHint": "telc Deutsch B1 is available. Your learning goal will be set to this exam.",
+      "dateLabel": "Exam date",
+      "dateBad": "The exam date must be after today.",
+      "daysLeft": "{n} days to go",
+      "dateEmpty": "Pick your exam date to build the plan.",
+      "minutesLabel": "Time per day",
+      "minutes": "{n} minutes",
+      "start": "Start",
+      "skip": "Skip",
+      "startError": "Could not start the diagnostic test.",
+      "leave": "Leave the diagnostic test (finished parts are kept)",
+      "runSubtitle": "Diagnostic test · part {n}/{total}",
+      "progressLabel": "Part {n}/{total}",
+      "nextPart": "Next part",
+      "finishing": "Putting your result together…",
+      "resultTitle": "Practise {skill} first",
+      "resultTitlePlain": "Diagnostic test result",
+      "planReady": "Your {n}-week study plan is ready",
+      "planReadyPlain": "Your study plan is ready",
+      "planMeta": "{m} minutes a day · {k} mock exams",
+      "seeToday": "See today",
+      "retake": "Retake the diagnostic test",
+      "part": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "partShort": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Bausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "grading": "Grading your letter…",
+      "gradeWriting": "Submit letter",
+      "writingPending": "The AI has not finished grading the letter. Submit again in a few minutes.",
+      "oralTitle": "Oral exam with an AI examiner",
+      "oralBody": "The three telc B1 speaking parts, scored on the telc criteria. About 20 minutes; a microphone is needed.",
+      "oralRule1": "Part 1: getting to know each other.",
+      "oralRule2": "Part 2: talk about a topic and discuss it.",
+      "oralRule3": "Part 3: plan something together.",
+      "oralCta": "Go to the oral exam room",
+      "oralBack": "When you are done, come back here and tap \"Check oral result\".",
+      "oralCheck": "Check oral result",
+      "oralNotYet": "No scored oral exam found since you started the diagnostic test.",
+      "aiTag": "AI-scored on telc criteria · estimate"
     }
   }
 }

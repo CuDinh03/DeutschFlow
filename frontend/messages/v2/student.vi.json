@@ -2797,7 +2797,12 @@
       "suggestReview": "Ôn {n} câu sai · {name}",
       "suggestMinutes": "{n} phút",
       "suggestMock": "Thi thử {day}",
-      "suggestOral": "Thi nói lần đầu"
+      "suggestOral": "Thi nói lần đầu",
+      "diagTitle": "Làm bài chẩn đoán",
+      "diagResumeTitle": "Bài chẩn đoán đang làm dở",
+      "diagLead": "Khoảng 85 phút, làm từng phần được. Xong là có lịch ôn theo từng ngày.",
+      "diagStart": "Bắt đầu",
+      "diagResume": "Làm tiếp"
     },
     "fullExam": {
       "badLink": "Link thi thử không hợp lệ.",
@@ -3033,6 +3038,62 @@
           "p": "Mỗi tiêu chí có bậc A–D và cách lên bậc."
         }
       }
+    },
+    "diagnostic": {
+      "loading": "Đang tải…",
+      "formTitle": "Khoảng {n} phút để biết nên luyện gì trước",
+      "formLead": "Mỗi kỹ năng một phần, chấm theo chuẩn telc B1 (Viết và Nói do AI chấm). Làm từng phần, lưu lại, làm dở được.",
+      "partsLabel": "Các phần",
+      "examLabel": "Kỳ thi",
+      "examHint": "Hiện có telc Deutsch B1. Mục tiêu học sẽ đặt là kỳ thi này.",
+      "dateLabel": "Ngày thi",
+      "dateBad": "Ngày thi phải sau hôm nay.",
+      "daysLeft": "Còn {n} ngày",
+      "dateEmpty": "Chọn ngày thi để xếp lịch ôn.",
+      "minutesLabel": "Mỗi ngày ôn được",
+      "minutes": "{n} phút",
+      "start": "Bắt đầu",
+      "skip": "Bỏ qua",
+      "startError": "Không bắt đầu được bài chẩn đoán.",
+      "leave": "Rời bài chẩn đoán (phần đã làm được giữ)",
+      "runSubtitle": "Bài chẩn đoán · phần {n}/{total}",
+      "progressLabel": "Phần {n}/{total}",
+      "nextPart": "Phần tiếp",
+      "finishing": "Đang tổng hợp kết quả…",
+      "resultTitle": "{skill} cần luyện trước",
+      "resultTitlePlain": "Kết quả bài chẩn đoán",
+      "planReady": "Lịch ôn {n} tuần đã sẵn sàng",
+      "planReadyPlain": "Lịch ôn đã sẵn sàng",
+      "planMeta": "{m} phút mỗi ngày · {k} lần thi thử",
+      "seeToday": "Xem hôm nay",
+      "retake": "Làm lại bài chẩn đoán",
+      "part": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "partShort": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Bausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "grading": "Đang chấm bài viết…",
+      "gradeWriting": "Nộp bài viết",
+      "writingPending": "AI chưa chấm xong bài viết. Bấm nộp lại sau ít phút.",
+      "oralTitle": "Thi nói với giám khảo AI",
+      "oralBody": "Ba phần thi nói telc B1, chấm theo tiêu chí telc. Khoảng 20 phút, cần micro.",
+      "oralRule1": "Teil 1: làm quen, giới thiệu bản thân.",
+      "oralRule2": "Teil 2: nói về một chủ đề và trao đổi.",
+      "oralRule3": "Teil 3: cùng lên kế hoạch một việc.",
+      "oralCta": "Vào phòng thi nói",
+      "oralBack": "Thi xong quay lại đây và bấm \"Kiểm tra kết quả thi nói\".",
+      "oralCheck": "Kiểm tra kết quả thi nói",
+      "oralNotYet": "Chưa thấy lượt thi nói nào có điểm từ lúc bắt đầu bài chẩn đoán.",
+      "aiTag": "AI chấm theo tiêu chí telc · ước tính"
     }
   }
 }

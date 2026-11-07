@@ -2797,7 +2797,12 @@
       "suggestReview": "{n} Fehler wiederholen · {name}",
       "suggestMinutes": "{n} Min.",
       "suggestMock": "Modellprüfung {day}",
-      "suggestOral": "Erste mündliche Prüfung"
+      "suggestOral": "Erste mündliche Prüfung",
+      "diagTitle": "Einstufungstest machen",
+      "diagResumeTitle": "Einstufungstest begonnen",
+      "diagLead": "Etwa 85 Minuten, Teil für Teil. Danach gibt es einen Lernplan Tag für Tag.",
+      "diagStart": "Starten",
+      "diagResume": "Fortsetzen"
     },
     "fullExam": {
       "badLink": "Ungültiger Link zur Modellprüfung.",
@@ -3033,6 +3038,62 @@
           "p": "Jedes Kriterium hat die Stufen A–D und den Weg nach oben."
         }
       }
+    },
+    "diagnostic": {
+      "loading": "Wird geladen…",
+      "formTitle": "Etwa {n} Minuten, um zu wissen, was Sie zuerst üben",
+      "formLead": "Ein Teil pro Fertigkeit, bewertet nach telc B1 (Schreiben und Sprechen bewertet die KI). Teil für Teil, alles wird gespeichert.",
+      "partsLabel": "Teile",
+      "examLabel": "Prüfung",
+      "examHint": "Verfügbar ist telc Deutsch B1. Ihr Lernziel wird auf diese Prüfung gesetzt.",
+      "dateLabel": "Prüfungstermin",
+      "dateBad": "Der Termin muss nach heute liegen.",
+      "daysLeft": "Noch {n} Tage",
+      "dateEmpty": "Wählen Sie den Termin für Ihren Lernplan.",
+      "minutesLabel": "Zeit pro Tag",
+      "minutes": "{n} Minuten",
+      "start": "Starten",
+      "skip": "Überspringen",
+      "startError": "Der Einstufungstest konnte nicht starten.",
+      "leave": "Einstufungstest verlassen (erledigte Teile bleiben)",
+      "runSubtitle": "Einstufungstest · Teil {n}/{total}",
+      "progressLabel": "Teil {n}/{total}",
+      "nextPart": "Nächster Teil",
+      "finishing": "Ergebnis wird zusammengestellt…",
+      "resultTitle": "Zuerst {skill} üben",
+      "resultTitlePlain": "Ergebnis des Einstufungstests",
+      "planReady": "Ihr Lernplan für {n} Wochen ist bereit",
+      "planReadyPlain": "Ihr Lernplan ist bereit",
+      "planMeta": "{m} Minuten pro Tag · {k} Modellprüfungen",
+      "seeToday": "Zu heute",
+      "retake": "Einstufungstest wiederholen",
+      "part": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "partShort": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Bausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "grading": "Brief wird bewertet…",
+      "gradeWriting": "Brief abgeben",
+      "writingPending": "Die KI ist mit der Bewertung noch nicht fertig. Bitte in ein paar Minuten erneut abgeben.",
+      "oralTitle": "Mündliche Prüfung mit KI-Prüfer",
+      "oralBody": "Die drei Teile der mündlichen Prüfung telc B1, bewertet nach den telc-Kriterien. Etwa 20 Minuten, Mikrofon nötig.",
+      "oralRule1": "Teil 1: Kontaktaufnahme.",
+      "oralRule2": "Teil 2: über ein Thema sprechen und diskutieren.",
+      "oralRule3": "Teil 3: gemeinsam etwas planen.",
+      "oralCta": "Zum Prüfungsraum",
+      "oralBack": "Danach hierher zurückkehren und \"Ergebnis prüfen\" antippen.",
+      "oralCheck": "Ergebnis prüfen",
+      "oralNotYet": "Seit dem Start des Einstufungstests gibt es noch keine bewertete mündliche Prüfung.",
+      "aiTag": "KI-Bewertung nach telc-Kriterien · Schätzung"
     }
   }
 }

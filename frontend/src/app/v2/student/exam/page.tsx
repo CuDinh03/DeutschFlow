@@ -4,12 +4,13 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ArrowRight, CalendarClock, CalendarDays, ChartNoAxesColumn, Check, ChevronRight, CircleCheck, CircleX, Clock, FileText, Headphones, Lock, Mic, RotateCcw, Target, type LucideIcon } from 'lucide-react'
+import { ArrowRight, CalendarClock, CalendarDays, ChartNoAxesColumn, Check, ChevronRight, CircleCheck, CircleX, Clock, FileText, Headphones, Lock, Mic, RotateCcw, Route, Target, type LucideIcon } from 'lucide-react'
 import { getMockPack, getMockPacks, type PackExam } from '@/lib/mockPackApi'
 import { getPracticeAccess, getPracticeOverview, type PracticeOverview } from '@/lib/telcPracticeApi'
 import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
 import { examPlanApi, currentWeekOf, localIsoDate, swapLocally, teilKeyOf, todaySession, type ExamPlan, type ExamPlanDay } from '@/lib/examPlanApi'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
+import { examDiagnosticApi, type DiagnosticStatus } from '@/lib/examDiagnosticApi'
 import { apiMessage } from '@/lib/api'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { cn } from '@/lib/utils'
@@ -52,6 +53,7 @@ export default function V2StudentExamHubPage() {
   const [overviews, setOverviews] = React.useState<PracticeOverview[]>([])
   const [plan, setPlan] = React.useState<ExamPlan | null>(null)
   const [oral, setOral] = React.useState<ExamResultView | null>(null)
+  const [diagnostic, setDiagnostic] = React.useState<DiagnosticStatus | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   // Hàm dịch có thể đổi danh tính mỗi lần render: giữ trong ref để `load` không chạy lại vô hạn.
   const tRef = React.useRef(t)
@@ -60,7 +62,7 @@ export default function V2StudentExamHubPage() {
   const load = React.useCallback(async () => {
     setError(null)
     try {
-      const [enabled, packs, mine, p, orals] = await Promise.all([
+      const [enabled, packs, mine, p, orals, diag] = await Promise.all([
         getPracticeAccess(),
         getMockPacks(),
         listMyAttempts().catch(() => [] as MyAttempt[]),
@@ -69,10 +71,15 @@ export default function V2StudentExamHubPage() {
           .listResults()
           .then((r) => r.data ?? [])
           .catch(() => [] as ExamResultView[]),
+        examDiagnosticApi
+          .get()
+          .then((v) => v.status)
+          .catch(() => null),
       ])
       setAccess(enabled)
       setAttempts(mine)
       setPlan(p)
+      setDiagnostic(diag)
       setOral(latestOral(orals, p?.provider ?? 'TELC', p?.level ?? 'B1'))
       const telc = packs.filter((x) => x.examFormat?.toUpperCase() === 'TELC')
       setLocked(telc.filter((x) => x.locked).map((x) => ({ id: x.id, title: x.title })))
@@ -163,9 +170,12 @@ export default function V2StudentExamHubPage() {
       {rows && access !== false && (
         <>
           <div className="flex flex-col gap-3">
-            {card && <TodayCard card={card} />}
+            {(diagnostic === 'NONE' || diagnostic === 'IN_PROGRESS') && <DiagnosticCard resume={diagnostic === 'IN_PROGRESS'} />}
+            {/* Người mới (chưa chẩn đoán, chưa có lịch): một việc duy nhất là bài chẩn đoán. */}
+            {card && !(diagnostic === 'NONE' && plan?.status !== 'ACTIVE') && <TodayCard card={card} />}
             {suggestions.length > 0 && <SuggestionRow items={suggestions} />}
-            {plan && (plan.status === 'NEEDS_DATE' || plan.status === 'EXAM_PASSED') && (
+            {/* Chưa làm bài chẩn đoán thì ngày thi khai trong bài chẩn đoán, không hiện ô riêng. */}
+            {diagnostic !== 'NONE' && diagnostic !== 'IN_PROGRESS' && plan && (plan.status === 'NEEDS_DATE' || plan.status === 'EXAM_PASSED') && (
               <DateCard passed={plan.status === 'EXAM_PASSED'} onSaved={setPlan} />
             )}
           </div>
@@ -321,6 +331,26 @@ function TodayCard({ card }: { card: TodayCardModel }) {
           <ArrowRight size={17} aria-hidden className="transition-transform duration-150 group-hover:translate-x-0.5" />
         </Link>
       )}
+    </div>
+  )
+}
+
+/** Điểm vào lần đầu (đợt (f)): bài chẩn đoán ngắn rồi có lịch ôn; đang dở thì "Làm tiếp". */
+function DiagnosticCard({ resume }: { resume: boolean }) {
+  const t = useTranslations('v2.student.examHub')
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-[1.5px] border-ga-ink bg-ga-card p-[18px] sm:p-5">
+      <Glyph icon={Route} />
+      <div className="min-w-[12rem] flex-1">
+        <p className="ga-ui text-ga-body-lg font-semibold text-ga-ink">{resume ? t('diagResumeTitle') : t('diagTitle')}</p>
+        <p className="ga-ui text-ga-small text-ga-muted">{t('diagLead')}</p>
+      </div>
+      <Link
+        href="/v2/student/exam/diagnostic"
+        className="group ga-ui inline-flex min-h-11 items-center gap-2 rounded-ga-touch bg-ga-ink px-4 text-ga-body font-semibold text-ga-card transition-[transform,filter] duration-150 hover:-translate-y-px hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2"
+      >
+        {resume ? t('diagResume') : t('diagStart')} <ArrowRight size={16} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
+      </Link>
     </div>
   )
 }

@@ -330,7 +330,7 @@ public class ExamPlanService {
                 ORDER BY a.finished_at DESC NULLS LAST
                 LIMIT 1
                 """, userId, blueprint.provider(), blueprint.level());
-        if (rows.isEmpty()) return List.of();
+        if (rows.isEmpty()) return diagnosticLosses(userId, blueprint);
         Map<String, Object> row = rows.get(0);
         try {
             ExamBudgetDto budget = budgetOf(userId, blueprint.level(), row);
@@ -338,6 +338,32 @@ public class ExamPlanService {
         } catch (Exception e) {
             // Thiếu dữ liệu chỉ làm mất phần "ưu tiên Teil yếu", kế hoạch vẫn dựng được theo trọng số.
             log.warn("[ExamPlan] Không đọc được bài {}: {}", row.get("id"), e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Chưa có bài thi thử nào: dùng tỉ lệ đạt của bài chẩn đoán (đợt (f)) để xếp Teil ưu tiên. Bài chẩn
+     * đoán chỉ có cho telc B1; kỳ thi khác hoặc chưa làm thì rỗng (xếp theo trọng số như trước).
+     */
+    @SuppressWarnings("unchecked")
+    private List<TeilLoss> diagnosticLosses(long userId, Blueprint blueprint) {
+        if (!"TELC".equals(blueprint.provider()) || !"B1".equals(blueprint.level())) return List.of();
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT result_json::text AS result FROM exam_diagnostics
+                WHERE user_id = ? AND finished_at IS NOT NULL AND result_json IS NOT NULL
+                """, userId);
+        if (rows.isEmpty()) return List.of();
+        try {
+            Map<String, Object> result = objectMapper.readValue((String) rows.get(0).get("result"), Map.class);
+            if (!(result.get("ratios") instanceof Map<?, ?> raw)) return List.of();
+            Map<String, Double> ratios = new HashMap<>();
+            ((Map<String, Object>) raw).forEach((k, v) -> {
+                if (v instanceof Number n) ratios.put(k, n.doubleValue());
+            });
+            return ExamDiagnosticScoring.losses(ratios, blueprint);
+        } catch (Exception e) {
+            log.warn("[ExamPlan] Không đọc được kết quả chẩn đoán của {}: {}", userId, e.getMessage());
             return List.of();
         }
     }

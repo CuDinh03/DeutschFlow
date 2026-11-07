@@ -22,6 +22,7 @@ const h = vi.hoisted(() => ({
   listResults: vi.fn(),
   seenTours: vi.fn(),
   markTourSeen: vi.fn(),
+  diagGet: vi.fn(),
 }))
 
 vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi'))
@@ -33,6 +34,7 @@ vi.mock('@/lib/telcPracticeApi', () => ({
   getPracticeOverview: h.getPracticeOverview,
 }))
 vi.mock('@/lib/exam/mockAttemptApi', () => ({ listMyAttempts: h.listMyAttempts }))
+vi.mock('@/lib/examDiagnosticApi', () => ({ examDiagnosticApi: { get: h.diagGet } }))
 vi.mock('@/lib/uiToursApi', () => ({ loadSeenTours: () => h.seenTours(), markTourSeen: h.markTourSeen }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: { listResults: h.listResults } }))
 vi.mock('@/lib/examPlanApi', async (orig) => ({
@@ -103,6 +105,7 @@ function setup() {
   h.planGet.mockResolvedValue(planWith(DAYS))
   h.listResults.mockResolvedValue({ data: [] })
   h.seenTours.mockResolvedValue(new Set(['exam.today']))
+  h.diagGet.mockResolvedValue({ status: 'DONE' })
 }
 
 beforeEach(() => {
@@ -224,5 +227,24 @@ describe('Luyện thi · Hôm nay', () => {
     } finally {
       Element.prototype.getClientRects = rects
     }
+  })
+
+  it('người mới (chưa chẩn đoán, chưa có ngày thi): chỉ thẻ bài chẩn đoán, không thẻ Hôm nay, không ô ngày thi', async () => {
+    setup()
+    h.diagGet.mockResolvedValue({ status: 'NONE' })
+    h.planGet.mockResolvedValue({ status: 'NEEDS_DATE', provider: 'TELC', level: 'B1', warnings: [], weeks: [] })
+    render(<V2StudentExamHubPage />)
+    expect(await screen.findByText('Làm bài chẩn đoán')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Bắt đầu/ })).toHaveAttribute('href', '/v2/student/exam/diagnostic')
+    expect(screen.queryByText('Chưa có ngày thi')).toBeNull()
+    expect(screen.queryByRole('heading', { level: 2, name: /Teil/ })).toBeNull()
+  })
+
+  it('bài chẩn đoán đang dở ⇒ "Làm tiếp"', async () => {
+    setup()
+    h.diagGet.mockResolvedValue({ status: 'IN_PROGRESS' })
+    render(<V2StudentExamHubPage />)
+    expect(await screen.findByText('Bài chẩn đoán đang làm dở')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Làm tiếp/ })).toHaveAttribute('href', '/v2/student/exam/diagnostic')
   })
 })
