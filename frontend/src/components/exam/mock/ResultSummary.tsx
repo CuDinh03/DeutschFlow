@@ -12,6 +12,7 @@ import type { FullTeil } from '@/components/exam/practice/fullExamModel'
 import type { PracticeTeilResult } from '@/lib/telcPracticeApi'
 import { Bar, Glyph, SECTION_ICON } from '@/components/exam/today/visual'
 import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
+import { examPlanApi } from '@/lib/examPlanApi'
 import { gateView, lostRows, type GateView } from './mockModel'
 
 const fmt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 })
@@ -67,6 +68,19 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
       { target: 'lost', icon: RotateCcw, title: tt('result.lost.t'), body: tt('result.lost.p') },
     ],
   })
+  // Có lịch ôn thật thì mới nói "lịch đã tính lại" (nghiệm thu prod 07/11/2026: tài khoản chưa có
+  // ngày thi từng thấy câu này).
+  const [planActive, setPlanActive] = React.useState<boolean | null>(null)
+  React.useEffect(() => {
+    let alive = true
+    examPlanApi
+      .get()
+      .then((p) => alive && setPlanActive(p?.status === 'ACTIVE'))
+      .catch(() => alive && setPlanActive(false))
+    return () => {
+      alive = false
+    }
+  }, [])
   const [first] = React.useState(() => {
     try {
       const k = `df.mock.resultSeen.${attemptId}`
@@ -99,7 +113,10 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
   }
 
   const reasonOf = (r: (typeof rows)[number]) => {
-    if (r.section === 'SCHREIBEN') return missingPoints > 0 ? t('lostMissing', { n: missingPoints }) : t('lostWriting')
+    if (r.section === 'SCHREIBEN') {
+      if (!analysis.writingText?.trim()) return t('lostWritingEmpty')
+      return missingPoints > 0 ? t('lostMissing', { n: missingPoints }) : t('lostWriting')
+    }
     if (r.wrong != null && r.items != null) return t('lostWrong', { wrong: r.wrong, total: r.items })
     return t('lostPoints')
   }
@@ -233,7 +250,7 @@ export function ResultSummary({ attemptId, result, analysis, teile, byKey, onOpe
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 bg-ga-side-active p-4">
         <p className="ga-ui flex min-w-[220px] flex-1 items-center gap-2.5 text-ga-body text-ga-ink">
-          <Glyph icon={CalendarCheck} size="sm" /> {t('planUpdated')}
+          <Glyph icon={CalendarCheck} size="sm" /> {planActive === null ? null : planActive ? t('planUpdated') : t('planNoDate')}
         </p>
         <Link
           href={hubHref}

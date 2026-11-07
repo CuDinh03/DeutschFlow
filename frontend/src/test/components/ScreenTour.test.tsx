@@ -64,7 +64,8 @@ describe('Hướng dẫn lần đầu', () => {
     expect(dialog).toHaveTextContent('Bài đọc')
     expect(screen.getByRole('img', { name: 'Bước 1/2' })).toBeInTheDocument()
     expect(h.put).toHaveBeenCalledWith('/auth/me/tours/exam.demo')
-    expect(screen.getByText('đã quen')).toBeInTheDocument()
+    // lần đầu vào màn: chưa "quen" ⇒ chưa hiện gợi ý (chỉ từ lần sau)
+    expect(screen.queryByText('đã quen')).toBeNull()
 
     const user = userEvent.setup()
     await user.keyboard('{Enter}')

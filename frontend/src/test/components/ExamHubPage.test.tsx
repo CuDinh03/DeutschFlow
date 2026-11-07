@@ -238,6 +238,8 @@ describe('Luyện thi · Hôm nay', () => {
     expect(screen.getByRole('link', { name: /Bắt đầu/ })).toHaveAttribute('href', '/v2/student/exam/diagnostic')
     expect(screen.queryByText('Chưa có ngày thi')).toBeNull()
     expect(screen.queryByRole('heading', { level: 2, name: /Teil/ })).toBeNull()
+    // đã quen màn nhưng là người mới ⇒ vẫn không có nút gợi ý
+    expect(screen.queryByRole('navigation', { name: 'Gợi ý' })).toBeNull()
   })
 
   it('bài chẩn đoán đang dở ⇒ "Làm tiếp"', async () => {
