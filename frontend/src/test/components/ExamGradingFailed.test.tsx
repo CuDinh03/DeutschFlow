@@ -14,6 +14,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import studentVi from '../../../messages/v2/student.vi.json'
+import chromeVi from '../../../messages/v2/chrome.vi.json'
 import { ExamRoom } from '@/components/features/exam-speaking/ExamRoom'
 
 const api = vi.hoisted(() => ({
@@ -29,6 +30,12 @@ const api = vi.hoisted(() => ({
   saveNotes: vi.fn(),
 }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: api }))
+
+// Hướng dẫn lần đầu của phòng thi nói (Đợt 4) coi như đã xem — test này không kiểm hướng dẫn.
+vi.mock('@/lib/uiToursApi', () => ({
+  loadSeenTours: () => Promise.resolve(new Set(['exam.oral'])),
+  markTourSeen: vi.fn(),
+}))
 vi.mock('@/lib/exam/clientTurnId', () => ({ newClientTurnId: () => 'turn-test' }))
 
 vi.mock('@/components/features/exam-speaking/examTts', () => ({
@@ -68,8 +75,8 @@ function session(state: string, extra: Record<string, unknown> = {}) {
 
 function renderRoom() {
   return render(
-    <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi } }}>
-      <ExamRoom sessionId={601} catalogHref="/v2/student/speaking/exam" />
+    <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi, ...chromeVi } }}>
+      <ExamRoom sessionId={601} returnHref="/v2/student/exam" />
     </NextIntlClientProvider>,
   )
 }

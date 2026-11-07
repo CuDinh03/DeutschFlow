@@ -15,6 +15,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import studentVi from '../../../messages/v2/student.vi.json'
+import chromeVi from '../../../messages/v2/chrome.vi.json'
 import { ExamRoom } from '@/components/features/exam-speaking/ExamRoom'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 
@@ -30,6 +31,12 @@ const api = vi.hoisted(() => ({
   saveNotes: vi.fn(),
 }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: api }))
+
+// Hướng dẫn lần đầu của phòng thi nói (Đợt 4) coi như đã xem — test này không kiểm hướng dẫn.
+vi.mock('@/lib/uiToursApi', () => ({
+  loadSeenTours: () => Promise.resolve(new Set(['exam.oral'])),
+  markTourSeen: vi.fn(),
+}))
 /** Khoá idempotency đoán được để assert "Gửi lại" dùng đúng khoá cũ. */
 let turnSeq = 0
 vi.mock('@/lib/exam/clientTurnId', () => ({ newClientTurnId: () => `turn-${++turnSeq}` }))
@@ -111,8 +118,8 @@ function axios413() {
 
 async function renderRoom() {
   render(
-    <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi } }}>
-      <ExamRoom sessionId={501} catalogHref="/v2/student/speaking/exam" />
+    <NextIntlClientProvider locale="vi" messages={{ v2: { ...studentVi, ...chromeVi } }}>
+      <ExamRoom sessionId={501} returnHref="/v2/student/exam" />
     </NextIntlClientProvider>,
   )
   await screen.findByTestId('mic-bar')

@@ -7,14 +7,14 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const h = vi.hoisted(() => ({ check: vi.fn() }))
+const h = vi.hoisted(() => ({ check: vi.fn(), draft: vi.fn(), push: vi.fn() }))
 vi.mock('@/lib/api', () => ({
   default: { get: vi.fn(async () => ({ data: { seen: ['exam.teil'] } })), put: vi.fn(async () => ({ data: {} })) },
   apiMessage: () => 'lỗi',
 }))
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('examId=7&teil=LESEN-2'),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: h.push, replace: vi.fn() }),
 }))
 // next-intl thật giữ nguyên `t` giữa các lần render; mock chung tạo mới mỗi lần ⇒ effect mẹo (deps có `t`)
 // chạy lặp vô hạn. Cache theo namespace cho giống thật.
@@ -37,7 +37,7 @@ vi.mock('@/components/exam/strategy/examStrategy', async (orig) => ({
 vi.mock('@/lib/telcPracticeApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/telcPracticeApi')>()),
   getPracticeOverview: vi.fn(async () => OVERVIEW),
-  savePracticeDraft: vi.fn(async () => undefined),
+  savePracticeDraft: h.draft,
   checkPracticeTeil: h.check,
 }))
 
@@ -59,6 +59,9 @@ const RESULT = {
 
 beforeEach(() => {
   h.check.mockReset()
+  h.draft.mockReset()
+  h.push.mockReset()
+  h.draft.mockResolvedValue(undefined)
   h.check.mockResolvedValue({ answers: {}, checked: true, score: 0, max: 25, elapsedSeconds: 0, updatedAt: null, result: RESULT })
   window.matchMedia = ((q: string) => ({
     matches: false, media: q, onchange: null,
@@ -83,5 +86,40 @@ describe('Luyện Teil — kiểm tra khi còn câu trống', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(h.check).toHaveBeenCalledWith(7, 'LESEN-2', {}, expect.any(Number))
     expect(await screen.findByRole('button', { name: /Làm lại/ })).toBeInTheDocument()
+  })
+})
+
+describe('Luyện Teil — thoát giữa chừng', () => {
+  it('chưa làm câu nào ⇒ thoát thẳng, không hỏi, không tạo nháp', async () => {
+    const user = userEvent.setup()
+    render(<PracticeTeilRoute />)
+    await user.click(await screen.findByRole('button', { name: 'Bản đồ đề' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(h.push).toHaveBeenCalledWith('/v2/student/mock-exam/practice?examId=7')
+  })
+
+  it('vừa chọn đáp án rồi bấm thoát ngay ⇒ hỏi, lưu nháp ngay (không chờ hẹn giờ) rồi mới rời', async () => {
+    const user = userEvent.setup()
+    render(<PracticeTeilRoute />)
+    await user.click((await screen.findAllByRole('radio', { name: /eins/ }))[0])
+    await user.click(screen.getByRole('button', { name: 'Bản đồ đề' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Bạn đã làm 1/2 câu')
+    expect(h.push).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Lưu và thoát' }))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith('/v2/student/mock-exam/practice?examId=7'))
+    expect(h.draft).toHaveBeenCalledWith(7, 'LESEN-2', { '1': 'a' }, expect.any(Number))
+  })
+
+  it('lưu nháp lỗi ⇒ ở lại màn, hộp báo chưa lưu được', async () => {
+    h.draft.mockRejectedValue(new Error('offline'))
+    const user = userEvent.setup()
+    render(<PracticeTeilRoute />)
+    await user.click((await screen.findAllByRole('radio', { name: /eins/ }))[0])
+    await user.click(screen.getByRole('button', { name: 'Bản đồ đề' }))
+    await user.click(await screen.findByRole('button', { name: 'Lưu và thoát' }))
+    expect(await screen.findByText(/Chưa lưu được nháp/)).toBeInTheDocument()
+    expect(h.push).not.toHaveBeenCalled()
   })
 })

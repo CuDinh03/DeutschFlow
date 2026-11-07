@@ -41,7 +41,44 @@ public class AiInterlocutorService {
     private final AiUsageLedgerService ledger;
     private final ExamSpeakingProperties props;
 
-    public record AiReply(String role, String textDe) {}
+    /**
+     * {@code covered}: chỉ số các ý trên thẻ đề của thí sinh ({@code prompts}) mà AI đánh giá là đã được nói
+     * tới trong cuộc hội thoại tới lúc này (Đợt 5 phòng thi nói) — rỗng khi thẻ không có ý hoặc AI lỗi.
+     */
+    public record AiReply(String role, String textDe, List<Integer> covered) {
+        public AiReply {
+            covered = covered == null ? List.of() : List.copyOf(covered);
+        }
+
+        public AiReply(String role, String textDe) {
+            this(role, textDe, List.of());
+        }
+    }
+
+    /** Các ý trên thẻ đề cần nói tới (Leitpunkte: telc B1 T3, Goethe B1 T1, thẻ gợi ý A2…). */
+    static List<String> cardPoints(Map<String, Object> card) {
+        if (card == null || !(card.get("prompts") instanceof List<?> raw)) {
+            return List.of();
+        }
+        return raw.stream().filter(java.util.Objects::nonNull).map(String::valueOf).filter(x -> !x.isBlank()).toList();
+    }
+
+    /** Đọc {@code covered} của AI: chỉ giữ số nguyên trong [0, size), bỏ trùng; JSON thiếu/sai → rỗng. */
+    static List<Integer> parseCovered(JsonNode j, int size) {
+        if (j == null || size <= 0 || !j.has("covered") || !j.get("covered").isArray()) {
+            return List.of();
+        }
+        java.util.TreeSet<Integer> out = new java.util.TreeSet<>();
+        j.get("covered").forEach(n -> {
+            if (n.canConvertToInt()) {
+                int i = n.asInt();
+                if (i >= 0 && i < size) {
+                    out.add(i);
+                }
+            }
+        });
+        return List.copyOf(out);
+    }
 
     /** Tương thích test: không gắn sessionId vào ledger. */
     public AiReply reply(long userId, ExamBlueprint bp, BlueprintPart part, SessionPlan.Step step,
@@ -89,9 +126,20 @@ public class AiInterlocutorService {
                 ? "Du bist Prüfer/in in der mündlichen Prüfung. Sei freundlich, neutral, knapp. Du korrigierst NICHT und erklärst NICHT."
                 : "Du bist der/die Prüfungspartner/in — ein/e Lerner/in auf Niveau " + bp.level()
                 + ". Sprich einfach, kurz, natürlich; kein perfektes Deutsch nötig; führe das Gespräch NICHT alleine; lass dem Kandidaten Raum.";
+        List<String> points = cardPoints(candidateCard);
+        StringBuilder pointList = new StringBuilder();
+        for (int i = 0; i < points.size(); i++) {
+            pointList.append(i == 0 ? "" : "; ").append(i).append(": ").append(points.get(i));
+        }
         String system = persona + " Niveau: " + bp.level() + ". Aufgabe: " + part.title() + "."
                 + privateContext(candidateCard)
-                + " Antworte NUR mit JSON: {\"reply_de\":\"...\"}";
+                + (points.isEmpty()
+                    ? " Antworte NUR mit JSON: {\"reply_de\":\"...\"}"
+                    // Đợt 5 phòng thi nói: cùng lượt gọi trả thêm các ý đã nói tới — không tốn thêm lượt AI.
+                    : " Auf dem Aufgabenblatt stehen diese Punkte (Index: Punkt): " + pointList + "."
+                      + " Antworte NUR mit JSON: {\"reply_de\":\"...\",\"covered\":[...]}."
+                      + " In \"covered\" stehen die Indizes ALLER Punkte, die im bisherigen Gespräch inklusive der letzten"
+                      + " Äußerung des Kandidaten und deiner Antwort tatsächlich besprochen wurden (nicht nur erwähnt).");
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(new ChatMessage("system", system));
         messages.addAll(history);
@@ -100,11 +148,12 @@ public class AiInterlocutorService {
             AiChatCompletionResult res = chatClient.chatCompletionForTier(messages, tierResolver.spec(LlmTier.CHAT_PAID),
                     0.6, props.turnTokens(), true);
             ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_TURN, null, sessionId);
-            String text = LlmJson.parse(objectMapper, res.content()).map(j -> LlmJson.speechText(j, "reply_de")).orElse("");
-            if (text.isBlank()) {
-                text = fallback(step.aiAction(), candidateCard, nextCard, candidateText);
+            JsonNode json = LlmJson.parse(objectMapper, res.content()).orElse(null);
+            String text = json == null ? "" : LlmJson.speechText(json, "reply_de");
+            if (text == null || text.isBlank()) {
+                return new AiReply(role, fallback(step.aiAction(), candidateCard, nextCard, candidateText));
             }
-            return new AiReply(role, text);
+            return new AiReply(role, text, parseCovered(json, points.size()));
         } catch (RuntimeException e) {
             log.warn("[ExamSpeaking] AI reply failed, using template fallback: {}", e.getMessage());
             return new AiReply(role, fallback(step.aiAction(), candidateCard, nextCard, candidateText));

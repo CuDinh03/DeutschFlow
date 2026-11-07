@@ -174,6 +174,110 @@ export function GaField({
   )
 }
 
+/**
+ * Ô nhập mã 6 số (mẫu "A · Sáu ô tách rời", owner chọn 08/11/2026).
+ *
+ * Bên dưới là MỘT `<input>` thật, trong suốt, phủ kín sáu ô vẽ: dán cả mã, gợi ý mã của iOS/Android
+ * (`autocomplete="one-time-code"`), trình quản lý mật khẩu và trình đọc màn hình đều thấy một trường
+ * duy nhất có nhãn — không phải sáu ô rời phải nhảy tiêu điểm bằng script (WCAG 3.3.8: không chặn dán).
+ * Mọi ký tự không phải chữ số bị lọc ngay khi gõ/dán ("482 913", "482-913" đều thành 482913).
+ * `onComplete` gọi khi đủ số; người gọi tự chặn gửi lại đúng mã vừa bị từ chối.
+ */
+export function GaOtpField({
+  name = 'code',
+  label,
+  value,
+  onChange,
+  onComplete,
+  error,
+  length = 6,
+  autoFocus = false,
+  disabled = false,
+}: {
+  name?: string
+  label: string
+  value: string
+  onChange: (digits: string) => void
+  onComplete?: (digits: string) => void
+  error?: string
+  length?: number
+  autoFocus?: boolean
+  disabled?: boolean
+}) {
+  const fieldId = `ga-otp-${name}`
+  const messageId = error ? `${fieldId}-message` : undefined
+  const [focus, setFocus] = useState(false)
+  const active = Math.min(value.length, length - 1)
+  return (
+    <div className="mb-6">
+      <label htmlFor={fieldId} className="ga-ui mb-2 block text-ga-small font-semibold text-ga-ink">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={fieldId}
+          name={name}
+          value={value}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, '').slice(0, length)
+            onChange(digits)
+            if (digits.length === length) onComplete?.(digits)
+          }}
+          onFocus={() => setFocus(true)}
+          onBlur={() => setFocus(false)}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={length}
+          autoFocus={autoFocus}
+          disabled={disabled}
+          required
+          aria-invalid={error ? true : undefined}
+          aria-describedby={messageId}
+          // 16px: iOS phóng to trang khi ô nhập có chữ nhỏ hơn — kể cả ô trong suốt.
+          style={{ fontSize: 16, caretColor: 'transparent' }}
+          className="absolute inset-0 z-10 h-full w-full cursor-text bg-transparent text-transparent opacity-0 outline-none disabled:cursor-not-allowed"
+        />
+        <div aria-hidden="true" className="grid gap-2" style={{ gridTemplateColumns: `repeat(${length}, minmax(0, 1fr))` }}>
+          {Array.from({ length }, (_, i) => {
+            const ch = value[i]
+            const isActive = focus && i === active && value.length < length
+            const borderColor = error ? 'var(--ga-red)' : isActive ? 'var(--ga-ink)' : 'var(--ga-line)'
+            return (
+              <div
+                key={i}
+                data-slot="otp-cell"
+                className="ga-ui flex h-16 items-center justify-center rounded-ga bg-ga-card text-ga-h1 font-semibold tabular-nums text-ga-ink transition-[border-color,box-shadow] duration-150"
+                style={{
+                  border: `1px solid ${borderColor}`,
+                  boxShadow: isActive ? '0 0 0 3px color-mix(in srgb, var(--ga-ink) 8%, transparent)' : 'none',
+                  opacity: disabled ? 0.6 : 1,
+                }}
+              >
+                {ch ?? (isActive ? <span className="h-7 w-0.5 animate-pulse bg-ga-ink" /> : null)}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      {error && (
+        <div id={messageId} role="alert" className="mt-2 flex items-center gap-1.5 text-ga-caption text-ga-red">
+          <AlertCircle size={14} /> {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** "0:42" — đếm ngược gửi lại mã. */
+export function fmtCountdown(seconds: number): string {
+  const s = Math.max(0, Math.ceil(seconds))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/** Địa chỉ gửi thư mã (mặc định `app.mail.from` của backend) — nêu ra để người dùng tìm thư/lọc spam. */
+export const MAIL_SENDER = 'support@mydeutschflow.com'
+
 /** Inline error banner for whole-form failures (wrong credentials, etc.). */
 export function AuthErrorBanner({ children }: { children: React.ReactNode }) {
   return (

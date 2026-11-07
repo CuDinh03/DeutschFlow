@@ -36,7 +36,7 @@ describe('bảng hai ngưỡng đỗ', () => {
     expect(screen.getByText('Cần 45/75 điểm')).toBeInTheDocument()
 
     const nut = screen.getByRole('link', { name: 'Thi phần nói' })
-    expect(nut).toHaveAttribute('href', '/v2/student/speaking/exam')
+    expect(nut).toHaveAttribute('href', '/v2/student/mock-exam/oral?provider=TELC&level=B1&mode=MOCK')
     expect(screen.queryByText('Chưa đạt')).not.toBeInTheDocument()
   })
 

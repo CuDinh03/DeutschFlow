@@ -12,13 +12,13 @@ import {
   Blocks,
   ChevronRight,
   CircleCheck,
+  CirclePause,
   CircleX,
   FileText,
   Heading,
   Headphones,
   Lightbulb,
   ListChecks,
-  Mic,
   Newspaper,
   PenLine,
   Puzzle,
@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import { WRITING_KEY, getPracticeOverview, type PracticeOverview, type PracticeTeil, type WritingEvaluation } from '@/lib/telcPracticeApi'
-import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
+import { listMyAttempts, PARTIAL, partialInfo, type MyAttempt } from '@/lib/exam/mockAttemptApi'
 import { examPlanApi, teilKeyOf, todaySession } from '@/lib/examPlanApi'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { ErrorBanner, LoadingState } from '@/components/ui-v2'
@@ -39,6 +39,7 @@ import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
 import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { findTeil, wordCount } from '@/components/exam/practice/practiceModel'
 import { cn } from '@/lib/utils'
+import { OralHistory, OralTeilGroup } from '@/components/exam/practice/OralTeilGroup'
 
 export default function PracticeMapRoute() {
   return (
@@ -116,6 +117,10 @@ function PracticeMapPage() {
     .sort((a, b) => (a.finished_at ?? a.started_at).localeCompare(b.finished_at ?? b.started_at))
   const last = completed[completed.length - 1]
   const running = attempts.find((a) => a.status === 'IN_PROGRESS')
+  // Lịch sử: lượt nộp cả đề + lượt "Dừng giữa chừng" (không Đỗ/Chưa đỗ, không vào biểu đồ).
+  const history = attempts
+    .filter((a) => a.status === 'COMPLETED' || a.status === PARTIAL)
+    .sort((a, b) => (b.finished_at ?? b.started_at).localeCompare(a.finished_at ?? a.started_at))
   const inProgress = teile.find((x) => {
     const p = x.progress
     if (!p || p.checked) return false
@@ -123,6 +128,8 @@ function PracticeMapPage() {
   })
   const href = (key: string) => `/v2/student/mock-exam/practice/teil?examId=${examId}&teil=${key}`
   const sectionDe = (s: string) => t(`sectionDe.${s}`)
+  // Phòng thi nói mở từ đây thì thoát / thi xong quay về đúng đề này.
+  const selfHref = `/v2/student/mock-exam/practice?examId=${examId}`
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-[960px] flex-col gap-8 px-4 py-6 sm:px-6 lg:py-8">
@@ -215,38 +222,22 @@ function PracticeMapPage() {
                 )
               })}
 
-              <div>
-                <div className="mb-2.5 flex items-center gap-2.5">
-                  <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy">
-                    <Mic size={18} strokeWidth={1.9} />
-                  </span>
-                  <h3 lang="de" className="min-w-0 flex-1 font-ga-display text-ga-h3 text-ga-ink">Mündliche Prüfung</h3>
-                </div>
-                <Link
-                  href="/v2/student/speaking/exam"
-                  className="group ga-ui flex min-h-16 items-center gap-3.5 border-y border-ga-line px-1 py-2.5 transition-colors duration-150 hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
-                >
-                  <span className="min-w-0 flex-1">
-                    <b className="block text-ga-body font-semibold text-ga-ink">{t('oralTitle')}</b>
-                    <span className="block text-ga-small text-ga-muted">{t('oralDesc')}</span>
-                  </span>
-                  <ChevronRight size={16} className="shrink-0 text-ga-subtle transition-transform duration-150 group-hover:translate-x-[3px]" aria-hidden />
-                </Link>
-              </div>
+              <OralTeilGroup level={overview.level} ret={selfHref} />
             </div>
           </section>
 
           <section aria-labelledby="history-title" data-tour="history">
             <h2 id="history-title" className="mb-4 font-ga-display text-ga-h2 text-ga-ink">{tm('historyTitle')}</h2>
-            {completed.length === 0 && !running ? (
+            {history.length === 0 && !running ? (
               <p className="ga-ui text-ga-body text-ga-muted">{tm('historyEmpty')}</p>
             ) : (
               <>
                 {completed.length >= 2 && writtenMax > 0 && <ScoreChart attempts={completed.slice(-6)} passMark={passMark} max={writtenMax} />}
                 <div className="mt-2 border-t border-ga-line">
-                  {[...(running ? [running] : []), ...[...completed].reverse()].slice(0, 6).map((a) => {
+                  {[...(running ? [running] : []), ...history].slice(0, 6).map((a) => {
                     const passed = (a.total_score ?? 0) >= passMark
                     const isRunning = a.status === 'IN_PROGRESS'
+                    const part = a.status === PARTIAL ? partialInfo(a.detailed_scores_json) : null
                     return (
                       <Link
                         key={a.id}
@@ -256,10 +247,19 @@ function PracticeMapPage() {
                         <span className="min-w-0 flex-1">
                           <b className="block text-ga-body font-semibold text-ga-ink">{fmtd.date(a.finished_at ?? a.started_at)}</b>
                           <span className="block text-ga-small tabular-nums text-ga-muted">
-                            {isRunning ? tm('rowRunning') : tm('rowScore', { score: fmt(a.total_score ?? 0), max: fmt(writtenMax) })}
+                            {isRunning
+                              ? tm('rowRunning')
+                              : part
+                                ? tm('rowPartial', { done: part.teileDone, total: part.teileTotal })
+                                : tm('rowScore', { score: fmt(a.total_score ?? 0), max: fmt(writtenMax) })}
                           </span>
                         </span>
-                        {!isRunning && (
+                        {part && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-ga-pill bg-ga-side-active px-2.5 py-0.5 text-ga-caption font-semibold text-ga-muted">
+                            <CirclePause size={13} aria-hidden /> {tm('partialPill')}
+                          </span>
+                        )}
+                        {!isRunning && !part && (
                           <span
                             className={cn(
                               'inline-flex shrink-0 items-center gap-1 rounded-ga-pill px-2.5 py-0.5 text-ga-caption font-semibold',
@@ -277,6 +277,7 @@ function PracticeMapPage() {
                 </div>
               </>
             )}
+            <OralHistory level={overview.level} ret={selfHref} />
           </section>
         </>
       )}

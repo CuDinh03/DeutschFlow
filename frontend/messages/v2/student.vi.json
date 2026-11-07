@@ -345,9 +345,7 @@
         "interviewTitle": "Luyện phỏng vấn",
         "interviewDesc": "Mô phỏng phỏng vấn xin việc với HR người Đức.",
         "weeklyTitle": "Chủ đề theo tuần",
-        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần.",
-        "examTitle": "Phòng luyện thi nói",
-        "examDesc": "Luyện từng phần hoặc thi thử theo đúng format Goethe / telc, chấm theo tiêu chí của kỳ thi."
+        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần."
       },
       "interviewResults": "Kết quả phỏng vấn",
       "historyCta": "Lịch sử"
@@ -1755,9 +1753,9 @@
     },
     "examSpeaking": {
       "catalog": {
-        "title": "Phòng luyện thi nói",
-        "subtitle": "Mô phỏng phần thi nói Goethe / telc — luyện từng Teil hoặc thi thử trọn gói",
-        "back": "Về luyện nói",
+        "title": "Thi nói: kỳ thi khác",
+        "subtitle": "Chọn hệ Goethe / telc và cấp để luyện từng Teil hoặc thi thử, không đổi lịch ôn",
+        "back": "Về Luyện thi",
         "dismiss": "Đóng",
         "providerLabel": "Hệ chứng chỉ",
         "levelLabel": "Cấp độ",
@@ -1812,23 +1810,13 @@
         "mute": "Tắt tiếng",
         "dismiss": "Đóng",
         "audioTooLarge": "Bản ghi quá dài nên không gửi được. Mỗi lượt nói tối đa 3 phút — hãy thu lại ngắn hơn.",
-        "prepCap": "Thời gian chuẩn bị",
-        "prepDesc": "Ghi chú gạch đầu dòng; bạn được dùng ghi chú trong lúc thi. Hết giờ sẽ tự vào phòng.",
         "prepLeft": "Chuẩn bị",
         "notesPlaceholder": "Ghi chú của bạn (Konzeptpapier)…",
-        "enterExam": "Vào thi",
         "teilCap": "Teil {n}",
-        "step": "Bước {i}/{n}",
         "myNotes": "Ghi chú của tôi",
         "skipPart": "Sang phần kế",
         "finishMock": "Kết thúc & chấm",
         "finishDrill": "Kết thúc",
-        "action": {
-          "ASK": "Đến lượt bạn ĐẶT CÂU HỎI / đưa lời đề nghị. Bấm để nói.",
-          "ANSWER": "Đến lượt bạn TRẢ LỜI. Bấm để nói.",
-          "SPEAK": "Đến lượt bạn nói. Bấm để bắt đầu.",
-          "REACT": "Phản hồi bạn thi. Bấm để nói."
-        },
         "grading": "Giám khảo đang chấm…",
         "gradingDesc": "Hai lượt chấm độc lập theo tiêu chí của kỳ thi, thường mất dưới một phút.",
         "gradingFailed": "Chấm điểm bị lỗi — bài thi của bạn vẫn còn nguyên.",
@@ -1837,8 +1825,8 @@
         "resultLoadFailed": "Không tải được phiếu điểm. Kết quả đã có trên máy chủ — thử tải lại.",
         "retryResult": "Tải lại phiếu điểm",
         "aborted": "Phiên đã bị hủy.",
-        "again": "Luyện tiếp",
-        "backToCatalog": "Về phòng luyện thi",
+        "again": "Làm lại",
+        "backToCatalog": "Quay lại",
         "you": "Bạn",
         "pruefer": "Giám khảo",
         "partner": "Bạn thi",
@@ -1885,20 +1873,114 @@
           "ANSWER_PRUEFER_TOPIC": "Trả lời câu hỏi của giám khảo về chủ đề."
         },
         "partnerAi": "Bạn thi · AI",
-        "turn": {
-          "prueferSpeaking": "Giám khảo đang nói — hãy lắng nghe, chưa đến lượt bạn.",
-          "partnerSpeaking": "Bạn thi (AI) đang nói — chờ bạn ấy nói xong nhé.",
-          "processing": "Đang xử lý lượt nói của bạn…",
-          "yourTurn": "Đến lượt bạn nói!",
-          "waitHint": "Chờ đến lượt bạn…"
-        },
         "audioRetained": "Phiên này được ghi âm để phục vụ hiệu chuẩn chấm điểm (bạn đã đồng ý). Bạn có thể rút lại đồng ý bất cứ lúc nào — audio sẽ bị xoá.",
         "beta": "Beta",
         "retryTurn": "Gửi lại lượt vừa rồi",
         "retryTurnHint": "Bản ghi/câu trả lời vẫn còn trên máy bạn — gửi lại sẽ không bị tính thành lượt mới.",
         "gradingFailedQuota": "Chưa chấm được vì ngân sách AI của bạn đã hết — bài thi vẫn còn nguyên.",
         "gradingFailedQuotaDesc": "Toàn bộ phần đã nói được giữ lại. Nạp thêm hoặc chờ kỳ mới, rồi bấm \"Chấm lại\" — không phải thi lại.",
-        "upgradeCta": "Xem gói / nạp thêm"
+        "upgradeCta": "Xem gói / nạp thêm",
+        "oral": {
+          "eyebrow": "Mündliche Prüfung",
+          "conversation": "Hội thoại trong phòng thi",
+          "taskCard": "Thẻ đề",
+          "turns": "lượt",
+          "nextTeil": "Sang Teil {n}",
+          "people": {
+            "pruefer": "Giám khảo",
+            "partner": "Bạn thi",
+            "ai": "AI",
+            "you": "Bạn"
+          },
+          "me": {
+            "turn": "Đến lượt bạn",
+            "listen": "Đang nghe",
+            "recording": "Đang nói",
+            "sending": "Đang gửi"
+          },
+          "status": {
+            "prueferTalking": "Giám khảo đang nói",
+            "partnerTalking": "Bạn thi (AI) đang nói",
+            "listen": "Hãy lắng nghe, chưa đến lượt bạn",
+            "processing": "Đang xử lý lượt nói",
+            "processingSub": "Chờ phản hồi",
+            "recording": "Đang ghi",
+            "recordingSub": "Bấm lại để dừng và gửi",
+            "yourTurn": "Đến lượt bạn nói",
+            "tap": "Bấm để nói",
+            "tapWithAction": "{action} · bấm để nói",
+            "recordingAutoSub": "Im 2 giây sẽ tự gửi, hoặc bấm lại"
+          },
+          "action": {
+            "ASK": "Đặt câu hỏi hoặc đưa đề nghị",
+            "ANSWER": "Trả lời",
+            "SPEAK": "Nói theo đề",
+            "REACT": "Phản hồi bạn thi"
+          },
+          "confirm": {
+            "finishMockTitle": "Kết thúc phần nói?",
+            "finishMockBody": "Bài được chấm theo những gì bạn đã nói. Kết thúc rồi thì không vào lại phòng thi này được.",
+            "finishMockGo": "Kết thúc và chấm",
+            "finishDrillTitle": "Kết thúc buổi luyện?",
+            "finishDrillBody": "Bạn sẽ xem tổng kết các lượt vừa nói.",
+            "finishDrillGo": "Kết thúc",
+            "keepGoing": "Thi tiếp",
+            "keepPractising": "Luyện tiếp",
+            "nextTitle": "Sang Teil {n}?",
+            "nextBody": "Không quay lại Teil {cur} được nữa.",
+            "nextGo": "Sang Teil {n}",
+            "stay": "Ở lại"
+          },
+          "prep": {
+            "title": "Chuẩn bị",
+            "leave": "Rời phòng chuẩn bị",
+            "leaveTitle": "Rời phòng chuẩn bị?",
+            "leaveBodyMock": "Lượt thi thử này sẽ bỏ dở, không được chấm. Lần sau bạn bắt đầu lượt mới.",
+            "leaveBodyDrill": "Buổi luyện này sẽ bỏ dở.",
+            "leaveGo": "Rời phòng",
+            "notesLabel": "Ghi chú nháp (chỉ bạn thấy)",
+            "notesHint": "Tự lưu khi bạn ngừng gõ. Trong lúc thi bạn xem lại được ghi chú này.",
+            "order": "Thứ tự thi",
+            "minutes": "{n} phút",
+            "enterNow": "Vào thi ngay",
+            "autoEnter": "Hết giờ chuẩn bị sẽ tự vào thi.",
+            "chooseFirst": "Chọn một chủ đề ở Teil có hai phương án trước khi vào thi."
+          },
+          "result": {
+            "titlePassBy": "Đỗ phần nói, hơn ngưỡng {n} điểm",
+            "titlePass": "Đỗ phần nói",
+            "titleFailBy": "Chưa đỗ phần nói, còn thiếu {n} điểm",
+            "titleFail": "Chưa đỗ phần nói",
+            "titleBorderline": "Phần nói sát ngưỡng đỗ",
+            "titleScore": "Phần nói: {total}/{max} điểm",
+            "statusPass": "Ước tính · Đỗ",
+            "statusFail": "Ước tính · Chưa đỗ",
+            "statusBorderline": "Ước tính · Sát ngưỡng",
+            "statusNone": "Ước tính",
+            "needMin": "cần {n}",
+            "range": "Khoảng điểm giữa hai lượt chấm: {range}",
+            "estimateNote": "Điểm do AI chấm theo tiêu chí của kỳ thi, không phải điểm chính thức.",
+            "scoreLabel": "Điểm phần nói",
+            "barLabel": "Đạt {pct}% số điểm",
+            "partsTitle": "Điểm từng phần",
+            "zeroed": "Chưa hoàn thành yêu cầu của Teil nên cả Teil tính 0",
+            "band": "Mức {band}",
+            "reviewDesc": "Xem lại các lượt nói và lỗi cần sửa ở từng Teil.",
+            "reviewOpen": "Xem lại hội thoại",
+            "reviewClose": "Ẩn hội thoại",
+            "reviewError": "Không tải được hội thoại. Thử lại sau.",
+            "reviewEmpty": "Phiên này chưa có lượt nói nào được lưu.",
+            "errorsTitle": "Lỗi cần sửa",
+            "details": "Phiếu chấm chi tiết",
+            "again": "Thi lại",
+            "backToday": "Về hôm nay",
+            "back": "Quay lại",
+            "gradingLeave": "Bạn có thể rời trang; kết quả nằm ở mục Thi thử đã làm của màn Đề.",
+            "drillDone": "Luyện xong Teil {n}"
+          },
+          "autoStop": "Tự dừng khi im",
+          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi."
+        }
       },
       "mic": {
         "sending": "Đang gửi và chờ phản hồi…",
@@ -1950,7 +2032,8 @@
         "meinungHint": "Thuật lại ý kiến này cho bạn thi, rồi kể trải nghiệm và ý kiến của chính bạn.",
         "yourTopic": "Chủ đề của bạn",
         "debate": "Tranh luận",
-        "debateHint": "Nêu quan điểm, phản hồi bạn thi, rồi tóm lại: ủng hộ hay phản đối?"
+        "debateHint": "Nêu quan điểm, phản hồi bạn thi, rồi tóm lại: ủng hộ hay phản đối?",
+        "pointCovered": "đã nói tới"
       },
       "result": {
         "sheetCap": "Phiếu kết quả mô phỏng",
@@ -2038,6 +2121,36 @@
           "denied": "Trình duyệt chặn micro — làm theo hướng dẫn cấp quyền phía trên rồi kiểm tra lại.",
           "other": "Không mở được micro. Kiểm tra thiết bị rồi thử lại."
         }
+      },
+      "entry": {
+        "exit": "Thoát",
+        "modeMock": "Thi thử",
+        "modeDrill": "Luyện Teil {n}",
+        "title": "Kiểm tra trước khi thi nói",
+        "micTitle": "Micro",
+        "micSub": "Bấm Kiểm tra rồi nói thử „Hallo\"",
+        "micCheck": "Kiểm tra",
+        "passed": "Micro dùng được",
+        "heard": "Đã nghe thấy bạn",
+        "speakNow": "Nói thử đi",
+        "speakerTitle": "Loa",
+        "speakerSub": "Nghe giọng giám khảo",
+        "speakerPlay": "Nghe thử",
+        "quietTitle": "Chỗ yên tĩnh",
+        "quietSub": "Tiếng ồn làm sai điểm phát âm",
+        "micFailed": "Không mở được micro. Kiểm tra micro đã cắm và không bị ứng dụng khác dùng, rồi thử lại.",
+        "blockedTitle": "Chưa dùng được micro",
+        "blockedBody": "Bấm biểu tượng ổ khoá cạnh địa chỉ trang, chọn Cho phép micro, rồi kiểm tra lại.",
+        "retry": "Kiểm tra lại",
+        "goPrep": "Vào phòng chuẩn bị",
+        "goExam": "Vào thi",
+        "needMic": "Kiểm tra micro trước khi vào.",
+        "prepNote": "Giờ chuẩn bị bắt đầu khi bạn vào phòng.",
+        "noPrepNote": "Kỳ thi này không có giờ chuẩn bị: đồng hồ chạy ngay khi vào thi.",
+        "loading": "Đang mở phòng thi…",
+        "creating": "Đang tạo lượt thi…",
+        "createFailed": "Không tạo được lượt thi.",
+        "retryCreate": "Thử lại"
       }
     },
     "micGuide": {
@@ -2558,7 +2671,6 @@
       "points": "{n} điểm",
       "oralSub": "Nói · chấm ở phòng luyện thi Nói",
       "oralTitle": "Luyện ở phòng thi Nói",
-      "oralDesc": "3 Teil, chấm riêng ở module luyện nói",
       "progressCap": "Tiến độ đề này",
       "teilCount": "{n} Teil",
       "progressNone": "Chưa có Teil nào làm xong.",
@@ -2605,7 +2717,12 @@
         "confirmBody": "Câu bỏ trống tính 0 điểm. Kiểm tra Teil này bây giờ?",
         "confirmGo": "Vẫn kiểm tra",
         "keepGoing": "Làm tiếp",
-        "suggestStrategy": "Xem chiến thuật"
+        "suggestStrategy": "Xem chiến thuật",
+        "exitTitle": "Thoát khỏi {teil}?",
+        "exitBody": "Bạn đã làm {done}/{total} câu. Bài được lưu nháp, lần sau mở lại làm tiếp. Nháp chưa tính vào điểm kỹ năng; bấm “Kiểm tra Teil này” để tính.",
+        "exitBodyWriting": "Bài viết ({words} từ) được lưu nháp, lần sau mở lại viết tiếp. AI chỉ chấm khi bạn bấm “Chấm bằng AI”.",
+        "exitFailed": "Chưa lưu được nháp. Kiểm tra kết nối mạng rồi thử lại.",
+        "exitRetry": "Thử lại"
       },
       "seeInText": "Xem trong bài",
       "hoeren": {
@@ -2687,13 +2804,29 @@
         "strategyFor": "Chiến thuật {name}",
         "chartLabel": "Điểm phần viết qua các lần thi thử: {scores}; ngưỡng {mark}",
         "passLine": "ngưỡng {n}",
-        "today": "Hôm nay"
+        "today": "Hôm nay",
+        "rowPartial": "Dừng giữa chừng · đã làm {done}/{total} Teil",
+        "partialPill": "Dừng giữa chừng"
       },
       "rewrite": "Viết lại bài này",
       "estPass": "Ước tính · Đạt 60% của phần này",
       "estBelow": "Ước tính · Dưới 60% của phần này · thiếu {n} điểm",
       "estNote": "Điểm do AI chấm theo tiêu chí telc, không phải điểm chính thức.",
-      "help": "Xem hướng dẫn"
+      "help": "Xem hướng dẫn",
+      "oral": {
+        "groupDone": "{done}/{total} Teil đã thi",
+        "mockTitle": "Thi thử phần nói",
+        "mockMeta": "{minutes} phút · {n} Teil · giám khảo và bạn thi AI",
+        "mockMetaShort": "Giám khảo và bạn thi AI",
+        "teilMeta": "{minutes} phút · luyện riêng Teil này",
+        "score": "{score}/{max}",
+        "new": "Chưa thi",
+        "other": "Kỳ thi khác (Goethe, cấp khác)",
+        "historyTitle": "Thi thử phần nói",
+        "passed": "Đỗ",
+        "failed": "Chưa đỗ",
+        "borderline": "Sát ngưỡng"
+      }
     },
     "examHub": {
       "title": "Luyện thi",
@@ -2915,6 +3048,30 @@
         "backToday": "Về hôm nay",
         "lostWritingEmpty": "Chưa viết bài",
         "planNoDate": "Đặt ngày thi ở màn Hôm nay để có lịch ôn theo kết quả này."
+      },
+      "closedPrevious": "Lượt thi trước đã hết giờ khi bạn rời đi. Phần đã làm được lưu vào lịch sử với nhãn “Dừng giữa chừng”.",
+      "stopTitle": "Dừng lượt thi thử?",
+      "stopBody": "Đồng hồ không dừng khi bạn rời đi. Dừng bây giờ thì lượt này ghi “Dừng giữa chừng”: chỉ Teil đã làm được tính điểm, không xét đỗ/chưa đỗ và không làm tiếp được.",
+      "stopCounted": "Sẽ tính: {list}",
+      "stopTeilFull": "{teil} ({done}/{total} câu)",
+      "stopTeilBlank": "{teil} ({done}/{total} câu, {blank} câu trống tính 0)",
+      "stopWriting": "Schreiben: đã viết nhưng không chấm. AI chỉ chấm khi bạn nộp bài.",
+      "stopSkipped": "Không tính: {list}",
+      "stopFailed": "Chưa dừng được lượt thi. Kiểm tra kết nối mạng rồi thử lại; bài vẫn đang được lưu.",
+      "stopRetry": "Thử lại",
+      "stopConfirm": "Dừng và lưu phần đã làm",
+      "keepGoing": "Ở lại làm tiếp",
+      "partial": {
+        "title": "Dừng giữa chừng",
+        "leadStopped": "Bạn đã dừng lượt thi này. Chỉ Teil đã làm được tính điểm (câu bỏ trống trong Teil đó tính 0); lượt dừng không có tổng điểm và không xét đỗ/chưa đỗ.",
+        "leadExpired": "Lượt này hết giờ khi bạn rời đi. Phần đã làm được chấm theo bản lưu cuối cùng; lượt dừng không có tổng điểm và không xét đỗ/chưa đỗ.",
+        "doneOf": "Đã làm {done}/{total} Teil",
+        "rowScored": "{answered}/{total} câu đã trả lời · bấm để xem lại",
+        "rowWritten": "Đã viết, không chấm (AI chỉ chấm khi nộp bài)",
+        "rowSkipped": "Chưa làm · không tính",
+        "note": "Điểm từng Teil giúp bạn biết mình đang ở đâu. Muốn có tổng điểm và kết luận đỗ/chưa đỗ, hãy nộp cả đề.",
+        "again": "Thi thử lại đề này",
+        "toHub": "Về Hôm nay"
       }
     },
     "tour": {
@@ -3043,6 +3200,20 @@
           "t": "Ba tiêu chí",
           "p": "Mỗi tiêu chí có bậc A–D và cách lên bậc."
         }
+      },
+      "oral": {
+        "steps": {
+          "t": "Ba phần thi",
+          "p": "Thi lần lượt từng Teil, đồng hồ góc phải là giờ của Teil đang thi. Đồng hồ vẫn chạy khi bạn đọc hướng dẫn này; giám khảo chờ bạn đọc xong mới nói."
+        },
+        "mic": {
+          "t": "Nút micro",
+          "p": "Vòng vàng là đến lượt bạn. Bấm để nói, bấm lại để dừng và gửi. Khi giám khảo hoặc bạn thi đang nói, nút tạm khoá."
+        },
+        "task": {
+          "t": "Thẻ đề",
+          "p": "Đề, gợi ý của bước này và ghi chú nháp của bạn. Trên điện thoại, bấm dòng Thẻ đề để mở."
+        }
       }
     },
     "diagnostic": {
@@ -3099,7 +3270,13 @@
       "oralBack": "Thi xong quay lại đây và bấm \"Kiểm tra kết quả thi nói\".",
       "oralCheck": "Kiểm tra kết quả thi nói",
       "oralNotYet": "Chưa thấy lượt thi nói nào có điểm từ lúc bắt đầu bài chẩn đoán.",
-      "aiTag": "AI chấm theo tiêu chí telc · ước tính"
+      "aiTag": "AI chấm theo tiêu chí telc · ước tính",
+      "exitTitle": "Rời bài chẩn đoán?",
+      "exitBody": "Các phần đã xong được giữ lại. Phần {part} đang làm được lưu nháp; lần sau vào bài chẩn đoán sẽ làm tiếp từ đây.",
+      "exitFailed": "Chưa lưu được nháp. Kiểm tra kết nối mạng rồi thử lại.",
+      "exitRetry": "Thử lại",
+      "exitConfirm": "Lưu và rời",
+      "keepGoing": "Ở lại làm tiếp"
     }
   }
 }

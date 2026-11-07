@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, Headphones, Mic, PenLine, Puzzle, RotateCcw, Route, type LucideIcon } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
@@ -9,8 +10,9 @@ import { checkPracticeTeil, getPracticeOverview, gradePracticeWriting, WRITING_K
 import { examDiagnosticApi, ORAL_PART, type DiagnosticView } from '@/lib/examDiagnosticApi'
 import { examPlanApi, localIsoDate, type ExamPlan } from '@/lib/examPlanApi'
 import { cn } from '@/lib/utils'
-import { ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { ConfirmDialog, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { PracticeShell } from '@/components/exam/practice/PracticeShell'
+import { usePracticeDraft } from '@/components/exam/practice/usePracticeDraft'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
@@ -216,11 +218,37 @@ function DiagnosticRun({
   const [error, setError] = React.useState<string | null>(null)
   const startedAt = React.useRef(Date.now())
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+  const router = useRouter()
+  const [exitOpen, setExitOpen] = React.useState(false)
+  const [leaving, setLeaving] = React.useState(false)
+  const [exitFailed, setExitFailed] = React.useState(false)
 
+  const elapsed = () => Math.round((Date.now() - startedAt.current) / 1000)
+
+  // Nháp của phần đang làm (07/11/2026): trước đây chỉ nằm trong bộ nhớ, rời màn là mất cả bài.
+  const teilKey = part && part !== ORAL_PART ? part : null
+  const draftPayload = React.useMemo<Record<string, string>>(() => (part === WRITING_KEY ? { text } : answers), [part, text, answers])
+  const touched = part === WRITING_KEY ? text.trim() !== '' : Object.keys(answers).length > 0
+  const saved = teilKey ? overview.teile.find((x) => x.key === teilKey)?.progress ?? null : null
+  const draft = usePracticeDraft({
+    examId: overview.examId,
+    teilKey,
+    payload: draftPayload,
+    elapsed,
+    enabled: teilKey != null,
+    hasWork: touched || saved != null,
+  })
+
+  // Sang phần mới (hoặc mở lại bài): nạp nháp đã lưu của phần đó, đồng hồ chạy tiếp từ thời gian đã làm.
   React.useEffect(() => {
-    setAnswers({})
+    const p = teilKey ? overview.teile.find((x) => x.key === teilKey)?.progress : null
+    const open = p && !p.checked ? p : null
+    setAnswers(open && teilKey !== WRITING_KEY ? { ...open.answers } : {})
+    if (teilKey === WRITING_KEY) setText(open?.answers?.text ?? '')
     setError(null)
-    startedAt.current = Date.now()
+    startedAt.current = Date.now() - (open?.elapsedSeconds ?? 0) * 1000
+    draft.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [part])
 
   // Làm xong cả năm phần ⇒ chốt kết quả.
@@ -235,16 +263,40 @@ function DiagnosticRun({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [part])
 
+  const markDirty = draft.markDirty
   const onAnswer = React.useCallback((id: string, value: string | null) => {
+    markDirty()
     setAnswers((prev) => {
       const next = { ...prev }
       if (value == null) delete next[id]
       else next[id] = value
       return next
     })
-  }, [])
+  }, [markDirty])
+  const onText = (v: string) => {
+    markDirty()
+    setText(v)
+  }
 
-  const elapsed = () => Math.round((Date.now() - startedAt.current) / 1000)
+  const saveAndLeave = async () => {
+    setLeaving(true)
+    setExitFailed(false)
+    const ok = await draft.flush()
+    setLeaving(false)
+    if (!ok) {
+      setExitFailed(true)
+      setExitOpen(true)
+      return
+    }
+    setExitOpen(false)
+    router.push(HUB)
+  }
+  const requestExit = () => {
+    if (teilKey && touched) {
+      setExitFailed(false)
+      setExitOpen(true)
+    } else router.push(HUB)
+  }
 
   const next = async () => {
     if (!part) return
@@ -288,7 +340,7 @@ function DiagnosticRun({
           teil={data}
           points={displayedPoints(data.writing_points, data.shuffle_points)}
           text={text}
-          onText={setText}
+          onText={onText}
           ticks={ticks}
           onTick={(label, on) => setTicks((prev) => ({ ...prev, [label]: on }))}
           wide={wide}
@@ -338,9 +390,11 @@ function DiagnosticRun({
   )
 
   return (
+    <>
     <PracticeShell
       backHref={HUB}
       backLabel={t('leave')}
+      onExit={requestExit}
       section={part && part !== ORAL_PART ? section : null}
       subtitle={t('runSubtitle', { n: Math.max(0, idx) + 1, total: parts.length })}
       title={part ? t(`part.${section}`) : t('finishing')}
@@ -348,6 +402,18 @@ function DiagnosticRun({
     >
       {body}
     </PracticeShell>
+    <ConfirmDialog
+      open={exitOpen}
+      onOpenChange={setExitOpen}
+      title={t('exitTitle')}
+      description={exitFailed ? t('exitFailed') : t('exitBody', { part: t(`part.${section}`) })}
+      confirmLabel={exitFailed ? t('exitRetry') : t('exitConfirm')}
+      cancelLabel={t('keepGoing')}
+      destructive={false}
+      loading={leaving}
+      onConfirm={() => void saveAndLeave()}
+    />
+    </>
   )
 }
 

@@ -24,6 +24,7 @@ import com.deutschflow.examspeaking.config.ExamSpeakingProperties;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamResultView;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
+import com.deutschflow.examspeaking.dto.TranscriptLineView;
 import com.deutschflow.examspeaking.dto.TurnResponse;
 import com.deutschflow.examspeaking.entity.SpeakingExamResult;
 import com.deutschflow.examspeaking.entity.SpeakingExamSession;
@@ -317,6 +318,18 @@ public class ExamSessionService {
             }
         }
         AiInterlocutorService.AiReply lastAi = ai2 != null ? ai2 : ai;
+        // Đợt 5 phòng thi nói: ý trên thẻ đề đã nói tới (AI đánh dấu cùng lượt trả lời) — chỉ cộng thêm,
+        // lưu trong plan_json theo Teil để tải lại trang vẫn còn.
+        List<Integer> covered = new ArrayList<>();
+        if (ai != null) {
+            covered.addAll(ai.covered());
+        }
+        if (ai2 != null) {
+            covered.addAll(ai2.covered());
+        }
+        if (!covered.isEmpty()) {
+            plan = withCovered(s, plan, pp.teilNo(), covered);
+        }
 
         s.setCurrentStep(s.getCurrentStep() + 1);
         if (s.getCurrentStep() >= pp.steps().size()) {
@@ -533,6 +546,21 @@ public class ExamSessionService {
 
     // ── kết quả ─────────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Hội thoại đã lưu của một phiên ("Xem lại hội thoại", Đợt 3 phòng thi nói 07/11/2026): lời giám khảo,
+     * bạn thi và thí sinh theo thứ tự; chỉ chủ phiên đọc được (phiên người khác → 404). Lời rỗng bị bỏ.
+     */
+    @Transactional(readOnly = true)
+    public List<TranscriptLineView> transcript(long userId, long sessionId) {
+        SpeakingExamSession s = load(userId, sessionId);
+        return turnRepository.findBySessionIdOrderBySeqAsc(s.getId()).stream()
+                .filter(t -> t.getTranscript() != null && !t.getTranscript().isBlank())
+                .map(t -> new TranscriptLineView(t.getPartNo(), t.getSeq(), t.getRole(), t.getTranscript(),
+                        SpeakingExamTurn.ROLE_CANDIDATE.equals(t.getRole()) ? t.getTurnEvalJson() : null))
+                .toList();
+    }
+
+
     @Transactional(readOnly = true)
     public ExamResultView result(long userId, long sessionId) {
         load(userId, sessionId);
@@ -632,6 +660,27 @@ public class ExamSessionService {
         return out;
     }
 
+    /** Cộng thêm ý đã nói tới cho một Teil; đổi thì ghi lại plan_json. Không có gì mới → trả plan cũ. */
+    private SessionPlan withCovered(SpeakingExamSession s, SessionPlan plan, int teilNo, List<Integer> covered) {
+        List<SessionPlan.PartPlan> parts = new ArrayList<>();
+        boolean changed = false;
+        for (SessionPlan.PartPlan p : plan.parts()) {
+            if (p.teilNo() == teilNo) {
+                SessionPlan.PartPlan u = p.withCoveredPoints(covered);
+                changed |= u != p;
+                parts.add(u);
+            } else {
+                parts.add(p);
+            }
+        }
+        if (!changed) {
+            return plan;
+        }
+        SessionPlan updated = new SessionPlan(parts);
+        s.setPlanJson(objectMapper.convertValue(updated, new TypeReference<Map<String, Object>>() {}));
+        return updated;
+    }
+
     private static Map<String, Object> stimulus(SessionPlan.PartPlan pp, Integer index) {
         if (index == null || pp.stimuli().isEmpty()) {
             return null;
@@ -670,11 +719,13 @@ public class ExamSessionService {
                     && !SpeakingExamTurn.ROLE_CANDIDATE.equals(t.getRole())).reduce((a, b) -> b).orElse(null);
             SpeakingExamTurn lastPruefer = turns.stream().filter(t -> t.getPartNo() == pp.teilNo()
                     && SpeakingExamTurn.ROLE_PRUEFER.equals(t.getRole())).reduce((a, b) -> b).orElse(null);
+            Map<String, Object> card = stimulus(pp, step.cardIndex());
             directive = new ExamSessionView.Directive(pp.teilNo(), part.title(), part.archetype().name(),
                     s.getCurrentStep(), pp.steps().size(), step.candidateAction(), step.hintVi(), step.hintKey(),
-                    clientStimulus(stimulus(pp, step.cardIndex())),
+                    clientStimulus(card),
                     lastPruefer == null ? null : lastPruefer.getTranscript(), "PRUEFER",
-                    lastAi == null ? null : lastAi.getRole(), lastAi == null ? null : lastAi.getTranscript());
+                    lastAi == null ? null : lastAi.getRole(), lastAi == null ? null : lastAi.getTranscript(),
+                    AiInterlocutorService.cardPoints(card).isEmpty() ? List.of() : pp.coveredPoints());
         }
         int prepSec = s.getPrepSec() != null ? s.getPrepSec() : bp.prepSec();
         Instant prepDeadline = s.getPrepStartedAt() == null ? null : s.getPrepStartedAt().plusSeconds(prepSec);

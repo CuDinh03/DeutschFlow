@@ -1,10 +1,11 @@
 # Luyện thi (telc) và Thi thử — tài liệu kỹ thuật
 
 > Phạm vi: phần **Luyện thi** trên web (`/v2/student/exam` và các màn con), gồm luyện từng Teil, thi thử
-> trọn đề, kết quả, lịch ôn, hướng dẫn lần đầu, bài chẩn đoán. Phòng thi **nói** (`/v2/student/speaking/exam`)
-> là module riêng (`examspeaking`), ở đây chỉ nói chỗ hai phần nối nhau.
+> trọn đề, kết quả, lịch ôn, hướng dẫn lần đầu, bài chẩn đoán. Phòng thi **nói** nằm trong khu Luyện thi
+> (`/v2/student/mock-exam/oral/**`, từ 07/11/2026), backend là module riêng (`examspeaking`); mục 1.3 tóm tắt luồng.
 >
-> Cập nhật: 07/11/2026, sau đợt làm mới giao diện (a)–(f), PR #760–#765. Repo PUBLIC: tài liệu không chứa
+> Cập nhật: 07/11/2026, sau đợt làm mới giao diện (a)–(f), PR #760–#765, và phần thoát giữa chừng
+> (hộp xác nhận, lượt thi thử "Dừng giữa chừng", mục 2.8). Repo PUBLIC: tài liệu không chứa
 > địa chỉ máy chủ, khoá hay giá trị cấu hình bí mật. Quy trình merge/deploy: `docs/QUY_TRINH_PHAT_HANH.md`.
 > Đặc tả nghiệp vụ (SRS): `TAI_LIEU_DAC_TA_SAN_PHAM/chi-tiet/modules/07-luyen-thi-va-thi-thu.md` (chỉ ở máy owner).
 
@@ -28,10 +29,40 @@ Bài chẩn đoán ──► Hôm nay ──► Đề ──► Làm bài (luy�
 | Làm bài | `/v2/student/mock-exam/practice/teil?examId=&teil=` | Luyện một Teil, không ép giờ, nộp xong có phân tích |
 | Thi thử | `/v2/student/mock-exam/full?examId=` | Màn trước khi thi → làm bài có đồng hồ tổng của server |
 | Kết quả | `/v2/student/mock-exam/full?attemptId=` | Kết luận, điểm "Ước tính", lấy lại điểm, xem lại từng Teil |
-| Phòng thi nói | `/v2/student/speaking/exam?provider=TELC&level=B1` | Module `examspeaking` (giám khảo AI) |
+| Phòng thi nói — lối vào | `/v2/student/mock-exam/oral?provider=&level=&mode=MOCK\|DRILL&teil=&return=` | Thi thử: Kiểm tra micro (lần đầu hoặc micro chưa cho phép) rồi tạo phiên; luyện Teil: tạo phiên ngay |
+| Phòng thi nói — phòng | `/v2/student/mock-exam/oral/{id}?return=` | Chuẩn bị → Đang thi (toàn màn hình) → Đang chấm → Kết quả |
+| Kỳ thi khác | `/v2/student/mock-exam/oral/other` | Chọn Goethe/telc × cấp để thi/luyện nói, không đổi lịch ôn |
+| Ôn yếu điểm (nói) | `/v2/student/mock-exam/oral/weakness` | Lỗi hay gặp theo dạng bài + gói Redemittel |
 
-Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về Hôm nay. Đề Goethe ẩn trên web
+Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về Hôm nay. Route cũ của phòng thi nói
+`/v2/student/speaking/exam/**` đã **xoá hẳn** (owner chốt 07/11/2026, không chuyển hướng); hub Luyện nói không còn thẻ
+"Luyện thi nói". Đường dẫn dựng qua `frontend/src/lib/exam/oralRoutes.ts` (`oralEntryHref`, `oralSessionHref`,
+`safeReturn` chỉ nhận `/v2/student/…`). Đề Goethe ẩn trên web
 (dữ liệu và lịch sử giữ nguyên; mobile vẫn dùng đường cũ).
+
+### 1.1b Phòng thi nói (giao diện mới, kế hoạch 5 đợt)
+
+- Lối vào: Hôm nay (thẻ `ORAL_MOCK` / `ORAL_DRILL`, thanh Sprechen) dùng `oralHref(plan, teil?)`; màn Đề có nhóm
+  "Mündliche Prüfung" (`OralTeilGroup`: thi thử phần nói + mỗi Teil một dòng, nhãn theo lần thi nói gần nhất) và lịch sử
+  thi nói trong "Thi thử đã làm" (`OralHistory`); Thi thử chọn "Phần nói"; Kết quả thi thử; bài chẩn đoán.
+- Màn Kiểm tra micro đứng **trước** khi tạo phiên (A1/A2 không có giờ chuẩn bị: tạo phiên là đồng hồ chạy). Đã qua thì
+  ghi khoá `exam.oralMicCheck` vào kho hướng dẫn đã xem (`/auth/me/tours`).
+- Chuẩn bị và Đang thi mở toàn màn hình (`useImmersiveChrome` theo trạng thái); rời phòng chuẩn bị, kết thúc, sang Teil
+  khi thi thử đều hỏi trước. Chi tiết và các đợt còn lại: SRS module 07, EXAM-100 trở đi.
+- Kết quả (`OralResult`): tiêu đề là kết luận theo ngưỡng riêng phần nói (`blueprint.speakingOnlyMin`, telc B1 45/75;
+  không có ngưỡng thì chỉ ghi điểm), nhãn "Ước tính · Đỗ/Chưa đỗ/Sát ngưỡng", điểm từng Teil kèm nhận xét giám khảo +
+  tiêu chí chung, "Xem lại hội thoại" đọc `GET /speaking/exam/sessions/{id}/transcript` (không lưu âm thanh cho mọi
+  người — owner chốt), phiếu chấm chi tiết (`Ergebnisbogen`) thu gọn. Drill đã xong mở lại trang thì tổng kết dựng từ
+  cùng API đó.
+- Hướng dẫn lần đầu (khoá `exam.oral`): tự mở lần đầu vào Đang thi (cả luyện lẫn thi thử), 3 bước Ba phần thi → Nút
+  micro → Thẻ đề; nút dấu hỏi trên thanh trên mở lại. Đồng hồ thi do server giữ nên không dừng được: giám khảo chờ tới
+  khi hướng dẫn đóng (`useScreenTour().settled`), bước đầu nói rõ đồng hồ vẫn chạy (owner chốt 07/11/2026).
+- Ý trên thẻ đề tự gạch: thẻ có `prompts` (telc B1 T3, Goethe B1 T1…) thì lời gọi AI bạn thi/giám khảo của mỗi lượt trả
+  thêm `covered` (chỉ số ý đã bàn tới) — không tốn thêm lượt AI. Server chỉ cộng thêm, lưu theo Teil trong `plan_json`
+  (`SessionPlan.PartPlan.coveredPoints`, không cần migration), trả về `directive.coveredPoints`.
+- Tự dừng khi im (`lib/exam/silenceDetector.ts`): đã nói ≥ 300ms rồi im liền 2 giây thì dừng-và-gửi như bấm tay; chưa
+  nói thì không cắt; mức âm phẳng (Safari/iOS chặn AudioContext) thì không tự dừng. Công tắc dưới dòng trạng thái, mặc
+  định bật, nhớ theo máy (`localStorage df.oral.autoStop`).
 
 ### 1.2 Hiện có cho kỳ thi nào
 
@@ -99,7 +130,8 @@ Chọn đề để mở một Teil (`pickExamFor`): đề đang làm dở Teil �
 | `WritingTeilView.tsx` | Đề + 4 ý tự đánh dấu \| ô viết, đếm tới 80 từ, cụm chèn nhanh; điện thoại hai thẻ Đề bài \| Bài viết |
 | `WritingResultView.tsx` | Bài viết đã chấm: ô điểm /45 có vạch 60% và nhãn **"Ước tính"**, VI/DE nhớ `df.practice.writingLang`, lỗi tô vàng trong bài, ý thiếu là nhãn đỏ, thẻ ghi chú, 3 tiêu chí A–D, bài mẫu |
 
-Trang luyện Teil: `app/v2/student/mock-exam/practice/teil/page.tsx` — lưu nháp tự động (`PUT .../draft`), nộp
+Trang luyện Teil: `app/v2/student/mock-exam/practice/teil/page.tsx` — lưu nháp tự động (`PUT .../draft`, hook
+`usePracticeDraft`: hẹn giờ 1,5 s, lưu ngay khi thoát, `keepalive` khi đóng/ẩn tab), nộp
 (`POST .../check`) hoặc chấm Viết (`POST .../schreiben`, job nền), "Làm lại", "Viết lại bài này", nộp dưới 60% có
 nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoải mái và khi hướng dẫn đang mở.
 
@@ -113,6 +145,7 @@ nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoả
    xác nhận; chặng lưu theo lượt ở `df.fullExam.stage.{attemptId}`. Nháp lưu lên server (`PATCH /attempts/{id}/draft`,
    có phiên bản chống ghi đè, rời trang thì `fetch keepalive`). Hết giờ ⇒ tự nộp, màn "Hết giờ. Bài đã tự nộp." + các bước chấm.
 3. **Nộp**: `POST /attempts/{id}/finish` → job chấm nền (Viết bằng AI) → client chờ `/async-jobs` → mở kết quả.
+4. **Dừng giữa chừng**: bấm thoát (mục 2.8) → `POST /attempts/{id}/stop` → kết quả "Dừng giữa chừng" (`PartialSummary`).
 
 ### 2.5 Kết quả thi thử — `components/exam/mock/ResultSummary.tsx`
 
@@ -164,6 +197,29 @@ nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoả
 Thêm bước cho màn mới: đặt `data-tour` lên vùng, khai `steps` (chuỗi trong `v2.student.tour.*`), gọi hook trước mọi
 `return` sớm, render `tour.overlay`.
 
+
+### 2.8 Thoát giữa chừng (owner chốt 07/11/2026)
+
+Nút thoát của `PracticeShell` nhận `onExit`: màn làm bài hỏi trước khi rời. Luật chung: **Teil đã làm = đã trả lời
+ít nhất 1 câu** (câu trống trong Teil đó tính 0); Teil chưa chạm không tính; **Viết dở không chấm**, AI chỉ chấm khi
+bấm nộp.
+
+| Màn | Chưa làm gì | Đã làm |
+|---|---|---|
+| Luyện Teil | Thoát thẳng | "Thoát khỏi …?" → "Lưu và thoát" lưu nháp ngay rồi rời; lỗi thì ở lại. Nháp không tính điểm kỹ năng |
+| Bài chẩn đoán | Thoát thẳng | "Rời bài chẩn đoán?" → lưu nháp phần đang làm; vào lại nạp nháp, đồng hồ phần chạy tiếp |
+| Thi thử | Huỷ lượt (`CANCELLED`, không vào lịch sử), rời | "Dừng lượt thi thử?" liệt kê Sẽ tính / Viết không chấm / Không tính → `/stop` → lượt `PARTIAL` |
+
+**Lượt `PARTIAL`**: điểm từng Teil đã làm ở `detailed_scores_json` (`partial` = lý do `STOPPED`/`EXPIRED` + số Teil;
+`teile` = `SCORED`/`WRITTEN_NOT_GRADED`/`NOT_ATTEMPTED`), `total_score`/`passed` rỗng, `finished_at` = mốc dừng đồng
+hồ. Không vào xét đỗ, chứng nhận, điểm cao nhất, B1, lịch ôn, ngày thi thử của tuần (các chỗ đó lọc `COMPLETED`).
+Lịch sử màn Đề hiện dòng "Dừng giữa chừng · đã làm N/M Teil", không vào biểu đồ; kết quả xem lại được từng câu.
+
+**Đồng hồ server** không phải tiến trình (hạn giờ = `started_at + time_limit`). Lượt bỏ dở ngoài ý muốn quá hạn +
+2 phút được **chốt lười** (`MockExamStopService.closeExpired`) khi chính người học gọi `/start`, `/attempts/me`,
+`/exam-plan` — không có job định kỳ. `/start` khi đó mở lượt mới và trả `closed_attempt_id` để web báo một dòng. Hết
+giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
+
 ---
 
 ## 3. Backend
@@ -183,7 +239,8 @@ Thêm bước cho màn mới: đặt `data-tour` lên vùng, khai `steps` (chu�
 | POST | `/mock-exams/{examId}/start` | Bắt đầu / làm tiếp thi thử (idempotent) | `MockExamController` |
 | PATCH | `/mock-exams/attempts/{id}/draft` | Lưu nháp thi thử (có phiên bản) | 〃 |
 | POST | `/mock-exams/attempts/{id}/finish` | Nộp ⇒ job chấm nền | 〃 |
-| GET | `/mock-exams/attempts/me`, `/mock-exams/attempts/{id}/result` | Lịch sử, kết quả (`gates`, `budget`) | 〃 |
+| POST | `/mock-exams/attempts/{id}/stop` | Dừng giữa chừng ⇒ `PARTIAL` (chấm theo Teil) / `CANCELLED` (chưa chạm câu); idempotent | 〃 + `MockExamStopService` |
+| GET | `/mock-exams/attempts/me[?includePartial=true]`, `/mock-exams/attempts/{id}/result` | Lịch sử (mặc định không có `PARTIAL` cho mobile), kết quả (`gates`, `budget`; lượt `PARTIAL` không có) | 〃 |
 | GET | `/exam-strategies?provider&level&lang` | Chiến thuật từng Teil (LT2) | `ExamStrategyController` |
 | GET | `/exam-plan` | Lộ trình đếm ngược; tuần hiện tại có `days` | `ExamPlanController` |
 | PUT | `/exam-plan/target-date` | Đặt ngày thi | 〃 |
@@ -193,6 +250,7 @@ Thêm bước cho màn mới: đặt `data-tour` lên vùng, khai `steps` (chu�
 | POST | `/exam-diagnostic/finish` | Chốt kết quả (đủ 4 Teil + lượt thi nói) | 〃 |
 | GET | `/auth/me/tours` | Khoá hướng dẫn đã xem | `UiTourController` |
 | PUT | `/auth/me/tours/{key}` | Đánh dấu đã xem | 〃 |
+| GET | `/speaking/exam/sessions/{id}/transcript` | Hội thoại đã lưu của phiên (chủ phiên; người khác 404) | `ExamSpeakingController` |
 | * | `/speaking/exam/**` | Phòng thi nói | `ExamSpeakingController` |
 | * | `/admin/practice-access/**` | Admin: cờ + danh sách được vào | `AdminPracticeAccessController` |
 

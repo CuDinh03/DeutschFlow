@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.examspeaking.dto.CreateExamSessionRequest;
 import com.deutschflow.examspeaking.dto.ExamResultView;
 import com.deutschflow.examspeaking.dto.ExamSessionView;
+import com.deutschflow.examspeaking.dto.TranscriptLineView;
 import com.deutschflow.examspeaking.dto.TurnResponse;
 import com.deutschflow.examspeaking.entity.SpeakingExamSession;
 import com.deutschflow.examspeaking.entity.SpeakingExamTurn;
@@ -110,6 +111,10 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     /** LLM giả: nhận dạng loại prompt qua dấu hiệu ổn định trong text. */
     static String fakeLlm(String user, String all) {
         if (user.contains("Kandidat sagt:")) {
+            // Đợt 5 phòng thi nói: thẻ có ý (prompts) → AI trả thêm "covered"; kèm giá trị rác để kiểm lọc.
+            if (user.contains("Freitag um 15 Uhr") && all.contains("Auf dem Aufgabenblatt stehen diese Punkte")) {
+                return "{\"reply_de\":\"Gute Idee, Freitag passt. Und wo feiern wir?\",\"covered\":[0,0,99,-1,\"x\"]}";
+            }
             if (all.contains("DEINE VORLAGE")) {
                 return "{\"reply_de\":\"Interessant. Auf meiner Vorlage steht, wie junge Leute verreisen: die meisten mit dem Auto. Und du?\"}";
             }
@@ -207,6 +212,38 @@ class ExamSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(turns.stream().filter(t -> SpeakingExamTurn.ROLE_PARTNER.equals(t.getRole())).count()).isEqualTo(4);
         assertThat(turns.get(0).getRole()).isEqualTo(SpeakingExamTurn.ROLE_PRUEFER);
         assertThat(turns.stream().filter(t -> t.getTurnEvalJson() != null).count()).isEqualTo(4);
+
+        // "Xem lại hội thoại" (Đợt 3 phòng thi nói): đủ lời theo thứ tự, chấm nhanh chỉ ở lượt thí sinh.
+        List<TranscriptLineView> transcript = sessionService.transcript(userId, s.id());
+        assertThat(transcript).hasSize(turns.size());
+        assertThat(transcript.get(0).role()).isEqualTo(SpeakingExamTurn.ROLE_PRUEFER);
+        assertThat(transcript.get(1).role()).isEqualTo(SpeakingExamTurn.ROLE_CANDIDATE);
+        assertThat(transcript.get(1).text()).isEqualTo("Was essen Sie gern zum Frühstück?");
+        assertThat(transcript.get(1).eval()).containsEntry("score", 7);
+        assertThat(transcript.get(2).role()).isEqualTo(SpeakingExamTurn.ROLE_PARTNER);
+        assertThat(transcript.get(2).eval()).isNull();
+        assertThat(transcript).allMatch(l -> l.teilNo() == 2);
+        assertThat(transcript).extracting(TranscriptLineView::seq).isSorted();
+        assertThatThrownBy(() -> sessionService.transcript(userId + 99_999, s.id())).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("Đợt 5 phòng thi nói: ý trên thẻ đề đã nói tới được AI đánh dấu, lưu theo Teil, tải lại vẫn còn")
+    void coveredPointsAreTrackedPerTeil() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("TELC", "B1", "DRILL", 3));
+        assertThat(s.directive().stimulus()).containsKey("prompts");
+        assertThat(s.directive().coveredPoints()).isEmpty();
+
+        TurnResponse t1 = sessionService.submitTextTurn(userId, s.id(), "Wir feiern am Freitag um 15 Uhr.");
+        assertThat(t1.session().directive().coveredPoints()).containsExactly(0);
+        // lưu trong plan_json: đọc lại phiên vẫn thấy
+        assertThat(sessionService.get(userId, s.id()).directive().coveredPoints()).containsExactly(0);
+
+        // lượt sau AI không đánh dấu gì → ý đã gạch giữ nguyên, không bị bỏ
+        TurnResponse t2 = sessionService.submitTextTurn(userId, s.id(), "Im Konferenzraum.");
+        if (t2.session().directive() != null && t2.session().directive().teilNo() == 3) {
+            assertThat(t2.session().directive().coveredPoints()).containsExactly(0);
+        }
     }
 
     @Test

@@ -2,6 +2,7 @@
  * Hàm thuần cho màn Hôm nay (đợt (d) làm mới Luyện thi, 07/11/2026): bốn kỹ năng tính từ lượt luyện
  * từng Teil và lần thi nói gần nhất, chọn đề để mở một Teil, và nội dung thẻ Hôm nay.
  */
+import { oralEntryHref } from '@/lib/exam/oralRoutes'
 import type { PracticeOverview } from '@/lib/telcPracticeApi'
 import type { ExamResultView } from '@/types/exam-speaking'
 import { teilKeyOf, type ExamPlan, type ExamPlanDay } from '@/lib/examPlanApi'
@@ -145,10 +146,13 @@ export function teilHref(examId: number, key: string): string {
   return `/v2/student/mock-exam/practice/teil?examId=${examId}&teil=${key}`
 }
 
-/** Phòng thi nói của kỳ thi này (trang chọn đề thi nói đọc `provider` + `level`). */
-export function oralHref(plan: Pick<ExamPlan, 'provider' | 'level'> | null | undefined): string {
-  const p = new URLSearchParams({ provider: plan?.provider ?? 'TELC', level: plan?.level ?? 'B1' })
-  return `/v2/student/speaking/exam?${p.toString()}`
+/**
+ * Phòng thi nói của kỳ thi này (khu Luyện thi, `/v2/student/mock-exam/oral`): mặc định thi thử phần
+ * nói; `teil` ⇒ luyện riêng Teil đó. Hệ/cấp theo lịch ôn, thiếu thì telc B1.
+ */
+export function oralHref(plan: Pick<ExamPlan, 'provider' | 'level'> | null | undefined, teil?: number | null): string {
+  const provider = plan?.provider === 'GOETHE' ? 'GOETHE' : 'TELC'
+  return oralEntryHref({ provider, level: plan?.level ?? 'B1', mode: teil ? 'DRILL' : 'MOCK', teil })
 }
 
 export type TodayCardModel =
@@ -182,7 +186,7 @@ export function todayCard(
         return { kind: 'FULL_EXAM', minutes: day.minutes, href: day.examId ? `/v2/student/mock-exam/full?examId=${day.examId}` : null, examTitle: day.examTitle, done }
       case 'ORAL_MOCK':
       case 'ORAL_DRILL':
-        return { kind: day.kind, teil: day.teil, minutes: day.minutes, href: oralHref(plan), done }
+        return { kind: day.kind, teil: day.teil, minutes: day.minutes, href: oralHref(plan, day.kind === 'ORAL_DRILL' ? day.teil : null), done }
       case 'ROADMAP':
         return { kind: 'ROADMAP', minutes: day.minutes, href: '/v2/student/roadmap', done }
       case 'REST':

@@ -1,32 +1,38 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { Volume2, VolumeX, Flag, ChevronRight, RotateCcw, ArrowLeft, Mic, Ear, Loader2 } from 'lucide-react'
+import { Volume2, VolumeX, RotateCcw, ArrowLeft, Loader2, X, CircleAlert, ClipboardList, Layers, Mic } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { newClientTurnId } from '@/lib/exam/clientTurnId'
 import { apiMessage, httpStatus } from '@/lib/api'
 import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
-import { GaBtn, GaCap, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { ConfirmDialog, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
 import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
-import { StimulusCard } from './StimulusCard'
-import { TeilStrategy } from '@/components/exam/strategy/TeilStrategy'
 import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
 import { ExamTranscript } from './ExamTranscript'
 import { MicBar } from './MicBar'
-import { MicCheck } from './MicCheck'
+import { OralPeople, type OralSpeaker } from './OralPeople'
+import { OralTaskCard } from './OralTaskCard'
+import { OralPrep } from './OralPrep'
+import { oralEntryHref } from '@/lib/exam/oralRoutes'
+import { readAutoStop, writeAutoStop } from '@/lib/exam/silenceDetector'
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
-import { Ergebnisbogen } from './Ergebnisbogen'
+import { OralResult } from './OralResult'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
+import { cn } from '@/lib/utils'
 import { DrillSummary } from './DrillSummary'
 import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from './examTts'
 
 interface Props {
   sessionId: number
-  catalogHref: string
+  /** Nơi về khi rời phòng / thi xong (mặc định màn Hôm nay của Luyện thi). */
+  returnHref: string
 }
 
 const GRADING_POLL_MS = 3000
@@ -50,10 +56,10 @@ function isRetryableTurnError(e: unknown): boolean {
 }
 
 /**
- * Phòng thi cá nhân (Đợt 1): prep → live (Prüfer/Partner AI + thẻ đề + đồng hồ server) → drill: tổng kết;
+ * Phòng thi cá nhân: chuẩn bị (toàn màn hình) → đang thi (Prüfer/Partner AI + thẻ đề + đồng hồ server) → drill: tổng kết;
  * mock: chấm nền → Ergebnisbogen. Mock chỉ nhận AUDIO (server phiên âm); drill có fallback bàn phím.
  */
-export function ExamRoom({ sessionId, catalogHref }: Props) {
+export function ExamRoom({ sessionId, returnHref }: Props) {
   const t = useTranslations('v2.student.examSpeaking.room')
   const locale = useLocale()
   const micPermission = useMicPermission()
@@ -74,9 +80,34 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const spokenRef = useRef<string | null>(null)
   // ── cơ chế lượt: AI đang nói → khoá mic/text, xong → báo "đến lượt bạn" ────────────────
   const [aiSpeaking, setAiSpeaking] = useState<'PRUEFER' | 'PARTNER' | null>(null)
-  const [yourTurnPulse, setYourTurnPulse] = useState(false)
+  const [recording, setRecording] = useState(false)
+  // Tự dừng khi im 2 giây (Đợt 5): mặc định bật, nhớ theo máy; đọc sau khi mount để khớp lúc dựng trang.
+  const [autoStop, setAutoStop] = useState(true)
+  useEffect(() => setAutoStop(readAutoStop()), [])
+  const toggleAutoStop = () => {
+    setAutoStop((v) => {
+      writeAutoStop(!v)
+      return !v
+    })
+  }
   const speakGenRef = useRef(0)
   const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
+  // Hỏi trước khi kết thúc / sang Teil (thi thử không quay lại được) — luật thoát giữa chừng 07/11.
+  const [confirm, setConfirm] = useState<'finish' | 'advance' | 'leave' | null>(null)
+  // Chuẩn bị + Đang thi = toàn màn hình, ẩn thanh điều hướng để không bấm nhầm thoát; màn kết quả lấy lại nav.
+  useImmersiveChrome(session?.state === 'IN_PART' || session?.state === 'PREP')
+  // Hướng dẫn lần đầu (Đợt 4, owner chốt 07/11/2026): tự mở khi lần đầu vào Đang thi, cả luyện lẫn thi
+  // thử. Đồng hồ thi do server giữ nên không dừng được; giám khảo chờ tới khi đóng hướng dẫn mới nói.
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.oral',
+    ready: !loading && session?.state === 'IN_PART' && !!session?.directive,
+    steps: [
+      { target: 'oral-steps', icon: Layers, title: tt('oral.steps.t'), body: tt('oral.steps.p') },
+      { target: 'oral-mic', icon: Mic, title: tt('oral.mic.t'), body: tt('oral.mic.p') },
+      { target: 'oral-task', icon: ClipboardList, title: tt('oral.task.t'), body: tt('oral.task.p') },
+    ],
+  })
 
   /**
    * Đọc lần lượt các lời AI và giữ trạng thái lượt trong suốt chuỗi. Generation guard: mỗi hành động
@@ -91,7 +122,6 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       if (speakGenRef.current !== gen) return
     }
     setAiSpeaking(null)
-    setYourTurnPulse(true)
   }, [])
 
   /** Người dùng chủ động hành động → cắt mọi lời AI đang phát và mở khoá ngay. */
@@ -99,15 +129,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     speakGenRef.current += 1
     stopExamTts()
     setAiSpeaking(null)
-    setYourTurnPulse(false)
   }, [])
-
-  // Hiệu ứng "đến lượt bạn" chỉ nhấp nháy một nhịp ngắn rồi đứng yên.
-  useEffect(() => {
-    if (!yourTurnPulse) return
-    const id = window.setTimeout(() => setYourTurnPulse(false), 2500)
-    return () => window.clearTimeout(id)
-  }, [yourTurnPulse])
 
   // ── nạp phiên + blueprint (để vẽ stepper có tên Teil) ───────────────────────────────────
   const load = useCallback(async () => {
@@ -122,6 +144,14 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
       if (data.state === 'RESULTS') {
         const r = await examSpeakingApi.getResult(sessionId)
         setResult(r.data)
+      }
+      // Drill đã xong mà mở lại trang (tải lại, mở từ lịch sử): tổng kết dựng từ hội thoại đã lưu.
+      if (data.state === 'DONE') {
+        const tr = await examSpeakingApi.getTranscript(sessionId).catch(() => null)
+        if (tr?.data?.length) {
+          setLines(tr.data.map((l) => ({ id: `t${l.seq}`, role: l.role, text: l.text, teilNo: l.teilNo, eval: l.eval })))
+          return
+        }
       }
       if (data.directive?.prueferText) {
         setLines((prev) =>
@@ -144,11 +174,13 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   useEffect(() => {
     const d = session?.directive
     if (!d?.prueferText || session?.state !== 'IN_PART') return
+    // Hướng dẫn lần đầu chưa xong (đang chờ biết đã xem chưa, hoặc đang mở) → giám khảo chờ.
+    if (!tour.settled) return
     const key = `${d.teilNo}:${d.prueferText}`
     if (spokenRef.current === key) return
     spokenRef.current = key
     void speakSequence([{ role: 'PRUEFER', text: d.prueferText }])
-  }, [session, speakSequence])
+  }, [session, speakSequence, tour.settled])
 
   // ── poll khi đang chấm ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -383,312 +415,409 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
 
   const isMock = session.mode === 'MOCK'
   const providerName = session.provider === 'GOETHE' ? 'Goethe' : 'telc'
+  const partCount = blueprint?.parts.length ?? session.totalParts
+  const isLastPart = session.currentPart >= partCount
+  const againHref = oralEntryHref({
+    provider: session.provider,
+    level: session.level,
+    mode: session.mode,
+    teil: session.mode === 'DRILL' ? session.currentPart : null,
+    ret: returnHref,
+  })
+  const teilTitles = blueprint ? Object.fromEntries(blueprint.parts.map((p) => [p.teilNo, p.title])) : undefined
 
-  return (
-    <div className="flex min-h-full flex-col">
-      <div className="border-b border-ga-line bg-ga-card px-4 py-3 sm:px-6 lg:px-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <GaCap className="block">{providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} · <span data-testid="beta-label">{t('beta')}</span></GaCap>
-            {blueprint && <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />}
-          </div>
-          <div className="flex items-center gap-2">
-            {session.state === 'IN_PART' && (
-              <ExamTimer
-                deadlineAt={session.partDeadlineAt}
-                serverNow={session.serverNow}
-                totalSec={currentPartSummary?.durationSec ?? 0}
-                onExpire={isMock ? () => void advance() : () => setDrillTimeUp(true)}
-                label={t('timeLeft')}
-              />
-            )}
+  const notices = (
+    <>
+      {minorBlocked && (
+        <div className="mb-4">
+          <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4" data-testid={pendingTurn ? 'turn-retry-banner' : undefined}>
+          <ErrorBanner
+            message={pendingTurn ? `${error} ${t('retryTurnHint')}` : error}
+            onRetry={pendingTurn ? retryPendingTurn : () => setError(null)}
+            retryLabel={pendingTurn ? t('retryTurn') : t('dismiss')}
+          />
+        </div>
+      )}
+
+      {session.state !== 'RESULTS' && session.state !== 'DONE' && <MicDeniedGuide className="mb-4" />}
+
+      {/* Minh bạch: phiên hiệu chuẩn có lưu audio — thí sinh phải biết mình đang được ghi âm,
+          kể cả khi đã ký đồng ý trước đó (đồng ý một lần ≠ được im lặng mọi lần sau). */}
+      {session.retainAudio && session.state !== 'RESULTS' && (
+        <p
+          className="ga-ui mb-4 rounded-ga border border-ga-line bg-ga-surface px-3 py-2 text-ga-small text-ga-muted"
+          role="note"
+          data-testid="audio-retention-notice"
+        >
+          {t('audioRetained')}
+        </p>
+      )}
+    </>
+  )
+
+  const muteButton = (
+    <button
+      type="button"
+      onClick={toggleMute}
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+      aria-pressed={muted}
+      aria-label={muted ? t('unmute') : t('mute')}
+      title={muted ? t('unmute') : t('mute')}
+      data-testid="tts-mute"
+    >
+      {muted ? <VolumeX size={17} aria-hidden /> : <Volume2 size={17} aria-hidden />}
+    </button>
+  )
+
+  const eyebrow = (
+    <p className="ga-ui mb-0.5 truncate text-ga-caption text-ga-muted">
+      <span lang="de">{t('oral.eyebrow')}</span> · {providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} ·{' '}
+      <span data-testid="beta-label">{t('beta')}</span>
+    </p>
+  )
+  const leaveDialog = (
+    <ConfirmDialog
+      open={confirm === 'leave'}
+      onOpenChange={(o) => !o && setConfirm(null)}
+      title={t('oral.prep.leaveTitle')}
+      description={isMock ? t('oral.prep.leaveBodyMock') : t('oral.prep.leaveBodyDrill')}
+      confirmLabel={t('oral.prep.leaveGo')}
+      cancelLabel={t('oral.confirm.stay')}
+      destructive={false}
+      onConfirm={() => {
+        setConfirm(null)
+        window.location.assign(returnHref)
+      }}
+    />
+  )
+
+  // ── Chuẩn bị: phòng toàn màn hình theo mẫu 07/11/2026 ─────────────────────────────────────
+  if (session.state === 'PREP') {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-ga-bg" data-testid="oral-prep-room">
+        <header className="shrink-0 border-b border-ga-line bg-ga-card">
+          <div className="flex min-h-14 items-center gap-2 px-2 py-1.5 lg:gap-3 lg:px-4">
             <button
               type="button"
-              onClick={toggleMute}
-              className="grid h-10 w-10 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-ink"
-              aria-pressed={muted}
-              aria-label={muted ? t('unmute') : t('mute')}
-              data-testid="tts-mute"
+              onClick={() => setConfirm('leave')}
+              aria-label={t('oral.prep.leave')}
+              title={t('oral.prep.leave')}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+              data-testid="prep-leave"
             >
-              {muted ? <VolumeX size={16} aria-hidden /> : <Volume2 size={16} aria-hidden />}
+              <X size={18} aria-hidden />
             </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10">
-        {minorBlocked && (
-          <div className="mb-4">
-            <MinorAudioBlockedNotice info={minorBlocked} onDismiss={() => setMinorBlocked(null)} />
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-4" data-testid={pendingTurn ? 'turn-retry-banner' : undefined}>
-            <ErrorBanner
-              message={pendingTurn ? `${error} ${t('retryTurnHint')}` : error}
-              onRetry={pendingTurn ? retryPendingTurn : () => setError(null)}
-              retryLabel={pendingTurn ? t('retryTurn') : t('dismiss')}
-            />
-          </div>
-        )}
-
-        {session.state !== 'RESULTS' && session.state !== 'DONE' && <MicDeniedGuide className="mb-4" />}
-
-        {/* Minh bạch: phiên hiệu chuẩn có lưu audio — thí sinh phải biết mình đang được ghi âm,
-            kể cả khi đã ký đồng ý trước đó (đồng ý một lần ≠ được im lặng mọi lần sau). */}
-        {session.retainAudio && session.state !== 'RESULTS' && (
-          <p
-            className="ga-ui mb-4 rounded-ga border border-ga-line bg-ga-surface px-3 py-2 text-[12.5px] text-ga-muted"
-            role="note"
-            data-testid="audio-retention-notice"
-          >
-            {t('audioRetained')}
-          </p>
-        )}
-
-        {session.state === 'PREP' && (
-          <section className="mx-auto max-w-3xl space-y-4" data-testid="exam-prep">
-            <GaCap className="block">{t('prepCap')}</GaCap>
-            <p className="ga-ui text-[14.5px] text-ga-ink">{t('prepDesc')}</p>
-            {session.prepDeadlineAt && (
-              <ExamTimer deadlineAt={session.prepDeadlineAt} serverNow={session.serverNow} totalSec={session.prepSec ?? blueprint?.prepSec ?? 0} label={t('prepLeft')} onExpire={() => void advance()} />
-            )}
-            {session.prepMaterials && session.prepMaterials.length > 0 && (
-              <div className="space-y-4" data-testid="prep-materials">
-                {session.prepMaterials.map((m) => (
-                  <div key={m.teilNo} className="rounded-ga border border-ga-line bg-ga-card p-4">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="font-ga-display text-[18px] font-medium text-ga-ink">
-                        {t('teilCap', { n: m.teilNo })} · {m.title}
-                      </p>
-                      {m.choiceRequired && (
-                        <span className={`ga-ui text-[12px] font-semibold ${m.chosenIndex === null ? 'text-ga-red' : 'text-ga-green'}`}>
-                          {m.chosenIndex === null ? t('chooseOne') : t('chosen', { n: (m.chosenIndex ?? 0) + 1 })}
-                        </span>
-                      )}
-                    </div>
-                    {/* LT2: chiến thuật Teil — đọc trong giờ chuẩn bị, thu gọn mặc định. */}
-                    <div className="mb-3">
-                      <TeilStrategy provider={session.provider} level={session.level} section="SPRECHEN" teil={m.teilNo} />
-                    </div>
-                    <div className={m.choiceRequired ? 'grid gap-3 md:grid-cols-2' : ''}>
-                      {m.stimuli.map((stim, idx) => (
-                        <div key={idx} className="relative">
-                          {m.choiceRequired && (
-                            <button
-                              type="button"
-                              onClick={() => void choose(m.teilNo, idx)}
-                              disabled={busy}
-                              aria-pressed={m.chosenIndex === idx}
-                              className={`ga-ui mb-2 w-full rounded-ga border px-3 py-2 text-left text-[13px] font-semibold ${
-                                m.chosenIndex === idx ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface'
-                              }`}
-                              data-testid={`choose-${m.teilNo}-${idx}`}
-                            >
-                              {t('option', { n: idx + 1 })}
-                            </button>
-                          )}
-                          <StimulusCard stimulus={stim} stepIndex={0} candidateAction="SPEAK" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <textarea
-              className="ga-ui min-h-[160px] w-full rounded-ga border border-ga-line bg-ga-bg p-3 text-[14.5px] text-ga-ink"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={() => void saveNotes()}
-              placeholder={t('notesPlaceholder')}
-              aria-label={t('notesPlaceholder')}
-            />
-            {isMock && <MicCheck passed={micCheckPassed || micPermission === 'granted'} onPassed={() => setMicCheckPassed(true)} />}
-            <GaBtn
-              variant="ink"
-              size="lg"
-              onClick={() => void advance()}
-              disabled={
-                busy ||
-                (session.prepMaterials ?? []).some((m) => m.choiceRequired && m.chosenIndex === null) ||
-                (isMock && !micCheckPassed && micPermission !== 'granted')
-              }
-              data-testid="prep-enter"
-            >
-              {t('enterExam')} <ChevronRight size={16} aria-hidden className="ml-1" />
-            </GaBtn>
-          </section>
-        )}
-
-        {session.state === 'IN_PART' && session.directive && (
-          <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-            <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-              <div>
-                <GaCap className="mb-1 block">{t('teilCap', { n: session.directive.teilNo })}</GaCap>
-                <p className="font-ga-display text-[20px] font-medium text-ga-ink">{session.directive.title}</p>
-                <p className="ga-ui mt-1 text-[13px] text-ga-muted">
-                  {t('step', { i: session.directive.stepIndex + 1, n: session.directive.stepCount })}
-                </p>
-                <TeilStrategy provider={session.provider} level={session.level} section="SPRECHEN" teil={session.directive.teilNo} />
-              </div>
-              <StimulusCard stimulus={session.directive.stimulus} stepIndex={session.directive.stepIndex} candidateAction={session.directive.candidateAction} />
-              <div className="rounded-ga bg-ga-yellow-soft p-3">
-                <p className="ga-ui text-[13px] text-ga-ink" data-testid="directive-hint">
-                  {session.directive.hintKey && t.has(`hints.${session.directive.hintKey}`)
-                    ? t(`hints.${session.directive.hintKey}`)
-                    : session.directive.hintVi}
-                </p>
-                {drillTimeUp && !isMock && (
-                  <p className="ga-ui mt-1.5 text-[12.5px] font-semibold text-ga-red" data-testid="drill-time-up">
-                    {t('drillTimeUp')}
-                  </p>
-                )}
-              </div>
-              {session.notesText && (
-                <details className="rounded-ga border border-ga-line bg-ga-card p-3">
-                  <summary className="ga-ui cursor-pointer text-[13px] font-semibold text-ga-ink">{t('myNotes')}</summary>
-                  <p className="ga-ui mt-2 whitespace-pre-wrap text-[13px] text-ga-muted">{session.notesText}</p>
-                </details>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <GaBtn variant="ghost" size="sm" onClick={() => void advance()} disabled={busy} data-testid="advance-part">
-                  {t('skipPart')} <ChevronRight size={14} aria-hidden className="ml-1" />
-                </GaBtn>
-                <GaBtn variant="ghost" size="sm" onClick={() => void finish()} disabled={busy} data-testid="finish-session">
-                  <Flag size={14} aria-hidden className="mr-1" /> {isMock ? t('finishMock') : t('finishDrill')}
-                </GaBtn>
-              </div>
-            </aside>
-            <section className="flex min-h-[420px] flex-col">
-              <div className="max-h-[52vh] flex-1 overflow-y-auto rounded-ga border border-ga-line bg-ga-surface p-4 lg:max-h-none">
-                <ExamTranscript lines={lines} mode={session.mode} />
-              </div>
-              {/* Mobile: mic dính đáy để không phải cuộn qua transcript mỗi lượt; desktop: nằm dưới transcript. */}
-              <div className="sticky bottom-2 z-10 mt-3 lg:static">
-                {/* Dải trạng thái lượt: AI đang nói → chờ; xong → "đến lượt bạn". aria-live cho screen reader. */}
-                <div
-                  role="status"
-                  aria-live="polite"
-                  data-testid="turn-status"
-                  className={`ga-ui mb-2 flex items-center gap-2 rounded-ga border px-3 py-2 text-[13px] font-semibold ${
-                    aiSpeaking || busy
-                      ? 'border-ga-line bg-ga-card text-ga-muted'
-                      : `border-ga-ink bg-ga-yellow-soft text-ga-ink ${yourTurnPulse ? 'motion-safe:animate-pulse' : ''}`
-                  }`}
-                >
-                  {aiSpeaking ? (
-                    <>
-                      <Ear size={15} aria-hidden className="shrink-0" />
-                      <span>{aiSpeaking === 'PARTNER' ? t('turn.partnerSpeaking') : t('turn.prueferSpeaking')}</span>
-                      <span className="relative ml-auto flex h-2.5 w-2.5 shrink-0">
-                        <span className="absolute inline-flex h-full w-full motion-safe:animate-ping rounded-full bg-ga-red opacity-75" />
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-ga-red" />
-                      </span>
-                    </>
-                  ) : busy ? (
-                    <>
-                      <Loader2 size={15} aria-hidden className="shrink-0 animate-spin" />
-                      <span>{t('turn.processing')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic size={15} aria-hidden className="shrink-0" />
-                      <span>{t('turn.yourTurn')}</span>
-                    </>
-                  )}
-                </div>
-                <MicBar
-                  disabled={busy || aiSpeaking !== null}
-                  busy={busy}
-                  allowText={!isMock}
-                  onAudio={submitAudio}
-                  onText={submitText}
-                  hint={aiSpeaking ? t('turn.waitHint') : t(`action.${session.directive.candidateAction}`)}
-                />
-              </div>
-            </section>
-          </div>
-        )}
-
-        {session.state === 'GRADING' && (
-          <section className="mx-auto max-w-xl py-10 text-center" data-testid="exam-grading">
-            <LoadingState label={t('grading')} />
-            <p className="ga-ui mt-3 text-[13px] text-ga-muted">{t('gradingDesc')}</p>
-          </section>
-        )}
-
-        {session.state === 'GRADING_FAILED' && (
-          <section className="mx-auto max-w-xl py-10" data-testid="exam-grading-failed" data-grading-error={session.gradingError ?? ''}>
-            {/* F-08: hết quota ≠ job chết — người học cần nạp/chờ kỳ mới rồi bấm Chấm lại, không phải "thử lại sau". */}
-            <ErrorBanner variant="page" message={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuota') : t('gradingFailed')} />
-            <p className="ga-ui mt-3 text-[13px] text-ga-muted">
-              {session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuotaDesc') : t('gradingFailedDesc')}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {session.gradingError === 'QUOTA_EXCEEDED' && (
-                <a href="/v2/student/tuition" data-testid="quota-upgrade-link" className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-yellow px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
-                  {t('upgradeCta')}
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={regrade}
-                disabled={busy}
-                data-testid="regrade-btn"
-                className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2.5 text-[13px] font-semibold text-ga-bg disabled:opacity-60"
-              >
-                <RotateCcw size={14} aria-hidden /> {t('regradeCta')}
-              </button>
-              <a href={catalogHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
-                <ArrowLeft size={14} aria-hidden /> {t('backToCatalog')}
-              </a>
+            <div className="min-w-0 flex-1">
+              {eyebrow}
+              <h1 className="font-ga-display text-ga-h3 text-ga-ink">{t('oral.prep.title')}</h1>
             </div>
-          </section>
-        )}
-
-        {session.state === 'RESULTS' && !result && (
-          <section className="mx-auto max-w-xl py-10" data-testid="result-load-failed">
-            <ErrorBanner variant="page" message={t('resultLoadFailed')} onRetry={retryResult} retryLabel={t('retryResult')} />
-          </section>
-        )}
-
-        {session.state === 'RESULTS' && result && (
-          <div className="mx-auto max-w-3xl">
-            <Ergebnisbogen sheet={result.scoreSheet} />
-            <RoomFooter catalogHref={catalogHref} />
+            {session.prepDeadlineAt && (
+              <ExamTimer
+                variant="pill"
+                tone="prep"
+                deadlineAt={session.prepDeadlineAt}
+                serverNow={session.serverNow}
+                totalSec={session.prepSec ?? blueprint?.prepSec ?? 0}
+                label={t('prepLeft')}
+                onExpire={() => void advance()}
+              />
+            )}
           </div>
-        )}
-
-        {session.state === 'DONE' && (
-          <div className="mx-auto max-w-3xl">
-            <DrillSummary lines={lines} />
-            <RoomFooter catalogHref={catalogHref} />
-          </div>
-        )}
-
-        {session.state === 'ABORTED' && (
-          <div className="mx-auto max-w-xl">
-            <ErrorBanner variant="page" message={t('aborted')} />
-            <RoomFooter catalogHref={catalogHref} />
-          </div>
-        )}
+        </header>
+        <div className="ga-autoscroll min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl">{notices}</div>
+          <OralPrep
+            session={session}
+            blueprint={blueprint}
+            notes={notes}
+            onNotesChange={setNotes}
+            onSaveNotes={() => void saveNotes()}
+            onChoose={(teilNo, idx) => void choose(teilNo, idx)}
+            onEnter={() => void advance()}
+            busy={busy}
+            micGate={isMock && micPermission !== 'granted' && !micCheckPassed}
+            onMicPassed={() => setMicCheckPassed(true)}
+          />
+        </div>
+        {leaveDialog}
       </div>
+    )
+  }
+
+  // ── Đang thi: phòng toàn màn hình theo mẫu 07/11/2026 ─────────────────────────────────────
+  if (session.state === 'IN_PART' && session.directive) {
+    const d = session.directive
+    const speaker: OralSpeaker = aiSpeaking ?? (recording ? 'ME' : null)
+    const yourTurn = !aiSpeaking && !busy && !recording
+    const hasPartner = currentPartSummary?.hasPartner ?? lines.some((l) => l.role === 'PARTNER')
+    const hint = d.hintKey && t.has(`hints.${d.hintKey}`) ? t(`hints.${d.hintKey}`) : d.hintVi
+    const action = t.has(`oral.action.${d.candidateAction}`) ? t(`oral.action.${d.candidateAction}`) : ''
+    const meSub = aiSpeaking ? t('oral.me.listen') : busy ? t('oral.me.sending') : recording ? t('oral.me.recording') : t('oral.me.turn')
+    const [statusTitle, statusSub] = aiSpeaking
+      ? [aiSpeaking === 'PARTNER' ? t('oral.status.partnerTalking') : t('oral.status.prueferTalking'), t('oral.status.listen')]
+      : busy
+        ? [t('oral.status.processing'), t('oral.status.processingSub')]
+        : recording
+          ? [t('oral.status.recording'), autoStop ? t('oral.status.recordingAutoSub') : t('oral.status.recordingSub')]
+          : [t('oral.status.yourTurn'), action ? t('oral.status.tapWithAction', { action }) : t('oral.status.tap')]
+    const nextTeil = session.currentPart + 1
+    const advanceLabel = isMock ? (isLastPart ? null : t('oral.nextTeil', { n: nextTeil })) : t('skipPart')
+
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-ga-bg" data-testid="oral-room">
+        <header className="shrink-0 border-b border-ga-line bg-ga-card">
+          <div className="flex min-h-14 items-center gap-2 px-2 py-1.5 lg:gap-3 lg:px-4">
+            <button
+              type="button"
+              onClick={() => setConfirm('finish')}
+              disabled={busy}
+              aria-label={isMock ? t('finishMock') : t('finishDrill')}
+              title={isMock ? t('finishMock') : t('finishDrill')}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-50"
+              data-testid="finish-session"
+            >
+              <X size={18} aria-hidden />
+            </button>
+            <div className="min-w-0 flex-1">
+              {eyebrow}
+              {blueprint ? (
+                <div data-tour="oral-steps" className="w-fit">
+                  <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />
+                </div>
+              ) : (
+                <p data-tour="oral-steps" className="font-ga-display text-ga-h3 text-ga-ink">
+                  {t('teilCap', { n: d.teilNo })}
+                </p>
+              )}
+            </div>
+            <TourHelpButton onClick={tour.start} />
+            {muteButton}
+            <ExamTimer
+              variant="pill"
+              deadlineAt={session.partDeadlineAt}
+              serverNow={session.serverNow}
+              totalSec={currentPartSummary?.durationSec ?? 0}
+              onExpire={isMock ? () => void advance() : () => setDrillTimeUp(true)}
+              label={t('timeLeft')}
+            />
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="flex min-h-0 flex-1 flex-col" aria-label={t('oral.conversation')}>
+            <OralPeople speaker={speaker} hasPartner={hasPartner} meSub={meSub} />
+            <div className="ga-autoscroll min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+              {notices}
+              <ExamTranscript lines={lines} mode={session.mode} teilTitles={teilTitles} />
+            </div>
+            <MicBar
+              disabled={busy || aiSpeaking !== null}
+              busy={busy}
+              allowText={!isMock}
+              onAudio={submitAudio}
+              onText={submitText}
+              hint={statusSub}
+              yourTurn={yourTurn}
+              onRecordingChange={setRecording}
+              autoStop={autoStop}
+              status={
+                <>
+                  <div role="status" aria-live="polite" data-testid="turn-status" className="ga-ui min-w-0 text-ga-small text-ga-muted">
+                    <b className="flex items-center gap-1.5 text-ga-body font-semibold text-ga-ink">
+                      {busy && <Loader2 size={15} aria-hidden className="shrink-0 animate-spin" />}
+                      <span className="min-w-0">{statusTitle}</span>
+                    </b>
+                    <span className="mt-0.5 block">{statusSub}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={autoStop}
+                    onClick={toggleAutoStop}
+                    title={t('oral.autoStopHint')}
+                    className="ga-ui mt-1.5 inline-flex min-h-8 items-center gap-1.5 rounded-ga-pill text-ga-caption font-semibold text-ga-muted hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+                    data-testid="auto-stop-toggle"
+                  >
+                    <span aria-hidden className={`relative h-3.5 w-6 shrink-0 rounded-ga-pill transition-colors duration-150 ${autoStop ? 'bg-ga-navy' : 'bg-ga-line-strong'}`}>
+                      <span className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-ga-card transition-[left] duration-150 ${autoStop ? 'left-3' : 'left-0.5'}`} />
+                    </span>
+                    {t('oral.autoStop')}
+                  </button>
+                </>
+              }
+              meta={
+                <div className="ga-ui text-right text-ga-small text-ga-muted" data-testid="turn-count">
+                  <b className="block text-ga-body font-semibold tabular-nums text-ga-ink">
+                    {d.stepIndex + 1}/{d.stepCount}
+                  </b>
+                  {t('oral.turns')}
+                </div>
+              }
+            />
+          </section>
+          <OralTaskCard
+            directive={d}
+            provider={session.provider}
+            level={session.level}
+            hint={hint}
+            notesText={session.notesText}
+            drillTimeUp={drillTimeUp && !isMock}
+            advanceLabel={advanceLabel}
+            onAdvance={() => (isMock ? setConfirm('advance') : void advance())}
+            busy={busy}
+          />
+        </div>
+
+        {tour.overlay}
+        <ConfirmDialog
+          open={confirm === 'finish'}
+          onOpenChange={(o) => !o && setConfirm(null)}
+          title={isMock ? t('oral.confirm.finishMockTitle') : t('oral.confirm.finishDrillTitle')}
+          description={isMock ? t('oral.confirm.finishMockBody') : t('oral.confirm.finishDrillBody')}
+          confirmLabel={isMock ? t('oral.confirm.finishMockGo') : t('oral.confirm.finishDrillGo')}
+          cancelLabel={isMock ? t('oral.confirm.keepGoing') : t('oral.confirm.keepPractising')}
+          destructive={false}
+          onConfirm={() => {
+            setConfirm(null)
+            void finish()
+          }}
+        />
+        <ConfirmDialog
+          open={confirm === 'advance'}
+          onOpenChange={(o) => !o && setConfirm(null)}
+          title={t('oral.confirm.nextTitle', { n: nextTeil })}
+          description={t('oral.confirm.nextBody', { cur: session.currentPart })}
+          confirmLabel={t('oral.confirm.nextGo', { n: nextTeil })}
+          cancelLabel={t('oral.confirm.stay')}
+          destructive={false}
+          onConfirm={() => {
+            setConfirm(null)
+            void advance()
+          }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 py-6 sm:px-6 lg:py-8">
+      {notices}
+
+      {session.state === 'GRADING' && (
+        <StateCard testId="exam-grading" icon={<Loader2 size={22} className="animate-spin" aria-hidden />} title={t('grading')} body={t('gradingDesc')}>
+          <p className="ga-ui text-ga-small text-ga-muted">{t('oral.result.gradingLeave')}</p>
+          <Link href={returnHref} className={ghostBtn}>
+            <ArrowLeft size={16} aria-hidden /> {t('backToCatalog')}
+          </Link>
+        </StateCard>
+      )}
+
+      {session.state === 'GRADING_FAILED' && (
+        <StateCard
+          testId="exam-grading-failed"
+          data={{ 'data-grading-error': session.gradingError ?? '' }}
+          icon={<CircleAlert size={22} aria-hidden />}
+          // F-08: hết quota ≠ job chết — người học cần nạp/chờ kỳ mới rồi bấm Chấm lại, không phải "thử lại sau".
+          title={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuota') : t('gradingFailed')}
+          body={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuotaDesc') : t('gradingFailedDesc')}
+        >
+          <div className="flex flex-wrap justify-center gap-2">
+            {session.gradingError === 'QUOTA_EXCEEDED' && (
+              <Link href="/v2/student/tuition" data-testid="quota-upgrade-link" className={cn(primaryBtn, 'bg-ga-yellow text-ga-ink')}>
+                {t('upgradeCta')}
+              </Link>
+            )}
+            <button type="button" onClick={regrade} disabled={busy} data-testid="regrade-btn" className={primaryBtn}>
+              <RotateCcw size={16} aria-hidden /> {t('regradeCta')}
+            </button>
+            <Link href={returnHref} className={ghostBtn}>
+              <ArrowLeft size={16} aria-hidden /> {t('backToCatalog')}
+            </Link>
+          </div>
+        </StateCard>
+      )}
+
+      {session.state === 'RESULTS' && !result && (
+        <section className="mx-auto w-full max-w-xl py-10" data-testid="result-load-failed">
+          <ErrorBanner variant="page" message={t('resultLoadFailed')} onRetry={retryResult} retryLabel={t('retryResult')} />
+        </section>
+      )}
+
+      {session.state === 'RESULTS' && result && (
+        <OralResult result={result} blueprint={blueprint} sessionId={sessionId} againHref={againHref} returnHref={returnHref} />
+      )}
+
+      {session.state === 'DONE' && (
+        <div className="flex flex-col gap-6" data-testid="oral-drill-done">
+          <header>
+            <p className="ga-ui text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">
+              <span lang="de">{t('oral.eyebrow')}</span> · {providerName} {session.level} · {t('modeDrill')}
+            </p>
+            <h1 className="mt-1 font-ga-display text-ga-h1 text-ga-ink">{t('oral.result.drillDone', { n: session.currentPart })}</h1>
+          </header>
+          <DrillSummary lines={lines} />
+          <RoomFooter againHref={againHref} returnHref={returnHref} />
+        </div>
+      )}
+
+      {session.state === 'ABORTED' && (
+        <div className="mx-auto w-full max-w-xl">
+          <ErrorBanner variant="page" message={t('aborted')} />
+          <RoomFooter againHref={againHref} returnHref={returnHref} />
+        </div>
+      )}
     </div>
   )
 }
 
-function RoomFooter({ catalogHref }: { catalogHref: string }) {
+const primaryBtn =
+  'ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch bg-ga-ink px-4 text-ga-body font-semibold text-ga-bg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 disabled:opacity-50'
+const ghostBtn =
+  'ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch border border-ga-line bg-ga-card px-4 text-ga-body font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus'
+
+/** Thẻ trạng thái giữa màn (mẫu "Trạng thái" 07/11/2026): ô icon, tiêu đề, một dòng giải thích, nút. */
+function StateCard({
+  testId,
+  data,
+  icon,
+  title,
+  body,
+  children,
+}: {
+  testId: string
+  data?: Record<string, string>
+  icon: ReactNode
+  title: string
+  body: string
+  children?: ReactNode
+}) {
+  return (
+    <section className="mx-auto flex w-full max-w-md flex-col items-center gap-3 py-10 text-center" data-testid={testId} {...data}>
+      <span aria-hidden className="grid h-12 w-12 place-items-center rounded-ga bg-ga-side-active text-ga-ink">
+        {icon}
+      </span>
+      <h1 className="font-ga-display text-ga-h2 text-ga-ink">{title}</h1>
+      <p className="ga-ui text-ga-body text-ga-muted">{body}</p>
+      {children}
+    </section>
+  )
+}
+
+function RoomFooter({ againHref, returnHref }: { againHref: string; returnHref: string }) {
   const t = useTranslations('v2.student.examSpeaking.room')
   return (
-    <div className="mt-5 flex flex-wrap gap-2">
-      <a href={catalogHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2.5 text-[13px] font-semibold text-ga-bg">
-        <RotateCcw size={14} aria-hidden /> {t('again')}
-      </a>
-      <a href={catalogHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
-        <ArrowLeft size={14} aria-hidden /> {t('backToCatalog')}
-      </a>
+    <div className="flex flex-wrap justify-end gap-2">
+      <Link href={againHref} className={ghostBtn} data-testid="room-again">
+        <RotateCcw size={16} aria-hidden /> {t('again')}
+      </Link>
+      <Link href={returnHref} className={primaryBtn} data-testid="room-back">
+        <ArrowLeft size={16} aria-hidden /> {t('backToCatalog')}
+      </Link>
     </div>
   )
 }

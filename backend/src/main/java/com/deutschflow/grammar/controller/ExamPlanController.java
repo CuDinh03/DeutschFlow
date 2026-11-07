@@ -2,6 +2,7 @@ package com.deutschflow.grammar.controller;
 
 import com.deutschflow.grammar.dto.ExamPlanDto;
 import com.deutschflow.grammar.service.ExamPlanService;
+import com.deutschflow.grammar.service.MockExamStopService;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.UserLearningProfileService;
 import jakarta.validation.Valid;
@@ -29,11 +30,15 @@ public class ExamPlanController {
 
     private final ExamPlanService planService;
     private final UserLearningProfileService profileService;
+    private final MockExamStopService stopService;
 
     public record TargetDateRequest(@NotNull LocalDate targetDate) {}
 
     @GetMapping
     public ExamPlanDto plan(@AuthenticationPrincipal User user) {
+        // Lượt thi thử bỏ dở đã quá giờ: chốt "Dừng giữa chừng" trước khi đọc lịch (ngày thi thử của tuần
+        // không còn treo "đang làm"). Không có lượt quá hạn thì một truy vấn theo chỉ mục, gần như miễn phí.
+        stopService.closeExpired(user.getId());
         return planService.planFor(user.getId());
     }
 

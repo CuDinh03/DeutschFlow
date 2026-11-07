@@ -9,6 +9,7 @@ Không bao giờ chép `.env` từ máy dev lên server.
 | `install-nginx.sh` | Cài site nginx (`deutschflow.nginx.conf`: chỉ `127.0.0.1:80`, sau Cloudflare Tunnel) + file upstream blue-green |
 | `deploy-backend-vm.sh [--rollback]` | Build backend, chạy màu kia (8080 ↔ 8081), health, đổi upstream `df_backend`, xả màu cũ. 0 downtime |
 | `deploy-frontend-vm.sh [--rollback]` | Build Next.js (build args từ `frontend-build.env` + JWT public key), màu 3000 ↔ 3001, kiểm cổng vai trò, đổi `df_frontend` |
+| `remote-deploy-guard.sh` | Forced command cho khoá SSH của workflow GitHub "Deploy production": chỉ nhận `<backend\|frontend> <deploy\|rollback\|check> <sha>`. Cài ra `/usr/local/sbin/deutschflow-remote-deploy`, xem `docs/QUY_TRINH_PHAT_HANH.md` §5.0 |
 | `cleanup-vm.sh` | Dọn image/container an toàn — giữ `:latest`, `:prev`, 3 tag commit gần nhất; không đụng volume |
 | `backup-db.sh` | `pg_dump` → mã hoá `age` (khoá công khai) → `/backup/db` (14 bản) → R2 `deutschflow-backup` (30 ngày). Timer `systemd/deutschflow-backup.timer` 03:00 giờ VN |
 | `restore-db.sh <file> <age-key> [--into-scratch\|--into-prod]` | Diễn tập restore vào container tạm (mặc định) hoặc restore đè prod |

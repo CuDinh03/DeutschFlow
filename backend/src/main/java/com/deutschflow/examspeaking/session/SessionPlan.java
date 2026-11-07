@@ -3,8 +3,10 @@ package com.deutschflow.examspeaking.session;
 import com.deutschflow.examspeaking.api.model.PartFlow;
 import com.deutschflow.examspeaking.api.model.TaskArchetype;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 /**
  * Kịch bản cố định của một phiên (lưu plan_json): đề đã rút + các bước cho từng Teil.
@@ -22,12 +24,21 @@ public record SessionPlan(List<PartPlan> parts) {
 
     public record PartPlan(int teilNo, TaskArchetype archetype, PartFlow flow, int durationSec,
                            List<Long> taskIds, List<Map<String, Object>> stimuli, List<Step> steps,
-                           Map<String, Object> preTurn, Integer chosenIndex) {
+                           Map<String, Object> preTurn, Integer chosenIndex, List<Integer> coveredPoints) {
         public PartPlan {
             taskIds = taskIds == null ? List.of() : List.copyOf(taskIds);
             stimuli = stimuli == null ? List.of() : List.copyOf(stimuli);
             steps = steps == null ? List.of() : List.copyOf(steps);
             preTurn = preTurn == null ? Map.of() : Map.copyOf(preTurn);
+            // plan_json của phiên cũ (trước Đợt 5 phòng thi nói) không có khoá này → rỗng.
+            coveredPoints = coveredPoints == null ? List.of() : List.copyOf(new TreeSet<>(coveredPoints));
+        }
+
+        /** Phiên mới: chưa ý nào trên thẻ đề được nói tới. */
+        public PartPlan(int teilNo, TaskArchetype archetype, PartFlow flow, int durationSec,
+                        List<Long> taskIds, List<Map<String, Object>> stimuli, List<Step> steps,
+                        Map<String, Object> preTurn, Integer chosenIndex) {
+            this(teilNo, archetype, flow, durationSec, taskIds, stimuli, steps, preTurn, chosenIndex, List.of());
         }
 
         /** Teil có "chọn 1 trong N" (Goethe B1/B2 T2, telc B2 T1): nhiều đề rút ra, thí sinh chọn một. */
@@ -36,7 +47,19 @@ public record SessionPlan(List<PartPlan> parts) {
         }
 
         public PartPlan withChosenIndex(int index) {
-            return new PartPlan(teilNo, archetype, flow, durationSec, taskIds, stimuli, steps, preTurn, index);
+            return new PartPlan(teilNo, archetype, flow, durationSec, taskIds, stimuli, steps, preTurn, index, coveredPoints);
+        }
+
+        /**
+         * Ý trên thẻ đề đã được nói tới (Đợt 5 phòng thi nói): chỉ cộng thêm, không bao giờ bỏ ý đã gạch.
+         * Trả về chính nó khi không có ý mới.
+         */
+        public PartPlan withCoveredPoints(Collection<Integer> more) {
+            TreeSet<Integer> all = new TreeSet<>(coveredPoints);
+            if (more == null || !all.addAll(more)) {
+                return this;
+            }
+            return new PartPlan(teilNo, archetype, flow, durationSec, taskIds, stimuli, steps, preTurn, chosenIndex, List.copyOf(all));
         }
     }
 

@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,7 +14,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.MailSendException;
-import org.springframework.mail.SimpleMailMessage;
+import com.deutschflow.testsupport.SentMails;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -34,7 +34,6 @@ import java.util.regex.Pattern;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -81,7 +80,8 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     @BeforeEach
     void resetMail() {
         reset(mailSender);
-        doNothing().when(mailSender).send(any(SimpleMailMessage.class));
+        SentMails.stub(mailSender);
+        doNothing().when(mailSender).send(any(MimeMessage.class));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
@@ -111,12 +111,10 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     }
 
     /** Thư gần nhất gửi tới {@code email}. */
-    private SimpleMailMessage lastMailTo(String email) {
-        var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mailSender, atLeastOnce()).send(captor.capture());
-        List<SimpleMailMessage> mine = new ArrayList<>();
-        for (SimpleMailMessage m : captor.getAllValues()) {
-            if (m.getTo() != null && List.of(m.getTo()).contains(email)) mine.add(m);
+    private SentMails.Sent lastMailTo(String email) {
+        List<SentMails.Sent> mine = new ArrayList<>();
+        for (SentMails.Sent m : SentMails.all(mailSender)) {
+            if (m.to().contains(email)) mine.add(m);
         }
         assertThat(mine).as("có thư gửi tới " + email).isNotEmpty();
         return mine.get(mine.size() - 1);
@@ -269,7 +267,7 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
 
         clearInvocations(mailSender);
         resend(email).andExpect(status().isNoContent());
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(mailSender, never()).send(any(MimeMessage.class));
 
         jdbc.update("UPDATE pending_registrations SET last_sent_at = NOW() - INTERVAL '2 minutes' WHERE email = ?", email);
         resend(email).andExpect(status().isNoContent());
@@ -291,7 +289,7 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     void resend_unknownEmail_silent() throws Exception {
         clearInvocations(mailSender);
         resend(newEmail()).andExpect(status().isNoContent());
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
     // ── 6 ────────────────────────────────────────────────────────────────────
@@ -311,7 +309,7 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
         Integer rows = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM pending_registrations WHERE email = ?", Integer.class, email);
         assertThat(rows).isZero();
-        SimpleMailMessage mail = lastMailTo(email);
+        SentMails.Sent mail = lastMailTo(email);
         assertThat(mail.getSubject()).doesNotContainPattern("\\d{6}");
         assertThat(mail.getText()).contains("/v2/login").contains("/v2/forgot-password");
 
@@ -383,7 +381,7 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     @DisplayName("9. gửi thư hỏng ⇒ 503 + hồ sơ SEND_FAILED (không báo 'đã gửi' khi chưa gửi)")
     void sendFailure_503() throws Exception {
         String email = newEmail();
-        doThrow(new MailSendException("smtp down")).when(mailSender).send(any(SimpleMailMessage.class));
+        doThrow(new MailSendException("smtp down")).when(mailSender).send(any(MimeMessage.class));
 
         start(email)
                 .andExpect(status().isServiceUnavailable())
@@ -408,7 +406,7 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
         Integer rows = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM pending_registrations WHERE email = ?", Integer.class, email);
         assertThat(rows).isZero();
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
     @Test

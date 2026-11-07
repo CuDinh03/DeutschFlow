@@ -15,13 +15,16 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
-import org.springframework.mail.SimpleMailMessage;
+import com.deutschflow.testsupport.SentMails;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -29,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +53,9 @@ class PasswordResetServiceUnitTest {
     void setUp() {
         var mail = new TransactionalMail(mailSender, "smtp.example.com",
                 "support@mydeutschflow.com", "support@mydeutschflow.com", new SimpleMeterRegistry());
-        service = new PasswordResetService(jdbc, mail, passwordEncoder, refreshTokenRepository);
+        SentMails.stub(mailSender);
+        // Executor chạy ngay trên luồng test: không có transaction nên afterCommit cũng chạy ngay.
+        service = new PasswordResetService(jdbc, mail, passwordEncoder, refreshTokenRepository, Runnable::run);
     }
 
     /**
@@ -100,17 +106,47 @@ class PasswordResetServiceUnitTest {
     @Test
     @DisplayName("thư OTP mang đúng From + Reply-To đã cấu hình (SES từ chối thư thiếu From)")
     void requestReset_otpMailCarriesConfiguredSenderIdentity() {
-        when(jdbc.queryForObject(contains("COUNT(*) FROM users"), eq(Integer.class), eq("user@x.com")))
-                .thenReturn(1);
-        var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        when(jdbc.queryForList(contains("SELECT locale FROM users"), eq(String.class), eq("user@x.com")))
+                .thenReturn(List.of("vi"));
 
         service.requestReset("user@x.com");
 
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(captor.capture());
-        assertThat(captor.getValue().getFrom())
+        var sent = SentMails.read(captor.getValue());
+        assertThat(sent.from())
                 .as("thiếu From là SES từ chối thư OTP")
                 .isEqualTo("support@mydeutschflow.com");
-        assertThat(captor.getValue().getReplyTo())
-                .isEqualTo("support@mydeutschflow.com");
+        assertThat(sent.replyTo()).isEqualTo("support@mydeutschflow.com");
+    }
+
+    @Test
+    @DisplayName("thư OTP viết theo ngôn ngữ tài khoản, có cả chữ thuần lẫn HTML, mã ở tiêu đề")
+    void requestReset_mailFollowsAccountLocale_andHasBothParts() {
+        when(jdbc.queryForList(contains("SELECT locale FROM users"), eq(String.class), eq("user@x.com")))
+                .thenReturn(List.of("en"));
+
+        service.requestReset("user@x.com");
+
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(captor.capture());
+        var sent = SentMails.read(captor.getValue());
+        Matcher m = Pattern.compile("^(\\d{6}) is your myDeutschFlow password reset code$").matcher(sent.subject());
+        assertThat(m.matches()).as("tiêu đề: " + sent.subject()).isTrue();
+        String code = m.group(1);
+        assertThat(sent.text()).contains(code).contains("15 minutes");
+        assertThat(sent.html()).contains("Your code").contains(">" + code.charAt(0) + "<");
+    }
+
+    @Test
+    @DisplayName("email lạ: không tạo mã, không gửi thư, không giao việc cho executor (trả lời nhanh như email thật)")
+    void requestReset_unknownEmail_sendsNothing() {
+        when(jdbc.queryForList(contains("SELECT locale FROM users"), eq(String.class), eq("ghost@x.com")))
+                .thenReturn(List.of());
+
+        service.requestReset("ghost@x.com");
+
+        verify(mailSender, never()).send(any(MimeMessage.class));
+        verify(jdbc, never()).update(contains("INSERT INTO password_reset_tokens"), any(), any(), any());
     }
 }

@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens';
 
 /**
- * E2E Đợt 1 — Phòng luyện thi nói (/v2/student/speaking/exam). Backend mock bằng page.route theo hợp đồng
+ * E2E Đợt 1 — Phòng luyện thi nói (khu Luyện thi: /v2/student/mock-exam/oral/**, Đợt 2 phòng thi nói 07/11/2026). Backend mock bằng page.route theo hợp đồng
  * `/api/speaking/exam/**` (Đợt 0, PR #377). Hai luồng:
  *   1. Drill A1 Teil 2 bằng bàn phím (drill cho phép text; mock chỉ nhận audio) → thẻ đề, lời giám khảo,
  *      lượt trả lời của partner AI, thẻ chấm nhanh 0–10.
@@ -117,6 +117,10 @@ async function baseMocks(page: Page) {
   await page.route('**/api/speaking/exam/results', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
   // TTS: trả rỗng để không phát âm trong headless (component fallback im lặng).
   await page.route('**/api/ai-speaking/tts', (route) => route.fulfill({ status: 204, body: '' }));
+  // Hướng dẫn lần đầu phòng thi nói (Đợt 4) coi như đã xem — spec này không kiểm hướng dẫn.
+  await page.route('**/api/auth/me/tours', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ seen: ['exam.oral'] }) }),
+  );
 }
 
 test.describe('Phòng luyện thi nói (/v2)', () => {
@@ -145,8 +149,8 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
       });
     });
 
-    await page.goto('/v2/student/speaking/exam');
-    await expect(page.getByRole('heading', { name: 'Phòng luyện thi nói' })).toBeVisible();
+    await page.goto('/v2/student/mock-exam/oral/other');
+    await expect(page.getByRole('heading', { name: 'Thi nói: kỳ thi khác' })).toBeVisible();
     await expect(page.getByTestId('start-mock')).toBeEnabled();
     // Cấp chưa mở hiển thị "sắp có" và khóa nút. B2 đã mở ở Đợt 4 → dùng C1 (ngoài MVP).
     await page.getByTestId('level-C1').click();
@@ -157,17 +161,18 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByTestId('start-mock')).toBeEnabled();
 
     await page.getByTestId('start-drill-2').click();
-    await expect(page).toHaveURL(/\/v2\/student\/speaking\/exam\/session\/501/, { timeout: 30_000 });
+    await expect(page).toHaveURL(/\/v2\/student\/mock-exam\/oral\/501/, { timeout: 30_000 });
     expect(created).toMatchObject({ provider: 'GOETHE', level: 'A1', mode: 'DRILL', teil: 2 });
 
     // Phòng thi: thẻ đề + lời giám khảo + gợi ý hành động.
     await expect(page.getByTestId('stimulus-theme-card')).toContainText('Brot');
     await expect(page.getByTestId('exam-transcript')).toContainText('Teil 2');
     await expect(page.getByTestId('directive-hint')).toContainText('Đặt MỘT câu hỏi');
-    await expect(page.getByTestId('mic-bar').getByRole('status')).toContainText('ĐẶT CÂU HỎI');
     await expect(page.getByTestId('exam-timer')).toBeVisible();
-    // Cơ chế lượt: headless không có giọng đọc → TTS resolve ngay → dải trạng thái báo đến lượt mình.
+    // Cơ chế lượt: headless không có giọng đọc → TTS resolve ngay → dải trạng thái báo đến lượt mình,
+    // dòng phụ nói việc cần làm ở bước này.
     await expect(page.getByTestId('turn-status')).toContainText('Đến lượt bạn nói');
+    await expect(page.getByTestId('mic-bar').getByRole('status')).toContainText('Đặt câu hỏi');
 
     // Drill cho phép gõ thay mic.
     await page.getByTestId('mic-text-mode').click();
@@ -181,10 +186,10 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     // Sang bước ANSWER: thẻ của bạn thi + gợi ý đổi.
     await expect(page.getByTestId('stimulus-theme-card')).toContainText('Küche');
     await expect(page.getByTestId('directive-hint')).toContainText('Trả lời câu hỏi');
-    await expect(page.getByTestId('mic-bar').getByRole('status')).toContainText('TRẢ LỜI');
     await expect(page.getByTestId('turn-latency')).toBeVisible();
     // Sau lượt partner AI, quyền nói trả lại cho thí sinh (turn-gate mở).
     await expect(page.getByTestId('turn-status')).toContainText('Đến lượt bạn nói');
+    await expect(page.getByTestId('mic-bar').getByRole('status')).toContainText('Trả lời · bấm để nói');
   });
 
   test('mock đã chấm → Ergebnisbogen đúng phiếu A1 (voll/halb/null) + disclaimer', async ({ page }) => {
@@ -203,8 +208,12 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RESULT) }),
     );
 
-    await page.goto('/v2/student/speaking/exam/session/777');
-    await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
+    await page.goto('/v2/student/mock-exam/oral/777');
+    // Đợt 3 phòng thi nói: màn kết quả mới ở trên, phiếu chấm chi tiết thu gọn bên dưới.
+    await expect(page.getByTestId('oral-result-title')).toHaveText('Phần nói: 20/25 điểm', { timeout: 30_000 });
+    await expect(page.getByTestId('oral-result-teil-1')).toContainText('Teil 1 · Sich vorstellen');
+    await page.getByTestId('result-details').locator('summary').click();
+    await expect(page.getByTestId('ergebnisbogen')).toBeVisible();
     await expect(page.getByTestId('result-total')).toContainText('20');
     await expect(page.getByTestId('result-total')).toContainText('/ 25');
     await expect(page.getByTestId('ergebnisbogen')).toContainText('18–22');
@@ -213,8 +222,6 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await expect(page.getByTestId('result-part-3')).toContainText('NULL');
     await expect(page.getByTestId('ergebnisbogen')).toContainText('die Küche');
     await expect(page.getByTestId('result-disclaimer')).toContainText('không phải chứng nhận');
-    // Stepper: mọi Teil đã xong.
-    await expect(page.getByTestId('teil-stepper')).toBeVisible();
   });
 
   test('mock đang chấm → poll tới RESULTS', async ({ page }) => {
@@ -237,9 +244,9 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await page.route('**/api/speaking/exam/sessions/778/result', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...RESULT, sessionId: 778, provider: 'TELC', scoreSheet: { ...RESULT.scoreSheet, rubricRef: { provider: 'TELC', level: 'A1', version: 1 } } }) }),
     );
-    await page.goto('/v2/student/speaking/exam/session/778');
+    await page.goto('/v2/student/mock-exam/oral/778');
     await expect(page.getByTestId('exam-grading')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('oral-result')).toBeVisible({ timeout: 30_000 });
   });
 
   test('chấm lỗi (GRADING_FAILED) → thông báo + nút Chấm lại → job mới → RESULTS', async ({ page }) => {
@@ -269,14 +276,14 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...RESULT, sessionId: 779 }) }),
     );
 
-    await page.goto('/v2/student/speaking/exam/session/779');
+    await page.goto('/v2/student/mock-exam/oral/779');
     // Không còn spinner "đang chấm" mù: học viên thấy lỗi thật + biết bài thi còn nguyên.
     await expect(page.getByTestId('exam-grading-failed')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('exam-grading-failed')).toContainText('Chấm điểm bị lỗi');
     await page.getByTestId('regrade-btn').click();
     // Quay về màn đang chấm, poll sẵn có tự nối tới phiếu điểm.
     await expect(page.getByTestId('exam-grading')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('ergebnisbogen')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('oral-result')).toBeVisible({ timeout: 30_000 });
   });
 
   test('A2 Teil 3 lịch tuần: chỉ hiện lịch của mình, không bao giờ vẽ khóa partner*', async ({ page }) => {
@@ -299,7 +306,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await page.route('**/api/speaking/exam/sessions/602', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(calendarSession) }),
     );
-    await page.goto('/v2/student/speaking/exam/session/602');
+    await page.goto('/v2/student/mock-exam/oral/602');
     const card = page.getByTestId('stimulus-calendar-card');
     await expect(card).toBeVisible();
     await expect(card).toContainText('Kino');
@@ -322,7 +329,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
     await page.route('**/api/speaking/exam/sessions/603', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(current) }),
     );
-    await page.goto('/v2/student/speaking/exam/session/603');
+    await page.goto('/v2/student/mock-exam/oral/603');
     await expect(page.getByTestId('stimulus-person-card')).toContainText('Geburtstag?');
     await expect(page.getByTestId('stimulus-person-card')).toContainText('Thẻ của bạn');
 
@@ -357,7 +364,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
       chosen = body.index;
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(prepSession()) });
     });
-    await page.goto('/v2/student/speaking/exam/session/701');
+    await page.goto('/v2/student/mock-exam/oral/701');
     await expect(page.getByTestId('exam-prep')).toBeVisible();
     await expect(page.getByTestId('prep-materials')).toContainText('Krankenhaus');
     await expect(page.getByTestId('stimulus-folien-card').first()).toContainText('Thema vorstellen');
@@ -388,7 +395,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
         }),
       }),
     );
-    await page.goto('/v2/student/speaking/exam/session/702');
+    await page.goto('/v2/student/mock-exam/oral/702');
     const card = page.getByTestId('stimulus-graphic-card');
     await expect(card).toContainText('Ferien und Reisen');
     await expect(card.locator('svg rect')).toHaveCount(2);
@@ -431,7 +438,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
       chosen = body.index;
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(prepSession()) });
     });
-    await page.goto('/v2/student/speaking/exam/session/703');
+    await page.goto('/v2/student/mock-exam/oral/703');
     await expect(page.getByTestId('exam-prep')).toBeVisible();
 
     const vortrag = page.getByTestId('stimulus-topic-choice-card').first();
@@ -469,7 +476,7 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
         }),
       }),
     );
-    await page.goto('/v2/student/speaking/exam/session/704');
+    await page.goto('/v2/student/mock-exam/oral/704');
     const debate = page.getByTestId('stimulus-debate-card');
     await expect(debate).toContainText('Hunde am Arbeitsplatz');
     await expect(debate).toContainText('Betriebsklima');
@@ -481,18 +488,20 @@ test.describe('Phòng luyện thi nói (/v2)', () => {
 test.describe('Mock mic gate (quyền mic chưa cấp)', () => {
   test.use({ permissions: [] });
 
-  test('bấm Thi thử khi mic chưa cấp quyền → hiện Mic-Check gate, KHÔNG tạo phiên', async ({ page }) => {
+  test('bấm Thi thử khi mic chưa cấp quyền → sang màn Kiểm tra micro, KHÔNG tạo phiên', async ({ page }) => {
     await baseMocks(page);
     let created = false;
     await page.route('**/api/speaking/exam/sessions', (route) => {
       created = true;
       return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
     });
-    await page.goto('/v2/student/speaking/exam');
+    await page.goto('/v2/student/mock-exam/oral/other');
     await expect(page.getByTestId('start-mock')).toBeEnabled();
     await page.getByTestId('start-mock').click();
-    await expect(page.getByTestId('mock-mic-gate')).toBeVisible();
-    await expect(page.getByTestId('mic-check-start')).toBeVisible();
+    await expect(page).toHaveURL(/\/v2\/student\/mock-exam\/oral\/?\?provider=GOETHE&level=A1&mode=MOCK/);
+    await expect(page.getByTestId('oral-mic-check')).toBeVisible();
+    await expect(page.getByTestId('oral-mic-start')).toBeVisible();
+    await expect(page.getByTestId('oral-entry-go')).toBeDisabled();
     expect(created).toBe(false);
   });
 });

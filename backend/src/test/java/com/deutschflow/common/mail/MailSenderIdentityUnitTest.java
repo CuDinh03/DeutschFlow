@@ -92,12 +92,30 @@ class MailSenderIdentityUnitTest {
         assertThat(meters.get("mail.send").tag("mailer", "t").tag("outcome", "fail").counter().count()).isEqualTo(1.0);
     }
 
+    @Test
+    @DisplayName("thư hai phần (sendRich) cũng mang From + Reply-To, có chữ thuần lẫn HTML, đếm như send")
+    void richMailCarriesSenderIdentityAndBothParts() {
+        com.deutschflow.testsupport.SentMails.stub(sender);
+        mail.sendRich("rich", "hv@example.com", "Tiêu đề", "Chữ thuần", "<p>HTML</p>");
+
+        var captor = ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
+        verify(sender).send(captor.capture());
+        var sent = com.deutschflow.testsupport.SentMails.read(captor.getValue());
+        assertThat(sent.from()).isEqualTo(FROM);
+        assertThat(sent.replyTo()).isEqualTo(REPLY_TO);
+        assertThat(sent.to()).containsExactly("hv@example.com");
+        assertThat(sent.subject()).isEqualTo("Tiêu đề");
+        assertThat(sent.text()).isEqualTo("Chữ thuần");
+        assertThat(sent.html()).isEqualTo("<p>HTML</p>");
+        assertThat(meters.get("mail.send").tag("mailer", "rich").tag("outcome", "ok").counter().count()).isEqualTo(1.0);
+    }
+
     /**
      * Chốt chặn cho mailer viết sau này: tạo thư bằng {@code new SimpleMailMessage()} là bỏ qua
      * {@code From} gắn sẵn. Chỉ {@link TransactionalMail} được phép.
      */
     @Test
-    @DisplayName("không file main nào ngoài TransactionalMail gọi new SimpleMailMessage()")
+    @DisplayName("không file main nào ngoài TransactionalMail tự tạo thư (new SimpleMailMessage / createMimeMessage)")
     void onlyTransactionalMailCreatesMessages() throws IOException {
         Path root = Path.of("src/main/java");
         List<Path> offenders;
@@ -107,7 +125,8 @@ class MailSenderIdentityUnitTest {
                     .filter(p -> !p.getFileName().toString().equals("TransactionalMail.java"))
                     .filter(p -> {
                         try {
-                            return Files.readString(p, StandardCharsets.UTF_8).contains("new SimpleMailMessage(");
+                            String src = Files.readString(p, StandardCharsets.UTF_8);
+                            return src.contains("new SimpleMailMessage(") || src.contains("createMimeMessage(");
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }

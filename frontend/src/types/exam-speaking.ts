@@ -44,6 +44,8 @@ export interface ExamDirective {
   prueferVoice: string | null
   lastAiRole: string | null
   lastAiText: string | null
+  /** Chỉ số các ý trên thẻ đề (`stimulus.prompts`) đã được nói tới (Đợt 5 phòng thi nói); phiên cũ: thiếu. */
+  coveredPoints?: number[] | null
 }
 
 export interface DrillTurnEval {
@@ -178,6 +180,15 @@ export interface ExamResultView {
   borderline?: boolean
   scoreSheet: ScoreSheet
   createdAt: string
+}
+
+/** Lời đã lưu của phiên — `GET /sessions/{id}/transcript` (Đợt 3 phòng thi nói). `eval` chỉ có ở lượt drill của thí sinh. */
+export interface TranscriptLine {
+  teilNo: number
+  seq: number
+  role: 'CANDIDATE' | 'PRUEFER' | 'PARTNER'
+  text: string
+  eval: DrillTurnEval | null
 }
 
 /** Một dòng transcript trong phòng thi (client giữ để render; server mới là nguồn sự thật). */

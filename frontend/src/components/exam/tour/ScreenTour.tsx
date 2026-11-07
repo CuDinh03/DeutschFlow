@@ -78,6 +78,11 @@ export function useScreenTour({ key, steps, ready }: Options) {
     active,
     start,
     familiar: seenBefore === true,
+    /**
+     * Đã biết người học xem hướng dẫn này rồi và hướng dẫn đang không mở. Màn có tiếng (phòng thi nói)
+     * chờ cờ này mới phát lời giám khảo, để hướng dẫn tự mở lần đầu không đè lên lời đọc đề.
+     */
+    settled: seen === true && !active,
     overlay: active ? <TourOverlay steps={stepsRef.current} onClose={close} /> : null,
   }
 }

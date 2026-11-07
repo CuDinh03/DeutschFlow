@@ -345,9 +345,7 @@
         "interviewTitle": "Vorstellungsgespräch üben",
         "interviewDesc": "Simuliere ein Vorstellungsgespräch mit einer deutschen HR-Person.",
         "weeklyTitle": "Wöchentliche Themen",
-        "weeklyDesc": "Thematische Sprechübung, jede Woche aktualisiert.",
-        "examTitle": "Prüfungsraum Sprechen",
-        "examDesc": "Einzelne Teile üben oder die ganze Prüfung simulieren — im Goethe-/telc-Format, bewertet nach den Kriterien der Prüfung."
+        "weeklyDesc": "Thematische Sprechübung, jede Woche aktualisiert."
       },
       "interviewResults": "Interview-Ergebnisse",
       "historyCta": "Verlauf"
@@ -1755,9 +1753,9 @@
     },
     "examSpeaking": {
       "catalog": {
-        "title": "Prüfungsraum Sprechen",
-        "subtitle": "Simuliert die mündliche Prüfung Goethe / telc — einen Teil üben oder die ganze Prüfung",
-        "back": "Zurück zum Sprechen",
+        "title": "Sprechen: andere Prüfungen",
+        "subtitle": "Goethe / telc und Niveau wählen, um einen Teil zu üben oder eine Probeprüfung zu machen, ohne den Lernplan zu ändern",
+        "back": "Zurück zur Prüfungsvorbereitung",
         "dismiss": "Schließen",
         "providerLabel": "Prüfungsanbieter",
         "levelLabel": "Niveau",
@@ -1812,23 +1810,13 @@
         "mute": "Ton aus",
         "dismiss": "Schließen",
         "audioTooLarge": "Die Aufnahme ist zu lang zum Senden. Pro Redebeitrag sind höchstens 3 Minuten möglich — bitte kürzer aufnehmen.",
-        "prepCap": "Vorbereitungszeit",
-        "prepDesc": "Stichpunkte notieren; die Notizen dürfen in der Prüfung benutzt werden. Nach Ablauf der Zeit geht es automatisch los.",
         "prepLeft": "Vorbereitung",
         "notesPlaceholder": "Ihre Notizen (Konzeptpapier)…",
-        "enterExam": "Prüfung beginnen",
         "teilCap": "Teil {n}",
-        "step": "Schritt {i}/{n}",
         "myNotes": "Meine Notizen",
         "skipPart": "Nächster Teil",
         "finishMock": "Beenden & bewerten",
         "finishDrill": "Beenden",
-        "action": {
-          "ASK": "Sie sind dran: eine FRAGE stellen / eine Bitte formulieren. Zum Sprechen tippen.",
-          "ANSWER": "Sie sind dran: ANTWORTEN. Zum Sprechen tippen.",
-          "SPEAK": "Sie sind dran. Zum Starten tippen.",
-          "REACT": "Auf Ihre/n Partner/in reagieren. Zum Sprechen tippen."
-        },
         "grading": "Die Prüfer bewerten…",
         "gradingDesc": "Zwei unabhängige Bewertungen nach den Kriterien der Prüfung — meist unter einer Minute.",
         "gradingFailed": "Bewertung fehlgeschlagen — deine Prüfung ist gespeichert.",
@@ -1837,8 +1825,8 @@
         "resultLoadFailed": "Ergebnisbogen konnte nicht geladen werden. Das Ergebnis liegt auf dem Server — bitte erneut laden.",
         "retryResult": "Ergebnisbogen neu laden",
         "aborted": "Die Sitzung wurde abgebrochen.",
-        "again": "Weiter üben",
-        "backToCatalog": "Zurück zum Prüfungsraum",
+        "again": "Noch einmal",
+        "backToCatalog": "Zurück",
         "you": "Sie",
         "pruefer": "Prüfer/in",
         "partner": "Partner/in",
@@ -1885,20 +1873,114 @@
           "ANSWER_PRUEFER_TOPIC": "Beantworte die Frage des Prüfers / der Prüferin zum Thema."
         },
         "partnerAi": "Partner/in · KI",
-        "turn": {
-          "prueferSpeaking": "Der Prüfer / die Prüferin spricht — hör zu, du bist noch nicht dran.",
-          "partnerSpeaking": "Dein Partner / deine Partnerin (KI) spricht — warte, bis er/sie fertig ist.",
-          "processing": "Dein Beitrag wird verarbeitet…",
-          "yourTurn": "Du bist dran — sprich jetzt!",
-          "waitHint": "Warte, bis du dran bist…"
-        },
         "audioRetained": "Diese Sitzung wird zur Bewertungs-Kalibrierung aufgezeichnet (mit deiner Einwilligung). Du kannst die Einwilligung jederzeit widerrufen — das Audio wird gelöscht.",
         "beta": "Beta",
         "retryTurn": "Letzten Beitrag erneut senden",
         "retryTurnHint": "Aufnahme/Antwort liegt noch auf deinem Gerät — erneutes Senden zählt nicht als neuer Beitrag.",
         "gradingFailedQuota": "Noch nicht bewertet: dein KI-Budget ist aufgebraucht — deine Prüfung ist gespeichert.",
         "gradingFailedQuotaDesc": "Alles Gesagte bleibt erhalten. Lade auf oder warte auf die nächste Periode und drücke dann „Neu bewerten“ — keine Wiederholung nötig.",
-        "upgradeCta": "Tarife ansehen / aufladen"
+        "upgradeCta": "Tarife ansehen / aufladen",
+        "oral": {
+          "eyebrow": "Mündliche Prüfung",
+          "conversation": "Gespräch im Prüfungsraum",
+          "taskCard": "Aufgabenblatt",
+          "turns": "Beiträge",
+          "nextTeil": "Weiter zu Teil {n}",
+          "people": {
+            "pruefer": "Prüfer/in",
+            "partner": "Partner/in",
+            "ai": "KI",
+            "you": "Sie"
+          },
+          "me": {
+            "turn": "Sie sind dran",
+            "listen": "Zuhören",
+            "recording": "Sie sprechen",
+            "sending": "Wird gesendet"
+          },
+          "status": {
+            "prueferTalking": "Die Prüferin / der Prüfer spricht",
+            "partnerTalking": "Ihr/e Partner/in (KI) spricht",
+            "listen": "Hören Sie zu, Sie sind noch nicht dran",
+            "processing": "Ihr Beitrag wird verarbeitet",
+            "processingSub": "Warten auf Antwort",
+            "recording": "Aufnahme läuft",
+            "recordingSub": "Noch einmal tippen, um zu stoppen und zu senden",
+            "yourTurn": "Sie sind dran",
+            "tap": "Zum Sprechen tippen",
+            "tapWithAction": "{action} · zum Sprechen tippen",
+            "recordingAutoSub": "2 Sekunden Stille senden automatisch, oder erneut tippen"
+          },
+          "action": {
+            "ASK": "Eine Frage stellen oder eine Bitte äußern",
+            "ANSWER": "Antworten",
+            "SPEAK": "Zur Aufgabe sprechen",
+            "REACT": "Auf den Partner reagieren"
+          },
+          "confirm": {
+            "finishMockTitle": "Mündliche Prüfung beenden?",
+            "finishMockBody": "Bewertet wird, was Sie bisher gesagt haben. Danach können Sie den Prüfungsraum nicht mehr betreten.",
+            "finishMockGo": "Beenden und bewerten",
+            "finishDrillTitle": "Übung beenden?",
+            "finishDrillBody": "Sie sehen eine Zusammenfassung Ihrer Beiträge.",
+            "finishDrillGo": "Beenden",
+            "keepGoing": "Weitermachen",
+            "keepPractising": "Weiter üben",
+            "nextTitle": "Weiter zu Teil {n}?",
+            "nextBody": "Zu Teil {cur} können Sie nicht zurück.",
+            "nextGo": "Weiter zu Teil {n}",
+            "stay": "Bleiben"
+          },
+          "prep": {
+            "title": "Vorbereitung",
+            "leave": "Vorbereitungsraum verlassen",
+            "leaveTitle": "Vorbereitungsraum verlassen?",
+            "leaveBodyMock": "Diese Probeprüfung wird abgebrochen und nicht bewertet. Beim nächsten Mal beginnen Sie neu.",
+            "leaveBodyDrill": "Diese Übung wird abgebrochen.",
+            "leaveGo": "Verlassen",
+            "notesLabel": "Notizen (nur für Sie sichtbar)",
+            "notesHint": "Wird gespeichert, sobald Sie aufhören zu tippen. In der Prüfung können Sie die Notizen ansehen.",
+            "order": "Ablauf der Prüfung",
+            "minutes": "{n} Min.",
+            "enterNow": "Prüfung jetzt beginnen",
+            "autoEnter": "Wenn die Vorbereitungszeit endet, beginnt die Prüfung automatisch.",
+            "chooseFirst": "Wählen Sie im Teil mit zwei Optionen zuerst ein Thema."
+          },
+          "result": {
+            "titlePassBy": "Sprechen bestanden, {n} Punkte über der Grenze",
+            "titlePass": "Sprechen bestanden",
+            "titleFailBy": "Sprechen noch nicht bestanden, es fehlen {n} Punkte",
+            "titleFail": "Sprechen noch nicht bestanden",
+            "titleBorderline": "Sprechen knapp an der Bestehensgrenze",
+            "titleScore": "Sprechen: {total}/{max} Punkte",
+            "statusPass": "Schätzung · Bestanden",
+            "statusFail": "Schätzung · Nicht bestanden",
+            "statusBorderline": "Schätzung · Knapp",
+            "statusNone": "Schätzung",
+            "needMin": "{n} nötig",
+            "range": "Spanne zwischen beiden Bewertungen: {range}",
+            "estimateNote": "Von der KI nach den Prüfungskriterien bewertet, kein offizielles Ergebnis.",
+            "scoreLabel": "Punkte Sprechen",
+            "barLabel": "{pct} % der Punkte",
+            "partsTitle": "Punkte pro Teil",
+            "zeroed": "Die Aufgabe dieses Teils wurde nicht erfüllt, daher 0 Punkte für den Teil",
+            "band": "Stufe {band}",
+            "reviewDesc": "Beiträge noch einmal lesen und Fehler pro Teil sehen.",
+            "reviewOpen": "Gespräch ansehen",
+            "reviewClose": "Gespräch ausblenden",
+            "reviewError": "Das Gespräch konnte nicht geladen werden. Bitte später erneut versuchen.",
+            "reviewEmpty": "Für diese Sitzung wurden keine Beiträge gespeichert.",
+            "errorsTitle": "Zu korrigierende Fehler",
+            "details": "Ausführlicher Bewertungsbogen",
+            "again": "Noch einmal",
+            "backToday": "Zurück zu Heute",
+            "back": "Zurück",
+            "gradingLeave": "Sie können die Seite verlassen; das Ergebnis steht unter den Probeprüfungen der Prüfungsseite.",
+            "drillDone": "Übung Teil {n} abgeschlossen"
+          },
+          "autoStop": "Automatisch stoppen bei Stille",
+          "autoStopHint": "An: Nach dem Sprechen stoppen und senden 2 Sekunden Stille die Aufnahme. Aus: Zum Senden erneut auf das Mikrofon tippen."
+        }
       },
       "mic": {
         "sending": "Wird gesendet, Antwort folgt…",
@@ -1950,7 +2032,8 @@
         "meinungHint": "Berichten Sie Ihrem Partner / Ihrer Partnerin von dieser Meinung und erzählen Sie dann von Ihren eigenen Erfahrungen.",
         "yourTopic": "Ihr Thema",
         "debate": "Diskussion",
-        "debateHint": "Nennen Sie Ihren Standpunkt, reagieren Sie auf Ihre Partnerin oder Ihren Partner und fassen Sie zusammen: dafür oder dagegen?"
+        "debateHint": "Nennen Sie Ihren Standpunkt, reagieren Sie auf Ihre Partnerin oder Ihren Partner und fassen Sie zusammen: dafür oder dagegen?",
+        "pointCovered": "besprochen"
       },
       "result": {
         "sheetCap": "Simulierter Bewertungsbogen",
@@ -2038,6 +2121,36 @@
           "denied": "Der Browser blockiert das Mikrofon — folge den Schritten oben und prüfe erneut.",
           "other": "Mikrofon konnte nicht geöffnet werden. Prüfe dein Gerät und versuche es erneut."
         }
+      },
+      "entry": {
+        "exit": "Beenden",
+        "modeMock": "Probeprüfung",
+        "modeDrill": "Teil {n} üben",
+        "title": "Technik-Check vor der mündlichen Prüfung",
+        "micTitle": "Mikrofon",
+        "micSub": "Auf „Prüfen\" tippen und „Hallo\" sagen",
+        "micCheck": "Prüfen",
+        "passed": "Mikrofon funktioniert",
+        "heard": "Wir hören Sie",
+        "speakNow": "Sagen Sie etwas",
+        "speakerTitle": "Lautsprecher",
+        "speakerSub": "Stimme der Prüferin / des Prüfers anhören",
+        "speakerPlay": "Probe abspielen",
+        "quietTitle": "Ruhiger Ort",
+        "quietSub": "Lärm verschlechtert die Bewertung der Aussprache",
+        "micFailed": "Das Mikrofon ließ sich nicht öffnen. Prüfen Sie, ob es angeschlossen ist und keine andere App es nutzt.",
+        "blockedTitle": "Mikrofon ist blockiert",
+        "blockedBody": "Klicken Sie auf das Schloss neben der Adresse, erlauben Sie das Mikrofon und prüfen Sie erneut.",
+        "retry": "Erneut prüfen",
+        "goPrep": "Zur Vorbereitung",
+        "goExam": "Prüfung beginnen",
+        "needMic": "Prüfen Sie zuerst das Mikrofon.",
+        "prepNote": "Die Vorbereitungszeit beginnt, wenn Sie den Raum betreten.",
+        "noPrepNote": "Diese Prüfung hat keine Vorbereitungszeit: Die Uhr läuft sofort.",
+        "loading": "Prüfungsraum wird geöffnet…",
+        "creating": "Prüfung wird angelegt…",
+        "createFailed": "Die Prüfung konnte nicht angelegt werden.",
+        "retryCreate": "Erneut versuchen"
       }
     },
     "micGuide": {
@@ -2558,7 +2671,6 @@
       "points": "{n} Punkte",
       "oralSub": "Mündlich · Bewertung im Sprechprüfungsraum",
       "oralTitle": "Im Sprechprüfungsraum üben",
-      "oralDesc": "3 Teile, eigene Bewertung im Sprechmodul",
       "progressCap": "Fortschritt in dieser Prüfung",
       "teilCount": "{n} Teile",
       "progressNone": "Noch kein Teil abgeschlossen.",
@@ -2605,7 +2717,12 @@
         "confirmBody": "Leere Antworten zählen 0 Punkte. Diesen Teil jetzt prüfen?",
         "confirmGo": "Trotzdem prüfen",
         "keepGoing": "Weiterarbeiten",
-        "suggestStrategy": "Strategie ansehen"
+        "suggestStrategy": "Strategie ansehen",
+        "exitTitle": "{teil} verlassen?",
+        "exitBody": "Sie haben {done} von {total} Aufgaben beantwortet. Ihre Antworten werden als Entwurf gespeichert, Sie können später weitermachen. Entwürfe zählen nicht für Ihre Kompetenzwerte; mit „Diesen Teil prüfen“ werden sie gewertet.",
+        "exitBodyWriting": "Ihr Text ({words} Wörter) wird als Entwurf gespeichert, Sie können später weiterschreiben. Die KI bewertet ihn erst, wenn Sie „Mit KI bewerten“ wählen.",
+        "exitFailed": "Der Entwurf konnte nicht gespeichert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "exitRetry": "Erneut versuchen"
       },
       "seeInText": "Im Text zeigen",
       "hoeren": {
@@ -2687,13 +2804,29 @@
         "strategyFor": "Strategie für {name}",
         "chartLabel": "Punkte schriftlich in den Modellprüfungen: {scores}; Bestehensgrenze {mark}",
         "passLine": "Grenze {n}",
-        "today": "Heute"
+        "today": "Heute",
+        "rowPartial": "Vorzeitig beendet · {done}/{total} Teile bearbeitet",
+        "partialPill": "Vorzeitig beendet"
       },
       "rewrite": "Diesen Brief neu schreiben",
       "estPass": "Schätzung · 60 % dieses Teils erreicht",
       "estBelow": "Schätzung · unter 60 % dieses Teils · {n} Punkte fehlen",
       "estNote": "Von der KI nach den telc-Kriterien bewertet, keine offizielle Punktzahl.",
-      "help": "Anleitung anzeigen"
+      "help": "Anleitung anzeigen",
+      "oral": {
+        "groupDone": "{done}/{total} Teile abgelegt",
+        "mockTitle": "Probeprüfung Sprechen",
+        "mockMeta": "{minutes} Min. · {n} Teile · KI-Prüfer/in und KI-Partner/in",
+        "mockMetaShort": "KI-Prüfer/in und KI-Partner/in",
+        "teilMeta": "{minutes} Min. · nur diesen Teil üben",
+        "score": "{score}/{max}",
+        "new": "Noch nicht abgelegt",
+        "other": "Andere Prüfungen (Goethe, andere Niveaus)",
+        "historyTitle": "Probeprüfungen Sprechen",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "borderline": "Knapp"
+      }
     },
     "examHub": {
       "title": "Prüfungstraining",
@@ -2915,6 +3048,30 @@
         "backToday": "Zurück zu heute",
         "lostWritingEmpty": "Kein Brief geschrieben",
         "planNoDate": "Legen Sie auf der Seite Heute den Prüfungstermin fest, dann gibt es einen Lernplan nach diesem Ergebnis."
+      },
+      "closedPrevious": "Ihr letzter Versuch ist abgelaufen, während Sie weg waren. Das Bearbeitete steht im Verlauf als „Vorzeitig beendet“.",
+      "stopTitle": "Probeprüfung beenden?",
+      "stopBody": "Die Zeit läuft weiter, wenn Sie gehen. Beenden Sie jetzt, wird dieser Versuch als „Vorzeitig beendet“ gespeichert: Nur bearbeitete Teile werden bewertet, es gibt kein Bestanden/Nicht bestanden, und Sie können nicht weitermachen.",
+      "stopCounted": "Wird bewertet: {list}",
+      "stopTeilFull": "{teil} ({done}/{total} Aufgaben)",
+      "stopTeilBlank": "{teil} ({done}/{total} Aufgaben, {blank} leere zählen 0)",
+      "stopWriting": "Schreiben: geschrieben, aber nicht bewertet. Die KI bewertet erst beim Abgeben.",
+      "stopSkipped": "Nicht bewertet: {list}",
+      "stopFailed": "Der Versuch konnte nicht beendet werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut; Ihre Antworten werden weiter gespeichert.",
+      "stopRetry": "Erneut versuchen",
+      "stopConfirm": "Beenden und Bearbeitetes speichern",
+      "keepGoing": "Weitermachen",
+      "partial": {
+        "title": "Vorzeitig beendet",
+        "leadStopped": "Sie haben diesen Versuch beendet. Nur bearbeitete Teile werden bewertet (leere Aufgaben darin zählen 0); ein beendeter Versuch hat keine Gesamtpunktzahl und kein Bestanden/Nicht bestanden.",
+        "leadExpired": "Dieser Versuch ist abgelaufen, während Sie weg waren. Das Bearbeitete wird nach dem zuletzt gespeicherten Stand bewertet; ein beendeter Versuch hat keine Gesamtpunktzahl und kein Bestanden/Nicht bestanden.",
+        "doneOf": "{done} von {total} Teilen bearbeitet",
+        "rowScored": "{answered}/{total} Aufgaben beantwortet · zum Ansehen tippen",
+        "rowWritten": "Geschrieben, nicht bewertet (die KI bewertet erst beim Abgeben)",
+        "rowSkipped": "Nicht begonnen · nicht bewertet",
+        "note": "Die Punkte pro Teil zeigen, wo Sie stehen. Für Gesamtpunkte und Bestanden/Nicht bestanden geben Sie die ganze Prüfung ab.",
+        "again": "Diese Probeprüfung wiederholen",
+        "toHub": "Zurück zu Heute"
       }
     },
     "tour": {
@@ -3043,6 +3200,20 @@
           "t": "Drei Kriterien",
           "p": "Jedes Kriterium hat die Stufen A–D und den Weg nach oben."
         }
+      },
+      "oral": {
+        "steps": {
+          "t": "Drei Teile",
+          "p": "Die Teile folgen nacheinander; die Uhr rechts zeigt die Zeit für den aktuellen Teil. Sie läuft weiter, während Sie dies lesen; die Prüferin / der Prüfer wartet, bis Sie fertig sind."
+        },
+        "mic": {
+          "t": "Mikrofon-Taste",
+          "p": "Ein gelber Ring heißt: Sie sind dran. Tippen zum Sprechen, noch einmal tippen zum Beenden und Senden. Während die Prüfer/in oder Partner/in spricht, ist die Taste gesperrt."
+        },
+        "task": {
+          "t": "Aufgabenblatt",
+          "p": "Aufgabe, Tipp für diesen Schritt und Ihre Notizen. Auf dem Handy tippen Sie auf die Zeile „Aufgabenblatt“, um sie zu öffnen."
+        }
       }
     },
     "diagnostic": {
@@ -3099,7 +3270,13 @@
       "oralBack": "Danach hierher zurückkehren und \"Ergebnis prüfen\" antippen.",
       "oralCheck": "Ergebnis prüfen",
       "oralNotYet": "Seit dem Start des Einstufungstests gibt es noch keine bewertete mündliche Prüfung.",
-      "aiTag": "KI-Bewertung nach telc-Kriterien · Schätzung"
+      "aiTag": "KI-Bewertung nach telc-Kriterien · Schätzung",
+      "exitTitle": "Einstufungstest verlassen?",
+      "exitBody": "Fertige Teile bleiben erhalten. Der Teil {part}, an dem Sie arbeiten, wird als Entwurf gespeichert; beim nächsten Mal machen Sie hier weiter.",
+      "exitFailed": "Der Entwurf konnte nicht gespeichert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "exitRetry": "Erneut versuchen",
+      "exitConfirm": "Speichern und verlassen",
+      "keepGoing": "Weitermachen"
     }
   }
 }

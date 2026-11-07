@@ -7,8 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Headphones, PenLine, Send } from 'lucide-react'
-import api, { apiMessage } from '@/lib/api'
-import { getAccessToken } from '@/lib/authSession'
+import { apiMessage } from '@/lib/api'
+import { sendKeepalive } from '@/lib/exam/keepalive'
 import {
   createDraftAutosaver,
   parseDraftAnswers,
@@ -20,8 +20,11 @@ import {
   getAttemptAnalysis,
   getAttemptResult,
   listMyAttempts,
+  PARTIAL,
+  partialInfo,
   saveAttemptDraft,
   startAttempt,
+  stopAttempt,
   type AttemptAnalysis,
   type AttemptResult,
 } from '@/lib/exam/mockAttemptApi'
@@ -47,6 +50,7 @@ import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { MockStart } from '@/components/exam/mock/MockStart'
 import { GradingSteps, HoerenRitual } from '@/components/exam/mock/HoerenRitual'
 import { ResultSummary } from '@/components/exam/mock/ResultSummary'
+import { PartialSummary } from '@/components/exam/mock/PartialSummary'
 import { REWRITE_KEY, firstIdxOf, lastIdxOf, nextStage, resumeStage, stageOf } from '@/components/exam/mock/mockModel'
 import { oralHref } from '@/components/exam/today/todayModel'
 
@@ -170,6 +174,11 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const [stageConfirm, setStageConfirm] = React.useState(false)
   const [timedOut, setTimedOut] = React.useState(false)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+  const router = useRouter()
+  // Dừng giữa chừng (07/11/2026): hộp xác nhận liệt kê Teil sẽ tính / không tính.
+  const [stopOpen, setStopOpen] = React.useState(false)
+  const [stopping, setStopping] = React.useState(false)
+  const [stopFailed, setStopFailed] = React.useState(false)
 
   const autosaverRef = React.useRef<DraftAutosaver | null>(null)
   const baseVersionRef = React.useRef(0)
@@ -204,6 +213,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         setIdx(stageOf(list[at].section) === st ? at : firstIdxOf(list, st))
         setTimeLeft(s.remainingSeconds)
         const restored = Object.keys(s.answers).length
+        if (s.closedAttemptId) toast.info(t('closedPrevious'))
         if (restored > 0) toast.success(t('draftRestored', { count: restored }))
         trackFeatureAction('mock_exam', 'started', { examId, ui: 'full', resumedAnswers: restored })
       })
@@ -306,20 +316,15 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   React.useEffect(() => {
     if (!attemptId) return
     const flush = () => {
+      // Đã nộp/đã dừng: lượt đóng, không gửi nháp nữa (server cũng trả 409).
+      if (submittingRef.current) return
       const snap = autosaverRef.current?.getSnapshot()
       if (!snap) return
-      const token = getAccessToken()
-      try {
-        void fetch(`${api.defaults.baseURL ?? ''}/mock-exams/attempts/${attemptId}/draft`, {
-          method: 'PATCH',
-          keepalive: true,
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ answers: snap.payload.answers, sectionIndex: snap.payload.sectionIndex, baseVersion: snap.baseVersion }),
-        })
-      } catch {
-        /* lần mở sau làm tiếp từ bản lưu gần nhất */
-      }
+      sendKeepalive('PATCH', `/mock-exams/attempts/${attemptId}/draft`, {
+        answers: snap.payload.answers,
+        sectionIndex: snap.payload.sectionIndex,
+        baseVersion: snap.baseVersion,
+      })
     }
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') flush()
@@ -357,6 +362,48 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
     })
   }, [])
 
+  // ── dừng giữa chừng ─────────────────────────────────────────────────────────
+  // Bấm dừng: chặn autosave + keepalive, gửi /stop (server chấm theo Teil, dừng đồng hồ tại finished_at),
+  // rồi tắt hẳn autosaver. Lỗi mạng ⇒ mở lại lượt như cũ, hộp báo chưa dừng được.
+  const touchedAny = Object.values(answers).some((v) => !!v && v.trim() !== '')
+  const stopNow = async () => {
+    if (!attemptId || submittingRef.current) return
+    submittingRef.current = true
+    setStopping(true)
+    setStopFailed(false)
+    try {
+      const r = await stopAttempt(attemptId, answersRef.current)
+      autosaverRef.current?.dispose()
+      autosaverRef.current = null
+      setStopOpen(false)
+      trackFeatureAction('mock_exam', 'quit', { examId, attemptId, status: r.status })
+      if (r.status === PARTIAL || (r.alreadyClosed && r.status === 'COMPLETED')) onFinished(attemptId)
+      else router.push(HUB)
+    } catch {
+      submittingRef.current = false
+      setStopping(false)
+      setStopFailed(true)
+      setStopOpen(true)
+    }
+  }
+  const requestExit = () => {
+    if (phase !== 'taking' || !attemptId) {
+      router.push(HUB)
+      return
+    }
+    if (!touchedAny) {
+      // Chưa chạm câu nào: huỷ lượt (không vào lịch sử) rồi rời, không hỏi. Huỷ lỗi thì vẫn rời —
+      // lượt rỗng sẽ được chốt CANCELLED khi quá giờ.
+      submittingRef.current = true
+      void stopAttempt(attemptId, {})
+        .catch(() => undefined)
+        .finally(() => router.push(HUB))
+      return
+    }
+    setStopFailed(false)
+    setStopOpen(true)
+  }
+
   // ── khung ──────────────────────────────────────────────────────────────────
   if (error && teile.length === 0) {
     return (
@@ -393,6 +440,23 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const left = unansweredCount(teile, answers)
   const title = tp(`teilTitle.${cur.data.type ?? cur.section}`)
   const subtitle = t('subtitle', { section: tp(`section.${cur.section}`), n: cur.no })
+
+  const teilName = (x: FullTeil) => (x.section === 'SCHREIBEN' ? 'Schreiben' : `${tp(`sectionDe.${x.section}`)} Teil ${x.no}`)
+  const stopDetails: React.ReactNode[] = []
+  const counted: string[] = []
+  const skipped: string[] = []
+  for (const x of teile) {
+    const p = teilProgress(x, answers)
+    if (x.section === 'SCHREIBEN') {
+      if (p.done > 0) stopDetails.push(t('stopWriting'))
+      else skipped.push(teilName(x))
+      continue
+    }
+    if (p.done === 0) skipped.push(teilName(x))
+    else counted.push(p.done < p.total ? t('stopTeilBlank', { teil: teilName(x), done: p.done, total: p.total, blank: p.total - p.done }) : t('stopTeilFull', { teil: teilName(x), done: p.done, total: p.total }))
+  }
+  if (counted.length > 0) stopDetails.unshift(t('stopCounted', { list: counted.join('; ') }))
+  if (skipped.length > 0) stopDetails.push(t('stopSkipped', { list: skipped.join(', ') }))
 
   const after = nextStage(teile, stage)
   const firstOfStage = firstIdxOf(teile, stage)
@@ -492,6 +556,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
       <PracticeShell
         backHref={HUB}
         backLabel={t('backToHub')}
+        onExit={requestExit}
         section={cur.section}
         subtitle={subtitle}
         title={title}
@@ -522,6 +587,18 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         cancelLabel={tc('cancel')}
         destructive={false}
         onConfirm={() => after != null && enterStage(after)}
+      />
+      <ConfirmDialog
+        open={stopOpen}
+        onOpenChange={setStopOpen}
+        title={t('stopTitle')}
+        description={stopFailed ? t('stopFailed') : t('stopBody')}
+        details={stopFailed ? undefined : stopDetails}
+        confirmLabel={stopFailed ? t('stopRetry') : t('stopConfirm')}
+        cancelLabel={t('keepGoing')}
+        destructive={false}
+        loading={stopping}
+        onConfirm={() => void stopNow()}
       />
     </>
   )
@@ -562,6 +639,7 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
       })
       .catch((e) => setError(apiMessage(e) || t('resultError')))
   }, [attemptId, t])
+  const partial = result?.status === PARTIAL ? partialInfo(result.detailed_scores_json) : null
 
   const teile = React.useMemo(() => fullTeile(analysis?.sectionsJson), [analysis])
   const byKey = React.useMemo(() => new Map(analysis?.teile.map((r) => [r.teilKey, r]) ?? []), [analysis])
@@ -642,6 +720,20 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
   }
 
   // ── tổng quan ─────────────────────────────────────────────────────────────
+  if (partial) {
+    return (
+      <PracticeShell backHref={HUB} backLabel={t('backToHub')} subtitle={result.exam_title ?? result.title ?? ''} title={t('resultTitle')}>
+        <PartialSummary
+          result={result}
+          info={partial}
+          teile={teile}
+          onOpen={setOpen}
+          examHref={result.exam_id ? `/v2/student/mock-exam/full?examId=${result.exam_id}` : null}
+          hubHref={HUB}
+        />
+      </PracticeShell>
+    )
+  }
   return (
     <PracticeShell backHref={HUB} backLabel={t('backToHub')} subtitle={result.exam_title ?? result.title ?? ''} title={t('resultTitle')}>
       <ResultSummary

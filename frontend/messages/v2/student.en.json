@@ -345,9 +345,7 @@
         "interviewTitle": "Interview practice",
         "interviewDesc": "Simulate a job interview with a German HR manager.",
         "weeklyTitle": "Weekly topics",
-        "weeklyDesc": "Themed speaking practice, updated every week.",
-        "examTitle": "Oral exam room",
-        "examDesc": "Drill single parts or take a full mock in the Goethe / telc format, scored by the exam's own criteria."
+        "weeklyDesc": "Themed speaking practice, updated every week."
       },
       "interviewResults": "Interview results",
       "historyCta": "History"
@@ -1755,9 +1753,9 @@
     },
     "examSpeaking": {
       "catalog": {
-        "title": "Oral exam room",
-        "subtitle": "Simulates the Goethe / telc speaking exam — drill one Teil or take the full mock",
-        "back": "Back to speaking",
+        "title": "Speaking: other exams",
+        "subtitle": "Pick Goethe / telc and a level to practise a Teil or take a mock, without changing your study plan",
+        "back": "Back to Exam prep",
         "dismiss": "Dismiss",
         "providerLabel": "Exam board",
         "levelLabel": "Level",
@@ -1812,23 +1810,13 @@
         "mute": "Mute",
         "dismiss": "Dismiss",
         "audioTooLarge": "That recording is too long to send. Each turn is capped at 3 minutes — please record a shorter one.",
-        "prepCap": "Preparation time",
-        "prepDesc": "Jot down keywords; you may use your notes during the exam. You enter automatically when time is up.",
         "prepLeft": "Prep",
         "notesPlaceholder": "Your notes (Konzeptpapier)…",
-        "enterExam": "Enter exam",
         "teilCap": "Teil {n}",
-        "step": "Step {i}/{n}",
         "myNotes": "My notes",
         "skipPart": "Next part",
         "finishMock": "Finish & grade",
         "finishDrill": "Finish",
-        "action": {
-          "ASK": "Your turn to ASK a question / make a request. Tap to speak.",
-          "ANSWER": "Your turn to ANSWER. Tap to speak.",
-          "SPEAK": "Your turn to speak. Tap to start.",
-          "REACT": "Respond to your partner. Tap to speak."
-        },
         "grading": "The examiner is grading…",
         "gradingDesc": "Two independent grading passes by the exam's criteria — usually under a minute.",
         "gradingFailed": "Grading failed — your exam answers are safe.",
@@ -1837,8 +1825,8 @@
         "resultLoadFailed": "Couldn’t load your score sheet. The result exists on the server — try loading it again.",
         "retryResult": "Reload score sheet",
         "aborted": "This session was aborted.",
-        "again": "Practice again",
-        "backToCatalog": "Back to the exam room",
+        "again": "Try again",
+        "backToCatalog": "Go back",
         "you": "You",
         "pruefer": "Examiner",
         "partner": "Partner",
@@ -1885,20 +1873,114 @@
           "ANSWER_PRUEFER_TOPIC": "Answer the examiner's question about the topic."
         },
         "partnerAi": "Partner · AI",
-        "turn": {
-          "prueferSpeaking": "The examiner is speaking — listen, it's not your turn yet.",
-          "partnerSpeaking": "Your AI partner is speaking — wait until they finish.",
-          "processing": "Processing your turn…",
-          "yourTurn": "Your turn — speak now!",
-          "waitHint": "Wait for your turn…"
-        },
         "audioRetained": "This session is recorded for scoring calibration (you consented). You can withdraw consent at any time — the audio will be deleted.",
         "beta": "Beta",
         "retryTurn": "Resend last turn",
         "retryTurnHint": "Your recording/answer is still on this device — resending will not count as a new turn.",
         "gradingFailedQuota": "Not graded yet: your AI budget ran out — your exam answers are safe.",
         "gradingFailedQuotaDesc": "Everything you said is kept. Top up or wait for the next period, then press \"Regrade\" — no need to retake.",
-        "upgradeCta": "See plans / top up"
+        "upgradeCta": "See plans / top up",
+        "oral": {
+          "eyebrow": "Mündliche Prüfung",
+          "conversation": "Exam room conversation",
+          "taskCard": "Task card",
+          "turns": "turns",
+          "nextTeil": "Go to Teil {n}",
+          "people": {
+            "pruefer": "Examiner",
+            "partner": "Partner",
+            "ai": "AI",
+            "you": "You"
+          },
+          "me": {
+            "turn": "Your turn",
+            "listen": "Listening",
+            "recording": "Speaking",
+            "sending": "Sending"
+          },
+          "status": {
+            "prueferTalking": "The examiner is speaking",
+            "partnerTalking": "Your partner (AI) is speaking",
+            "listen": "Listen, it is not your turn yet",
+            "processing": "Processing your turn",
+            "processingSub": "Waiting for a reply",
+            "recording": "Recording",
+            "recordingSub": "Tap again to stop and send",
+            "yourTurn": "Your turn to speak",
+            "tap": "Tap to speak",
+            "tapWithAction": "{action} · tap to speak",
+            "recordingAutoSub": "2 seconds of silence sends it, or tap again"
+          },
+          "action": {
+            "ASK": "Ask a question or make a request",
+            "ANSWER": "Answer",
+            "SPEAK": "Speak on the task",
+            "REACT": "React to your partner"
+          },
+          "confirm": {
+            "finishMockTitle": "End the speaking exam?",
+            "finishMockBody": "You are graded on what you have said so far. Once you end, you cannot re-enter this exam room.",
+            "finishMockGo": "End and grade",
+            "finishDrillTitle": "End this practice?",
+            "finishDrillBody": "You will see a summary of your turns.",
+            "finishDrillGo": "End",
+            "keepGoing": "Keep going",
+            "keepPractising": "Keep practising",
+            "nextTitle": "Go to Teil {n}?",
+            "nextBody": "You cannot return to Teil {cur}.",
+            "nextGo": "Go to Teil {n}",
+            "stay": "Stay"
+          },
+          "prep": {
+            "title": "Preparation",
+            "leave": "Leave the preparation room",
+            "leaveTitle": "Leave the preparation room?",
+            "leaveBodyMock": "This mock exam will be abandoned and not graded. Next time you start a new one.",
+            "leaveBodyDrill": "This practice will be abandoned.",
+            "leaveGo": "Leave",
+            "notesLabel": "Draft notes (only you can see them)",
+            "notesHint": "Saved when you stop typing. You can look at these notes during the exam.",
+            "order": "Exam order",
+            "minutes": "{n} min",
+            "enterNow": "Start the exam now",
+            "autoEnter": "When preparation time ends, the exam starts automatically.",
+            "chooseFirst": "Choose one topic in the Teil with two options before you start."
+          },
+          "result": {
+            "titlePassBy": "Speaking passed, {n} points above the pass mark",
+            "titlePass": "Speaking passed",
+            "titleFailBy": "Speaking not passed yet, {n} points short",
+            "titleFail": "Speaking not passed yet",
+            "titleBorderline": "Speaking is right at the pass mark",
+            "titleScore": "Speaking: {total}/{max} points",
+            "statusPass": "Estimate · Passed",
+            "statusFail": "Estimate · Not passed",
+            "statusBorderline": "Estimate · Borderline",
+            "statusNone": "Estimate",
+            "needMin": "{n} needed",
+            "range": "Range between the two gradings: {range}",
+            "estimateNote": "Scored by AI against the exam criteria, not an official score.",
+            "scoreLabel": "Speaking score",
+            "barLabel": "{pct}% of the points",
+            "partsTitle": "Score per part",
+            "zeroed": "The task of this Teil was not completed, so the whole Teil scores 0",
+            "band": "Band {band}",
+            "reviewDesc": "Read your turns again and the mistakes to fix in each Teil.",
+            "reviewOpen": "Review the conversation",
+            "reviewClose": "Hide the conversation",
+            "reviewError": "Could not load the conversation. Try again later.",
+            "reviewEmpty": "No turns were saved for this session.",
+            "errorsTitle": "Mistakes to fix",
+            "details": "Detailed score sheet",
+            "again": "Take it again",
+            "backToday": "Back to today",
+            "back": "Go back",
+            "gradingLeave": "You can leave this page; the result appears under past mock exams on the exam page.",
+            "drillDone": "Teil {n} practice done"
+          },
+          "autoStop": "Auto-stop on silence",
+          "autoStopHint": "On: after you have spoken, 2 seconds of silence stops and sends. Off: tap the microphone again to send."
+        }
       },
       "mic": {
         "sending": "Sending and waiting for the reply…",
@@ -1950,7 +2032,8 @@
         "meinungHint": "Relay this opinion to your partner, then talk about your own experience and view.",
         "yourTopic": "Your topic",
         "debate": "Debate",
-        "debateHint": "State your position, respond to your partner, then sum up: for or against?"
+        "debateHint": "State your position, respond to your partner, then sum up: for or against?",
+        "pointCovered": "covered"
       },
       "result": {
         "sheetCap": "Simulated score sheet",
@@ -2038,6 +2121,36 @@
           "denied": "The browser is blocking the microphone — follow the permission steps above, then check again.",
           "other": "Could not open the microphone. Check your device and try again."
         }
+      },
+      "entry": {
+        "exit": "Exit",
+        "modeMock": "Mock exam",
+        "modeDrill": "Practise Teil {n}",
+        "title": "Check before the speaking exam",
+        "micTitle": "Microphone",
+        "micSub": "Tap Check, then say \"Hallo\"",
+        "micCheck": "Check",
+        "passed": "Microphone works",
+        "heard": "We can hear you",
+        "speakNow": "Say something",
+        "speakerTitle": "Speaker",
+        "speakerSub": "Hear the examiner's voice",
+        "speakerPlay": "Play test",
+        "quietTitle": "Quiet place",
+        "quietSub": "Noise lowers your pronunciation score",
+        "micFailed": "Could not open the microphone. Make sure it is connected and not used by another app, then try again.",
+        "blockedTitle": "Microphone is blocked",
+        "blockedBody": "Click the lock icon next to the address bar, allow the microphone, then check again.",
+        "retry": "Check again",
+        "goPrep": "Go to preparation",
+        "goExam": "Start the exam",
+        "needMic": "Check your microphone first.",
+        "prepNote": "Preparation time starts when you enter the room.",
+        "noPrepNote": "This exam has no preparation time: the clock starts as soon as you enter.",
+        "loading": "Opening the exam room…",
+        "creating": "Creating your exam…",
+        "createFailed": "Could not create the exam.",
+        "retryCreate": "Try again"
       }
     },
     "micGuide": {
@@ -2558,7 +2671,6 @@
       "points": "{n} points",
       "oralSub": "Speaking · graded in the speaking exam room",
       "oralTitle": "Practise in the speaking exam room",
-      "oralDesc": "3 parts, graded separately in the speaking module",
       "progressCap": "Progress on this exam",
       "teilCount": "{n} parts",
       "progressNone": "No part finished yet.",
@@ -2605,7 +2717,12 @@
         "confirmBody": "Empty answers score 0 points. Check this part now?",
         "confirmGo": "Check anyway",
         "keepGoing": "Keep working",
-        "suggestStrategy": "See the strategy"
+        "suggestStrategy": "See the strategy",
+        "exitTitle": "Leave {teil}?",
+        "exitBody": "You have answered {done} of {total} questions. Your work is saved as a draft so you can continue later. Drafts do not count towards your skill scores; press “Check this part” to count them.",
+        "exitBodyWriting": "Your text ({words} words) is saved as a draft so you can continue later. The AI only grades it when you press “Grade with AI”.",
+        "exitFailed": "The draft could not be saved. Check your connection and try again.",
+        "exitRetry": "Try again"
       },
       "seeInText": "Show in text",
       "hoeren": {
@@ -2687,13 +2804,29 @@
         "strategyFor": "Strategy for {name}",
         "chartLabel": "Written score across mock exams: {scores}; pass mark {mark}",
         "passLine": "pass mark {n}",
-        "today": "Today"
+        "today": "Today",
+        "rowPartial": "Stopped early · {done}/{total} parts worked on",
+        "partialPill": "Stopped early"
       },
       "rewrite": "Rewrite this letter",
       "estPass": "Estimate · 60% of this part reached",
       "estBelow": "Estimate · below 60% of this part · {n} points short",
       "estNote": "Scored by AI against the telc criteria, not an official score.",
-      "help": "Show the guide"
+      "help": "Show the guide",
+      "oral": {
+        "groupDone": "{done}/{total} Teile taken",
+        "mockTitle": "Speaking mock exam",
+        "mockMeta": "{minutes} min · {n} Teile · AI examiner and partner",
+        "mockMetaShort": "AI examiner and partner",
+        "teilMeta": "{minutes} min · practise this Teil only",
+        "score": "{score}/{max}",
+        "new": "Not taken",
+        "other": "Other exams (Goethe, other levels)",
+        "historyTitle": "Speaking mock exams",
+        "passed": "Passed",
+        "failed": "Not passed",
+        "borderline": "Borderline"
+      }
     },
     "examHub": {
       "title": "Exam practice",
@@ -2915,6 +3048,30 @@
         "backToday": "Back to today",
         "lostWritingEmpty": "No letter written",
         "planNoDate": "Set your exam date on the Today screen to get a study plan based on this result."
+      },
+      "closedPrevious": "Your previous attempt ran out of time while you were away. What you had done is saved in your history as “Stopped early”.",
+      "stopTitle": "Stop this mock exam?",
+      "stopBody": "The clock keeps running when you leave. If you stop now, this attempt is marked “Stopped early”: only the parts you worked on are scored, there is no pass/fail result and you cannot continue it.",
+      "stopCounted": "Scored: {list}",
+      "stopTeilFull": "{teil} ({done}/{total} questions)",
+      "stopTeilBlank": "{teil} ({done}/{total} questions, {blank} blank count as 0)",
+      "stopWriting": "Schreiben: written but not graded. The AI only grades it when you submit.",
+      "stopSkipped": "Not scored: {list}",
+      "stopFailed": "The attempt could not be stopped. Check your connection and try again; your answers are still being saved.",
+      "stopRetry": "Try again",
+      "stopConfirm": "Stop and save my work",
+      "keepGoing": "Keep going",
+      "partial": {
+        "title": "Stopped early",
+        "leadStopped": "You stopped this attempt. Only the parts you worked on are scored (blank questions in those parts count as 0); a stopped attempt has no total score and no pass/fail result.",
+        "leadExpired": "This attempt ran out of time while you were away. What you had done is scored from the last saved version; a stopped attempt has no total score and no pass/fail result.",
+        "doneOf": "{done} of {total} parts worked on",
+        "rowScored": "{answered}/{total} questions answered · tap to review",
+        "rowWritten": "Written, not graded (the AI only grades on submit)",
+        "rowSkipped": "Not started · not scored",
+        "note": "Part scores show where you stand. For a total score and a pass/fail result, submit the whole exam.",
+        "again": "Retake this mock exam",
+        "toHub": "Back to Today"
       }
     },
     "tour": {
@@ -3043,6 +3200,20 @@
           "t": "Three criteria",
           "p": "Each criterion has bands A–D and how to move up."
         }
+      },
+      "oral": {
+        "steps": {
+          "t": "Three parts",
+          "p": "You take one Teil after another; the clock on the right is the time for the current Teil. It keeps running while you read this; the examiner waits until you finish."
+        },
+        "mic": {
+          "t": "Microphone button",
+          "p": "A yellow ring means it is your turn. Tap to speak, tap again to stop and send. It is locked while the examiner or your partner is speaking."
+        },
+        "task": {
+          "t": "Task card",
+          "p": "The task, a hint for this step and your draft notes. On a phone, tap the Task card row to open it."
+        }
       }
     },
     "diagnostic": {
@@ -3099,7 +3270,13 @@
       "oralBack": "When you are done, come back here and tap \"Check oral result\".",
       "oralCheck": "Check oral result",
       "oralNotYet": "No scored oral exam found since you started the diagnostic test.",
-      "aiTag": "AI-scored on telc criteria · estimate"
+      "aiTag": "AI-scored on telc criteria · estimate",
+      "exitTitle": "Leave the diagnostic test?",
+      "exitBody": "Finished parts are kept. The {part} part you are working on is saved as a draft; next time you open the diagnostic test you continue from here.",
+      "exitFailed": "The draft could not be saved. Check your connection and try again.",
+      "exitRetry": "Try again",
+      "exitConfirm": "Save and leave",
+      "keepGoing": "Keep going"
     }
   }
 }

@@ -5,12 +5,11 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { MailCheck } from 'lucide-react'
 import api from '@/lib/api'
 import { clearGuestSessionCache } from '@/lib/guestSessionStore'
 import { useTracking } from '@/hooks/useTracking'
 import { GaCap, GaBtn } from '@/components/ui-v2'
-import { GaAuthShell, GaField, AuthErrorBanner } from '../authShared'
+import { GaAuthShell, GaOtpField, AuthErrorBanner, fmtCountdown, MAIL_SENDER } from '../authShared'
 import { readPendingSignup, savePendingSignup, useCompleteSignup, type PendingSignupDraft } from '../authSignup'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -20,6 +19,7 @@ import { readPendingSignup, savePendingSignup, useCompleteSignup, type PendingSi
 //   POST /auth/register/resend { email }       → 204 LUÔN LUÔN
 // Trang công khai (middleware không chặn), KHÔNG thuộc LOGIN_ROUTES. Email đọc từ sessionStorage do
 // /v2/register ghi; không có thì đưa về form đăng ký. Giao diện không hiện mã máy (`reason`), chỉ chọn câu.
+// Giao diện: mẫu "A · Sáu ô tách rời" owner chọn 08/11/2026 (GaOtpField).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CODE_LEN = 6
@@ -136,61 +136,46 @@ export default function V2VerifyEmailPage() {
     )
   }
 
+  const bold = (chunks: React.ReactNode) => <strong className="font-semibold text-ga-ink">{chunks}</strong>
+
   return (
     <GaAuthShell>
       <GaCap className="mb-3 block">{t('verify.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-ga-h1-m text-ga-ink sm:text-ga-h1 lg:text-ga-display">
+      <h1 className="m-0 mb-3 font-ga-display text-ga-h1-m text-ga-ink sm:text-ga-h1 lg:text-ga-display">
         {t('verify.title')}
       </h1>
-      <p className="m-0 mb-7 text-ga-body-lg text-ga-muted">{t('verify.subtitle')}</p>
-
       {draft && (
-        <div
-          className="mb-5 flex items-start gap-2.5 rounded-ga px-4 py-3.5"
-          style={{ background: 'var(--ga-green-soft)', border: '1px solid color-mix(in srgb, var(--ga-green) 35%, transparent)' }}
-          role="status"
-        >
-          <MailCheck size={18} className="mt-0.5 shrink-0 text-ga-green" />
-          <div className="min-w-0 flex-1 break-words text-ga-small leading-relaxed text-ga-ink">
-            {t('verify.sentNotice', { email: draft.email, minutes: Math.round(draft.expiresInSeconds / 60) })}
-          </div>
-        </div>
+        <p className="m-0 mb-7 break-words text-ga-body-lg text-ga-muted" role="status">
+          {t.rich('verify.sentTo', { email: draft.email, minutes: Math.round(draft.expiresInSeconds / 60), b: bold })}
+        </p>
       )}
 
       {error && <AuthErrorBanner><strong>{error}</strong></AuthErrorBanner>}
 
       <form onSubmit={(e) => { e.preventDefault(); void verify(code) }} noValidate>
-        <GaField
+        <GaOtpField
           name="code"
           label={t('verify.codeLabel')}
-          placeholder={t('verify.codePlaceholder')}
-          autoComplete="one-time-code"
-          inputMode="numeric"
-          maxLength={CODE_LEN}
           value={code}
-          // Chỉ giữ chữ số + cắt 6 ký tự (khớp /v2/forgot-password). Đủ 6 số (gõ hoặc dán) là tự gửi,
-          // nhưng không gửi lại đúng mã vừa bị từ chối.
-          onChange={(v) => {
-            const digits = v.replace(/\D/g, '').slice(0, CODE_LEN)
-            setCode(digits)
-            setCodeErr('')
-            if (digits.length === CODE_LEN && digits !== lastSubmitted.current) void verify(digits)
-          }}
+          // Đủ 6 số (gõ hoặc dán) là tự gửi, nhưng không gửi lại đúng mã vừa bị từ chối.
+          onChange={(digits) => { setCode(digits); setCodeErr('') }}
+          onComplete={(digits) => { if (digits !== lastSubmitted.current) void verify(digits) }}
           error={codeErr}
-          required
+          disabled={loading}
+          autoFocus
         />
-        <GaBtn type="submit" variant="yellow" size="lg" className="mb-3 mt-1 w-full" loading={loading} disabled={loading}>
+        <GaBtn type="submit" variant="yellow" size="lg" className="w-full" loading={loading} disabled={loading}>
           {loading ? t('verify.submitting') : t('verify.submit')}
         </GaBtn>
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-ga-small lg:flex-nowrap lg:gap-0">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-ga-small">
           <button
             type="button"
             onClick={resend}
             disabled={loading || resendLeft > 0}
-            className="ga-ui min-h-[40px] text-ga-muted underline transition-colors hover:text-ga-ink disabled:no-underline disabled:opacity-50 lg:min-h-0"
+            className="ga-ui min-h-[40px] text-ga-muted underline transition-colors hover:text-ga-ink disabled:no-underline disabled:opacity-70 lg:min-h-0"
           >
-            {resendLeft > 0 ? t('verify.resendIn', { seconds: resendLeft }) : t('verify.resend')}
+            {resendLeft > 0 ? t('verify.resendIn', { time: fmtCountdown(resendLeft) }) : t('verify.resend')}
           </button>
           <button
             type="button"
@@ -203,7 +188,9 @@ export default function V2VerifyEmailPage() {
         </div>
       </form>
 
-      <p className="text-ga-caption leading-relaxed text-ga-muted">{t('verify.spamHint')}</p>
+      <p className="m-0 mt-8 border-t border-ga-line pt-5 text-ga-caption leading-relaxed text-ga-muted">
+        {t.rich('verify.spamHint', { sender: MAIL_SENDER, b: bold })}
+      </p>
     </GaAuthShell>
   )
 }

@@ -1,55 +1,72 @@
 'use client'
 
+import { Fragment, useEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Bot, Gauge, Timer } from 'lucide-react'
+import { Gauge, Timer } from 'lucide-react'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import type { DrillTurnEval, RoomLine } from '@/types/exam-speaking'
 
 interface Props {
   lines: RoomLine[]
   mode: 'DRILL' | 'MOCK'
+  /** Tên Teil theo số — có thì chèn vạch "Teil n · tên" mỗi lần hội thoại sang Teil mới. */
+  teilTitles?: Record<number, string>
 }
 
-/** Transcript phòng thi. Drill: thẻ chấm nhanh dưới mỗi lượt. Mock: KHÔNG sửa lỗi giữa chừng (đúng thi thật). */
-export function ExamTranscript({ lines, mode }: Props) {
+/**
+ * Hội thoại phòng thi dạng bong bóng (mẫu 07/11/2026): lời giám khảo / bạn thi bên trái nền nhạt,
+ * lời của bạn bên phải nền navy; lời mới nhô lên và tự cuộn xuống. Drill: thẻ chấm nhanh dưới mỗi
+ * lượt. Mock: KHÔNG sửa lỗi giữa chừng (đúng thi thật), nhận xét chỉ có ở kết quả.
+ */
+export function ExamTranscript({ lines, mode, teilTitles }: Props) {
   const t = useTranslations('v2.student.examSpeaking.room')
+  const endRef = useRef<HTMLLIElement>(null)
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: 'end', behavior: 'smooth' })
+  }, [lines.length])
+
   return (
-    <ol className="space-y-3" aria-live="polite" data-testid="exam-transcript">
-      {lines.map((l) => (
-        <li key={l.id} className={l.role === 'CANDIDATE' ? 'flex justify-end' : 'flex justify-start'}>
-          <div className={`max-w-[92%] ${l.role === 'CANDIDATE' ? 'text-right' : ''}`}>
-            <div
-              className={`ga-ui inline-block rounded-ga px-3.5 py-2.5 text-[14.5px] leading-relaxed ${
-                l.role === 'CANDIDATE'
-                  ? 'bg-ga-yellow-soft text-ga-ink'
-                  : l.role === 'PRUEFER'
-                    ? 'bg-ga-ink text-ga-bg'
-                    : 'border-2 border-ga-accent bg-ga-accent-soft text-ga-ink'
-              }`}
-              data-role={l.role}
-            >
-              {l.role === 'CANDIDATE' || l.role === 'PRUEFER' ? (
-                <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide opacity-70">
-                  {l.role === 'CANDIDATE' ? t('you') : t('pruefer')}
+    <ol className="flex flex-col gap-3" aria-live="polite" data-testid="exam-transcript">
+      {lines.map((l, i) => {
+        const mine = l.role === 'CANDIDATE'
+        const newTeil = teilTitles && (i === 0 || lines[i - 1].teilNo !== l.teilNo)
+        return (
+          <Fragment key={l.id}>
+            {newTeil && (
+              <li className="flex justify-center" data-testid="transcript-teil">
+                <span className="ga-ui rounded-ga-touch border border-dashed border-ga-line-strong px-3 py-1 text-ga-small text-ga-muted">
+                  {t('teilCap', { n: l.teilNo })}
+                  {teilTitles[l.teilNo] ? ` · ${teilTitles[l.teilNo]}` : ''}
                 </span>
-              ) : (
-                // Partner là AI đóng vai bạn thi — chip accent + icon để phân vai ngay khi lướt transcript.
-                <span className="mr-2 inline-flex translate-y-[-1px] items-center gap-1 rounded-full bg-ga-accent px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-ga-accent-ink">
-                  <Bot size={11} aria-hidden /> {t('partnerAi')}
-                </span>
-              )}
-              {l.text}
-            </div>
-            {typeof l.latencyMs === 'number' && l.role !== 'CANDIDATE' && (
-              <p className="ga-ui mt-0.5 text-[11px] text-ga-muted" data-testid="turn-latency">
-                <Timer size={11} className="mr-1 inline align-[-1px] text-ga-muted" aria-hidden />
-                {(l.latencyMs / 1000).toFixed(1)}s
-              </p>
+              </li>
             )}
-            {mode === 'DRILL' && l.role === 'CANDIDATE' && l.eval && <DrillEvalCard eval={l.eval} />}
-          </div>
-        </li>
-      ))}
+            <li className={`ga-oral-rise flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex max-w-[86%] flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                <span className="ga-ui mb-0.5 text-ga-caption font-semibold text-ga-muted">
+                  {mine ? t('you') : l.role === 'PRUEFER' ? t('pruefer') : t('partnerAi')}
+                </span>
+                <div
+                  lang="de"
+                  className={`rounded-xl px-3 py-2.5 font-ga-display text-[16.5px] leading-normal ${
+                    mine ? 'bg-ga-navy text-ga-bg' : 'bg-ga-side-active text-ga-ink'
+                  }`}
+                  data-role={l.role}
+                >
+                  {l.text}
+                </div>
+                {typeof l.latencyMs === 'number' && !mine && (
+                  <p className="ga-ui mt-0.5 inline-flex items-center gap-1 text-ga-caption text-ga-muted" data-testid="turn-latency">
+                    <Timer size={12} aria-hidden /> {(l.latencyMs / 1000).toFixed(1)}s
+                  </p>
+                )}
+                {mode === 'DRILL' && mine && l.eval && <DrillEvalCard eval={l.eval} />}
+              </div>
+            </li>
+          </Fragment>
+        )
+      })}
+      <li ref={endRef} aria-hidden className="h-px" />
     </ol>
   )
 }
