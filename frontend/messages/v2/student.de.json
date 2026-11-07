@@ -3165,6 +3165,20 @@
           "t": "Drei Kriterien",
           "p": "Jedes Kriterium hat die Stufen A–D und den Weg nach oben."
         }
+      },
+      "oral": {
+        "steps": {
+          "t": "Drei Teile",
+          "p": "Die Teile folgen nacheinander; die Uhr rechts zeigt die Zeit für den aktuellen Teil. Sie läuft weiter, während Sie dies lesen; die Prüferin / der Prüfer wartet, bis Sie fertig sind."
+        },
+        "mic": {
+          "t": "Mikrofon-Taste",
+          "p": "Ein gelber Ring heißt: Sie sind dran. Tippen zum Sprechen, noch einmal tippen zum Beenden und Senden. Während die Prüfer/in oder Partner/in spricht, ist die Taste gesperrt."
+        },
+        "task": {
+          "t": "Aufgabenblatt",
+          "p": "Aufgabe, Tipp für diesen Schritt und Ihre Notizen. Auf dem Handy tippen Sie auf die Zeile „Aufgabenblatt“, um sie zu öffnen."
+        }
       }
     },
     "diagnostic": {

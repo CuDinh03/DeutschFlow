@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { Volume2, VolumeX, RotateCcw, ArrowLeft, Loader2, X, CircleAlert } from 'lucide-react'
+import { Volume2, VolumeX, RotateCcw, ArrowLeft, Loader2, X, CircleAlert, ClipboardList, Layers, Mic } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { newClientTurnId } from '@/lib/exam/clientTurnId'
 import { apiMessage, httpStatus } from '@/lib/api'
@@ -23,6 +23,7 @@ import { oralEntryHref } from '@/lib/exam/oralRoutes'
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
 import { OralResult } from './OralResult'
+import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { cn } from '@/lib/utils'
 import { DrillSummary } from './DrillSummary'
 import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from './examTts'
@@ -85,6 +86,18 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
   const [confirm, setConfirm] = useState<'finish' | 'advance' | 'leave' | null>(null)
   // Chuẩn bị + Đang thi = toàn màn hình, ẩn thanh điều hướng để không bấm nhầm thoát; màn kết quả lấy lại nav.
   useImmersiveChrome(session?.state === 'IN_PART' || session?.state === 'PREP')
+  // Hướng dẫn lần đầu (Đợt 4, owner chốt 07/11/2026): tự mở khi lần đầu vào Đang thi, cả luyện lẫn thi
+  // thử. Đồng hồ thi do server giữ nên không dừng được; giám khảo chờ tới khi đóng hướng dẫn mới nói.
+  const tt = useTranslations('v2.student.tour')
+  const tour = useScreenTour({
+    key: 'exam.oral',
+    ready: !loading && session?.state === 'IN_PART' && !!session?.directive,
+    steps: [
+      { target: 'oral-steps', icon: Layers, title: tt('oral.steps.t'), body: tt('oral.steps.p') },
+      { target: 'oral-mic', icon: Mic, title: tt('oral.mic.t'), body: tt('oral.mic.p') },
+      { target: 'oral-task', icon: ClipboardList, title: tt('oral.task.t'), body: tt('oral.task.p') },
+    ],
+  })
 
   /**
    * Đọc lần lượt các lời AI và giữ trạng thái lượt trong suốt chuỗi. Generation guard: mỗi hành động
@@ -151,11 +164,13 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
   useEffect(() => {
     const d = session?.directive
     if (!d?.prueferText || session?.state !== 'IN_PART') return
+    // Hướng dẫn lần đầu chưa xong (đang chờ biết đã xem chưa, hoặc đang mở) → giám khảo chờ.
+    if (!tour.settled) return
     const key = `${d.teilNo}:${d.prueferText}`
     if (spokenRef.current === key) return
     spokenRef.current = key
     void speakSequence([{ role: 'PRUEFER', text: d.prueferText }])
-  }, [session, speakSequence])
+  }, [session, speakSequence, tour.settled])
 
   // ── poll khi đang chấm ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -561,11 +576,16 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
             <div className="min-w-0 flex-1">
               {eyebrow}
               {blueprint ? (
-                <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />
+                <div data-tour="oral-steps" className="w-fit">
+                  <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />
+                </div>
               ) : (
-                <p className="font-ga-display text-ga-h3 text-ga-ink">{t('teilCap', { n: d.teilNo })}</p>
+                <p data-tour="oral-steps" className="font-ga-display text-ga-h3 text-ga-ink">
+                  {t('teilCap', { n: d.teilNo })}
+                </p>
               )}
             </div>
+            <TourHelpButton onClick={tour.start} />
             {muteButton}
             <ExamTimer
               variant="pill"
@@ -626,6 +646,7 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
           />
         </div>
 
+        {tour.overlay}
         <ConfirmDialog
           open={confirm === 'finish'}
           onOpenChange={(o) => !o && setConfirm(null)}

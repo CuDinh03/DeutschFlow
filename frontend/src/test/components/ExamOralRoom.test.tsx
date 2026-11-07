@@ -9,7 +9,7 @@
 import React from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import studentVi from '../../../messages/v2/student.vi.json'
 import chromeVi from '../../../messages/v2/chrome.vi.json'
@@ -28,6 +28,12 @@ const api = vi.hoisted(() => ({
   getTranscript: vi.fn(),
 }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: api }))
+
+const tours = vi.hoisted(() => ({ seen: new Set<string>(['exam.oral']), markTourSeen: vi.fn() }))
+vi.mock('@/lib/uiToursApi', () => ({
+  loadSeenTours: () => Promise.resolve(tours.seen),
+  markTourSeen: tours.markTourSeen,
+}))
 
 const tts = vi.hoisted(() => {
   const pending: Array<() => void> = []
@@ -123,6 +129,7 @@ async function finishSpeaking() {
 beforeEach(() => {
   vi.clearAllMocks()
   tts.pending.splice(0)
+  tours.seen = new Set(['exam.oral'])
   api.getSession.mockResolvedValue({ data: mockSession(1) })
   api.listBlueprints.mockResolvedValue({ data: [BLUEPRINT] })
 })
@@ -298,5 +305,42 @@ describe('Phòng thi nói — sau khi thi', () => {
     const card = await screen.findByTestId('exam-grading')
     expect(card.textContent).toContain('Giám khảo đang chấm')
     expect(within(card).getByRole('link')).toHaveAttribute('href', '/v2/student/exam')
+  })
+})
+
+describe('Phòng thi nói — hướng dẫn lần đầu', () => {
+  // jsdom không có layout: giả cho mọi vùng có kích thước để hướng dẫn tìm được chỗ khoanh.
+  const rects = Element.prototype.getClientRects
+  beforeEach(() => {
+    Element.prototype.getClientRects = function () {
+      return [{}] as unknown as DOMRectList
+    }
+  })
+  afterEach(() => {
+    Element.prototype.getClientRects = rects
+  })
+
+  it('lần đầu vào Đang thi: hướng dẫn tự mở, giám khảo chờ tới khi đóng', async () => {
+    tours.seen = new Set()
+    const user = userEvent.setup()
+    renderRoom()
+    const dialog = await screen.findByRole('dialog', {}, { timeout: 3000 })
+    expect(dialog.textContent).toContain('Ba phần thi')
+    expect(dialog.textContent).toContain('Đồng hồ vẫn chạy')
+    expect(tours.markTourSeen).toHaveBeenCalledWith('exam.oral')
+    expect(tts.speakExamLine).not.toHaveBeenCalled()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Bỏ qua' }))
+    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledWith('PRUEFER', 'Teil 1: Bitte beginnen Sie.'))
+  })
+
+  it('đã xem: không tự mở, nút dấu hỏi mở lại', async () => {
+    const user = userEvent.setup()
+    renderRoom()
+    await screen.findByTestId('oral-room')
+    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalled())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Xem hướng dẫn' }))
+    expect((await screen.findByRole('dialog')).textContent).toContain('Ba phần thi')
   })
 })

@@ -189,7 +189,7 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourT
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-4">
           <div className="min-w-0">{statusNode}</div>
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-1" data-tour="oral-mic">
             {recording ? (
               <button
                 type="button"

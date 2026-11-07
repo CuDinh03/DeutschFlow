@@ -3165,6 +3165,20 @@
           "t": "Three criteria",
           "p": "Each criterion has bands A–D and how to move up."
         }
+      },
+      "oral": {
+        "steps": {
+          "t": "Three parts",
+          "p": "You take one Teil after another; the clock on the right is the time for the current Teil. It keeps running while you read this; the examiner waits until you finish."
+        },
+        "mic": {
+          "t": "Microphone button",
+          "p": "A yellow ring means it is your turn. Tap to speak, tap again to stop and send. It is locked while the examiner or your partner is speaking."
+        },
+        "task": {
+          "t": "Task card",
+          "p": "The task, a hint for this step and your draft notes. On a phone, tap the Task card row to open it."
+        }
       }
     },
     "diagnostic": {

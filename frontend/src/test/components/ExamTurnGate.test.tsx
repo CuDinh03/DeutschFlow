@@ -29,6 +29,12 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/examSpeakingApi', () => ({ examSpeakingApi: api }))
 
+// Hướng dẫn lần đầu của phòng thi nói (Đợt 4) coi như đã xem — test này không kiểm hướng dẫn.
+vi.mock('@/lib/uiToursApi', () => ({
+  loadSeenTours: () => Promise.resolve(new Set(['exam.oral'])),
+  markTourSeen: vi.fn(),
+}))
+
 const tts = vi.hoisted(() => {
   const pending: Array<() => void> = []
   return {
