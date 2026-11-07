@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Clock } from 'lucide-react'
+import { Clock, Hourglass } from 'lucide-react'
 
 interface Props {
   /** ISO deadline từ server. */
@@ -13,10 +13,12 @@ interface Props {
   label: string
   /** `pill`: kiểu thanh trên phòng thi nói (mẫu 07/11/2026); mặc định `box` cho màn chuẩn bị. */
   variant?: 'box' | 'pill'
+  /** `prep`: đồng hồ giờ chuẩn bị — nền cam suốt (mẫu 07/11/2026). */
+  tone?: 'default' | 'prep'
 }
 
 /** Đồng hồ đếm ngược theo giờ SERVER (client chỉ hiển thị); đổi màu ở 20% cuối; gọi onExpire một lần. */
-export function ExamTimer({ deadlineAt, serverNow, totalSec, onExpire, label, variant = 'box' }: Props) {
+export function ExamTimer({ deadlineAt, serverNow, totalSec, onExpire, label, variant = 'box', tone = 'default' }: Props) {
   const [left, setLeft] = useState<number | null>(null)
   const expiredRef = useRef(false)
   const offsetRef = useRef(0)
@@ -56,13 +58,13 @@ export function ExamTimer({ deadlineAt, serverNow, totalSec, onExpire, label, va
     return (
       <span
         className={`ga-ui inline-flex shrink-0 items-center gap-1.5 rounded-ga-pill px-2.5 py-1 text-ga-body font-semibold tabular-nums transition-colors duration-[240ms] ${
-          danger ? 'ga-timer-pulse bg-ga-red-soft text-ga-red' : warn ? 'bg-ga-warning-soft text-ga-warning' : 'text-ga-ink'
+          danger ? 'ga-timer-pulse bg-ga-red-soft text-ga-red' : warn || tone === 'prep' ? 'bg-ga-warning-soft text-ga-warning' : 'text-ga-ink'
         }`}
         role="timer"
         aria-live={warn ? 'assertive' : 'off'}
         data-testid="exam-timer"
       >
-        <Clock size={16} aria-hidden />
+        {tone === 'prep' ? <Hourglass size={16} aria-hidden /> : <Clock size={16} aria-hidden />}
         <span className="sr-only">{label}</span>
         {mm}:{ss}
       </span>

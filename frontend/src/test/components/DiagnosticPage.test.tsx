@@ -109,7 +109,7 @@ describe('Bài chẩn đoán', () => {
 
     // Nói: dẫn sang phòng thi nói; chưa có lượt thi nói ⇒ báo, có rồi ⇒ chốt
     expect(await screen.findByText('Bài chẩn đoán · phần 5/5')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Vào phòng thi nói/ })).toHaveAttribute('href', '/v2/student/speaking/exam?provider=TELC&level=B1')
+    expect(screen.getByRole('link', { name: /Vào phòng thi nói/ })).toHaveAttribute('href', '/v2/student/mock-exam/oral?provider=TELC&level=B1&mode=MOCK')
     h.get.mockResolvedValueOnce(view({}))
     await user.click(screen.getByRole('button', { name: /Kiểm tra kết quả thi nói/ }))
     expect(await screen.findByText(/Chưa thấy lượt thi nói nào/)).toBeInTheDocument()

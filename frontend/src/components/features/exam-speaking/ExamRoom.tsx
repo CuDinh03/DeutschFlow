@@ -9,17 +9,16 @@ import { apiMessage, httpStatus } from '@/lib/api'
 import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
-import { ConfirmDialog, GaBtn, GaCap, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
+import { ConfirmDialog, GaCap, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
 import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
-import { StimulusCard } from './StimulusCard'
-import { TeilStrategy } from '@/components/exam/strategy/TeilStrategy'
 import { ExamTimer } from './ExamTimer'
 import { TeilStepper } from './TeilStepper'
 import { ExamTranscript } from './ExamTranscript'
 import { MicBar } from './MicBar'
 import { OralPeople, type OralSpeaker } from './OralPeople'
 import { OralTaskCard } from './OralTaskCard'
-import { MicCheck } from './MicCheck'
+import { OralPrep } from './OralPrep'
+import { oralEntryHref } from '@/lib/exam/oralRoutes'
 import { MicDeniedGuide } from '@/components/speaking/MicDeniedGuide'
 import { useMicPermission } from '@/hooks/useMicPermission'
 import { Ergebnisbogen } from './Ergebnisbogen'
@@ -28,7 +27,8 @@ import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from './e
 
 interface Props {
   sessionId: number
-  catalogHref: string
+  /** Nơi về khi rời phòng / thi xong (mặc định màn Hôm nay của Luyện thi). */
+  returnHref: string
 }
 
 const GRADING_POLL_MS = 3000
@@ -52,10 +52,10 @@ function isRetryableTurnError(e: unknown): boolean {
 }
 
 /**
- * Phòng thi cá nhân (Đợt 1): prep → live (Prüfer/Partner AI + thẻ đề + đồng hồ server) → drill: tổng kết;
+ * Phòng thi cá nhân: chuẩn bị (toàn màn hình) → đang thi (Prüfer/Partner AI + thẻ đề + đồng hồ server) → drill: tổng kết;
  * mock: chấm nền → Ergebnisbogen. Mock chỉ nhận AUDIO (server phiên âm); drill có fallback bàn phím.
  */
-export function ExamRoom({ sessionId, catalogHref }: Props) {
+export function ExamRoom({ sessionId, returnHref }: Props) {
   const t = useTranslations('v2.student.examSpeaking.room')
   const locale = useLocale()
   const micPermission = useMicPermission()
@@ -80,9 +80,9 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const speakGenRef = useRef(0)
   const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
   // Hỏi trước khi kết thúc / sang Teil (thi thử không quay lại được) — luật thoát giữa chừng 07/11.
-  const [confirm, setConfirm] = useState<'finish' | 'advance' | null>(null)
-  // Đang thi = toàn màn hình, ẩn thanh điều hướng để không bấm nhầm thoát; màn kết quả lấy lại nav.
-  useImmersiveChrome(session?.state === 'IN_PART')
+  const [confirm, setConfirm] = useState<'finish' | 'advance' | 'leave' | null>(null)
+  // Chuẩn bị + Đang thi = toàn màn hình, ẩn thanh điều hướng để không bấm nhầm thoát; màn kết quả lấy lại nav.
+  useImmersiveChrome(session?.state === 'IN_PART' || session?.state === 'PREP')
 
   /**
    * Đọc lần lượt các lời AI và giữ trạng thái lượt trong suốt chuỗi. Generation guard: mỗi hành động
@@ -382,6 +382,13 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   const providerName = session.provider === 'GOETHE' ? 'Goethe' : 'telc'
   const partCount = blueprint?.parts.length ?? session.totalParts
   const isLastPart = session.currentPart >= partCount
+  const againHref = oralEntryHref({
+    provider: session.provider,
+    level: session.level,
+    mode: session.mode,
+    teil: session.mode === 'DRILL' ? session.currentPart : null,
+    ret: returnHref,
+  })
   const teilTitles = blueprint ? Object.fromEntries(blueprint.parts.map((p) => [p.teilNo, p.title])) : undefined
 
   const notices = (
@@ -432,6 +439,81 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
     </button>
   )
 
+  const eyebrow = (
+    <p className="ga-ui mb-0.5 truncate text-ga-caption text-ga-muted">
+      <span lang="de">{t('oral.eyebrow')}</span> · {providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} ·{' '}
+      <span data-testid="beta-label">{t('beta')}</span>
+    </p>
+  )
+  const leaveDialog = (
+    <ConfirmDialog
+      open={confirm === 'leave'}
+      onOpenChange={(o) => !o && setConfirm(null)}
+      title={t('oral.prep.leaveTitle')}
+      description={isMock ? t('oral.prep.leaveBodyMock') : t('oral.prep.leaveBodyDrill')}
+      confirmLabel={t('oral.prep.leaveGo')}
+      cancelLabel={t('oral.confirm.stay')}
+      destructive={false}
+      onConfirm={() => {
+        setConfirm(null)
+        window.location.assign(returnHref)
+      }}
+    />
+  )
+
+  // ── Chuẩn bị: phòng toàn màn hình theo mẫu 07/11/2026 ─────────────────────────────────────
+  if (session.state === 'PREP') {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-ga-bg" data-testid="oral-prep-room">
+        <header className="shrink-0 border-b border-ga-line bg-ga-card">
+          <div className="flex min-h-14 items-center gap-2 px-2 py-1.5 lg:gap-3 lg:px-4">
+            <button
+              type="button"
+              onClick={() => setConfirm('leave')}
+              aria-label={t('oral.prep.leave')}
+              title={t('oral.prep.leave')}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ga-line bg-ga-card text-ga-muted hover:bg-ga-side-active hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+              data-testid="prep-leave"
+            >
+              <X size={18} aria-hidden />
+            </button>
+            <div className="min-w-0 flex-1">
+              {eyebrow}
+              <h1 className="font-ga-display text-ga-h3 text-ga-ink">{t('oral.prep.title')}</h1>
+            </div>
+            {session.prepDeadlineAt && (
+              <ExamTimer
+                variant="pill"
+                tone="prep"
+                deadlineAt={session.prepDeadlineAt}
+                serverNow={session.serverNow}
+                totalSec={session.prepSec ?? blueprint?.prepSec ?? 0}
+                label={t('prepLeft')}
+                onExpire={() => void advance()}
+              />
+            )}
+          </div>
+        </header>
+        <div className="ga-autoscroll min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl">{notices}</div>
+          <OralPrep
+            session={session}
+            blueprint={blueprint}
+            notes={notes}
+            onNotesChange={setNotes}
+            onSaveNotes={() => void saveNotes()}
+            onChoose={(teilNo, idx) => void choose(teilNo, idx)}
+            onEnter={() => void advance()}
+            busy={busy}
+            micGate={isMock && micPermission !== 'granted' && !micCheckPassed}
+            onMicPassed={() => setMicCheckPassed(true)}
+          />
+        </div>
+        {leaveDialog}
+      </div>
+    )
+  }
+
   // ── Đang thi: phòng toàn màn hình theo mẫu 07/11/2026 ─────────────────────────────────────
   if (session.state === 'IN_PART' && session.directive) {
     const d = session.directive
@@ -467,10 +549,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
               <X size={18} aria-hidden />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="ga-ui mb-0.5 truncate text-ga-caption text-ga-muted">
-                <span lang="de">{t('oral.eyebrow')}</span> · {providerName} {session.level} · {isMock ? t('modeMock') : t('modeDrill')} ·{' '}
-                <span data-testid="beta-label">{t('beta')}</span>
-              </p>
+              {eyebrow}
               {blueprint ? (
                 <TeilStepper parts={blueprint.parts} currentTeil={session.currentPart} state={session.state} mode={session.mode} />
               ) : (
@@ -581,80 +660,6 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
 
       <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10">
         {notices}
-        {session.state === 'PREP' && (
-          <section className="mx-auto max-w-3xl space-y-4" data-testid="exam-prep">
-            <GaCap className="block">{t('prepCap')}</GaCap>
-            <p className="ga-ui text-[14.5px] text-ga-ink">{t('prepDesc')}</p>
-            {session.prepDeadlineAt && (
-              <ExamTimer deadlineAt={session.prepDeadlineAt} serverNow={session.serverNow} totalSec={session.prepSec ?? blueprint?.prepSec ?? 0} label={t('prepLeft')} onExpire={() => void advance()} />
-            )}
-            {session.prepMaterials && session.prepMaterials.length > 0 && (
-              <div className="space-y-4" data-testid="prep-materials">
-                {session.prepMaterials.map((m) => (
-                  <div key={m.teilNo} className="rounded-ga border border-ga-line bg-ga-card p-4">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="font-ga-display text-[18px] font-medium text-ga-ink">
-                        {t('teilCap', { n: m.teilNo })} · {m.title}
-                      </p>
-                      {m.choiceRequired && (
-                        <span className={`ga-ui text-[12px] font-semibold ${m.chosenIndex === null ? 'text-ga-red' : 'text-ga-green'}`}>
-                          {m.chosenIndex === null ? t('chooseOne') : t('chosen', { n: (m.chosenIndex ?? 0) + 1 })}
-                        </span>
-                      )}
-                    </div>
-                    {/* LT2: chiến thuật Teil — đọc trong giờ chuẩn bị, thu gọn mặc định. */}
-                    <div className="mb-3">
-                      <TeilStrategy provider={session.provider} level={session.level} section="SPRECHEN" teil={m.teilNo} />
-                    </div>
-                    <div className={m.choiceRequired ? 'grid gap-3 md:grid-cols-2' : ''}>
-                      {m.stimuli.map((stim, idx) => (
-                        <div key={idx} className="relative">
-                          {m.choiceRequired && (
-                            <button
-                              type="button"
-                              onClick={() => void choose(m.teilNo, idx)}
-                              disabled={busy}
-                              aria-pressed={m.chosenIndex === idx}
-                              className={`ga-ui mb-2 w-full rounded-ga border px-3 py-2 text-left text-[13px] font-semibold ${
-                                m.chosenIndex === idx ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface'
-                              }`}
-                              data-testid={`choose-${m.teilNo}-${idx}`}
-                            >
-                              {t('option', { n: idx + 1 })}
-                            </button>
-                          )}
-                          <StimulusCard stimulus={stim} stepIndex={0} candidateAction="SPEAK" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <textarea
-              className="ga-ui min-h-[160px] w-full rounded-ga border border-ga-line bg-ga-bg p-3 text-[14.5px] text-ga-ink"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={() => void saveNotes()}
-              placeholder={t('notesPlaceholder')}
-              aria-label={t('notesPlaceholder')}
-            />
-            {isMock && <MicCheck passed={micCheckPassed || micPermission === 'granted'} onPassed={() => setMicCheckPassed(true)} />}
-            <GaBtn
-              variant="ink"
-              size="lg"
-              onClick={() => void advance()}
-              disabled={
-                busy ||
-                (session.prepMaterials ?? []).some((m) => m.choiceRequired && m.chosenIndex === null) ||
-                (isMock && !micCheckPassed && micPermission !== 'granted')
-              }
-              data-testid="prep-enter"
-            >
-              {t('enterExam')} <ChevronRight size={16} aria-hidden className="ml-1" />
-            </GaBtn>
-          </section>
-        )}
 
         {session.state === 'GRADING' && (
           <section className="mx-auto max-w-xl py-10 text-center" data-testid="exam-grading">
@@ -685,7 +690,7 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
               >
                 <RotateCcw size={14} aria-hidden /> {t('regradeCta')}
               </button>
-              <a href={catalogHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
+              <a href={returnHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
                 <ArrowLeft size={14} aria-hidden /> {t('backToCatalog')}
               </a>
             </div>
@@ -701,21 +706,21 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
         {session.state === 'RESULTS' && result && (
           <div className="mx-auto max-w-3xl">
             <Ergebnisbogen sheet={result.scoreSheet} />
-            <RoomFooter catalogHref={catalogHref} />
+            <RoomFooter againHref={againHref} returnHref={returnHref} />
           </div>
         )}
 
         {session.state === 'DONE' && (
           <div className="mx-auto max-w-3xl">
             <DrillSummary lines={lines} />
-            <RoomFooter catalogHref={catalogHref} />
+            <RoomFooter againHref={againHref} returnHref={returnHref} />
           </div>
         )}
 
         {session.state === 'ABORTED' && (
           <div className="mx-auto max-w-xl">
             <ErrorBanner variant="page" message={t('aborted')} />
-            <RoomFooter catalogHref={catalogHref} />
+            <RoomFooter againHref={againHref} returnHref={returnHref} />
           </div>
         )}
       </div>
@@ -723,14 +728,14 @@ export function ExamRoom({ sessionId, catalogHref }: Props) {
   )
 }
 
-function RoomFooter({ catalogHref }: { catalogHref: string }) {
+function RoomFooter({ againHref, returnHref }: { againHref: string; returnHref: string }) {
   const t = useTranslations('v2.student.examSpeaking.room')
   return (
     <div className="mt-5 flex flex-wrap gap-2">
-      <a href={catalogHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2.5 text-[13px] font-semibold text-ga-bg">
+      <a href={againHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2.5 text-[13px] font-semibold text-ga-bg" data-testid="room-again">
         <RotateCcw size={14} aria-hidden /> {t('again')}
       </a>
-      <a href={catalogHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink">
+      <a href={returnHref} className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink" data-testid="room-back">
         <ArrowLeft size={14} aria-hidden /> {t('backToCatalog')}
       </a>
     </div>

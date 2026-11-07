@@ -345,9 +345,7 @@
         "interviewTitle": "Luyện phỏng vấn",
         "interviewDesc": "Mô phỏng phỏng vấn xin việc với HR người Đức.",
         "weeklyTitle": "Chủ đề theo tuần",
-        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần.",
-        "examTitle": "Phòng luyện thi nói",
-        "examDesc": "Luyện từng phần hoặc thi thử theo đúng format Goethe / telc, chấm theo tiêu chí của kỳ thi."
+        "weeklyDesc": "Bài luyện nói có chủ đề, cập nhật mỗi tuần."
       },
       "interviewResults": "Kết quả phỏng vấn",
       "historyCta": "Lịch sử"
@@ -1755,9 +1753,9 @@
     },
     "examSpeaking": {
       "catalog": {
-        "title": "Phòng luyện thi nói",
-        "subtitle": "Mô phỏng phần thi nói Goethe / telc — luyện từng Teil hoặc thi thử trọn gói",
-        "back": "Về luyện nói",
+        "title": "Thi nói: kỳ thi khác",
+        "subtitle": "Chọn hệ Goethe / telc và cấp để luyện từng Teil hoặc thi thử, không đổi lịch ôn",
+        "back": "Về Luyện thi",
         "dismiss": "Đóng",
         "providerLabel": "Hệ chứng chỉ",
         "levelLabel": "Cấp độ",
@@ -1812,11 +1810,8 @@
         "mute": "Tắt tiếng",
         "dismiss": "Đóng",
         "audioTooLarge": "Bản ghi quá dài nên không gửi được. Mỗi lượt nói tối đa 3 phút — hãy thu lại ngắn hơn.",
-        "prepCap": "Thời gian chuẩn bị",
-        "prepDesc": "Ghi chú gạch đầu dòng; bạn được dùng ghi chú trong lúc thi. Hết giờ sẽ tự vào phòng.",
         "prepLeft": "Chuẩn bị",
         "notesPlaceholder": "Ghi chú của bạn (Konzeptpapier)…",
-        "enterExam": "Vào thi",
         "teilCap": "Teil {n}",
         "myNotes": "Ghi chú của tôi",
         "skipPart": "Sang phần kế",
@@ -1830,8 +1825,8 @@
         "resultLoadFailed": "Không tải được phiếu điểm. Kết quả đã có trên máy chủ — thử tải lại.",
         "retryResult": "Tải lại phiếu điểm",
         "aborted": "Phiên đã bị hủy.",
-        "again": "Luyện tiếp",
-        "backToCatalog": "Về phòng luyện thi",
+        "again": "Làm lại",
+        "backToCatalog": "Quay lại",
         "you": "Bạn",
         "pruefer": "Giám khảo",
         "partner": "Bạn thi",
@@ -1934,6 +1929,21 @@
             "nextBody": "Không quay lại Teil {cur} được nữa.",
             "nextGo": "Sang Teil {n}",
             "stay": "Ở lại"
+          },
+          "prep": {
+            "title": "Chuẩn bị",
+            "leave": "Rời phòng chuẩn bị",
+            "leaveTitle": "Rời phòng chuẩn bị?",
+            "leaveBodyMock": "Lượt thi thử này sẽ bỏ dở, không được chấm. Lần sau bạn bắt đầu lượt mới.",
+            "leaveBodyDrill": "Buổi luyện này sẽ bỏ dở.",
+            "leaveGo": "Rời phòng",
+            "notesLabel": "Ghi chú nháp (chỉ bạn thấy)",
+            "notesHint": "Tự lưu khi bạn ngừng gõ. Trong lúc thi bạn xem lại được ghi chú này.",
+            "order": "Thứ tự thi",
+            "minutes": "{n} phút",
+            "enterNow": "Vào thi ngay",
+            "autoEnter": "Hết giờ chuẩn bị sẽ tự vào thi.",
+            "chooseFirst": "Chọn một chủ đề ở Teil có hai phương án trước khi vào thi."
           }
         }
       },
@@ -2075,6 +2085,36 @@
           "denied": "Trình duyệt chặn micro — làm theo hướng dẫn cấp quyền phía trên rồi kiểm tra lại.",
           "other": "Không mở được micro. Kiểm tra thiết bị rồi thử lại."
         }
+      },
+      "entry": {
+        "exit": "Thoát",
+        "modeMock": "Thi thử",
+        "modeDrill": "Luyện Teil {n}",
+        "title": "Kiểm tra trước khi thi nói",
+        "micTitle": "Micro",
+        "micSub": "Bấm Kiểm tra rồi nói thử „Hallo\"",
+        "micCheck": "Kiểm tra",
+        "passed": "Micro dùng được",
+        "heard": "Đã nghe thấy bạn",
+        "speakNow": "Nói thử đi",
+        "speakerTitle": "Loa",
+        "speakerSub": "Nghe giọng giám khảo",
+        "speakerPlay": "Nghe thử",
+        "quietTitle": "Chỗ yên tĩnh",
+        "quietSub": "Tiếng ồn làm sai điểm phát âm",
+        "micFailed": "Không mở được micro. Kiểm tra micro đã cắm và không bị ứng dụng khác dùng, rồi thử lại.",
+        "blockedTitle": "Chưa dùng được micro",
+        "blockedBody": "Bấm biểu tượng ổ khoá cạnh địa chỉ trang, chọn Cho phép micro, rồi kiểm tra lại.",
+        "retry": "Kiểm tra lại",
+        "goPrep": "Vào phòng chuẩn bị",
+        "goExam": "Vào thi",
+        "needMic": "Kiểm tra micro trước khi vào.",
+        "prepNote": "Giờ chuẩn bị bắt đầu khi bạn vào phòng.",
+        "noPrepNote": "Kỳ thi này không có giờ chuẩn bị: đồng hồ chạy ngay khi vào thi.",
+        "loading": "Đang mở phòng thi…",
+        "creating": "Đang tạo lượt thi…",
+        "createFailed": "Không tạo được lượt thi.",
+        "retryCreate": "Thử lại"
       }
     },
     "micGuide": {
@@ -2595,7 +2635,6 @@
       "points": "{n} điểm",
       "oralSub": "Nói · chấm ở phòng luyện thi Nói",
       "oralTitle": "Luyện ở phòng thi Nói",
-      "oralDesc": "3 Teil, chấm riêng ở module luyện nói",
       "progressCap": "Tiến độ đề này",
       "teilCount": "{n} Teil",
       "progressNone": "Chưa có Teil nào làm xong.",
@@ -2730,7 +2769,21 @@
       "estPass": "Ước tính · Đạt 60% của phần này",
       "estBelow": "Ước tính · Dưới 60% của phần này · thiếu {n} điểm",
       "estNote": "Điểm do AI chấm theo tiêu chí telc, không phải điểm chính thức.",
-      "help": "Xem hướng dẫn"
+      "help": "Xem hướng dẫn",
+      "oral": {
+        "groupDone": "{done}/{total} Teil đã thi",
+        "mockTitle": "Thi thử phần nói",
+        "mockMeta": "{minutes} phút · {n} Teil · giám khảo và bạn thi AI",
+        "mockMetaShort": "Giám khảo và bạn thi AI",
+        "teilMeta": "{minutes} phút · luyện riêng Teil này",
+        "score": "{score}/{max}",
+        "new": "Chưa thi",
+        "other": "Kỳ thi khác (Goethe, cấp khác)",
+        "historyTitle": "Thi thử phần nói",
+        "passed": "Đỗ",
+        "failed": "Chưa đỗ",
+        "borderline": "Sát ngưỡng"
+      }
     },
     "examHub": {
       "title": "Luyện thi",

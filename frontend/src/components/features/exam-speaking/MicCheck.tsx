@@ -16,12 +16,10 @@ const METER_BARS = 12
 const CHECK_MS = 2500
 
 /**
- * Mic-Check trước mock (N0.7): mock CHỈ nhận audio và đồng hồ Teil là giờ thật, nên phải chứng
- * minh mic mở được TRƯỚC khi vào phòng — không để cháy phiên vì quyền trình duyệt/OS.
- * Mở stream ~2,5s + vẽ mức âm qua AnalyserNode để người dùng thấy mic thật sự nghe được mình.
+ * Đo micro ~2,5s: mở stream, vẽ mức âm qua AnalyserNode, xong thì `onPassed()`. Dùng chung cho thẻ
+ * Mic-Check và màn Kiểm tra micro trước thi thử (Đợt 2 phòng thi nói).
  */
-export function MicCheck({ onPassed, passed }: Props) {
-  const t = useTranslations('v2.student.examSpeaking.micCheck')
+export function useMicLevelCheck(onPassed: () => void) {
   const [checking, setChecking] = useState(false)
   const [level, setLevel] = useState(0)
   const [heard, setHeard] = useState(false)
@@ -70,6 +68,18 @@ export function MicCheck({ onPassed, passed }: Props) {
       setErrorKind(classifyMicError(e).kind)
     }
   }, [onPassed])
+
+  return { checking, level, heard, errorKind, start }
+}
+
+/**
+ * Mic-Check trước mock (N0.7): mock CHỈ nhận audio và đồng hồ Teil là giờ thật, nên phải chứng
+ * minh mic mở được TRƯỚC khi vào phòng — không để cháy phiên vì quyền trình duyệt/OS.
+ * Mở stream ~2,5s + vẽ mức âm qua AnalyserNode để người dùng thấy mic thật sự nghe được mình.
+ */
+export function MicCheck({ onPassed, passed }: Props) {
+  const t = useTranslations('v2.student.examSpeaking.micCheck')
+  const { checking, level, heard, errorKind, start } = useMicLevelCheck(onPassed)
 
   if (passed) {
     return (

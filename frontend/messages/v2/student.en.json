@@ -345,9 +345,7 @@
         "interviewTitle": "Interview practice",
         "interviewDesc": "Simulate a job interview with a German HR manager.",
         "weeklyTitle": "Weekly topics",
-        "weeklyDesc": "Themed speaking practice, updated every week.",
-        "examTitle": "Oral exam room",
-        "examDesc": "Drill single parts or take a full mock in the Goethe / telc format, scored by the exam's own criteria."
+        "weeklyDesc": "Themed speaking practice, updated every week."
       },
       "interviewResults": "Interview results",
       "historyCta": "History"
@@ -1755,9 +1753,9 @@
     },
     "examSpeaking": {
       "catalog": {
-        "title": "Oral exam room",
-        "subtitle": "Simulates the Goethe / telc speaking exam — drill one Teil or take the full mock",
-        "back": "Back to speaking",
+        "title": "Speaking: other exams",
+        "subtitle": "Pick Goethe / telc and a level to practise a Teil or take a mock, without changing your study plan",
+        "back": "Back to Exam prep",
         "dismiss": "Dismiss",
         "providerLabel": "Exam board",
         "levelLabel": "Level",
@@ -1812,11 +1810,8 @@
         "mute": "Mute",
         "dismiss": "Dismiss",
         "audioTooLarge": "That recording is too long to send. Each turn is capped at 3 minutes — please record a shorter one.",
-        "prepCap": "Preparation time",
-        "prepDesc": "Jot down keywords; you may use your notes during the exam. You enter automatically when time is up.",
         "prepLeft": "Prep",
         "notesPlaceholder": "Your notes (Konzeptpapier)…",
-        "enterExam": "Enter exam",
         "teilCap": "Teil {n}",
         "myNotes": "My notes",
         "skipPart": "Next part",
@@ -1830,8 +1825,8 @@
         "resultLoadFailed": "Couldn’t load your score sheet. The result exists on the server — try loading it again.",
         "retryResult": "Reload score sheet",
         "aborted": "This session was aborted.",
-        "again": "Practice again",
-        "backToCatalog": "Back to the exam room",
+        "again": "Try again",
+        "backToCatalog": "Go back",
         "you": "You",
         "pruefer": "Examiner",
         "partner": "Partner",
@@ -1934,6 +1929,21 @@
             "nextBody": "You cannot return to Teil {cur}.",
             "nextGo": "Go to Teil {n}",
             "stay": "Stay"
+          },
+          "prep": {
+            "title": "Preparation",
+            "leave": "Leave the preparation room",
+            "leaveTitle": "Leave the preparation room?",
+            "leaveBodyMock": "This mock exam will be abandoned and not graded. Next time you start a new one.",
+            "leaveBodyDrill": "This practice will be abandoned.",
+            "leaveGo": "Leave",
+            "notesLabel": "Draft notes (only you can see them)",
+            "notesHint": "Saved when you stop typing. You can look at these notes during the exam.",
+            "order": "Exam order",
+            "minutes": "{n} min",
+            "enterNow": "Start the exam now",
+            "autoEnter": "When preparation time ends, the exam starts automatically.",
+            "chooseFirst": "Choose one topic in the Teil with two options before you start."
           }
         }
       },
@@ -2075,6 +2085,36 @@
           "denied": "The browser is blocking the microphone — follow the permission steps above, then check again.",
           "other": "Could not open the microphone. Check your device and try again."
         }
+      },
+      "entry": {
+        "exit": "Exit",
+        "modeMock": "Mock exam",
+        "modeDrill": "Practise Teil {n}",
+        "title": "Check before the speaking exam",
+        "micTitle": "Microphone",
+        "micSub": "Tap Check, then say \"Hallo\"",
+        "micCheck": "Check",
+        "passed": "Microphone works",
+        "heard": "We can hear you",
+        "speakNow": "Say something",
+        "speakerTitle": "Speaker",
+        "speakerSub": "Hear the examiner's voice",
+        "speakerPlay": "Play test",
+        "quietTitle": "Quiet place",
+        "quietSub": "Noise lowers your pronunciation score",
+        "micFailed": "Could not open the microphone. Make sure it is connected and not used by another app, then try again.",
+        "blockedTitle": "Microphone is blocked",
+        "blockedBody": "Click the lock icon next to the address bar, allow the microphone, then check again.",
+        "retry": "Check again",
+        "goPrep": "Go to preparation",
+        "goExam": "Start the exam",
+        "needMic": "Check your microphone first.",
+        "prepNote": "Preparation time starts when you enter the room.",
+        "noPrepNote": "This exam has no preparation time: the clock starts as soon as you enter.",
+        "loading": "Opening the exam room…",
+        "creating": "Creating your exam…",
+        "createFailed": "Could not create the exam.",
+        "retryCreate": "Try again"
       }
     },
     "micGuide": {
@@ -2595,7 +2635,6 @@
       "points": "{n} points",
       "oralSub": "Speaking · graded in the speaking exam room",
       "oralTitle": "Practise in the speaking exam room",
-      "oralDesc": "3 parts, graded separately in the speaking module",
       "progressCap": "Progress on this exam",
       "teilCount": "{n} parts",
       "progressNone": "No part finished yet.",
@@ -2730,7 +2769,21 @@
       "estPass": "Estimate · 60% of this part reached",
       "estBelow": "Estimate · below 60% of this part · {n} points short",
       "estNote": "Scored by AI against the telc criteria, not an official score.",
-      "help": "Show the guide"
+      "help": "Show the guide",
+      "oral": {
+        "groupDone": "{done}/{total} Teile taken",
+        "mockTitle": "Speaking mock exam",
+        "mockMeta": "{minutes} min · {n} Teile · AI examiner and partner",
+        "mockMetaShort": "AI examiner and partner",
+        "teilMeta": "{minutes} min · practise this Teil only",
+        "score": "{score}/{max}",
+        "new": "Not taken",
+        "other": "Other exams (Goethe, other levels)",
+        "historyTitle": "Speaking mock exams",
+        "passed": "Passed",
+        "failed": "Not passed",
+        "borderline": "Borderline"
+      }
     },
     "examHub": {
       "title": "Exam practice",

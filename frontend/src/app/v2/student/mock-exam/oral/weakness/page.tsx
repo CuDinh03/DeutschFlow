@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, ChevronRight, Quote, Target } from 'lucide-react'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
+import { ORAL_OTHER, ORAL_WEAKNESS, oralSessionHref } from '@/lib/exam/oralRoutes'
 import { apiMessage } from '@/lib/api'
 import type { WeakPointView, WeaknessView } from '@/types/exam-speaking'
 import { GaPageHdr, GaCard, GaCap, GaBtn, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
@@ -74,7 +75,7 @@ export default function V2ExamWeaknessPage() {
         mode: 'DRILL',
         teil: ctx.teilNo,
       })
-      router.push(`/v2/student/speaking/exam/session/${s.id}`)
+      router.push(oralSessionHref(s.id, ORAL_WEAKNESS))
     } catch (e) {
       setError(apiMessage(e))
       setStarting(null)
@@ -89,8 +90,8 @@ export default function V2ExamWeaknessPage() {
         subtitle={t('subtitle')}
         right={
           <a
-            href="/v2/student/speaking/exam"
-            className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface lg:min-h-0"
+            href={ORAL_OTHER}
+            className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-ga-small font-semibold text-ga-ink hover:bg-ga-surface lg:min-h-0"
           >
             <ArrowLeft size={14} aria-hidden /> {t('back')}
           </a>
@@ -116,7 +117,7 @@ export default function V2ExamWeaknessPage() {
                     onClick={() => setArchetype(a)}
                     aria-pressed={archetype === a}
                     data-testid={`filter-${a}`}
-                    className={`ga-ui min-h-[36px] rounded-ga border px-3 text-[12.5px] font-semibold transition-colors ${
+                    className={`ga-ui min-h-[36px] rounded-ga border px-3 text-ga-caption font-semibold transition-colors ${
                       archetype === a
                         ? 'border-ga-ink bg-ga-ink text-ga-bg'
                         : 'border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface'
@@ -130,17 +131,17 @@ export default function V2ExamWeaknessPage() {
 
             {visiblePoints.length === 0 ? (
               <GaCard className="mb-8 p-6">
-                <p className="ga-ui flex items-center gap-2 text-[14px] text-ga-ink">
+                <p className="ga-ui flex items-center gap-2 text-ga-body text-ga-ink">
                   <Target size={16} aria-hidden className="text-ga-muted" /> {t('empty')}
                 </p>
-                <p className="ga-ui mt-1.5 text-[13px] text-ga-muted">{t('emptyHint')}</p>
+                <p className="ga-ui mt-1.5 text-ga-small text-ga-muted">{t('emptyHint')}</p>
               </GaCard>
             ) : (
               <div className="mb-8 grid grid-cols-1 gap-[18px] lg:grid-cols-2" data-testid="weak-points">
                 {visiblePoints.map((w) => (
                   <GaCard key={w.errorCode} className="flex h-full flex-col p-5" data-testid={`weak-${w.errorCode}`}>
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <code className="ga-ui rounded bg-ga-surface px-2 py-0.5 text-[12px] font-semibold text-ga-ink">
+                      <code className="ga-ui rounded bg-ga-surface px-2 py-0.5 text-ga-caption font-semibold text-ga-ink">
                         {w.errorCode}
                       </code>
                       <span className="flex items-center gap-1.5">
@@ -149,15 +150,15 @@ export default function V2ExamWeaknessPage() {
                         )}
                         <TkBadge tone="neutral">{t('seenCount', { count: w.examCount })}</TkBadge>
                         {w.totalCount > w.examCount && (
-                          <span className="ga-ui text-[11.5px] text-ga-muted" data-testid="total-count-note">
+                          <span className="ga-ui text-ga-caption text-ga-muted" data-testid="total-count-note">
                             {t('totalCountNote', { count: w.totalCount })}
                           </span>
                         )}
                       </span>
                     </div>
-                    {w.ruleVi && <p className="ga-ui text-[13.5px] text-ga-ink">{w.ruleVi}</p>}
+                    {w.ruleVi && <p className="ga-ui text-ga-small text-ga-ink">{w.ruleVi}</p>}
                     {w.exampleOriginal && (
-                      <blockquote className="ga-ui mt-2.5 rounded-ga border border-ga-line bg-ga-surface px-3 py-2.5 text-[13px]">
+                      <blockquote className="ga-ui mt-2.5 rounded-ga border border-ga-line bg-ga-surface px-3 py-2.5 text-ga-small">
                         <p className="text-ga-muted line-through">{w.exampleOriginal}</p>
                         {w.exampleCorrection && <p className="mt-1 font-medium text-ga-ink">{w.exampleCorrection}</p>}
                       </blockquote>
@@ -190,10 +191,10 @@ export default function V2ExamWeaknessPage() {
                 <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 lg:grid-cols-3" data-testid="redemittel-packs">
                   {visiblePacks.map((p) => (
                     <GaCard key={p.archetype} className="p-5">
-                      <p className="mb-2.5 flex items-center gap-2 font-ga-display text-[16px] font-medium text-ga-ink">
+                      <p className="mb-2.5 flex items-center gap-2 font-ga-display text-ga-h3 text-ga-ink">
                         <Quote size={14} aria-hidden className="text-ga-muted" /> {tCat(`archetype.${p.archetype}`)}
                       </p>
-                      <ul className="ga-ui space-y-1.5 text-[13.5px] text-ga-ink">
+                      <ul className="ga-ui space-y-1.5 text-ga-small text-ga-ink">
                         {p.phrases.map((ph) => (
                           <li key={ph} className="border-l-2 border-ga-yellow pl-2.5">
                             {ph}

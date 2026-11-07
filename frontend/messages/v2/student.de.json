@@ -345,9 +345,7 @@
         "interviewTitle": "Vorstellungsgespräch üben",
         "interviewDesc": "Simuliere ein Vorstellungsgespräch mit einer deutschen HR-Person.",
         "weeklyTitle": "Wöchentliche Themen",
-        "weeklyDesc": "Thematische Sprechübung, jede Woche aktualisiert.",
-        "examTitle": "Prüfungsraum Sprechen",
-        "examDesc": "Einzelne Teile üben oder die ganze Prüfung simulieren — im Goethe-/telc-Format, bewertet nach den Kriterien der Prüfung."
+        "weeklyDesc": "Thematische Sprechübung, jede Woche aktualisiert."
       },
       "interviewResults": "Interview-Ergebnisse",
       "historyCta": "Verlauf"
@@ -1755,9 +1753,9 @@
     },
     "examSpeaking": {
       "catalog": {
-        "title": "Prüfungsraum Sprechen",
-        "subtitle": "Simuliert die mündliche Prüfung Goethe / telc — einen Teil üben oder die ganze Prüfung",
-        "back": "Zurück zum Sprechen",
+        "title": "Sprechen: andere Prüfungen",
+        "subtitle": "Goethe / telc und Niveau wählen, um einen Teil zu üben oder eine Probeprüfung zu machen, ohne den Lernplan zu ändern",
+        "back": "Zurück zur Prüfungsvorbereitung",
         "dismiss": "Schließen",
         "providerLabel": "Prüfungsanbieter",
         "levelLabel": "Niveau",
@@ -1812,11 +1810,8 @@
         "mute": "Ton aus",
         "dismiss": "Schließen",
         "audioTooLarge": "Die Aufnahme ist zu lang zum Senden. Pro Redebeitrag sind höchstens 3 Minuten möglich — bitte kürzer aufnehmen.",
-        "prepCap": "Vorbereitungszeit",
-        "prepDesc": "Stichpunkte notieren; die Notizen dürfen in der Prüfung benutzt werden. Nach Ablauf der Zeit geht es automatisch los.",
         "prepLeft": "Vorbereitung",
         "notesPlaceholder": "Ihre Notizen (Konzeptpapier)…",
-        "enterExam": "Prüfung beginnen",
         "teilCap": "Teil {n}",
         "myNotes": "Meine Notizen",
         "skipPart": "Nächster Teil",
@@ -1830,8 +1825,8 @@
         "resultLoadFailed": "Ergebnisbogen konnte nicht geladen werden. Das Ergebnis liegt auf dem Server — bitte erneut laden.",
         "retryResult": "Ergebnisbogen neu laden",
         "aborted": "Die Sitzung wurde abgebrochen.",
-        "again": "Weiter üben",
-        "backToCatalog": "Zurück zum Prüfungsraum",
+        "again": "Noch einmal",
+        "backToCatalog": "Zurück",
         "you": "Sie",
         "pruefer": "Prüfer/in",
         "partner": "Partner/in",
@@ -1934,6 +1929,21 @@
             "nextBody": "Zu Teil {cur} können Sie nicht zurück.",
             "nextGo": "Weiter zu Teil {n}",
             "stay": "Bleiben"
+          },
+          "prep": {
+            "title": "Vorbereitung",
+            "leave": "Vorbereitungsraum verlassen",
+            "leaveTitle": "Vorbereitungsraum verlassen?",
+            "leaveBodyMock": "Diese Probeprüfung wird abgebrochen und nicht bewertet. Beim nächsten Mal beginnen Sie neu.",
+            "leaveBodyDrill": "Diese Übung wird abgebrochen.",
+            "leaveGo": "Verlassen",
+            "notesLabel": "Notizen (nur für Sie sichtbar)",
+            "notesHint": "Wird gespeichert, sobald Sie aufhören zu tippen. In der Prüfung können Sie die Notizen ansehen.",
+            "order": "Ablauf der Prüfung",
+            "minutes": "{n} Min.",
+            "enterNow": "Prüfung jetzt beginnen",
+            "autoEnter": "Wenn die Vorbereitungszeit endet, beginnt die Prüfung automatisch.",
+            "chooseFirst": "Wählen Sie im Teil mit zwei Optionen zuerst ein Thema."
           }
         }
       },
@@ -2075,6 +2085,36 @@
           "denied": "Der Browser blockiert das Mikrofon — folge den Schritten oben und prüfe erneut.",
           "other": "Mikrofon konnte nicht geöffnet werden. Prüfe dein Gerät und versuche es erneut."
         }
+      },
+      "entry": {
+        "exit": "Beenden",
+        "modeMock": "Probeprüfung",
+        "modeDrill": "Teil {n} üben",
+        "title": "Technik-Check vor der mündlichen Prüfung",
+        "micTitle": "Mikrofon",
+        "micSub": "Auf „Prüfen\" tippen und „Hallo\" sagen",
+        "micCheck": "Prüfen",
+        "passed": "Mikrofon funktioniert",
+        "heard": "Wir hören Sie",
+        "speakNow": "Sagen Sie etwas",
+        "speakerTitle": "Lautsprecher",
+        "speakerSub": "Stimme der Prüferin / des Prüfers anhören",
+        "speakerPlay": "Probe abspielen",
+        "quietTitle": "Ruhiger Ort",
+        "quietSub": "Lärm verschlechtert die Bewertung der Aussprache",
+        "micFailed": "Das Mikrofon ließ sich nicht öffnen. Prüfen Sie, ob es angeschlossen ist und keine andere App es nutzt.",
+        "blockedTitle": "Mikrofon ist blockiert",
+        "blockedBody": "Klicken Sie auf das Schloss neben der Adresse, erlauben Sie das Mikrofon und prüfen Sie erneut.",
+        "retry": "Erneut prüfen",
+        "goPrep": "Zur Vorbereitung",
+        "goExam": "Prüfung beginnen",
+        "needMic": "Prüfen Sie zuerst das Mikrofon.",
+        "prepNote": "Die Vorbereitungszeit beginnt, wenn Sie den Raum betreten.",
+        "noPrepNote": "Diese Prüfung hat keine Vorbereitungszeit: Die Uhr läuft sofort.",
+        "loading": "Prüfungsraum wird geöffnet…",
+        "creating": "Prüfung wird angelegt…",
+        "createFailed": "Die Prüfung konnte nicht angelegt werden.",
+        "retryCreate": "Erneut versuchen"
       }
     },
     "micGuide": {
@@ -2595,7 +2635,6 @@
       "points": "{n} Punkte",
       "oralSub": "Mündlich · Bewertung im Sprechprüfungsraum",
       "oralTitle": "Im Sprechprüfungsraum üben",
-      "oralDesc": "3 Teile, eigene Bewertung im Sprechmodul",
       "progressCap": "Fortschritt in dieser Prüfung",
       "teilCount": "{n} Teile",
       "progressNone": "Noch kein Teil abgeschlossen.",
@@ -2730,7 +2769,21 @@
       "estPass": "Schätzung · 60 % dieses Teils erreicht",
       "estBelow": "Schätzung · unter 60 % dieses Teils · {n} Punkte fehlen",
       "estNote": "Von der KI nach den telc-Kriterien bewertet, keine offizielle Punktzahl.",
-      "help": "Anleitung anzeigen"
+      "help": "Anleitung anzeigen",
+      "oral": {
+        "groupDone": "{done}/{total} Teile abgelegt",
+        "mockTitle": "Probeprüfung Sprechen",
+        "mockMeta": "{minutes} Min. · {n} Teile · KI-Prüfer/in und KI-Partner/in",
+        "mockMetaShort": "KI-Prüfer/in und KI-Partner/in",
+        "teilMeta": "{minutes} Min. · nur diesen Teil üben",
+        "score": "{score}/{max}",
+        "new": "Noch nicht abgelegt",
+        "other": "Andere Prüfungen (Goethe, andere Niveaus)",
+        "historyTitle": "Probeprüfungen Sprechen",
+        "passed": "Bestanden",
+        "failed": "Nicht bestanden",
+        "borderline": "Knapp"
+      }
     },
     "examHub": {
       "title": "Prüfungstraining",

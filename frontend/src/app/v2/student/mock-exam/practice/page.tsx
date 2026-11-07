@@ -18,7 +18,6 @@ import {
   Headphones,
   Lightbulb,
   ListChecks,
-  Mic,
   Newspaper,
   PenTool,
   Puzzle,
@@ -39,6 +38,7 @@ import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
 import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { findTeil, wordCount } from '@/components/exam/practice/practiceModel'
 import { cn } from '@/lib/utils'
+import { OralHistory, OralTeilGroup } from '@/components/exam/practice/OralTeilGroup'
 
 export default function PracticeMapRoute() {
   return (
@@ -123,6 +123,8 @@ function PracticeMapPage() {
   })
   const href = (key: string) => `/v2/student/mock-exam/practice/teil?examId=${examId}&teil=${key}`
   const sectionDe = (s: string) => t(`sectionDe.${s}`)
+  // Phòng thi nói mở từ đây thì thoát / thi xong quay về đúng đề này.
+  const selfHref = `/v2/student/mock-exam/practice?examId=${examId}`
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-[960px] flex-col gap-8 px-4 py-6 sm:px-6 lg:py-8">
@@ -215,24 +217,7 @@ function PracticeMapPage() {
                 )
               })}
 
-              <div>
-                <div className="mb-2.5 flex items-center gap-2.5">
-                  <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-navy-soft text-ga-navy">
-                    <Mic size={18} strokeWidth={1.9} />
-                  </span>
-                  <h3 lang="de" className="min-w-0 flex-1 font-ga-display text-ga-h3 text-ga-ink">Mündliche Prüfung</h3>
-                </div>
-                <Link
-                  href="/v2/student/speaking/exam"
-                  className="group ga-ui flex min-h-16 items-center gap-3.5 border-y border-ga-line px-1 py-2.5 transition-colors duration-150 hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
-                >
-                  <span className="min-w-0 flex-1">
-                    <b className="block text-ga-body font-semibold text-ga-ink">{t('oralTitle')}</b>
-                    <span className="block text-ga-small text-ga-muted">{t('oralDesc')}</span>
-                  </span>
-                  <ChevronRight size={16} className="shrink-0 text-ga-subtle transition-transform duration-150 group-hover:translate-x-[3px]" aria-hidden />
-                </Link>
-              </div>
+              <OralTeilGroup level={overview.level} ret={selfHref} />
             </div>
           </section>
 
@@ -277,6 +262,7 @@ function PracticeMapPage() {
                 </div>
               </>
             )}
+            <OralHistory level={overview.level} ret={selfHref} />
           </section>
         </>
       )}
