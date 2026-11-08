@@ -228,7 +228,8 @@ export function GaOtpField({
           inputMode="numeric"
           autoComplete="one-time-code"
           pattern="[0-9]*"
-          maxLength={length}
+          // KHÔNG đặt maxLength: trình duyệt cắt chuỗi DÁN trước khi onChange lọc ⇒ „482 913" (7 ký tự, thư HTML
+          // chèn khoảng trắng giữa các số) mất số cuối. onChange đã lọc chữ số và cắt đúng `length`.
           autoFocus={autoFocus}
           disabled={disabled}
           required
