@@ -365,6 +365,7 @@
       }
     },
     "footer": {
+      "guide": "Guides",
       "about": "About us",
       "privacy": "Privacy policy",
       "terms": "Terms of use",

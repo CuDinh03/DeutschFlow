@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { GERMAN_EXAMS } from '@/data/germanExams'
+import { GUIDE_ARTICLES } from '@/data/camNang'
 import { absoluteUrl } from '@/lib/siteUrl'
 import {
   PUBLIC_LOCALES,
@@ -63,6 +64,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...localizedPages,
     { url: absoluteUrl('/luyen-thi/'), changeFrequency: 'weekly', priority: 0.9 },
     { url: absoluteUrl('/free-grade/'), changeFrequency: 'monthly', priority: 0.8 },
+    // Cẩm nang (đợt D, 08/11/2026) — chỉ tiếng Việt.
+    { url: absoluteUrl('/cam-nang/'), changeFrequency: 'weekly', priority: 0.7 },
+    ...GUIDE_ARTICLES.map((g) => ({ url: absoluteUrl(`/cam-nang/${g.slug}/`), lastModified: g.published, changeFrequency: 'monthly' as const, priority: 0.7 })),
     // `/giao-vien-mien-phi/` đã gộp vào trang trung tâm (đợt 3a, 301 trong next.config) — không liệt kê.
   ]
 
