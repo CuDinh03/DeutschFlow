@@ -14,6 +14,7 @@ import { ExamClip } from './ExamClip'
 import { GaShot } from './GaShot'
 import { OccupationExplorer } from './OccupationExplorer'
 import { CastSection } from './CastSection'
+import { PathwayTabs, type Pathway } from './PathwayTabs'
 import { FounderBand } from './FounderBand'
 import { LandingFooter } from './LandingFooter'
 import { LandingHeader } from './LandingHeader'
@@ -64,7 +65,6 @@ const PLAN_META = [
 
 type ExamPart = { name: string; time: string; body: string }
 type Plan = { name: string; price: string; sub: string; features: string[]; cta: string }
-type Pathway = { name: string; de: string; who: string; level: string; exam: string; interview: string; fit: string }
 type Phase = { name: string; score: string }
 type Learn = { name: string; desc: string }
 type Faq = { q: string; a: string }
@@ -276,29 +276,14 @@ export function GaLanding() {
         <div className={SECTION}>
           <GaCap className="mb-[18px]">{t('pathways.cap')}</GaCap>
           <h2 className={`${H2} mb-3`}>{t('pathways.title')}</h2>
-          <p className="mb-11 max-w-[620px] text-ga-body-lg text-ga-muted">{t('pathways.sub')}</p>
-          <div className="grid border border-ga-border md:grid-cols-2 xl:grid-cols-5">
-            {pathways.map((p, i) => (
-              <div key={p.name} className={`flex flex-col gap-3 border-ga-border p-5 sm:p-6 ${i ? 'border-t md:border-t-0' : ''} ${i % 2 ? 'md:border-l' : ''} ${i >= 2 ? 'md:border-t xl:border-t-0' : ''} ${i ? 'xl:border-l' : ''}`}>
-                <span className="inline-block h-[9px] w-[9px]" style={{ background: PATHWAY_COLORS[i] }} />
-                <div>
-                  <div className="text-ga-h3 text-ga-ink">{p.name}</div>
-                  {/* Bản tiếng Đức: tên lộ trình đã là thuật ngữ Đức — không lặp lại dòng phụ. */}
-                  {p.de !== p.name && <div className="font-ga-display text-ga-small italic text-ga-subtle">{p.de}</div>}
-                </div>
-                <p className="text-ga-small text-ga-muted">{p.who}</p>
-                <dl className="flex flex-col gap-2 border-t border-ga-border pt-3 text-ga-small">
-                  {[[t('pathways.levelLabel'), p.level], [t('pathways.examLabel'), p.exam], [t('pathways.interviewLabel'), p.interview]].map(([k, v]) => (
-                    <div key={k}>
-                      <dt className="text-ga-caption text-ga-muted">{k}</dt>
-                      <dd className="text-ga-ink">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <p className="mt-auto border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-ink">{p.fit}</p>
-              </div>
-            ))}
-          </div>
+          <p className="mb-8 max-w-[620px] text-ga-body-lg text-ga-muted">{t('pathways.sub')}</p>
+          {/* Đợt B (08/11/2026): năm con đường thành tab, mặc định Học nghề. */}
+          <PathwayTabs
+            items={pathways}
+            colors={PATHWAY_COLORS}
+            ariaLabel={t('pathways.cap')}
+            labels={{ level: t('pathways.levelLabel'), exam: t('pathways.examLabel'), interview: t('pathways.interviewLabel') }}
+          />
         </div>
       </section>
 
