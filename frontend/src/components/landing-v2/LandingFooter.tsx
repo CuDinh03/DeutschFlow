@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { GaLogo } from '@/components/ui-v2'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import { AppStoreFooterLink } from './AppDownload'
+import { FACEBOOK_URL } from './links'
 
 const FOOTER_LINK = 'text-ga-body font-medium text-ga-muted transition-colors hover:text-ga-ink'
 
@@ -30,6 +31,11 @@ export function LandingFooter() {
             </Link>
           ))}
           <AppStoreFooterLink className={FOOTER_LINK} />
+          {/* Đợt B (08/11/2026): trang Facebook chính thức. */}
+          <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK}>
+            {t('footer.facebook')}
+            <span className="sr-only"> {t('app.newTab')}</span>
+          </a>
         </nav>
         <p className="text-ga-caption text-ga-faint">© {new Date().getFullYear()} myDeutschFlow</p>
       </div>

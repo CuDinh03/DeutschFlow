@@ -175,7 +175,14 @@
         { "name": "Giáo viên", "price": "Liên hệ", "sub": "", "features": ["Quản lý lớp học", "Tạo tài liệu AI", "Chấm bài Speaking", "Báo cáo tiến độ học viên"], "cta": "Nhận tư vấn" }
       ]
     },
+    "socialProof": {
+      "cap": "Học viên nói gì",
+      "title": "Kết quả từ người đã luyện",
+      "items": [],
+      "stats": []
+    },
     "faq": {
+      "contactLead": "Còn câu hỏi khác? Viết cho chúng mình:",
       "cap": "Câu hỏi thường gặp",
       "title": "Trước khi bắt đầu",
       "items": [
@@ -208,19 +215,10 @@
       "sub": "Bếp, nhà hàng, khách sạn, phòng khám, xưởng máy, văn phòng. Nghề chưa có người phỏng vấn riêng thì AI vẫn hỏi theo đúng nghề bạn chọn.",
       "ask": "Xem {name} hỏi gì",
       "hint": "Chọn một người để xem câu họ sẽ hỏi",
-      "soonCap": "Sắp có",
-      "soon": [
-        {
-          "name": "Điều dưỡng",
-          "de": "Pflege",
-          "note": "Bộ câu hỏi riêng đang được biên soạn và duyệt."
-        },
-        {
-          "name": "Xây dựng",
-          "de": "Bau",
-          "note": "Bộ câu hỏi riêng đang được biên soạn và duyệt."
-        }
-      ]
+      "lifeShow": "Xem thêm: luyện nói đời sống ({count})",
+      "lifeHide": "Thu gọn luyện nói đời sống",
+      "lifeCap": "Luyện nói đời sống",
+      "allJobs": "Xem tất cả nghề"
     },
     "about": {
       "meta": {

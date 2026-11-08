@@ -208,16 +208,14 @@ describe('GaLanding — làm mới hình ảnh 19/10/2026', () => {
     expect(within(nav).getByRole('link', { name: 'Về chúng tôi' }).getAttribute('href')).toBe('/about/')
   })
 
-  it('dàn người phỏng vấn có nhân vật của app và hai nghề Sắp có', () => {
+  it('dàn người phỏng vấn có nhân vật của app, không còn thẻ Sắp có (đợt B)', () => {
     renderLanding()
     const cast = document.getElementById('cast')
     expect(cast).not.toBeNull()
     for (const name of ['Klaus', 'Niklas', 'Sarah', 'Max']) {
       expect(within(cast as HTMLElement).getByRole("button", { name: `Xem ${name} hỏi gì` })).toBeTruthy()
     }
-    expect(within(cast as HTMLElement).getAllByText('Sắp có')).toHaveLength(2)
-    expect(within(cast as HTMLElement).getByText('Điều dưỡng')).toBeTruthy()
-    expect(within(cast as HTMLElement).getByText('Xây dựng')).toBeTruthy()
+    expect(within(cast as HTMLElement).queryByText('Sắp có')).toBeNull()
   })
 
   it('dải người làm sản phẩm có ảnh và lối sang Về chúng tôi', () => {

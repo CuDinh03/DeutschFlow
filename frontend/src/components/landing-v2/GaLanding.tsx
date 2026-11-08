@@ -9,16 +9,18 @@ import { GaBtn, GaCap } from '@/components/ui-v2'
 import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicHref } from '@/lib/publicLocale'
-import { AppDownloadBand, AppStoreHeroLink } from './AppDownload'
+import { AppStoreHeroLink, AppStoreLearnRow } from './AppDownload'
 import { ExamClip } from './ExamClip'
 import { GaShot } from './GaShot'
 import { OccupationExplorer } from './OccupationExplorer'
 import { CastSection } from './CastSection'
+import { SocialProof } from './SocialProof'
+import { PathwayTabs, type Pathway } from './PathwayTabs'
 import { FounderBand } from './FounderBand'
 import { LandingFooter } from './LandingFooter'
 import { LandingHeader } from './LandingHeader'
 import { SentenceFix } from './SentenceFix'
-import { START_HREF } from './links'
+import { START_HREF, SUPPORT_EMAIL } from './links'
 
 /**
  * GaLanding — trang chủ công khai cho NGƯỜI HỌC (nhóm B), render ở `/`, `/en/`, `/de/` và `/v2`.
@@ -64,7 +66,6 @@ const PLAN_META = [
 
 type ExamPart = { name: string; time: string; body: string }
 type Plan = { name: string; price: string; sub: string; features: string[]; cta: string }
-type Pathway = { name: string; de: string; who: string; level: string; exam: string; interview: string; fit: string }
 type Phase = { name: string; score: string }
 type Learn = { name: string; desc: string }
 type Faq = { q: string; a: string }
@@ -74,8 +75,8 @@ const SECTION = 'mx-auto max-w-[1240px] px-5 py-14 sm:px-8 md:py-[78px] lg:px-[6
 // cuối là 720px chứ không phải bề ngang màn hình — dưới `md` GaShot giữ ảnh ở 720px và cho cuộn
 // ngang, khai theo 100vw thì next/image gửi bản ~390px rồi bị kéo giãn thành ảnh nhoè.
 const SHOT_FULL_SIZES = '(min-width: 1240px) 1120px, (min-width: 768px) calc(100vw - 64px), 720px'
-// Ảnh chấm bài ở khối S7 nằm trong khung tối đa 640px (md:max-w-[640px]).
-const SHOT_GRADING_SIZES = '(min-width: 768px) 640px, 720px'
+// Ảnh lộ trình ở nửa phải khối lộ trình từ lg (đợt B); dưới lg chiếm cả bề ngang như SHOT_FULL_SIZES.
+const SHOT_HALF_SIZES = '(min-width: 1240px) 600px, (min-width: 1024px) 50vw, (min-width: 768px) calc(100vw - 64px), 720px'
 const H2 = 'font-ga-display text-[32px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[38px] lg:text-[44px]'
 
 export function GaLanding() {
@@ -95,7 +96,6 @@ export function GaLanding() {
   const gaps = raw<string[]>('report.gaps')
   const drills = raw<string[]>('report.drills')
   const learnItems = raw<Learn[]>('learn.items')
-  const centerPoints = raw<string[]>('partners.centers.points')
   const faqs = raw<Faq[]>('faq.items')
 
   const { trackEvent } = useTracking()
@@ -268,6 +268,9 @@ export function GaLanding() {
         </div>
       </section>
 
+      {/* Bằng chứng xã hội — khung ẩn (SHOW_SOCIAL_PROOF) tới khi có 3 nhận xét thật + 1 con số. */}
+      <SocialProof />
+
       {/* Dàn người phỏng vấn — hình vẽ đúng như trong phòng phỏng vấn */}
       <CastSection />
 
@@ -276,29 +279,14 @@ export function GaLanding() {
         <div className={SECTION}>
           <GaCap className="mb-[18px]">{t('pathways.cap')}</GaCap>
           <h2 className={`${H2} mb-3`}>{t('pathways.title')}</h2>
-          <p className="mb-11 max-w-[620px] text-ga-body-lg text-ga-muted">{t('pathways.sub')}</p>
-          <div className="grid border border-ga-border md:grid-cols-2 xl:grid-cols-5">
-            {pathways.map((p, i) => (
-              <div key={p.name} className={`flex flex-col gap-3 border-ga-border p-5 sm:p-6 ${i ? 'border-t md:border-t-0' : ''} ${i % 2 ? 'md:border-l' : ''} ${i >= 2 ? 'md:border-t xl:border-t-0' : ''} ${i ? 'xl:border-l' : ''}`}>
-                <span className="inline-block h-[9px] w-[9px]" style={{ background: PATHWAY_COLORS[i] }} />
-                <div>
-                  <div className="text-ga-h3 text-ga-ink">{p.name}</div>
-                  {/* Bản tiếng Đức: tên lộ trình đã là thuật ngữ Đức — không lặp lại dòng phụ. */}
-                  {p.de !== p.name && <div className="font-ga-display text-ga-small italic text-ga-subtle">{p.de}</div>}
-                </div>
-                <p className="text-ga-small text-ga-muted">{p.who}</p>
-                <dl className="flex flex-col gap-2 border-t border-ga-border pt-3 text-ga-small">
-                  {[[t('pathways.levelLabel'), p.level], [t('pathways.examLabel'), p.exam], [t('pathways.interviewLabel'), p.interview]].map(([k, v]) => (
-                    <div key={k}>
-                      <dt className="text-ga-caption text-ga-muted">{k}</dt>
-                      <dd className="text-ga-ink">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <p className="mt-auto border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-ink">{p.fit}</p>
-              </div>
-            ))}
-          </div>
+          <p className="mb-8 max-w-[620px] text-ga-body-lg text-ga-muted">{t('pathways.sub')}</p>
+          {/* Đợt B (08/11/2026): năm con đường thành tab, mặc định Học nghề. */}
+          <PathwayTabs
+            items={pathways}
+            colors={PATHWAY_COLORS}
+            ariaLabel={t('pathways.cap')}
+            labels={{ level: t('pathways.levelLabel'), exam: t('pathways.examLabel'), interview: t('pathways.interviewLabel') }}
+          />
         </div>
       </section>
 
@@ -307,30 +295,35 @@ export function GaLanding() {
         <div className={SECTION}>
           <GaCap className="mb-[18px]">{t('learn.cap')}</GaCap>
           <h2 className={`${H2} mb-3`}>{t('learn.title')}</h2>
-          <p className="mb-11 max-w-[600px] text-ga-body-lg text-ga-muted">{t('learn.sub')}</p>
-          <div className="grid border border-ga-border sm:grid-cols-2 lg:grid-cols-4">
-            {learnItems.map((it, i) => (
-              <div key={it.name} className={`border-ga-border bg-ga-card p-5 sm:p-6 ${i ? 'border-t sm:border-t-0' : ''} ${i % 2 ? 'sm:border-l' : ''} ${i >= 2 ? 'sm:border-t lg:border-t-0' : ''} ${i ? 'lg:border-l' : ''}`}>
-                <GaGlyphMark name={LEARN_GLYPHS[i]} size={32} draw="view" className="mb-3 block text-ga-ink" />
-                <div className="mb-2 text-ga-h3 text-ga-ink">{it.name}</div>
-                <p className="text-ga-small text-ga-muted">{it.desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-9 md:mt-11">
+          <p className="mb-10 max-w-[600px] text-ga-body-lg text-ga-muted">{t('learn.sub')}</p>
+          {/* Đợt B (08/11/2026): gộp với dải ứng dụng iPhone — bốn tính năng + nút App Store bên trái,
+              ảnh thật cây lộ trình bên phải. */}
+          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14">
+            <div>
+              <ul className="grid gap-x-6 gap-y-6 sm:grid-cols-2">
+                {learnItems.map((it, i) => (
+                  <li key={it.name} className="flex gap-3">
+                    <GaGlyphMark name={LEARN_GLYPHS[i]} size={28} draw="view" className="mt-0.5 block shrink-0 text-ga-ink" />
+                    <div>
+                      <div className="text-ga-h3 text-ga-ink">{it.name}</div>
+                      <p className="mt-1 text-ga-small text-ga-muted">{it.desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <AppStoreLearnRow />
+            </div>
             <GaShot
               name="roadmap"
               caption={t('learn.shotCap')}
               alt={t('learn.shotAlt')}
               accent="var(--ga-yellow)"
-              sizes={SHOT_FULL_SIZES}
+              sizes={SHOT_HALF_SIZES}
             />
           </div>
         </div>
       </section>
 
-      {/* Ứng dụng iPhone — ngay sau khối lộ trình, nơi vừa nhắc video bài học chỉ có trên app */}
-      <AppDownloadBand />
 
       {/* S6 — Thi Nói theo format thật */}
       <section id="exam" className={`${SECTION} scroll-mt-[78px]`}>
@@ -380,49 +373,34 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* S7 — Lối sang trung tâm (A) và nhà tuyển dụng (E) */}
+      {/* S7 — Lối sang trung tâm (A) và nhà tuyển dụng (E). Đợt B (08/11/2026): banner hai dòng —
+          chi tiết ở trang /trung-tam; trang chủ chỉ giữ lời mời và hai nút. */}
       <section id="centers" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
         <div className={SECTION}>
           <GaCap className="mb-[18px]">{t('partners.cap')}</GaCap>
-          <h2 className={`${H2} mb-11`}>{t('partners.title')}</h2>
-          <div className="grid gap-5 md:grid-cols-[1.4fr_1fr]">
-            <div className="flex flex-col border border-ga-border bg-ga-bg p-5 sm:p-7">
-              <GaCap className="mb-3 text-ga-violet">{t('partners.centers.cap')}</GaCap>
-              <div className="mb-2 text-ga-h2 text-ga-ink">{t('partners.centers.title')}</div>
-              <p className="mb-4 text-ga-body text-ga-muted">{t('partners.centers.body')}</p>
-              <ul className="mb-6 grid gap-2 sm:grid-cols-2">
-                {centerPoints.map((pt) => (
-                  <li key={pt} className="flex items-start gap-2 text-ga-small text-ga-ink">
-                    <span className="mt-[6px] h-2 w-2 shrink-0 bg-ga-violet" />{pt}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-auto flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-                  <Link href={`${centersHref}#dat-lich`}><YellowSq />{t('partners.centers.ctaConsult')}</Link>
-                </GaBtn>
-                <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-                  <Link href={`${centersHref}#giao-vien`}>{t('partners.centers.ctaFree')}</Link>
-                </GaBtn>
-              </div>
+          <h2 className={`${H2} mb-8`}>{t('partners.title')}</h2>
+          <div className="flex flex-col gap-5 border border-ga-border bg-ga-bg p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+            <div className="min-w-0 max-w-[640px]">
+              <GaCap className="mb-2 text-ga-violet">{t('partners.centers.cap')}</GaCap>
+              <div className="text-ga-h2 text-ga-ink">{t('partners.centers.title')}</div>
+              <p className="mt-2 text-ga-body text-ga-muted">{t('partners.centers.body')}</p>
             </div>
-            <div className="flex flex-col border border-ga-border bg-ga-bg p-5 sm:p-7">
-              <GaCap className="mb-3 text-ga-blue">{t('partners.employers.cap')}</GaCap>
-              <div className="mb-2 text-ga-h2 text-ga-ink">{t('partners.employers.title')}</div>
-              <p className="mb-4 text-ga-body text-ga-muted">{t('partners.employers.body')}</p>
-              <p className="mb-2 text-ga-eyebrow uppercase text-ga-muted">{t('partners.employers.soon')}</p>
-              <p className="mt-auto select-all text-ga-small text-ga-ink">{t('partners.employers.contact')}</p>
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+              <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
+                <Link href={`${centersHref}#dat-lich`}><YellowSq />{t('partners.centers.ctaConsult')}</Link>
+              </GaBtn>
+              <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+                <Link href={`${centersHref}#giao-vien`}>{t('partners.centers.ctaFree')}</Link>
+              </GaBtn>
             </div>
           </div>
-          {/* Ảnh chụp thật màn chấm bài của giáo viên — dữ liệu lớp K30 dựng sẵn. */}
-          <div className="mt-10 md:mt-[60px] md:max-w-[640px]">
-            <GaShot
-              name="grading"
-              caption={t('partners.shotGradingCap')}
-              alt={t('partners.shotGradingAlt')}
-              accent="var(--ga-green)"
-              sizes={SHOT_GRADING_SIZES}
-            />
+          <div className="mt-3 flex flex-col gap-2 border border-ga-border bg-ga-bg px-5 py-4 sm:px-7 md:flex-row md:items-center md:justify-between md:gap-8">
+            <p className="text-ga-small text-ga-ink">
+              <span className="font-semibold text-ga-blue">{t('partners.employers.cap')}</span>
+              {' · '}{t('partners.employers.title')}
+              <span className="text-ga-muted"> · {t('partners.employers.soon')}</span>
+            </p>
+            <p className="shrink-0 select-all text-ga-small text-ga-ink">{t('partners.employers.contact')}</p>
           </div>
         </div>
       </section>
@@ -461,8 +439,14 @@ export function GaLanding() {
       {/* S9 — Câu hỏi thường gặp */}
       <section id="faq" className={`${SECTION} scroll-mt-[78px]`}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqLd }} />
-        <GaCap className="mb-[18px]">{t('faq.cap')}</GaCap>
-        <h2 className={`${H2} mb-9`}>{t('faq.title')}</h2>
+        {/* Đợt B (08/11/2026): hai cột — tiêu đề + địa chỉ liên hệ bên trái, câu hỏi bên phải. */}
+        <div className="grid gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-14">
+        <div>
+          <GaCap className="mb-[18px]">{t('faq.cap')}</GaCap>
+          <h2 className={`${H2} mb-4`}>{t('faq.title')}</h2>
+          <p className="text-ga-body text-ga-muted">{t('faq.contactLead')}</p>
+          <p className="mt-1 select-all text-ga-body font-semibold text-ga-ink">{SUPPORT_EMAIL}</p>
+        </div>
         <div className="border-t border-ga-border">
           {faqs.map((f) => (
             <details key={f.q} className="group border-b border-ga-border">
@@ -473,6 +457,7 @@ export function GaLanding() {
               <p className="max-w-[760px] pb-5 text-ga-body text-ga-muted">{f.a}</p>
             </details>
           ))}
+        </div>
         </div>
       </section>
 

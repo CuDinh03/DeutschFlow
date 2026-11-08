@@ -76,8 +76,26 @@ describe('CastSection — nhân vật cất tiếng', () => {
     expect(card.querySelector('svg')?.innerHTML).toBe(closed)
   })
 
-  it('giữ nguyên hai nghề Sắp có của sổ lời hứa', () => {
+  it('đợt B: lưới chính 11 người phỏng vấn theo nghề, bỏ thẻ Sắp có, có lối sang tất cả nghề', () => {
     renderCast()
-    expect(screen.getAllByText('Sắp có')).toHaveLength(2)
+    const cards = screen.getAllByRole('button', { name: /^Xem .+ hỏi gì$/ })
+    expect(cards).toHaveLength(11)
+    expect(screen.queryByRole('button', { name: 'Xem Emma hỏi gì' })).toBeNull()
+    expect(screen.queryByText('Sắp có')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Xem tất cả nghề' }).getAttribute('href')).toMatch(/^\/phong-van\/?$/)
+  })
+
+  it('đợt B: nút Xem thêm mở nhóm luyện nói đời sống (Emma, Anna, Hannie, Lukas)', () => {
+    renderCast()
+    const toggle = screen.getByRole('button', { name: 'Xem thêm: luyện nói đời sống (4)' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const life = document.getElementById('cast-life') as HTMLElement
+    for (const name of ['Emma', 'Anna', 'Hannie', 'Lukas']) {
+      expect(within(life).getByRole('button', { name: `Xem ${name} hỏi gì` })).toBeTruthy()
+    }
+    fireEvent.click(within(life).getByRole('button', { name: 'Xem Emma hỏi gì' }))
+    expect(screen.getByText(/^Emma: /)).toBeInTheDocument()
   })
 })

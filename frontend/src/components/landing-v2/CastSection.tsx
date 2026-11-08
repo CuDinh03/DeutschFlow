@@ -1,7 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { useTranslations } from 'next-intl'
+import Link from 'next/link'
+import { useLocale, useTranslations } from 'next-intl'
+import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import { GaCap } from '@/components/ui-v2'
 import { INTERVIEW_SAMPLES, fillPosition, type InterviewPersonaId } from '@/data/interviewSamples'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
@@ -21,7 +23,6 @@ import { PersonaPortrait, hasPortrait } from './PersonaPortrait'
  * Dải có sẵn câu của Klaus trong HTML; câu chỉ chạy chữ khi cuộn tới, rồi dừng.
  */
 
-type Soon = { name: string; de: string; note: string }
 type CastPersona = (typeof PERSONA_LIST)[number]
 
 /** Tốc độ chạy chữ: đo thật mỗi nhịp mất 30–50ms, nên câu dài ~120 ký tự xong trong khoảng 3 giây. */
@@ -30,7 +31,18 @@ const CHARS_PER_TICK = 2
 /** Rê chuột lướt qua nhiều thẻ thì chỉ người con trỏ dừng lại mới nói. */
 const HOVER_DELAY_MS = 140
 
-const CAST = PERSONA_LIST.filter((p) => p.supportsInterview && hasPortrait(p.id))
+/**
+ * Đợt B (kế hoạch cải thiện trang chủ 08/11/2026): lưới chính chỉ còn 11 người phỏng vấn theo nghề;
+ * bốn nhân vật luyện nói đời sống (không phải nhà tuyển dụng) nằm sau nút "Xem thêm". Bỏ hai thẻ
+ * "Sắp có" (owner chốt) — nghề chưa có người riêng thì AI hỏi bằng bộ chung, câu `sub` đã nói rõ.
+ */
+const JOB_IDS: PersonaId[] = ['klaus', 'niklas', 'nina', 'sarah', 'max', 'oliver', 'lena', 'thomas', 'petra', 'schneider', 'weber']
+const LIFE_IDS: PersonaId[] = ['emma', 'anna', 'hannie', 'lukas']
+const pick = (ids: PersonaId[]) =>
+  ids.map((id) => PERSONA_LIST.find((p) => p.id === id)).filter((p): p is CastPersona => !!p && p.supportsInterview && hasPortrait(p.id))
+const JOB_CAST = pick(JOB_IDS)
+const LIFE_CAST = pick(LIFE_IDS)
+const CAST = [...JOB_CAST, ...LIFE_CAST]
 // Nói trước là người có nghề phổ thông, khớp nghề mặc định của ô tìm nghề ở hero.
 const FIRST = CAST.find((p) => p.id === 'klaus') ?? CAST[0]
 
@@ -137,7 +149,9 @@ const CastCard = React.memo(function CastCard({
 
 export function CastSection({ className = '' }: { className?: string }) {
   const t = useTranslations('v2.landing.cast')
-  const soon = t.raw('soon') as Soon[]
+  const rawLocale = useLocale()
+  const locale = isPublicLocale(rawLocale) ? rawLocale : DEFAULT_PUBLIC_LOCALE
+  const [showLife, setShowLife] = React.useState(false)
   const calm = usePrefersReducedMotion()
   const [speakerId, setSpeakerId] = React.useState<PersonaId>(FIRST.id)
   const [playKey, setPlayKey] = React.useState(0)
@@ -168,6 +182,18 @@ export function CastSection({ className = '' }: { className?: string }) {
   const sectionRef = useLookAtPointer<HTMLElement>()
   const stageRef = useInViewOnce<HTMLDivElement>(() => speak(FIRST.id), 0.6)
   const speaker = CAST.find((p) => p.id === speakerId) ?? FIRST
+  const renderCard = (p: CastPersona) => (
+    <CastCard
+      key={p.id}
+      persona={p}
+      active={p.id === speakerId}
+      talking={p.id === talkingId}
+      label={t('ask', { name: p.name })}
+      onHover={onHover}
+      onLeave={onLeave}
+      onPick={speak}
+    />
+  )
 
   return (
     <section ref={sectionRef} id="cast" className={`scroll-mt-[78px] border-y border-ga-border bg-ga-side-active ${className}`}>
@@ -187,32 +213,32 @@ export function CastSection({ className = '' }: { className?: string }) {
           onDone={stopTalking}
           stageRef={stageRef}
         />
-        <ul className="grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-5">
-          {CAST.map((p) => (
-            <CastCard
-              key={p.id}
-              persona={p}
-              active={p.id === speakerId}
-              talking={p.id === talkingId}
-              label={t('ask', { name: p.name })}
-              onHover={onHover}
-              onLeave={onLeave}
-              onPick={speak}
-            />
-          ))}
+        <ul className="grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-6">
+          {JOB_CAST.map(renderCard)}
         </ul>
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2 sm:gap-4">
-          {soon.map((s) => (
-            <li key={s.de} className="flex items-center gap-4 border border-dashed border-ga-subtle bg-ga-bg px-5 py-4">
-              <span className="shrink-0 bg-ga-ink px-2 py-1 text-ga-eyebrow uppercase text-ga-yellow">{t('soonCap')}</span>
-              <span className="text-ga-small text-ga-ink">
-                <strong className="font-semibold">{s.name}</strong>
-                {s.de !== s.name && <span lang="de" className="text-ga-muted"> · {s.de}</span>}
-                <span className="block text-ga-caption text-ga-muted">{s.note}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <button
+            type="button"
+            aria-expanded={showLife}
+            aria-controls="cast-life"
+            onClick={() => setShowLife((v) => !v)}
+            className="inline-flex min-h-11 items-center gap-2 border border-ga-ink bg-ga-card px-4 text-ga-small font-semibold text-ga-ink transition-colors hover:bg-ga-bg"
+          >
+            <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-yellow" />
+            {showLife ? t('lifeHide') : t('lifeShow', { count: LIFE_CAST.length })}
+          </button>
+          <Link href={localizedHref(locale, '/phong-van')} className="text-ga-small font-semibold text-ga-ink underline underline-offset-4">
+            {t('allJobs')}
+          </Link>
+        </div>
+        {showLife && (
+          <div id="cast-life" className="mt-6">
+            <GaCap className="mb-3">{t('lifeCap')}</GaCap>
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-4 lg:grid-cols-6">
+              {LIFE_CAST.map(renderCard)}
+            </ul>
+          </div>
+        )}
       </div>
     </section>
   )

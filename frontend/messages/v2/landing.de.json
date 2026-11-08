@@ -175,7 +175,14 @@
         { "name": "Lehrkräfte", "price": "Auf Anfrage", "sub": "", "features": ["Klassenverwaltung", "KI-Materialien", "Sprechbewertung", "Fortschrittsberichte der Lernenden"], "cta": "Beratung anfragen" }
       ]
     },
+    "socialProof": {
+      "cap": "Das sagen Lernende",
+      "title": "Ergebnisse von Lernenden",
+      "items": [],
+      "stats": []
+    },
     "faq": {
+      "contactLead": "Noch eine Frage? Schreiben Sie uns:",
       "cap": "Häufige Fragen",
       "title": "Bevor Sie anfangen",
       "items": [
@@ -208,19 +215,10 @@
       "sub": "Küche, Restaurant, Hotel, Arztpraxis, Werkstatt, Büro. Gibt es für Ihren Beruf noch keine eigene Person, fragt die KI trotzdem gezielt zu dem Beruf, den Sie wählen.",
       "ask": "Frage von {name} ansehen",
       "hint": "Wählen Sie eine Person, um eine ihrer Fragen zu sehen",
-      "soonCap": "Demnächst",
-      "soon": [
-        {
-          "name": "Pflege",
-          "de": "Pflege",
-          "note": "Ein eigener Fragenkatalog wird gerade erstellt und geprüft."
-        },
-        {
-          "name": "Bau",
-          "de": "Bau",
-          "note": "Ein eigener Fragenkatalog wird gerade erstellt und geprüft."
-        }
-      ]
+      "lifeShow": "Mehr anzeigen: Alltagsgespräche ({count})",
+      "lifeHide": "Alltagsgespräche ausblenden",
+      "lifeCap": "Alltagsgespräche",
+      "allJobs": "Alle Berufe ansehen"
     },
     "about": {
       "meta": {
