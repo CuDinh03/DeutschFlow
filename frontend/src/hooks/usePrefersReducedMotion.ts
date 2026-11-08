@@ -16,8 +16,9 @@ function getSnapshot() {
 }
 
 /**
- * Người dùng có bật "giảm chuyển động" không. Dành cho trang công khai: `useReducedMotion` của Framer
- * Motion kéo cả thư viện vào bundle trang chủ, nơi hiện chưa có file nào dùng nó (hệ thiết kế §7).
+ * Người dùng có bật "giảm chuyển động" không. Hook nhẹ cho các hiệu ứng CSS/WAAPI ở trang công khai.
+ * Thành phần dùng Framer (`m` trong `LazyMotion`) thì `MotionConfig reducedMotion="user"` ở layout gốc
+ * đã lo phần này.
  * Server luôn trả `false`, nên HTML ban đầu phải là trạng thái nghỉ, đọc được mà không cần JS.
  */
 export function usePrefersReducedMotion(): boolean {

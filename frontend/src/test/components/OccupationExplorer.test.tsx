@@ -3,7 +3,7 @@
  * đợt 1 khi endpoint chưa có — frontend có thể lên trước backend mà ô không bao giờ trống.
  */
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl'
 import landingVi from '../../../messages/v2/landing.vi.json'
@@ -83,6 +83,43 @@ describe('OccupationExplorer — danh mục nghề công khai', () => {
     expect(screen.getByText('Mời bạn giới thiệu ngắn về bản thân.').getAttribute('lang')).toBe('vi')
     expect(screen.queryByText('Please introduce yourself briefly.')).toBeNull()
     expect(screen.getByRole('link', { name: 'Xem trang nghề' }).getAttribute('href')).toBe('/phong-van/altenpfleger/')
+  })
+
+  it('#3 câu 1 được gõ: câu đủ vẫn có cho trình đọc màn hình, gõ xong thì về trạng thái nghỉ', async () => {
+    // Đồng hồ giả hoàn toàn: máy CI chậm cũng không gõ xong trước khi kịp kiểm tra.
+    vi.useFakeTimers()
+    try {
+      listMock.mockResolvedValue([ALTENPFLEGER])
+      detailMock.mockResolvedValue(DETAIL)
+
+      const { container } = renderExplorer()
+      // Xả chuỗi promise danh mục → chi tiết mà chưa cho đồng hồ chạy.
+      for (let i = 0; i < 5; i += 1) await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+
+      expect(screen.getByText('„Wie reagieren Sie bei einem Sturz?“')).toBeTruthy()
+      expect(container.querySelector('.ga-type-caret')).toBeTruthy()
+      // Lớp phủ đang gõ ẩn khỏi trình đọc màn hình; câu đủ vẫn nằm trong cây.
+      expect(container.querySelector('.ga-type-caret')!.closest('[aria-hidden]')).toBeTruthy()
+      expect(screen.getByText('„Bitte stellen Sie sich kurz vor.“')).toBeTruthy()
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+      expect(container.querySelector('.ga-type-caret')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('#4 chip đang chọn đổi theo lần bấm, aria-pressed đi theo', async () => {
+    listMock.mockRejectedValue(new Error('404'))
+
+    renderExplorer()
+    await waitFor(() => expect(listMock).toHaveBeenCalled())
+
+    const kellner = screen.getByRole('button', { name: 'Kellner/in' })
+    expect(kellner.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(kellner)
+    expect(kellner.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1)
   })
 
   it('endpoint lỗi: giữ dữ liệu tĩnh của đợt 1, không gọi chi tiết', async () => {

@@ -169,7 +169,7 @@ export function GaLanding() {
           </div>
           <h1 className="font-ga-display text-[40px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[54px] lg:text-[68px] lg:leading-[1.06]">
             {t('hero.titleLead')}{' '}
-            <em className="italic [background:linear-gradient(transparent_58%,var(--ga-yellow)_58%,var(--ga-yellow)_90%,transparent_90%)]">
+            <em className="ga-hero-mark italic">
               {t('hero.titleEm')}
             </em>
           </h1>
