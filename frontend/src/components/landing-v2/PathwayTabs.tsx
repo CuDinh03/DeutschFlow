@@ -74,7 +74,7 @@ export function PathwayTabs({
             <div>
               <div className="text-ga-h2 text-ga-ink">{p.name}</div>
               {/* Bản tiếng Đức: tên lộ trình đã là thuật ngữ Đức — không lặp lại dòng phụ. */}
-              {p.de !== p.name && <div lang="de" className="font-ga-display text-ga-body italic text-ga-subtle">{p.de}</div>}
+              {p.de !== p.name && <div lang="de" className="font-ga-display text-ga-body italic text-ga-muted">{p.de}</div>}
               <p className="mt-4 text-ga-body text-ga-muted">{p.who}</p>
               <p className="mt-5 border-l-2 border-ga-yellow pl-3 text-ga-body text-ga-ink">{p.fit}</p>
             </div>

@@ -213,7 +213,7 @@ describe('GaLanding — làm mới hình ảnh 19/10/2026', () => {
     const cast = document.getElementById('cast')
     expect(cast).not.toBeNull()
     for (const name of ['Klaus', 'Niklas', 'Sarah', 'Max']) {
-      expect(within(cast as HTMLElement).getByRole("button", { name: `Xem ${name} hỏi gì` })).toBeTruthy()
+      expect(within(cast as HTMLElement).getByRole("button", { name: new RegExp(`^Xem ${name} hỏi gì`) })).toBeTruthy()
     }
     expect(within(cast as HTMLElement).queryByText('Sắp có')).toBeNull()
   })

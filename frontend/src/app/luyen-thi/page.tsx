@@ -1,11 +1,20 @@
+import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, GraduationCap, Sparkles } from 'lucide-react'
 import { GERMAN_EXAMS } from '@/data/germanExams'
 import { absoluteUrl } from '@/lib/siteUrl'
 import { ogImage } from '@/lib/ogImage'
+import { GaBtn } from '@/components/ui-v2/GaBtn'
+import { LandingHeader } from '@/components/landing-v2/LandingHeader'
+import { LandingFooter } from '@/components/landing-v2/LandingFooter'
+import { START_HREF } from '@/components/landing-v2/links'
 
-const TITLE = 'Luyện thi tiếng Đức: Goethe & telc (A2/B1/B2) — Cấu trúc & checklist'
+/**
+ * Trang tổng luyện thi `/luyen-thi/` (chỉ tiếng Việt). Đợt C kế hoạch cải thiện trang chủ (08/11/2026):
+ * chuyển sang hệ Galerie, dùng header/footer chung của trang công khai (ẩn nút đổi ngôn ngữ vì trang
+ * chưa có bản en/de), title chứa cụm "thi thử Goethe B1 online". Nội dung các kỳ thi giữ nguyên.
+ */
+const TITLE = 'Thi thử Goethe B1 online, luyện thi telc (A2–B2) — Cấu trúc đề & checklist'
 const DESCRIPTION =
   'Hướng dẫn luyện thi các chứng chỉ tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.'
 
@@ -25,6 +34,10 @@ export const metadata: Metadata = {
   },
 }
 
+const YellowSq = ({ dark = false }: { dark?: boolean }) => (
+  <span className={`inline-block h-[7px] w-[7px] shrink-0 ${dark ? 'bg-ga-ink' : 'bg-ga-yellow'}`} />
+)
+
 export default function ExamHubPage() {
   const byProvider = {
     Goethe: GERMAN_EXAMS.filter((e) => e.provider === 'Goethe'),
@@ -43,49 +56,62 @@ export default function ExamHubPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }} />
+    <div className="ga-scope min-h-screen overflow-x-clip bg-ga-bg font-ga-ui text-ga-ink">
+      <LandingHeader current="exam" showLanguage={false} />
+      <main className="mx-auto max-w-[1240px] px-5 pb-16 pt-10 sm:px-8 md:pt-14 lg:px-[60px]">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }} />
 
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white">
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-black via-[#DD0000] to-[#FFCE00]" />
-        <div className="absolute right-0 top-0 -mr-16 -mt-10 opacity-10"><GraduationCap size={240} /></div>
-        <div className="relative z-10 mx-auto max-w-4xl px-5 pb-12 pt-14 sm:pt-20">
-          <h1 className="text-4xl font-black leading-tight sm:text-5xl">Luyện thi tiếng Đức</h1>
-          <p className="mt-4 max-w-2xl text-lg text-slate-300">
-            Cấu trúc đề, cách tính điểm và <span className="font-semibold text-white">checklist sẵn-sàng-thi</span> cho
-            các chứng chỉ Goethe & telc. Chọn kỳ thi của bạn bên dưới.
-          </p>
-          <Link href="/free-grade" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700">
-            <Sparkles size={16} /> Chấm thử bài viết B1 miễn phí
-          </Link>
+        <div className="mb-[22px] inline-flex items-center gap-2 text-ga-eyebrow uppercase text-ga-muted">
+          <YellowSq />Luyện thi
         </div>
-      </section>
+        <h1 className="max-w-[860px] font-ga-display text-ga-h1-m font-medium leading-[1.08] sm:text-ga-h1">
+          Luyện thi tiếng Đức Goethe và telc
+        </h1>
+        <p className="mt-5 max-w-[680px] text-ga-body-lg text-ga-muted">
+          Cấu trúc đề, cách tính điểm và checklist sẵn sàng thi cho các chứng chỉ Goethe và telc. Thi thử Goethe B1
+          online ngay trên myDeutschFlow, đúng thời gian và cấu trúc đề. Chọn kỳ thi của bạn bên dưới.
+        </p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
+            <Link href={START_HREF}><YellowSq />Thi thử miễn phí</Link>
+          </GaBtn>
+          <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+            <Link href="/free-grade">Chấm thử bài viết B1 miễn phí</Link>
+          </GaBtn>
+        </div>
+        <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">
+          <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
+          Đề thi thử là mô phỏng theo format, không liên kết với Goethe-Institut hay telc.
+        </p>
 
-      <div className="mx-auto max-w-4xl space-y-10 px-5 py-10">
-        {(['Goethe', 'telc'] as const).map((provider) => (
-          <section key={provider}>
-            <h2 className="mb-4 text-lg font-black text-slate-800">Chứng chỉ {provider}</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {byProvider[provider].map((e) => (
-                <Link
-                  key={e.slug}
-                  href={`/luyen-thi/${e.slug}`}
-                  className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
-                >
-                  <span className="inline-flex w-fit items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-indigo-600">
-                    {e.provider} · {e.level}
-                  </span>
-                  <p className="mt-2 text-base font-bold text-slate-800">{e.name}</p>
-                  <p className="mt-1 flex-1 text-sm text-slate-500">{e.tagline}</p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 group-hover:gap-2">
-                    Xem hướng dẫn <ArrowRight size={15} />
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+        <div className="mt-14 flex flex-col gap-12">
+          {(['Goethe', 'telc'] as const).map((provider) => (
+            <section key={provider} aria-labelledby={`exam-${provider}`}>
+              <h2 id={`exam-${provider}`} className="mb-5 border-b border-ga-border pb-3 text-ga-h2 text-ga-ink">
+                Chứng chỉ {provider}
+              </h2>
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {byProvider[provider].map((e) => (
+                  <li key={e.slug}>
+                    <Link
+                      href={`/luyen-thi/${e.slug}`}
+                      className="group flex h-full flex-col border border-ga-border bg-ga-card p-5 transition-colors hover:border-ga-ink sm:p-6"
+                    >
+                      <span className="text-ga-eyebrow uppercase text-ga-muted">{e.provider} · {e.level}</span>
+                      <span className="mt-2 text-ga-h3 text-ga-ink">{e.name}</span>
+                      <span className="mt-1 flex-1 text-ga-small text-ga-muted">{e.tagline}</span>
+                      <span className="mt-4 text-ga-small font-semibold text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 group-hover:decoration-ga-ink">
+                        Xem hướng dẫn
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </main>
+      <LandingFooter />
+    </div>
   )
 }

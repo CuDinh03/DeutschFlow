@@ -64,12 +64,12 @@ export function SentenceFix({
 
   return (
     <div ref={ref} data-fix-step={step ?? undefined} className="mb-4 bg-ga-bg p-4">
-      <GaCap className="mb-2 text-ga-subtle">{quoteCap}</GaCap>
+      <GaCap className="mb-2 text-ga-muted">{quoteCap}</GaCap>
       <p lang="de" className="mb-3 font-ga-display text-ga-body-lg italic text-ga-ink">
         <Marked text={quote} mark={wrong} className="ga-fix-wrong" />
       </p>
       <div className="ga-fix-line">
-        <GaCap className="mb-2 text-ga-gold">{fixCap}</GaCap>
+        <GaCap className="mb-2 text-ga-ink">{fixCap}</GaCap>
         <p lang="de" className="mb-1 font-ga-display text-ga-body-lg italic text-ga-ink">
           <Marked text={fix} mark={right} className="ga-fix-right" />
         </p>
