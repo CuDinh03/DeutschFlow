@@ -18,7 +18,7 @@ import { APP_STORE_URL } from './links'
  * Chưa có bản Android nên KHÔNG hứa gì về Android (sổ lời hứa).
  */
 
-type Placement = 'hero' | 'app_band' | 'footer'
+type Placement = 'hero' | 'app_band' | 'learn_block' | 'footer'
 
 function useAppStoreClick(placement: Placement) {
   const { trackEvent } = useTracking()
@@ -69,6 +69,27 @@ export function AppDownloadBand() {
         </div>
       </div>
     </section>
+  )
+}
+
+/**
+ * Hàng App Store trong khối lộ trình (đợt B, 08/11/2026): khối "Học nền tảng" và dải ứng dụng gộp
+ * làm một, nút tải nằm ngay cạnh lời giới thiệu. Đo riêng bằng vị trí `learn_block`.
+ */
+export function AppStoreLearnRow() {
+  const t = useTranslations('v2.landing.app')
+  const onClick = useAppStoreClick('learn_block')
+  return (
+    <div className="mt-8 flex flex-col gap-3 border-t border-ga-border pt-6 sm:flex-row sm:items-center sm:gap-5">
+      <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
+        <a {...EXTERNAL} onClick={onClick}>
+          <span aria-hidden className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
+          {t('button')}
+          <span className="sr-only"> {t('newTab')}</span>
+        </a>
+      </GaBtn>
+      <p className="text-ga-small text-ga-muted">{t('note')}</p>
+    </div>
   )
 }
 

@@ -175,7 +175,14 @@
         { "name": "Teachers", "price": "Contact us", "sub": "", "features": ["Class management", "AI materials", "Speaking grading", "Student progress reports"], "cta": "Get a consultation" }
       ]
     },
+    "socialProof": {
+      "cap": "What learners say",
+      "title": "Results from people who practised",
+      "items": [],
+      "stats": []
+    },
     "faq": {
+      "contactLead": "Another question? Write to us:",
       "cap": "Questions",
       "title": "Before you start",
       "items": [

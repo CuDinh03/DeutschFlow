@@ -17,3 +17,9 @@ export const SUPPORT_EMAIL = 'support@mydeutschflow.com'
  */
 export const IOS_APP_ID = '6785281013'
 export const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`
+
+/**
+ * Trang Facebook chính thức. Link chia sẻ owner gửi 08/11/2026 (`facebook.com/share/1EaqEEwiM7/`)
+ * chuyển hướng 302 về địa chỉ này.
+ */
+export const FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61596022751738'

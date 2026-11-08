@@ -175,7 +175,14 @@
         { "name": "Lehrkräfte", "price": "Auf Anfrage", "sub": "", "features": ["Klassenverwaltung", "KI-Materialien", "Sprechbewertung", "Fortschrittsberichte der Lernenden"], "cta": "Beratung anfragen" }
       ]
     },
+    "socialProof": {
+      "cap": "Das sagen Lernende",
+      "title": "Ergebnisse von Lernenden",
+      "items": [],
+      "stats": []
+    },
     "faq": {
+      "contactLead": "Noch eine Frage? Schreiben Sie uns:",
       "cap": "Häufige Fragen",
       "title": "Bevor Sie anfangen",
       "items": [
