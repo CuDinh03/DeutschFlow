@@ -155,13 +155,14 @@ describe('GaLanding — menu mobile', () => {
 })
 
 describe('GaLanding — ô "Bạn làm nghề gì?" (đợt 1 A+B+E)', () => {
-  it('mặc định hiện câu hỏi thật của vị trí đầu bếp, kể cả câu mở đầu dùng chung', () => {
+  it('mặc định hiện câu hỏi thật của vị trí đầu bếp: câu 1 + dòng đếm câu còn lại (bố cục chốt 08/11)', () => {
     renderLanding()
 
-    // Câu HACCP cũng là câu Klaus nói ở dàn người phỏng vấn, nên chỉ tìm trong ô ở hero.
+    // Câu HACCP vẫn là câu Klaus nói ở dàn người phỏng vấn, nên chỉ tìm trong ô ở hero.
     const hero = within(document.getElementById('interview') as HTMLElement)
-    expect(hero.getByText(/Nennen Sie einen HACCP-\/Hygiene-Vorfall in der Küche/)).toBeInTheDocument()
     expect(hero.getByText(/relevante Erfahrung für Koch\/Köchin/)).toBeInTheDocument()
+    expect(hero.getByText('+ 2 câu nữa trong buổi thử')).toBeInTheDocument()
+    expect(hero.queryByText(/Nennen Sie einen HACCP-\/Hygiene-Vorfall in der Küche/)).toBeNull()
   })
 
   it('tìm "kellner" (không phân biệt hoa thường) rồi chọn → hiện câu hỏi của nhân vật phục vụ', () => {
@@ -170,7 +171,8 @@ describe('GaLanding — ô "Bạn làm nghề gì?" (đợt 1 A+B+E)', () => {
     const input = screen.getByRole('combobox', { name: 'Bạn làm nghề gì?' })
     fireEvent.change(input, { target: { value: 'kellner' } })
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(screen.getByText(/Wie behandeln Sie einen unzufriedenen Gast\? STAR-Beispiel für Kellner\/in\./)).toBeInTheDocument()
+    const hero = within(document.getElementById('interview') as HTMLElement)
+    expect(hero.getByText(/relevante Erfahrung für Kellner\/in/)).toBeInTheDocument()
   })
 
   it('tìm theo tiếng Việt không dấu vẫn ra ("thu ngan" → Kassierer/in)', () => {
@@ -220,7 +222,17 @@ describe('GaLanding — làm mới hình ảnh 19/10/2026', () => {
 
   it('dải người làm sản phẩm có ảnh và lối sang Về chúng tôi', () => {
     renderLanding()
-    expect(screen.getByAltText('Đinh Huy Cự, người làm myDeutschFlow')).toBeTruthy()
+    expect(screen.getByAltText('Đinh Huy Cự, người phát triển myDeutschFlow')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Đọc câu chuyện/ }).getAttribute('href')).toBe('/about/')
+  })
+
+  it('A4 (08/11/2026): khối Báo cáo nằm ngay sau hero, trước dàn người phỏng vấn', () => {
+    renderLanding()
+    const hero = document.getElementById('interview') as HTMLElement
+    const report = document.getElementById('report') as HTMLElement
+    const cast = document.getElementById('cast') as HTMLElement
+    expect(hero.nextElementSibling).toBe(report)
+    expect(report.compareDocumentPosition(cast) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(report).getByText('Bạn đã nói')).toBeTruthy()
   })
 })

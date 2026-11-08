@@ -51,7 +51,8 @@
       "viewPage": "Open the job page",
       "loading": "Loading questions…",
       "interviewerWorkplace": "Interviewer: {name} · {role}",
-      "sourceNoteLayer": "“Reviewed” questions have been checked by a person; “AI-generated” questions were written by AI for this job and are awaiting review. The AI asks in German and follows up on your answers."
+      "sourceNoteLayer": "“Reviewed” questions have been checked by a person; “AI-generated” questions were written by AI for this job and are awaiting review. The AI asks in German and follows up on your answers.",
+      "moreQuestions": "+ {count} more questions in the trial session"
     },
     "pathways": {
       "cap": "Pathways to Germany",
@@ -370,7 +371,8 @@
       "privacy": "Privacy policy",
       "terms": "Terms of use",
       "support": "Support",
-      "legalAria": "Legal links"
+      "legalAria": "Legal links",
+      "facebook": "Facebook"
     },
     "schools": {
       "meta": {

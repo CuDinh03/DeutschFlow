@@ -61,7 +61,6 @@ const POSITIONS: Position[] = PERSONA_LIST.filter((p) => p.supportsInterview).fl
 const POPULAR_IDS = ['line_cook', 'kellner', 'backend_dev', 'mfa', 'maschinenbediener', 'kassierer']
 const DEFAULT_ID = 'line_cook'
 const MAX_SUGGESTIONS = 6
-const MAX_TERMS = 6
 /** Lò xo của nền chip (#4): tới nơi trong khoảng 250ms, không nảy quá đà. */
 const CHIP_SPRING = { type: 'spring', stiffness: 500, damping: 40 } as const
 /** Câu hỏi số 1 gõ trong khoảng ngân sách này (#3); câu dài thì gõ nhanh hơn. */
@@ -395,23 +394,9 @@ function StaticResult({ position, startHref, onStart }: { position: Position; st
         </div>
       </div>
       <GaCap className="mb-2">{t('questionsCap')}</GaCap>
-      <ol className="mb-4 flex flex-col gap-2.5">
-        {questions.map((q, i) => {
-          const rv = i ? revealProps(phase, i) : { className: '' }
-          return (
-            <li key={i} className={`flex items-start gap-3 ${rv.className}`} style={rv.style}>
-              <span className="shrink-0 font-ga-display text-ga-body-lg font-semibold text-ga-gold">{i + 1}</span>
-              {i === 0
-                ? <TypedQuestion text={q} shown={shown} className="font-ga-display text-ga-body-lg italic text-ga-ink" />
-                : <span lang="de" className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q}“</span>}
-            </li>
-          )
-        })}
-      </ol>
-      <p className="mb-4 border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-muted">{t('sourceNote')}</p>
-      <GaBtn asChild variant="ink" size="md" className="w-full sm:w-auto">
-        <Link href={startHref} onClick={onStart}>{t('cta')}</Link>
-      </GaBtn>
+      {/* Bố cục chốt 08/11/2026: hero chỉ hiện câu số 1; các câu sau gom thành một dòng đếm. */}
+      <TypedQuestion text={questions[0] ?? ''} shown={shown} className="mb-3 font-ga-display text-ga-body-lg italic text-ga-ink" />
+      <ResultFoot more={questions.length - 1} phase={phase} startHref={startHref} onStart={onStart} />
     </div>
   )
 }
@@ -445,8 +430,8 @@ function RemoteResult({
   }
   const o = detail.occupation
   const who = interviewerInfo(detail.personaCode)
-  const hasLayer = detail.sampleQuestions.some((q) => q.source !== 'BANK')
-  const terms = detail.terms.slice(0, MAX_TERMS)
+  const first = detail.sampleQuestions[0]
+  const kind = first ? questionLabel(first.source, o.questionSet) : null
   return (
     <div>
       <div className="mb-4 flex items-center gap-4">
@@ -466,56 +451,63 @@ function RemoteResult({
         </div>
       </div>
       <GaCap className="mb-2">{t('questionsCap')}</GaCap>
-      <ol className="mb-4 flex flex-col gap-3">
-        {detail.sampleQuestions.map((q, i) => {
-          const kind = questionLabel(q.source, o.questionSet)
-          // Câu 1: phần dịch + nhãn hiện sau khi gõ xong (thứ tự 0); câu 2, 3 hiện tiếp theo.
-          const rvItem = i ? revealProps(phase, i) : { className: '' }
-          const rvMeta = i ? { className: '' } : revealProps(phase, 0)
-          return (
-            <li key={i} className={`flex items-start gap-3 ${rvItem.className}`} style={rvItem.style}>
-              <span className="shrink-0 font-ga-display text-ga-body-lg font-semibold text-ga-gold">{i + 1}</span>
-              <div className="min-w-0">
-                {i === 0
-                  ? <TypedQuestion text={q.questionDe} shown={shown} className="font-ga-display text-ga-body-lg italic text-ga-ink" />
-                  : <span lang="de" className="font-ga-display text-ga-body-lg italic text-ga-ink">„{q.questionDe}“</span>}
-                <div className={rvMeta.className} style={rvMeta.style}>
-                  <QuestionTranslation q={q} locale={locale} className="mt-0.5 text-ga-small" />
-                  <div className="mt-1"><QualityLabel kind={kind} text={t(`labels.${kind}`)} /></div>
-                </div>
-              </div>
-            </li>
-          )
-        })}
-      </ol>
-      {terms.length > 0 && (
-        <>
-          <GaCap className="mb-2">{t('termsCap')}</GaCap>
-          <ul className="mb-4 flex flex-wrap gap-2">
-            {terms.map((term) => (
-              <li key={term.termDe} className="border border-ga-border bg-ga-bg px-3 py-1.5 text-ga-small">
-                <span lang="de" className="font-semibold text-ga-ink">{term.termDe}</span>
-                {locale !== 'de' && (
-                  <span className="text-ga-muted"> · {locale === 'en' ? term.meaningEn : term.meaningVi}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
+      {/* Bố cục chốt 08/11/2026: hero chỉ hiện câu số 1 (kèm bản dịch và nhãn chất lượng); câu sau gom
+          thành một dòng đếm; từ chuyên môn và ghi chú nguồn để ở trang nghề. */}
+      {first && (
+        <div className="mb-3">
+          <TypedQuestion text={first.questionDe} shown={shown} className="font-ga-display text-ga-body-lg italic text-ga-ink" />
+          <div className={revealProps(phase, 0).className} style={revealProps(phase, 0).style}>
+            <QuestionTranslation q={first} locale={locale} className="mt-1 text-ga-small" />
+            {kind && <div className="mt-2"><QualityLabel kind={kind} text={t(`labels.${kind}`)} /></div>}
+          </div>
+        </div>
       )}
-      <p className="mb-4 border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-muted">
-        {t(hasLayer ? 'sourceNoteLayer' : 'sourceNote')}
-      </p>
+      <ResultFoot
+        more={detail.sampleQuestions.length - 1}
+        phase={phase}
+        startHref={startHref}
+        onStart={onStart}
+        pageHref={localizedHref(locale, `/phong-van/${o.code}`)}
+      />
+    </div>
+  )
+}
+
+/** Chân khung kết quả: "+ N câu nữa", nút vào buổi thử, và (bản backend) lối sang trang nghề. */
+function ResultFoot({
+  more,
+  phase,
+  startHref,
+  onStart,
+  pageHref,
+}: {
+  more: number
+  phase: TypePhase
+  startHref: string
+  onStart: () => void
+  pageHref?: string
+}) {
+  const t = useTranslations('v2.landing.explorer')
+  const rv = revealProps(phase, 1)
+  return (
+    <div className="border-t border-ga-border pt-4">
+      {more > 0 && (
+        <p className={`mb-3 text-ga-small text-ga-muted ${rv.className}`} style={rv.style}>
+          {t('moreQuestions', { count: more })}
+        </p>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <GaBtn asChild variant="ink" size="md" className="w-full sm:w-auto">
           <Link href={startHref} onClick={onStart}>{t('cta')}</Link>
         </GaBtn>
-        <Link
-          href={localizedHref(locale, `/phong-van/${o.code}`)}
-          className="inline-flex min-h-11 items-center border-b-2 border-ga-yellow text-ga-body font-semibold text-ga-ink"
-        >
-          {t('viewPage')}
-        </Link>
+        {pageHref && (
+          <Link
+            href={pageHref}
+            className="inline-flex min-h-11 items-center border-b-2 border-ga-yellow text-ga-body font-semibold text-ga-ink"
+          >
+            {t('viewPage')}
+          </Link>
+        )}
       </div>
     </div>
   )

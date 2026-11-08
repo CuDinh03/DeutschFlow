@@ -26,9 +26,9 @@ import { START_HREF } from './links'
  * 19/10/2026 — đợt 1 định hướng A+B+E (plans/2026-10-18-phuong-an-landing-abe.html, mục 4).
  * Trang chỉ có một việc: cho người học ở bất kỳ nước nào, làm bất kỳ nghề nào, thấy ngay câu hỏi
  * phỏng vấn của đúng nghề mình rồi bắt đầu luyện. Thứ tự khối:
- *   S1 header · S2+S3 hero có ô "Bạn làm nghề gì?" (OccupationExplorer) · dàn người phỏng vấn ·
- *   S4 hành trình sang Đức ·
- *   S5 báo cáo mẫu · ngoài phỏng vấn (lộ trình A1–B1) · S6 thi Nói theo format · S7 lối sang trung
+ *   S1 header · S2+S3 hero có ô "Bạn làm nghề gì?" (OccupationExplorer) · S5 báo cáo mẫu (A4,
+ *   08/11/2026: lên ngay sau hero) · dàn người phỏng vấn · S4 hành trình sang Đức ·
+ *   ngoài phỏng vấn (lộ trình A1–B1) · S6 thi Nói theo format · S7 lối sang trung
  *   tâm (A) và nhà tuyển dụng (E) · S8 bảng giá (tạm ẩn) · S9 câu hỏi thường gặp · S10 dải người làm
  *   sản phẩm (ảnh thật) + CTA vàng. Header/footer dùng chung với trang Về chúng tôi (LandingHeader/Footer).
  *
@@ -205,6 +205,69 @@ export function GaLanding() {
         </div>
       </section>
 
+      {/* S5 — Sau mỗi buổi bạn nhận được gì (báo cáo mẫu, đúng cấu trúc InterviewReportDto).
+          A4 (08/11/2026): lên ngay sau hero — thấy kết quả trước khi thấy người phỏng vấn. Cùng nền
+          giấy với hero nên có đường kẻ trên. */}
+      <section id="report" className="scroll-mt-[78px] border-t border-ga-border">
+        <div className={SECTION}>
+          <div className="grid items-start gap-10 md:grid-cols-[1fr_1.15fr] md:gap-[60px]">
+            <div>
+              <GaCap className="mb-[18px]">{t('report.cap')}</GaCap>
+              <h2 className={`${H2} mb-3`}>{t('report.title')}</h2>
+              <p className="text-ga-body-lg text-ga-muted">{t('report.sub')}</p>
+            </div>
+            <div className="border border-ga-border bg-ga-card p-5 sm:p-7">
+              <GaCap className="mb-4 text-ga-subtle">{t('report.sampleCap')}</GaCap>
+              <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-ga-border pb-4">
+                <span className="font-ga-display text-ga-stat text-ga-ink">{t('report.overall')}</span>
+                <span className="text-ga-body text-ga-muted">{t('report.verdict')}</span>
+              </div>
+              <div className="mb-5 grid grid-cols-3">
+                {phases.map((ph, i) => (
+                  <div key={ph.name} className={`py-1 text-center ${i ? 'border-l border-ga-border' : ''}`}>
+                    <div className="font-ga-display text-ga-numeral text-ga-ink">{ph.score}</div>
+                    <div className="mt-1 text-ga-caption text-ga-muted">{ph.name}</div>
+                  </div>
+                ))}
+              </div>
+              <SentenceFix
+                quoteCap={t('report.quoteCap')}
+                quote={t('report.quote')}
+                wrong={t('report.quoteWrong')}
+                fixCap={t('report.fixCap')}
+                fix={t('report.fix')}
+                right={t('report.fixRight')}
+                why={t('report.fixWhy')}
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([[t('report.strengthsCap'), strengths], [t('report.gapsCap'), gaps]] as const).map(([cap, list]) => (
+                  <div key={cap}>
+                    <GaCap className="mb-2">{cap}</GaCap>
+                    <ul className="flex flex-col gap-1.5">
+                      {list.map((s) => (
+                        <li key={s} className="flex items-start gap-2 text-ga-small text-ga-ink">
+                          <span className="mt-[7px] inline-block h-[5px] w-[5px] shrink-0 bg-ga-yellow" />{s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 border-t border-ga-border pt-4">
+                <GaCap className="mb-2">{t('report.drillsCap')}</GaCap>
+                <ul className="flex flex-col gap-1.5">
+                  {drills.map((d) => (
+                    <li key={d} className="flex items-start gap-2 text-ga-small text-ga-ink">
+                      <span className="mt-[7px] inline-block h-[5px] w-[5px] shrink-0 bg-ga-ink" />{d}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Dàn người phỏng vấn — hình vẽ đúng như trong phòng phỏng vấn */}
       <CastSection />
 
@@ -239,74 +302,15 @@ export function GaLanding() {
         </div>
       </section>
 
-      {/* S5 — Sau mỗi buổi bạn nhận được gì (báo cáo mẫu, đúng cấu trúc InterviewReportDto) */}
-      <section className={SECTION}>
-        <div className="grid items-start gap-10 md:grid-cols-[1fr_1.15fr] md:gap-[60px]">
-          <div>
-            <GaCap className="mb-[18px]">{t('report.cap')}</GaCap>
-            <h2 className={`${H2} mb-3`}>{t('report.title')}</h2>
-            <p className="text-ga-body-lg text-ga-muted">{t('report.sub')}</p>
-          </div>
-          <div className="border border-ga-border bg-ga-card p-5 sm:p-7">
-            <GaCap className="mb-4 text-ga-subtle">{t('report.sampleCap')}</GaCap>
-            <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-ga-border pb-4">
-              <span className="font-ga-display text-ga-stat text-ga-ink">{t('report.overall')}</span>
-              <span className="text-ga-body text-ga-muted">{t('report.verdict')}</span>
-            </div>
-            <div className="mb-5 grid grid-cols-3">
-              {phases.map((ph, i) => (
-                <div key={ph.name} className={`py-1 text-center ${i ? 'border-l border-ga-border' : ''}`}>
-                  <div className="font-ga-display text-ga-numeral text-ga-ink">{ph.score}</div>
-                  <div className="mt-1 text-ga-caption text-ga-muted">{ph.name}</div>
-                </div>
-              ))}
-            </div>
-            <SentenceFix
-              quoteCap={t('report.quoteCap')}
-              quote={t('report.quote')}
-              wrong={t('report.quoteWrong')}
-              fixCap={t('report.fixCap')}
-              fix={t('report.fix')}
-              right={t('report.fixRight')}
-              why={t('report.fixWhy')}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              {([[t('report.strengthsCap'), strengths], [t('report.gapsCap'), gaps]] as const).map(([cap, list]) => (
-                <div key={cap}>
-                  <GaCap className="mb-2">{cap}</GaCap>
-                  <ul className="flex flex-col gap-1.5">
-                    {list.map((s) => (
-                      <li key={s} className="flex items-start gap-2 text-ga-small text-ga-ink">
-                        <span className="mt-[7px] inline-block h-[5px] w-[5px] shrink-0 bg-ga-yellow" />{s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 border-t border-ga-border pt-4">
-              <GaCap className="mb-2">{t('report.drillsCap')}</GaCap>
-              <ul className="flex flex-col gap-1.5">
-                {drills.map((d) => (
-                  <li key={d} className="flex items-start gap-2 text-ga-small text-ga-ink">
-                    <span className="mt-[7px] inline-block h-[5px] w-[5px] shrink-0 bg-ga-ink" />{d}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Ngoài phỏng vấn — lộ trình A1–B1, từ vựng, video trên app (ảnh chụp thật cây lộ trình) */}
-      <section id="learning-path" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
+      <section id="learning-path" className="scroll-mt-[78px]">
         <div className={SECTION}>
           <GaCap className="mb-[18px]">{t('learn.cap')}</GaCap>
           <h2 className={`${H2} mb-3`}>{t('learn.title')}</h2>
           <p className="mb-11 max-w-[600px] text-ga-body-lg text-ga-muted">{t('learn.sub')}</p>
           <div className="grid border border-ga-border sm:grid-cols-2 lg:grid-cols-4">
             {learnItems.map((it, i) => (
-              <div key={it.name} className={`border-ga-border bg-ga-bg p-5 sm:p-6 ${i ? 'border-t sm:border-t-0' : ''} ${i % 2 ? 'sm:border-l' : ''} ${i >= 2 ? 'sm:border-t lg:border-t-0' : ''} ${i ? 'lg:border-l' : ''}`}>
+              <div key={it.name} className={`border-ga-border bg-ga-card p-5 sm:p-6 ${i ? 'border-t sm:border-t-0' : ''} ${i % 2 ? 'sm:border-l' : ''} ${i >= 2 ? 'sm:border-t lg:border-t-0' : ''} ${i ? 'lg:border-l' : ''}`}>
                 <GaGlyphMark name={LEARN_GLYPHS[i]} size={32} draw="view" className="mb-3 block text-ga-ink" />
                 <div className="mb-2 text-ga-h3 text-ga-ink">{it.name}</div>
                 <p className="text-ga-small text-ga-muted">{it.desc}</p>
