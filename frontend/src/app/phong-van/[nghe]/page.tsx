@@ -1,6 +1,6 @@
 import '@/styles/galerie.css'
 import type { Metadata } from 'next'
-import { DEFAULT_OG_IMAGE } from '@/lib/siteUrl'
+import { occupationOgImage } from '@/lib/ogImage'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { OccupationDetailView } from '@/components/landing-v2/OccupationPages'
@@ -44,7 +44,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       locale: OG_LOCALE[locale],
       url: localizedHref(locale, path),
       siteName: 'myDeutschFlow',
-      images: [DEFAULT_OG_IMAGE],
+      // A3: tên nghề + một câu hỏi đã duyệt (route `og/nghe/[file]`).
+      images: [occupationOgImage(o.code, locale, t('title', vars))],
     },
     robots: detail.reviewed && !draftBlock ? undefined : { index: false, follow: true },
   }

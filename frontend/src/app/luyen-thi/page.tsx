@@ -3,13 +3,26 @@ import Link from 'next/link'
 import { ArrowRight, GraduationCap, Sparkles } from 'lucide-react'
 import { GERMAN_EXAMS } from '@/data/germanExams'
 import { absoluteUrl } from '@/lib/siteUrl'
+import { ogImage } from '@/lib/ogImage'
+
+const TITLE = 'Luyện thi tiếng Đức: Goethe & telc (A2/B1/B2) — Cấu trúc & checklist'
+const DESCRIPTION =
+  'Hướng dẫn luyện thi các chứng chỉ tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.'
 
 export const metadata: Metadata = {
-  title: 'Luyện thi tiếng Đức: Goethe & telc (A2/B1/B2) — Cấu trúc & checklist',
-  description:
-    'Hướng dẫn luyện thi các chứng chỉ tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.',
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: absoluteUrl('/luyen-thi/') },
   robots: { index: true, follow: true },
+  // A3 (08/11/2026): khai openGraph riêng — trước đây kế thừa og:title của trang chủ từ layout.
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    locale: 'vi_VN',
+    url: absoluteUrl('/luyen-thi/'),
+    siteName: 'myDeutschFlow',
+    images: [ogImage('luyen-thi', 'vi', TITLE)],
+  },
 }
 
 export default function ExamHubPage() {
