@@ -118,6 +118,16 @@ describe('GaLanding — menu mobile', () => {
     expect(screen.queryByText('Xem demo 90 giây')).not.toBeInTheDocument()
   })
 
+  it('A5: khối Luyện thi bản vi có clip quay màn hình thật (có nút dừng), thay ảnh chụp', () => {
+    renderLanding()
+
+    const exam = document.getElementById('exam') as HTMLElement
+    const video = exam.querySelector('video')
+    expect(video?.getAttribute('src')).toBe('/video/luyen-thi-clip.mp4')
+    expect(within(exam).getByRole('button', { name: 'Phát video' })).toBeTruthy()
+    expect(within(exam).queryByText('Ảnh thật · Phòng thi Lesen, đồng hồ đang chạy')).toBeNull()
+  })
+
   it('các control chính trên header mobile có vùng chạm tối thiểu 44px', () => {
     renderLanding()
 
