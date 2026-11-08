@@ -64,13 +64,13 @@ export const GERMAN_EXAMS: GermanExam[] = [
     level: 'B1',
     name: 'Goethe-Zertifikat B1',
     shortName: 'Goethe B1',
-    tagline: 'Chứng chỉ B1 phổ biến nhất cho du học nghề & định cư Đức',
+    tagline: 'Kỳ thi B1 phổ biến nhất cho du học nghề & định cư Đức',
     metaTitle: 'Luyện thi Goethe B1: Cấu trúc đề, cách tính điểm & checklist',
     metaDescription:
       'Luyện thi Goethe B1: cấu trúc 4 module, cách tính điểm (đạt 60%/module), checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài Schreiben B1 bằng AI miễn phí.',
     overview:
       'Goethe-Zertifikat B1 xác nhận trình độ tiếng Đức bậc trung cấp (B1 theo khung CEFR). Đây là mốc bắt buộc cho nhiều chương trình du học nghề, điều dưỡng và diện định cư Đức. Kỳ thi gồm 4 module độc lập, có thể thi và thi lại từng module riêng.',
-    whoFor: 'Người chuẩn bị du học nghề/điều dưỡng tại Đức, xin visa diện gia đình, hoặc cần chứng chỉ B1 chuẩn hoá.',
+    whoFor: 'Người chuẩn bị du học nghề/điều dưỡng tại Đức, xin visa diện gia đình, hoặc cần kết quả thi B1 chuẩn hoá.',
     modules: GOETHE_MODULES([65, 40, 60, 15]),
     scoring: 'Mỗi module tính trên thang 100 điểm; cần đạt tối thiểu 60 điểm (60%) để qua module đó. Vì là kỳ thi module hoá, bạn có thể thi lại riêng module chưa đạt.',
     modular: true,
@@ -160,7 +160,7 @@ export const GERMAN_EXAMS: GermanExam[] = [
       'Hướng dẫn luyện thi Goethe-Zertifikat A2: 4 phần Lesen/Hören/Schreiben/Sprechen và checklist sẵn-sàng-thi. Chấm thử bài viết bằng AI miễn phí.',
     overview:
       'Goethe-Zertifikat A2 xác nhận trình độ sơ cấp (A2) — giao tiếp các tình huống đời thường đơn giản. Là bước đệm vững trước khi luyện B1 (mốc thường bắt buộc cho du học nghề/điều dưỡng).',
-    whoFor: 'Người mới học muốn có mốc chứng chỉ trước khi lên B1, hoặc cần A2 cho diện gia đình.',
+    whoFor: 'Người mới học muốn thi một mốc A2 trước khi lên B1, hoặc cần A2 cho diện gia đình.',
     modules: GOETHE_MODULES([30, 30, 30, 15]),
     scoring: 'Kết quả tính trên thang 100 điểm; cần đạt tối thiểu 60% để đỗ.',
     modular: false,
@@ -193,13 +193,13 @@ export const GERMAN_EXAMS: GermanExam[] = [
     level: 'B1',
     name: 'telc Deutsch B1',
     shortName: 'telc B1',
-    tagline: 'Chứng chỉ B1 được công nhận rộng rãi, định dạng rõ ràng',
+    tagline: 'Kỳ thi B1 được công nhận rộng rãi, định dạng rõ ràng',
     metaTitle: 'Luyện thi telc Deutsch B1: Cấu trúc đề, cách tính điểm & checklist',
     metaDescription:
       'Luyện thi telc Deutsch B1: phần thi viết (đọc, Sprachbausteine, nghe, viết) + thi nói, kèm checklist sẵn-sàng-thi. Chấm thử bài viết bằng AI miễn phí.',
     overview:
-      'telc Deutsch B1 là chứng chỉ B1 được nhiều cơ quan và nhà tuyển dụng tại Đức công nhận, tương đương B1 khung CEFR. Bài thi gồm phần viết (đọc hiểu, ngữ pháp–từ vựng "Sprachbausteine", nghe hiểu, viết) và phần thi nói (thường theo cặp).',
-    whoFor: 'Người cần chứng chỉ B1 cho công việc/định cư, thích định dạng telc với phần Sprachbausteine.',
+      'telc Deutsch B1 là kỳ thi B1 được nhiều cơ quan và nhà tuyển dụng tại Đức công nhận, tương đương B1 khung CEFR. Bài thi gồm phần viết (đọc hiểu, ngữ pháp–từ vựng "Sprachbausteine", nghe hiểu, viết) và phần thi nói (thường theo cặp).',
+    whoFor: 'Người cần kết quả thi B1 cho công việc/định cư, thích định dạng telc với phần Sprachbausteine.',
     modules: [
       { skill: 'Leseverstehen', name: 'Đọc hiểu', durationMin: 90, description: 'Đọc hiểu + Sprachbausteine (bài tập ngữ pháp–từ vựng đặc trưng của telc).' },
       { skill: 'Hörverstehen', name: 'Nghe hiểu', durationMin: 30, description: 'Nghe hội thoại, thông báo và phỏng vấn ngắn.' },
@@ -229,7 +229,7 @@ export const GERMAN_EXAMS: GermanExam[] = [
       'Luyện nói theo cặp với dạng "cùng giải quyết nhiệm vụ".',
     ],
     faqs: [
-      { q: 'telc B1 và Goethe B1 cái nào được công nhận?', a: 'Cả hai đều là chứng chỉ B1 được công nhận rộng rãi. Hãy kiểm tra yêu cầu cụ thể của chương trình/cơ quan bạn nộp — một số nơi chấp nhận cả hai.' },
+      { q: 'telc B1 và Goethe B1 cái nào được công nhận?', a: 'Cả hai đều là kỳ thi B1 được công nhận rộng rãi. Hãy kiểm tra yêu cầu cụ thể của chương trình/cơ quan bạn nộp — một số nơi chấp nhận cả hai.' },
       { q: 'Sprachbausteine là gì?', a: 'Là phần bài tập ngữ pháp–từ vựng đặc trưng của telc (điền từ/chọn đáp án), không có ở định dạng Goethe.' },
     ],
     officialUrl: 'https://www.telc.net/',

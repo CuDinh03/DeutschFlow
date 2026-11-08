@@ -16,7 +16,7 @@ import { START_HREF } from '@/components/landing-v2/links'
  */
 const TITLE = 'Thi thử Goethe B1 online, luyện thi telc (A2–B2) — Cấu trúc đề & checklist'
 const DESCRIPTION =
-  'Hướng dẫn luyện thi các chứng chỉ tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.'
+  'Hướng dẫn luyện thi tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.'
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -68,7 +68,7 @@ export default function ExamHubPage() {
           Luyện thi tiếng Đức Goethe và telc
         </h1>
         <p className="mt-5 max-w-[680px] text-ga-body-lg text-ga-muted">
-          Cấu trúc đề, cách tính điểm và checklist sẵn sàng thi cho các chứng chỉ Goethe và telc. Thi thử Goethe B1
+          Cấu trúc đề, cách tính điểm và checklist sẵn sàng thi cho các kỳ thi Goethe và telc. Thi thử Goethe B1
           online ngay trên myDeutschFlow, đúng thời gian và cấu trúc đề. Chọn kỳ thi của bạn bên dưới.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -88,7 +88,7 @@ export default function ExamHubPage() {
           {(['Goethe', 'telc'] as const).map((provider) => (
             <section key={provider} aria-labelledby={`exam-${provider}`}>
               <h2 id={`exam-${provider}`} className="mb-5 border-b border-ga-border pb-3 text-ga-h2 text-ga-ink">
-                Chứng chỉ {provider}
+                Kỳ thi {provider}
               </h2>
               <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {byProvider[provider].map((e) => (
