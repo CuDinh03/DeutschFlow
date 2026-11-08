@@ -68,12 +68,14 @@ const NEXT_STEP_LABEL_KEYS: Record<string, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Galerie accents — the summary now renders on warm paper, so the neon trio is gone.
-const CYAN = "#2F6FC9";   // --ga-blue
-const PURPLE = "#7C56C8"; // --ga-violet
-const MINT = "#11888A";   // --ga-teal
-const AMBER = "#C79A00";  // --ga-gold
-const CORAL = "#DA291C";  // --ga-red
+// Galerie accents — đọc thẳng token `--ga-*` (galerie.css), không chép mã hex.
+const CYAN = "var(--ga-blue)";
+const PURPLE = "var(--ga-violet)";
+const MINT = "var(--ga-teal)";
+const AMBER = "var(--ga-gold)";
+const CORAL = "var(--ga-red)";
+/** Màu token pha trong suốt — thay cho kiểu nối đuôi alpha hex (`#RRGGBB22`) vốn không dùng được với `var()`. */
+const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 const glass = {
   background: "var(--ga-card)",
   border: "1px solid var(--ga-line)",
@@ -108,8 +110,8 @@ function computeScoresFromMessages(messages: ChatMessage[]) {
 
 function verdictColor(v?: string) {
   if (v === "PASS") return MINT;
-  if (v === "CONDITIONAL_PASS") return "#C79A00";
-  return "#DA291C";
+  if (v === "CONDITIONAL_PASS") return AMBER;
+  return CORAL;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -258,7 +260,7 @@ export function SessionSummary({
         </h2>
         {hasAiReport && aiReport?.verdict_label_vi && (
           <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold"
-            style={{ background: `${verdictColor(aiReport.verdict)}22`, color: verdictColor(aiReport.verdict), border: `1px solid ${verdictColor(aiReport.verdict)}44` }}>
+            style={{ background: tint(verdictColor(aiReport.verdict), 13), color: verdictColor(aiReport.verdict), border: `1px solid ${tint(verdictColor(aiReport.verdict), 27)}` }}>
             {aiReport.verdict === "PASS" ? <CircleCheck size={15} aria-hidden /> : aiReport.verdict === "CONDITIONAL_PASS" ? <AlertTriangle size={15} aria-hidden /> : <CircleX size={15} aria-hidden />} {aiReport.verdict_label_vi}
           </div>
         )}
@@ -315,7 +317,7 @@ export function SessionSummary({
                     <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
                       <defs>
                         <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor={CYAN} /><stop offset="100%" stopColor={PURPLE} />
+                          <stop offset="0%" style={{ stopColor: CYAN }} /><stop offset="100%" style={{ stopColor: PURPLE }} />
                         </linearGradient>
                       </defs>
                       <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--ga-line)" strokeWidth={10} />
@@ -520,7 +522,7 @@ export function SessionSummary({
 
       {/* Encouragement */}
       {hasAiReport && aiReport?.encouragement_vi && (
-        <div className="rounded-[20px] p-4" style={{ ...glass, background: "rgba(34,211,238,0.06)", border: `1px solid ${CYAN}22` }}>
+        <div className="rounded-[20px] p-4" style={{ ...glass, background: tint(CYAN, 6), border: `1px solid ${tint(CYAN, 13)}` }}>
           <div className="flex items-start gap-2">
             <Star size={14} className="text-ga-gold" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden />
             <p className="text-sm leading-relaxed" style={{ color: "var(--ga-ink)" }}>{aiReport.encouragement_vi}</p>
@@ -621,7 +623,7 @@ export function SessionSummary({
           )}
 
           {conversationReport.encouragement && (
-            <div className="rounded-[20px] p-4" style={{ ...glass, background: "rgba(34,211,238,0.06)", border: `1px solid ${CYAN}22` }}>
+            <div className="rounded-[20px] p-4" style={{ ...glass, background: tint(CYAN, 6), border: `1px solid ${tint(CYAN, 13)}` }}>
               <div className="flex items-start gap-2">
                 <Sparkles size={14} style={{ color: AMBER, flexShrink: 0, marginTop: 1 }} />
                 <p className="text-sm leading-relaxed" style={{ color: "var(--ga-ink)" }}>{conversationReport.encouragement}</p>
@@ -695,7 +697,7 @@ export function SessionSummary({
                 </div>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--ga-surface)" }}>
                   <motion.div className="h-full rounded-full"
-                    style={{ background: r.color, boxShadow: `0 0 6px ${r.color}60` }}
+                    style={{ background: r.color, boxShadow: `0 0 6px ${tint(r.color, 38)}` }}
                     initial={{ width: 0 }} animate={{ width: `${r.score * 10}%` }}
                     transition={{ duration: 0.8, delay: 0.8 + i * 0.1, ease: "easeOut" }} />
                 </div>

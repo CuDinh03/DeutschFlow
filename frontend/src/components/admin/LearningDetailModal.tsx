@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import api, { apiMessage, isAxiosErr } from "@/lib/api";
-import { BookA, BookOpen, Briefcase, ChartPie, CircleAlert, Lock, Mic, SpellCheck, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar, Save, Pencil, Check, Bot, User } from "lucide-react";
+import { BookA, BookOpen, Briefcase, ChartPie, CircleAlert, Lock, Mic, SpellCheck, Star, Target, Trophy, X, ChevronDown, ChevronUp, MessageSquare, Calendar, Save, Pencil, Check, Bot, User } from "lucide-react";
 import { EmptyState, GaGlyph, LoadingState } from "@/components/ui-v2";
 import { useFmt } from '@/lib/i18n/useFmt'
 
@@ -279,7 +279,7 @@ function XpTab({ d }: { d: LearningDetail }) {
             {unlocked.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.green }}>
-                  <Unlock size={10} aria-hidden /> {t('xp.unlocked', { n: String(unlocked.length) })}
+                  {t('xp.unlocked', { n: String(unlocked.length) })}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
                   {unlocked.map(a => {
@@ -305,7 +305,7 @@ function XpTab({ d }: { d: LearningDetail }) {
             {locked.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.muted }}>
-                  <Lock size={10} aria-hidden /> {t('xp.locked', { n: String(locked.length) })}
+                  {t('xp.locked', { n: String(locked.length) })}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
                   {locked.map(a => (
@@ -649,7 +649,7 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
             <h3 className="font-bold text-base" style={{ color: P.text }}>{t('title')}</h3>
             <p className="text-xs break-words" style={{ color: P.muted }}>#{userId} · {userName}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-ga-muted hover:bg-ga-side-active">
+          <button type="button" onClick={onClose} aria-label={t('close')} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-ga-muted hover:bg-ga-side-active">
             <X size={16} aria-hidden />
           </button>
         </div>
