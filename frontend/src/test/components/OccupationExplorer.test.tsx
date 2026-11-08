@@ -71,14 +71,15 @@ describe('OccupationExplorer — danh mục nghề công khai', () => {
 
     renderExplorer()
 
-    expect(await screen.findByText('„Wie reagieren Sie bei einem Sturz?“')).toBeTruthy()
+    expect(await screen.findByText('„Bitte stellen Sie sich kurz vor.“')).toBeTruthy()
     expect(detailMock).toHaveBeenCalledWith('altenpfleger')
     expect(screen.getByText('Người phỏng vấn: Frau Krüger · Trưởng phòng điều dưỡng')).toBeTruthy()
     // Câu mở đầu thuộc bộ chung (nghề GENERAL) → không được gắn "Đã duyệt".
     expect(screen.getByText('Bộ câu hỏi chung')).toBeTruthy()
-    expect(screen.getByText('Đã duyệt')).toBeTruthy()
-    expect(screen.getAllByText('AI tạo').length).toBeGreaterThan(0)
-    expect(screen.getByText('die Übergabe')).toBeTruthy()
+    // Bố cục chốt 08/11/2026: hero chỉ hiện câu 1, câu 2–3 gom thành dòng đếm; từ chuyên môn ở trang nghề.
+    expect(screen.queryByText('„Wie reagieren Sie bei einem Sturz?“')).toBeNull()
+    expect(screen.getByText('+ 2 câu nữa trong buổi thử')).toBeTruthy()
+    expect(screen.queryByText('die Übergabe')).toBeNull()
     // K4: bản dịch theo ngôn ngữ trang dưới câu tiếng Đức; câu chưa dịch chỉ có tiếng Đức.
     expect(screen.getByText('Mời bạn giới thiệu ngắn về bản thân.').getAttribute('lang')).toBe('vi')
     expect(screen.queryByText('Please introduce yourself briefly.')).toBeNull()
@@ -96,11 +97,10 @@ describe('OccupationExplorer — danh mục nghề công khai', () => {
       // Xả chuỗi promise danh mục → chi tiết mà chưa cho đồng hồ chạy.
       for (let i = 0; i < 5; i += 1) await act(async () => { await vi.advanceTimersByTimeAsync(0) })
 
-      expect(screen.getByText('„Wie reagieren Sie bei einem Sturz?“')).toBeTruthy()
+      expect(screen.getByText('„Bitte stellen Sie sich kurz vor.“')).toBeTruthy()
       expect(container.querySelector('.ga-type-caret')).toBeTruthy()
       // Lớp phủ đang gõ ẩn khỏi trình đọc màn hình; câu đủ vẫn nằm trong cây.
       expect(container.querySelector('.ga-type-caret')!.closest('[aria-hidden]')).toBeTruthy()
-      expect(screen.getByText('„Bitte stellen Sie sich kurz vor.“')).toBeTruthy()
 
       await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
       expect(container.querySelector('.ga-type-caret')).toBeNull()

@@ -50,7 +50,8 @@
       "viewPage": "Zur Berufsseite",
       "loading": "Fragen werden geladen…",
       "interviewerWorkplace": "Interviewer: {name} · {role}",
-      "sourceNoteLayer": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Die KI fragt auf Deutsch und hakt bei Ihren Antworten nach."
+      "sourceNoteLayer": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Die KI fragt auf Deutsch und hakt bei Ihren Antworten nach.",
+      "moreQuestions": "+ {count} weitere Fragen in der Probesitzung"
     },
     "pathways": {
       "cap": "Wege nach Deutschland",
@@ -365,7 +366,8 @@
       "privacy": "Datenschutz",
       "terms": "Nutzungsbedingungen",
       "support": "Support",
-      "legalAria": "Rechtliche Links"
+      "legalAria": "Rechtliche Links",
+      "facebook": "Facebook"
     },
     "schools": {
       "meta": {

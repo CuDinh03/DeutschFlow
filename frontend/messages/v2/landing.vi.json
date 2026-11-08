@@ -50,7 +50,8 @@
       "viewPage": "Xem trang nghề",
       "loading": "Đang tải câu hỏi…",
       "interviewerWorkplace": "Người phỏng vấn: {name} · {role}",
-      "sourceNoteLayer": "Câu “Đã duyệt” đã qua người kiểm; câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. AI hỏi bằng tiếng Đức và hỏi tiếp dựa trên câu trả lời của bạn."
+      "sourceNoteLayer": "Câu “Đã duyệt” đã qua người kiểm; câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. AI hỏi bằng tiếng Đức và hỏi tiếp dựa trên câu trả lời của bạn.",
+      "moreQuestions": "+ {count} câu nữa trong buổi thử"
     },
     "pathways": {
       "cap": "Hành trình sang Đức",
@@ -187,8 +188,8 @@
       "cap": "Vì sao có myDeutschFlow",
       "quote": "Mình cũng đang học tiếng Đức và chuẩn bị phỏng vấn. Mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán.",
       "name": "Đinh Huy Cự",
-      "role": "Người làm myDeutschFlow",
-      "photoAlt": "Đinh Huy Cự, người làm myDeutschFlow",
+      "role": "Người phát triển myDeutschFlow",
+      "photoAlt": "Đinh Huy Cự, người phát triển myDeutschFlow",
       "link": "Đọc câu chuyện"
     },
     "cta": {
@@ -227,7 +228,7 @@
         "titleEm": "đang học tiếng Đức.",
         "sub": "myDeutschFlow là dự án của Đinh Huy Cự, một lập trình viên tự học tiếng Đức để tìm cơ hội ở Đức, và xây đúng công cụ mà chính mình cần.",
         "readOn": "Đọc từ đầu",
-        "photoAlt": "Đinh Huy Cự, người làm myDeutschFlow, mặc vest xám"
+        "photoAlt": "Đinh Huy Cự, người phát triển myDeutschFlow, mặc vest xám"
       },
       "chapterLabel": "Chương {n}",
       "ch1": {
@@ -365,7 +366,8 @@
       "privacy": "Chính sách bảo mật",
       "terms": "Điều khoản sử dụng",
       "support": "Hỗ trợ",
-      "legalAria": "Liên kết pháp lý"
+      "legalAria": "Liên kết pháp lý",
+      "facebook": "Facebook"
     },
     "schools": {
       "meta": {
