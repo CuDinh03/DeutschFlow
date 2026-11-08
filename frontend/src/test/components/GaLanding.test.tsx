@@ -132,6 +132,16 @@ describe('GaLanding — menu mobile', () => {
     expect(screen.queryByText('2.400+')).not.toBeInTheDocument()
     expect(screen.queryByText('Nguyễn Thị Lan')).not.toBeInTheDocument()
   })
+
+  it('A2: logo header là MỘT bản (text thô không lặp), hero có microcopy, không hứa Android', () => {
+    const { container } = renderLanding()
+
+    const home = screen.getByRole('link', { name: 'myDeutschFlow' })
+    expect(home.textContent).toBe('myDeutschFlow')
+    expect(screen.getByText('Không cần thẻ · 2 phút bắt đầu · Có app iPhone')).toBeInTheDocument()
+    expect(screen.getByText('Huấn luyện phỏng vấn bằng AI cho người sang Đức làm việc')).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/Android/i)
+  })
 })
 
 describe('GaLanding — ô "Bạn làm nghề gì?" (đợt 1 A+B+E)', () => {
