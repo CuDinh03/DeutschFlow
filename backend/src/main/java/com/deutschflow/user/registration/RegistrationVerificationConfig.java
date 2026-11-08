@@ -54,7 +54,8 @@ public class RegistrationVerificationConfig {
     }
 
     public boolean enabled() { return enabled; }
-    byte[] pepper() { return pepper.clone(); }
+    /** Pepper HMAC của mã 6 số; dùng chung với mã quên mật khẩu ({@code PasswordResetService}). Có thể rỗng khi tắt luồng mã PIN. */
+    public byte[] pepper() { return pepper.clone(); }
     public int codeTtlMinutes() { return codeTtlMinutes; }
     public int maxAttemptsPerCode() { return maxAttemptsPerCode; }
     public int resendCooldownSeconds() { return resendCooldownSeconds; }
