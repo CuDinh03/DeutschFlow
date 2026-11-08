@@ -64,7 +64,8 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
         <Link href={homeHref} aria-label="myDeutschFlow" className="shrink-0 transition-opacity [--ga-logo-size:26px] hover:opacity-80 md:[--ga-logo-size:34px]">
           <GaLogo />
         </Link>
-        <nav aria-label={t('nav.mainAria')} className="hidden gap-7 lg:flex xl:gap-9">
+        {/* Đợt B (08/11/2026): nav ngang từ xl (1280) — ở 1024 năm mục + ngôn ngữ + Đăng nhập + nút tràn ~110px; dưới xl dùng menu. */}
+        <nav aria-label={t('nav.mainAria')} className="hidden gap-7 xl:flex">
           {links.map((l) => (
             <a
               key={l.key}
@@ -99,7 +100,7 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
             aria-expanded={menuOpen}
             aria-controls="ga-mobile-menu"
             aria-label={menuOpen ? t('header.closeMenu') : t('header.openMenu')}
-            className="flex h-11 w-11 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center border border-ga-border text-ga-ink xl:hidden"
           >
             {menuOpen ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
           </button>
@@ -107,7 +108,7 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
       </div>
       {/* Overlay (absolute) so opening/closing never shifts the page — anchor jumps stay accurate. */}
       {menuOpen && (
-        <div id="ga-mobile-menu" className="absolute inset-x-0 top-full border-y border-ga-border bg-ga-bg shadow-ga-panel lg:hidden">
+        <div id="ga-mobile-menu" className="absolute inset-x-0 top-full border-y border-ga-border bg-ga-bg shadow-ga-panel xl:hidden">
           <div className="flex flex-col px-5 pb-5 sm:px-8">
             {links.map((l) => (
               <a
