@@ -68,7 +68,7 @@ describe('AboutStory — Về chúng tôi', () => {
     for (const n of ['01', '02', '03', '04']) {
       expect(screen.getAllByText(`Chương ${n}`).length).toBeGreaterThan(0)
     }
-    expect(screen.getByAltText('Đinh Huy Cự, người làm myDeutschFlow, mặc vest xám')).toBeTruthy()
+    expect(screen.getByAltText('Đinh Huy Cự, người phát triển myDeutschFlow, mặc vest xám')).toBeTruthy()
     expect(screen.getByAltText('Ảnh chân dung Đinh Huy Cự')).toBeTruthy()
   })
 
