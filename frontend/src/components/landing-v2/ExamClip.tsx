@@ -8,7 +8,7 @@ import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 /**
  * Clip luyện thi 24 giây (A5, kế hoạch cải thiện trang chủ 08/11/2026) — quay màn hình thật:
  * luyện Lesen có đồng hồ → chọn đáp án → xem lại câu sai → AI chấm bài Viết. Cắt từ video 58 giây
- * 4:5 (`plans/2026-11-07-video-luyen-thi`), H.264 720×900 không tiếng, tự lưu ở `public/video/`
+ * 4:5 (`plans/2026-11-07-video-luyen-thi`), H.264 720×900 không tiếng, poster WebP (repo bỏ qua *.jpg), tự lưu ở `public/video/`
  * (owner chốt: không nhúng YouTube).
  *
  * - `preload="none"` + poster: không tải video trước khi cần, không ảnh hưởng LCP.
@@ -26,7 +26,7 @@ export interface ExamClipProps {
 }
 
 export const EXAM_CLIP_SRC = '/video/luyen-thi-clip.mp4'
-export const EXAM_CLIP_POSTER = '/video/luyen-thi-clip-poster.jpg'
+export const EXAM_CLIP_POSTER = '/video/luyen-thi-clip-poster.webp'
 
 export function ExamClip({ caption, label, playLabel, pauseLabel, accent }: ExamClipProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null)
