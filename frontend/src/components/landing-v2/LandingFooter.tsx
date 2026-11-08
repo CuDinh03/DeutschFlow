@@ -19,6 +19,8 @@ export function LandingFooter() {
     ['privacy', '/privacy'],
     ['terms', '/terms'],
     ['support', '/support'],
+    // Cẩm nang chỉ có tiếng Việt (đợt D, 08/11/2026).
+    ...(locale === 'vi' ? ([['guide', '/cam-nang/']] as [string, string][]) : []),
   ]
   return (
     <footer className="border-t border-ga-border bg-ga-bg">

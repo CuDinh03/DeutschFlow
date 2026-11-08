@@ -40,7 +40,7 @@ export function LandingHeader({
   current = 'home',
   showLanguage = true,
 }: {
-  current?: 'home' | 'about' | 'interview' | 'exam' | 'centers' | 'training'
+  current?: 'home' | 'about' | 'interview' | 'exam' | 'centers' | 'training' | 'guide'
   showLanguage?: boolean
 }) {
   const t = useTranslations('v2.landing')
