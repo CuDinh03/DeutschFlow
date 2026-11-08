@@ -36,8 +36,8 @@
       "placeholder": "Ví dụ: đầu bếp, Kellner…",
       "popular": "Vị trí hay được chọn",
       "interviewer": "Người phỏng vấn: {name} · {tag}",
-      "questionsCap": "AI sẽ hỏi bạn những câu như",
-      "sourceNote": "Đây là câu hỏi thật trong bộ câu hỏi của vị trí này. AI hỏi bằng tiếng Đức và hỏi tiếp dựa trên câu trả lời của bạn.",
+      "questionsCap": "Câu hỏi tiêu biểu cho vị trí này",
+      "sourceNote": "Câu tiêu biểu, chép từ bộ câu hỏi của vị trí này. Trong buổi luyện, AI hỏi bằng tiếng Đức, có thể hỏi câu khác hoặc hỏi theo cách khác, và hỏi tiếp dựa trên câu trả lời của bạn.",
       "cta": "Luyện phỏng vấn vị trí này",
       "noMatchTitle": "Chưa có bộ câu hỏi riêng cho “{query}”",
       "noMatchBody": "AI vẫn phỏng vấn bạn được bằng bộ câu hỏi chung (giới thiệu, tình huống, chuyên môn), điều chỉnh theo vị trí bạn nhập. Bộ câu hỏi riêng cho nhiều nghề hơn, gồm điều dưỡng và xây dựng, đang được biên soạn.",
@@ -51,8 +51,8 @@
       "viewPage": "Xem trang nghề",
       "loading": "Đang tải câu hỏi…",
       "interviewerWorkplace": "Người phỏng vấn: {name} · {role}",
-      "sourceNoteLayer": "Câu “Đã duyệt” đã qua người kiểm; câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. AI hỏi bằng tiếng Đức và hỏi tiếp dựa trên câu trả lời của bạn.",
-      "moreQuestions": "+ {count} câu nữa trong buổi thử"
+      "sourceNoteLayer": "Câu “Đã duyệt” đã qua người kiểm; câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. Trong buổi luyện, AI hỏi bằng tiếng Đức, có thể hỏi câu khác hoặc hỏi theo cách khác, và hỏi tiếp dựa trên câu trả lời của bạn.",
+      "moreQuestions": "+ {count} câu tiêu biểu khác"
     },
     "pathways": {
       "cap": "Hành trình sang Đức",
@@ -214,7 +214,7 @@
       "title": "Mỗi nghề, một người phỏng vấn của đúng ngành đó.",
       "sub": "Bếp, nhà hàng, khách sạn, phòng khám, xưởng máy, văn phòng. Nghề chưa có người phỏng vấn riêng thì AI vẫn hỏi theo đúng nghề bạn chọn.",
       "ask": "Xem {name} hỏi gì",
-      "hint": "Chọn một người để xem câu họ sẽ hỏi",
+      "hint": "Chọn một người để xem một câu họ hay hỏi",
       "lifeShow": "Xem thêm: luyện nói đời sống ({count})",
       "lifeHide": "Thu gọn luyện nói đời sống",
       "lifeCap": "Luyện nói đời sống",
@@ -342,7 +342,7 @@
         },
         "cap": "Phỏng vấn theo nghề",
         "title": "Câu hỏi phỏng vấn tiếng Đức cho nghề của bạn",
-        "intro": "Chọn nghề để xem câu hỏi mà AI sẽ hỏi bạn. Mỗi câu có nhãn rõ: đã duyệt, AI tạo hoặc bộ câu hỏi chung.",
+        "intro": "Chọn nghề để xem câu hỏi phỏng vấn tiêu biểu. Mỗi câu có nhãn rõ: đã duyệt, AI tạo hoặc bộ câu hỏi chung. Buổi luyện thật có thể hỏi thêm câu khác.",
         "count": "{count} nghề",
         "unavailable": "Chưa tải được danh sách nghề. Vui lòng thử lại sau ít phút."
       },
@@ -355,7 +355,7 @@
         "title": "Phỏng vấn xin việc: {nameDe}",
         "subtitle": "{name} · {workplace}",
         "interviewer": "Người phỏng vấn của bạn",
-        "questionsCap": "Câu hỏi AI sẽ hỏi",
+        "questionsCap": "Câu hỏi tiêu biểu",
         "moreCap": "Thêm câu hỏi riêng cho nghề này",
         "termsCap": "Từ chuyên môn",
         "termsEmpty": "Từ chuyên môn của nghề này đang được soạn.",

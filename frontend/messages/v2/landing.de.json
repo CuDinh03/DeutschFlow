@@ -36,8 +36,8 @@
       "placeholder": "z. B. Koch, Kellner…",
       "popular": "Häufig gewählte Positionen",
       "interviewer": "Interview mit: {name} · {tag}",
-      "questionsCap": "Die KI stellt Ihnen Fragen wie",
-      "sourceNote": "Das sind echte Fragen aus dem Fragenkatalog dieser Position. Die KI fragt auf Deutsch und hakt bei Ihren Antworten nach.",
+      "questionsCap": "Typische Fragen für diese Position",
+      "sourceNote": "Typische Fragen aus dem Fragenkatalog dieser Position. Im Gespräch fragt die KI auf Deutsch, kann auch andere Fragen stellen oder sie anders formulieren und hakt bei Ihren Antworten nach.",
       "cta": "Gespräch für diese Position üben",
       "noMatchTitle": "Noch kein eigener Fragenkatalog für „{query}“",
       "noMatchBody": "Die KI kann Sie trotzdem interviewen: mit dem allgemeinen Fragenkatalog (Vorstellung, Situationen, Fachwissen), angepasst an die angegebene Position. Eigene Kataloge für weitere Berufe, darunter Pflege und Bau, werden gerade erstellt.",
@@ -51,8 +51,8 @@
       "viewPage": "Zur Berufsseite",
       "loading": "Fragen werden geladen…",
       "interviewerWorkplace": "Interviewer: {name} · {role}",
-      "sourceNoteLayer": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Die KI fragt auf Deutsch und hakt bei Ihren Antworten nach.",
-      "moreQuestions": "+ {count} weitere Fragen in der Probesitzung"
+      "sourceNoteLayer": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Im Gespräch fragt die KI auf Deutsch, kann auch andere Fragen stellen oder sie anders formulieren und hakt bei Ihren Antworten nach.",
+      "moreQuestions": "{count, plural, one {+ 1 weitere typische Frage} other {+ # weitere typische Fragen}}"
     },
     "pathways": {
       "cap": "Wege nach Deutschland",
@@ -214,7 +214,7 @@
       "title": "Für jeden Beruf eine Person aus der Branche.",
       "sub": "Küche, Restaurant, Hotel, Arztpraxis, Werkstatt, Büro. Gibt es für Ihren Beruf noch keine eigene Person, fragt die KI trotzdem gezielt zu dem Beruf, den Sie wählen.",
       "ask": "Frage von {name} ansehen",
-      "hint": "Wählen Sie eine Person, um eine ihrer Fragen zu sehen",
+      "hint": "Wählen Sie eine Person, um eine typische Frage von ihr zu sehen",
       "lifeShow": "Mehr anzeigen: Alltagsgespräche ({count})",
       "lifeHide": "Alltagsgespräche ausblenden",
       "lifeCap": "Alltagsgespräche",
@@ -342,7 +342,7 @@
         },
         "cap": "Interview nach Beruf",
         "title": "Fragen im Vorstellungsgespräch für Ihren Beruf",
-        "intro": "Wählen Sie Ihren Beruf und sehen Sie, welche Fragen die KI stellt. Jede Frage ist gekennzeichnet: geprüft, KI-erstellt oder allgemeiner Fragenkatalog.",
+        "intro": "Wählen Sie Ihren Beruf und sehen Sie typische Fragen im Vorstellungsgespräch. Jede Frage ist gekennzeichnet: geprüft, KI-erstellt oder allgemeiner Fragenkatalog. In der Übungssitzung können weitere Fragen kommen.",
         "count": "{count} Berufe",
         "unavailable": "Die Berufsliste konnte nicht geladen werden. Bitte versuchen Sie es in ein paar Minuten erneut."
       },
@@ -355,7 +355,7 @@
         "title": "Vorstellungsgespräch: {nameDe}",
         "subtitle": "{workplace}",
         "interviewer": "Ihr Interviewer",
-        "questionsCap": "Diese Fragen stellt die KI",
+        "questionsCap": "Typische Fragen",
         "moreCap": "Weitere Fragen zu diesem Beruf",
         "termsCap": "Fachbegriffe",
         "termsEmpty": "Die Fachbegriffe zu diesem Beruf werden gerade erstellt.",

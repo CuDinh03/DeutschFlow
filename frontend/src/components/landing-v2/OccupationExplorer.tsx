@@ -31,7 +31,7 @@ import {
  * Ô "Bạn làm nghề gì?" ở hero trang chủ (khối S2 + S3 của phương án landing).
  *
  * Đợt 2d (20/10/2026): đọc danh mục nghề công khai (`/api/public/occupations`, ~150 nghề) và chi tiết
- * từng nghề — câu mẫu đúng câu phiên phỏng vấn hỏi, nhãn Đã duyệt / AI tạo / Bộ câu hỏi chung, từ
+ * từng nghề — câu hỏi tiêu biểu (buổi luyện thật có thể hỏi câu khác — AUX-63), nhãn Đã duyệt / AI tạo / Bộ câu hỏi chung, từ
  * chuyên môn, người phỏng vấn của nghề, và lối sang trang `/phong-van/[nghe]/`.
  *
  * Endpoint chưa có (frontend lên trước backend) hoặc lỗi mạng → giữ nguyên cách của đợt 1: vị trí

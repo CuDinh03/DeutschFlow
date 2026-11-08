@@ -3,7 +3,7 @@ import type { PersonaId } from '@/lib/personas'
 /**
  * Câu hỏi phỏng vấn mẫu hiển thị trên trang chủ (ô "Bạn làm nghề gì?", đợt 1 A+B+E).
  *
- * Mỗi câu chép NGUYÊN VĂN từ ngân hàng câu hỏi mà AI thật sự hỏi trong app —
+ * Mỗi câu chép NGUYÊN VĂN từ ngân hàng câu hỏi tĩnh của app (trang chỉ gọi là "tiêu biểu": buổi thật còn lấy câu từ lớp nghề và bảng `interview_question` — AUX-63) —
  * backend `speaking/interview/InterviewQuestionBank.java` (lớp chung `commonQuestions` + lớp riêng
  * theo nhân vật). `{pos}` là chỗ backend ghép tên vị trí; trang chủ thay bằng tên vị trí tiếng Đức.
  *

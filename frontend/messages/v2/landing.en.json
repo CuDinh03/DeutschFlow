@@ -36,8 +36,8 @@
       "placeholder": "e.g. cook, Kellner…",
       "popular": "Popular roles",
       "interviewer": "Interviewer: {name} · {tag}",
-      "questionsCap": "The AI will ask you questions like",
-      "sourceNote": "These are real questions from the question set for this role. The AI asks in German and follows up on your answers.",
+      "questionsCap": "Sample questions for this role",
+      "sourceNote": "Sample questions, taken from the question set for this role. In the session, the AI asks in German, may ask other questions or phrase them differently, and follows up on your answers.",
       "cta": "Practise an interview for this role",
       "noMatchTitle": "No dedicated question set for “{query}” yet",
       "noMatchBody": "The AI can still interview you with the general question set (introduction, situations, job skills), adapted to the role you enter. Dedicated sets for more trades, including nursing and construction, are being written.",
@@ -51,8 +51,8 @@
       "viewPage": "Open the job page",
       "loading": "Loading questions…",
       "interviewerWorkplace": "Interviewer: {name} · {role}",
-      "sourceNoteLayer": "“Reviewed” questions have been checked by a person; “AI-generated” questions were written by AI for this job and are awaiting review. The AI asks in German and follows up on your answers.",
-      "moreQuestions": "+ {count} more questions in the trial session"
+      "sourceNoteLayer": "“Reviewed” questions have been checked by a person; “AI-generated” questions were written by AI for this job and are awaiting review. In the session, the AI asks in German, may ask other questions or phrase them differently, and follows up on your answers.",
+      "moreQuestions": "{count, plural, one {+ 1 more sample question} other {+ # more sample questions}}"
     },
     "pathways": {
       "cap": "Pathways to Germany",
@@ -214,7 +214,7 @@
       "title": "One interviewer for every line of work.",
       "sub": "Kitchen, restaurant, hotel, medical practice, workshop, office. If your job has no dedicated interviewer yet, the AI still asks about the job you choose.",
       "ask": "See what {name} asks",
-      "hint": "Pick someone to see a question they ask",
+      "hint": "Pick someone to see a question they often ask",
       "lifeShow": "Show more: everyday speaking ({count})",
       "lifeHide": "Hide everyday speaking",
       "lifeCap": "Everyday speaking",
@@ -342,7 +342,7 @@
         },
         "cap": "Interview by trade",
         "title": "German interview questions for your job",
-        "intro": "Pick your occupation to see the questions the AI will ask you. Every question is labelled: reviewed, AI-generated or general question set.",
+        "intro": "Pick your occupation to see sample interview questions. Every question is labelled: reviewed, AI-generated or general question set. A real session may ask other questions too.",
         "count": "{count} occupations",
         "unavailable": "The list of occupations could not be loaded. Please try again in a few minutes."
       },
@@ -355,7 +355,7 @@
         "title": "Job interview: {nameDe}",
         "subtitle": "{name} · {workplace}",
         "interviewer": "Your interviewer",
-        "questionsCap": "Questions the AI will ask",
+        "questionsCap": "Sample questions",
         "moreCap": "More questions for this job",
         "termsCap": "Key terms",
         "termsEmpty": "Key terms for this job are being prepared.",

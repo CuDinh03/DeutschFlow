@@ -8,7 +8,7 @@ import type { PublicLocale } from '@/lib/publicLocale'
  * Facebook/Zalo nhận diện là ảnh. `v` để đổi ảnh thì đổi số — Facebook giữ ảnh cũ theo URL.
  */
 export const OG_SIZE = { width: 1200, height: 630 } as const
-export const OG_VERSION = '1'
+export const OG_VERSION = '2'
 
 export type OgPage = 'home' | 'luyen-thi' | 'trung-tam' | 'phong-van'
 
