@@ -41,10 +41,10 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
     slug: 'phong-van-tieng-duc-nghe-bep',
     title: 'Phỏng vấn tiếng Đức nghề bếp (Koch/Köchin): câu hỏi, từ vựng, cách trả lời',
     description:
-      'Cẩm nang phỏng vấn xin việc nghề bếp bằng tiếng Đức: ba câu hỏi người phỏng vấn hỏi, gợi ý cách trả lời, từ vựng trong bếp và lỗi ngữ pháp người Việt hay gặp. Luyện thử miễn phí với AI.',
+      'Cẩm nang phỏng vấn xin việc nghề bếp bằng tiếng Đức: ba câu hỏi tiêu biểu, gợi ý cách trả lời, từ vựng trong bếp và lỗi ngữ pháp người Việt hay gặp. Luyện thử miễn phí với AI.',
     h1: 'Phỏng vấn tiếng Đức nghề bếp: câu hỏi, từ vựng và cách trả lời',
     lead:
-      'Dành cho người chuẩn bị phỏng vấn vị trí Koch/Köchin (đầu bếp) ở Đức, dù đi theo diện học nghề (Ausbildung) hay đã có kinh nghiệm. Bài này dùng đúng ba câu hỏi mà người phỏng vấn nghề bếp trên myDeutschFlow hỏi trong buổi luyện.',
+      'Dành cho người chuẩn bị phỏng vấn vị trí Koch/Köchin (đầu bếp) ở Đức, dù đi theo diện học nghề (Ausbildung) hay đã có kinh nghiệm. Bài này lấy ba câu hỏi tiêu biểu, chép nguyên văn từ bộ câu hỏi nghề bếp đã duyệt của myDeutschFlow.',
     published: '2026-11-08',
     occupationCode: 'koch',
     occupationNameDe: 'Koch/Köchin',
@@ -112,7 +112,7 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
       },
     ],
     practice:
-      'Trên myDeutschFlow, Klaus — người phỏng vấn nghề bếp — hỏi bạn đúng ba câu trên bằng giọng nói. Bạn trả lời bằng tiếng Đức, rồi nhận báo cáo chấm từng phần của buổi: câu bạn đã nói, câu nên nói và bài luyện tiếp.',
+      'Trên myDeutschFlow, Klaus — người phỏng vấn nghề bếp — hỏi bạn bằng giọng nói những câu cùng chủ đề như trên; Klaus có thể hỏi thêm câu khác hoặc hỏi theo cách khác. Bạn trả lời bằng tiếng Đức, rồi nhận báo cáo chấm từng phần của buổi: câu bạn đã nói, câu nên nói và bài luyện tiếp.',
     faqs: [
       {
         q: 'Phỏng vấn nghề bếp ở Đức cần trình độ tiếng Đức nào?',

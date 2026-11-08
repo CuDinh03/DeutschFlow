@@ -7,7 +7,7 @@ import { GUIDE_ARTICLES, guideArticle } from '@/data/camNang'
 import { INTERVIEW_SAMPLES, COMMON_INTRO_QUESTION, fillPosition } from '@/data/interviewSamples'
 
 describe('Cẩm nang', () => {
-  it('bài nghề bếp dùng đúng ba câu của Klaus, nguyên văn', () => {
+  it('bài nghề bếp chép nguyên văn ba câu đầu của bộ câu Klaus đã duyệt', () => {
     const a = guideArticle('phong-van-tieng-duc-nghe-bep')!
     const bank = [COMMON_INTRO_QUESTION, ...INTERVIEW_SAMPLES.klaus].map((q) => fillPosition(q, a.occupationNameDe))
     expect(a.questions.map((q) => q.de)).toEqual(bank.slice(0, a.questions.length))

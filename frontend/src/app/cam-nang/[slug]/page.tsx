@@ -93,7 +93,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
 
           <p className="mt-10 text-ga-body-lg text-ga-ink">{a.intro}</p>
 
-          <h2 className={H2}>Ba câu {a.interviewer} hỏi trong buổi luyện</h2>
+          <h2 className={H2}>Ba câu hỏi tiêu biểu trong buổi luyện với {a.interviewer}</h2>
           <ol className="flex flex-col gap-8">
             {a.questions.map((q, i) => (
               <li key={q.de} className="border-l-2 border-ga-yellow pl-5">
