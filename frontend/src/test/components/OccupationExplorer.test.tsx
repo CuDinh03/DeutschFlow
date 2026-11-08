@@ -78,7 +78,7 @@ describe('OccupationExplorer — danh mục nghề công khai', () => {
     expect(screen.getByText('Bộ câu hỏi chung')).toBeTruthy()
     // Bố cục chốt 08/11/2026: hero chỉ hiện câu 1, câu 2–3 gom thành dòng đếm; từ chuyên môn ở trang nghề.
     expect(screen.queryByText('„Wie reagieren Sie bei einem Sturz?“')).toBeNull()
-    expect(screen.getByText('+ 2 câu nữa trong buổi thử')).toBeTruthy()
+    expect(screen.getByText('+ 2 câu tiêu biểu khác')).toBeTruthy()
     expect(screen.queryByText('die Übergabe')).toBeNull()
     // K4: bản dịch theo ngôn ngữ trang dưới câu tiếng Đức; câu chưa dịch chỉ có tiếng Đức.
     expect(screen.getByText('Mời bạn giới thiệu ngắn về bản thân.').getAttribute('lang')).toBe('vi')

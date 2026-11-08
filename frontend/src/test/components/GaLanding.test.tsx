@@ -161,7 +161,7 @@ describe('GaLanding — ô "Bạn làm nghề gì?" (đợt 1 A+B+E)', () => {
     // Câu HACCP vẫn là câu Klaus nói ở dàn người phỏng vấn, nên chỉ tìm trong ô ở hero.
     const hero = within(document.getElementById('interview') as HTMLElement)
     expect(hero.getByText(/relevante Erfahrung für Koch\/Köchin/)).toBeInTheDocument()
-    expect(hero.getByText('+ 2 câu nữa trong buổi thử')).toBeInTheDocument()
+    expect(hero.getByText('+ 2 câu tiêu biểu khác')).toBeInTheDocument()
     expect(hero.queryByText(/Nennen Sie einen HACCP-\/Hygiene-Vorfall in der Küche/)).toBeNull()
   })
 
