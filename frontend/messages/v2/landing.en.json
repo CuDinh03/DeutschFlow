@@ -125,6 +125,10 @@
     "exam": {
       "shotCap": "Real screen · Lesen exam room, clock running",
       "shotAlt": "The reading section of the Goethe B1 mock exam: 58 minutes left of the 65 allowed, a 2-of-4 progress bar, richtig/falsch questions in German and a note that answers are being saved.",
+      "clipCap": "Real screen recording · 24 seconds",
+      "clipAlt": "24-second silent screen recording: Lesen practice with a running timer, choosing answers, reviewing mistakes, then AI marking a Writing task against three telc criteria.",
+      "clipPlay": "Play video",
+      "clipPause": "Pause video",
       "cap": "Exam practice",
       "title": "Mock exams in the real exam format",
       "sub": "Practise all four parts of the Goethe-Zertifikat A2–B2 and telc B1 with the real timing and structure, with a weakness analysis after every attempt.",
