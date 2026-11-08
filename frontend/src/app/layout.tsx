@@ -10,7 +10,9 @@ import { NativeAuthProvider } from '@/providers/NativeAuthProvider'
 import { MotionProvider } from '@/providers/MotionProvider'
 import { AuthRecoveryDialog } from '@/components/auth/AuthRecoveryDialog'
 import { MaintenanceOverlay } from '@/components/system/MaintenanceOverlay'
-import { DEFAULT_OG_IMAGE, SITE_URL } from '@/lib/siteUrl'
+import { SITE_URL } from '@/lib/siteUrl'
+import { ogImage } from '@/lib/ogImage'
+import { DEFAULT_PUBLIC_LOCALE, isPublicLocale } from '@/lib/publicLocale'
 import './globals.css'
 
 // ── Không preload font (đợt A tốc độ trang chủ, 26/10/2026) ──────────────────────────────────
@@ -77,6 +79,8 @@ export const viewport: Viewport = {
  */
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('v2.landing.meta')
+  const rawLocale = await getLocale()
+  const locale = isPublicLocale(rawLocale) ? rawLocale : DEFAULT_PUBLIC_LOCALE
   const title = t('title')
   const description = t('description')
   return {
@@ -99,8 +103,11 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       siteName: 'myDeutschFlow',
-      images: [DEFAULT_OG_IMAGE],
+      // A3 (08/11/2026): ảnh mặc định = ảnh trang chủ đúng ngôn ngữ (trước là icon vuông 512).
+      images: [ogImage('home', locale, title)],
     },
+    // og:image là khổ ngang 1200×630 → X/Twitter hiện thẻ ảnh lớn (thiếu dòng này X dùng thẻ nhỏ).
+    twitter: { card: 'summary_large_image' },
   }
 }
 

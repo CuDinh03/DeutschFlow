@@ -12,7 +12,7 @@ import {
   isAusbildungLocale,
 } from '@/lib/ausbildungGate'
 import { fetchOccupations } from '@/lib/occupationServer'
-import { DEFAULT_OG_IMAGE } from '@/lib/siteUrl'
+import { ogImage } from '@/lib/ogImage'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicAlternates, publicHref } from '@/lib/publicLocale'
 
 /**
@@ -49,7 +49,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       locale: OG_LOCALE[locale],
       url: canonical,
       siteName: 'myDeutschFlow',
-      images: [DEFAULT_OG_IMAGE],
+      images: [ogImage('home', locale, c.title)],
     },
     robots: AUSBILDUNG_CONTENT_REVIEWED ? undefined : { index: false, follow: false },
   }
