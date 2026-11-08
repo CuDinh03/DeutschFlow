@@ -144,7 +144,6 @@ export default function VerifyEmailScreen() {
                 if (digits.length === PIN_LENGTH && digits !== lastSubmitted.current) void verify(digits)
               }}
               length={PIN_LENGTH}
-              editable={!loading}
               autoFocus
               testID="verify-code"
             />

@@ -8,6 +8,7 @@ import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, TextField, Button, GaGlyph } from '@/components/ui'
 import { useT } from '@/lib/i18n'
 import { authMessages } from '@/lib/i18n/messages/auth'
+import { resetFailure } from '@/lib/passwordReset'
 
 export default function ForgotPasswordScreen() {
   const theme = useTheme()
@@ -29,7 +30,9 @@ export default function ForgotPasswordScreen() {
       setSent(true)
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert(t('common.errorTitle'), apiMessage(e))
+      // 429 (dùng chung hạn mức với đặt lại mật khẩu) và mất mạng: câu theo ngôn ngữ app, không phải câu tiếng Anh của server.
+      const f = resetFailure(e)
+      Alert.alert(t('common.errorTitle'), f && f !== 'reset.wrongCode' ? t(f) : apiMessage(e))
     } finally {
       setLoading(false)
     }

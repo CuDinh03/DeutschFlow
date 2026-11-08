@@ -120,7 +120,7 @@ export default function ResetPasswordScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          <PinCells label={t('reset.code')} value={code} onChange={setCode} editable={!loading} testID="reset-code" />
+          <PinCells label={t('reset.code')} value={code} onChange={setCode} testID="reset-code" />
           <TextField
             label={t('reset.newPassword')}
             value={newPassword}

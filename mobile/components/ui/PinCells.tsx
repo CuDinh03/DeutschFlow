@@ -88,7 +88,7 @@ export function PinCells({
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="one-time-code"
-          maxLength={length}
+          // KHÔNG đặt maxLength: iOS/Android cắt chuỗi DÁN trước khi lọc ⇒ „482 913" (7 ký tự) mất số cuối.
           autoFocus={autoFocus}
           editable={editable}
           caretHidden

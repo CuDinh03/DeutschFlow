@@ -12,6 +12,7 @@
 export const RESET_CODE_INVALID = 'RESET_CODE_INVALID'
 
 type ErrLike = {
+  isAxiosError?: boolean
   response?: {
     status?: number
     data?: { extensions?: { code?: unknown } }
@@ -23,7 +24,8 @@ export type ResetFailure = 'reset.wrongCode' | 'reset.tooMany' | 'reset.network'
 /** Lỗi /reset-password ⇒ khoá câu hiển thị; `null` = lỗi khác (vd. mật khẩu yếu) — để `apiMessage` lo. */
 export function resetFailure(e: unknown): ResetFailure {
   const resp = (e as ErrLike)?.response
-  if (!resp) return 'reset.network'
+  // Chỉ lỗi HTTP không có phản hồi mới là mất mạng; lỗi JS khác để apiMessage nói.
+  if (!resp) return (e as ErrLike)?.isAxiosError ? 'reset.network' : null
   if (resp.status === 429) return 'reset.tooMany'
   if (resp.data?.extensions?.code === RESET_CODE_INVALID) return 'reset.wrongCode'
   return null
