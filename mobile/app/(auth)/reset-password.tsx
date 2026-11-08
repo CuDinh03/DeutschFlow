@@ -5,9 +5,10 @@ import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import api, { apiMessage } from '@/lib/api'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, TextField, Button, GaGlyph } from '@/components/ui'
+import { Screen, ThemedText, TextField, Button, GaGlyph, PinCells } from '@/components/ui'
 import { useT } from '@/lib/i18n'
 import { authMessages } from '@/lib/i18n/messages/auth'
+import { resetFailure } from '@/lib/passwordReset'
 
 export default function ResetPasswordScreen() {
   const theme = useTheme()
@@ -49,9 +50,33 @@ export default function ResetPasswordScreen() {
       ])
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert(t('common.errorTitle'), apiMessage(e))
+      const f = resetFailure(e)
+      if (f === 'reset.wrongCode') {
+        // Một câu cho mọi kiểu mã hỏng (chống dò email, #772); mã có thể đã bị huỷ sau 5 lần sai (#788)
+        // nên luôn có lối gửi mã mới.
+        setCode('')
+        Alert.alert(t('reset.wrongCodeTitle'), t('reset.wrongCodeBody'), [
+          { text: t('reset.retry'), style: 'cancel' },
+          { text: t('reset.sendNewCode'), onPress: () => void sendNewCode() },
+        ])
+      } else {
+        Alert.alert(t('common.errorTitle'), f ? t(f) : apiMessage(e))
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function sendNewCode() {
+    const trimmed = email.trim()
+    if (!trimmed) return
+    try {
+      await api.post('/auth/forgot-password', { email: trimmed })
+      setCode('')
+      Alert.alert(t('reset.newCodeSentTitle'), t('reset.newCodeSentBody', { email: trimmed }))
+    } catch (e) {
+      const f = resetFailure(e)
+      Alert.alert(t('common.errorTitle'), f && f !== 'reset.wrongCode' ? t(f) : apiMessage(e))
     }
   }
 
@@ -95,14 +120,7 @@ export default function ResetPasswordScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          <TextField
-            label={t('reset.code')}
-            value={code}
-            onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
-            placeholder="123456"
-            keyboardType="number-pad"
-            maxLength={6}
-          />
+          <PinCells label={t('reset.code')} value={code} onChange={setCode} editable={!loading} testID="reset-code" />
           <TextField
             label={t('reset.newPassword')}
             value={newPassword}
