@@ -149,7 +149,7 @@ export function GaLanding() {
             <AppStoreHeroLink />
           </div>
           {/* A2 (08/11/2026): gỡ ba nỗi lo trước khi bấm — thẻ, thời gian, có app. Không nhắc Android (sổ lời hứa). */}
-          <p className="mt-3 text-[13px] text-ga-muted">{t('hero.microcopy')}</p>
+          <p className="mt-3 text-ga-small text-ga-muted">{t('hero.microcopy')}</p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
             {heroBullets.map((b) => (
               <span key={b} className="flex items-center gap-1.5 text-[13px] text-ga-muted">
