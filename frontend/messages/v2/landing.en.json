@@ -22,12 +22,13 @@
       "closeMenu": "Close menu"
     },
     "hero": {
-      "eyebrow": "AI Interview Coach · For working and training in Germany",
+      "eyebrow": "AI interview coaching for people moving to Germany to work",
       "titleLead": "Practise your German job interview,",
       "titleEm": "for your profession.",
       "sub": "An AI plays the German employer, asks questions for your trade and shows you what to fix after every answer: grammar, word choice, missing points.",
       "ctaStart": "Try it for free",
-      "bullets": ["Questions for your own trade", "Mock exams in Goethe and telc format", "No credit card needed"]
+      "microcopy": "No card needed · Start in 2 minutes · iPhone app available",
+      "bullets": ["Questions for your own trade", "Mock exams in Goethe and telc format"]
     },
     "explorer": {
       "cap": "Preview the interview questions",

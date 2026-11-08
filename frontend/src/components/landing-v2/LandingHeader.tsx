@@ -60,9 +60,9 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
   return (
     <header className="sticky top-0 z-50 border-b border-ga-border bg-[color-mix(in_srgb,var(--ga-bg)_92%,transparent)] backdrop-blur-md">
       <div className="flex h-16 items-center justify-between gap-2 px-5 sm:px-8 md:h-[78px] xl:px-[60px]">
-        <Link href={homeHref} aria-label="myDeutschFlow" className="shrink-0 transition-opacity hover:opacity-80">
-          <GaLogo size={26} className="md:hidden" />
-          <GaLogo className="hidden md:inline-flex" />
+        {/* Một logo đổi cỡ bằng biến CSS (26px mobile, 34px từ md) — hai bản ẩn/hiện làm text thô bị lặp. */}
+        <Link href={homeHref} aria-label="myDeutschFlow" className="shrink-0 transition-opacity [--ga-logo-size:26px] hover:opacity-80 md:[--ga-logo-size:34px]">
+          <GaLogo />
         </Link>
         <nav aria-label={t('nav.mainAria')} className="hidden gap-7 lg:flex xl:gap-9">
           {links.map((l) => (

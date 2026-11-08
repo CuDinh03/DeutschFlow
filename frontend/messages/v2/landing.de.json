@@ -22,12 +22,13 @@
       "closeMenu": "Menü schließen"
     },
     "hero": {
-      "eyebrow": "AI Interview Coach · Für Arbeit und Ausbildung in Deutschland",
+      "eyebrow": "KI-Interviewtraining für alle, die in Deutschland arbeiten wollen",
       "titleLead": "Vorstellungsgespräch auf Deutsch üben,",
       "titleEm": "passend zu Ihrem Beruf.",
       "sub": "Eine KI spielt den deutschen Arbeitgeber, stellt Fragen zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können: Grammatik, Wortwahl, fehlende Inhalte.",
       "ctaStart": "Kostenlos testen",
-      "bullets": ["Fragen passend zu Ihrem Beruf", "Probeprüfungen im Goethe- und telc-Format", "Keine Kreditkarte nötig"]
+      "microcopy": "Keine Karte nötig · In 2 Minuten starten · App fürs iPhone",
+      "bullets": ["Fragen passend zu Ihrem Beruf", "Probeprüfungen im Goethe- und telc-Format"]
     },
     "explorer": {
       "cap": "Fragen vorab ansehen",
