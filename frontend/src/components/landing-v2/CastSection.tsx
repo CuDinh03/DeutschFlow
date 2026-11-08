@@ -129,18 +129,20 @@ const CastCard = React.memo(function CastCard({
     <li className={`border bg-ga-card transition-shadow duration-150 hover:shadow-ga-card-hover ${active ? 'border-ga-ink' : 'border-ga-border'}`}>
       <button
         type="button"
-        aria-label={label}
         aria-pressed={active}
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') onHover(persona.id) }}
         onPointerLeave={onLeave}
         onClick={() => onPick(persona.id)}
         className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
       >
+        {/* Tên đọc được = "Xem Klaus hỏi gì" + chữ đang hiện trên thẻ (WCAG 2.5.3: tên phải chứa chữ
+            hiển thị — aria-label riêng từng làm Lighthouse báo label-content-name-mismatch). */}
+        <span className="sr-only">{label}: </span>
         <PersonaPortrait id={persona.id} talking={talking} />
         <span className="block px-2 pb-2.5 pt-2 sm:px-3 sm:pb-3.5 sm:pt-3">
           <span className="block truncate text-ga-small font-semibold text-ga-ink sm:text-ga-body">{persona.name}</span>
           <span lang="de" className="mt-0.5 block truncate text-ga-caption text-ga-muted sm:text-ga-small">{persona.role}</span>
-          <span className="mt-1.5 hidden truncate text-ga-caption text-ga-subtle sm:block">{persona.tag}</span>
+          <span className="mt-1.5 hidden truncate text-ga-caption text-ga-muted sm:block">{persona.tag}</span>
         </span>
       </button>
     </li>
@@ -200,10 +202,10 @@ export function CastSection({ className = '' }: { className?: string }) {
       <div className="mx-auto max-w-[1240px] px-5 py-14 sm:px-8 md:py-[78px] lg:px-[60px]">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-[640px]">
-            <GaCap className="mb-[18px]">{t('cap')}</GaCap>
+            <GaCap className="mb-[18px] text-ga-ink">{t('cap')}</GaCap>
             <h2 className="font-ga-display text-ga-h1-m font-medium tracking-[-0.015em] text-ga-ink lg:text-ga-display">{t('title')}</h2>
           </div>
-          <p className="max-w-[400px] text-ga-body text-ga-muted">{t('sub')}</p>
+          <p className="max-w-[400px] text-ga-body text-ga-ink">{t('sub')}</p>
         </div>
         <CastSpeech
           speaker={speaker}
@@ -233,7 +235,7 @@ export function CastSection({ className = '' }: { className?: string }) {
         </div>
         {showLife && (
           <div id="cast-life" className="mt-6">
-            <GaCap className="mb-3">{t('lifeCap')}</GaCap>
+            <GaCap className="mb-3 text-ga-ink">{t('lifeCap')}</GaCap>
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-4 lg:grid-cols-6">
               {LIFE_CAST.map(renderCard)}
             </ul>

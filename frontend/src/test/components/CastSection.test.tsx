@@ -38,7 +38,7 @@ describe('CastSection — nhân vật cất tiếng', () => {
   it('HTML ban đầu đã có nguyên câu của Klaus, không chờ JS hay cuộn trang', () => {
     renderCast()
     expect(screen.getByText(`Klaus: ${expectedLine('klaus')}`)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Xem Klaus hỏi gì' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /^Xem Klaus hỏi gì/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('chọn một thẻ: người đó nói đúng câu trong ngân hàng, miệng dừng khi chạy chữ xong', () => {
@@ -46,7 +46,7 @@ describe('CastSection — nhân vật cất tiếng', () => {
     // Nhân vật chớp mắt theo lịch ngẫu nhiên; ghim lịch để lần so SVG cuối không rơi vào lúc nhắm mắt.
     vi.spyOn(Math, 'random').mockReturnValue(0)
     renderCast()
-    const card = screen.getByRole('button', { name: 'Xem Lena hỏi gì' })
+    const card = screen.getByRole('button', { name: /^Xem Lena hỏi gì/ })
     const closed = card.querySelector('svg')?.innerHTML
 
     fireEvent.click(card)
@@ -64,7 +64,7 @@ describe('CastSection — nhân vật cất tiếng', () => {
     setReducedMotion(true)
     vi.useFakeTimers()
     renderCast()
-    const card = screen.getByRole('button', { name: 'Xem Lena hỏi gì' })
+    const card = screen.getByRole('button', { name: /^Xem Lena hỏi gì/ })
     const closed = card.querySelector('svg')?.innerHTML
 
     fireEvent.click(card)
@@ -78,9 +78,9 @@ describe('CastSection — nhân vật cất tiếng', () => {
 
   it('đợt B: lưới chính 11 người phỏng vấn theo nghề, bỏ thẻ Sắp có, có lối sang tất cả nghề', () => {
     renderCast()
-    const cards = screen.getAllByRole('button', { name: /^Xem .+ hỏi gì$/ })
+    const cards = screen.getAllByRole('button', { name: /^Xem .+ hỏi gì/ })
     expect(cards).toHaveLength(11)
-    expect(screen.queryByRole('button', { name: 'Xem Emma hỏi gì' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Xem Emma hỏi gì/ })).toBeNull()
     expect(screen.queryByText('Sắp có')).toBeNull()
     expect(screen.getByRole('link', { name: 'Xem tất cả nghề' }).getAttribute('href')).toMatch(/^\/phong-van\/?$/)
   })
@@ -93,9 +93,9 @@ describe('CastSection — nhân vật cất tiếng', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     const life = document.getElementById('cast-life') as HTMLElement
     for (const name of ['Emma', 'Anna', 'Hannie', 'Lukas']) {
-      expect(within(life).getByRole('button', { name: `Xem ${name} hỏi gì` })).toBeTruthy()
+      expect(within(life).getByRole('button', { name: new RegExp(`^Xem ${name} hỏi gì`) })).toBeTruthy()
     }
-    fireEvent.click(within(life).getByRole('button', { name: 'Xem Emma hỏi gì' }))
+    fireEvent.click(within(life).getByRole('button', { name: /^Xem Emma hỏi gì/ }))
     expect(screen.getByText(/^Emma: /)).toBeInTheDocument()
   })
 })

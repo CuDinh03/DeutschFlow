@@ -217,7 +217,7 @@ export function GaLanding() {
               <p className="text-ga-body-lg text-ga-muted">{t('report.sub')}</p>
             </div>
             <div className="border border-ga-border bg-ga-card p-5 sm:p-7">
-              <GaCap className="mb-4 text-ga-subtle">{t('report.sampleCap')}</GaCap>
+              <GaCap className="mb-4">{t('report.sampleCap')}</GaCap>
               <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-ga-border pb-4">
                 <span className="font-ga-display text-ga-stat text-ga-ink">{t('report.overall')}</span>
                 <span className="text-ga-body text-ga-muted">{t('report.verdict')}</span>

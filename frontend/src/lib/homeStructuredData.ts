@@ -1,11 +1,5 @@
-import { APP_STORE_URL, SUPPORT_EMAIL } from '@/components/landing-v2/links'
+import { APP_STORE_URL, FACEBOOK_URL, SUPPORT_EMAIL } from '@/components/landing-v2/links'
 import { absoluteUrl, SITE_URL } from '@/lib/siteUrl'
-
-/**
- * Trang Facebook chính thức. Link chia sẻ owner gửi 08/11/2026 (`facebook.com/share/1EaqEEwiM7/`)
- * chuyển hướng 302 về địa chỉ này — `sameAs` cần địa chỉ gốc, không phải link chia sẻ.
- */
-export const FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61596022751738'
 
 const ORG_ID = `${SITE_URL}/#organization`
 const APP_ID = `${SITE_URL}/#app`

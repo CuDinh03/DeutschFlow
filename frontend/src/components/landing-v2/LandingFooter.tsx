@@ -37,7 +37,7 @@ export function LandingFooter() {
             <span className="sr-only"> {t('app.newTab')}</span>
           </a>
         </nav>
-        <p className="text-ga-caption text-ga-faint">© {new Date().getFullYear()} myDeutschFlow</p>
+        <p className="text-ga-caption text-ga-muted">© {new Date().getFullYear()} myDeutschFlow</p>
       </div>
     </footer>
   )

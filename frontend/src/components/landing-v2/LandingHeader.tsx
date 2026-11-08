@@ -32,7 +32,17 @@ const NAV_ANCHORS = [
   ['centers', 'centers'],
 ] as const
 
-export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about' | 'interview' | 'centers' | 'training' }) {
+/**
+ * `showLanguage={false}`: trang chỉ có tiếng Việt (`/luyen-thi`) — đổi ngôn ngữ ở đó chỉ đổi chữ header,
+ * trang thành hai thứ tiếng, nên ẩn nút (đợt C, 08/11/2026).
+ */
+export function LandingHeader({
+  current = 'home',
+  showLanguage = true,
+}: {
+  current?: 'home' | 'about' | 'interview' | 'exam' | 'centers' | 'training'
+  showLanguage?: boolean
+}) {
   const t = useTranslations('v2.landing')
   const raw = useLocale()
   const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
@@ -50,6 +60,7 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
   const links = [
     ...NAV_ANCHORS.map(([key, id]) => {
       if (key === 'interview' && current === 'interview') return { key, href: interviewHref, active: true }
+      if (key === 'exam' && current === 'exam') return { key, href: '/luyen-thi/', active: true }
       if (key === 'centers' && centersHref) return { key, href: centersHref, active: current === 'centers' }
       return { key, href: anchor(id), active: false }
     }),
@@ -80,7 +91,7 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
           ))}
         </nav>
         <div className="flex items-center gap-2 sm:gap-4 md:gap-5">
-          <span className="hidden sm:inline-flex"><LanguageToggle /></span>
+          {showLanguage && <span className="hidden sm:inline-flex"><LanguageToggle /></span>}
           <Link href="/v2/login" className="hidden text-ga-body font-semibold text-ga-ink hover:opacity-80 sm:block">
             {t('header.login')}
           </Link>
@@ -128,9 +139,11 @@ export function LandingHeader({ current = 'home' }: { current?: 'home' | 'about'
             >
               {t('header.login')}
             </Link>
-            <div className="flex items-center justify-between border-b border-ga-border py-3.5 sm:hidden">
-              <LanguageToggle />
-            </div>
+            {showLanguage && (
+              <div className="flex items-center justify-between border-b border-ga-border py-3.5 sm:hidden">
+                <LanguageToggle />
+              </div>
+            )}
             <GaBtn asChild variant="ink" size="lg" className="mt-5 w-full">
               <Link href={START_HREF} onClick={() => { trackCta('mobile_menu'); setMenuOpen(false) }}>
                 <YellowSq />{t('header.tryFree')}

@@ -62,11 +62,11 @@
       "examLabel": "Kỳ thi",
       "interviewLabel": "Phỏng vấn xoay quanh",
       "items": [
-        { "name": "Học nghề", "de": "Ausbildung", "who": "Chưa có nghề hoặc muốn học một nghề mới ở Đức.", "level": "B1, đôi khi B2", "exam": "Goethe hoặc telc B1", "interview": "Động lực, kế hoạch, hiểu biết về nghề và nước Đức", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề, lộ trình A1–B1, thi thử B1." },
+        { "name": "Học nghề", "de": "Ausbildung", "who": "Chưa có nghề hoặc muốn học một nghề mới ở Đức.", "level": "B1, đôi khi B2", "exam": "Goethe hoặc telc B1", "interview": "Động lực, kế hoạch, hiểu biết về nghề và nước Đức", "fit": "Trên myDeutschFlow: học tiếng Đức Ausbildung theo lộ trình A1–B1, phỏng vấn theo nghề, thi thử B1." },
         { "name": "Công nhận bằng nghề", "de": "Anerkennung", "who": "Đã có bằng và kinh nghiệm: y tế, kỹ thuật, thủ công…", "level": "B1–B2, tuỳ nghề và tuỳ bang", "exam": "Kỳ thi nghề nghiệp như telc Pflege, DTB", "interview": "Chuyên môn, tình huống trong nghề, quy trình", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề. Đề thi nghề nghiệp đang được biên soạn." },
         { "name": "Tìm việc", "de": "Chancenkarte · Blaue Karte", "who": "Kỹ sư, IT, người có bằng đại học.", "level": "Từ A1, hoặc B2 tiếng Anh", "exam": "Tuỳ nhà tuyển dụng", "interview": "Chuyên môn; tiếng Đức là lợi thế", "fit": "Trên myDeutschFlow: phỏng vấn cho IT, kỹ thuật, văn phòng." },
         { "name": "Du học đại học", "de": "Studium", "who": "Học sinh, sinh viên muốn học đại học ở Đức.", "level": "Thường B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Phỏng vấn trường, phỏng vấn visa", "fit": "Trên myDeutschFlow: luyện nói, thi thử đến B2. Chưa có lộ trình C1." },
-        { "name": "Đoàn tụ, định cư", "de": "Familiennachzug", "who": "Vợ, chồng, người thân của người đang sống ở Đức.", "level": "A1 khi xin visa, B1 khi định cư lâu dài", "exam": "Start Deutsch A1, DTZ", "interview": "Phỏng vấn visa, đời sống hằng ngày", "fit": "Trên myDeutschFlow: lộ trình từ A1, luyện nói đời sống hằng ngày." }
+        { "name": "Đoàn tụ, định cư", "de": "Familiennachzug", "who": "Vợ, chồng, người thân của người đang sống ở Đức.", "level": "A1 khi xin visa, B1 khi định cư lâu dài", "exam": "Start Deutsch A1, DTZ", "interview": "Phỏng vấn visa Đức, đời sống hằng ngày", "fit": "Trên myDeutschFlow: lộ trình từ A1, luyện nói đời sống hằng ngày." }
       ]
     },
     "report": {
@@ -97,7 +97,7 @@
     },
     "learn": {
       "cap": "Ngoài phỏng vấn",
-      "title": "Học nền tảng đến B1 trong cùng một ứng dụng",
+      "title": "App học tiếng Đức từ A1 đến B1, trên web và iPhone",
       "sub": "Phỏng vấn cần vốn tiếng Đức vững. Lộ trình từng ngày đưa bạn từ A1 đến B1, kèm ôn từ vựng đúng lúc sắp quên.",
       "items": [
         { "name": "Lộ trình A1–B1 từng ngày", "desc": "Mỗi ngày một chặng với bốn kỹ năng nghe, đọc, nói, viết. B2 đang xây dựng." },
@@ -131,7 +131,7 @@
       "clipPlay": "Phát video",
       "clipPause": "Dừng video",
       "cap": "Luyện thi",
-      "title": "Thi thử theo format đề thi thật",
+      "title": "Thi thử Goethe B1 online theo format đề thi thật",
       "sub": "Luyện đủ 4 phần của Goethe-Zertifikat A2–B2 và telc B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm.",
       "parts": [
         { "name": "Đọc hiểu", "time": "65 phút", "body": "5 phần đọc với văn bản đời sống & công việc, chấm tự động ngay." },

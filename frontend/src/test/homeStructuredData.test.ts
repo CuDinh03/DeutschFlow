@@ -3,8 +3,8 @@
  * nối nhau bằng @id, link App Store và Facebook gốc, không có điểm/đánh giá bịa.
  */
 import { describe, expect, it } from 'vitest'
-import { FACEBOOK_URL, homeStructuredData, toJsonLd } from '@/lib/homeStructuredData'
-import { APP_STORE_URL } from '@/components/landing-v2/links'
+import { homeStructuredData, toJsonLd } from '@/lib/homeStructuredData'
+import { APP_STORE_URL, FACEBOOK_URL } from '@/components/landing-v2/links'
 
 describe('homeStructuredData', () => {
   const data = homeStructuredData('en', 'Practise German job interviews', 'https://mydeutschflow.com/en/')
