@@ -105,7 +105,7 @@ Thứ tự: (thẻ bài chẩn đoán) → **thẻ Hôm nay** → nút gợi ý 
 | Thẻ Hôm nay | Buổi của hôm nay trong lịch tuần; không có lịch ⇒ Teil yếu nhất | `todayCard()` trong `components/exam/today/todayModel.ts` |
 | Nút gợi ý (tối đa 3, chỉ khi đã xem hướng dẫn màn này) | Ôn câu sai Teil vừa kiểm tra · Teil yếu kế tiếp · thi thử sắp tới trong tuần (không có ⇒ "Thi nói lần đầu") | `suggestionsFor()`, `SuggestionRow` |
 | Ô đặt ngày thi | Khi `NEEDS_DATE`/`EXAM_PASSED` và đã làm bài chẩn đoán | `DateCard` → `PUT /exam-plan/target-date` |
-| Bốn kỹ năng | Lesen (gồm Sprachbausteine), Hören, Schreiben: lần kiểm tra **gần nhất** của mỗi Teil qua mọi đề; Sprechen: lần thi nói telc B1 có điểm gần nhất (`/speaking/exam/results`). Vạch 60%; Đạt ≥ 60 / Sát ngưỡng 50–59 / Dưới ngưỡng | `skillsFrom()`, `components/exam/today/SkillBars.tsx` |
+| Bốn kỹ năng | Lesen (gồm Sprachbausteine), Hören, Schreiben: lần chấm **gần nhất** của mỗi Teil qua mọi đề, gộp lượt luyện từng Teil và (từ 09/11/2026) điểm Teil của lượt thi thử đã nộp hoặc dừng giữa chừng (`GET /mock-exams/practice/mock-teile`; Teil có ≥ 1 câu trả lời mới tính; Viết chỉ khi lượt đã nộp, bài có chữ và AI chấm xong; chỉ đề telc có trên trang; lượt luyện so bằng mốc chấm `checkedAt`, không phải mốc lưu nháp); Sprechen: lần thi nói telc B1 có điểm gần nhất (`/speaking/exam/results`). Vạch 60%; Đạt ≥ 60 / Sát ngưỡng 50–59 / Dưới ngưỡng | `skillsFrom()`, `components/exam/today/SkillBars.tsx` |
 | Tuần này | `weeks[current].days` của `/exam-plan`; kéo thả hoặc bấm hai buổi để đổi chỗ; buổi đã làm/đã qua khoá | `components/exam/today/WeekPlan.tsx`, `swapLocally()` + `PUT /exam-plan/days/swap` |
 | Đề luyện | `/mock-exams/packs` (chỉ telc) + `/mock-exams/practice/{id}` | `ExamRowView` |
 
@@ -236,6 +236,7 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | DELETE | `/mock-exams/practice/{examId}/teile/{key}` | Làm lại Teil | 〃 |
 | POST | `/mock-exams/practice/{examId}/schreiben` | Chấm Viết bằng AI (trả `jobId`) | 〃 |
 | GET | `/mock-exams/practice/attempts/{id}/analysis` | Phân tích từng câu của lượt thi thử | 〃 |
+| GET | `/mock-exams/practice/mock-teile` | Điểm từng Teil của 30 lượt thi thử gần nhất (`COMPLETED` + `PARTIAL`) cho Bốn kỹ năng | 〃 + `MockAttemptTeilScores` |
 | POST | `/mock-exams/{examId}/start` | Bắt đầu / làm tiếp thi thử (idempotent) | `MockExamController` |
 | PATCH | `/mock-exams/attempts/{id}/draft` | Lưu nháp thi thử (có phiên bản) | 〃 |
 | POST | `/mock-exams/attempts/{id}/finish` | Nộp ⇒ job chấm nền | 〃 |

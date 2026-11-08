@@ -30,6 +30,33 @@ describe('todayModel', () => {
     expect(schreiben.teile).toHaveLength(0)
   })
 
+  it('điểm Teil thi thử (09/11): lấy lần gần nhất giữa luyện và thi thử; chỉ đề có trên trang', () => {
+    const mock = [
+      { attemptId: 1, examId: 1, key: 'LESEN-2', section: 'LESEN', teil: 2, score: 25, max: 25, at: '2026-11-03T08:00:00Z' },
+      { attemptId: 1, examId: 1, key: 'HOEREN-1', section: 'HOEREN', teil: 1, score: 15, max: 25, at: '2026-11-03T08:00:00Z' },
+      // cũ hơn lượt luyện LESEN-1 của đề 2 (05/11) ⇒ không thay
+      { attemptId: 1, examId: 1, key: 'LESEN-1', section: 'LESEN', teil: 1, score: 0, max: 25, at: '2026-11-03T08:00:00Z' },
+      // đề 99 không có trên trang (vd. Goethe trùng khoá) ⇒ bỏ
+      { attemptId: 9, examId: 99, key: 'SPRACHBAUSTEINE-1', section: 'SPRACHBAUSTEINE', teil: 1, score: 0, max: 15, at: '2026-11-09T08:00:00Z' },
+    ]
+    const [lesen, hoeren] = skillsFrom([A, B], null, mock)
+    // LESEN-1 10/25 (luyện 05/11), LESEN-2 25/25 (thi thử 03/11 mới hơn luyện 02/11), SB-1 15/15 ⇒ 50/65
+    expect(lesen.pct).toBe(77)
+    expect(lesen.teile.find((x) => x.key === 'LESEN-2')?.pct).toBe(100)
+    expect(hoeren.pct).toBe(60)
+    expect(hoeren.teile[0]).toMatchObject({ key: 'HOEREN-1', pct: 60 })
+    // không truyền điểm thi thử ⇒ như cũ
+    expect(skillsFrom([A, B], null)[0].pct).toBe(46)
+  })
+
+  it('so mốc CHẤM của lượt luyện, không phải mốc lưu nháp (Viết lưu nháp sau khi chấm)', () => {
+    const w = { ...prog(10, 45, '2026-11-09T10:00:00Z'), checkedAt: '2026-11-01T10:00:00Z' }
+    const C = ov(3, [teil('SCHREIBEN-1', w, 45)])
+    const mock = [{ attemptId: 5, examId: 3, key: 'SCHREIBEN-1', section: 'SCHREIBEN', teil: 1, score: 40, max: 45, at: '2026-11-05T10:00:00Z' }]
+    // thi thử 05/11 mới hơn lần CHẤM luyện 01/11, dù nháp được lưu 09/11
+    expect(skillsFrom([C], null, mock)[2].pct).toBe(89)
+  })
+
   it('Sprechen từ lần thi nói gần nhất của telc B1', () => {
     const r = (id: number, at: string, total: number | null, level = 'B1') =>
       ({ sessionId: id, provider: 'TELC', level, total, max: 75, createdAt: at, scoreSheet: { parts: [{ teilNo: 1, points: 12, max: 15 }] } }) as unknown as ExamResultView

@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   getMockPack: vi.fn(),
   getPracticeAccess: vi.fn(),
   getPracticeOverview: vi.fn(),
+  getMockTeilScores: vi.fn(),
   listMyAttempts: vi.fn(),
   planGet: vi.fn(),
   swapDays: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('@/lib/telcPracticeApi', () => ({
   WRITING_KEY: 'SCHREIBEN-1',
   getPracticeAccess: h.getPracticeAccess,
   getPracticeOverview: h.getPracticeOverview,
+  getMockTeilScores: h.getMockTeilScores,
 }))
 vi.mock('@/lib/exam/mockAttemptApi', () => ({ listMyAttempts: h.listMyAttempts }))
 vi.mock('@/lib/examDiagnosticApi', () => ({ examDiagnosticApi: { get: h.diagGet } }))
@@ -106,6 +108,7 @@ function setup() {
   h.listResults.mockResolvedValue({ data: [] })
   h.seenTours.mockResolvedValue(new Set(['exam.today']))
   h.diagGet.mockResolvedValue({ status: 'DONE' })
+  h.getMockTeilScores.mockResolvedValue([])
 }
 
 beforeEach(() => {
@@ -118,7 +121,7 @@ describe('Luyện thi · Hôm nay', () => {
     render(<V2StudentExamHubPage />)
 
     const title = await screen.findByRole('heading', { level: 2, name: 'Lesen · Teil 2' })
-    expect(screen.getByText('Lần luyện gần nhất đúng 40%.')).toBeInTheDocument()
+    expect(screen.getByText('Lần gần nhất đạt 40%.')).toBeInTheDocument()
     expect(screen.getByText('Hôm nay · 35 phút')).toBeInTheDocument()
     const card = title.closest('div')!.parentElement as HTMLElement
     expect(within(card).getByRole('link', { name: /Bắt đầu/ })).toHaveAttribute('href', '/v2/student/mock-exam/practice/teil?examId=101&teil=LESEN-2')
@@ -248,5 +251,20 @@ describe('Luyện thi · Hôm nay', () => {
     render(<V2StudentExamHubPage />)
     expect(await screen.findByText('Bài chẩn đoán đang làm dở')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Làm tiếp/ })).toHaveAttribute('href', '/v2/student/exam/diagnostic')
+  })
+  it('điểm Teil của lượt thi thử vào Bốn kỹ năng (09/11/2026): mới hơn lượt luyện thì thay, đề Goethe trùng khoá thì bỏ', async () => {
+    setup()
+    h.getMockTeilScores.mockResolvedValue([
+      // Thi thử đề 101 sau lượt luyện (05/11): Hören T1 20/25, Lesen T2 20/25 thay 10/25.
+      { attemptId: 1, examId: 101, key: 'HOEREN-1', section: 'HOEREN', teil: 1, score: 20, max: 25, at: '2026-11-08T09:00:00Z' },
+      { attemptId: 1, examId: 101, key: 'LESEN-2', section: 'LESEN', teil: 2, score: 20, max: 25, at: '2026-11-08T09:00:00Z' },
+      // Đề Goethe (không có trên trang) trùng khoá LESEN-1: không được tính.
+      { attemptId: 2, examId: 1, key: 'LESEN-1', section: 'LESEN', teil: 1, score: 0, max: 25, at: '2026-11-09T09:00:00Z' },
+    ])
+    render(<V2StudentExamHubPage />)
+
+    // Lesen = (25 + 20) / 50 = 90%; Hören = 20 / 25 = 80%
+    expect(await screen.findByRole('button', { name: /Lesen.*90%/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Hören.*80%/ })).toBeInTheDocument()
   })
 })
