@@ -2,7 +2,8 @@ import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
-import { absoluteUrl, DEFAULT_OG_IMAGE } from '@/lib/siteUrl'
+import { ogImage } from '@/lib/ogImage'
+import { absoluteUrl } from '@/lib/siteUrl'
 import { homeStructuredData, toJsonLd } from '@/lib/homeStructuredData'
 import { IOS_APP_ID } from '@/components/landing-v2/links'
 import HomeClient from './HomeClient'
@@ -28,6 +29,7 @@ export const dynamic = 'force-dynamic'
 export async function generateMetadata(): Promise<Metadata> {
   const raw = await getLocale()
   const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
+  const t = await getTranslations('v2.landing.meta')
   return {
     alternates: {
       canonical: localizedHref(locale, '/'),
@@ -39,7 +41,8 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: OG_LOCALE[locale],
       url: localizedHref(locale, '/'),
       siteName: 'myDeutschFlow',
-      images: [DEFAULT_OG_IMAGE],
+      // A3 (08/11/2026): ảnh 1200×630 tiêu đề hero + thẻ báo cáo "Bạn đã nói / Nên nói".
+      images: [ogImage('home', locale, t('title'))],
     },
     // Smart App Banner của Safari iOS: dải "Mở trong App Store" ở đầu trang, chỉ hiện trên iPhone/
     // iPad, người xem tắt được. Chỉ khai ở trang chủ — không chen vào trang làm bài trên web.
