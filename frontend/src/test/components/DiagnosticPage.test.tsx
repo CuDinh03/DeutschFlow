@@ -3,7 +3,7 @@
  * phút mỗi ngày → năm phần (ba Teil chấm qua luyện đề, Viết/Nói tự đánh giá) → kết quả + lịch ôn.
  */
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -134,7 +134,8 @@ describe('Bài chẩn đoán', () => {
     render(<DiagnosticPage />)
 
     expect(await screen.findByText('Bài chẩn đoán · phần 4/5')).toBeInTheDocument()
-    expect(screen.getByRole('textbox')).toHaveValue('Liebe Anna')
+    // Nháp nạp sau tiêu đề một nhịp (CI chậm từng trượt ở đây) ⇒ chờ giá trị, không đọc ngay.
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('Liebe Anna'))
     await user.click(screen.getByRole('button', { name: /^Rời bài chẩn đoán/ }))
     expect(await screen.findByText('Rời bài chẩn đoán?')).toBeInTheDocument()
     expect(h.push).not.toHaveBeenCalled()
