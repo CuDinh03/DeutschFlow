@@ -208,19 +208,10 @@
       "sub": "Kitchen, restaurant, hotel, medical practice, workshop, office. If your job has no dedicated interviewer yet, the AI still asks about the job you choose.",
       "ask": "See what {name} asks",
       "hint": "Pick someone to see a question they ask",
-      "soonCap": "Coming soon",
-      "soon": [
-        {
-          "name": "Nursing",
-          "de": "Pflege",
-          "note": "A dedicated question set is being written and reviewed."
-        },
-        {
-          "name": "Construction",
-          "de": "Bau",
-          "note": "A dedicated question set is being written and reviewed."
-        }
-      ]
+      "lifeShow": "Show more: everyday speaking ({count})",
+      "lifeHide": "Hide everyday speaking",
+      "lifeCap": "Everyday speaking",
+      "allJobs": "See all occupations"
     },
     "about": {
       "meta": {

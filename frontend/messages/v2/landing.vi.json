@@ -208,19 +208,10 @@
       "sub": "Bếp, nhà hàng, khách sạn, phòng khám, xưởng máy, văn phòng. Nghề chưa có người phỏng vấn riêng thì AI vẫn hỏi theo đúng nghề bạn chọn.",
       "ask": "Xem {name} hỏi gì",
       "hint": "Chọn một người để xem câu họ sẽ hỏi",
-      "soonCap": "Sắp có",
-      "soon": [
-        {
-          "name": "Điều dưỡng",
-          "de": "Pflege",
-          "note": "Bộ câu hỏi riêng đang được biên soạn và duyệt."
-        },
-        {
-          "name": "Xây dựng",
-          "de": "Bau",
-          "note": "Bộ câu hỏi riêng đang được biên soạn và duyệt."
-        }
-      ]
+      "lifeShow": "Xem thêm: luyện nói đời sống ({count})",
+      "lifeHide": "Thu gọn luyện nói đời sống",
+      "lifeCap": "Luyện nói đời sống",
+      "allJobs": "Xem tất cả nghề"
     },
     "about": {
       "meta": {
