@@ -3,6 +3,8 @@ import type { Metadata } from 'next'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import { ogImage } from '@/lib/ogImage'
+import { absoluteUrl } from '@/lib/siteUrl'
+import { homeStructuredData, toJsonLd } from '@/lib/homeStructuredData'
 import { IOS_APP_ID } from '@/components/landing-v2/links'
 import HomeClient from './HomeClient'
 
@@ -50,9 +52,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const OG_LOCALE = { vi: 'vi_VN', en: 'en_US', de: 'de_DE' } as const
 
-export default function HomePage() {
+export default async function HomePage() {
+  const raw = await getLocale()
+  const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
+  const t = await getTranslations('v2.landing.meta')
+  // Organization + SoftwareApplication (A1, 08/11/2026). Render ở server để có ngay trong HTML đầu.
+  const appLd = toJsonLd(homeStructuredData(locale, t('description'), absoluteUrl(localizedHref(locale, '/'))))
   return (
     <div className="ga-scope min-h-screen bg-ga-bg">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: appLd }} />
       <HomeClient />
     </div>
   )

@@ -10,6 +10,7 @@ import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, publicHref } from '@/lib/publicLocale'
 import { AppDownloadBand, AppStoreHeroLink } from './AppDownload'
+import { ExamClip } from './ExamClip'
 import { GaShot } from './GaShot'
 import { OccupationExplorer } from './OccupationExplorer'
 import { CastSection } from './CastSection'
@@ -112,6 +113,39 @@ export function GaLanding() {
     [trackEvent],
   )
 
+  /**
+   * Khối luyện thi (A5, 08/11/2026): bản vi thay ảnh chụp bằng clip quay màn hình 24 giây. Clip có chữ
+   * tiếng Việt in sẵn trong hình nên en/de giữ ảnh chụp như cũ (một trang một ngôn ngữ).
+   * Bốn phần thi: 2 cột → 4 cột từ md; bản có clip về lại 2 cột từ lg (nằm cạnh clip).
+   */
+  const showExamClip = locale === 'vi'
+  const examGrid = (
+    <div className={`grid grid-cols-2 border border-ga-border md:grid-cols-4 ${showExamClip ? 'lg:grid-cols-2' : ''}`}>
+      {examParts.map((p, i) => {
+        const left = i % 2 ? 'border-l' : i ? (showExamClip ? 'md:border-l lg:border-l-0' : 'md:border-l') : ''
+        const top = i >= 2 ? (showExamClip ? 'border-t md:border-t-0 lg:border-t' : 'border-t md:border-t-0') : ''
+        return (
+          <div key={i} className={`border-ga-border bg-ga-card p-5 sm:p-[28px_26px] ${left} ${top}`}>
+            <GaGlyphMark name={EXAM_GLYPHS[i]} size={32} draw="view" className="mb-3 block text-ga-ink" />
+            <div className="mb-[3px] font-ga-display text-[24px] font-medium">{EXAM_DE[i]}</div>
+            <div className="mb-4 text-[12.5px] text-ga-muted">{p.name} · {p.time}</div>
+            <p className="text-[13.5px] leading-[1.65] text-ga-muted">{p.body}</p>
+          </div>
+        )
+      })}
+    </div>
+  )
+  // Sổ lời hứa: thi thử là mô phỏng, phần chấm Nói chưa hiệu chuẩn.
+  const examDisclaimer = (
+    <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">
+      <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
+      <span>
+        {t('exam.disclaimer')}{' '}
+        <Link href="/luyen-thi" className="text-ga-ink underline">{t('exam.guideLink')}</Link>
+      </span>
+    </p>
+  )
+
   // Câu hỏi thường gặp → dữ liệu có cấu trúc FAQPage. Thoát "<" để chuỗi không đóng nhầm thẻ script.
   const faqLd = JSON.stringify({
     '@context': 'https://schema.org',
@@ -148,6 +182,8 @@ export function GaLanding() {
             </GaBtn>
             <AppStoreHeroLink />
           </div>
+          {/* A2 (08/11/2026): gỡ ba nỗi lo trước khi bấm — thẻ, thời gian, có app. Không nhắc Android (sổ lời hứa). */}
+          <p className="mt-3 text-ga-small text-ga-muted">{t('hero.microcopy')}</p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
             {heroBullets.map((b) => (
               <span key={b} className="flex items-center gap-1.5 text-[13px] text-ga-muted">
@@ -297,33 +333,38 @@ export function GaLanding() {
         <GaCap className="mb-[18px]">{t('exam.cap')}</GaCap>
         <h2 className={`${H2} mb-3`}>{t('exam.title')}</h2>
         <p className="mb-11 max-w-[600px] text-[17px] leading-[1.6] text-ga-muted">{t('exam.sub')}</p>
-        <div className="grid grid-cols-2 border border-ga-border md:grid-cols-4">
-          {examParts.map((p, i) => (
-            <div key={i} className={`border-ga-border bg-ga-card p-5 sm:p-[28px_26px] ${i ? (i % 2 ? 'border-l' : 'md:border-l') : ''} ${i >= 2 ? 'border-t md:border-t-0' : ''}`}>
-              <GaGlyphMark name={EXAM_GLYPHS[i]} size={32} draw="view" className="mb-3 block text-ga-ink" />
-              <div className="mb-[3px] font-ga-display text-[24px] font-medium">{EXAM_DE[i]}</div>
-              <div className="mb-4 text-[12.5px] text-ga-muted">{p.name} · {p.time}</div>
-              <p className="text-[13.5px] leading-[1.65] text-ga-muted">{p.body}</p>
+        {showExamClip ? (
+          // A5 (08/11/2026): clip 24 giây bên trái, bốn phần thi 2×2 bên phải từ lg; dưới lg xếp dọc.
+          <div className="grid items-start gap-8 lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-12">
+            <div className="mx-auto w-full max-w-[420px] lg:max-w-none">
+              <ExamClip
+                caption={t('exam.clipCap')}
+                label={t('exam.clipAlt')}
+                playLabel={t('exam.clipPlay')}
+                pauseLabel={t('exam.clipPause')}
+                accent="var(--ga-orange)"
+              />
             </div>
-          ))}
-        </div>
-        {/* Sổ lời hứa: thi thử là mô phỏng, phần chấm Nói chưa hiệu chuẩn. */}
-        <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">
-          <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
-          <span>
-            {t('exam.disclaimer')}{' '}
-            <Link href="/luyen-thi" className="text-ga-ink underline">{t('exam.guideLink')}</Link>
-          </span>
-        </p>
-        <div className="mt-9 md:mt-11">
-          <GaShot
-            name="exam"
-            caption={t('exam.shotCap')}
-            alt={t('exam.shotAlt')}
-            accent="var(--ga-orange)"
-            sizes={SHOT_FULL_SIZES}
-          />
-        </div>
+            <div className="min-w-0">
+              {examGrid}
+              {examDisclaimer}
+            </div>
+          </div>
+        ) : (
+          <>
+            {examGrid}
+            {examDisclaimer}
+            <div className="mt-9 md:mt-11">
+              <GaShot
+                name="exam"
+                caption={t('exam.shotCap')}
+                alt={t('exam.shotAlt')}
+                accent="var(--ga-orange)"
+                sizes={SHOT_FULL_SIZES}
+              />
+            </div>
+          </>
+        )}
         <div className="mt-6 flex flex-wrap items-center gap-[18px] bg-ga-ink p-5 text-ga-bg sm:p-[22px_28px]">
           <div className="min-w-0 flex-1 basis-[260px]">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ga-yellow">{t('exam.bannerCap')}</div>

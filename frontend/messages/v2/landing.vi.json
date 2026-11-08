@@ -22,12 +22,13 @@
       "closeMenu": "Đóng menu"
     },
     "hero": {
-      "eyebrow": "AI Interview Coach · Cho người sang Đức làm việc và học nghề",
+      "eyebrow": "Huấn luyện phỏng vấn bằng AI cho người sang Đức làm việc",
       "titleLead": "Luyện phỏng vấn tiếng Đức,",
       "titleEm": "đúng nghề của bạn.",
       "sub": "AI đóng vai nhà tuyển dụng Đức, hỏi theo nghề bạn chọn và chỉ ra chỗ cần sửa sau mỗi câu trả lời: ngữ pháp, từ dùng chưa đúng, ý còn thiếu.",
       "ctaStart": "Học thử miễn phí",
-      "bullets": ["Câu hỏi theo đúng nghề", "Thi thử theo format Goethe, telc", "Không cần thẻ tín dụng"]
+      "microcopy": "Không cần thẻ · 2 phút bắt đầu · Có app iPhone",
+      "bullets": ["Câu hỏi theo đúng nghề", "Thi thử theo format Goethe, telc"]
     },
     "explorer": {
       "cap": "Xem trước câu hỏi phỏng vấn",
@@ -124,6 +125,10 @@
     "exam": {
       "shotCap": "Ảnh thật · Phòng thi Lesen, đồng hồ đang chạy",
       "shotAlt": "Màn làm bài thi thử Goethe B1 phần Đọc hiểu: đồng hồ còn 58 phút trên tổng 65, thanh tiến độ 2 trên 4 câu, các câu richtig/falsch bằng tiếng Đức và ghi chú bài đang được lưu.",
+      "clipCap": "Quay màn hình thật · 24 giây",
+      "clipAlt": "Video 24 giây không tiếng, quay màn hình thật: luyện Lesen với đồng hồ đếm giờ, chọn đáp án, xem lại câu sai, rồi AI chấm bài Viết theo ba tiêu chí telc.",
+      "clipPlay": "Phát video",
+      "clipPause": "Dừng video",
       "cap": "Luyện thi",
       "title": "Thi thử theo format đề thi thật",
       "sub": "Luyện đủ 4 phần của Goethe-Zertifikat A2–B2 và telc B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm.",
