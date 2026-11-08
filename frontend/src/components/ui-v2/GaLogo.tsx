@@ -18,6 +18,13 @@ export interface GaLogoProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const BRAND_RED = '#DA291C'
 
+/**
+ * Cỡ thật = biến CSS `--ga-logo-size` nếu phần tử cha đặt, không thì `size`. Nhờ vậy một logo đổi cỡ
+ * theo breakpoint (`[--ga-logo-size:26px] md:[--ga-logo-size:34px]`) thay vì vẽ hai logo rồi ẩn một
+ * cái — hai bản làm text thô của trang thành "myDeutschFlowmyDeutschFlow" (A2, 08/11/2026).
+ */
+const logoSize = (size: number) => `var(--ga-logo-size, ${size}px)`
+
 function BrandMark({ size }: { size: number }) {
   return (
     <svg
@@ -27,6 +34,7 @@ function BrandMark({ size }: { size: number }) {
       fill="none"
       aria-hidden
       className="shrink-0 text-ga-ink"
+      style={{ width: logoSize(size), height: logoSize(size) }}
     >
       <path
         d="M 20 18 L 20 82 L 52 82 L 74 62 L 74 38 L 52 18 Z"
@@ -48,7 +56,7 @@ export function GaLogo({ markOnly = false, size = 34, className, ...props }: GaL
       {!markOnly && (
         <span
           className="leading-none text-ga-ink"
-          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: size * 0.47 }}
+          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: `calc(${logoSize(size)} * 0.47)` }}
         >
           <span style={{ fontWeight: 300, letterSpacing: '0.02em' }}>my</span>
           <span style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>Deutsch</span>
