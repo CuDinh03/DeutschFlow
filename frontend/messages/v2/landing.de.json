@@ -124,6 +124,10 @@
     "exam": {
       "shotCap": "Echter Screen · Prüfungsraum Lesen, Uhr läuft",
       "shotAlt": "Der Leseteil der Goethe-B1-Modellprüfung: noch 58 von 65 Minuten, Fortschrittsbalken 2 von 4, Richtig-Falsch-Aufgaben auf Deutsch und der Hinweis, dass gespeichert wird.",
+      "clipCap": "Echte Bildschirmaufnahme · 24 Sekunden",
+      "clipAlt": "24 Sekunden ohne Ton, echte Bildschirmaufnahme: Lesen-Training mit laufender Uhr, Antworten wählen, Fehler ansehen, danach bewertet die KI einen Schreiben-Text nach drei telc-Kriterien.",
+      "clipPlay": "Video abspielen",
+      "clipPause": "Video anhalten",
       "cap": "Prüfungstraining",
       "title": "Probeprüfungen im echten Prüfungsformat",
       "sub": "Alle vier Teile des Goethe-Zertifikats A2–B2 und telc B1 mit echter Zeit und Struktur üben, mit Schwächenanalyse nach jedem Durchgang.",
