@@ -37,7 +37,7 @@ describe('todayModel', () => {
       // cũ hơn lượt luyện LESEN-1 của đề 2 (05/11) ⇒ không thay
       { attemptId: 1, examId: 1, key: 'LESEN-1', section: 'LESEN', teil: 1, score: 0, max: 25, at: '2026-11-03T08:00:00Z' },
       // đề 99 không có trên trang (vd. Goethe trùng khoá) ⇒ bỏ
-      { attemptId: 9, examId: 99, key: 'SPRACHBAUSTEINE-1', section: 'SPRACHBAUSTEINE', teil: 1, score: 0, max: 15, at: '2026-11-09T08:00:00Z' },
+      { attemptId: 9, examId: 99, key: 'LESEN-2', section: 'LESEN', teil: 2, score: 0, max: 25, at: '2026-11-09T08:00:00Z' },
     ]
     const [lesen, hoeren] = skillsFrom([A, B], null, mock)
     // LESEN-1 10/25 (luyện 05/11), LESEN-2 25/25 (thi thử 03/11 mới hơn luyện 02/11), SB-1 15/15 ⇒ 50/65
