@@ -248,7 +248,7 @@ class SupportSessionFlowIntegrationTest extends AbstractPostgresIntegrationTest 
         assertThat(countAudit("support_session.started", student.getId())).isEqualTo(2);
         assertThat(countAudit("support_session.ended", student.getId())).isEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE event_name = 'support_session.write_denied' "
-                + "AND target_id = ? AND metadata_json LIKE '%read-all%'", Integer.class,
+                + "AND target_id = ? AND metadata_json::text LIKE '%read-all%'", Integer.class,
                 String.valueOf(student.getId()))).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT actor_user_id FROM audit_logs WHERE event_name = 'support_session.write_denied' "
                 + "AND target_id = ? LIMIT 1", Long.class, String.valueOf(student.getId()))).isEqualTo(admin.getId());
