@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Printer, Link2, Check } from 'lucide-react'
+import { GaBtn } from '@/components/ui-v2/GaBtn'
 
 interface CertificateActionsProps {
   verifyUrl: string
@@ -13,6 +14,7 @@ interface CertificateActionsProps {
 /**
  * Print + copy-link actions for the public certificate page. Hidden when printing
  * (the certificate card itself is the print artifact). Nhãn đến từ trang vì ngôn ngữ nằm ở `?lang`.
+ * Galerie (icon đợt B, 09/11/2026): `GaBtn`, chỉ đặt trong trang có `.ga-scope`.
  */
 export function CertificateActions({ verifyUrl, printLabel, copyLabel, copiedLabel }: CertificateActionsProps) {
   const [copied, setCopied] = useState(false)
@@ -29,21 +31,13 @@ export function CertificateActions({ verifyUrl, printLabel, copyLabel, copiedLab
 
   return (
     <div className="mt-6 flex flex-wrap justify-center gap-3 print:hidden">
-      <button
-        type="button"
-        onClick={() => window.print()}
-        className="inline-flex items-center gap-2 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-800"
-      >
-        <Printer size={16} /> {printLabel}
-      </button>
-      <button
-        type="button"
-        onClick={copyLink}
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-      >
-        {copied ? <Check size={16} className="text-emerald-600" /> : <Link2 size={16} />}
+      <GaBtn type="button" variant="ink" size="lg" onClick={() => window.print()}>
+        <Printer size={16} aria-hidden /> {printLabel}
+      </GaBtn>
+      <GaBtn type="button" variant="ghost" size="lg" onClick={copyLink} aria-live="polite">
+        {copied ? <Check size={16} aria-hidden /> : <Link2 size={16} aria-hidden />}
         {copied ? copiedLabel : copyLabel}
-      </button>
+      </GaBtn>
     </div>
   )
 }

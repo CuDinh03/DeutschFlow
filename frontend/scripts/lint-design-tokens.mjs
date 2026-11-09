@@ -39,6 +39,8 @@ const SCAN_DIRS = [
   'src/app/free-grade',
   'src/app/report',
   'src/components/marketing',
+  'src/app/certificate',
+  'src/components/certificate',
 ]
 const SCAN_EXT = new Set(['.tsx', '.ts', '.css'])
 
