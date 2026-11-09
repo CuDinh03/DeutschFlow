@@ -286,7 +286,8 @@
       "TIMESHEET_PERIOD_APPROVED": "Kỳ công đã được duyệt",
       "TIMESHEET_PERIOD_RETURNED": "Kỳ công bị trả lại",
       "CERTIFICATE_ISSUED": "Có chứng nhận mới",
-      "BIRTH_DATE_UPDATED": "Ngày sinh được cập nhật"
+      "BIRTH_DATE_UPDATED": "Ngày sinh được cập nhật",
+      "PASSWORD_RESET_BY_ADMIN": "Mật khẩu đã được đặt lại"
     }
   },
   "inbox": {

@@ -96,7 +96,25 @@
       "fieldReminderHour": "Study reminder time",
       "reminderHourHint": "One notification a day at this hour (in the timezone above). Leave empty for the default 18:00 reminder when you haven't studied.",
       "reminderHourNone": "Default (18:00)",
-      "reminderHourAt": "{hour}:00"
+      "reminderHourAt": "{hour}:00",
+      "securityActivityTitle": "Security activity",
+      "securityActivityDesc": "Times your password or account status changed.",
+      "securityActivityEmpty": "No security activity yet.",
+      "securityActivityError": "Could not load security activity.",
+      "securityActivityMore": "Show more",
+      "securityEvents": {
+        "passwordChanged": "You changed your password",
+        "passwordReset": "You reset your password via \"Forgot password\"",
+        "passwordResetBySupport": "The support team reset your password",
+        "accountLocked": "Account locked",
+        "accountUnlocked": "Account unlocked",
+        "supportSessionStarted": "The support team started a support session",
+        "supportSessionEnded": "Support session ended",
+        "mfaEnabled": "Two-factor authentication turned on",
+        "mfaRecoveryUsed": "A recovery code was used",
+        "mfaResetBySupport": "The support team reset two-factor authentication",
+        "other": "Security change"
+      }
     },
     "payment": {
       "title": "Upgrade plan",

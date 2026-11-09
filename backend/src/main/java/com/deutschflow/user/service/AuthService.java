@@ -1,5 +1,7 @@
 package com.deutschflow.user.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.common.security.JwtService;
@@ -58,6 +60,7 @@ public class AuthService {
     private final RunAfterCommitService runAfterCommitService;
     private final UserNotificationService userNotificationService;
     private final OrgMemberRepository orgMemberRepository;
+    private final AuditLogService auditLogService;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
@@ -340,6 +343,9 @@ public class AuthService {
         // …and drop the device push token so no already-logged-out session keeps getting this
         // account's notifications; the device re-registers on the forced re-login.
         userRepository.clearPushToken(user.getId());
+        // Đợt 2 admin (09/11/2026): vết cho "Hoạt động bảo mật" của chính người dùng. Cùng transaction.
+        auditLogService.log("user.password.changed", AuditActor.of(user),
+                "USER", String.valueOf(user.getId()), null, null);
     }
 
     @Transactional(readOnly = true)

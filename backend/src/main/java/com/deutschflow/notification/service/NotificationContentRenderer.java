@@ -190,6 +190,13 @@ public class NotificationContentRenderer {
                     "Trung tâm " + nonBlankOr(str(p, "orgName"), "của bạn")
                             + (boolOf(p, "firstRecord") ? " đã ghi" : " đã sửa")
                             + " ngày sinh trên hồ sơ của bạn. Mở ứng dụng để xem và báo lại nếu chưa đúng.");
+
+            // ── Đội hỗ trợ đặt lại mật khẩu — KHÔNG lý do nội bộ, KHÔNG danh tính admin ──
+            case PASSWORD_RESET_BY_ADMIN -> new RenderedContent(
+                    "Mật khẩu đã được đặt lại",
+                    "Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại"
+                            + (str(p, "resetAtDisplay").isBlank() ? "" : " lúc " + str(p, "resetAtDisplay"))
+                            + ". Nếu bạn không yêu cầu, hãy liên hệ hỗ trợ.");
         };
     }
 

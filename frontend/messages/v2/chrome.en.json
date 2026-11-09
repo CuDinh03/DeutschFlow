@@ -286,7 +286,8 @@
       "TIMESHEET_PERIOD_APPROVED": "Timesheet period approved",
       "TIMESHEET_PERIOD_RETURNED": "Timesheet period returned",
       "CERTIFICATE_ISSUED": "New certificate",
-      "BIRTH_DATE_UPDATED": "Date of birth updated"
+      "BIRTH_DATE_UPDATED": "Date of birth updated",
+      "PASSWORD_RESET_BY_ADMIN": "Password was reset"
     }
   },
   "inbox": {
