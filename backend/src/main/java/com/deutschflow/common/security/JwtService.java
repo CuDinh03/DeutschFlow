@@ -4,6 +4,7 @@ import com.deutschflow.user.entity.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * JWT ký và verify token.
@@ -34,10 +36,31 @@ import java.util.Set;
  *
  * <p>Token mới gắn claim {@code iss}/{@code aud}; bật {@code app.jwt.require-iss-aud=true} sau khi token
  * cũ (không có iss/aud) đã hết hạn.
+ *
+ * <p><b>Phân loại token (claim {@code typ}, 09/11/2026):</b> mọi token phát hành từ đây mang {@code typ}
+ * ({@value #TYP_ACCESS} / {@value #TYP_GUEST} / {@value #TYP_MFA}; {@value #TYP_SUPPORT} dành cho phiên hỗ
+ * trợ chỉ-đọc sắp có) và một {@code jti} ngẫu nhiên. {@link JwtAuthFilter} chỉ nhận loại được phép làm
+ * access token. Token cũ đã phát hành trên production KHÔNG có {@code typ} — {@link #tokenType(Claims)}
+ * coi thiếu {@code typ} là {@value #TYP_ACCESS} nên chúng vẫn chạy tới khi hết hạn.
  */
 @Slf4j
 @Service
 public class JwtService {
+
+    /** Tên claim phân loại token. Thiếu claim = {@link #TYP_ACCESS} (token phát hành trước 09/11/2026). */
+    public static final String CLAIM_TYP = "typ";
+    /** Access token của người dùng đã đăng ký. */
+    public static final String TYP_ACCESS = "access";
+    /** Token khách cho quiz ({@code sub = "guest:<nickname>"}). */
+    public static final String TYP_GUEST = "guest";
+    /** Token thử thách 2FA giữa bước mật khẩu và bước mã — KHÔNG BAO GIỜ là access token. */
+    public static final String TYP_MFA = "mfa";
+    /** Phiên hỗ trợ chỉ-đọc (PR sau). Hiện bị {@link JwtAuthFilter} từ chối trừ khi bật cờ. */
+    public static final String TYP_SUPPORT = "support";
+    /** Tiền tố subject của token thử thách 2FA: {@code "mfa:" + userId}. */
+    public static final String MFA_SUBJECT_PREFIX = "mfa:";
+    /** TTL mặc định của token thử thách 2FA ({@code app.jwt.mfa-token-expiry-ms}). */
+    static final long DEFAULT_MFA_TOKEN_EXPIRY_MS = 300_000L;
 
     /** Khóa dùng để ký token mới — SecretKey (HS256) hoặc RSA PrivateKey (RS256). */
     private final Key signingKey;
@@ -47,10 +70,21 @@ public class JwtService {
     private final List<Key> verifyKeys;
 
     private final long accessTokenExpiryMs;
+    private final long mfaTokenExpiryMs;
     private final String issuer;
     private final String audience;
     private final boolean requireIssAud;
 
+    /** Giữ chữ ký cũ cho test/caller dựng tay — TTL token 2FA lấy mặc định 5 phút. */
+    public JwtService(String primary, String previous, long accessTokenExpiryMs,
+                      String issuer, String audience, boolean requireIssAud,
+                      String algorithm, String rsaPrivateKeyPem, String rsaPublicKeyPem,
+                      String rsaPublicKeyPreviousPem) {
+        this(primary, previous, accessTokenExpiryMs, issuer, audience, requireIssAud, algorithm,
+                rsaPrivateKeyPem, rsaPublicKeyPem, rsaPublicKeyPreviousPem, DEFAULT_MFA_TOKEN_EXPIRY_MS);
+    }
+
+    @Autowired
     public JwtService(
             @Value("${app.jwt.secret}") String primary,
             @Value("${app.jwt.secret-previous:}") String previous,
@@ -61,7 +95,8 @@ public class JwtService {
             @Value("${app.jwt.algorithm:HS256}") String algorithm,
             @Value("${app.jwt.rsa-private-key:}") String rsaPrivateKeyPem,
             @Value("${app.jwt.rsa-public-key:}") String rsaPublicKeyPem,
-            @Value("${app.jwt.rsa-public-key-previous:}") String rsaPublicKeyPreviousPem) {
+            @Value("${app.jwt.rsa-public-key-previous:}") String rsaPublicKeyPreviousPem,
+            @Value("${app.jwt.mfa-token-expiry-ms:300000}") long mfaTokenExpiryMs) {
 
         // Algorithm decides whether the HS256 secret is required. Default HS256 (non-breaking).
         String alg = (algorithm == null ? "HS256" : algorithm.trim().toUpperCase());
@@ -132,6 +167,7 @@ public class JwtService {
         }
 
         this.accessTokenExpiryMs = accessTokenExpiryMs;
+        this.mfaTokenExpiryMs = mfaTokenExpiryMs;
         this.issuer        = issuer;
         this.audience      = audience;
         this.requireIssAud = requireIssAud;
@@ -153,7 +189,9 @@ public class JwtService {
         long now = System.currentTimeMillis();
         long expiryTime = now + accessTokenExpiryMs;
         JwtBuilder builder = Jwts.builder()
+                .id(newJti())
                 .subject(user.getEmail())
+                .claim(CLAIM_TYP, TYP_ACCESS)
                 .claim("role", user.getRole().name())
                 .claim("userId", user.getId())
                 .issuer(issuer)
@@ -179,7 +217,9 @@ public class JwtService {
     /** Guest token cho quiz — TTL tính bằng ms. */
     public String generateGuestToken(String nickname, String pinCode, long ttlMs) {
         return Jwts.builder()
+                .id(newJti())
                 .subject("guest:" + nickname)
+                .claim(CLAIM_TYP, TYP_GUEST)
                 .claim("role", "GUEST")
                 .claim("pinCode", pinCode)
                 .issuer(issuer)
@@ -188,6 +228,49 @@ public class JwtService {
                 .expiration(new Date(System.currentTimeMillis() + ttlMs))
                 .signWith(signingKey)
                 .compact();
+    }
+
+    /**
+     * Token thử thách 2FA: chứng minh người dùng đã qua bước mật khẩu, CHƯA qua bước mã.
+     * {@code typ=mfa}, {@code sub="mfa:"+userId}, KHÔNG có {@code role}/{@code userId}, TTL
+     * {@code app.jwt.mfa-token-expiry-ms} (mặc định 5 phút). {@link JwtAuthFilter} từ chối nó (401) nếu
+     * bị trình như access token; endpoint xác minh mã 2FA (PR sau) sẽ đọc nó qua {@link #extractClaims}.
+     */
+    public String generateMfaChallengeToken(long userId) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .id(newJti())
+                .subject(MFA_SUBJECT_PREFIX + userId)
+                .claim(CLAIM_TYP, TYP_MFA)
+                .issuer(issuer)
+                .audience().add(audience).and()
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + mfaTokenExpiryMs))
+                .signWith(signingKey)
+                .compact();
+    }
+
+    /**
+     * Loại token đã verify. Thiếu claim {@code typ} (hoặc rỗng) → {@value #TYP_ACCESS}: token phát
+     * hành trước khi có claim này vẫn là access/guest token hợp lệ tới khi hết hạn.
+     */
+    public static String tokenType(Claims claims) {
+        Object raw = claims == null ? null : claims.get(CLAIM_TYP);
+        if (raw == null) {
+            return TYP_ACCESS;
+        }
+        String typ = String.valueOf(raw).trim();
+        return typ.isEmpty() ? TYP_ACCESS : typ;
+    }
+
+    /** {@code true} khi token không mang claim {@code typ} (phát hành trước 09/11/2026). */
+    public static boolean isLegacyUntyped(Claims claims) {
+        Object raw = claims == null ? null : claims.get(CLAIM_TYP);
+        return raw == null || String.valueOf(raw).isBlank();
+    }
+
+    private static String newJti() {
+        return UUID.randomUUID().toString();
     }
 
     /**

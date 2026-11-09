@@ -20,9 +20,9 @@ import { SignJWT, exportSPKI, generateKeyPair } from 'jose'
 const ORIGINAL_ENV = { ...process.env }
 const ADMIN_URL = 'https://mydeutschflow.com/v2/admin/'
 
-async function keyAndToken(role: string) {
+async function keyAndToken(role: string, extra: Record<string, unknown> = {}) {
   const { publicKey, privateKey } = await generateKeyPair('RS256', { extractable: true })
-  const token = await new SignJWT({ role })
+  const token = await new SignJWT({ role, ...extra })
     .setProtectedHeader({ alg: 'RS256' })
     .setSubject('hocvien@example.com')
     .setIssuedAt()
@@ -93,6 +93,59 @@ describe('middleware — cổng vai trò /v2 khi có khoá RS256', () => {
     // Nhánh degrade cố ý (backend vẫn gác dữ liệu), nhưng cổng biên mất. Ca này khoá lại ý nghĩa
     // của phép đo: thẻ rác + không refresh trả 200 nghĩa là KHÔNG có khoá, chứ không phải khoá sai.
     expect(res.status).toBe(200)
+  })
+})
+
+describe('middleware — chỉ access token qua cổng biên (claim typ, 09/11/2026)', () => {
+  it('token 2FA (typ=mfa) trong cookie auth_access bị coi là không hợp lệ dù mang role ADMIN', async () => {
+    const { escapedPem, token } = await keyAndToken('ADMIN', { typ: 'mfa' })
+
+    const res = await callAdmin({ JWT_RSA_PUBLIC_KEY: escapedPem }, { auth_access: token })
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/v2/login')
+  })
+
+  it('loại khác access (guest, support, lạ) cũng bị từ chối', async () => {
+    for (const typ of ['guest', 'support', 'refresh']) {
+      const { escapedPem, token } = await keyAndToken('ADMIN', { typ })
+
+      const res = await callAdmin({ JWT_RSA_PUBLIC_KEY: escapedPem }, { auth_access: token })
+
+      expect(res.status, typ).toBe(307)
+      expect(res.headers.get('location'), typ).toContain('/v2/login')
+    }
+  })
+
+  it('access token mới (typ=access) vẫn vào được', async () => {
+    const { escapedPem, token } = await keyAndToken('ADMIN', { typ: 'access', jti: 'abc' })
+
+    const res = await callAdmin({ JWT_RSA_PUBLIC_KEY: escapedPem }, { auth_access: token })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('token cũ không có typ (đã phát hành trên production) vẫn vào được', async () => {
+    const { escapedPem, token } = await keyAndToken('ADMIN')
+
+    const res = await callAdmin({ JWT_RSA_PUBLIC_KEY: escapedPem }, { auth_access: token })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('HS256: token 2FA cũng bị từ chối', async () => {
+    const secret = 'abcdefghijklmnopqrstuvwxyz0123456789abcdef'
+    const token = await new SignJWT({ role: 'ADMIN', typ: 'mfa' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject('mfa:7')
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(new TextEncoder().encode(secret))
+
+    const res = await callAdmin({ JWT_SECRET: secret }, { auth_access: token })
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/v2/login')
   })
 })
 

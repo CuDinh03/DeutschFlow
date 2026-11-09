@@ -26,6 +26,7 @@
 | S14 | EAS init + Sentry (observability) | Mobile | 🔵 | 🧩 SCAFFOLDED (DSN-guarded no-op; activate per PHASE1 doc) |
 | S15 | SSE one-time ticket thay `?access_token=` | Backend+Web | 🟡 | ✅ DONE (SseTicketService + POST /api/sse/ticket + JwtAuthFilter `?ticket=`; 2 web EventSource sites migrated; `?access_token=` kept deprecated for zero-downtime) |
 | S15b | Remove deprecated `?access_token=` from JwtAuthFilter | Backend | 🔵 | 📋 PLANNED (after the web ticket clients are deployed — no SSE client sends access_token in URL anymore) |
+| S15c | SSE ticket chỉ nhận trên GET tới endpoint SSE (allowlist `SseTicketEndpoints`) + JWT có `typ`/`jti` (access/guest/mfa/support), `JwtAuthFilter` từ chối `mfa`/loại lạ, middleware web chỉ nhận `typ=access` | Backend+Web | 🟠 | ✅ DONE 09/11/2026 (token cũ không `typ` = access, vẫn hợp lệ tới khi hết hạn) |
 | S16 | Rate-limit → Redis (multi-node) | Backend | 🟡 | ✅ DONE (AuthRateLimiterService: Redis ZSET sliding-window via atomic Lua, shared across nodes; **degrades to in-memory** if Redis down — no lockout). SSE ticket store still in-memory (single-node SSE) — migrate with SSE if it goes multi-node. |
 | S17 | CSP nonce-based (Report-Only; flip to enforce) | Web | 🟠 | ✅ DONE (nonce in middleware, Report-Only — flip name to enforce) |
 | S18 | RS256 (bỏ chia sẻ secret ký với Amplify) | Backend+Web | 🔵 | 📐 PLAN READY (design + zero-downtime migration in docs/security/RS256_MIGRATION_PLAN.md; awaiting your decisions §9 before code) |

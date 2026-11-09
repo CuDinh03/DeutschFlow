@@ -22,7 +22,14 @@ public class SseTicketController {
 
     private final SseTicketService sseTicketService;
 
-    /** POST /api/sse/ticket → { "ticket": "...", "expiresInSeconds": 60 } */
+    /**
+     * POST /api/sse/ticket → { "ticket": "...", "expiresInSeconds": 60 }
+     *
+     * <p>Ticket chỉ mở được GET tới endpoint SSE trong
+     * {@link com.deutschflow.common.security.SseTicketEndpoints}.
+     * TODO(admin-w2 phiên hỗ trợ chỉ-đọc): ticket mang subject trơn nên mất loại token gốc — khi nhận
+     * token {@code typ=support}, hoặc chặn phát ticket cho phiên hỗ trợ, hoặc lưu loại token cùng ticket.
+     */
     @PostMapping("/ticket")
     public Map<String, Object> issueTicket(@AuthenticationPrincipal User user) {
         String ticket = sseTicketService.issue(user.getEmail());
