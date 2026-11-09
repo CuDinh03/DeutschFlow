@@ -57,8 +57,9 @@ class AdminPasswordResetGuardIntegrationTest extends AbstractPostgresIntegration
         admin = account("pwg-admin", User.Role.ADMIN);
         otherAdmin = account("pwg-admin2", User.Role.ADMIN);
         student = account("pwg-student", User.Role.STUDENT);
-        jdbcTemplate.update("UPDATE users SET push_token = 'ExponentPushToken[pwg]', push_platform = 'ios' WHERE id = ?",
-                student.getId());
+        // push_token có ràng buộc UNIQUE (uq_users_push_token) và DB dùng chung giữa các ca ⇒ mỗi ca một giá trị.
+        jdbcTemplate.update("UPDATE users SET push_token = ?, push_platform = 'ios' WHERE id = ?",
+                "ExponentPushToken[pwg-" + student.getId() + "]", student.getId());
     }
 
     @Test
