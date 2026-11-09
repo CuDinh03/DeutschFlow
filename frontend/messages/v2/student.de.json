@@ -2136,6 +2136,8 @@
         "speakNow": "Sagen Sie etwas",
         "speakerTitle": "Lautsprecher",
         "speakerSub": "Stimme der Prüferin / des Prüfers anhören",
+        "speakerBlocked": "Der Browser hat die Wiedergabe blockiert. Stummschaltung aus, Lautstärke hoch und erneut auf Anhören tippen.",
+        "speakerFailed": "Die Stimme des Prüfers konnte nicht abgespielt werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
         "speakerPlay": "Probe abspielen",
         "quietTitle": "Ruhiger Ort",
         "quietSub": "Lärm verschlechtert die Bewertung der Aussprache",

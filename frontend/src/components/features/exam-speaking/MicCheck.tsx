@@ -36,6 +36,8 @@ export function useMicLevelCheck(onPassed: () => void) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       const ctx = new Ctx()
+      // iOS: AudioContext tạo sau await getUserMedia (ngoài cú chạm) khởi ở 'suspended' → thanh mức âm đứng im.
+      if (ctx.state === 'suspended') void ctx.resume().catch(() => {})
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256
       ctx.createMediaStreamSource(stream).connect(analyser)

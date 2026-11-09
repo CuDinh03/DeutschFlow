@@ -62,7 +62,13 @@ Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về 
   (`SessionPlan.PartPlan.coveredPoints`, không cần migration), trả về `directive.coveredPoints`.
 - Tự dừng khi im (`lib/exam/silenceDetector.ts`): đã nói ≥ 300ms rồi im liền 2 giây thì dừng-và-gửi như bấm tay; chưa
   nói thì không cắt; mức âm phẳng (Safari/iOS chặn AudioContext) thì không tự dừng. Công tắc dưới dòng trạng thái, mặc
-  định bật, nhớ theo máy (`localStorage df.oral.autoStop`).
+  định bật, nhớ theo máy (`localStorage df.oral.autoStop`). Recorder và màn kiểm tra micro gọi `AudioContext.resume()`
+  khi context khởi ở `suspended` (iOS) để thanh mức âm và tự dừng có tín hiệu.
+- Phát giọng giám khảo trên iOS (`examTts.ts`, 09/11/2026): Safari chỉ cho `play()` trong cú chạm, còn `speakExamLine`
+  phải chờ API TTS trước khi phát. Vì vậy mọi câu dùng MỘT thẻ `<audio>` chung, được mở khoá bằng đoạn im lặng ở lần
+  chạm đầu tiên (`unlockExamAudio`: listener toàn trang + gọi tay ở "Nghe thử" và "Vào phòng"). `speakExamLine` trả
+  `played | blocked | failed | skipped`; "Nghe thử" hiện lời nhắc khi `blocked` (tắt chế độ im lặng, tăng âm lượng)
+  hoặc `failed` thay vì im lặng.
 
 ### 1.2 Hiện có cho kỳ thi nào
 

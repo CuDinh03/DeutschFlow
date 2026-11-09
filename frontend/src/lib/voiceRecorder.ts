@@ -192,6 +192,9 @@ export async function startRecorder(
     const Ctx =
       window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     audioCtx = new Ctx()
+    // iOS: context tạo sau await getUserMedia khởi ở 'suspended' → analyser đọc toàn số 0, "Tự dừng khi im"
+    // không bao giờ thấy tiếng nói. Mic đang mở nên Safari cho resume() ở đây.
+    if (audioCtx.state === 'suspended') void audioCtx.resume().catch(() => {})
     const source = audioCtx.createMediaStreamSource(stream)
     const analyser = audioCtx.createAnalyser()
     analyser.fftSize = 256

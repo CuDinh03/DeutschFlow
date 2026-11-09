@@ -29,7 +29,7 @@ vi.mock('@/lib/uiToursApi', () => ({
 
 const perm = vi.hoisted(() => ({ state: 'granted' as string }))
 vi.mock('@/hooks/useMicPermission', () => ({ useMicPermission: () => perm.state }))
-vi.mock('@/components/features/exam-speaking/examTts', () => ({ speakExamLine: vi.fn(() => Promise.resolve()), stopExamTts: vi.fn() }))
+vi.mock('@/components/features/exam-speaking/examTts', () => ({ speakExamLine: vi.fn(() => Promise.resolve('played')), stopExamTts: vi.fn(), unlockExamAudio: vi.fn() }))
 
 function setUrl(search: string) {
   window.history.replaceState(null, '', `/v2/student/mock-exam/oral${search}`)
