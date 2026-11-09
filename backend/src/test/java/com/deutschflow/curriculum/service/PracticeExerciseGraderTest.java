@@ -126,4 +126,15 @@ class PracticeExerciseGraderTest {
         assertThat(PracticeExerciseGrader.grade(mapper, "", Map.of()).gradeable()).isFalse();
         assertThat(PracticeExerciseGrader.grade(mapper, "[not json", Map.of("0", 1)).gradeable()).isFalse();
     }
+
+    @Test
+    @DisplayName("'spoken' only counts for items WITHOUT an answer key — MC / fill / true-false answered 'spoken' are wrong")
+    void spokenSentinelRejectedOnKeyedItems() {
+        var result = PracticeExerciseGrader.grade(mapper, EXERCISES, Map.of(
+                "0", cell("spoken"), "1", cell("spoken"), "2", cell("spoken"), "3", cell("spoken")));
+
+        assertThat(result.total()).isEqualTo(4);
+        assertThat(result.correctCount()).as("chỉ mục nói [3] được tính").isEqualTo(1);
+        assertThat(result.percent()).isEqualTo(25);
+    }
 }
