@@ -78,6 +78,14 @@ describe('notificationDisplay — i18n', () => {
     expect(notifTone('MFA_RECOVERY_CODE_USED')).toBe('red')
   })
 
+  // Phiên hỗ trợ chỉ-đọc (V370): người dùng được báo khi đội hỗ trợ xem tài khoản — lối về Hồ sơ → Bảo mật.
+  it('nhãn + lối đi của thông báo ADMIN_SUPPORT_VIEW', () => {
+    expect(notifTitle(item('ADMIN_SUPPORT_VIEW'), tVi)).toBe('Đội hỗ trợ đã xem tài khoản')
+    expect(notifTitle(item('ADMIN_SUPPORT_VIEW'), tDe)).toBe('Der Support hat Ihr Konto angesehen')
+    expect(TYPE_ICON.ADMIN_SUPPORT_VIEW).toBe('visibility')
+    expect(resolveNotificationHref(item('ADMIN_SUPPORT_VIEW'), 'student')).toBe('/v2/profile?tab=security')
+  })
+
   it('không có translator thì giữ hành vi tiếng Việt cũ', () => {
     expect(notifTitle(item('LEVEL_UP'))).toBe('Lên cấp độ')
     expect(dayBucket(new Date().toISOString())).toBe('Hôm nay')

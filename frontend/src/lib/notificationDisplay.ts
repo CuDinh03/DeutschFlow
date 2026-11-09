@@ -50,6 +50,8 @@ export const TYPE_ICON: Record<string, string> = {
   MFA_RECOVERY_CODE_USED: 'lock_open',
   MFA_RECOVERY_CODES_LOW: 'warning',
   MFA_RESET_BY_ADMIN: 'lock_open',
+  // Phiên hỗ trợ chỉ-đọc (V370) — đội hỗ trợ đã mở chế độ xem tài khoản của người nhận.
+  ADMIN_SUPPORT_VIEW: 'visibility',
 }
 
 /**
@@ -114,6 +116,7 @@ export const TYPE_LABEL: Record<string, string> = {
   MFA_RECOVERY_CODE_USED: 'Đã dùng mã khôi phục',
   MFA_RECOVERY_CODES_LOW: 'Sắp hết mã khôi phục',
   MFA_RESET_BY_ADMIN: 'Xác thực hai lớp đã được đặt lại',
+  ADMIN_SUPPORT_VIEW: 'Đội hỗ trợ đã xem tài khoản',
 }
 
 
@@ -217,6 +220,9 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
     case 'MFA_RESET_BY_ADMIN':
       // 2FA: trạng thái + "Tạo mã khôi phục mới" nằm ở Hồ sơ → Bảo mật.
       return '/v2/profile'
+    case 'ADMIN_SUPPORT_VIEW':
+      // Phiên hỗ trợ chỉ-đọc: lịch sử nằm ở Hồ sơ → Bảo mật → Hoạt động bảo mật.
+      return '/v2/profile?tab=security'
     case 'CERTIFICATE_ISSUED':
       return '/v2/student/certificates'
     case 'REVIEW_DUE':

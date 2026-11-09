@@ -1,3 +1,5 @@
+import { isSupportMode } from '@/lib/authSession'
+
 // Push notification registration for the (retired) Capacitor native build — S20b.
 //
 // No-op on the web build: the canonical native app is the Expo `mobile/` client, which handles
@@ -6,5 +8,7 @@
 
 /** No-op on web — native Capacitor push was retired. */
 export async function registerPushNotifications(): Promise<void> {
+  // Nếu đường này sống lại: tab phiên hỗ trợ chỉ-đọc KHÔNG BAO GIỜ được đăng ký push thay người dùng.
+  if (isSupportMode()) return
   // no-op
 }

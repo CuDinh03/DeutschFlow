@@ -627,6 +627,23 @@
           "detailAudit": "The action is recorded in the audit log with your reason.",
           "confirm": "Reset 2FA",
           "cancel": "Cancel"
+        },
+        "supportView": {
+          "button": "View as user",
+          "started": "Opened the view-as-user tab",
+          "ended": "Support view ended",
+          "activeUntil": "Read-only view in progress (until {time})",
+          "end": "End",
+          "confirm": {
+            "title": "Open view-as-user mode?",
+            "description": "You will see the app as {name} sees it, in a new tab.",
+            "detailLimits": "30 minutes · read-only · the user will be notified",
+            "detailBlocked": "All write actions, payments and AI features are blocked",
+            "detailAudit": "The session is logged with your reason and every page opened",
+            "reasonLabel": "Reason (at least 15 characters)",
+            "confirm": "Open view tab",
+            "cancel": "Cancel"
+          }
         }
       },
       "create": {

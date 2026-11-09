@@ -627,6 +627,23 @@
           "detailAudit": "Thao tác được ghi vào nhật ký kèm lý do.",
           "confirm": "Đặt lại 2FA",
           "cancel": "Hủy"
+        },
+        "supportView": {
+          "button": "Xem như người dùng",
+          "started": "Đã mở tab xem như người dùng",
+          "ended": "Đã kết thúc phiên xem",
+          "activeUntil": "Đang có phiên xem chỉ đọc (đến {time})",
+          "end": "Kết thúc",
+          "confirm": {
+            "title": "Mở chế độ xem như người dùng?",
+            "description": "Bạn sẽ thấy ứng dụng như {name} thấy, trong một tab mới.",
+            "detailLimits": "30 phút · chỉ đọc · người dùng sẽ được thông báo",
+            "detailBlocked": "Mọi thao tác ghi, thanh toán và tính năng AI đều bị chặn",
+            "detailAudit": "Phiên được ghi nhật ký kèm lý do và mọi trang đã mở",
+            "reasonLabel": "Lý do (tối thiểu 15 ký tự)",
+            "confirm": "Mở tab xem",
+            "cancel": "Huỷ"
+          }
         }
       },
       "create": {

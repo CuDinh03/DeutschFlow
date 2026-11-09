@@ -290,7 +290,8 @@
       "MFA_ENABLED": "Two-factor authentication enabled",
       "MFA_RECOVERY_CODE_USED": "Recovery code used",
       "MFA_RECOVERY_CODES_LOW": "Running out of recovery codes",
-      "MFA_RESET_BY_ADMIN": "Two-factor authentication was reset"
+      "MFA_RESET_BY_ADMIN": "Two-factor authentication was reset",
+      "ADMIN_SUPPORT_VIEW": "Support viewed your account"
     }
   },
   "inbox": {
@@ -332,5 +333,18 @@
     "fixSuspended": "Contact DeutschFlow system administration to reactivate the centre.",
     "tooltipExpired": "Licence expired — read-only, nothing new can be created. Pay the invoice to reopen.",
     "tooltipSuspended": "Centre suspended — read-only, nothing new can be created. Contact system administration to reopen."
+  },
+  "supportSession": {
+    "bannerViewing": "Viewing the account of {name} ({email})",
+    "bannerReadOnly": "read-only",
+    "bannerRemaining": "{time} left",
+    "end": "End",
+    "ended": "The support session has ended",
+    "endedBody": "The support token has been revoked. Close this tab and go back to the admin console.",
+    "close": "Close tab",
+    "redeeming": "Opening the support session…",
+    "redeemFailed": "Could not open the support session",
+    "redeemFailedBody": "The link is invalid, already used or expired (60 seconds). Close this tab and click \"View as user\" again in the admin console.",
+    "missingCode": "Support session code missing"
   }
 }

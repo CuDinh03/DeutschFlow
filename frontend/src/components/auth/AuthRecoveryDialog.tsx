@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
-import { clearTokens } from '@/lib/authSession'
+import { clearTokens, isSupportMode, markSupportSessionEnded } from '@/lib/authSession'
 import { cn } from '@/components/ui/utils'
 
 /** Hai bề mặt đăng nhập của v2 — đá chúng về /v2/login là tự đá vào chính nó. */
@@ -59,6 +59,12 @@ export function AuthRecoveryDialog() {
             onClick={() => {
               if (acknowledged) return
               setAcknowledged(true)
+              if (isSupportMode()) {
+                // Tab phiên hỗ trợ: không xoá phiên/cookie của admin, không về /v2/login — chỉ kết thúc chế độ hỗ trợ.
+                markSupportSessionEnded()
+                resolve()
+                return
+              }
               clearTokens()
               resolve()
               if (requiresLogin(pathname)) {

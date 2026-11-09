@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { PostHog } from 'posthog-js'
+import { isSupportMode } from '@/lib/authSession'
 
 /**
  * Cửa duy nhất tới PostHog trên web (đợt A tốc độ trang chủ, 26/10/2026).
@@ -27,6 +28,8 @@ const readyListeners = new Set<(ph: PostHog) => void>()
 
 /** Chạy `task` với PostHog đã init; chưa sẵn sàng thì xếp hàng (bỏ bớt khi hàng đầy). */
 export function withPostHog(task: Task): void {
+  // Tab phiên hỗ trợ chỉ-đọc: ADMIN đang xem như người dùng — không identify/capture gì dưới danh tính họ.
+  if (isSupportMode()) return
   if (instance) {
     task(instance)
     return
@@ -45,6 +48,8 @@ export function getPostHog(): PostHog | null {
  * được làm hỏng trang.
  */
 export function loadPostHog(init: (ph: PostHog) => void): Promise<PostHog | null> {
+  // Tab phiên hỗ trợ: KHÔNG init PostHog (không pageview, không ghi phiên, không autocapture).
+  if (isSupportMode()) return Promise.resolve(null)
   if (instance) return Promise.resolve(instance)
   if (loading) return loading
   loading = import('posthog-js')

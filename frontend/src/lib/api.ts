@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type AxiosResponse } from 'axios'
-import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform, clearTokens } from '@/lib/authSession'
+import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform, clearTokens, isSupportMode, markSupportSessionEnded } from '@/lib/authSession'
+import { toast } from 'sonner'
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 import { isMaintenanceError, maintenanceInfoFromProblem } from '@/lib/systemStatus'
@@ -36,6 +37,19 @@ export function isMfaRequired(e: unknown): boolean {
   return httpStatus(e) === 401 && problemCode(e) === 'MFA_REQUIRED'
 }
 
+/** Mã 403 của phiên hỗ trợ chỉ-đọc (admin xem như người dùng) — thao tác bị chặn, KHÔNG phải mất phiên. */
+export const SUPPORT_SESSION_READ_ONLY = 'SUPPORT_SESSION_READ_ONLY'
+
+/** 403 vì phiên hỗ trợ chỉ đọc — hiện toast, không coi là lỗi xác thực. */
+export function isSupportReadOnly(e: unknown): boolean {
+  return httpStatus(e) === 403 && problemCode(e) === SUPPORT_SESSION_READ_ONLY
+}
+
+/** Toast "chế độ hỗ trợ chỉ đọc" — gộp một toast (id cố định) dù nhiều request bị chặn cùng lúc. */
+export function notifySupportReadOnly(): void {
+  toast.error(FALLBACK[currentUiLocale()].supportReadOnly, { id: 'support-session-read-only' })
+}
+
 /**
  * Thông điệp lỗi thân thiện cho người dùng.
  *
@@ -69,7 +83,7 @@ export function apiMessage(e: unknown): string {
  * 06/09/2026). Module này chạy ngoài React nên không dùng useTranslations; bảng nhỏ giữ tại chỗ.
  * (Thông điệp backend vẫn tiếng Việt — F-I18N-03, chờ quyết định owner.)
  */
-const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; failed: string; unknown: string; reauth: string }> = {
+const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; failed: string; unknown: string; reauth: string; supportReadOnly: string }> = {
   vi: {
     slow: 'Kết nối chậm — máy chủ có thể vẫn đang xử lý. Thử lại sau ít giây.',
     offline: 'Mất kết nối mạng. Kiểm tra đường truyền rồi thử lại.',
@@ -77,6 +91,7 @@ const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; 
     failed: 'Yêu cầu không thực hiện được, vui lòng thử lại.',
     unknown: 'Lỗi không xác định',
     reauth: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    supportReadOnly: 'Chế độ hỗ trợ chỉ đọc — không thực hiện được thao tác này',
   },
   en: {
     slow: 'Slow connection — the server may still be processing. Try again in a few seconds.',
@@ -85,6 +100,7 @@ const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; 
     failed: 'The request could not be completed, please try again.',
     unknown: 'Unknown error',
     reauth: 'Your session has expired. Please sign in again.',
+    supportReadOnly: 'Read-only support mode — this action is not available',
   },
   de: {
     slow: 'Langsame Verbindung — der Server verarbeitet die Anfrage möglicherweise noch. Versuchen Sie es in ein paar Sekunden erneut.',
@@ -93,6 +109,7 @@ const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; 
     failed: 'Die Anfrage konnte nicht ausgeführt werden, bitte erneut versuchen.',
     unknown: 'Unbekannter Fehler',
     reauth: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
+    supportReadOnly: 'Schreibgeschützter Support-Modus — diese Aktion ist nicht möglich',
   },
 }
 
@@ -283,6 +300,12 @@ let refreshPromise: Promise<AxiosResponse<RefreshResponseData>> | null = null
  *    nguyên, latch tự nhả ở request có token kế tiếp) → caller tự quyết backoff.
  */
 export async function refreshAccessToken(): Promise<string | null> {
+  if (isSupportMode()) {
+    // Tab hỗ trợ KHÔNG BAO GIỜ refresh: cookie refresh_token là của admin (dùng chung) — refresh sẽ biến tab
+    // này thành một phiên admin. Token support hết/hỏng = phiên hỗ trợ đã kết thúc.
+    markSupportSessionEnded()
+    return null
+  }
   if (sessionInvalid) {
     notifyAuthRecovery()
     return null
@@ -338,6 +361,10 @@ export async function refreshAccessToken(): Promise<string | null> {
  * trang). Bật latch để mọi request song song không lao vào refresh — refresh cũng sẽ bị từ chối.
  */
 function forceMfaRelogin(): void {
+  if (isSupportMode()) {
+    markSupportSessionEnded()
+    return
+  }
   sessionInvalid = true
   clearTokens()
   if (typeof window === 'undefined') return
@@ -351,6 +378,16 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
+    if (isSupportReadOnly(error)) {
+      notifySupportReadOnly()
+      return Promise.reject(error)
+    }
+    if (isSupportMode() && error.response?.status === 401) {
+      // Phiên hỗ trợ đã kết thúc/hết hạn/bị thu hồi: hiện trạng thái "đã kết thúc", không refresh, không
+      // đưa về /v2/login (cookie admin vẫn còn ở đó).
+      markSupportSessionEnded()
+      return Promise.reject(error)
+    }
     if (isMfaRequired(error)) {
       forceMfaRelogin()
       return Promise.reject(error)
