@@ -74,4 +74,27 @@ public class DemoDataFilter {
         String idCsv = demoUserIds.stream().map(String::valueOf).collect(Collectors.joining(","));
         return "(user_id IS NULL OR user_id NOT IN (" + idCsv + "))";
     }
+
+    /**
+     * Predicate nối bằng {@code AND} loại các TRUNG TÂM demo trên cột {@code orgIdColumn} (vd
+     * {@code org_id} của {@code org_invoices}) — đợt 1 admin, 09/11/2026: doanh thu B2B không được
+     * cộng hoá đơn của trung tâm sandbox bán hàng.
+     *
+     * <p>Trung tâm demo = trung tâm có ít nhất một tài khoản thuộc domain demo ({@code users.org_id}).
+     * Trung tâm thật không bao giờ chứa tài khoản {@code @deutschflow-demo.com}. Trả {@code ""} khi tắt
+     * hoặc không có trung tâm demo. {@code orgIdColumn} là hằng số trong code, không phải input.
+     */
+    public String andExcludeDemoOrgs(String orgIdColumn) {
+        if (!enabled || emailPattern.isEmpty()) {
+            return "";
+        }
+        List<Long> demoOrgIds = jdbcTemplate.queryForList(
+                "SELECT DISTINCT org_id FROM users WHERE email ILIKE ? AND org_id IS NOT NULL",
+                Long.class, emailPattern);
+        if (demoOrgIds.isEmpty()) {
+            return "";
+        }
+        String idCsv = demoOrgIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        return " AND (" + orgIdColumn + " IS NULL OR " + orgIdColumn + " NOT IN (" + idCsv + "))";
+    }
 }

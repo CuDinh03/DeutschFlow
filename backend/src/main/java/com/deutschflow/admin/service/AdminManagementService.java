@@ -246,6 +246,22 @@ public class AdminManagementService {
         Instant now = Instant.now();
         Instant startsAt = parseInstantOrDefault(startsAtIso, now);
         Instant endsAt = endsAtIso == null || endsAtIso.isBlank() ? null : parseInstantOrDefault(endsAtIso, null);
+        if (endsAt != null && !endsAt.isAfter(startsAt)) {
+            throw new BadRequestException("endsAtUtc must be after startsAtUtc");
+        }
+
+        // Đợt 1 admin (09/11/2026): chụp trạng thái TRƯỚC khi ghi đè — gói đang ACTIVE và số dư ví
+        // như đang lưu. Hai thứ dưới đây bị kết thúc / ghi đè / xoá không lấy lại được, nên vết đổi
+        // gói phải mang chúng thì admin mới có căn cứ hoàn tác bằng tay.
+        List<String> previousPlans = jdbcTemplate.queryForList("""
+                SELECT plan_code FROM user_subscriptions
+                WHERE user_id = ? AND status = 'ACTIVE'
+                ORDER BY starts_at DESC, id DESC
+                """, String.class, userId);
+        List<Long> previousBalances = jdbcTemplate.queryForList(
+                "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
+        String previousPlanCode = previousPlans.isEmpty() ? null : previousPlans.get(0);
+        Long previousWalletBalance = previousBalances.isEmpty() ? null : previousBalances.get(0);
 
         // End existing ACTIVE subscriptions by setting ends_at = startsAt and status=ENDED.
         jdbcTemplate.update("""
@@ -295,6 +311,9 @@ public class AdminManagementService {
         out.put("monthlyTokenLimitOverride", monthlyTokenLimitOverride);
         out.put("startsAtUtc", startsAt);
         out.put("endsAtUtc", endsAt);
+        out.put("previousPlanCode", previousPlanCode);
+        out.put("previousWalletBalance", previousWalletBalance);
+        out.put("previousActiveSubscriptions", previousPlans.size());
         return out;
     }
 
@@ -1126,7 +1145,7 @@ public class AdminManagementService {
         return out;
     }
 
-    private static String classifyQuotaKind(QuotaSnapshot snap) {
+    static String classifyQuotaKind(QuotaSnapshot snap) {
         if (snap.unlimitedInternal()) {
             return "INTERNAL_UNLIMITED";
         }

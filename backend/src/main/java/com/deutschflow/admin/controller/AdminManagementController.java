@@ -1,6 +1,10 @@
 package com.deutschflow.admin.controller;
 
 import com.deutschflow.admin.service.AdminManagementService;
+import com.deutschflow.admin.service.AdminUserDirectoryService;
+import com.deutschflow.admin.dto.AdminUserDirectoryDtos.UserProfile;
+import com.deutschflow.admin.dto.AdminUserDirectoryDtos.UserSearchPage;
+import com.deutschflow.admin.dto.AdminUserDirectoryDtos.UserStats;
 import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
 import com.deutschflow.user.dto.AdminUpdateProfileRequest;
 import com.deutschflow.notification.service.UserNotificationService;
@@ -53,6 +57,7 @@ public class AdminManagementController {
     private static final Set<String> VALID_CEFR_LEVELS = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
 
     private final AdminManagementService adminManagementService;
+    private final AdminUserDirectoryService adminUserDirectoryService;
     private final GoetheVocabularyAutoImportService goetheVocabularyAutoImportService;
     private final GlosbeVocabularyImportService glosbeVocabularyImportService;
     private final GlosbeViEnrichmentService glosbeViEnrichmentService;
@@ -199,15 +204,62 @@ public class AdminManagementController {
     public Map<String, Object> auditLogs(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String cat,
+            @RequestParam(required = false) Long targetUserId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size
     ) {
-        return auditLogService.readAuditLogs(q, cat, page, size);
+        return auditLogService.readAuditLogs(q, cat, targetUserId, page, size);
     }
 
+    /**
+     * @deprecated 09/11/2026 — trả CẢ bảng và tra quota từng người (~4N+2 truy vấn). Dùng
+     * {@code GET /users/search} (phân trang server) và {@code GET /users/stats} (KPI). Giữ thêm một
+     * đợt cho frontend chưa chuyển.
+     */
+    @Deprecated
     @GetMapping("/users")
     public List<Map<String, Object>> users() {
         return adminManagementService.listUsers();
+    }
+
+    /**
+     * Danh sách người dùng có lọc, sắp xếp, phân trang trên server (đợt 1 admin, 09/11/2026).
+     * {@code page} đánh số từ 0; {@code size} kẹp 1..100; giá trị lọc/sort lạ → 400.
+     */
+    @GetMapping("/users/search")
+    public UserSearchPage searchUsers(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String plan,
+            @RequestParam(required = false) String org,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return adminUserDirectoryService.search(
+                new AdminUserDirectoryService.Criteria(q, role, status, plan, org, sort, page, size));
+    }
+
+    /** KPI người dùng đếm trên cả bảng (theo vai trò, khoá, dùng AI 30 ngày, top 8). */
+    @GetMapping("/users/stats")
+    public UserStats userStats() {
+        return adminUserDirectoryService.stats();
+    }
+
+    /** Phần đầu trang hồ sơ một người dùng. Ghi vết đọc vào sổ của trung tâm người đó (DEC-13). */
+    @GetMapping("/users/{userId}")
+    public UserProfile userProfile(@PathVariable Long userId, Authentication authentication) {
+        UserProfile profile = adminUserDirectoryService.profile(userId);
+        auditRead(() -> auditLogService.log(
+                "admin.user.profile.read",
+                AuditActor.ofAuthentication(authentication),
+                "USER",
+                String.valueOf(userId),
+                auditOrgResolver.forUser(userId),
+                Map.of()
+        ));
+        return profile;
     }
 
     /** Admin tạo tài khoản mới (mọi vai trò). Tùy chọn gán vào tổ chức (TEACHER|MANAGER). */
@@ -255,18 +307,23 @@ public class AdminManagementController {
         if (actor != null && actor.getId().equals(userId) && Boolean.FALSE.equals(req.active())) {
             throw new BadRequestException("Bạn không thể tự khóa tài khoản của mình.");
         }
+        // Đợt 1 (09/11/2026): KHOÁ bắt buộc lý do (cắt mọi phiên đang chạy của người đó); mở khoá thì không.
+        String reason = Boolean.FALSE.equals(req.active()) ? requireReason(req.reason()) : optionalReason(req.reason());
         // Tra tổ chức TRƯỚC khi gọi service — nếp chung cho cả nhóm đường admin chạm một người, để
         // không phải xét lại từng đường xem service có gỡ người khỏi trung tâm hay không. Khoá tài
         // khoản cắt sạch phiên đang chạy, nên giám đốc phải thấy lần nhân sự của mình bị nền tảng khoá.
         Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.setUserActive(userId, req.active());
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("active", req.active());
+        putReason(meta, reason);
         auditLogService.log(
                 req.active() ? "admin.user.reactivated" : "admin.user.deactivated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
                 touchedOrgId,
-                Map.of("active", req.active())
+                meta
         );
         return updated;
     }
@@ -282,15 +339,19 @@ public class AdminManagementController {
         // tính người đó — không có bước nào khác chặn lại, và endpoint này KHÔNG gửi thông báo cho
         // người bị đổi (khác createUser và updatePlan). Vết vì vậy là chứng cứ duy nhất, và nó phải
         // rơi vào sổ của trung tâm NGƯỜI BỊ ĐỔI chứ không phải sổ trống của admin nền tảng.
+        // Đợt 1 (09/11/2026): bắt buộc lý do — vết là chứng cứ duy nhất nên phải trả lời được "vì sao".
+        String reason = requireReason(req.reason());
         Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.setUserPassword(userId, req.password());
+        Map<String, Object> meta = new LinkedHashMap<>();
+        putReason(meta, reason);
         auditLogService.log(
                 "admin.user.password.reset",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
                 touchedOrgId,
-                Map.of()
+                meta
         );
         return updated;
     }
@@ -313,22 +374,30 @@ public class AdminManagementController {
                 && !"ADMIN".equalsIgnoreCase(req.role() == null ? "" : req.role().trim())) {
             throw new BadRequestException("Bạn không thể tự bỏ quyền quản trị của chính mình.");
         }
+        // Đợt 1 (09/11/2026): cấp hoặc bỏ quyền ADMIN bắt buộc lý do; đổi giữa các vai thường thì không.
+        String targetRole = req.role() == null ? "" : req.role().trim().toUpperCase(java.util.Locale.ROOT);
+        List<String> currentRoles = jdbcTemplate.queryForList(
+                "SELECT role FROM users WHERE id = ?", String.class, userId);
+        boolean touchesAdmin = "ADMIN".equals(targetRole)
+                || (!currentRoles.isEmpty() && "ADMIN".equalsIgnoreCase(currentRoles.get(0)));
+        String reason = touchesAdmin ? requireReason(req.reason()) : optionalReason(req.reason());
         // Tra tổ chức TRƯỚC khi gọi service, cùng một nếp với setUserActive: các đường gỡ người khỏi
         // trung tâm xoá users.org_id, tra sau là tra vào chỗ đã trống. Riêng đường này service từ
         // chối thẳng người đang là thành viên ACTIVE (để org_members khỏi lệch), nên org đọc được ở
         // đây là của người còn org_id mà tư cách thành viên đã ngưng — vẫn là người của trung tâm đó.
         Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.updateUserRole(userId, req.role());
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("oldRole", String.valueOf(updated.get("previousRole")));
+        meta.put("newRole", String.valueOf(updated.get("role")));
+        putReason(meta, reason);
         auditLogService.log(
                 "admin.user.role.updated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
                 touchedOrgId,
-                Map.of(
-                        "oldRole", String.valueOf(updated.get("previousRole")),
-                        "newRole", String.valueOf(updated.get("role"))
-                )
+                meta
         );
         return updated;
     }
@@ -341,6 +410,9 @@ public class AdminManagementController {
     ) {
         // Gói và hạn mức token của một học viên trong trung tâm là dữ liệu vận hành của trung tâm
         // đó; giám đốc cần thấy lần nền tảng chỉnh tay.
+        // Đợt 1 (09/11/2026): bắt buộc lý do — đổi gói kết thúc mọi gói ACTIVE và ghi đè/xoá ví token,
+        // không hoàn tác được; vết mang thêm gói cũ + số dư cũ (service chụp trước khi ghi đè).
+        String reason = requireReason(req.reason());
         Long touchedOrgId = auditOrgResolver.forUser(userId);
         Map<String, Object> updated = adminManagementService.updateUserPlan(
                 userId,
@@ -349,18 +421,21 @@ public class AdminManagementController {
                 req.startsAtUtc(),
                 req.endsAtUtc()
         );
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("planCode", String.valueOf(updated.get("planCode")));
+        meta.put("monthlyTokenLimitOverride", String.valueOf(updated.get("monthlyTokenLimitOverride")));
+        meta.put("startsAtUtc", String.valueOf(updated.get("startsAtUtc")));
+        meta.put("endsAtUtc", String.valueOf(updated.get("endsAtUtc")));
+        meta.put("previousPlanCode", String.valueOf(updated.get("previousPlanCode")));
+        meta.put("previousWalletBalance", String.valueOf(updated.get("previousWalletBalance")));
+        putReason(meta, reason);
         auditLogService.log(
                 "admin.user.plan.updated",
                 AuditActor.ofAuthentication(authentication),
                 "USER",
                 String.valueOf(userId),
                 touchedOrgId,
-                Map.of(
-                        "planCode", String.valueOf(updated.get("planCode")),
-                        "monthlyTokenLimitOverride", String.valueOf(updated.get("monthlyTokenLimitOverride")),
-                        "startsAtUtc", String.valueOf(updated.get("startsAtUtc")),
-                        "endsAtUtc", String.valueOf(updated.get("endsAtUtc"))
-                )
+                meta
         );
         User adminActor = authentication != null ? (User) authentication.getPrincipal() : null;
         if (adminActor != null) {
@@ -1123,7 +1198,8 @@ public class AdminManagementController {
         return Map.of("byLevel", byLevel, "totals", totals);
     }
 
-    public record UpdateRoleRequest(@NotBlank(message = "role is required") String role) {}
+    /** {@code reason}: bắt buộc khi cấp hoặc bỏ quyền ADMIN, 10–500 ký tự. */
+    public record UpdateRoleRequest(@NotBlank(message = "role is required") String role, String reason) {}
 
     public record CreateUserRequest(
             @NotBlank(message = "email is required") String email,
@@ -1135,15 +1211,52 @@ public class AdminManagementController {
             String orgRole
     ) {}
 
-    public record SetActiveRequest(@NotNull(message = "active is required") Boolean active) {}
+    /** {@code reason}: bắt buộc khi khoá ({@code active=false}), 10–500 ký tự. */
+    public record SetActiveRequest(@NotNull(message = "active is required") Boolean active, String reason) {}
 
-    public record SetPasswordRequest(@NotBlank(message = "password is required") String password) {}
+    /** {@code reason}: bắt buộc, 10–500 ký tự. */
+    public record SetPasswordRequest(@NotBlank(message = "password is required") String password, String reason) {}
+
+    /** {@code reason}: bắt buộc, 10–500 ký tự. */
     public record UpdatePlanRequest(
             @NotBlank(message = "planCode is required") String planCode,
             Long monthlyTokenLimitOverride,
             String startsAtUtc,
-            String endsAtUtc
+            String endsAtUtc,
+            String reason
     ) {}
+
+    // ── Lý do bắt buộc cho thao tác nhạy cảm (đợt 1 admin, 09/11/2026) ──────────
+    //
+    // Bốn thao tác không hoàn tác được hoặc chạm danh tính: khoá tài khoản, đặt lại mật khẩu,
+    // cấp/bỏ quyền ADMIN, đổi gói. Kiểm ở controller TRƯỚC khi gọi service để thiếu lý do thì không
+    // có gì bị ghi. Lý do vào metadata của vết ({@code reason}) — giám đốc trung tâm đọc được (DEC-13).
+
+    static final int REASON_MIN = 10;
+    static final int REASON_MAX = 500;
+
+    static String requireReason(String raw) {
+        String r = raw == null ? "" : raw.trim();
+        if (r.length() < REASON_MIN || r.length() > REASON_MAX) {
+            throw new BadRequestException(
+                    "Thao tác này cần lý do " + REASON_MIN + "–" + REASON_MAX + " ký tự (reason).");
+        }
+        return r;
+    }
+
+    /** Lý do không bắt buộc: có thì vẫn kiểm độ dài và ghi vào vết. */
+    static String optionalReason(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return requireReason(raw);
+    }
+
+    private static void putReason(Map<String, Object> meta, String reason) {
+        if (reason != null) {
+            meta.put("reason", reason);
+        }
+    }
 
     public record BulkAssignStudentsRequest(
             List<Long> studentIds

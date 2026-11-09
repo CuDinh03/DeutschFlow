@@ -30,7 +30,16 @@ public class AuditLogService {
      * @return envelope {@code {items: List<AuditLogDto>, total, page, size}}
      */
     public Map<String, Object> readAuditLogs(String q, String cat, int page, int size) {
-        return read(null, q, cat, page, size);
+        return read(null, null, q, cat, page, size);
+    }
+
+    /**
+     * Như {@link #readAuditLogs} nhưng chỉ những vết có ĐỐI TƯỢNG là một người dùng cụ thể
+     * ({@code target_type = 'USER' AND target_id = ?}) — tab "Nhật ký" của hồ sơ người dùng admin
+     * (đợt 1, 09/11/2026). {@code targetUserId == null} = không lọc.
+     */
+    public Map<String, Object> readAuditLogs(String q, String cat, Long targetUserId, int page, int size) {
+        return read(null, targetUserId, q, cat, page, size);
     }
 
     /**
@@ -45,10 +54,10 @@ public class AuditLogService {
         if (orgId == null) {
             throw new IllegalArgumentException("orgId is required");
         }
-        return read(orgId, q, cat, page, size);
+        return read(orgId, null, q, cat, page, size);
     }
 
-    private Map<String, Object> read(Long orgId, String q, String cat, int page, int size) {
+    private Map<String, Object> read(Long orgId, Long targetUserId, String q, String cat, int page, int size) {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int safePage = Math.max(page, 0);
 
@@ -57,6 +66,10 @@ public class AuditLogService {
         if (orgId != null) {
             where.append(" AND org_id = ?");
             args.add(orgId);
+        }
+        if (targetUserId != null) {
+            where.append(" AND target_type = 'USER' AND target_id = ?");
+            args.add(String.valueOf(targetUserId));
         }
         if (cat != null && !cat.isBlank()) {
             where.append(" AND target_type = ?");
