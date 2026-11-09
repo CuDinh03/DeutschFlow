@@ -89,3 +89,13 @@ export interface StudioStepProps {
   /** Gọi một thao tác trả Draft; tự cập nhật state, báo lỗi bằng toast. Trả true nếu thành công. */
   run: (fn: () => Promise<StudioDraft>, okMessage?: string) => Promise<boolean>
 }
+
+/** Cảnh báo chống trùng không chặn (`draft.warnings`) — mỗi dòng một banner vàng. */
+export function WarningsBanner({ warnings }: { warnings: string[] | null | undefined }) {
+  if (!warnings || warnings.length === 0) return null
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {warnings.map((w, i) => <li key={i}><Note tone="yellow">{w}</Note></li>)}
+    </ul>
+  )
+}

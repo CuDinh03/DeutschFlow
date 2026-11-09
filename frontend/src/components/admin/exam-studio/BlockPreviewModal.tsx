@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
 import { getBlock, type StudioText } from '@/lib/adminExamStudioApi'
-import { isMatchHeadline } from '@/lib/examStudioLogic'
+import { isMatchHeadline, teilKind, type TeilKind } from '@/lib/examStudioLogic'
 import { ErrorBanner, LoadingState, TkModal, GaBtn } from '@/components/ui-v2'
 import { TeilPreview, type PreviewItem, type PreviewLayout } from './TeilPreview'
 
@@ -22,6 +22,61 @@ export interface BlockPreview {
   /** T1: bảng 10 tiêu đề a–j của content. */
   headlines: Record<string, string> | null
   startNumber: number
+  /** Sprachbausteine: thư có ô `___21___`. */
+  gappedText: string | null
+}
+
+const strMap = (v: unknown): Record<string, string> => {
+  const r = rec(v)
+  const out: Record<string, string> = {}
+  for (const k of Object.keys(r).sort()) out[k] = str(r[k])
+  return out
+}
+
+/**
+ * Content kho của các Teil soạn theo tình huống (khuôn đề telc thật, snake_case — SituationalTeile.content):
+ * - MATCH_AD_X: `examples` [{label, situation, answer}], `ads` {a..l}, `allow_none`, items[].question;
+ * - GAP_MC: `gapped_text` có `___21___`, items[].gap + options;
+ * - GAP_WORDBANK: `stimulus_ad`, `word_bank` {a..o}, `gapped_text`, items[].gap + correct;
+ * - WRITE_EMAIL: `stimulus` {from, subject, body}, `writing_points`.
+ */
+function situationalPreview(kind: TeilKind, content: Record<string, unknown>): BlockPreview {
+  const itemsRaw = Array.isArray(content.items) ? content.items : []
+  const items: PreviewItem[] = itemsRaw.map((raw, i) => {
+    const r = rec(raw)
+    const gap = r.gap != null ? String(r.gap) : null
+    return {
+      id: str(r.id) || String(i),
+      question: str(r.question),
+      options: strMap(r.options),
+      correct: str(r.correct ?? r.answer) || null,
+      explanationVi: str(r.explanationVi ?? r.explanation_vi) || null,
+      meta: gap ? { gap } : null,
+    }
+  })
+  const examplesRaw = Array.isArray(content.examples) ? content.examples : []
+  const st = rec(content.stimulus)
+  const text: StudioText = {
+    titleDe: '', vorspannDe: '', context: '', glossary: [],
+    ads: kind === 'MATCH_AD_X' ? strMap(content.ads) : null,
+    examples: examplesRaw.map((e) => {
+      const r = rec(e)
+      return { label: str(r.label), situation: str(r.situation), answer: str(r.answer) }
+    }),
+    stimulusAd: str(content.stimulus_ad ?? content.stimulusAd) || null,
+    wordBank: kind === 'GAP_WORDBANK' ? strMap(content.word_bank ?? content.wordBank) : null,
+    stimulus: kind === 'WRITE_EMAIL'
+      ? { type: str(st.type) || 'EMAIL', from: str(st.from), subject: str(st.subject), body: str(st.body) }
+      : null,
+    writingPoints: Array.isArray(content.writing_points) ? content.writing_points.map(str) : null,
+  }
+  const first = { MATCH_AD_X: 11, GAP_MC: 21, GAP_WORDBANK: 31 } as Partial<Record<TeilKind, number>>
+  return {
+    layout: kind, text, items, headlines: null,
+    quelle: str(rec(content.source).quelle ?? content.quelle) || null,
+    startNumber: first[kind] ?? 1,
+    gappedText: str(content.gapped_text ?? content.gappedText) || null,
+  }
 }
 
 /**
@@ -35,6 +90,9 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
   const itemsRaw = Array.isArray(content.items) ? content.items : []
   const source = rec(content.source)
   const isMatch = isMatchHeadline(str(content.type)) || (Number(content.teil) === 1 && content.headlines != null)
+  // Schreiben không ghi `type` trong content — nhận ra qua `stimulus` + `writing_points`.
+  const kind = content.writing_points != null && content.stimulus != null ? 'WRITE_EMAIL' : teilKind(str(content.type))
+  if (kind !== 'ARTICLE' && kind !== 'MATCH_HEADLINE') return situationalPreview(kind, content)
 
   if (isMatch) {
     const headlinesRaw = rec(content.headlines)
@@ -59,6 +117,7 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
       quelle: str(source.quelle ?? content.quelle) || null,
       headlines,
       startNumber: 1,
+      gappedText: null,
     }
   }
 
@@ -88,7 +147,10 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
     }
   })
   const quelle = str(content.quelle ?? textNode.quelle ?? source.quelle) || null
-  return { layout: 'ARTICLE', text, items, quelle, headlines: null, startNumber: Number(content.teil) === 2 || content.teil == null ? 6 : 1 }
+  return {
+    layout: 'ARTICLE', text, items, quelle, headlines: null, gappedText: null,
+    startNumber: Number(content.teil) === 2 || content.teil == null ? 6 : 1,
+  }
 }
 
 export function BlockPreviewModal({ blockId, onClose }: { blockId: number | null; onClose: () => void }) {
@@ -126,7 +188,7 @@ export function BlockPreviewModal({ blockId, onClose }: { blockId: number | null
         <LoadingState label={t('loading')} />
       ) : (
         <TeilPreview layout={preview.layout} text={preview.text} items={preview.items} quelle={preview.quelle}
-          headlines={preview.headlines} showAnswers startNumber={preview.startNumber} />
+          headlines={preview.headlines} gappedText={preview.gappedText} showAnswers startNumber={preview.startNumber} />
       )}
     </TkModal>
   )

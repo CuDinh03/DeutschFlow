@@ -31,7 +31,7 @@ beforeEach(() => {
     { id: 7, title: 'telc B1 Modelltest 1', reviewed: true, slots: [{ section: 'LESEN', teil: 2, type: 'ARTICLE_MC' }] },
   ])
   m.listAssemblySlots.mockResolvedValue([
-    { section: 'LESEN', teil: 2, type: 'ARTICLE_MC', blocks: [{ id: 12, titleDe: 'Homeoffice', theme: 'Arbeit', difficultyCounts: counts, exposureCount: 1 }] },
+    { section: 'LESEN', teil: 2, type: 'ARTICLE_MC', blocks: [{ id: 12, titleDe: 'Homeoffice', theme: 'Arbeit', difficultyCounts: counts, exposureCount: 1, usedIn: [] }] },
   ])
   m.listAssembledExams.mockResolvedValue([
     { id: 90, title: 'telc Deutsch B1 — Bộ đề ghép 1', cefrLevel: 'B1', examFormat: 'TELC', reviewed: false, active: true,
@@ -79,5 +79,24 @@ describe('AssembliesTab', () => {
     const buttons = screen.getAllByRole('button', { name: 'Phát hành' })
     await userEvent.click(buttons[buttons.length - 1])
     await waitFor(() => expect(m.publishAssembledExam).toHaveBeenCalledWith(90))
+  })
+})
+
+describe('AssembliesTab — chống trùng giữa bộ đề', () => {
+  it('Teil đã trong bộ khác bị khoá; tích "Cho dùng lại" thì chọn được và gửi allowReuse', async () => {
+    m.listAssemblySlots.mockResolvedValue([
+      { section: 'LESEN', teil: 2, type: 'ARTICLE_MC', blocks: [
+        { id: 12, titleDe: 'Homeoffice', theme: 'Arbeit', difficultyCounts: counts, exposureCount: 1, usedIn: [{ id: 90, title: 'Bộ A' }] },
+      ] },
+    ])
+    m.assembleExam.mockResolvedValue({})
+    renderTab()
+    const opt = await screen.findByRole('option', { name: /Đã trong: Bộ A/ })
+    expect(opt).toBeDisabled()
+    await userEvent.click(screen.getByRole('checkbox', { name: /Cho dùng lại Teil/ }))
+    expect(opt).toBeEnabled()
+    await userEvent.selectOptions(screen.getByLabelText('Lesen T2'), '12')
+    await userEvent.click(screen.getByRole('button', { name: 'Ghép' }))
+    await waitFor(() => expect(m.assembleExam).toHaveBeenCalledWith(expect.objectContaining({ allowReuse: true })))
   })
 })

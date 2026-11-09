@@ -7,7 +7,7 @@ import {
   DIFFICULTY_PRESETS,
   type DifficultyPlan,
 } from '@/lib/adminExamStudioApi'
-import { DIFFICULTY_ORDER, checkMatrix, samePlan, setPlanLevel } from '@/lib/examStudioLogic'
+import { DIFFICULTY_ORDER, checkMatrix, samePlan, scalePlan, setPlanLevel } from '@/lib/examStudioLogic'
 import { GaCap } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import { Note } from './ui'
@@ -87,7 +87,9 @@ export function DifficultyMatrix({ plan, onChange, mode, itemCount, disabled }: 
       <div>
         <GaCap className="mb-1.5 block">{t('matrix.presets')}</GaCap>
         <div className="flex flex-wrap gap-1.5">
-          {DIFFICULTY_PRESETS.map((p) => {
+          {DIFFICULTY_PRESETS.map((preset) => {
+            // Mẫu viết cho Teil 5 câu → co giãn theo số câu (Teil 10 câu: 4-4-2-0…).
+            const p = { ...preset, plan: scalePlan(preset.plan, itemCount) }
             const on = samePlan(p.plan, plan)
             return (
               <button

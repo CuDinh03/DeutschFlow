@@ -87,7 +87,46 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                 });
     }
 
+    static final List<String> SB_TARGETS = List.of("weil", "obwohl", "damit", "dass", "wenn", "deshalb", "trotzdem",
+            "sondern", "bevor", "nachdem");
+    static final List<String> SB_OTHER = List.of("und", "oder", "aber", "denn", "also", "dann", "noch", "schon",
+            "nur", "auch");
+
+    static String sbLetter() {
+        StringBuilder sb = new StringBuilder("Sehr geehrte Damen und Herren,\n\n");
+        for (int i = 0; i < SB_TARGETS.size(); i++) {
+            sb.append("Im Abschnitt Nummer ").append(i + 1).append(" schreibe ich ").append(SB_TARGETS.get(i))
+                    .append(" es wichtig ist. ");
+        }
+        return sb.append("\n\nMit freundlichen Grüßen\nAnna Berg").toString();
+    }
+
     private String reply(String system, String user) {
+        if (system.contains("Sprachbausteine Teil 1, einen NEUEN")) {
+            return "{\"letter\": \"" + sbLetter().replace("\n", "\\n") + "\"}";
+        }
+        if (system.startsWith("Du wählst Lücken") && system.contains("Mehrfachauswahl")) {
+            Matcher m = Pattern.compile("slot (\\d+) → ").matcher(user);
+            List<String> items = new ArrayList<>();
+            while (m.find()) {
+                int sl = Integer.parseInt(m.group(1));
+                String t = SB_TARGETS.get(sl);
+                items.add(("{\"slot\": %d, \"target\": \"%s\", \"before\": \"Nummer %d schreibe ich\","
+                        + " \"options\": [{\"text\": \"%s\", \"correct\": true}, {\"text\": \"%s\", \"correct\": false},"
+                        + " {\"text\": \"%s\", \"correct\": false}], \"explanationVi\": \"{1} đúng.\"}")
+                        .formatted(sl, t, sl + 1, t, SB_OTHER.get(sl), SB_OTHER.get((sl + 1) % 10)));
+            }
+            return "{\"items\": [" + String.join(",", items) + "]}";
+        }
+        if (system.startsWith("Löse die Aufgaben") && user.contains("LÜCKEN")) {
+            Matcher q = Pattern.compile("(SB1-\\d+) \\(Lücke \\d+\\): a\\) (\\S+)  b\\) (\\S+)  c\\) (\\S+)").matcher(user);
+            List<String> out = new ArrayList<>();
+            while (q.find()) {
+                String ans = SB_TARGETS.contains(q.group(2)) ? "a" : SB_TARGETS.contains(q.group(3)) ? "b" : "c";
+                out.add("{\"id\": \"" + q.group(1) + "\", \"answer\": \"" + ans + "\"}");
+            }
+            return "{\"answers\": [" + String.join(",", out) + "]}";
+        }
         if (system.startsWith("Du bereitest Material")) {
             return """
                     {"title": "Schlafstudie", "publisher": "Beispielzeitung", "neutral": true,
@@ -140,7 +179,7 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
             return "{\"items\": [" + String.join(",", items) + "]}";
         }
         if (system.contains("Prüfungsexperte")) {
-            Matcher m = Pattern.compile("(LV[12]-\\d+):").matcher(user);
+            Matcher m = Pattern.compile("((?:LV[12]|SB1)-\\d+)[ :]").matcher(user);
             List<String> out = new ArrayList<>();
             while (m.find()) {
                 out.add("{\"id\": \"" + m.group(1) + "\", \"phrasing\": 1, \"evidence\": 1, \"distractors\": 1,"
@@ -315,5 +354,53 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat((Map<?, ?>) content.get("headlines")).hasSize(10);
         assertThat((List<?>) content.get("items")).hasSize(5)
                 .allSatisfy(it -> assertThat(((Map<?, ?>) it).get("text").toString()).startsWith("Meldung"));
+    }
+
+    @Test
+    @DisplayName("Sprachbausteine Teil 1: thư theo tình huống, 10 ô đánh số theo thứ tự thư, vào kho đúng khuôn GAP_MC")
+    void sprachbausteine1Flow() {
+        Draft d = service.create(new CreateDraftRequest("TELC", "B1", "SPRACHBAUSTEINE", 1, "Wohnen", "EXAM",
+                Map.of("EASY", 3, "MEDIUM", 4, "HARD", 2, "EXPERT", 1), "Beschwerde: Heizung kaputt"), admin);
+        assertThat(d.needsSources()).isFalse();
+        assertThat(d.situation()).isEqualTo("Beschwerde: Heizung kaputt");
+
+        service.writeText(d.id(), new WriteTextRequest(null, null, null), admin);
+        runPendingJob(d.id());
+        service.generateItems(d.id(), admin);
+        runPendingJob(d.id());
+        d = service.get(d.id());
+        assertThat(d.items()).extracting(Item::id).containsExactly(
+                "SB1-21", "SB1-22", "SB1-23", "SB1-24", "SB1-25", "SB1-26", "SB1-27", "SB1-28", "SB1-29", "SB1-30");
+        assertThat(d.items()).allSatisfy(i -> assertThat(i.options().get(i.correct())).isEqualTo(i.meta().get("target")));
+        assertThat(d.items().get(0).meta()).containsEntry("target", "weil").containsEntry("gap", "21");
+        assertThat(ExamDraftService.lettersBalanced(d.items().stream().map(Item::correct).toList())).isTrue();
+
+        service.verify(d.id(), admin);
+        runPendingJob(d.id());
+        d = service.get(d.id());
+        assertThat(d.checks()).extracting(Check::key).contains("FORMAT", "SOLVER", "GAPS", "DUPLICATE");
+        assertThat(d.checks()).noneMatch(c -> "RED".equals(c.light()));
+        Map<String, Boolean> all = new java.util.HashMap<>();
+        TeilSpec.CHECKLIST_KEYS.forEach(k -> all.put(k, true));
+        d = service.approve(d.id(), all, admin);
+
+        Map<String, Object> content = service.getBlock(d.blockId()).content();
+        assertThat(content).containsEntry("type", "GAP_MC").containsEntry("point_per_item", 1.5);
+        assertThat(content.get("gapped_text").toString()).contains("ich ___21___ es").contains("ich ___30___ es")
+                .doesNotContain(" weil ");
+
+        // Chống trùng: làm lại y hệt thì tự kiểm báo đỏ DUPLICATE và từng câu đỏ vì trùng câu kho.
+        Draft again = service.create(new CreateDraftRequest("TELC", "B1", "SPRACHBAUSTEINE", 1, "Wohnen", "EXAM",
+                Map.of("EASY", 3, "MEDIUM", 4, "HARD", 2, "EXPERT", 1), null), admin);
+        service.writeText(again.id(), new WriteTextRequest(null, null, null), admin);
+        runPendingJob(again.id());
+        service.generateItems(again.id(), admin);
+        runPendingJob(again.id());
+        service.verify(again.id(), admin);
+        runPendingJob(again.id());
+        again = service.get(again.id());
+        assertThat(again.checks()).filteredOn(c -> c.key().equals("DUPLICATE")).singleElement()
+                .satisfies(c -> assertThat(c.light()).isEqualTo("RED"));
+        assertThat(again.items()).allSatisfy(i -> assertThat(i.light()).isEqualTo("RED"));
     }
 }

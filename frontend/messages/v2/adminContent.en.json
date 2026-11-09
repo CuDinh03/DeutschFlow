@@ -531,7 +531,7 @@
     "examStudio": {
       "title": "Exam studio",
       "subtitle": "Build an exam Teil from German news sources: AI drafts the text and items by difficulty matrix, the owner approves into the bank.",
-      "hint": "telc · B1 · Lesen Teil 1 (5 texts + 10 headlines a–j) and Teil 2 (article + 5 a/b/c items)",
+      "hint": "Available: telc B1 — reading (Lesen) Teil 1–3, Sprachbausteine Teil 1–2, writing (Schreiben)",
       "createTeil": "New Teil",
       "loading": "Loading…",
       "next": "Next step",
@@ -571,7 +571,8 @@
         "SOURCE": "Sources",
         "TEXT": "Text",
         "ITEMS": "Items",
-        "REVIEW": "Check & approve"
+        "REVIEW": "Check & approve",
+        "SITUATION": "Situation"
       },
       "stepper": {
         "label": "Teil creation steps",
@@ -608,13 +609,20 @@
         "section": "Section",
         "teil": "Teil",
         "itemCount": "Items",
-        "blueprintHint": "From the blueprint: Lesen Teil 2 B1 has {itemCount} a/b/c items and a 300–450 word text.",
         "theme": "Theme (optional)",
         "themeAny": "Let AI suggest based on gaps in the bank",
         "mode": "Mode",
         "matrix": "Difficulty matrix",
         "save": "Save frame",
-        "blueprintHintT1": "From the blueprint: Lesen Teil 1 B1 has {itemCount} short texts (55–110 words each) and 10 headlines a–j — one correct headline per text, the other 5 are distractors."
+        "noMatrix": "The writing Teil has no items, so there is no difficulty matrix.",
+        "blueprintKind": {
+          "ARTICLE": "From the blueprint: Lesen Teil 2 B1 has {itemCount} a/b/c items and a 300–450 word text.",
+          "MATCH_HEADLINE": "From the blueprint: Lesen Teil 1 B1 has {itemCount} short texts (55–110 words each) and 10 headlines a–j — one correct headline per text, the other 5 are distractors.",
+          "MATCH_AD_X": "Lesen Teil 3 B1: {itemCount} situations (11–20) and 12 ads a–l (15–45 words each); exactly 2 situations have no matching ad (x).",
+          "GAP_MC": "Sprachbausteine Teil 1 B1: one letter with {itemCount} gaps (21–30), a/b/c for each gap.",
+          "GAP_WORDBANK": "Sprachbausteine Teil 2 B1: an ad + a letter with {itemCount} gaps (31–40), a box of 15 words a–o (5 spare).",
+          "WRITE_EMAIL": "Schreiben B1: an informal (du) e-mail (70–130 words) and 4 guiding points; no items."
+        }
       },
       "matrix": {
         "decrease": "One fewer {level} item",
@@ -689,7 +697,23 @@
         "preview": "Preview (passages copied from the source in red)",
         "matchHint": "5 short texts, {lo}–{hi} words each. Text i belongs to item i.",
         "matchText": "Text {n}",
-        "matchWords": "{n} words / {lo}–{hi}"
+        "matchWords": "{n} words / {lo}–{hi}",
+        "emptySituation": "No text yet. Click \"AI write text\": AI builds it from the step-2 situation (or picks one if empty).",
+        "adsHint": "12 ads a–l, {lo}–{hi} words each.",
+        "adN": "Ad {k}",
+        "examples": "Examples (01 matches an ad, 02 is x)",
+        "noExamples": "No examples yet.",
+        "exampleSituation": "Example situation {label}",
+        "exampleAnswer": "Example answer {label}",
+        "stimulusAd": "Ad (the letter replies to it)",
+        "letter": "Letter (complete, no gaps)",
+        "letterHint": "Gaps are cut at each item's original word; keep those words when editing.",
+        "letterEditWarning": "Items exist: editing the letter may leave some gaps unlocatable — the self-check will flag GAPS red and the items must be regenerated.",
+        "mailFrom": "Sender",
+        "mailSubject": "Subject",
+        "mailBody": "E-mail body",
+        "writingPoints": "4 guiding points",
+        "writingPointN": "Guiding point {n}"
       },
       "metrics": {
         "none": "Metrics appear once there is a text.",
@@ -746,7 +770,30 @@
         "colHeadline": "Headline",
         "colRole": "Role",
         "roleRight": "Correct for text {n}",
-        "roleDistractor": "Distractor for text {n}"
+        "roleDistractor": "Distractor for text {n}",
+        "gapN": "Gap {n}",
+        "gapRegenHint": "Sprachbausteine: regenerating one gap can renumber the others — the whole draft is reloaded.",
+        "adTable": "12 ads a–l",
+        "colAd": "Ad",
+        "xCount": "{n} situations are x — the real exam needs exactly {expected}.",
+        "adDuplicate": "Ad used as the answer for two items: {list}",
+        "adRoleAnswer": "Answer for {n}",
+        "adRoleExample": "Example {label}",
+        "adRoleSpare": "Spare",
+        "adRoleDistractor": "distractor in {list}",
+        "adNone": "x — no ad matches",
+        "adAnswerX": "Answer: x — no ad matches",
+        "adDistractor": "Distractor ad",
+        "gapLetter": "Letter with gaps",
+        "gapLetterHint": "Click a gap to jump to its item card.",
+        "gapMissing": "Could not locate the gap for: {list} — regenerate these items.",
+        "bankTable": "Box of 15 words a–o",
+        "bankEmpty": "No word box yet — it is built when items are generated.",
+        "bankSize": "The box has {n} words — exactly 15 are needed.",
+        "bankDuplicate": "Word used as the answer for two gaps: {list}",
+        "bankFor": "gap {list}",
+        "bankSpare": "spare",
+        "bankReadOnly": "Box words are machine-built — change them with \"Regenerate\"."
       },
       "score": {
         "phrasing": "Answer phrasing",
@@ -790,7 +837,10 @@
         "approvedBody": "The Teil is in the bank as #{id}.",
         "toBlocks": "Open Teil bank",
         "preview": "Student view",
-        "showAnswers": "Show answers and explanations"
+        "showAnswers": "Show answers and explanations",
+        "duplicateOf": "Duplicates bank Teil #{id}",
+        "viewBlock": "View bank Teil",
+        "notApplicableWriting": "Not applicable to the writing Teil — tick anyway to confirm you checked."
       },
       "preview": {
         "noTitle": "(no title yet)",
@@ -798,7 +848,15 @@
         "correct": "Correct answer",
         "headlines": "Headlines a–j",
         "matchAnswer": "Answer: {letter} — {headline}",
-        "matchText": "Text {n}"
+        "matchText": "Text {n}",
+        "examples": "Examples",
+        "adNone": "x — no ad matches",
+        "adAnswer": "Answer: {k}",
+        "ads": "12 ads",
+        "adFor": "Answer for {list}",
+        "wordBank": "Word box a–o",
+        "gapJump": "Go to the item for gap {n}",
+        "writingPoints": "Four points to cover"
       },
       "wizard": {
         "back": "Back to exam studio",
@@ -868,7 +926,23 @@
         "retire": "Retire",
         "retireTitle": "Retire this exam?",
         "retireBody": "\"{title}\" will be hidden from students' exam list. You can publish it again later.",
-        "retired": "Exam retired"
+        "retired": "Exam retired",
+        "allowReuse": "Allow reusing a Teil already in another exam (on purpose)",
+        "allowReuseHint": "By default each bank Teil is in only one running exam, so students do not meet it twice.",
+        "usedIn": "Already in: {list}"
+      },
+      "situation": {
+        "label": "Situation",
+        "hint": "Optional. Leave empty and AI picks a situation unlike the Teile already in the bank.",
+        "save": "Save situation",
+        "placeholder": {
+          "ARTICLE": "Article topic",
+          "MATCH_HEADLINE": "Topic of the 5 short texts",
+          "MATCH_AD_X": "Classified ads in Salzburg: housing, courses, services",
+          "GAP_MC": "Complaint letter: new washing machine broke after a week",
+          "GAP_WORDBANK": "Letter asking about a language course in Vienna",
+          "WRITE_EMAIL": "A friend invites you to a concert at the weekend but you are busy"
+        }
       }
     }
   }

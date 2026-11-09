@@ -1,6 +1,7 @@
 package com.deutschflow.examstudio;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,12 +39,21 @@ public class ExamAssemblyService {
 
     public record SlotBlocks(String section, int teil, String type, List<BlockOption> blocks) {}
 
+    /** {@code usedIn}: các bộ đề ghép ĐANG CHẠY đã dùng Teil này (chống trùng giữa các bộ đề). */
     public record BlockOption(long id, String titleDe, String theme, Map<String, Integer> difficultyCounts,
-                              int exposureCount) {}
+                              int exposureCount, List<Map<String, Object>> usedIn) {}
 
     public record Replacement(String section, Integer teil, Long blockId) {}
 
-    public record AssembleRequest(Long baseExamId, String title, List<Replacement> replacements) {}
+    /**
+     * {@code allowReuse}: mặc định false — một Teil kho chỉ nằm trong MỘT bộ đề đang chạy, để hai bộ đề học viên
+     * làm không trùng phần nào. Admin bật khi cố ý (vd. bộ luyện riêng cho một lớp).
+     */
+    public record AssembleRequest(Long baseExamId, String title, List<Replacement> replacements, Boolean allowReuse) {
+        public AssembleRequest(Long baseExamId, String title, List<Replacement> replacements) {
+            this(baseExamId, title, replacements, false);
+        }
+    }
 
     public record Assembled(long id, String title, String cefrLevel, String examFormat, boolean reviewed,
                             boolean active, Long baseExamId, List<Map<String, Object>> teile, Instant createdAt) {}
@@ -79,8 +89,10 @@ public class ExamAssemblyService {
             int teil = ((Number) r.get("teil")).intValue();
             SlotBlocks sb = bySlot.computeIfAbsent(section + ":" + teil,
                     k -> new SlotBlocks(section, teil, (String) r.get("teil_type"), new ArrayList<>()));
-            sb.blocks().add(new BlockOption(((Number) r.get("id")).longValue(), (String) r.get("title_de"),
-                    (String) r.get("theme"), counts(r.get("items")), ((Number) r.get("exposure_count")).intValue()));
+            long blockId = ((Number) r.get("id")).longValue();
+            sb.blocks().add(new BlockOption(blockId, (String) r.get("title_de"),
+                    (String) r.get("theme"), counts(r.get("items")), ((Number) r.get("exposure_count")).intValue(),
+                    usedIn(blockId)));
         }
         return new ArrayList<>(bySlot.values());
     }
@@ -108,6 +120,31 @@ public class ExamAssemblyService {
         String level = (String) b.get("cefr_level");
         JsonNode sections = parse((String) b.get("sections"));
 
+        // Chống trùng mức bộ đề (owner 10/11): (1) không ghép lại đúng bộ đã có; (2) Teil kho đã nằm trong bộ
+        // đề đang chạy khác thì không dùng lại, trừ khi admin bật allowReuse.
+        Set<String> wanted = new TreeSet<>();
+        for (Replacement r : reps) wanted.add(r.section() + ":" + r.teil() + ":" + r.blockId());
+        for (Assembled other : list()) {
+            if (!other.active() || !Objects.equals(other.baseExamId(), req.baseExamId())) continue;
+            Set<String> theirs = new TreeSet<>();
+            for (Map<String, Object> t : other.teile()) theirs.add(t.get("section") + ":" + t.get("teil") + ":" + t.get("blockId"));
+            if (theirs.equals(wanted)) {
+                throw new ConflictException("Bộ đề này đã có: \"" + other.title() + "\" (#" + other.id() + ").");
+            }
+        }
+        if (!Boolean.TRUE.equals(req.allowReuse())) {
+            List<String> clashes = new ArrayList<>();
+            for (Replacement r : reps) {
+                for (Map<String, Object> u : usedIn(r.blockId())) {
+                    clashes.add("Teil kho #" + r.blockId() + " đang nằm trong \"" + u.get("title") + "\" (#" + u.get("id") + ")");
+                }
+            }
+            if (!clashes.isEmpty()) {
+                throw new ConflictException(String.join("; ", clashes)
+                        + ". Chọn Teil khác, hoặc bật \"Cho dùng lại Teil đã có trong bộ khác\" nếu cố ý.");
+            }
+        }
+
         Set<String> seenSlots = new HashSet<>();
         Set<Long> seenBlocks = new HashSet<>();
         List<Map<String, Object>> trace = new ArrayList<>();
@@ -130,7 +167,11 @@ public class ExamAssemblyService {
             }
             ObjectNode target = findTeil(sections, r.section(), r.teil());
             if (target == null) throw new BadRequestException("Đề nền không có " + slotKey + ".");
-            if (!String.valueOf(k.get("teil_type")).equals(target.path("type").asText())) {
+            String baseType = target.path("type").asText("");
+            // Phần Viết của đề nền không khai "type" — coi như khớp WRITE_EMAIL.
+            boolean typeOk = baseType.isBlank() ? "WRITE_EMAIL".equals(k.get("teil_type"))
+                    : baseType.equals(String.valueOf(k.get("teil_type")));
+            if (!typeOk) {
                 throw new BadRequestException("Dạng Teil kho (" + k.get("teil_type") + ") khác dạng của đề nền ("
                         + target.path("type").asText() + ").");
             }
@@ -196,6 +237,17 @@ public class ExamAssemblyService {
         get(id);
         jdbc.update("UPDATE mock_exams SET is_active = FALSE WHERE id = ? AND origin = 'STUDIO'", id);
         return get(id);
+    }
+
+    /** Các bộ đề ghép đang chạy có dùng Teil kho này. */
+    List<Map<String, Object>> usedIn(long blockId) {
+        return jdbc.queryForList("""
+                SELECT id, title FROM mock_exams
+                WHERE origin = 'STUDIO' AND is_active = TRUE
+                  AND EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(block_ids->'teile', '[]'::jsonb)) t
+                              WHERE (t->>'blockId')::bigint = ?)
+                ORDER BY id
+                """, blockId);
     }
 
     // ── phụ ────────────────────────────────────────────────────────────────────────────────

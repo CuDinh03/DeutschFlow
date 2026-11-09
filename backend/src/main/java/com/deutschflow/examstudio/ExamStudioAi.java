@@ -209,8 +209,8 @@ public class ExamStudioAi {
             """;
 
     JsonNode generateItems(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
-                           List<Item> keep) {
-        if (spec.headlines()) return generateHeadlines(userId, spec, text, slotIdx, slotLevels, keep);
+                           List<Item> keep, List<String> avoid) {
+        if (spec.headlines()) return generateHeadlines(userId, spec, text, slotIdx, slotLevels, keep, avoid);
         String system = ITEMS_SYSTEM.formatted(spec.cefrLevel(), spec.cefrLevel());
         StringBuilder u = new StringBuilder();
         u.append("TEXT\nÜberschrift: ").append(text.titleDe()).append("\nVorspann: ").append(text.vorspannDe())
@@ -225,11 +225,12 @@ public class ExamStudioAi {
             u.append("\nBereits vorhandene Aufgaben (nicht wiederholen, andere Textstellen prüfen):\n");
             for (Item it : keep) u.append("- ").append(it.question()).append(" ").append(it.options().get(it.correct())).append("\n");
         }
+        u.append(SituationalTeile.avoidBlock(avoid));
         return call(userId, "ITEMS", LlmTier.CONTENT, system, u.toString(), 0.7, 3_500);
     }
 
     JsonNode generateHeadlines(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
-                               List<Item> keep) {
+                               List<Item> keep, List<String> avoid) {
         StringBuilder u = new StringBuilder("TEXTE\n");
         List<String> paras = TextChecks.paragraphs(text.context());
         for (int i = 0; i < paras.size(); i++) u.append("[Text ").append(i + 1).append("] ").append(paras.get(i)).append("\n");
@@ -242,6 +243,7 @@ public class ExamStudioAi {
             u.append("\nSchon vergebene Überschriften (nicht wiederholen):\n");
             for (Item it : keep) it.options().values().forEach(h -> u.append("- ").append(h).append("\n"));
         }
+        u.append(SituationalTeile.avoidBlock(avoid));
         return call(userId, "ITEMS", LlmTier.CONTENT, ITEMS_T1_SYSTEM.formatted(spec.cefrLevel(), spec.cefrLevel()),
                 u.toString(), 0.7, 2_500);
     }

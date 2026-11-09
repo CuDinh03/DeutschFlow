@@ -136,4 +136,38 @@ class ExamAssemblyServiceTest {
         assertThat(slots).extracting(ExamAssemblyService.Slot::section, ExamAssemblyService.Slot::teil)
                 .contains(org.assertj.core.groups.Tuple.tuple("LESEN", 2), org.assertj.core.groups.Tuple.tuple("HOEREN", 1));
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("chống trùng bộ đề: Teil kho đã nằm trong bộ đề đang chạy khác ⇒ 409, trừ khi bật allowReuse")
+    void blockAlreadyUsedElsewhere() {
+        stubBaseAndBlock("LESEN", 2, "MULTIPLE_CHOICE", "APPROVED");
+        when(jdbc.queryForList(contains("jsonb_array_elements"), eq(7L)))
+                .thenReturn(List.of(Map.of("id", 50L, "title", "telc B1 — Bộ 5")));
+        assertThatThrownBy(() -> service.assemble(new ExamAssemblyService.AssembleRequest(4L, "Bộ 6",
+                List.of(new ExamAssemblyService.Replacement("LESEN", 2, 7L)))))
+                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
+                .hasMessageContaining("Bộ 5").hasMessageContaining("Cho dùng lại");
+
+        when(jdbc.queryForObject(contains("INSERT INTO mock_exams"), eq(Long.class), any(Object[].class))).thenReturn(99L);
+        when(jdbc.query(contains("FROM mock_exams WHERE id = ? AND origin = 'STUDIO'"), any(RowMapper.class), eq(99L)))
+                .thenReturn(List.of(new ExamAssemblyService.Assembled(99, "Bộ 6", "B1", "TELC", false, true, 4L, List.of(), null)));
+        var a = service.assemble(new ExamAssemblyService.AssembleRequest(4L, "Bộ 6",
+                List.of(new ExamAssemblyService.Replacement("LESEN", 2, 7L)), true));
+        assertThat(a.id()).isEqualTo(99);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("chống trùng bộ đề: ghép lại đúng bộ đã có (cùng nền, cùng Teil) ⇒ 409")
+    void identicalAssemblyRejected() {
+        stubBaseAndBlock("LESEN", 2, "MULTIPLE_CHOICE", "APPROVED");
+        when(jdbc.query(contains("WHERE origin = 'STUDIO' ORDER BY id DESC"), any(RowMapper.class)))
+                .thenReturn(List.of(new ExamAssemblyService.Assembled(50, "Bộ 5", "B1", "TELC", true, true, 4L,
+                        List.of(Map.of("section", "LESEN", "teil", 2, "blockId", 7L)), null)));
+        assertThatThrownBy(() -> service.assemble(new ExamAssemblyService.AssembleRequest(4L, "Bộ 6",
+                List.of(new ExamAssemblyService.Replacement("LESEN", 2, 7L)), true)))
+                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class)
+                .hasMessageContaining("đã có");
+    }
 }

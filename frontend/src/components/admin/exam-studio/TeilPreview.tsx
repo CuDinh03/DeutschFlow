@@ -4,8 +4,9 @@ import { useTranslations } from 'next-intl'
 import { Check } from 'lucide-react'
 import type { StudioText } from '@/lib/adminExamStudioApi'
 import {
-  headlineTable, markSnippets, matchTextIndex, optionKeys, splitMatchTexts, splitParagraphs,
+  headlineTable, markSnippets, matchTextIndex, optionKeys, splitMatchTexts, splitParagraphs, type TeilKind,
 } from '@/lib/examStudioLogic'
+import { EmailPreview, GapPreview, MatchAdPreview } from './TeilPreviewSituational'
 import { cn } from '@/lib/utils'
 
 export interface PreviewItem {
@@ -17,9 +18,11 @@ export interface PreviewItem {
   explanationVi?: string | null
   /** T1: văn bản riêng của câu (content kho mang sẵn); không có thì lấy từ `text.context`. */
   text?: string | null
+  /** Sprachbausteine: target/before/gap/phenomenon (draft) hoặc chỉ gap (content kho). */
+  meta?: Record<string, string> | null
 }
 
-export type PreviewLayout = 'ARTICLE' | 'MATCH_HEADLINE'
+export type PreviewLayout = TeilKind
 
 interface Props {
   text: StudioText
@@ -34,6 +37,10 @@ interface Props {
   layout?: PreviewLayout
   /** T1: bảng tiêu đề a–j có sẵn (content kho). Không có thì gộp từ phương án các câu. */
   headlines?: Record<string, string> | null
+  /** Sprachbausteine trong kho: thư đã có ô `___21___`. Không có thì dựng từ `text.context` + `meta` các câu. */
+  gappedText?: string | null
+  /** Bấm một ô trong thư (bước Câu hỏi: nhảy tới thẻ câu). */
+  onGapClick?: (itemId: string) => void
 }
 
 function Marked({ text, snippets }: { text: string; snippets: string[] }) {
@@ -52,8 +59,17 @@ function Marked({ text, snippets }: { text: string; snippets: string[] }) {
 
 /** Một Teil Lesen như học viên thấy. ARTICLE (T2): bài báo + câu a/b/c. MATCH_HEADLINE (T1): 5 văn bản + 10 tiêu đề. */
 export function TeilPreview(props: Props) {
-  return props.layout === 'MATCH_HEADLINE' ? <MatchHeadlinePreview {...props} /> : <ArticlePreview {...props} />
+  switch (props.layout) {
+    case 'MATCH_HEADLINE': return <MatchHeadlinePreview {...props} />
+    case 'MATCH_AD_X': return <MatchAdPreview {...props} />
+    case 'GAP_MC':
+    case 'GAP_WORDBANK': return <GapPreview {...props} wordBankMode={props.layout === 'GAP_WORDBANK'} />
+    case 'WRITE_EMAIL': return <EmailPreview {...props} />
+    default: return <ArticlePreview {...props} />
+  }
 }
+
+export type TeilPreviewProps = Props
 
 function ArticlePreview({ text, items, quelle, showAnswers = true, highlightSnippets = [], startNumber = 1 }: Props) {
   const t = useTranslations('v2.adminContent.examStudio')
@@ -188,7 +204,7 @@ function MatchHeadlinePreview({ text, items, quelle, showAnswers = true, highlig
   )
 }
 
-function CorrectMark() {
+export function CorrectMark() {
   const t = useTranslations('v2.adminContent.examStudio')
   return (
     <span className="inline-flex shrink-0 items-center gap-1 text-ga-caption font-semibold text-ga-green" lang="vi">
@@ -197,6 +213,6 @@ function CorrectMark() {
   )
 }
 
-function Explanation({ text }: { text: string }) {
+export function Explanation({ text }: { text: string }) {
   return <p className="rounded-ga bg-ga-surface px-3 py-2 text-ga-small text-ga-muted" lang="vi">{text}</p>
 }

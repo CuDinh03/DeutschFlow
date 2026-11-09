@@ -13,6 +13,7 @@ import { ErrorBanner, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v
 import { StudioStepper } from '@/components/admin/exam-studio/StudioStepper'
 import { StepFrame } from '@/components/admin/exam-studio/StepFrame'
 import { StepSource } from '@/components/admin/exam-studio/StepSource'
+import { StepSituation } from '@/components/admin/exam-studio/StepSituation'
 import { StepText } from '@/components/admin/exam-studio/StepText'
 import { StepItems } from '@/components/admin/exam-studio/StepItems'
 import { StepReview } from '@/components/admin/exam-studio/StepReview'
@@ -99,7 +100,14 @@ export default function AdminExamStudioDraftPage() {
   const maxReach = maxReachableStep(draft)
   const done = draft.status === 'APPROVED' ? WIZARD_STEPS.length : stepIndex(draft.step)
   const current = Math.min(view, maxReach)
-  const goNext = () => setView(Math.min(current + 1, WIZARD_STEPS.length - 1))
+  // Schreiben (itemCount = 0) không có bước Câu hỏi: Bài → Kiểm & duyệt.
+  const noItems = draft.itemCount === 0
+  const ITEMS_STEP = WIZARD_STEPS.indexOf('ITEMS')
+  const goNext = () => setView(() => {
+    const n = Math.min(current + 1, WIZARD_STEPS.length - 1)
+    return noItems && n === ITEMS_STEP ? n + 1 : n
+  })
+  const shown = noItems && current === ITEMS_STEP ? ITEMS_STEP + 1 : current
   const stepProps = { draft, locked, run }
   const title = draft.text?.titleDe || t('wizard.untitled', { id: draft.id })
 
@@ -117,7 +125,9 @@ export default function AdminExamStudioDraftPage() {
           className="ga-ui inline-flex w-fit items-center gap-1 text-ga-small font-semibold text-ga-muted hover:text-ga-accent">
           <ArrowLeft size={14} aria-hidden /> {t('wizard.back')}
         </Link>
-        <StudioStepper current={current} maxReachable={maxReach} done={done} onSelect={setView} />
+        <StudioStepper current={shown} maxReachable={maxReach} done={done} onSelect={setView}
+          hidden={noItems ? ['ITEMS'] : []}
+          labels={draft.needsSources === false ? { SOURCE: t('step.SITUATION') } : undefined} />
 
         {busy && <BusyBanner op={busy} />}
         {draft.lastError && !busy && <LastErrorBanner message={draft.lastError} />}
@@ -125,11 +135,13 @@ export default function AdminExamStudioDraftPage() {
           <p className="ga-ui rounded-ga bg-ga-side-active px-4 py-3 text-ga-small text-ga-muted">{t('wizard.discarded')}</p>
         )}
 
-        {current === 0 && <StepFrame {...stepProps} onNext={goNext} canNext={maxReach >= 1} />}
-        {current === 1 && <StepSource {...stepProps} onNext={goNext} />}
-        {current === 2 && <StepText {...stepProps} onNext={goNext} />}
-        {current === 3 && <StepItems {...stepProps} onNext={goNext} />}
-        {current === 4 && <StepReview {...stepProps} />}
+        {shown === 0 && <StepFrame {...stepProps} onNext={goNext} canNext={maxReach >= 1} />}
+        {shown === 1 && (draft.needsSources === false
+          ? <StepSituation {...stepProps} onNext={goNext} />
+          : <StepSource {...stepProps} onNext={goNext} />)}
+        {shown === 2 && <StepText {...stepProps} onNext={goNext} />}
+        {shown === 3 && <StepItems {...stepProps} onNext={goNext} />}
+        {shown === 4 && <StepReview {...stepProps} />}
       </div>
     </div>
   )

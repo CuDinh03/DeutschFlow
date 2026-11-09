@@ -10,7 +10,7 @@ import {
 import { flaggedSelectedSources, selectedFactCount, selectedFactIds } from '@/lib/examStudioLogic'
 import { ConfirmDialog, GaBtn, GaCap, GaCard, TkBadge, TkSeg } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
-import { Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
+import { Note, WarningsBanner, studioField, studioMiniBtn, type StudioStepProps } from './ui'
 
 type InputKind = 'URL' | 'PASTE'
 
@@ -50,6 +50,7 @@ export function StepSource({ draft, locked, run, onNext }: StudioStepProps & { o
 
   return (
     <div className="flex flex-col gap-4">
+      <WarningsBanner warnings={draft.warnings} />
       {draft.sources.map((src) => (
         <SourceCard
           key={src.id}

@@ -55,10 +55,14 @@ export function StepFrame({ draft, locked, run, onNext, canNext }: StudioStepPro
         <ModeSelect value={mode} onChange={setMode} disabled={locked} />
       </div>
 
-      <div>
-        <GaCap className="mb-2 block">{t('frame.matrix')}</GaCap>
-        <DifficultyMatrix plan={plan} onChange={setPlan} mode={mode} itemCount={draft.itemCount} disabled={locked} />
-      </div>
+      {draft.itemCount > 0 ? (
+        <div>
+          <GaCap className="mb-2 block">{t('frame.matrix')}</GaCap>
+          <DifficultyMatrix plan={plan} onChange={setPlan} mode={mode} itemCount={draft.itemCount} disabled={locked} />
+        </div>
+      ) : (
+        <p className="ga-ui text-ga-small text-ga-muted">{t('frame.noMatrix')}</p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <GaBtn variant="yellow" size="sm" disabled={locked || !dirty || !check.valid} onClick={save}>

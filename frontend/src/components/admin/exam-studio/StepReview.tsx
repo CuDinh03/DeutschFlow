@@ -3,20 +3,25 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { BadgeCheck, ShieldCheck } from 'lucide-react'
+import { BadgeCheck, Eye, ShieldCheck } from 'lucide-react'
 import {
   approveDraft, patchDraft, verifyDraft,
   type ChecklistKey,
 } from '@/lib/adminExamStudioApi'
-import { CHECKLIST_KEYS, approveBlockers, isMatchHeadline } from '@/lib/examStudioLogic'
+import { CHECKLIST_KEYS, approveBlockers, blockIdFromDetail, teilKind } from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, GaCard, GaGlyph, TkBadge } from '@/components/ui-v2'
+import { BlockPreviewModal } from './BlockPreviewModal'
 import { TeilPreview } from './TeilPreview'
-import { LightDot, Note, type StudioStepProps } from './ui'
+import { LightDot, Note, WarningsBanner, studioMiniBtn, type StudioStepProps } from './ui'
 
 /** Bước 5 — Kiểm & duyệt: tự kiểm, checklist 8 mục owner tích tay, Quelle, xem như học viên, duyệt. */
 export function StepReview({ draft, locked, run }: StudioStepProps) {
   const t = useTranslations('v2.adminContent.examStudio')
   const [showAnswers, setShowAnswers] = useState(false)
+  const [previewBlock, setPreviewBlock] = useState<number | null>(null)
+  const kind = teilKind(draft.teilType)
+  const writing = draft.itemCount === 0
+  const firstNumber = { ARTICLE: draft.teil === 2 ? 6 : 1, MATCH_HEADLINE: 1, MATCH_AD_X: 11, GAP_MC: 21, GAP_WORDBANK: 31, WRITE_EMAIL: 1 }[kind]
   const checklist = draft.reviewChecklist ?? {}
   const blockers = approveBlockers(draft, checklist)
   const approved = draft.status === 'APPROVED'
@@ -50,9 +55,11 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
         </GaCard>
       )}
 
+      <WarningsBanner warnings={draft.warnings} />
+
       <GaCard className="flex flex-col gap-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <GaBtn variant="yellow" size="sm" disabled={locked || draft.items.length === 0} onClick={() => run(() => verifyDraft(draft.id))}>
+          <GaBtn variant="yellow" size="sm" disabled={locked || (writing ? !draft.text : draft.items.length === 0)} onClick={() => run(() => verifyDraft(draft.id))}>
             <ShieldCheck size={14} aria-hidden /> {t('review.verify')}
           </GaBtn>
           <span className="ga-ui text-ga-caption text-ga-muted">{t('review.verifyHint')}</span>
@@ -61,15 +68,27 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
           <p className="ga-ui text-ga-small text-ga-muted">{t('review.noChecks')}</p>
         ) : (
           <ul className="flex flex-col divide-y divide-ga-line">
-            {draft.checks.map((c) => (
-              <li key={c.key} className="flex items-start gap-2.5 py-2">
-                <LightDot light={c.light} className="mt-1.5" />
-                <div className="min-w-0">
-                  <p className="ga-ui text-ga-small font-semibold text-ga-ink">{c.label}</p>
-                  {c.detail && <p className="ga-ui whitespace-pre-wrap break-words text-ga-caption text-ga-muted">{c.detail}</p>}
-                </div>
-              </li>
-            ))}
+            {draft.checks.map((c) => {
+              // Chống trùng: check DUPLICATE đỏ → chỉ rõ Teil kho bị trùng và cho mở xem.
+              const dupId = c.key === 'DUPLICATE' && c.light === 'RED' ? blockIdFromDetail(c.detail) : null
+              return (
+                <li key={c.key} className="flex items-start gap-2.5 py-2">
+                  <LightDot light={c.light} className="mt-1.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="ga-ui text-ga-small font-semibold text-ga-ink">{c.label}</p>
+                    {c.detail && <p className="ga-ui whitespace-pre-wrap break-words text-ga-caption text-ga-muted">{c.detail}</p>}
+                    {dupId != null && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <TkBadge tone="red" variant="solid">{t('review.duplicateOf', { id: dupId })}</TkBadge>
+                        <button type="button" className={studioMiniBtn} onClick={() => setPreviewBlock(dupId)}>
+                          <Eye size={13} aria-hidden /> {t('review.viewBlock')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </GaCard>
@@ -83,7 +102,12 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
               <label key={k} className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-ga border border-ga-line px-3 py-2">
                 <input type="checkbox" checked={checklist[k] === true} disabled={locked}
                   onChange={(e) => void tick(k, e.target.checked)} style={{ accentColor: 'var(--ga-accent)' }} />
-                <span className="ga-ui min-w-0 flex-1 text-ga-small font-semibold text-ga-ink">{t(`checklist.${k}`)}</span>
+                <span className="ga-ui min-w-0 flex-1 text-ga-small font-semibold text-ga-ink">
+                  {t(`checklist.${k}`)}
+                  {writing && k === 'SINGLE_ANSWER' && (
+                    <span className="block text-ga-caption font-normal text-ga-muted">{t('review.notApplicableWriting')}</span>
+                  )}
+                </span>
                 <TkBadge tone={s === 'PASS' ? 'green' : s === 'FAIL' ? 'red' : 'neutral'}>
                   {t(`review.machine.${s}`)}
                 </TkBadge>
@@ -124,9 +148,11 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
             </label>
           </div>
           <TeilPreview text={draft.text} items={draft.items} quelle={draft.quelle} showAnswers={showAnswers}
-            startNumber={draft.teil === 2 ? 6 : 1} layout={isMatchHeadline(draft.teilType) ? 'MATCH_HEADLINE' : 'ARTICLE'} />
+            startNumber={firstNumber} layout={kind} />
         </section>
       )}
+
+      <BlockPreviewModal blockId={previewBlock} onClose={() => setPreviewBlock(null)} />
     </div>
   )
 }

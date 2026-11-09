@@ -13,7 +13,8 @@ import {
 } from '@/lib/adminExamStudioApi'
 import {
   DIFFICULTY_ORDER,
-  assembledStatus, assemblyFormErrors, assemblyReplacements, assemblyRows, nextAssemblyNumber, slotKey,
+  assembledStatus, assemblyFormErrors, assemblyReplacements, assemblyRows, blockSelectable, nextAssemblyNumber,
+  pruneChoices, slotKey,
   type AssemblyRow,
 } from '@/lib/examStudioLogic'
 import {
@@ -182,6 +183,8 @@ function AssembleForm({
   const [baseId, setBaseId] = useState<number | null>(bases[0]?.id ?? null)
   const [title, setTitle] = useState(() => t('assembly.titleSuggestion', { n: nextAssemblyNumber(exams) }))
   const [choices, setChoices] = useState<Record<string, number | null>>({})
+  /** Chống trùng giữa bộ đề: mặc định Teil đã có trong bộ khác không chọn được; tích ô này khi cố ý dùng lại. */
+  const [allowReuse, setAllowReuse] = useState(false)
   const [preview, setPreview] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -194,14 +197,15 @@ function AssembleForm({
 
   const base = bases.find((b) => b.id === baseId) ?? null
   const rows = useMemo(() => assemblyRows(base, slots), [base, slots])
-  const replacements = assemblyReplacements(rows, choices)
+  const replacements = assemblyReplacements(rows, choices, allowReuse)
   const errors = assemblyFormErrors({ baseExamId: baseId, title, replacements })
 
   const submit = async () => {
     if (errors.length > 0 || baseId == null) return
     setSaving(true)
     try {
-      await assembleExam({ baseExamId: baseId, title: title.trim(), replacements })
+      // 409 (Teil đã trong bộ khác / ghép lại y hệt bộ đã có): backend gửi câu lỗi tiếng Việt → toast nguyên văn.
+      await assembleExam({ baseExamId: baseId, title: title.trim(), replacements, ...(allowReuse ? { allowReuse: true } : {}) })
       toast.success(t('assembly.assembled'))
       setChoices({})
       await onAssembled()
@@ -250,9 +254,23 @@ function AssembleForm({
                 value={choices[slotKey(r.slot.section, r.slot.teil)] ?? null}
                 onChange={(v) => setChoices((c) => ({ ...c, [slotKey(r.slot.section, r.slot.teil)]: v }))}
                 onPreview={setPreview}
+                allowReuse={allowReuse}
               />
             ))}
           </fieldset>
+
+          <label className="ga-ui flex items-start gap-2 text-ga-small text-ga-ink">
+            <input type="checkbox" className="mt-1" checked={allowReuse} style={{ accentColor: 'var(--ga-accent)' }}
+              onChange={(e) => {
+                const on = e.target.checked
+                setAllowReuse(on)
+                if (!on) setChoices((c) => pruneChoices(rows, c, false))
+              }} />
+            <span>
+              {t('assembly.allowReuse')}
+              <span className="block text-ga-caption text-ga-muted">{t('assembly.allowReuseHint')}</span>
+            </span>
+          </label>
 
           <Note tone="yellow">{t('assembly.reuseWarning')}</Note>
 
@@ -277,13 +295,14 @@ function AssembleForm({
 }
 
 function SlotRow({
-  row, label, value, onChange, onPreview,
+  row, label, value, onChange, onPreview, allowReuse,
 }: {
   row: AssemblyRow
   label: string
   value: number | null
   onChange: (v: number | null) => void
   onPreview: (blockId: number) => void
+  allowReuse: boolean
 }) {
   const t = useTranslations('v2.adminContent.examStudio')
   const id = `asm-slot-${slotKey(row.slot.section, row.slot.teil)}`
@@ -295,6 +314,7 @@ function SlotRow({
       b.theme,
       DIFFICULTY_ORDER.map((lv) => b.difficultyCounts?.[lv] ?? 0).join('-'),
       t('assembly.exposure', { n: b.exposureCount }),
+      (b.usedIn ?? []).length > 0 ? t('assembly.usedIn', { list: b.usedIn.map((u) => u.title).join(', ') }) : null,
     ].filter(Boolean).join(' · ')
 
   return (
@@ -304,7 +324,9 @@ function SlotRow({
         <select id={id} className={studioField} disabled={locked} value={value ?? ''}
           onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
           <option value="">{t('assembly.keepBase')}</option>
-          {row.slot.blocks.map((b) => <option key={b.id} value={b.id}>{optionText(b)}</option>)}
+          {row.slot.blocks.map((b) => (
+            <option key={b.id} value={b.id} disabled={!blockSelectable(b, allowReuse)}>{optionText(b)}</option>
+          ))}
         </select>
         {chosen && (
           <button type="button" className={studioMiniBtn} onClick={() => onPreview(chosen.id)}
@@ -323,6 +345,9 @@ function SlotRow({
           <LevelBadges counts={chosen.difficultyCounts} />
           {chosen.theme && <span>{chosen.theme}</span>}
           <span>{t('assembly.exposure', { n: chosen.exposureCount })}</span>
+          {(chosen.usedIn ?? []).length > 0 && (
+            <TkBadge tone="yellow">{t('assembly.usedIn', { list: chosen.usedIn.map((u) => u.title).join(', ') })}</TkBadge>
+          )}
         </div>
       )}
     </div>

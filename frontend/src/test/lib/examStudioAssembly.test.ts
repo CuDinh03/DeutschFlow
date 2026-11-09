@@ -6,7 +6,7 @@ import {
 } from '@/lib/examStudioLogic'
 
 const counts = { EASY: 2, MEDIUM: 2, HARD: 1, EXPERT: 0 }
-const block = (id: number) => ({ id, titleDe: `T${id}`, theme: null, difficultyCounts: counts, exposureCount: 0 })
+const block = (id: number) => ({ id, titleDe: `T${id}`, theme: null, difficultyCounts: counts, exposureCount: 0, usedIn: [] as { id: number; title: string }[] })
 
 const base: AssemblyBase = {
   id: 7, title: 'telc B1 Modelltest 1', reviewed: true,

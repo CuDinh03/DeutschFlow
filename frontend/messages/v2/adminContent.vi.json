@@ -531,7 +531,7 @@
     "examStudio": {
       "title": "Xưởng đề",
       "subtitle": "Tạo Teil đề thi từ nguồn báo Đức: AI viết bài, ra câu theo ma trận độ khó, owner duyệt vào kho.",
-      "hint": "telc · B1 · Lesen Teil 1 (5 văn bản + 10 tiêu đề a–j) và Teil 2 (bài báo + 5 câu a/b/c)",
+      "hint": "Đang mở: telc B1 — phần đọc (Lesen) Teil 1–3, Sprachbausteine Teil 1–2, phần viết (Schreiben)",
       "createTeil": "Tạo Teil mới",
       "loading": "Đang tải…",
       "next": "Bước tiếp",
@@ -571,7 +571,8 @@
         "SOURCE": "Nguồn",
         "TEXT": "Bài đọc",
         "ITEMS": "Câu hỏi",
-        "REVIEW": "Kiểm & duyệt"
+        "REVIEW": "Kiểm & duyệt",
+        "SITUATION": "Tình huống"
       },
       "stepper": {
         "label": "Các bước tạo Teil",
@@ -608,13 +609,20 @@
         "section": "Phần",
         "teil": "Teil",
         "itemCount": "Số câu",
-        "blueprintHint": "Thông số lấy từ blueprint: Lesen Teil 2 B1 có {itemCount} câu a/b/c, bài 300–450 từ.",
         "theme": "Chủ đề (tuỳ chọn)",
         "themeAny": "Để AI gợi ý theo chỗ còn thiếu trong kho",
         "mode": "Chế độ",
         "matrix": "Ma trận độ khó",
         "save": "Lưu khung",
-        "blueprintHintT1": "Thông số lấy từ blueprint: Lesen Teil 1 B1 có {itemCount} văn bản ngắn (55–110 từ mỗi văn bản) và 10 tiêu đề a–j — mỗi văn bản một tiêu đề đúng, 5 tiêu đề còn lại là nhiễu."
+        "noMatrix": "Teil viết không có câu hỏi nên không có ma trận độ khó.",
+        "blueprintKind": {
+          "ARTICLE": "Thông số lấy từ blueprint: Lesen Teil 2 B1 có {itemCount} câu a/b/c, bài 300–450 từ.",
+          "MATCH_HEADLINE": "Thông số lấy từ blueprint: Lesen Teil 1 B1 có {itemCount} văn bản ngắn (55–110 từ mỗi văn bản) và 10 tiêu đề a–j — mỗi văn bản một tiêu đề đúng, 5 tiêu đề còn lại là nhiễu.",
+          "MATCH_AD_X": "Lesen Teil 3 B1: {itemCount} tình huống (11–20) và 12 mẩu rao vặt a–l (15–45 từ mỗi mẩu); đúng 2 tình huống không mẩu nào hợp (x).",
+          "GAP_MC": "Sprachbausteine Teil 1 B1: một bức thư có {itemCount} ô (21–30), mỗi ô chọn a/b/c.",
+          "GAP_WORDBANK": "Sprachbausteine Teil 2 B1: mẩu tin + bức thư có {itemCount} ô (31–40), hộp 15 từ a–o (5 từ thừa).",
+          "WRITE_EMAIL": "Schreiben B1: một E-Mail xưng du (70–130 từ) và 4 Leitpunkte; không có câu hỏi."
+        }
       },
       "matrix": {
         "decrease": "Bớt một câu {level}",
@@ -689,7 +697,23 @@
         "preview": "Xem trước (đoạn trùng nguồn tô đỏ)",
         "matchHint": "5 văn bản ngắn, mỗi văn bản {lo}–{hi} từ. Văn bản thứ i ứng với câu i.",
         "matchText": "Text {n}",
-        "matchWords": "{n} từ / {lo}–{hi}"
+        "matchWords": "{n} từ / {lo}–{hi}",
+        "emptySituation": "Chưa có bài. Bấm \"AI viết bài\": AI dựng theo tình huống ở bước 2 (để trống thì tự chọn).",
+        "adsHint": "12 mẩu rao vặt a–l, mỗi mẩu {lo}–{hi} từ.",
+        "adN": "Mẩu {k}",
+        "examples": "Ví dụ (01 ghép được một mẩu, 02 là x)",
+        "noExamples": "Chưa có ví dụ.",
+        "exampleSituation": "Tình huống ví dụ {label}",
+        "exampleAnswer": "Đáp án ví dụ {label}",
+        "stimulusAd": "Mẩu tin (thư trả lời mẩu tin này)",
+        "letter": "Bức thư (nguyên vẹn, chưa đục ô)",
+        "letterHint": "Máy đục ô theo từ gốc của từng câu; giữ nguyên các từ đó khi sửa.",
+        "letterEditWarning": "Đã có câu hỏi: sửa thư có thể làm vài ô không định vị được nữa — tự kiểm sẽ báo đỏ GAPS, khi đó phải sinh lại câu.",
+        "mailFrom": "Người gửi",
+        "mailSubject": "Tiêu đề thư",
+        "mailBody": "Nội dung E-Mail",
+        "writingPoints": "4 Leitpunkte",
+        "writingPointN": "Leitpunkt {n}"
       },
       "metrics": {
         "none": "Bảng đo hiện sau khi có bài.",
@@ -746,7 +770,30 @@
         "colHeadline": "Tiêu đề",
         "colRole": "Vai trò",
         "roleRight": "Đúng cho Text {n}",
-        "roleDistractor": "Nhiễu của Text {n}"
+        "roleDistractor": "Nhiễu của Text {n}",
+        "gapN": "Ô {n}",
+        "gapRegenHint": "Sprachbausteine: sinh lại một ô có thể đổi số các ô khác — màn hình nạp lại cả bản nháp.",
+        "adTable": "12 mẩu rao vặt a–l",
+        "colAd": "Mẩu",
+        "xCount": "Có {n} tình huống x — đề thật cần đúng {expected}.",
+        "adDuplicate": "Mẩu làm đáp án cho hai câu: {list}",
+        "adRoleAnswer": "Đáp án của {n}",
+        "adRoleExample": "Ví dụ {label}",
+        "adRoleSpare": "Thừa",
+        "adRoleDistractor": "nhiễu ở {list}",
+        "adNone": "x — không mẩu nào hợp",
+        "adAnswerX": "Đáp án: x — không mẩu nào hợp",
+        "adDistractor": "Mẩu nhiễu",
+        "gapLetter": "Thư có ô",
+        "gapLetterHint": "Bấm một ô để tới thẻ câu đó.",
+        "gapMissing": "Không định vị được ô của: {list} — sinh lại các câu này.",
+        "bankTable": "Hộp 15 từ a–o",
+        "bankEmpty": "Hộp từ chưa có — máy dựng khi sinh câu.",
+        "bankSize": "Hộp có {n} từ — cần đúng 15.",
+        "bankDuplicate": "Từ làm đáp án cho hai ô: {list}",
+        "bankFor": "ô {list}",
+        "bankSpare": "thừa",
+        "bankReadOnly": "Từ trong hộp do máy dựng — đổi bằng \"Sinh lại\"."
       },
       "score": {
         "phrasing": "Diễn đạt đáp án",
@@ -790,7 +837,10 @@
         "approvedBody": "Teil đã vào kho với mã #{id}.",
         "toBlocks": "Xem kho Teil",
         "preview": "Xem như học viên",
-        "showAnswers": "Hiện đáp án và giải thích"
+        "showAnswers": "Hiện đáp án và giải thích",
+        "duplicateOf": "Trùng Teil kho #{id}",
+        "viewBlock": "Xem Teil kho",
+        "notApplicableWriting": "Không áp dụng cho Teil viết — vẫn tích để xác nhận đã xem."
       },
       "preview": {
         "noTitle": "(chưa có tiêu đề)",
@@ -798,7 +848,15 @@
         "correct": "Đáp án đúng",
         "headlines": "Tiêu đề a–j",
         "matchAnswer": "Đáp án: {letter} — {headline}",
-        "matchText": "Text {n}"
+        "matchText": "Text {n}",
+        "examples": "Ví dụ",
+        "adNone": "x — không mẩu nào hợp",
+        "adAnswer": "Đáp án: {k}",
+        "ads": "12 mẩu rao vặt",
+        "adFor": "Đáp án của {list}",
+        "wordBank": "Hộp từ a–o",
+        "gapJump": "Tới câu của ô {n}",
+        "writingPoints": "Bốn ý cần viết"
       },
       "wizard": {
         "back": "Về danh sách Xưởng đề",
@@ -868,7 +926,23 @@
         "retire": "Gỡ",
         "retireTitle": "Gỡ bộ đề này?",
         "retireBody": "\"{title}\" sẽ bị ẩn khỏi danh sách đề của học viên. Có thể phát hành lại sau.",
-        "retired": "Đã gỡ bộ đề"
+        "retired": "Đã gỡ bộ đề",
+        "allowReuse": "Cho dùng lại Teil đã có trong bộ khác (cố ý)",
+        "allowReuseHint": "Mặc định mỗi Teil kho chỉ nằm trong một bộ đề đang chạy, để học viên không gặp lại.",
+        "usedIn": "Đã trong: {list}"
+      },
+      "situation": {
+        "label": "Tình huống",
+        "hint": "Tuỳ chọn. Để trống thì AI tự chọn tình huống khác các Teil đã có trong kho.",
+        "save": "Lưu tình huống",
+        "placeholder": {
+          "ARTICLE": "Chủ đề bài báo",
+          "MATCH_HEADLINE": "Chủ đề 5 văn bản ngắn",
+          "MATCH_AD_X": "Rao vặt ở Salzburg: nhà ở, khoá học, dịch vụ",
+          "GAP_MC": "Thư khiếu nại: máy giặt mới hỏng sau một tuần",
+          "GAP_WORDBANK": "Thư hỏi thông tin về một khoá học tiếng ở Wien",
+          "WRITE_EMAIL": "Bạn rủ đi xem hoà nhạc cuối tuần nhưng bạn bận"
+        }
       }
     }
   }

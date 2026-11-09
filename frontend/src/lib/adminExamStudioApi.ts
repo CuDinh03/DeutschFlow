@@ -14,8 +14,12 @@ export type DraftStep = 'FRAME' | 'SOURCE' | 'TEXT' | 'ITEMS' | 'REVIEW' | 'APPR
 export type DraftStatus = 'DRAFT' | 'APPROVED' | 'DISCARDED'
 export type BusyOp = 'FACTS' | 'TEXT' | 'ITEMS' | 'ITEM' | 'VERIFY'
 export type Light = 'GREEN' | 'YELLOW' | 'RED'
-/** a/b/c cho Lesen Teil 2; a–j cho tiêu đề Lesen Teil 1. */
-export type OptionKey = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j'
+/**
+ * a/b/c: Lesen T2, Sprachbausteine T1 · a–j: tiêu đề Lesen T1 · a–l + x: rao vặt Lesen T3 ·
+ * a–o: hộp từ Sprachbausteine T2.
+ */
+export type OptionKey =
+  | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'x'
 
 export interface StudioFact {
   id: string
@@ -51,6 +55,19 @@ export interface StudioText {
   /** Bài đọc, đoạn cách nhau bằng dòng trống; từ có chú thích đánh dấu `*`. */
   context: string
   glossary: { term: string; explanationDe: string }[]
+  // ── Đợt 3: các Teil soạn theo tình huống. Vắng/null với Lesen T1–T2. ──
+  /** Lesen T3: 12 mẩu rao vặt a–l. */
+  ads?: Partial<Record<OptionKey, string>> | null
+  /** Lesen T3: "01" ghép được một mẩu, "02" là x. */
+  examples?: { label: string; situation: string; answer: string }[] | null
+  /** Sprachbausteine T2: mẩu tin mà bức thư trả lời. (Thư nguyên vẹn của SB1/SB2 nằm ở `context`.) */
+  stimulusAd?: string | null
+  /** Sprachbausteine T2: hộp 15 từ a–o (10 đúng + 5 nhiễu), máy dựng khi sinh câu. */
+  wordBank?: Partial<Record<OptionKey, string>> | null
+  /** Schreiben: E-Mail của bạn (du). */
+  stimulus?: { type: string; from: string; subject: string; body: string } | null
+  /** Schreiben: đúng 4 Leitpunkte. */
+  writingPoints?: string[] | null
 }
 
 export interface TextMetrics {
@@ -95,6 +112,11 @@ export interface StudioItem {
   light: Light | null
   /** Lý do đèn vàng/đỏ, tiếng Việt. */
   flags: string[]
+  /**
+   * Sprachbausteine: `target` (từ gốc trong thư), `before` (cụm ngay trước để định vị), `gap` (số ô 21–30 / 31–40),
+   * `phenomenon` (hiện tượng ngữ pháp). Lesen T3: `question` là tình huống, `correct` là chữ a–l hoặc `x`.
+   */
+  meta?: Record<string, string> | null
 }
 
 export interface StudioCheck {
@@ -136,6 +158,12 @@ export interface StudioDraft {
   blockId: number | null
   createdAt: string
   updatedAt: string
+  /** Tình huống admin nhập cho Teil soạn theo tình huống (đợt 3). */
+  situation: string | null
+  /** true = Lesen T1/T2 (bước Nguồn báo); false = soạn theo tình huống (bước "Tình huống", không có nguồn). */
+  needsSources: boolean
+  /** Cảnh báo chống trùng không chặn (vd. nguồn đã dùng ở Teil khác), tiếng Việt. */
+  warnings: string[]
 }
 
 export interface StudioDraftSummary {
@@ -172,6 +200,7 @@ export interface CreateDraftBody {
   theme?: string | null
   mode: 'EXAM' | 'PRACTICE'
   difficultyPlan: DifficultyPlan
+  situation?: string | null
 }
 
 export interface PatchDraftBody {
@@ -181,6 +210,7 @@ export interface PatchDraftBody {
   text?: StudioText
   items?: StudioItem[]
   reviewChecklist?: Partial<Record<ChecklistKey, boolean>>
+  situation?: string | null
 }
 
 /** Một trong hai: url (máy tự tải) hoặc pastedText (dán tay khi có paywall). Văn bản dán KHÔNG được lưu. */
@@ -285,6 +315,8 @@ export interface AssemblyBlockOption {
   difficultyCounts: DifficultyPlan
   /** Số bộ đề đã dùng Teil này — ít dùng xếp trước. */
   exposureCount: number
+  /** Bộ đề ghép ĐANG CHẠY đã chứa Teil này (chống trùng giữa các bộ đề). */
+  usedIn: { id: number; title: string }[]
 }
 
 export interface AssemblySlotBlocks {
@@ -312,6 +344,11 @@ export interface AssembleBody {
   baseExamId: number
   title: string
   replacements: { section: string; teil: number; blockId: number }[]
+  /**
+   * Mặc định false: một Teil kho chỉ nằm trong MỘT bộ đề đang chạy (backend trả 409 nếu dùng lại). Bật khi cố ý.
+   * Ghép lại y hệt một bộ đã có (cùng nền, cùng Teil) luôn bị 409.
+   */
+  allowReuse?: boolean
 }
 
 export async function listAssemblyBases(examFormat = 'TELC', cefrLevel = 'B1'): Promise<AssemblyBase[]> {

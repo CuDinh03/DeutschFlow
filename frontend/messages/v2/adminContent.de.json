@@ -531,7 +531,7 @@
     "examStudio": {
       "title": "Prüfungswerkstatt",
       "subtitle": "Prüfungsteile aus deutschen Nachrichtenquellen erstellen: KI schreibt Text und Aufgaben nach Schwierigkeitsmatrix, der Owner gibt sie für den Pool frei.",
-      "hint": "telc · B1 · Lesen Teil 1 (5 Texte + 10 Überschriften a–j) und Teil 2 (Artikel + 5 Aufgaben a/b/c)",
+      "hint": "telc B1 · Lesen Teil 1–3 · Sprachbausteine Teil 1–2 · Schreiben",
       "createTeil": "Neuer Teil",
       "loading": "Wird geladen…",
       "next": "Nächster Schritt",
@@ -571,7 +571,8 @@
         "SOURCE": "Quellen",
         "TEXT": "Lesetext",
         "ITEMS": "Aufgaben",
-        "REVIEW": "Prüfen & freigeben"
+        "REVIEW": "Prüfen & freigeben",
+        "SITUATION": "Situation"
       },
       "stepper": {
         "label": "Schritte zum Teil",
@@ -608,13 +609,20 @@
         "section": "Prüfungsteil",
         "teil": "Teil",
         "itemCount": "Aufgaben",
-        "blueprintHint": "Laut Blueprint: Lesen Teil 2 B1 hat {itemCount} Aufgaben a/b/c und einen Text mit 300–450 Wörtern.",
         "theme": "Thema (optional)",
         "themeAny": "KI schlägt nach Lücken im Pool vor",
         "mode": "Modus",
         "matrix": "Schwierigkeitsmatrix",
         "save": "Rahmen speichern",
-        "blueprintHintT1": "Laut Blueprint: Lesen Teil 1 B1 hat {itemCount} kurze Texte (je 55–110 Wörter) und 10 Überschriften a–j — je Text eine richtige, die übrigen 5 sind Distraktoren."
+        "noMatrix": "Der Schreibteil hat keine Aufgaben und daher keine Schwierigkeitsmatrix.",
+        "blueprintKind": {
+          "ARTICLE": "Laut Blueprint: Lesen Teil 2 B1 hat {itemCount} Aufgaben a/b/c und einen Text mit 300–450 Wörtern.",
+          "MATCH_HEADLINE": "Laut Blueprint: Lesen Teil 1 B1 hat {itemCount} kurze Texte (je 55–110 Wörter) und 10 Überschriften a–j — je Text eine richtige, die übrigen 5 sind Distraktoren.",
+          "MATCH_AD_X": "Lesen Teil 3 B1: {itemCount} Situationen (11–20) und 12 Anzeigen a–l (je 15–45 Wörter); genau 2 Situationen ohne passende Anzeige (x).",
+          "GAP_MC": "Sprachbausteine Teil 1 B1: ein Brief mit {itemCount} Lücken (21–30), je a/b/c.",
+          "GAP_WORDBANK": "Sprachbausteine Teil 2 B1: Anzeige + Brief mit {itemCount} Lücken (31–40), Kasten mit 15 Wörtern a–o (5 übrig).",
+          "WRITE_EMAIL": "Schreiben B1: eine E-Mail per du (70–130 Wörter) und 4 Leitpunkte; keine Aufgaben."
+        }
       },
       "matrix": {
         "decrease": "Eine Aufgabe {level} weniger",
@@ -689,7 +697,23 @@
         "preview": "Vorschau (aus der Quelle kopierte Stellen rot)",
         "matchHint": "5 kurze Texte, je {lo}–{hi} Wörter. Text i gehört zu Aufgabe i.",
         "matchText": "Text {n}",
-        "matchWords": "{n} Wörter / {lo}–{hi}"
+        "matchWords": "{n} Wörter / {lo}–{hi}",
+        "emptySituation": "Noch kein Text. \"KI schreibt Text\" nutzt die Situation aus Schritt 2 (leer: KI wählt selbst).",
+        "adsHint": "12 Anzeigen a–l, je {lo}–{hi} Wörter.",
+        "adN": "Anzeige {k}",
+        "examples": "Beispiele (01 passt zu einer Anzeige, 02 ist x)",
+        "noExamples": "Noch keine Beispiele.",
+        "exampleSituation": "Beispielsituation {label}",
+        "exampleAnswer": "Beispiellösung {label}",
+        "stimulusAd": "Anzeige (der Brief antwortet darauf)",
+        "letter": "Brief (vollständig, ohne Lücken)",
+        "letterHint": "Die Lücken entstehen am Originalwort jeder Aufgabe; diese Wörter beim Bearbeiten beibehalten.",
+        "letterEditWarning": "Es gibt schon Aufgaben: Änderungen am Brief können Lücken unauffindbar machen — die Selbstprüfung meldet GAPS rot, dann Aufgaben neu erstellen.",
+        "mailFrom": "Absender",
+        "mailSubject": "Betreff",
+        "mailBody": "E-Mail-Text",
+        "writingPoints": "4 Leitpunkte",
+        "writingPointN": "Leitpunkt {n}"
       },
       "metrics": {
         "none": "Messwerte erscheinen, sobald ein Text vorliegt.",
@@ -746,7 +770,30 @@
         "colHeadline": "Überschrift",
         "colRole": "Rolle",
         "roleRight": "Richtig für Text {n}",
-        "roleDistractor": "Distraktor zu Text {n}"
+        "roleDistractor": "Distraktor zu Text {n}",
+        "gapN": "Lücke {n}",
+        "gapRegenHint": "Sprachbausteine: Eine Lücke neu zu erstellen kann die anderen umnummerieren — der ganze Entwurf wird neu geladen.",
+        "adTable": "12 Anzeigen a–l",
+        "colAd": "Anzeige",
+        "xCount": "{n} Situationen sind x — die echte Prüfung braucht genau {expected}.",
+        "adDuplicate": "Anzeige ist Lösung für zwei Aufgaben: {list}",
+        "adRoleAnswer": "Lösung für {n}",
+        "adRoleExample": "Beispiel {label}",
+        "adRoleSpare": "Übrig",
+        "adRoleDistractor": "Distraktor in {list}",
+        "adNone": "x — keine Anzeige passt",
+        "adAnswerX": "Lösung: x — keine Anzeige passt",
+        "adDistractor": "Distraktor",
+        "gapLetter": "Brief mit Lücken",
+        "gapLetterHint": "Auf eine Lücke klicken, um zur Aufgabe zu springen.",
+        "gapMissing": "Lücke nicht auffindbar für: {list} — diese Aufgaben neu erstellen.",
+        "bankTable": "Kasten mit 15 Wörtern a–o",
+        "bankEmpty": "Noch kein Wortkasten — er entsteht beim Erstellen der Aufgaben.",
+        "bankSize": "Der Kasten hat {n} Wörter — genau 15 sind nötig.",
+        "bankDuplicate": "Wort ist Lösung für zwei Lücken: {list}",
+        "bankFor": "Lücke {list}",
+        "bankSpare": "übrig",
+        "bankReadOnly": "Die Wörter im Kasten erstellt die Maschine — über \"Neu erstellen\" ändern."
       },
       "score": {
         "phrasing": "Formulierung der Lösung",
@@ -790,7 +837,10 @@
         "approvedBody": "Der Teil liegt im Pool als #{id}.",
         "toBlocks": "Teil-Pool öffnen",
         "preview": "Ansicht wie Lernende",
-        "showAnswers": "Lösungen und Erklärungen zeigen"
+        "showAnswers": "Lösungen und Erklärungen zeigen",
+        "duplicateOf": "Doppelt zu Pool-Teil #{id}",
+        "viewBlock": "Pool-Teil ansehen",
+        "notApplicableWriting": "Gilt nicht für den Schreibteil — trotzdem abhaken, um die Prüfung zu bestätigen."
       },
       "preview": {
         "noTitle": "(noch kein Titel)",
@@ -798,7 +848,15 @@
         "correct": "Richtige Lösung",
         "headlines": "Überschriften a–j",
         "matchAnswer": "Lösung: {letter} — {headline}",
-        "matchText": "Text {n}"
+        "matchText": "Text {n}",
+        "examples": "Beispiele",
+        "adNone": "x — keine Anzeige passt",
+        "adAnswer": "Lösung: {k}",
+        "ads": "12 Anzeigen",
+        "adFor": "Lösung für {list}",
+        "wordBank": "Wortkasten a–o",
+        "gapJump": "Zur Aufgabe von Lücke {n}",
+        "writingPoints": "Vier Punkte"
       },
       "wizard": {
         "back": "Zurück zur Prüfungswerkstatt",
@@ -868,7 +926,23 @@
         "retire": "Zurückziehen",
         "retireTitle": "Diesen Prüfungssatz zurückziehen?",
         "retireBody": "\"{title}\" wird in der Prüfungsliste der Lernenden ausgeblendet. Später erneut veröffentlichbar.",
-        "retired": "Prüfungssatz zurückgezogen"
+        "retired": "Prüfungssatz zurückgezogen",
+        "allowReuse": "Teil aus einem anderen Prüfungssatz bewusst wiederverwenden",
+        "allowReuseHint": "Standardmäßig steckt jeder Pool-Teil in nur einem laufenden Prüfungssatz, damit Lernende ihn nicht doppelt sehen.",
+        "usedIn": "Bereits in: {list}"
+      },
+      "situation": {
+        "label": "Situation",
+        "hint": "Optional. Leer lassen: Die KI wählt eine Situation, die sich von den Teilen im Pool unterscheidet.",
+        "save": "Situation speichern",
+        "placeholder": {
+          "ARTICLE": "Thema des Artikels",
+          "MATCH_HEADLINE": "Thema der 5 kurzen Texte",
+          "MATCH_AD_X": "Kleinanzeigen in Salzburg: Wohnen, Kurse, Dienstleistungen",
+          "GAP_MC": "Beschwerdebrief: neue Waschmaschine nach einer Woche kaputt",
+          "GAP_WORDBANK": "Anfrage zu einem Sprachkurs in Wien",
+          "WRITE_EMAIL": "Ein Freund lädt Sie am Wochenende ins Konzert ein, aber Sie haben keine Zeit"
+        }
       }
     }
   }

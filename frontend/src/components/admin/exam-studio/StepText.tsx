@@ -7,9 +7,10 @@ import { patchDraft, writeText, type StudioDraft, type StudioText } from '@/lib/
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import {
-  MATCH_TEXT_WORD_RANGE, countWords, isMatchHeadline, joinMatchTexts, matchTextInRange, splitMatchTexts,
+  MATCH_TEXT_WORD_RANGE, countWords, isGapKind, joinMatchTexts, matchTextInRange, splitMatchTexts, teilKind,
 } from '@/lib/examStudioLogic'
 import { TeilPreview } from './TeilPreview'
+import { AdsEditor, EmailEditor, LetterEditor } from './TextEditors'
 import { Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
 
 const EMPTY_TEXT: StudioText = { titleDe: '', vorspannDe: '', context: '', glossary: [] }
@@ -21,7 +22,9 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
   const [dirty, setDirty] = useState(false)
   const [selection, setSelection] = useState('')
   // Lesen T1: 5 văn bản ngắn sửa trong 5 ô riêng; lưu thì ghép lại bằng dòng trống.
-  const match = isMatchHeadline(draft.teilType)
+  const kind = teilKind(draft.teilType)
+  const match = kind === 'MATCH_HEADLINE'
+  const article = kind === 'ARTICLE'
   const [texts, setTexts] = useState<string[]>(() => splitMatchTexts(draft.text?.context, draft.itemCount))
 
   // Bản máy chủ đổi (AI viết xong, lưu xong) → nạp lại nếu người dùng không có sửa dở.
@@ -50,9 +53,12 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
   }
 
   const save = async () => {
+    // Backend ghi đè nguyên `text` → luôn gửi cả object (giữ ads/examples/wordBank/stimulus… của dạng khác).
     const cleaned: StudioText = match
-      ? { titleDe: '', vorspannDe: '', context: joinMatchTexts(texts), glossary: [] }
-      : { ...text, glossary: text.glossary.filter((g) => g.term.trim()) }
+      ? { ...text, titleDe: '', vorspannDe: '', context: joinMatchTexts(texts), glossary: [] }
+      : article
+        ? { ...text, glossary: (text.glossary ?? []).filter((g) => g.term.trim()) }
+        : { ...text }
     if (await run(() => patchDraft(draft.id, { text: cleaned }), t('saved'))) setDirty(false)
   }
   const discard = () => {
@@ -77,10 +83,10 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
           </div>
 
           {!draft.text && !dirty ? (
-            <p className="ga-ui text-ga-small text-ga-muted">{t('text.empty')}</p>
+            <p className="ga-ui text-ga-small text-ga-muted">{draft.needsSources === false ? t('text.emptySituation') : t('text.empty')}</p>
           ) : (
             <>
-              {!match && (<>
+              {article && (<>
               <div>
                 <label htmlFor="text-title" className="mb-1.5 block"><GaCap>{t('text.titleDe')}</GaCap></label>
                 <input id="text-title" lang="de" className={studioField} value={text.titleDe} disabled={locked}
@@ -94,6 +100,13 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
               </>)}
               {match ? (
                 <MatchTextsEditor texts={texts} locked={locked} onChange={editMatch} onSelectText={readSelection} />
+              ) : kind === 'MATCH_AD_X' ? (
+                <AdsEditor text={text} locked={locked} edit={edit} onSelect={readSelection} />
+              ) : kind === 'GAP_MC' || kind === 'GAP_WORDBANK' ? (
+                <LetterEditor text={text} locked={locked} edit={edit} onSelect={readSelection}
+                  withAd={kind === 'GAP_WORDBANK'} hasItems={draft.items.length > 0} />
+              ) : kind === 'WRITE_EMAIL' ? (
+                <EmailEditor text={text} locked={locked} edit={edit} onSelect={readSelection} />
               ) : (
               <div>
                 <label htmlFor="text-context" className="mb-1.5 block"><GaCap>{t('text.context')}</GaCap></label>
@@ -127,7 +140,7 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
                 </span>
               </div>
 
-              {!match && (
+              {article && (
               <fieldset>
                 <legend className="mb-1.5"><GaCap>{t('text.glossary')}</GaCap></legend>
                 <div className="flex flex-col gap-2">
@@ -169,8 +182,8 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
         {draft.text && (
           <section aria-labelledby="text-preview-h">
             <h3 id="text-preview-h" className="mb-2"><GaCap>{t('text.preview')}</GaCap></h3>
-            <TeilPreview text={draft.text} items={[]} quelle={draft.quelle} showAnswers={false}
-              layout={match ? 'MATCH_HEADLINE' : 'ARTICLE'}
+            <TeilPreview text={draft.text} items={isGapKind(kind) ? draft.items : []} quelle={draft.quelle}
+              showAnswers={false} layout={kind}
               highlightSnippets={draft.textMetrics?.overlapSnippets ?? []} />
           </section>
         )}

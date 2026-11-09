@@ -9,12 +9,13 @@ import {
   type DifficultyLevel, type OptionKey, type StudioItem,
 } from '@/lib/adminExamStudioApi'
 import {
-  DIFFICULTY_ORDER, countByLevel, hasHeadlineIssues, headlineIssues, headlineTable, isMatchHeadline,
-  matchTextIndex, normalizeHeadline, optionKeys, splitMatchTexts,
+  DIFFICULTY_ORDER, countByLevel, hasHeadlineIssues, headlineIssues, headlineTable, isGapKind, itemNumber,
+  matchTextIndex, normalizeHeadline, optionKeys, splitMatchTexts, teilKind, type TeilKind,
 } from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import { LightDot, Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
+import { AdRoleTable, GapLetterPanel, WordBankTable } from './ItemsSituational'
 
 /** Phương án dạng bản đồ chuỗi: T2 có a/b/c, T1 có 2 chữ trong a–j (type cũ chỉ khai a|b|c). */
 const optsOf = (it: Pick<StudioItem, 'options'>) => it.options as Record<string, string>
@@ -28,7 +29,9 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
   const target = countByLevel(draft.items, 'target')
   const measured = countByLevel(draft.items, 'measured')
   const allLocked = draft.items.length > 0 && draft.items.every((i) => i.locked)
-  const match = isMatchHeadline(draft.teilType)
+  const kind = teilKind(draft.teilType)
+  const match = kind === 'MATCH_HEADLINE'
+  const gap = isGapKind(kind)
   const texts = match ? splitMatchTexts(draft.text?.context, draft.itemCount) : []
 
   const saveItem = (next: StudioItem) =>
@@ -43,6 +46,7 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
           </GaBtn>
           <span className="ga-ui text-ga-caption text-ga-muted">{t('items.generateHint')}</span>
         </div>
+        {gap && <p className="ga-ui text-ga-caption text-ga-muted">{t('items.gapRegenHint')}</p>}
 
         <div className="overflow-x-auto">
           <table className="ga-ui w-full min-w-[420px] text-ga-small">
@@ -77,6 +81,9 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
       </GaCard>
 
       {match && draft.items.length > 0 && <HeadlineTable items={draft.items} />}
+      {kind === 'MATCH_AD_X' && draft.items.length > 0 && <AdRoleTable draft={draft} />}
+      {gap && draft.items.length > 0 && <GapLetterPanel draft={draft} />}
+      {kind === 'GAP_WORDBANK' && draft.items.length > 0 && <WordBankTable draft={draft} />}
 
       {draft.items.length === 0 ? (
         <p className="ga-ui rounded-ga border border-dashed border-ga-line px-4 py-8 text-center text-ga-small text-ga-muted">
@@ -89,6 +96,7 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
             item={it}
             index={i}
             match={match}
+            kind={kind}
             excerptText={match ? excerpt(texts[matchTextIndex(it.id, i)] ?? '') : undefined}
             locked={locked}
             onSave={saveItem}
@@ -105,12 +113,13 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
 }
 
 function ItemCard({
-  item, index, match, excerptText, locked, onSave, onRegenerate,
+  item, index, match, kind, excerptText, locked, onSave, onRegenerate,
 }: {
   item: StudioItem
   index: number
   /** Lesen T1: câu = "Text i", 2 tiêu đề (đúng + nhiễu). */
   match: boolean
+  kind: TeilKind
   excerptText?: string
   locked: boolean
   onSave: (next: StudioItem) => Promise<boolean>
@@ -123,6 +132,13 @@ function ItemCard({
   const mismatch = m != null && m.level !== item.difficultyTarget
   const busy = locked || item.locked
   const headingId = `item-${item.id}-h`
+  const gap = isGapKind(kind)
+  const adX = kind === 'MATCH_AD_X'
+  // SB2: phương án là từ trong hộp (máy dựng) — không sửa chữ ở đây, chỉ sửa giải thích/bằng chứng.
+  const optionsEditable = kind !== 'GAP_WORDBANK'
+  /** Lựa chọn đáp án khi sửa tay: khoá của câu, LV3 thêm `x`. */
+  const answerKeys = (o: Record<string, string>) => (adX ? Array.from(new Set([...optionKeys(o), 'x'])) : optionKeys(o))
+  const number = kind === 'ARTICLE' || match ? index + 1 : Number(item.meta?.gap ?? itemNumber(item.id, index + 1))
 
   const startEdit = () => { setForm(item); setEditing(true) }
   const save = async () => { if (await onSave(form)) setEditing(false) }
@@ -132,10 +148,10 @@ function ItemCard({
     : undefined
 
   return (
-    <GaCard className="flex flex-col gap-3 p-4 sm:p-5" aria-labelledby={headingId}>
+    <GaCard id={`item-card-${item.id}`} tabIndex={-1} className="flex scroll-mt-4 flex-col gap-3 p-4 outline-none focus-visible:ring-2 focus-visible:ring-ga-focus sm:p-5" aria-labelledby={headingId}>
       <div className="flex flex-wrap items-center gap-2">
         <LightDot light={item.light} />
-        <h3 id={headingId} className="ga-ui text-ga-h3 text-ga-ink">{t('items.itemN', { n: index + 1 })}</h3>
+        <h3 id={headingId} className="ga-ui text-ga-h3 text-ga-ink">{gap ? t('items.gapN', { n: number }) : t('items.itemN', { n: number })}</h3>
         <span className="ga-ui text-ga-caption text-ga-muted">{item.id}</span>
         <TkBadge tone={mismatch ? 'yellow' : 'navy'} title={scoreTitle}>
           {m
@@ -143,6 +159,7 @@ function ItemCard({
             : t('items.difficultyUnmeasured', { target: DIFFICULTY_LABEL[item.difficultyTarget] })}
         </TkBadge>
         {item.locked && <TkBadge tone="neutral"><Lock size={11} aria-hidden /> {t('items.lockedBadge')}</TkBadge>}
+        {gap && item.meta?.phenomenon && <TkBadge tone="violet">{item.meta.phenomenon}</TkBadge>}
       </div>
 
       {m && (
@@ -173,14 +190,20 @@ function ItemCard({
           )}
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1"><GaCap>{match ? t('items.headlinesLegend') : t('items.options')}</GaCap></legend>
-            {optionKeys(optsOf(form)).map((k) => (
+            {!optionsEditable && <p className="ga-ui text-ga-caption text-ga-muted">{t('items.bankReadOnly')}</p>}
+            {answerKeys(optsOf(form)).map((k) => (
               <div key={k} className="flex items-center gap-2">
-                <input type="radio" name={`${item.id}-correct`} checked={form.correct === k}
+                <input type="radio" name={`${item.id}-correct`} checked={form.correct === k} disabled={!optionsEditable}
                   aria-label={t('items.markCorrect', { k })} onChange={() => setForm({ ...form, correct: k as OptionKey })}
                   style={{ accentColor: 'var(--ga-green)' }} />
                 <span className="w-4 font-semibold text-ga-muted">{k}</span>
-                <input lang="de" className={studioField} value={optsOf(form)[k]} aria-label={t('items.optionN', { k })}
-                  onChange={(e) => setForm({ ...form, options: { ...optsOf(form), [k]: e.target.value } as StudioItem['options'] })} />
+                {k === 'x' && adX && !(k in optsOf(form)) ? (
+                  <span className="ga-ui text-ga-small text-ga-muted">{t('items.adNone')}</span>
+                ) : (
+                  <input lang="de" className={studioField} value={optsOf(form)[k] ?? ''} aria-label={t('items.optionN', { k })}
+                    disabled={!optionsEditable}
+                    onChange={(e) => setForm({ ...form, options: { ...optsOf(form), [k]: e.target.value } as StudioItem['options'] })} />
+                )}
               </div>
             ))}
           </fieldset>
@@ -200,6 +223,9 @@ function ItemCard({
       ) : (
         <>
           <p className="text-ga-body font-semibold text-ga-ink" lang="de">{item.question}</p>
+          {adX && item.correct === 'x' && (
+            <p className="ga-ui rounded-ga bg-ga-green-soft px-2.5 py-1.5 text-ga-small font-semibold text-ga-green">{t('items.adAnswerX')}</p>
+          )}
           {match && excerptText != null && (
             <p className="whitespace-pre-line rounded-ga border border-ga-line px-3 py-2 text-ga-small text-ga-muted" lang="de">
               {excerptText || t('preview.noText')}
@@ -217,6 +243,7 @@ function ItemCard({
                     <span className="min-w-0 flex-1">{optsOf(item)[k]}</span>
                     {right && <TkBadge tone="green" lang="vi">{match ? t('items.headlineRight') : t('preview.correct')}</TkBadge>}
                     {!right && match && <TkBadge tone="yellow" lang="vi">{t('items.headlineDistractor')}</TkBadge>}
+                    {!right && adX && <TkBadge tone="yellow" lang="vi">{t('items.adDistractor')}</TkBadge>}
                   </span>
                   {trap && (
                     <span className="ga-ui pl-6 text-ga-caption text-ga-muted" lang="vi">{t('items.trap', { rule: trap.rule })}</span>
