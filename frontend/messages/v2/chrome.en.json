@@ -50,7 +50,7 @@
       "admin-vocab": "Vocabulary",
       "admin-grammar-review": "Grammar Review",
       "admin-occupation-review": "Occupation questions",
-      "admin-media": "Media",
+      "admin-media": "Media library",
       "admin-ai": "AI Config",
       "admin-broadcast": "Broadcast",
       "admin-marketing": "Growth",
@@ -90,7 +90,9 @@
       "objectives": "Objective matrix",
       "org-settings": "Center settings",
       "org-audit": "Activity log",
-      "org-certificates": "Certificates"
+      "org-certificates": "Certificates",
+      "admin-ai-usage": "AI costs",
+      "admin-exam-bank": "Speaking item bank"
     },
     "sections": {
       "classMgmt": "Class Management",
@@ -103,7 +105,12 @@
       "classes": "Classes",
       "personal": "Personal",
       "ops": "Operations",
-      "staff": "Staff"
+      "staff": "Staff",
+      "adminInsights": "Insights",
+      "adminPeople": "People",
+      "adminB2b": "B2B centers",
+      "adminContent": "Content & exams",
+      "adminControl": "Oversight"
     },
     "roles": {
       "teacher": "Teacher",
@@ -214,7 +221,11 @@
     "messages": "Messages",
     "more": "More",
     "areaNav": "Area navigation",
-    "sectionNav": "Section navigation"
+    "sectionNav": "Section navigation",
+    "confirmReasonLabel": "Reason (required, at least {min} characters) — recorded in the audit log",
+    "confirmReasonCount": "{count} characters · min {min}, max {max}",
+    "confirmPhraseLabel": "Type “{phrase}” to confirm",
+    "cancel": "Cancel"
   },
   "maintenance": {
     "overlayTitle": "System under maintenance",

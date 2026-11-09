@@ -11,7 +11,10 @@ import { useFmt } from '@/lib/i18n/useFmt'
 /**
  * DataTable — stateful list pattern-setter (70-admin-users hi-fi).
  * One card frame holds ALL states: loading (shimmer) · empty · error · data.
- * Internal client-side sort + pagination over the `data` it receives.
+ * Client mode (default): sort + pagination over the `data` it receives.
+ * Server mode (`server` prop, 09/11/2026): `data` IS the current page; sort/page changes are
+ * reported through callbacks and the caller refetches — for lists too big to load whole
+ * (admin users). The table never slices or sorts server data itself.
  */
 export interface DataTableColumn<T> {
   key: string
@@ -50,6 +53,27 @@ export interface DataTableProps<T> {
   /** Noun for the footer count, e.g. "người dùng". */
   itemNoun?: string
   className?: string
+  /**
+   * Server mode: `data` is one page already sorted by the server. Footer + pager come from
+   * `total`/`page`/`pageSize`; header clicks call `onSortChange(key, dir)` with the column `key`.
+   */
+  server?: DataTableServerState
+  /**
+   * Server mode while fetching the next page: keep showing the previous rows (dimmed, aria-busy)
+   * instead of collapsing to shimmer — the pager does not jump under the cursor.
+   */
+  keepPreviousRows?: boolean
+}
+
+export interface DataTableServerState {
+  total: number
+  /** 1-based. */
+  page: number
+  pageSize: number
+  sortKey?: string | null
+  sortDir?: 'asc' | 'desc'
+  onPageChange: (page: number) => void
+  onSortChange?: (key: string, dir: 'asc' | 'desc') => void
 }
 
 const alignClass = { left: 'text-left', right: 'text-right', center: 'text-center' } as const
@@ -85,6 +109,8 @@ export function DataTable<T>({
   pageSize = 8,
   itemNoun,
   className,
+  server,
+  keepPreviousRows = false,
 }: DataTableProps<T>) {
   // i18n contract (W0-C8): default copy từ v2.ui, prop override (itemNoun).
   const t = useTranslations('v2.ui')
@@ -94,8 +120,12 @@ export function DataTable<T>({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [page, setPage] = useState(1)
 
+  const isServer = server != null
+  const activeSortKey = isServer ? (server.sortKey ?? null) : sortKey
+  const activeSortDir = isServer ? (server.sortDir ?? 'asc') : sortDir
+
   const sorted = useMemo(() => {
-    if (!sortKey) return data
+    if (isServer || !sortKey) return data
     const col = columns.find((c) => c.key === sortKey)
     if (!col?.sortable) return data
     const val = col.sortValue ?? ((r: T) => (r as Record<string, unknown>)[col.key] as string | number)
@@ -105,16 +135,25 @@ export function DataTable<T>({
       const cmp = av < bv ? -1 : av > bv ? 1 : 0
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [data, sortKey, columns, sortDir])
+  }, [data, sortKey, columns, sortDir, isServer])
 
-  const paginate = pageSize > 0
-  const totalPages = paginate ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1
-  const current = Math.min(page, totalPages)
-  const rows = paginate ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted
-  const from = sorted.length === 0 ? 0 : (current - 1) * pageSize + 1
-  const to = paginate ? Math.min(current * pageSize, sorted.length) : sorted.length
+  const size = isServer ? Math.max(1, server.pageSize) : pageSize
+  const paginate = isServer || size > 0
+  const totalCount = isServer ? Math.max(server.total, data.length) : sorted.length
+  const totalPages = paginate ? Math.max(1, Math.ceil(totalCount / size)) : 1
+  const current = Math.min(isServer ? Math.max(1, server.page) : page, totalPages)
+  const rows = isServer ? data : paginate ? sorted.slice((current - 1) * size, current * size) : sorted
+  const from = totalCount === 0 || rows.length === 0 ? 0 : (current - 1) * size + 1
+  const to = isServer ? (rows.length === 0 ? 0 : from + rows.length - 1) : paginate ? Math.min(current * size, totalCount) : totalCount
+
+  const goTo = (p: number) => (isServer ? server.onPageChange(p) : setPage(p))
 
   const toggleSort = (key: string) => {
+    if (isServer) {
+      const dir = activeSortKey === key && activeSortDir === 'asc' ? 'desc' : 'asc'
+      server.onSortChange?.(key, dir)
+      return
+    }
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     else {
       setSortKey(key)
@@ -159,7 +198,7 @@ export function DataTable<T>({
       </div>
     )
   }
-  if (!loading && sorted.length === 0) {
+  if (!loading && rows.length === 0) {
     return <div className={cn(card, className)}>{empty}</div>
   }
 
@@ -167,11 +206,11 @@ export function DataTable<T>({
     <thead>
       <tr>
         {columns.map((col) => {
-          const isSorted = sortKey === col.key
+          const isSorted = activeSortKey === col.key
           const sortIndicator =
             col.sortable &&
             (isSorted ? (
-              sortDir === 'asc' ? (
+              activeSortDir === 'asc' ? (
                 <ArrowUp size={12} className="text-ga-ink" />
               ) : (
                 <ArrowDown size={12} className="text-ga-ink" />
@@ -185,7 +224,7 @@ export function DataTable<T>({
               aria-sort={
                 col.sortable
                   ? isSorted
-                    ? sortDir === 'asc'
+                    ? activeSortDir === 'asc'
                       ? 'ascending'
                       : 'descending'
                     : 'none'
@@ -233,8 +272,11 @@ export function DataTable<T>({
   )
   const colCount = columns.length + (onRowClick ? 1 : 0)
 
+  // Server mode, next page loading: keep the previous rows on screen (dimmed) — see `keepPreviousRows`.
+  const refreshing = loading && keepPreviousRows && data.length > 0
+
   // ── loading: thead + shimmer rows ───────────────────────────────────────
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       // role="status" + aria-busy (F-08): screen reader biết bảng đang tải thay vì im lặng.
       <div role="status" aria-busy="true" aria-live="polite" className={cn(card, className)}>
@@ -261,8 +303,12 @@ export function DataTable<T>({
 
   // ── data ────────────────────────────────────────────────────────────────
   return (
-    <div className={cn(card, className)}>
-      <div className={scroller}>
+    <div
+      className={cn(card, className)}
+      aria-busy={refreshing || undefined}
+      data-refreshing={refreshing || undefined}
+    >
+      <div className={cn(scroller, refreshing && 'pointer-events-none opacity-60 transition-opacity')}>
         <table className={cn('ga-ui w-full border-collapse text-[14.5px]', tableMin)}>
           {thead}
           <tbody>
@@ -312,10 +358,10 @@ export function DataTable<T>({
       {paginate && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ga-line px-4 py-3 lg:flex-nowrap lg:gap-0 lg:px-5 lg:py-3.5">
           <span className="ga-ui text-[13px] text-ga-muted">
-            {t('tableFooter', { from, to, total: fmt.num(sorted.length), noun })}
+            {t('tableFooter', { from, to, total: fmt.num(totalCount), noun })}
           </span>
           <div className="flex flex-wrap gap-1.5 lg:flex-nowrap">
-            <PagerBtn ariaLabel={t('prevPage')} disabled={current === 1} onClick={() => setPage(current - 1)}>‹</PagerBtn>
+            <PagerBtn ariaLabel={t('prevPage')} disabled={current === 1} onClick={() => goTo(current - 1)}>‹</PagerBtn>
             {pageList(current, totalPages).map((p, i) =>
               p === '…' ? (
                 <span
@@ -325,12 +371,12 @@ export function DataTable<T>({
                   …
                 </span>
               ) : (
-                <PagerBtn key={p} ariaLabel={t('page', { page: p })} active={p === current} onClick={() => setPage(p)}>
+                <PagerBtn key={p} ariaLabel={t('page', { page: p })} active={p === current} onClick={() => goTo(p)}>
                   {p}
                 </PagerBtn>
               ),
             )}
-            <PagerBtn ariaLabel={t('nextPage')} disabled={current === totalPages} onClick={() => setPage(current + 1)}>›</PagerBtn>
+            <PagerBtn ariaLabel={t('nextPage')} disabled={current === totalPages} onClick={() => goTo(current + 1)}>›</PagerBtn>
           </div>
         </div>
       )}

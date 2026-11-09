@@ -12,7 +12,17 @@ import {
   type GoldenSessionRow,
 } from '@/lib/adminExamGoldenApi'
 import { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaCard, GaCap, GaBtn, TkSeg, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import {
+  GaPageHdr,
+  GaCard,
+  GaCap,
+  GaBtn,
+  TkSeg,
+  TkBadge,
+  LoadingState,
+  ErrorBanner,
+  ConfirmDialog,
+} from '@/components/ui-v2'
 
 const LEVELS = ['', 'A1', 'A2', 'B1', 'B2'] as const
 // Gate ra mắt (kế hoạch mục G): đồng thuận đạt/trượt ≥85%, ±1 band ≥90%.
@@ -22,6 +32,7 @@ const GATE_WITHIN1_PCT = 90
 /** G.1 Golden set: danh sách phiên mock cần chấm tay + báo cáo đồng thuận máy↔người + CSV. */
 export default function AdminExamGoldenPage() {
   const t = useTranslations('v2.adminOps.examGolden')
+  const tUi = useTranslations('v2.ui')
   const [provider, setProvider] = useState('')
   const [level, setLevel] = useState('')
   const [sessions, setSessions] = useState<GoldenSessionRow[]>([])
@@ -54,8 +65,9 @@ export default function AdminExamGoldenPage() {
   }, [params])
 
   /** Regression harness (gate §6.3): chỉ phiên đã có giám khảo người chấm; tốn token thật nên hỏi trước. */
+  const [confirmBatch, setConfirmBatch] = useState(false)
   const regradeBatch = async () => {
-    if (!window.confirm(t('regradeBatchConfirm', { max: REGRADE_BATCH_MAX }))) return
+    setConfirmBatch(false)
     setBatching(true)
     setError(null)
     try {
@@ -88,6 +100,16 @@ export default function AdminExamGoldenPage() {
 
   return (
     <div className="flex min-h-full flex-col">
+      <ConfirmDialog
+        open={confirmBatch}
+        onOpenChange={setConfirmBatch}
+        tone="caution"
+        title={t('regradeBatch')}
+        description={t('regradeBatchConfirm', { max: REGRADE_BATCH_MAX })}
+        confirmLabel={t('regradeBatch')}
+        cancelLabel={tUi('cancel')}
+        onConfirm={() => void regradeBatch()}
+      />
       <GaPageHdr
         accent
         title={t('title')}
@@ -121,7 +143,7 @@ export default function AdminExamGoldenPage() {
           <GaBtn variant="ghost" size="sm" onClick={() => void downloadCsv()} data-testid="golden-csv">
             <Download size={14} aria-hidden className="mr-1.5" /> {t('exportCsv')}
           </GaBtn>
-          <GaBtn variant="ghost" size="sm" onClick={() => void regradeBatch()} disabled={batching} data-testid="golden-regrade-batch">
+          <GaBtn variant="ghost" size="sm" onClick={() => setConfirmBatch(true)} disabled={batching} data-testid="golden-regrade-batch">
             <RefreshCw size={14} aria-hidden className={`mr-1.5 ${batching ? 'animate-spin' : ''}`} /> {batching ? t('regradeBatchRunning') : t('regradeBatch')}
           </GaBtn>
         </div>
@@ -265,8 +287,10 @@ function ParticipantsCard({ t }: { t: ReturnType<typeof useTranslations> }) {
     }
   }
 
+  const tUi = useTranslations('v2.ui')
+  const [pendingRemove, setPendingRemove] = useState<GoldenParticipant | null>(null)
   const remove = async (row: GoldenParticipant) => {
-    if (!window.confirm(t('participants.confirmRemove', { name: row.displayName ?? String(row.userId) }))) return
+    setPendingRemove(null)
     setBusy(true)
     setError(null)
     try {
@@ -281,6 +305,18 @@ function ParticipantsCard({ t }: { t: ReturnType<typeof useTranslations> }) {
 
   return (
     <GaCard className="p-4 lg:p-6" data-testid="calibration-participants">
+      <ConfirmDialog
+        open={pendingRemove != null}
+        onOpenChange={(o) => !o && setPendingRemove(null)}
+        tone="danger"
+        title={t('participants.remove')}
+        description={t('participants.confirmRemove', {
+          name: pendingRemove?.displayName ?? String(pendingRemove?.userId ?? ''),
+        })}
+        confirmLabel={t('participants.remove')}
+        cancelLabel={tUi('cancel')}
+        onConfirm={() => pendingRemove && void remove(pendingRemove)}
+      />
       <GaCap className="mb-1 block">
         {t('participants.cap')}
       </GaCap>
@@ -334,7 +370,7 @@ function ParticipantsCard({ t }: { t: ReturnType<typeof useTranslations> }) {
                   {r.note ? ` · ${r.note}` : ''}
                 </p>
               </div>
-              <GaBtn variant="ghost" size="sm" onClick={() => void remove(r)} disabled={busy} aria-label={t('participants.remove')}>
+              <GaBtn variant="ghost" size="sm" onClick={() => setPendingRemove(r)} disabled={busy} aria-label={t('participants.remove')}>
                 <Trash2 size={14} aria-hidden />
               </GaBtn>
             </li>

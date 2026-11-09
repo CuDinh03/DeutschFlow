@@ -1,11 +1,25 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Search } from 'lucide-react'
 import { adminAiUsageApi, type AiUsageReport } from '@/lib/adminAiUsageApi'
 import { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaCard, GaCap, GaBtn, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import {
+  GaPageHdr,
+  GaCard,
+  GaCap,
+  GaBtn,
+  LoadingState,
+  ErrorBanner,
+  TkTabs,
+  TkTabsList,
+  TkTabsTrigger,
+  TkTabsContent,
+} from '@/components/ui-v2'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
+import { defineFilters } from '@/lib/urlFilters'
+import { AiCostOverviewTab } from './AiCostOverviewTab'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 const DEFAULT_PREFIX = 'EXAM_SPEAKING'
@@ -18,11 +32,62 @@ function isoDaysAgo(days: number): string {
 
 const usd = (v: number) => `$${v.toFixed(v < 1 ? 4 : 2)}`
 
+const TAB_FILTERS = defineFilters({
+  tab: { kind: 'enum', values: ['overview', 'ledger'] as const, default: 'overview' },
+})
+
 /**
- * AI usage (N0.6 / T.3): token theo feature × model, giây STT, top phiên tốn nhất — trả lời "một mock A1/B1
+ * Chi phí AI (09/11/2026): gộp hai trang cũ thành hai tab, tab đang mở nằm trên URL (`?tab=`).
+ * - "Tổng quan": nội dung trang /v2/admin/tokens cũ (route đó chuyển hướng về `?tab=overview`).
+ * - "Theo ledger" (N0.6 / T.3): token theo feature × model, giây STT, top phiên tốn nhất.
+ */
+export default function AdminAiCostPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <AdminAiCostPageInner />
+    </Suspense>
+  )
+}
+
+function AdminAiCostPageInner() {
+  const t = useTranslations('v2.adminOps.aiUsage')
+  const { values, set } = useUrlFilters(TAB_FILTERS)
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <GaPageHdr
+        accent
+        title={t('title')}
+        subtitle={t('subtitle')}
+        right={
+          <a href="/v2/admin" className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-ga-small font-semibold text-ga-ink hover:bg-ga-surface">
+            <ArrowLeft size={14} aria-hidden /> {t('back')}
+          </a>
+        }
+      />
+      <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10">
+        <TkTabs value={values.tab} onValueChange={(v) => set({ tab: v })}>
+          <TkTabsList aria-label={t('tabsLabel')}>
+            <TkTabsTrigger value="overview" data-testid="ai-cost-tab-overview">{t('tabOverview')}</TkTabsTrigger>
+            <TkTabsTrigger value="ledger" data-testid="ai-cost-tab-ledger">{t('tabLedger')}</TkTabsTrigger>
+          </TkTabsList>
+          <TkTabsContent value="overview" className="pt-5">
+            <AiCostOverviewTab />
+          </TkTabsContent>
+          <TkTabsContent value="ledger" className="pt-5">
+            <AiUsageLedgerTab />
+          </TkTabsContent>
+        </TkTabs>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Theo ledger (N0.6 / T.3): token theo feature × model, giây STT, top phiên tốn nhất — trả lời "một mock A1/B1
  * tốn bao nhiêu" từ ledger thật. Mặc định lọc EXAM_SPEAKING (lượt nói, chấm nhanh, chấm mock, STT phòng thi).
  */
-export default function AdminAiUsagePage() {
+function AiUsageLedgerTab() {
   const t = useTranslations('v2.adminOps.aiUsage')
   const fmt = useFmt()
   const [from, setFrom] = useState(isoDaysAgo(30))
@@ -54,18 +119,7 @@ export default function AdminAiUsagePage() {
   const inputCls = 'ga-ui h-10 rounded-ga border border-ga-line bg-ga-card px-3 text-ga-small text-ga-ink'
 
   return (
-    <div className="flex min-h-full flex-col">
-      <GaPageHdr
-        accent
-        title={t('title')}
-        subtitle={t('subtitle')}
-        right={
-          <a href="/v2/admin" className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-ga-small font-semibold text-ga-ink hover:bg-ga-surface">
-            <ArrowLeft size={14} aria-hidden /> {t('back')}
-          </a>
-        }
-      />
-      <div className="flex-1 space-y-5 px-4 py-5 sm:px-6 lg:px-10">
+    <div className="space-y-5" data-testid="ai-usage-ledger">
         {error && <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
 
         <form
@@ -202,7 +256,6 @@ export default function AdminAiUsagePage() {
             </div>
           </>
         ) : null}
-      </div>
     </div>
   )
 }

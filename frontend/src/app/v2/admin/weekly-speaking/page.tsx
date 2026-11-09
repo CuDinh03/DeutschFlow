@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Plus, Pencil, Trash2, Loader2, CalendarDays } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { GaPageHdr, GaBtn, GaCap, TkModal } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, TkModal, ConfirmDialog } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Weekly Speaking Prompts (admin) — navy, CRUD.
@@ -141,8 +141,10 @@ export default function V2AdminWeeklySpeakingPage() {
       setSaving(false)
     }
   }
+  const tUi = useTranslations('v2.ui')
+  const [pendingDeactivate, setPendingDeactivate] = useState<WeeklyPrompt | null>(null)
   const remove = async (p: WeeklyPrompt) => {
-    if (!window.confirm(t('confirmDeactivate', { title: p.title, week: (p.week_start_date ?? '').slice(0, 10) }))) return
+    setPendingDeactivate(null)
     setDeleting(p.id)
     try {
       await api.delete(`/admin/speaking/weekly-prompts/${p.id}`)
@@ -156,6 +158,23 @@ export default function V2AdminWeeklySpeakingPage() {
 
   return (
     <div className="flex min-h-full flex-col">
+      <ConfirmDialog
+        open={pendingDeactivate != null}
+        onOpenChange={(o) => !o && setPendingDeactivate(null)}
+        tone="danger"
+        title={t('deactivate')}
+        description={
+          pendingDeactivate
+            ? t('confirmDeactivate', {
+                title: pendingDeactivate.title,
+                week: (pendingDeactivate.week_start_date ?? '').slice(0, 10),
+              })
+            : ''
+        }
+        confirmLabel={t('deactivate')}
+        cancelLabel={tUi('cancel')}
+        onConfirm={() => pendingDeactivate && void remove(pendingDeactivate)}
+      />
       <GaPageHdr
         accent
         title={t('title')}
@@ -240,7 +259,7 @@ export default function V2AdminWeeklySpeakingPage() {
                     <button
                       type="button"
                       disabled={deleting === p.id}
-                      onClick={() => remove(p)}
+                      onClick={() => setPendingDeactivate(p)}
                       className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-3 text-[11px] font-semibold text-ga-red transition-colors hover:border-ga-red disabled:opacity-50 lg:py-1.5"
                     >
                       {deleting === p.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} {t('deactivate')}

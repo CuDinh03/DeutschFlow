@@ -50,7 +50,7 @@
       "admin-vocab": "Từ vựng",
       "admin-grammar-review": "Duyệt ngữ pháp",
       "admin-occupation-review": "Duyệt câu hỏi nghề",
-      "admin-media": "Ảnh",
+      "admin-media": "Thư viện ảnh",
       "admin-ai": "Cấu hình AI",
       "admin-broadcast": "Thông báo",
       "admin-marketing": "Tăng trưởng",
@@ -90,7 +90,9 @@
       "objectives": "Ma trận mục tiêu",
       "org-settings": "Cài đặt trung tâm",
       "org-audit": "Sổ hoạt động",
-      "org-certificates": "Chứng nhận"
+      "org-certificates": "Chứng nhận",
+      "admin-ai-usage": "Chi phí AI",
+      "admin-exam-bank": "Ngân hàng đề Nói"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",
@@ -103,7 +105,12 @@
       "classes": "Lớp học",
       "personal": "Cá nhân",
       "ops": "Vận hành",
-      "staff": "Nhân sự"
+      "staff": "Nhân sự",
+      "adminInsights": "Số liệu",
+      "adminPeople": "Người dùng",
+      "adminB2b": "Trung tâm B2B",
+      "adminContent": "Nội dung & đề thi",
+      "adminControl": "Kiểm soát"
     },
     "roles": {
       "teacher": "Giáo viên",
@@ -214,7 +221,11 @@
     "messages": "Tin nhắn",
     "more": "Thêm",
     "areaNav": "Điều hướng khu vực",
-    "sectionNav": "Điều hướng trong khu vực"
+    "sectionNav": "Điều hướng trong khu vực",
+    "confirmReasonLabel": "Lý do (bắt buộc, ít nhất {min} ký tự) — sẽ được ghi vào nhật ký",
+    "confirmReasonCount": "{count} ký tự · tối thiểu {min}, tối đa {max}",
+    "confirmPhraseLabel": "Gõ “{phrase}” để xác nhận",
+    "cancel": "Huỷ"
   },
   "maintenance": {
     "overlayTitle": "Hệ thống đang bảo trì",
