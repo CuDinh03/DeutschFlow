@@ -202,7 +202,28 @@ public class NotificationContentRenderer {
             case MFA_RESET_BY_ADMIN -> new RenderedContent(
                     "Xác thực hai lớp đã được đặt lại",
                     "Một quản trị viên khác đã đặt lại 2FA của bạn. Lần đăng nhập tới bạn sẽ thiết lập lại.");
+            // Phiên hỗ trợ chỉ-đọc (V370): CỐ Ý không nêu lý do hay tên admin — chỉ thời điểm.
+            case ADMIN_SUPPORT_VIEW -> new RenderedContent(
+                    "Đội hỗ trợ đã xem tài khoản của bạn",
+                    "Đội hỗ trợ DeutschFlow đã mở chế độ xem chỉ đọc tài khoản của bạn lúc "
+                            + supportViewTime(str(p, "viewedAt")) + " để hỗ trợ.");
         };
+    }
+
+    private static final java.time.format.DateTimeFormatter SUPPORT_VIEW_TIME =
+            java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")
+                    .withZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+
+    /** Mốc ISO-8601 (UTC) → "HH:mm dd/MM/yyyy" giờ Việt Nam; payload lạ thì trả nguyên văn. */
+    static String supportViewTime(String iso) {
+        if (iso == null || iso.isBlank()) {
+            return "vừa rồi";
+        }
+        try {
+            return SUPPORT_VIEW_TIME.format(java.time.Instant.parse(iso));
+        } catch (java.time.format.DateTimeParseException e) {
+            return iso;
+        }
     }
 
     /** Cờ boolean trong payload jsonb — Jackson trả Boolean, nhưng payload cũ có thể thiếu khoá. */

@@ -122,7 +122,9 @@ public class MessageService {
                 ? messageRepository.findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(
                         me, otherId, otherId, me)
                 : messageRepository.findThreadAfter(me, otherId, afterId);
-        int marked = messageRepository.markThreadRead(me, otherId, Instant.now());
+        // Phiên hỗ trợ chỉ-đọc: admin xem thread KHÔNG được đánh dấu đã đọc thay người dùng.
+        int marked = com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()
+                ? 0 : messageRepository.markThreadRead(me, otherId, Instant.now());
         // Mở thread = đọc các tin đến từ otherId → thông báo "💬 Tin nhắn mới" (NEW_MESSAGE) của người đó
         // cũng không còn "mới". Chỉ ack khi thực sự có tin vừa được đánh dấu đọc (tránh chạy thừa mỗi lần poll).
         if (marked > 0) {
@@ -147,7 +149,9 @@ public class MessageService {
         // chúng); chúng an toàn vì lý do KHÁC — chỉ đọc các dòng mà chính người gọi là một bên —
         // chứ không phải vì có cổng lớp chung.
         assertCanMessage(me, otherId);
-        int marked = messageRepository.markThreadRead(me, otherId, Instant.now());
+        // Phiên hỗ trợ chỉ-đọc: admin xem thread KHÔNG được đánh dấu đã đọc thay người dùng.
+        int marked = com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()
+                ? 0 : messageRepository.markThreadRead(me, otherId, Instant.now());
         if (marked > 0) {
             ackMessageNotifications(me, otherId);
         }

@@ -174,5 +174,14 @@ public enum NotificationType {
     /** Còn ít hơn 3 mã khôi phục. Payload: {@code remaining}. */
     MFA_RECOVERY_CODES_LOW,
     /** Một ADMIN khác đặt lại 2FA của người nhận (mọi phiên bị đóng). Payload: {@code actorEmail}. */
-    MFA_RESET_BY_ADMIN
+    MFA_RESET_BY_ADMIN,
+
+    // ── Phiên hỗ trợ chỉ-đọc (V370, owner chốt 09/11/2026) ─────────────────────────────────────────
+
+    /**
+     * Đội hỗ trợ (một ADMIN) vừa mở chế độ xem chỉ đọc tài khoản của người nhận. Payload: {@code viewedAt},
+     * {@code expiresAt} (ISO). CỐ Ý không có lý do và tên admin — người dùng xem chi tiết ở Hồ sơ → Bảo mật →
+     * Hoạt động bảo mật (vết {@code support_session.started}).
+     */
+    ADMIN_SUPPORT_VIEW
 }

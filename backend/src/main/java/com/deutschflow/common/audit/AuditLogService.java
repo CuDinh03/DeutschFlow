@@ -1,5 +1,9 @@
 package com.deutschflow.common.audit;
 
+import com.deutschflow.common.security.support.SupportSessionContext;
+import com.deutschflow.common.security.support.SupportSessionContextHolder;
+import com.deutschflow.common.security.support.SupportSessionDbGuard;
+import com.deutschflow.common.security.support.SupportUnguardedJdbc;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +25,10 @@ public class AuditLogService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+
+    /** Đường ghi vết khi connection của request đang READ ONLY (phiên hỗ trợ). Không bắt buộc (test dựng tay). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SupportUnguardedJdbc supportUnguardedJdbc;
 
     /**
      * Paginated, filtered read of audit_logs for the admin audit screen (newest first).
@@ -199,7 +207,30 @@ public class AuditLogService {
         // thì rơi về users.org_id của actor như trước. Giữ đường lùi này để ~60 điểm gọi của người
         // trong trung tâm không phải sửa một chữ nào — với họ hai giá trị vốn trùng nhau.
         // actor null (job nền, hệ thống) và không có touchedOrgId ⇒ NULL, đúng như mong đợi.
-        jdbcTemplate.update("""
+        //
+        // Phiên hỗ trợ chỉ-đọc (V370): request chạy dưới danh tính người dùng đích nhưng NGƯỜI LÀM là admin. Mọi
+        // vết ghi trên thread đó lấy admin làm actor và mang thêm subject_user_id + support_session_id — một chỗ
+        // sửa phủ mọi điểm gọi (kể cả GlobalExceptionHandler dùng AuditActor.ofAuthentication).
+        SupportSessionContext support = SupportSessionContextHolder.current();
+        if (support != null) {
+            Map<String, Object> enriched = new LinkedHashMap<>();
+            if (metadata != null) {
+                enriched.putAll(metadata);
+            }
+            enriched.put("subject_user_id", support.targetUserId());
+            enriched.put("support_session_id", support.sessionId());
+            metadata = enriched;
+            actorUserId = support.adminUserId();
+            actorEmail = support.adminEmail();
+            actorRole = "ADMIN";
+        }
+        // Connection của request hỗ trợ đang READ ONLY (SupportReadOnlyDataSource) — vết đi connection riêng,
+        // autocommit, trên DataSource gốc. Hệ quả: vết này KHÔNG rollback theo nghiệp vụ (nghiệp vụ trong phiên hỗ
+        // trợ vốn không ghi được gì).
+        JdbcTemplate jdbc = SupportSessionDbGuard.isActive() && supportUnguardedJdbc != null
+                ? supportUnguardedJdbc.jdbc()
+                : jdbcTemplate;
+        jdbc.update("""
                 INSERT INTO audit_logs (
                   event_name,
                   actor_user_id,
@@ -220,7 +251,8 @@ public class AuditLogService {
                 targetId,
                 toJson(metadata),
                 touchedOrgId,
-                actorUserId
+                // Phiên hỗ trợ: trung tâm suy theo NGƯỜI DÙNG ĐÍCH (admin không thuộc trung tâm nào — DEC-13).
+                support != null ? Long.valueOf(support.targetUserId()) : actorUserId
         );
     }
 

@@ -321,4 +321,15 @@ class NotificationContentRendererUnitTest {
         RenderedContent noOrg = renderer.render(NotificationType.CERTIFICATE_ISSUED, Map.of("cefrLevel", "A2"));
         assertThat(noOrg.body()).startsWith("Trung tâm của bạn");
     }
+    @Test
+    void adminSupportView_mentionsTimeButNeverReasonOrAdmin() {
+        RenderedContent c = renderer.render(NotificationType.ADMIN_SUPPORT_VIEW,
+                Map.of("viewedAt", "2026-11-09T03:05:00Z", "expiresAt", "2026-11-09T03:35:00Z"));
+        assertThat(c.title()).isEqualTo("Đội hỗ trợ đã xem tài khoản của bạn");
+        assertThat(c.body()).isEqualTo(
+                "Đội hỗ trợ DeutschFlow đã mở chế độ xem chỉ đọc tài khoản của bạn lúc 10:05 09/11/2026 để hỗ trợ.");
+
+        RenderedContent noTime = renderer.render(NotificationType.ADMIN_SUPPORT_VIEW, Map.of());
+        assertThat(noTime.body()).contains("vừa rồi");
+    }
 }

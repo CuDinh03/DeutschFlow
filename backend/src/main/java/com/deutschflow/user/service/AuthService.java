@@ -71,6 +71,15 @@ public class AuthService {
     private final AdminMfaPolicy adminMfaPolicy;
     private final UserMfaStore userMfaStore;
     private final MfaKeyMaterial mfaKeyMaterial;
+    /** Phiên hỗ trợ chỉ-đọc (V370): đóng phiên đang mở khi quyền của admin/đích thay đổi. Null trong test dựng tay. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.context.ApplicationEventPublisher supportSessionEvents;
+
+    private void revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent event) {
+        if (supportSessionEvents != null) {
+            supportSessionEvents.publishEvent(event);
+        }
+    }
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
@@ -287,6 +296,8 @@ public class AuthService {
     @Transactional
     public void logout(Long userId) {
         refreshTokenRepository.revokeAllByUserId(userId);
+        // Admin đăng xuất ⇒ phiên hỗ trợ (xem như người dùng) admin đó đang mở cũng đóng theo.
+        revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forAdmin(userId, com.deutschflow.admin.support.SupportSessionService.END_ADMIN_LOGOUT));
         // Logout revokes EVERY session for this account, so its device push token must go too —
         // otherwise the phone keeps receiving this account's notifications after logout (worst
         // case: shown to whoever logs in next on that device).

@@ -1,5 +1,8 @@
 package com.deutschflow.common.security;
 
+import com.deutschflow.common.security.support.SupportSessionContext;
+import com.deutschflow.common.security.support.SupportSessionContextHolder;
+import com.deutschflow.common.security.support.SupportSessionValidator;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.jsonwebtoken.Claims;
@@ -32,7 +35,11 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  *   <li>{@code access} — hoặc thiếu {@code typ} (token phát hành trước bản này, vẫn hợp lệ tới khi hết hạn);</li>
  *   <li>{@code guest} — chỉ khi {@code sub} bắt đầu bằng {@code "guest:"};</li>
- *   <li>{@code support} — chỉ khi {@code app.security.support-session.enabled=true} (mặc định tắt).</li>
+ *   <li>{@code support} — chỉ khi {@code app.security.support-session.enabled=true} (mặc định BẬT từ khi có
+ *       {@code SupportSessionReadOnlyFilter}; đặt false là kill-switch) VÀ {@link SupportSessionValidator} xác
+ *       nhận phiên trong DB còn mở. Khi đó request được xác thực như người dùng đích, kèm
+ *       {@link SupportSessionContext} ở request attribute + {@link SupportSessionContextHolder} (dọn trong
+ *       {@code finally}); phiên không hợp lệ → 401 {@code SUPPORT_SESSION_ENDED}.</li>
  * </ul>
  * {@code mfa} và mọi loại lạ → 401 ngay, không đi tiếp filter chain (cùng cách đường tài khoản bị khoá).
  * Ngược lại, subject {@code "guest:"} phải đi cùng {@code typ=guest} hoặc không có {@code typ}.
@@ -60,6 +67,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final SseTicketService sseTicketService;
     private final boolean supportSessionEnabled;
     private final boolean adminMfaEnforced;
+    private final SupportSessionValidator supportSessionValidator;
 
     // Eliminates 1 DB round-trip per authenticated request (S-2/B).
     // 60s TTL keeps staleness well below the JWT lifetime (15 min); stale role is already
@@ -69,7 +77,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             .maximumSize(10_000)
             .build();
 
-    /** Dựng tay (test): 2FA ADMIN bật như mặc định production. */
+    /** Dựng tay (test): 2FA ADMIN bật như mặc định production; token support luôn bị từ chối (không có validator). */
     public JwtAuthFilter(JwtService jwtService,
                          UserDetailsService userDetailsService,
                          SseTicketService sseTicketService,
@@ -77,20 +85,32 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, true);
     }
 
+    /** Dựng tay (test): không có validator ⇒ token support luôn 401 (fail-closed). */
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         boolean supportSessionEnabled,
+                         boolean adminMfaEnforced) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, adminMfaEnforced,
+                SupportSessionValidator.REJECT_ALL);
+    }
+
     @org.springframework.beans.factory.annotation.Autowired
     public JwtAuthFilter(JwtService jwtService,
                          UserDetailsService userDetailsService,
                          SseTicketService sseTicketService,
-                         @Value("${app.security.support-session.enabled:false}") boolean supportSessionEnabled,
-                         @Value("${app.security.admin-mfa.enforced:true}") boolean adminMfaEnforced) {
+                         @Value("${app.security.support-session.enabled:true}") boolean supportSessionEnabled,
+                         @Value("${app.security.admin-mfa.enforced:true}") boolean adminMfaEnforced,
+                         SupportSessionValidator supportSessionValidator) {
         this.adminMfaEnforced = adminMfaEnforced;
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.sseTicketService = sseTicketService;
         this.supportSessionEnabled = supportSessionEnabled;
-        if (supportSessionEnabled) {
-            log.warn("[JwtAuthFilter] app.security.support-session.enabled=true — token typ=support được nhận. "
-                    + "Chỉ bật khi bộ lọc chỉ-đọc của phiên hỗ trợ đã có mặt.");
+        this.supportSessionValidator = supportSessionValidator == null
+                ? SupportSessionValidator.REJECT_ALL : supportSessionValidator;
+        if (!supportSessionEnabled) {
+            log.warn("[JwtAuthFilter] app.security.support-session.enabled=false — KILL-SWITCH: mọi token typ=support bị 401.");
         }
     }
 
@@ -191,19 +211,48 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Phiên hỗ trợ chỉ-đọc: xác minh fail-closed với DB (phiên còn mở, admin còn là ADMIN hoạt động, người dùng
+        // đích khớp claim và không phải ADMIN) TRƯỚC khi xác thực như người dùng đích.
+        SupportSessionContext supportContext = null;
         if (JwtService.TYP_SUPPORT.equals(typ)) {
-            // TODO(admin-w2 phiên hỗ trợ chỉ-đọc): móc cho PR tiếp theo. Khi cờ bật, token support hiện được
-            // xác thực Y NHƯ access token của người dùng đích (sub). Bộ lọc phía sau PHẢI đọc
-            // AuthTokenAttributes.TOKEN_TYPE == "support" để chặn mọi method ghi, gắn danh tính admin thực
-            // hiện (claim tuỳ biến) vào audit log, và kiểm phiên chưa bị thu hồi. Chưa có bộ lọc đó thì cờ
-            // app.security.support-session.enabled phải giữ false (isAcceptedTokenType đã trả 401).
-            log.info("[JwtAuthFilter] Support-session token trên {} (subject={})", requestUri, subject);
+            Optional<SupportSessionContext> verified;
+            try {
+                verified = supportSessionValidator.validate(claims);
+            } catch (RuntimeException e) {
+                log.warn("[JwtAuthFilter] Lỗi khi xác minh phiên hỗ trợ trên {} — từ chối: {}", requestUri, e.getMessage());
+                verified = Optional.empty();
+            }
+            if (verified.isEmpty()) {
+                log.info("[JwtAuthFilter] Token support không còn hợp lệ trên {} (sup={})", requestUri,
+                        claims.get(JwtService.CLAIM_SUPPORT_SESSION));
+                writeSupportSessionEnded(request, response);
+                return;
+            }
+            supportContext = verified.get();
         }
 
         // Registered user — load từ DB
         if (subject != null) {
             if (!authenticateRegisteredUser(subject, request, response)) {
                 return; // user no longer exists — 401 already sent
+            }
+            if (supportContext != null) {
+                if (!isPrincipalId(supportContext.targetUserId())) {
+                    log.warn("[JwtAuthFilter] Token support: sub không khớp người dùng đích của phiên {} trên {}",
+                            supportContext.sessionId(), requestUri);
+                    SecurityContextHolder.clearContext();
+                    writeSupportSessionEnded(request, response);
+                    return;
+                }
+                // Ngữ cảnh phiên: request attribute + ThreadLocal — KHÔNG gắn lên entity User (cache dùng chung).
+                request.setAttribute(SupportSessionContext.REQUEST_ATTRIBUTE, supportContext);
+                SupportSessionContextHolder.set(supportContext);
+                try {
+                    filterChain.doFilter(request, response);
+                } finally {
+                    SupportSessionContextHolder.clear();
+                }
+                return;
             }
             if (adminMfaEnforced && isAdminPrincipal() && !JwtService.hasMfa(claims)) {
                 log.warn("[JwtAuthFilter] Token ADMIN chưa qua 2FA trên {} — 401 MFA_REQUIRED", requestUri);
@@ -249,6 +298,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return u.getRole() == com.deutschflow.user.entity.User.Role.ADMIN;
         }
         return auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+    }
+
+    /** Principal vừa đặt là entity {@code User} có đúng id này. */
+    private static boolean isPrincipalId(long userId) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getPrincipal() instanceof com.deutschflow.user.entity.User u
+                && u.getId() != null && u.getId() == userId;
+    }
+
+    /**
+     * 401 problem+json {@code extensions.code=SUPPORT_SESSION_ENDED}: phiên hỗ trợ đã kết thúc/hết hạn/bị thu hồi.
+     * Web (tab hỗ trợ) hiện trạng thái "phiên đã kết thúc" — KHÔNG thử refresh, KHÔNG xoá phiên của tab admin.
+     */
+    private static void writeSupportSessionEnded(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/problem+json");
+        String instance = request.getRequestURI() == null ? "" : request.getRequestURI()
+                .replace("\\", "\\\\").replace("\"", "\\\"");
+        response.getWriter().write("{\"type\":\"https://deutschflow.com/errors/support-session\",\"title\":\"Unauthorized\","
+                + "\"status\":401,\"detail\":\"Phiên hỗ trợ đã kết thúc.\","
+                + "\"instance\":\"" + instance + "\",\"extensions\":{\"code\":\"SUPPORT_SESSION_ENDED\"}}");
     }
 
     /**

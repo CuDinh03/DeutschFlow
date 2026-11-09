@@ -38,8 +38,8 @@ import java.util.UUID;
  * cũ (không có iss/aud) đã hết hạn.
  *
  * <p><b>Phân loại token (claim {@code typ}, 09/11/2026):</b> mọi token phát hành từ đây mang {@code typ}
- * ({@value #TYP_ACCESS} / {@value #TYP_GUEST} / {@value #TYP_MFA}; {@value #TYP_SUPPORT} dành cho phiên hỗ
- * trợ chỉ-đọc sắp có) và một {@code jti} ngẫu nhiên. {@link JwtAuthFilter} chỉ nhận loại được phép làm
+ * ({@value #TYP_ACCESS} / {@value #TYP_GUEST} / {@value #TYP_MFA}; {@value #TYP_SUPPORT} cho phiên hỗ
+ * trợ chỉ-đọc) và một {@code jti} ngẫu nhiên. {@link JwtAuthFilter} chỉ nhận loại được phép làm
  * access token. Token cũ đã phát hành trên production KHÔNG có {@code typ} — {@link #tokenType(Claims)}
  * coi thiếu {@code typ} là {@value #TYP_ACCESS} nên chúng vẫn chạy tới khi hết hạn.
  */
@@ -55,8 +55,17 @@ public class JwtService {
     public static final String TYP_GUEST = "guest";
     /** Token thử thách 2FA giữa bước mật khẩu và bước mã — KHÔNG BAO GIỜ là access token. */
     public static final String TYP_MFA = "mfa";
-    /** Phiên hỗ trợ chỉ-đọc (PR sau). Hiện bị {@link JwtAuthFilter} từ chối trừ khi bật cờ. */
+    /**
+     * Phiên hỗ trợ chỉ-đọc: ADMIN xem ứng dụng dưới danh tính người dùng đích ({@code sub}). Nhận khi bật
+     * {@code app.security.support-session.enabled} và phiên còn mở trong DB — xem {@link #generateSupportToken}.
+     */
     public static final String TYP_SUPPORT = "support";
+    /** Claim của token support: id dòng {@code admin_support_sessions}. */
+    public static final String CLAIM_SUPPORT_SESSION = "sup";
+    /** Claim của token support: id ADMIN thực hiện (actor). */
+    public static final String CLAIM_ACTOR = "act";
+    /** Trần tuổi một token support (30 phút) — không có refresh token. */
+    public static final long SUPPORT_TOKEN_MAX_TTL_MS = 30L * 60_000L;
     /** Tiền tố subject của token thử thách 2FA: {@code "mfa:" + userId}. */
     public static final String MFA_SUBJECT_PREFIX = "mfa:";
     /** Claim boolean trên access token: phiên đã qua bước 2FA. */
@@ -245,6 +254,57 @@ public class JwtService {
                 .expiration(new Date(System.currentTimeMillis() + ttlMs))
                 .signWith(signingKey)
                 .compact();
+    }
+
+    /**
+     * Token phiên hỗ trợ chỉ-đọc: claim y như access token của người dùng đích ({@code sub}, {@code userId},
+     * {@code role}, {@code orgId}/{@code orgRole}) để web định tuyến đúng khu vực, cộng {@code typ=support},
+     * {@code sup} (id phiên), {@code act} (id ADMIN) và {@code jti}. {@code exp = min(now + 30 phút,
+     * sessionExpiresAt)}. KHÔNG có refresh token và KHÔNG có dấu 2FA ({@code mfa}).
+     */
+    public String generateSupportToken(User target, Long orgId, String orgRole,
+                                       long adminUserId, long sessionId, java.time.Instant sessionExpiresAt) {
+        long now = System.currentTimeMillis();
+        long exp = now + SUPPORT_TOKEN_MAX_TTL_MS;
+        if (sessionExpiresAt != null) {
+            exp = Math.min(exp, sessionExpiresAt.toEpochMilli());
+        }
+        JwtBuilder builder = Jwts.builder()
+                .id(newJti())
+                .subject(target.getEmail())
+                .claim(CLAIM_TYP, TYP_SUPPORT)
+                .claim("role", target.getRole().name())
+                .claim("userId", target.getId())
+                .claim(CLAIM_SUPPORT_SESSION, sessionId)
+                .claim(CLAIM_ACTOR, adminUserId)
+                .issuer(issuer)
+                .audience().add(audience).and()
+                .issuedAt(new Date(now))
+                .expiration(new Date(exp));
+        if (orgId != null) {
+            builder.claim("orgId", orgId);
+        }
+        if (orgRole != null) {
+            builder.claim("orgRole", orgRole);
+        }
+        log.debug("[JwtService.generateSupportToken] session={} admin={} target={}", sessionId, adminUserId, target.getId());
+        return builder.signWith(signingKey).compact();
+    }
+
+    /** Đọc một claim số (Long/Integer/chuỗi số) — {@code null} khi thiếu hoặc sai kiểu. */
+    public static Long longClaim(Claims claims, String name) {
+        Object raw = claims == null ? null : claims.get(name);
+        if (raw instanceof Number n) {
+            return n.longValue();
+        }
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

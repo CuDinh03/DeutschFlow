@@ -41,6 +41,7 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService; // inject từ UserDetailsServiceConfig
     private final Environment environment;
     private final SecurityExceptionLoggingHandler securityExceptionLoggingHandler;
+    private final com.deutschflow.admin.support.SupportSessionReadOnlyFilter supportSessionReadOnlyFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -98,6 +99,10 @@ public class SecurityConfig {
                         // trong body (MfaChallengeTokens). Hạn mức: trần IP chung + 5 lần sai/15 phút (MfaService).
                         auth.requestMatchers(HttpMethod.POST, "/api/auth/mfa/email-code", "/api/auth/mfa/enroll/start",
                                 "/api/auth/mfa/enroll/confirm", "/api/auth/mfa/verify").permitAll();
+                        // Phiên hỗ trợ chỉ-đọc (V370): tab mới đổi mã bàn giao lấy token support. Chưa có token;
+                        // xác thực bằng mã (32 byte, 60 s, một lần) + cookie refresh_token HttpOnly của chính admin
+                        // (Path=/api/auth nên endpoint phải nằm dưới /api/auth).
+                        auth.requestMatchers(HttpMethod.POST, "/api/auth/support-session/redeem").permitAll();
                         auth.requestMatchers("/api/auth/logout").authenticated();
                         auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
@@ -170,6 +175,9 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 // Bảo trì đứng SAU jwt filter (đọc được role → admin bypass) và TRƯỚC
                 // authorization: user thường nhận 503 MAINTENANCE thay vì lời từ chối quyền.
+                // Phiên hỗ trợ chỉ-đọc: NGAY sau jwt filter (đăng ký trước maintenance — cùng mốc "after", Spring
+                // giữ thứ tự thêm vào). Chặn method ghi + GET có tác dụng phụ, bật READ ONLY cho DB.
+                .addFilterAfter(supportSessionReadOnlyFilter, JwtAuthFilter.class)
                 .addFilterAfter(maintenanceModeFilter, JwtAuthFilter.class)
                 .build();
     }
