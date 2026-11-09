@@ -534,6 +534,7 @@
         "pwPlaceholder": "New password (≥ 8 characters)",
         "pwReset": "Reset",
         "pwNote": "An admin sets a new password directly (no old password needed) — for clearing default credentials or a forgotten password. Audited.",
+        "pwAdminNote": "Admin accounts cannot have their password reset here. Admins reset their own via \"Forgot password\".",
         "pwTooShort": "New password must be at least 8 characters.",
         "pwDone": "Password reset.",
         "planCap": "Change subscription",
@@ -597,7 +598,7 @@
           "title": "Reset password?",
           "description": "{name} will have to sign in with the new password.",
           "detailSessions": "All of this person's current sessions are ended.",
-          "detailNoNotice": "The user is NOT notified automatically — tell them through support.",
+          "detailNotice": "The user gets a notification and an email saying the support team reset their password (no reason or admin name included).",
           "detailAudit": "The action and reason are recorded in the audit log.",
           "confirm": "Reset password",
           "cancel": "Cancel"

@@ -183,5 +183,16 @@ public enum NotificationType {
      * {@code expiresAt} (ISO). CỐ Ý không có lý do và tên admin — người dùng xem chi tiết ở Hồ sơ → Bảo mật →
      * Hoạt động bảo mật (vết {@code support_session.started}).
      */
-    ADMIN_SUPPORT_VIEW
+    ADMIN_SUPPORT_VIEW,
+
+    // ── Bảo mật tài khoản (đợt 2 admin, 09/11/2026) ─────────────────────
+
+    /**
+     * Đội hỗ trợ (admin nền tảng) vừa đặt lại mật khẩu của người nhận. Recipient: chính người đó.
+     * Payload: {@code resetAt} (ISO-8601 UTC), {@code resetAtDisplay} (giờ theo múi của người nhận,
+     * render sẵn). ⛔ KHÔNG mang lý do nội bộ, KHÔNG mang danh tính admin — người nhận chỉ cần biết
+     * "có người đã đổi" để báo lại nếu không phải họ yêu cầu. Ghi qua notification_outbox trong giao
+     * dịch đặt lại (G2), worker gửi sau commit.
+     */
+    PASSWORD_RESET_BY_ADMIN
 }

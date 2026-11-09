@@ -332,4 +332,17 @@ class NotificationContentRendererUnitTest {
         RenderedContent noTime = renderer.render(NotificationType.ADMIN_SUPPORT_VIEW, Map.of());
         assertThat(noTime.body()).contains("vừa rồi");
     }
+
+    @Test
+    @DisplayName("PASSWORD_RESET_BY_ADMIN: nói 'đội hỗ trợ' + giờ, mời liên hệ; thiếu giờ vẫn thành câu")
+    void passwordResetByAdmin_rendersSupportTeamAndTime() {
+        RenderedContent c = renderer.render(NotificationType.PASSWORD_RESET_BY_ADMIN,
+                Map.of("resetAt", "2026-11-09T03:15:00Z", "resetAtDisplay", "10:15 09/11/2026 (UTC+07:00)"));
+        assertThat(c.title()).isEqualTo("Mật khẩu đã được đặt lại");
+        assertThat(c.body()).isEqualTo("Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại lúc "
+                + "10:15 09/11/2026 (UTC+07:00). Nếu bạn không yêu cầu, hãy liên hệ hỗ trợ.");
+
+        RenderedContent noTime = renderer.render(NotificationType.PASSWORD_RESET_BY_ADMIN, Map.of());
+        assertThat(noTime.body()).startsWith("Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại.");
+    }
 }

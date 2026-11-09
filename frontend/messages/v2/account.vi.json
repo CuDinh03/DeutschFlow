@@ -118,7 +118,25 @@
       "mfaCodesSaved": "Tôi đã lưu các mã này ở nơi an toàn",
       "mfaCodesDone": "Xong",
       "mfaCodesFileHeader": "Mã khôi phục xác thực hai lớp myDeutschFlow. Mỗi mã chỉ dùng được một lần.",
-      "mfaCodesReplaced": "Đã thay bộ mã khôi phục."
+      "mfaCodesReplaced": "Đã thay bộ mã khôi phục.",
+      "securityActivityTitle": "Hoạt động bảo mật",
+      "securityActivityDesc": "Những lần mật khẩu hoặc trạng thái tài khoản của bạn thay đổi.",
+      "securityActivityEmpty": "Chưa có hoạt động bảo mật nào.",
+      "securityActivityError": "Không tải được hoạt động bảo mật.",
+      "securityActivityMore": "Xem thêm",
+      "securityEvents": {
+        "passwordChanged": "Bạn đã đổi mật khẩu",
+        "passwordReset": "Bạn đã đặt lại mật khẩu qua \"Quên mật khẩu\"",
+        "passwordResetBySupport": "Đội hỗ trợ đã đặt lại mật khẩu của bạn",
+        "accountLocked": "Tài khoản bị khoá",
+        "accountUnlocked": "Tài khoản được mở khoá",
+        "supportSessionStarted": "Đội hỗ trợ bắt đầu một phiên hỗ trợ",
+        "supportSessionEnded": "Phiên hỗ trợ đã kết thúc",
+        "mfaEnabled": "Đã bật xác thực hai lớp",
+        "mfaRecoveryUsed": "Đã dùng mã khôi phục",
+        "mfaResetBySupport": "Đội hỗ trợ đã đặt lại xác thực hai lớp",
+        "other": "Thay đổi bảo mật"
+      }
     },
     "payment": {
       "title": "Nâng cấp gói",

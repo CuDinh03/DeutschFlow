@@ -1,14 +1,12 @@
 # ============================================================
 # Alertmanager config — DeutschFlow
 #
-# SETUP (làm 1 lần trên EC2):
-#   1. Tạo Telegram bot: nhắn @BotFather → /newbot → copy BOT TOKEN.
-#   2. Lấy chat id: nhắn @userinfobot (hoặc thêm bot vào group rồi xem id).
-#   3. cp alertmanager.yml.example alertmanager.yml
-#   4. Điền <TELEGRAM_BOT_TOKEN> và <TELEGRAM_CHAT_ID> vào alertmanager.yml
-#   5. docker compose -f docker-compose.prod.yml up -d alertmanager prometheus
-#
-# File THẬT (alertmanager.yml) chứa token → đã được .gitignore. Chỉ commit file .example này.
+# VM tự host (09/11/2026): KHÔNG sửa tay file này. deploy/self-host/install-monitoring.sh sinh
+# /srv/deutschflow/env/alertmanager.yml từ đây, thay __TELEGRAM_CHAT_ID__ bằng TELEGRAM_CHAT_ID trong
+# /srv/deutschflow/env/telegram.env. Token bot KHÔNG nằm trong config: Alertmanager đọc
+# bot_token_file (mount từ /home/deploy/secrets/telegram_bot_token — xem monitoring.compose.yml).
+# Owner tạo bot: nhắn @BotFather → /newbot; lấy chat id: nhắn bot một câu rồi mở
+# https://api.telegram.org/bot<TOKEN>/getUpdates (hoặc @userinfobot). Chi tiết: docs/GIAM_SAT_TU_HOST.md
 # ============================================================
 
 global:
@@ -29,8 +27,8 @@ route:
 receivers:
   - name: 'telegram'
     telegram_configs:
-      - bot_token: '<TELEGRAM_BOT_TOKEN>'
-        chat_id: <TELEGRAM_CHAT_ID>          # số nguyên, KHÔNG để trong nháy
+      - bot_token_file: /etc/alertmanager-secrets/telegram_bot_token
+        chat_id: __TELEGRAM_CHAT_ID__          # số nguyên, KHÔNG để trong nháy
         api_url: 'https://api.telegram.org'
         parse_mode: 'HTML'
         send_resolved: true

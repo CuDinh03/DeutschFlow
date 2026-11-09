@@ -1,8 +1,7 @@
 package com.deutschflow.admin.controller;
 
 import com.deutschflow.common.audit.AuditActor;
-import com.deutschflow.common.audit.AuditLogService;
-import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.admin.service.AiConfigHistoryService;
 import com.deutschflow.system.service.SystemConfigService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -21,23 +20,8 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminAiConfigController {
 
-    // A bad ai.maxTokens once starved every AI feature system-wide (Groq TPM incident), so bound the
-    // tunables server-side too — the UI sliders alone don't stop a direct API PUT.
-    private static final double MIN_TEMPERATURE = 0.0;
-    private static final double MAX_TEMPERATURE = 2.0;
-    private static final double MIN_TOP_P = 0.0;
-    private static final double MAX_TOP_P = 1.0;
-    private static final int MIN_MAX_TOKENS = 64;
-    private static final int MAX_MAX_TOKENS = 8192;
-    /**
-     * Trần độ dài system prompt (audit F-M7, 03/09/2026). Prompt này ghép vào MỌI lời gọi AI của
-     * hệ thống, nên một chuỗi khổng lồ vừa đội chi phí token mỗi request vừa có thể đẩy chính nội
-     * dung người học ra khỏi cửa sổ ngữ cảnh. 8000 ký tự rộng hơn nhiều lần prompt đang dùng.
-     */
-    private static final int MAX_PROMPT_LENGTH = 8000;
-
     private final SystemConfigService systemConfigService;
-    private final AuditLogService auditLogService;
+    private final AiConfigHistoryService aiConfigHistoryService;
 
     // Real, env-driven model wiring (read-only) so the "Model đang dùng" panel stops hard-coding
     // Claude/Bedrock while prod actually runs these. Defaults mirror application.yml.
@@ -64,49 +48,50 @@ public class AdminAiConfigController {
         return ResponseEntity.ok(config);
     }
 
+    /**
+     * Lưu cấu hình AI. Đợt 2 admin (09/11/2026): bắt buộc {@code reason} 10–500 ký tự, mỗi lần lưu có
+     * một dòng {@code ai_config_history} (trước + sau) để xem lại và quay lại — xem
+     * {@link AiConfigHistoryService}. Transaction nằm ở service (khoá dòng → ghi → lịch sử → vết).
+     */
     @PutMapping
-    public ResponseEntity<Void> updateConfig(@RequestBody AiConfigDto dto, Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> updateConfig(@RequestBody AiConfigDto dto, Authentication authentication) {
         validate(dto);
-        Map<String, Object> changed = new LinkedHashMap<>();
-        if (dto.getPrompt() != null) {
-            systemConfigService.setString("ai.systemPrompt", dto.getPrompt(), "Base system prompt for AI interactions");
-            changed.put("systemPrompt", "updated");
-        }
-        if (dto.getTemperature() != null) {
-            systemConfigService.setString("ai.temperature", String.valueOf(dto.getTemperature()), "Temperature for AI responses (0-2)");
-            changed.put("temperature", dto.getTemperature());
-        }
-        if (dto.getMaxTokens() != null) {
-            systemConfigService.setString("ai.maxTokens", String.valueOf(dto.getMaxTokens()), "Max tokens for AI responses");
-            changed.put("maxTokens", dto.getMaxTokens());
-        }
-        if (dto.getTopP() != null) {
-            systemConfigService.setString("ai.topP", String.valueOf(dto.getTopP()), "Top-P sampling for AI responses (0-1)");
-            changed.put("topP", dto.getTopP());
-        }
-        // High-impact, system-wide change → leave an audit trail (it had none before).
-        auditLogService.log(
-                "admin.aiconfig.updated",
-                AuditActor.ofAuthentication(authentication),
-                "AI_CONFIG",
-                "ai",
-                changed);
-        return ResponseEntity.ok().build();
+        String reason = AdminManagementController.requireReason(dto.getReason());
+        var result = aiConfigHistoryService.update(
+                new AiConfigHistoryService.AiConfigValues(dto.getPrompt(), dto.getTemperature(), dto.getMaxTokens(), dto.getTopP()),
+                reason,
+                AuditActor.ofAuthentication(authentication));
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("historyId", result.historyId());
+        out.put("changed", result.changed());
+        return ResponseEntity.ok(out);
     }
 
+    /** Lịch sử cấu hình AI, mới nhất trước — kèm prompt đầy đủ ở before/after để xem diff. */
+    @GetMapping("/history")
+    public Map<String, Object> history(@RequestParam(defaultValue = "0") int page,
+                                       @RequestParam(defaultValue = "20") int size) {
+        return aiConfigHistoryService.history(page, size);
+    }
+
+    /** Quay lại một bản trong lịch sử (áp {@code after_json} của dòng đó). Bắt buộc lý do; 404 nếu id lạ. */
+    @PostMapping("/history/{id}/restore")
+    public Map<String, Object> restore(@PathVariable long id,
+                                       @RequestBody(required = false) RestoreRequest req,
+                                       Authentication authentication) {
+        String reason = AdminManagementController.requireReason(req == null ? null : req.reason());
+        var result = aiConfigHistoryService.restore(id, reason, AuditActor.ofAuthentication(authentication));
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("historyId", result.historyId());
+        out.put("changed", result.changed());
+        return out;
+    }
+
+    public record RestoreRequest(String reason) {}
+
     private void validate(AiConfigDto dto) {
-        if (dto.getPrompt() != null && dto.getPrompt().length() > MAX_PROMPT_LENGTH) {
-            throw new BadRequestException("System prompt tối đa " + MAX_PROMPT_LENGTH + " ký tự.");
-        }
-        if (dto.getTemperature() != null && (dto.getTemperature() < MIN_TEMPERATURE || dto.getTemperature() > MAX_TEMPERATURE)) {
-            throw new BadRequestException("temperature phải trong khoảng [" + MIN_TEMPERATURE + ", " + MAX_TEMPERATURE + "]");
-        }
-        if (dto.getTopP() != null && (dto.getTopP() < MIN_TOP_P || dto.getTopP() > MAX_TOP_P)) {
-            throw new BadRequestException("topP phải trong khoảng [" + MIN_TOP_P + ", " + MAX_TOP_P + "]");
-        }
-        if (dto.getMaxTokens() != null && (dto.getMaxTokens() < MIN_MAX_TOKENS || dto.getMaxTokens() > MAX_MAX_TOKENS)) {
-            throw new BadRequestException("maxTokens phải trong khoảng [" + MIN_MAX_TOKENS + ", " + MAX_MAX_TOKENS + "]");
-        }
+        AiConfigHistoryService.validate(new AiConfigHistoryService.AiConfigValues(
+                dto.getPrompt(), dto.getTemperature(), dto.getMaxTokens(), dto.getTopP()));
     }
 
 
@@ -116,6 +101,8 @@ public class AdminAiConfigController {
         private Double temperature;
         private Integer maxTokens;
         private Double topP;
+        /** Lý do lưu (bắt buộc 10–500 ký tự khi PUT; bỏ qua ở GET). */
+        private String reason;
         // Read-only runtime wiring (surfaced on GET, ignored on PUT).
         private String chatProvider;
         private String chatModel;

@@ -291,7 +291,8 @@
       "MFA_RECOVERY_CODE_USED": "Recovery code used",
       "MFA_RECOVERY_CODES_LOW": "Running out of recovery codes",
       "MFA_RESET_BY_ADMIN": "Two-factor authentication was reset",
-      "ADMIN_SUPPORT_VIEW": "Support viewed your account"
+      "ADMIN_SUPPORT_VIEW": "Support viewed your account",
+      "PASSWORD_RESET_BY_ADMIN": "Password was reset"
     }
   },
   "inbox": {

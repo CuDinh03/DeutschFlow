@@ -207,6 +207,13 @@ public class NotificationContentRenderer {
                     "Đội hỗ trợ đã xem tài khoản của bạn",
                     "Đội hỗ trợ DeutschFlow đã mở chế độ xem chỉ đọc tài khoản của bạn lúc "
                             + supportViewTime(str(p, "viewedAt")) + " để hỗ trợ.");
+
+            // ── Đội hỗ trợ đặt lại mật khẩu — KHÔNG lý do nội bộ, KHÔNG danh tính admin ──
+            case PASSWORD_RESET_BY_ADMIN -> new RenderedContent(
+                    "Mật khẩu đã được đặt lại",
+                    "Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại"
+                            + (str(p, "resetAtDisplay").isBlank() ? "" : " lúc " + str(p, "resetAtDisplay"))
+                            + ". Nếu bạn không yêu cầu, hãy liên hệ hỗ trợ.");
         };
     }
 

@@ -291,7 +291,8 @@
       "MFA_RECOVERY_CODE_USED": "Wiederherstellungscode verwendet",
       "MFA_RECOVERY_CODES_LOW": "Wiederherstellungscodes gehen zur Neige",
       "MFA_RESET_BY_ADMIN": "Zwei-Faktor-Authentifizierung zurückgesetzt",
-      "ADMIN_SUPPORT_VIEW": "Der Support hat Ihr Konto angesehen"
+      "ADMIN_SUPPORT_VIEW": "Der Support hat Ihr Konto angesehen",
+      "PASSWORD_RESET_BY_ADMIN": "Passwort wurde zurückgesetzt"
     }
   },
   "inbox": {

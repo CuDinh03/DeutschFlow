@@ -82,16 +82,19 @@ public class AuthController {
     // ─── Public endpoints ──────────────────────────────────────────────────────
 
     /**
-     * 201 Created — tài khoản mới, KHÔNG kiểm email (đường cũ). Còn mở có chủ ý cho bản app đã phát hành;
-     * {@code registration.legacy.used} là con số quyết định ngày đặt {@code LEGACY_REGISTER_ENABLED=false}
-     * (khi đó trả 410 "hãy cập nhật ứng dụng").
+     * 201 Created — tài khoản mới, KHÔNG kiểm email (đường cũ). CHỈ mở khi công tắc mã PIN tắt
+     * ({@link RegistrationVerificationConfig#legacyRegisterAllowed()}); công tắc bật ⇒ 410 "hãy cập nhật ứng
+     * dụng", kể cả với app đã phát hành — luật "phải có mã hợp lệ mới tạo tài khoản" do server giữ, không tin
+     * client. Kiểm TRƯỚC rate-limit và bulkhead: request bị chặn không tốn lượt, không chạy BCrypt.
+     * {@code registration.legacy.blocked} đếm số lần client (thường là app cũ) còn gọi đường này.
      */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public AuthResponse register(@Valid @RequestBody RegisterRequest request,
                                  HttpServletRequest httpRequest,
                                  HttpServletResponse httpResponse) {
-        if (!registrationVerificationConfig.legacyRegisterEnabled()) {
+        if (!registrationVerificationConfig.legacyRegisterAllowed()) {
+            meterRegistry.counter("registration.legacy.blocked").increment();
             throw new RegistrationVerificationException(
                     RegistrationVerificationException.Reason.LEGACY_REGISTER_DISABLED,
                     "Phiên bản này không còn đăng ký được. Hãy cập nhật ứng dụng hoặc đăng ký trên web.");
