@@ -15,17 +15,22 @@ import chromeVi from '../../../messages/v2/chrome.vi.json'
  *      sống và vẫn đưa các em vào được);
  *   3. mỗi ca chết có câu riêng: hết hạn ≠ đã dùng ≠ không hợp lệ;
  *   4. đặt mật khẩu xong thì về trang đăng nhập — endpoint không cấp phiên.
+ * QLT-20 (09/11/2026): token rời thanh địa chỉ/lịch sử NGAY lúc mount (không đợi thành công), tải lại trang
+ * thì lấy lại từ sessionStorage, xong thì xoá.
  */
 
 const routerMock = { replace: vi.fn(), push: vi.fn() }
 const getMock = vi.fn()
 const postMock = vi.fn()
-let searchToken: string | null = 'tok-abc'
+const TOKEN_KEY = 'df.activateToken'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => routerMock,
-  useSearchParams: () => ({ get: (k: string) => (k === 'token' ? searchToken : null) }),
 }))
+
+function openAt(url: string) {
+  window.history.replaceState(null, '', url)
+}
 vi.mock('@/lib/api', () => ({
   default: { get: (...a: unknown[]) => getMock(...a), post: (...a: unknown[]) => postMock(...a) },
 }))
@@ -49,7 +54,8 @@ beforeEach(() => {
   routerMock.replace.mockReset()
   getMock.mockReset()
   postMock.mockReset()
-  searchToken = 'tok-abc'
+  window.sessionStorage.clear()
+  openAt('/v2/activate?token=tok-abc')
   getMock.mockResolvedValue(preview('VALID'))
   postMock.mockResolvedValue({ data: null })
 })
@@ -105,10 +111,47 @@ describe('/v2/activate — đặt mật khẩu lần đầu', () => {
   })
 
   it('URL không có token ⇒ coi như liên kết lạ, KHÔNG gọi API', async () => {
-    searchToken = null
+    openAt('/v2/activate')
     renderPage()
 
     expect(await screen.findByTestId('activate-dead')).toHaveTextContent(authVi.auth.activate.unknown)
     expect(getMock).not.toHaveBeenCalled()
+  })
+
+  it('xoá token khỏi URL ngay lúc mount, TRƯỚC khi API trả lời', async () => {
+    openAt('/v2/activate?token=tok-abc&utm_source=mail')
+    const replaceSpy = vi.spyOn(window.history, 'replaceState')
+    getMock.mockReturnValue(new Promise(() => {})) // API treo: chưa thành công, chưa thất bại
+    renderPage()
+
+    await waitFor(() => expect(getMock).toHaveBeenCalledWith('/auth/activate', { params: { token: 'tok-abc' } }))
+    expect(replaceSpy).toHaveBeenCalled()
+    expect(replaceSpy.mock.invocationCallOrder[0]).toBeLessThan(getMock.mock.invocationCallOrder[0])
+    expect(window.location.search).toBe('?utm_source=mail')
+    expect(window.location.href).not.toContain('tok-abc')
+    expect(window.sessionStorage.getItem(TOKEN_KEY)).toBe('tok-abc')
+    replaceSpy.mockRestore()
+  })
+
+  it('tải lại trang (URL đã sạch) ⇒ lấy token từ sessionStorage, đặt xong thì xoá', async () => {
+    openAt('/v2/activate')
+    window.sessionStorage.setItem(TOKEN_KEY, 'tok-abc')
+    renderPage()
+    await screen.findByTestId('activate-submit')
+    expect(getMock).toHaveBeenCalledWith('/auth/activate', { params: { token: 'tok-abc' } })
+
+    await userEvent.type(screen.getByLabelText(/Mật khẩu mới/i), 'MatKhauMoi123')
+    await userEvent.type(screen.getByLabelText(/Nhập lại mật khẩu/i), 'MatKhauMoi123')
+    await userEvent.click(screen.getByTestId('activate-submit'))
+
+    await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/v2/login'))
+    expect(window.sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('liên kết đã dùng ⇒ không giữ token trong tab', async () => {
+    getMock.mockResolvedValue(preview('USED'))
+    renderPage()
+    await screen.findByTestId('activate-dead')
+    expect(window.sessionStorage.getItem(TOKEN_KEY)).toBeNull()
   })
 })

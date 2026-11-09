@@ -2,9 +2,32 @@
 
 import { useEffect, Suspense } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import type { PostHog } from 'posthog-js'
 import { loadPostHog, withPostHog } from '@/lib/posthogClient'
+import { isTokenPagePath, scrubUrl } from '@/lib/analytics/scrubUrl'
+import { posthogPrivacyConfig, scrubCapturedNetworkRequest, scrubStoredPersonInfo } from '@/lib/analytics/posthogPrivacy'
 
 const SHARED_DASHBOARD_URL = process.env.NEXT_PUBLIC_POSTHOG_SHARED_DASHBOARD_URL
+
+// Trang token (/phieu|report|certificate/<token>): DOM chứa token (link chia sẻ, canonical, chữ in
+// URL) — bản ghi phiên chụp cả DOM nên KHÔNG ghi ở đây; rời trang thì bật lại nếu chính ta đã tắt.
+let recordingPausedForTokenPage = false
+
+function syncRecordingForTokenPage(posthog: PostHog, pathname: string) {
+  try {
+    if (isTokenPagePath(pathname)) {
+      if (!recordingPausedForTokenPage) {
+        posthog.stopSessionRecording()
+        recordingPausedForTokenPage = true
+      }
+    } else if (recordingPausedForTokenPage) {
+      recordingPausedForTokenPage = false
+      posthog.startSessionRecording()
+    }
+  } catch {
+    // analytics hỏng không được làm hỏng trang
+  }
+}
 
 // Separate component to track page views on route change
 function PostHogPageView() {
@@ -17,9 +40,14 @@ function PostHogPageView() {
       if (searchParams?.toString()) {
         url = `${url}?${searchParams.toString()}`
       }
+      // QLT-20: lọc ngay tại đây (token query, token trong path) — `before_send` còn lọc lần nữa.
+      const safeUrl = scrubUrl(url)
       // Pageview đầu tiên xảy ra TRƯỚC khi thư viện tải xong → xếp hàng (trước đây `__loaded`
       // false là mất luôn pageview đầu của mỗi phiên).
-      withPostHog((posthog) => posthog.capture('$pageview', { '$current_url': url }))
+      withPostHog((posthog) => {
+        syncRecordingForTokenPage(posthog, pathname)
+        posthog.capture('$pageview', { '$current_url': safeUrl })
+      })
     }
   }, [pathname, searchParams])
 
@@ -40,17 +68,26 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       // Đợt A 26/10/2026: thư viện cũng tải động ở đây (không còn import tĩnh) — xem posthogClient.
       const idleInit = () => {
         void loadPostHog((posthog) => {
+          const onTokenPage = isTokenPagePath(window.location.pathname)
+          if (onTokenPage) recordingPausedForTokenPage = true
           posthog.init(posthogKey, {
             api_host: posthogHost,
             person_profiles: 'always',
             // Bật autocapture toàn bộ để theo dõi Rage Clicks, Dead Clicks và Navigation
             autocapture: true,
             capture_pageview: false, // Tự track thủ công qua PostHogPageView
+            // QLT-20: lọc token/mã một lần khỏi MỌI URL gửi đi (before_send + che tại nguồn).
+            ...posthogPrivacyConfig(posthog),
+            disable_session_recording: onTokenPage,
             session_recording: {
               maskAllInputs: true,   // Ẩn password/PII
               maskTextSelector: "[data-ph-mask='true']",
+              // href trang + URL request mạng trong bản ghi phiên đều đi qua hàm này.
+              maskCapturedNetworkRequestFn: scrubCapturedNetworkRequest,
             },
           })
+          // Người dùng cũ có thể đã lưu URL lần đầu mang token (trước QLT-20) — lọc trước lần hỏi cờ kế tiếp.
+          scrubStoredPersonInfo(posthog)
           // Super-property cho MỌI sự kiện (spec onboarding §6.4, Đợt 1 17/09): phiên bản luồng
           // onboarding + nền tảng, để funnel web↔mobile tách cohort mà không sửa từng call site.
           // Mobile đã có `platform`/`app_version` qua registerSuperProperties(); web trước đây chưa
@@ -58,7 +95,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
           posthog.register({ flow_version: 'onb_v3', platform: 'web' })
           // Track lần đầu mở app trong session này
           posthog.capture('app_opened', {
-            referrer: document.referrer || 'direct',
+            referrer: document.referrer ? scrubUrl(document.referrer) : 'direct',
             screen_width: window.screen.width,
             screen_height: window.screen.height,
             hour_of_day: new Date().getHours(),
@@ -81,7 +118,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
           lineno: errorEvent.lineno,
           colno: errorEvent.colno,
           error: errorEvent.error ? errorEvent.error.stack : null,
-          path: window.location.pathname,
+          path: scrubUrl(window.location.pathname),
         }))
       }
       // Promise rejections không bắn 'error' event — bắt riêng để không bỏ sót lỗi async.
@@ -91,7 +128,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         withPostHog((posthog) => posthog.capture('frontend_unhandled_rejection', {
           message: isError ? (reason as Error).message : String(reason),
           error: isError ? (reason as Error).stack : null,
-          path: window.location.pathname,
+          path: scrubUrl(window.location.pathname),
         }))
       }
       window.addEventListener('error', handleError)
