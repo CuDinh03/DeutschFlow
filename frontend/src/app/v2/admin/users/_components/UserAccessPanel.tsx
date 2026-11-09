@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { adminUsersApi, type AdminRole } from '@/lib/adminUsersApi'
+import { mfaApi } from '@/lib/mfaApi'
 import { GaBtn, GaCap, ConfirmDialog, ErrorBanner } from '@/components/ui-v2'
 
 type GlobalRole = 'ADMIN' | 'TEACHER' | 'STUDENT'
@@ -18,6 +19,8 @@ export interface UserAccessPanelProps {
   isActive: boolean
   /** Gọi sau mỗi thay đổi thành công để trang nạp lại hồ sơ. */
   onChanged: () => void
+  /** Hồ sơ đang xem là CHÍNH admin đang đăng nhập — ẩn "Đặt lại 2FA" (backend cũng chặn 403). */
+  isSelf?: boolean
 }
 
 /**
@@ -29,9 +32,11 @@ export interface UserAccessPanelProps {
  * - cấp hoặc bỏ ADMIN: danger + lý do + gõ lại email người bị đổi;
  * - khoá tài khoản: danger + lý do (cắt mọi phiên đang chạy);
  * - mở khoá: KHÔNG hỏi lại — khôi phục quyền chứ không lấy đi (AC-ADMIN-16);
- * - đặt lại mật khẩu: caution + lý do (người dùng không nhận thông báo tự động).
+ * - đặt lại mật khẩu: caution + lý do (người dùng không nhận thông báo tự động);
+ * - đặt lại 2FA (chỉ khi người đích là ADMIN và KHÔNG phải mình — 09/11/2026): danger + lý do; cắt mọi phiên,
+ *   người đích phải thiết lập lại 2FA ở lần đăng nhập tới.
  */
-export function UserAccessPanel({ userId, userName, email, role, isActive, onChanged }: UserAccessPanelProps) {
+export function UserAccessPanel({ userId, userName, email, role, isActive, onChanged, isSelf = false }: UserAccessPanelProps) {
   const t = useTranslations('v2.adminOps.users.detail')
   const [error, setError] = useState('')
 
@@ -50,6 +55,10 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState(false)
   const [savingPw, setSavingPw] = useState(false)
+
+  const [confirmMfa, setConfirmMfa] = useState(false)
+  const [savingMfa, setSavingMfa] = useState(false)
+  const canResetMfa = currentRole === 'ADMIN' && !isSelf
 
   const applyRole = async (reason?: string) => {
     setSavingRole(true)
@@ -97,6 +106,21 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
     } finally {
       setSavingPw(false)
       setConfirmPw(false)
+    }
+  }
+
+  const applyMfaReset = async (reason: string) => {
+    setSavingMfa(true)
+    setError('')
+    try {
+      await mfaApi.adminReset(userId, reason)
+      toast.success(t('mfaResetDone'))
+      onChanged()
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setSavingMfa(false)
+      setConfirmMfa(false)
     }
   }
 
@@ -185,6 +209,16 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
         <p className="ga-ui text-ga-caption text-ga-subtle">{t('pwNote')}</p>
       </div>
 
+      {canResetMfa && (
+        <div className="space-y-2 border-t border-ga-line pt-5" data-testid="user-mfa-reset">
+          <GaCap>{t('mfaCap')}</GaCap>
+          <GaBtn variant="ghost" loading={savingMfa} onClick={() => setConfirmMfa(true)}>
+            {t('mfaReset')}
+          </GaBtn>
+          <p className="ga-ui text-ga-caption text-ga-subtle">{t('mfaNote')}</p>
+        </div>
+      )}
+
       <ConfirmDialog
         open={confirmRole}
         onOpenChange={setConfirmRole}
@@ -231,6 +265,20 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
         cancelLabel={t('confirmPw.cancel')}
         loading={savingPw}
         onConfirm={({ reason }) => reason && void applyPassword(reason)}
+      />
+
+      <ConfirmDialog
+        open={confirmMfa}
+        onOpenChange={setConfirmMfa}
+        tone="danger"
+        requireReason
+        title={t('confirmMfa.title')}
+        description={t('confirmMfa.description', { name: userName })}
+        details={[t('confirmMfa.detailSessions'), t('confirmMfa.detailNotice'), t('confirmMfa.detailAudit')]}
+        confirmLabel={t('confirmMfa.confirm')}
+        cancelLabel={t('confirmMfa.cancel')}
+        loading={savingMfa}
+        onConfirm={({ reason }) => reason && void applyMfaReset(reason)}
       />
     </section>
   )

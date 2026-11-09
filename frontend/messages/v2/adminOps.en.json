@@ -614,6 +614,19 @@
           "confirm": "Change plan",
           "cancel": "Cancel",
           "done": "Switched to plan {plan}."
+        },
+        "mfaCap": "Two-factor authentication",
+        "mfaReset": "Reset 2FA",
+        "mfaNote": "Use this when this admin lost their phone and has no recovery codes left. They will set up 2FA again at their next sign-in.",
+        "mfaResetDone": "Two-factor authentication was reset",
+        "confirmMfa": {
+          "title": "Reset two-factor authentication?",
+          "description": "{name} will be signed out on every device and must set up 2FA again (email code + authenticator app) at their next sign-in.",
+          "detailSessions": "All of this person’s sessions are ended; an open session may keep working for up to 15 minutes.",
+          "detailNotice": "This person gets a notification and an email that their 2FA was reset.",
+          "detailAudit": "The action is recorded in the audit log with your reason.",
+          "confirm": "Reset 2FA",
+          "cancel": "Cancel"
         }
       },
       "create": {

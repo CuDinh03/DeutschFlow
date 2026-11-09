@@ -614,6 +614,19 @@
           "confirm": "Đổi gói",
           "cancel": "Hủy",
           "done": "Đã đổi sang gói {plan}."
+        },
+        "mfaCap": "Xác thực hai lớp",
+        "mfaReset": "Đặt lại 2FA",
+        "mfaNote": "Dùng khi quản trị viên này mất điện thoại và hết mã khôi phục. Họ sẽ phải thiết lập lại 2FA ở lần đăng nhập tới.",
+        "mfaResetDone": "Đã đặt lại xác thực hai lớp",
+        "confirmMfa": {
+          "title": "Đặt lại xác thực hai lớp?",
+          "description": "{name} sẽ bị đăng xuất khỏi mọi thiết bị và phải thiết lập lại 2FA (mã email + ứng dụng xác thực) ở lần đăng nhập tới.",
+          "detailSessions": "Mọi phiên đăng nhập của người này bị chấm dứt; phiên đang mở có thể còn chạy tối đa 15 phút.",
+          "detailNotice": "Người này nhận thông báo và email rằng 2FA đã bị đặt lại.",
+          "detailAudit": "Thao tác được ghi vào nhật ký kèm lý do.",
+          "confirm": "Đặt lại 2FA",
+          "cancel": "Hủy"
         }
       },
       "create": {

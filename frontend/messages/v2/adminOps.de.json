@@ -614,6 +614,19 @@
           "confirm": "Tarif ändern",
           "cancel": "Abbrechen",
           "done": "Auf Tarif {plan} umgestellt."
+        },
+        "mfaCap": "Zwei-Faktor-Authentifizierung",
+        "mfaReset": "2FA zurücksetzen",
+        "mfaNote": "Verwenden, wenn dieser Admin sein Telefon verloren hat und keine Wiederherstellungscodes mehr besitzt. Bei der nächsten Anmeldung richtet er 2FA neu ein.",
+        "mfaResetDone": "Zwei-Faktor-Authentifizierung zurückgesetzt",
+        "confirmMfa": {
+          "title": "Zwei-Faktor-Authentifizierung zurücksetzen?",
+          "description": "{name} wird auf allen Geräten abgemeldet und muss 2FA bei der nächsten Anmeldung neu einrichten (E-Mail-Code + Authenticator-App).",
+          "detailSessions": "Alle Sitzungen dieser Person werden beendet; eine offene Sitzung kann noch bis zu 15 Minuten funktionieren.",
+          "detailNotice": "Diese Person erhält eine Benachrichtigung und eine E-Mail über das Zurücksetzen.",
+          "detailAudit": "Die Aktion wird mit Ihrer Begründung im Protokoll festgehalten.",
+          "confirm": "2FA zurücksetzen",
+          "cancel": "Abbrechen"
         }
       },
       "create": {

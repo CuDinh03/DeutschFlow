@@ -286,7 +286,11 @@
       "TIMESHEET_PERIOD_APPROVED": "Kỳ công đã được duyệt",
       "TIMESHEET_PERIOD_RETURNED": "Kỳ công bị trả lại",
       "CERTIFICATE_ISSUED": "Có chứng nhận mới",
-      "BIRTH_DATE_UPDATED": "Ngày sinh được cập nhật"
+      "BIRTH_DATE_UPDATED": "Ngày sinh được cập nhật",
+      "MFA_ENABLED": "Đã bật xác thực hai lớp",
+      "MFA_RECOVERY_CODE_USED": "Đã dùng mã khôi phục",
+      "MFA_RECOVERY_CODES_LOW": "Sắp hết mã khôi phục",
+      "MFA_RESET_BY_ADMIN": "Xác thực hai lớp đã được đặt lại"
     }
   },
   "inbox": {
