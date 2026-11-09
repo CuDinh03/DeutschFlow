@@ -51,6 +51,7 @@ const tts = vi.hoisted(() => {
     }),
     setExamTtsMuted: vi.fn(),
     isExamTtsMuted: vi.fn(() => false),
+    unlockExamAudio: vi.fn(),
   }
 })
 vi.mock('@/components/features/exam-speaking/examTts', () => ({
@@ -58,6 +59,7 @@ vi.mock('@/components/features/exam-speaking/examTts', () => ({
   stopExamTts: tts.stopExamTts,
   setExamTtsMuted: tts.setExamTtsMuted,
   isExamTtsMuted: tts.isExamTtsMuted,
+  unlockExamAudio: tts.unlockExamAudio,
 }))
 
 vi.mock('@/hooks/useMicPermission', () => ({ useMicPermission: () => 'granted' }))
@@ -193,5 +195,34 @@ describe('Cơ chế lượt phòng thi nói', () => {
     await user.click(screen.getByTestId('advance-part'))
     expect(tts.stopExamTts).toHaveBeenCalled()
     await waitFor(() => expect(screen.getByTestId('mic-start')).toBeEnabled())
+  })
+  it('iOS chặn phát (blocked) → giữ mic khoá, hiện "Chạm để nghe"; chạm → mở khoá audio + phát lại', async () => {
+    tts.speakExamLine.mockImplementationOnce(() => Promise.resolve('blocked') as unknown as Promise<void>)
+    const user = userEvent.setup()
+    renderRoom()
+
+    const play = await screen.findByTestId('tts-blocked-play')
+    expect(screen.getByTestId('mic-start')).toBeDisabled()
+    expect(tts.speakExamLine).toHaveBeenCalledTimes(1)
+
+    await user.click(play)
+    expect(tts.unlockExamAudio).toHaveBeenCalled()
+    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledTimes(2))
+    expect(screen.queryByTestId('tts-blocked')).toBeNull()
+    expect(screen.getByTestId('mic-start')).toBeDisabled()
+
+    await finishSpeaking()
+    await waitFor(() => expect(screen.getByTestId('mic-start')).toBeEnabled())
+  })
+
+  it('blocked → "Bỏ qua" mở lượt mà không phát lại', async () => {
+    tts.speakExamLine.mockImplementationOnce(() => Promise.resolve('blocked') as unknown as Promise<void>)
+    const user = userEvent.setup()
+    renderRoom()
+
+    await user.click(await screen.findByTestId('tts-blocked-skip'))
+    await waitFor(() => expect(screen.getByTestId('mic-start')).toBeEnabled())
+    expect(tts.speakExamLine).toHaveBeenCalledTimes(1)
+    expect(tts.unlockExamAudio).not.toHaveBeenCalled()
   })
 })

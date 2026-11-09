@@ -1980,7 +1980,13 @@
             "drillDone": "Luyện xong Teil {n}"
           },
           "autoStop": "Tự dừng khi im",
-          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi."
+          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi.",
+          "blocked": {
+            "title": "Trình duyệt chưa cho phát tiếng",
+            "sub": "Chạm nút bên dưới để nghe giám khảo. Lời của giám khảo vẫn hiện trong hội thoại.",
+            "play": "Chạm để nghe",
+            "skip": "Bỏ qua, tôi đọc chữ"
+          }
         }
       },
       "mic": {
@@ -1998,7 +2004,8 @@
           "busy": "Micro đang bị ứng dụng khác dùng.",
           "insecure": "Micro cần HTTPS.",
           "unsupported": "Trình duyệt không hỗ trợ thu âm.",
-          "unknown": "Không thu âm được. Hãy thử lại."
+          "unknown": "Không thu âm được. Hãy thử lại.",
+          "tooShort": "Bản ghi quá ngắn. Bấm micro, nói hết câu rồi mới bấm dừng."
         },
         "retry": "Thử lại với micro",
         "deniedSteps": {
