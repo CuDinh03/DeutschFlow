@@ -108,12 +108,18 @@ public class MockExamController {
     @GetMapping
     public ResponseEntity<List<ExamSummaryDto>> listExams(
             @RequestParam(defaultValue = "A1") String cefrLevel,
-            @RequestParam(defaultValue = "false") boolean includeComingSoon) {
+            @RequestParam(defaultValue = "false") boolean includeComingSoon,
+            @RequestParam(required = false) String examFormat,
+            @AuthenticationPrincipal UserDetails principal) {
+        // Tách kỳ thi (09/11/2026): danh sách chỉ gồm đề của MỘT kỳ thi — client gửi examFormat,
+        // không gửi (app cũ) thì máy chốt theo hồ sơ/lịch sử, để đề Goethe và telc không trộn.
+        String format = generationService.resolveExamFormat(userId(principal), cefrLevel, examFormat);
         var exams = jdbcTemplate.query("""
             SELECT id, cefr_level, exam_format, title, description_vi,
                    total_points, pass_points, time_limit_minutes, reviewed
             FROM mock_exams
-            WHERE cefr_level = ? AND (is_active = TRUE OR (? AND reviewed = FALSE))
+            WHERE cefr_level = ? AND UPPER(exam_format) = ?
+              AND (is_active = TRUE OR (? AND reviewed = FALSE))
             ORDER BY id
             """, (rs, n) -> new ExamSummaryDto(
                 rs.getLong("id"),
@@ -125,7 +131,7 @@ public class MockExamController {
                 (Integer) rs.getObject("pass_points"),
                 (Integer) rs.getObject("time_limit_minutes"),
                 !rs.getBoolean("reviewed")),
-            cefrLevel, includeComingSoon);
+            cefrLevel, format, includeComingSoon);
         return ResponseEntity.ok(exams);
     }
 
@@ -695,20 +701,23 @@ public class MockExamController {
     @GetMapping("/recommend")
     public ResponseEntity<ExamRecommendationDto> recommendExam(
             @RequestParam(defaultValue = "A1") String cefrLevel,
+            @RequestParam(required = false) String examFormat,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
-        var examId = generationService.recommendExamId(uid, cefrLevel);
-        var examStats = generationService.getUserExamStats(uid, cefrLevel).stream()
+        String format = generationService.resolveExamFormat(uid, cefrLevel, examFormat);
+        var examId = generationService.recommendExamId(uid, cefrLevel, format);
+        var examStats = generationService.getUserExamStats(uid, cefrLevel, format).stream()
                 .map(ExamStatDto::from)
                 .toList();
 
-        return ResponseEntity.ok(new ExamRecommendationDto(examId.orElse(-1L), cefrLevel, examStats));
+        return ResponseEntity.ok(new ExamRecommendationDto(examId.orElse(-1L), cefrLevel, format, examStats));
     }
 
     @GetMapping("/coverage")
     public ResponseEntity<ExamCoverageDto> examCoverage(
-            @RequestParam(defaultValue = "A1") String cefrLevel) {
-        return ResponseEntity.ok(generationService.getExamCoverage(cefrLevel));
+            @RequestParam(defaultValue = "A1") String cefrLevel,
+            @RequestParam(required = false) String examFormat) {
+        return ResponseEntity.ok(generationService.getExamCoverage(cefrLevel, examFormat));
     }
 
     @GetMapping("/attempts/{attemptId}/review")

@@ -101,8 +101,9 @@ class MockExamDtoSerializationTest {
     @Test
     @DisplayName("ExamCoverageDto exam row keeps is_active / attempt_count keys")
     void coverageRowSnakeCaseKeys() throws Exception {
-        var json = om.writeValueAsString(new ExamCoverageDto.Exam(1L, "Set 1", true, 50L));
+        var json = om.writeValueAsString(new ExamCoverageDto.Exam(1L, "Set 1", "TELC", true, 50L));
         assertThat(json)
+                .contains("\"exam_format\":\"TELC\"")
                 .contains("\"is_active\":true")
                 .contains("\"attempt_count\":50")
                 .doesNotContain("isActive")
@@ -244,9 +245,10 @@ class MockExamDtoSerializationTest {
         Map<String, Object> legacy = new LinkedHashMap<>();
         legacy.put("recommendedExamId", 7L);
         legacy.put("cefrLevel", "B1");
+        legacy.put("examFormat", "TELC");
         legacy.put("examStats", List.of(statRow));
 
-        var dto = new ExamRecommendationDto(7L, "B1",
+        var dto = new ExamRecommendationDto(7L, "B1", "TELC",
                 List.of(ExamStatDto.from(new LinkedHashMap<>(statRow))));
         assertSameJson(dto, legacy);
     }

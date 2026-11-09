@@ -7,11 +7,17 @@ import java.util.List;
  * Exam coverage summary for a CEFR level — response of
  * {@code GET /api/mock-exams/coverage?cefrLevel=}. Keys mirror the prior map exactly.
  */
-public record ExamCoverageDto(String cefrLevel, int totalExams, List<Exam> exams) {
+public record ExamCoverageDto(
+        String cefrLevel,
+        /** Kỳ thi đã lọc (GOETHE/TELC); null = mọi kỳ thi. */
+        String examFormat,
+        int totalExams,
+        List<Exam> exams) {
 
     public record Exam(
             long id,
             String title,
+            @JsonProperty("exam_format") String examFormat,
             @JsonProperty("is_active") Boolean isActive,
             @JsonProperty("attempt_count") Long attemptCount) {}
 }
