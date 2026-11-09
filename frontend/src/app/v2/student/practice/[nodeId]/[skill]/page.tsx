@@ -19,7 +19,6 @@ import {
   TreeDeciduous,
   Trophy,
   Volume2,
-  X,
   type LucideIcon,
 } from 'lucide-react'
 import api from '@/lib/api'
@@ -32,7 +31,7 @@ import { SeedlingWait } from '@/components/practice/SeedlingWait'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { SKILL_COLORS, SKILL_ICON, SKILL_LABELS } from '@/lib/skills'
-import { GaCap, GaCard, GaGlyph, ErrorBanner, LoadingState } from '@/components/ui-v2'
+import { GaCap, GaCard, GaChoiceGroup, GaGlyph, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { LessonShell } from '@/components/learn/LessonShell'
 import {
   clearLessonDraft,
@@ -250,7 +249,7 @@ function ExerciseCard({
         </span>
       </div>
 
-      <p className="ga-ui mb-3 break-words text-[14px] font-semibold text-ga-ink">
+      <p id={`practice-ex-${index}`} className="ga-ui mb-3 break-words text-[14px] font-semibold text-ga-ink">
         {exercise.instruction_de ?? exercise.instruction_vi}
       </p>
 
@@ -322,7 +321,7 @@ function ExerciseCard({
         <p className="ga-ui mb-3 text-[13.5px] text-ga-muted">{exercise.question_vi}</p>
       )}
       {exercise.question_de && (
-        <p className="ga-ui mb-3 text-[14px] font-medium text-ga-ink">{exercise.question_de}</p>
+        <p id={`practice-ex-${index}-q`} className="ga-ui mb-3 text-[14px] font-medium text-ga-ink">{exercise.question_de}</p>
       )}
 
       {/* Viết: sắp xếp từ */}
@@ -339,59 +338,24 @@ function ExerciseCard({
         </div>
       )}
 
-      {/* Trắc nghiệm */}
+      {/* Trắc nghiệm — chọn là gửi chấm ngay (POST …/check), nên mũi tên chỉ dời tiêu điểm, Space/Enter mới chọn. */}
       {exercise.options && exercise.options.length > 0 && (
-        <div className="mb-3 space-y-2">
-          {exercise.options.map((opt, idx) => {
-            const isSelected = selectedOption === idx
-            const isAnswer = (correctIndex ?? review?.correct_index) === idx
-            const showCorrect = answered && isAnswer
-            const showWrong = answered && isSelected && !isAnswer
-
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  if (locked) return
-                  setSelectedOption(idx)
-                  onAnswer(idx)
-                }}
-                disabled={locked}
-                className="ga-ui flex w-full items-center gap-2.5 break-words rounded-ga border-2 px-4 py-3 text-left text-[14px] font-medium transition-colors disabled:cursor-default"
-                style={{
-                  borderColor: showCorrect
-                    ? 'var(--ga-green)'
-                    : showWrong
-                      ? 'var(--ga-red)'
-                      : isSelected
-                        ? 'var(--ga-accent)'
-                        : 'var(--ga-line)',
-                  background: showCorrect
-                    ? 'var(--ga-green-soft)'
-                    : showWrong
-                      ? 'var(--ga-red-soft)'
-                      : 'var(--ga-card)',
-                  color: showCorrect ? 'var(--ga-green)' : showWrong ? 'var(--ga-red)' : 'var(--ga-ink)',
-                }}
-              >
-                <span
-                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 text-[11px] font-bold"
-                  style={{ borderColor: 'currentColor' }}
-                >
-                  {showCorrect ? (
-                    <Check size={12} aria-hidden />
-                  ) : showWrong ? (
-                    <X size={12} aria-hidden />
-                  ) : (
-                    String.fromCharCode(65 + idx)
-                  )}
-                </span>
-                <span className="min-w-0 break-words">{opt}</span>
-              </button>
-            )
-          })}
-        </div>
+        <GaChoiceGroup
+          // Tên nhóm = câu lệnh + câu hỏi (nếu có) — trình đọc màn hình nghe đủ đề trước khi nghe phương án.
+          aria-labelledby={exercise.question_de ? `practice-ex-${index} practice-ex-${index}-q` : `practice-ex-${index}`}
+          className="mb-3"
+          lang="de"
+          options={exercise.options.map((opt, idx) => ({ value: idx, label: opt }))}
+          value={selectedOption}
+          onChange={(idx) => {
+            if (locked) return
+            setSelectedOption(idx)
+            onAnswer(idx)
+          }}
+          locked={locked}
+          correctValue={answered ? (correctIndex ?? review?.correct_index ?? null) : null}
+          verdict={answered ? isCorrect : null}
+        />
       )}
 
       {/* Nhập chữ (chính tả / dịch / điền) */}

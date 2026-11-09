@@ -3,7 +3,7 @@
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { BookOpen, ChevronLeft, ChevronRight, Library, MessagesSquare, Quote, TriangleAlert, Lightbulb, CircleCheck, CircleX } from "lucide-react";
-import { GaGlyph } from "@/components/ui-v2";
+import { GaChoiceGroup, GaGlyph } from "@/components/ui-v2";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
@@ -298,7 +298,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             <div className="space-y-6 text-left mt-4">
               {practiceItems.map((item: any, i: number) => (
                 <div key={i} className="space-y-3 bg-ga-card p-4 rounded-ga border border-ga-line">
-                  <p className="text-sm font-bold text-ga-ink break-words">{i + 1}. {questionTextOf(item) ?? item.sentence_de ?? ""}</p>
+                  <p id={`grammar-quiz-${i}`} className="text-sm font-bold text-ga-ink break-words">{i + 1}. {questionTextOf(item) ?? item.sentence_de ?? ""}</p>
                   {item.type !== MULTIPLE_CHOICE ? (
                     <input
                       type="text"
@@ -310,29 +310,15 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                       className="w-full rounded-ga border-2 border-ga-line px-4 py-3 text-sm focus:border-ga-yellow focus:outline-none disabled:opacity-60"
                     />
                   ) : (
-                  <div className="space-y-2">
-                    {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
-                      const isSelected = answers[i] === j;
-                      const isCorrect = correctIndexOf(item) === j;
-                      const showResult = quizSubmitted;
-                      
-                      let btnClass = "border-ga-line hover:border-ga-line text-ga-muted";
-                      if (isSelected && !showResult) btnClass = "border-ga-yellow bg-ga-yellow/10 text-ga-ink";
-                      if (showResult && isCorrect) btnClass = "border-ga-green bg-ga-green-soft text-ga-green";
-                      if (showResult && isSelected && !isCorrect) btnClass = "border-ga-red bg-ga-red-soft text-ga-red";
-
-                      return (
-                        <button
-                          key={j}
-                          onClick={() => { if (!quizSubmitted) { lightImpact(); setAnswers(prev => ({ ...prev, [i]: j })); } }}
-                          disabled={quizSubmitted}
-                          className={`w-full text-left px-4 py-3 rounded-ga border-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow,transform,max-height,width] ${btnClass}`}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <GaChoiceGroup
+                    aria-labelledby={`grammar-quiz-${i}`}
+                    letters={false}
+                    options={(Array.isArray(item.options) ? (item.options as string[]) : []).map((opt, j) => ({ value: j, label: opt }))}
+                    value={typeof answers[i] === "number" ? (answers[i] as number) : null}
+                    onChange={(j) => { lightImpact(); setAnswers((prev: AnswerMap) => ({ ...prev, [i]: j })); }}
+                    locked={quizSubmitted}
+                    correctValue={quizSubmitted ? (correctIndexOf(item) ?? null) : null}
+                  />
                   )}
                 </div>
               ))}

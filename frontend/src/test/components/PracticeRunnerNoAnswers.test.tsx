@@ -134,12 +134,15 @@ describe('skill practice runner (A3: no answer key before answering)', () => {
     await renderPage()
     await screen.findByText('Wen lädt Frau Weber ein?')
 
-    await user.click(screen.getByRole('button', { name: /Die Kollegen/ }))
+    await user.click(screen.getByRole('radio', { name: /Die Kollegen/ }))
     await waitFor(() =>
       expect(apiPost).toHaveBeenCalledWith('/skill-tree/practice/42/check', { answers: { 0: 0 } }),
     )
     // Server bảo sai và chỉ phương án đúng → nút đó bị khoá (đã trả lời).
-    await waitFor(() => expect(screen.getByRole('button', { name: /Die Nachbarn/ })).toBeDisabled())
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Die Nachbarn/ })).toHaveAttribute('aria-disabled', 'true'))
+    // A7: đúng/sai nói bằng chữ trong tên nút, không chỉ bằng màu viền.
+    expect(screen.getByRole('radio', { name: /Die Kollegen.*Bạn chọn · sai/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: /Die Nachbarn.*Đáp án đúng/ })).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('Nhập câu trả lời…'), 'Samstag')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
@@ -168,9 +171,9 @@ describe('skill practice runner (A3: no answer key before answering)', () => {
     await renderPage()
     await screen.findByText('Wen lädt Frau Weber ein?')
 
-    await user.click(screen.getByRole('button', { name: /Die Kollegen/ }))
+    await user.click(screen.getByRole('radio', { name: /Die Kollegen/ }))
 
     expect(await screen.findByText('Chưa chấm được câu này — thử trả lời lại.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Die Nachbarn/ })).not.toBeDisabled()
+    expect(screen.getByRole('radio', { name: /Die Nachbarn/ })).not.toHaveAttribute('aria-disabled')
   })
 })

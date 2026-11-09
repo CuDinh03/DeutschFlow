@@ -225,7 +225,11 @@
     "confirmReasonLabel": "Reason (required, at least {min} characters) — recorded in the audit log",
     "confirmReasonCount": "{count} characters · min {min}, max {max}",
     "confirmPhraseLabel": "Type “{phrase}” to confirm",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "choiceSelected": "Selected",
+    "choiceCorrectPicked": "Your answer · correct",
+    "choiceWrongPicked": "Your answer · wrong",
+    "choiceCorrectAnswer": "Correct answer"
   },
   "maintenance": {
     "overlayTitle": "System under maintenance",

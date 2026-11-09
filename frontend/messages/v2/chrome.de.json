@@ -225,7 +225,11 @@
     "confirmReasonLabel": "Begründung (Pflicht, mindestens {min} Zeichen) — wird im Protokoll gespeichert",
     "confirmReasonCount": "{count} Zeichen · min. {min}, max. {max}",
     "confirmPhraseLabel": "Zum Bestätigen „{phrase}“ eingeben",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "choiceSelected": "Ausgewählt",
+    "choiceCorrectPicked": "Deine Antwort · richtig",
+    "choiceWrongPicked": "Deine Antwort · falsch",
+    "choiceCorrectAnswer": "Richtige Antwort"
   },
   "maintenance": {
     "overlayTitle": "Systemwartung läuft",
