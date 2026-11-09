@@ -38,6 +38,16 @@ import java.util.concurrent.TimeUnit;
  * Ngược lại, subject {@code "guest:"} phải đi cùng {@code typ=guest} hoặc không có {@code typ}.
  *
  * <p>Claims đã verify được đặt vào {@link AuthTokenAttributes#CLAIMS} để filter sau đọc mà không parse lại.
+ *
+ * <p><b>2FA bắt buộc cho ADMIN (09/11/2026):</b> khi {@code app.security.admin-mfa.enforced=true} (mặc định),
+ * access token của một người dùng có vai trò ADMIN (vai trò đọc từ DB, không từ claim) mà thiếu
+ * {@code mfa=true} → 401 problem+json {@code extensions.code=MFA_REQUIRED}, không đi tiếp chain. Hệ quả có
+ * chủ ý: mọi phiên admin đang mở trên production bị đăng xuất khi bản này lên.
+ *
+ * <p><b>SSE ticket bỏ qua kiểm 2FA — vì sao an toàn:</b> ticket chỉ phát từ {@code POST /api/sse/ticket},
+ * một request Bearer đã đi qua đúng kiểm 2FA ở trên; ticket dùng một lần, sống 60 s và chỉ mở GET tới
+ * endpoint SSE trong {@link SseTicketEndpoints}. Một ticket của ADMIN vì vậy luôn sinh từ một phiên đã qua
+ * 2FA (khi cờ bật); kiểm lại ở đây cần lưu thêm trạng thái vào ticket mà không thêm bảo vệ nào.
  */
 @Slf4j
 @Component
@@ -49,6 +59,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
     private final SseTicketService sseTicketService;
     private final boolean supportSessionEnabled;
+    private final boolean adminMfaEnforced;
 
     // Eliminates 1 DB round-trip per authenticated request (S-2/B).
     // 60s TTL keeps staleness well below the JWT lifetime (15 min); stale role is already
@@ -58,10 +69,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             .maximumSize(10_000)
             .build();
 
+    /** Dựng tay (test): 2FA ADMIN bật như mặc định production. */
     public JwtAuthFilter(JwtService jwtService,
                          UserDetailsService userDetailsService,
                          SseTicketService sseTicketService,
-                         @Value("${app.security.support-session.enabled:false}") boolean supportSessionEnabled) {
+                         boolean supportSessionEnabled) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, true);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         @Value("${app.security.support-session.enabled:false}") boolean supportSessionEnabled,
+                         @Value("${app.security.admin-mfa.enforced:true}") boolean adminMfaEnforced) {
+        this.adminMfaEnforced = adminMfaEnforced;
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.sseTicketService = sseTicketService;
@@ -183,6 +205,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (!authenticateRegisteredUser(subject, request, response)) {
                 return; // user no longer exists — 401 already sent
             }
+            if (adminMfaEnforced && isAdminPrincipal() && !JwtService.hasMfa(claims)) {
+                log.warn("[JwtAuthFilter] Token ADMIN chưa qua 2FA trên {} — 401 MFA_REQUIRED", requestUri);
+                SecurityContextHolder.clearContext();
+                writeMfaRequired(request, response);
+                return;
+            }
         } else {
             log.warn("[JwtAuthFilter] ⚠️ No subject extracted from token for request: {}", requestUri);
         }
@@ -209,6 +237,33 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             case JwtService.TYP_SUPPORT -> supportSessionEnabled;
             default -> false; // mfa, guest (subject không phải guest:), loại lạ
         };
+    }
+
+    /** Principal vừa đặt là người dùng có vai trò ADMIN (authority từ DB, không từ claim role của token). */
+    private static boolean isAdminPrincipal() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+        if (auth.getPrincipal() instanceof com.deutschflow.user.entity.User u) {
+            return u.getRole() == com.deutschflow.user.entity.User.Role.ADMIN;
+        }
+        return auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+    }
+
+    /**
+     * 401 problem+json cùng khuôn {@code GlobalExceptionHandler} (filter đứng ngoài advice nên tự ghi body):
+     * web đọc {@code extensions.code=MFA_REQUIRED} để xoá token và về trang đăng nhập thay vì thử refresh.
+     */
+    private static void writeMfaRequired(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/problem+json");
+        String instance = request.getRequestURI() == null ? "" : request.getRequestURI()
+                .replace("\\", "\\\\").replace("\"", "\\\"");
+        response.getWriter().write("{\"type\":\"https://deutschflow.com/errors/mfa\",\"title\":\"Unauthorized\","
+                + "\"status\":401,\"detail\":\"Phiên quản trị cần xác thực hai lớp. Vui lòng đăng nhập lại.\","
+                + "\"instance\":\"" + instance + "\",\"extensions\":{\"code\":\"MFA_REQUIRED\"}}");
     }
 
     /**

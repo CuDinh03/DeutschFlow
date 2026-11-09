@@ -88,9 +88,23 @@ public class AuthRateLimiterService {
     @Value("${app.auth.rate-limit.guest-session-create-window-seconds:3600}")
     private long guestSessionCreateWindow = 3600;
 
+    // Xác thực hai lớp (09/11/2026). Đếm LẦN SAI (không đếm lần đúng): 5 lần sai / 15 phút theo người dùng
+    // VÀ theo IP — chạm một trong hai là 429 tới hết cửa sổ. Gửi mã email 2FA: 5 thư / giờ / người dùng.
+    private final ConcurrentHashMap<String, Deque<Instant>> mfaFailureAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<Instant>> mfaEmailSendAttempts = new ConcurrentHashMap<>();
+    @Value("${app.auth.rate-limit.mfa-failure-max-per-window:5}")
+    private int  mfaFailureMax = 5;
+    @Value("${app.auth.rate-limit.mfa-failure-window-seconds:900}")
+    private long mfaFailureWindow = 900;
+    @Value("${app.auth.rate-limit.mfa-email-send-max-per-window:5}")
+    private int  mfaEmailSendMax = 5;
+    @Value("${app.auth.rate-limit.mfa-email-send-window-seconds:3600}")
+    private long mfaEmailSendWindow = 3600;
+
     // Redis sliding window (primary). May be null if no Redis is configured.
     private final StringRedisTemplate redis;
     private final DefaultRedisScript<Long> slidingWindowScript;
+    private final DefaultRedisScript<Long> countScript;
     private final AtomicLong nonce = new AtomicLong();
     private volatile boolean redisDownWarned = false;
 
@@ -109,6 +123,13 @@ public class AuthRateLimiterService {
             redis.call('ZADD', KEYS[1], ARGV[1], ARGV[4])
             redis.call('PEXPIRE', KEYS[1], ARGV[2])
             return 1
+            """;
+
+    /** Đếm không ghi: KEYS[1]=zset key; ARGV[1]=now(ms); ARGV[2]=window(ms). */
+    private static final String COUNT_LUA = """
+            local clearBefore = tonumber(ARGV[1]) - tonumber(ARGV[2])
+            redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, clearBefore)
+            return redis.call('ZCARD', KEYS[1])
             """;
 
     public AuthRateLimiterService(
@@ -136,6 +157,7 @@ public class AuthRateLimiterService {
 
         this.redis = redis;
         this.slidingWindowScript = new DefaultRedisScript<>(SLIDING_WINDOW_LUA, Long.class);
+        this.countScript = new DefaultRedisScript<>(COUNT_LUA, Long.class);
         log.info("[RateLimiter] storage = {}", this.redis != null ? "Redis (shared) + in-memory fallback" : "in-memory only");
     }
 
@@ -193,6 +215,46 @@ public class AuthRateLimiterService {
                 Math.max(1, guestSessionCreateMax), Math.max(1L, guestSessionCreateWindow));
     }
 
+    // ─── 2FA ───────────────────────────────────────────────────────────────────
+
+    /**
+     * Đã đủ số lần sai 2FA trong cửa sổ — theo người dùng HOẶC theo IP? Chỉ ĐỌC, không ghi một lượt.
+     * Gọi TRƯỚC khi kiểm mã: đang bị khoá thì kể cả mã đúng cũng 429 (không cho dò tiếp rồi "trúng").
+     */
+    public boolean isMfaBlocked(long userId, String ip) {
+        long window = Math.max(1L, mfaFailureWindow);
+        int max = Math.max(1, mfaFailureMax);
+        return countInWindow(mfaFailureAttempts, mfaUserKey(userId), window) >= max
+                || countInWindow(mfaFailureAttempts, mfaIpKey(ip), window) >= max;
+    }
+
+    /**
+     * Ghi một lần sai 2FA vào cả hai ngân sách (người dùng + IP).
+     *
+     * @return {@code true} khi lần sai này làm một trong hai ngân sách CHẠM trần (để ghi vết khoá đúng một lần)
+     */
+    public boolean recordMfaFailure(long userId, String ip) {
+        long window = Math.max(1L, mfaFailureWindow);
+        int max = Math.max(1, mfaFailureMax);
+        check(mfaFailureAttempts, mfaUserKey(userId), Integer.MAX_VALUE, window);
+        check(mfaFailureAttempts, mfaIpKey(ip), Integer.MAX_VALUE, window);
+        return countInWindow(mfaFailureAttempts, mfaUserKey(userId), window) == max
+                || countInWindow(mfaFailureAttempts, mfaIpKey(ip), window) == max;
+    }
+
+    public int mfaRetryAfterSeconds() { return (int) Math.max(1L, mfaFailureWindow); }
+
+    /** Trần gửi mã email đăng ký 2FA theo người dùng. */
+    public boolean allowMfaEmailSend(long userId) {
+        return check(mfaEmailSendAttempts, "mfa-email|" + userId,
+                Math.max(1, mfaEmailSendMax), Math.max(1L, mfaEmailSendWindow));
+    }
+
+    public int mfaEmailSendRetryAfterSeconds() { return (int) Math.max(1L, mfaEmailSendWindow); }
+
+    private static String mfaUserKey(long userId) { return "mfa-fail-user|" + userId; }
+    private static String mfaIpKey(String ip)     { return "mfa-fail-ip|" + safe(ip); }
+
     public int guestSessionCreateRetryAfterSeconds()   { return (int) guestSessionCreateWindow; }
     public int registrationSendRetryAfterSeconds()     { return (int) registrationSendWindow; }
     public int registrationVerifyIpRetryAfterSeconds() { return (int) registrationVerifyIpWindow; }
@@ -242,6 +304,39 @@ public class AuthRateLimiterService {
             }
         }
         return checkInMemory(fallbackStore, key, max, windowSeconds);
+    }
+
+    /**
+     * Số lượt còn trong cửa sổ, KHÔNG ghi thêm. Redis: dọn phần quá hạn rồi ZCARD (cùng khoá {@code rl:} với
+     * {@link #check}); Redis hỏng → bộ nhớ của node.
+     */
+    private long countInWindow(ConcurrentHashMap<String, Deque<Instant>> fallbackStore, String key, long windowSeconds) {
+        if (redis != null) {
+            try {
+                long now = System.currentTimeMillis();
+                Long count = redis.execute(countScript, List.of("rl:" + key),
+                        Long.toString(now), Long.toString(windowSeconds * 1000L));
+                redisDownWarned = false;
+                return count == null ? 0L : count;
+            } catch (Exception e) {
+                if (!redisDownWarned) {
+                    redisDownWarned = true;
+                    log.warn("[RateLimiter] Redis unavailable — falling back to in-memory per-node limiting: {}",
+                            e.getMessage());
+                }
+            }
+        }
+        Deque<Instant> deque = fallbackStore.get(key);
+        if (deque == null) {
+            return 0L;
+        }
+        Instant windowStart = Instant.now().minusSeconds(windowSeconds);
+        synchronized (deque) {
+            while (!deque.isEmpty() && deque.peekFirst().isBefore(windowStart)) {
+                deque.pollFirst();
+            }
+            return deque.size();
+        }
     }
 
     private boolean checkInMemory(ConcurrentHashMap<String, Deque<Instant>> store,

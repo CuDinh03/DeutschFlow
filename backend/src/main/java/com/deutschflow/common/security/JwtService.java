@@ -59,6 +59,10 @@ public class JwtService {
     public static final String TYP_SUPPORT = "support";
     /** Tiền tố subject của token thử thách 2FA: {@code "mfa:" + userId}. */
     public static final String MFA_SUBJECT_PREFIX = "mfa:";
+    /** Claim boolean trên access token: phiên đã qua bước 2FA. */
+    public static final String CLAIM_MFA = "mfa";
+    /** Claim giây epoch: thời điểm qua bước 2FA (giữ nguyên qua refresh, không phải lúc phát token). */
+    public static final String CLAIM_MFA_AT = "mfa_at";
     /** TTL mặc định của token thử thách 2FA ({@code app.jwt.mfa-token-expiry-ms}). */
     static final long DEFAULT_MFA_TOKEN_EXPIRY_MS = 300_000L;
 
@@ -186,6 +190,15 @@ public class JwtService {
      * Backend authz vẫn verify {@code org_members} trong DB (xem OrgGuard), KHÔNG tin claim này.
      */
     public String generateAccessToken(User user, Long orgId, String orgRole) {
+        return generateAccessToken(user, orgId, orgRole, null);
+    }
+
+    /**
+     * Như {@link #generateAccessToken(User, Long, String)}, thêm dấu 2FA khi {@code mfaVerifiedAt} khác null:
+     * {@code mfa=true} và {@code mfa_at} (giây epoch của lần qua 2FA). {@link JwtAuthFilter} đòi
+     * {@code mfa=true} trên mọi access token của ADMIN khi {@code app.security.admin-mfa.enforced=true}.
+     */
+    public String generateAccessToken(User user, Long orgId, String orgRole, java.time.Instant mfaVerifiedAt) {
         long now = System.currentTimeMillis();
         long expiryTime = now + accessTokenExpiryMs;
         JwtBuilder builder = Jwts.builder()
@@ -206,6 +219,10 @@ public class JwtService {
             // After an org-role change the claim stays stale for up to the JWT TTL (~15 min).
             // This is accepted behaviour (C): OrgGuard always re-verifies against org_members in DB.
             builder.claim("orgRole", orgRole); // OWNER | MANAGER | TEACHER | STUDENT
+        }
+        if (mfaVerifiedAt != null) {
+            builder.claim(CLAIM_MFA, true);
+            builder.claim(CLAIM_MFA_AT, mfaVerifiedAt.getEpochSecond());
         }
         String token = builder.signWith(signingKey).compact();
         // DEBUG + no PII (email) — token issuance is high-volume; avoid emails in logs.
@@ -261,6 +278,31 @@ public class JwtService {
         }
         String typ = String.valueOf(raw).trim();
         return typ.isEmpty() ? TYP_ACCESS : typ;
+    }
+
+    /** {@code true} khi access token mang dấu đã qua 2FA ({@code mfa=true}). */
+    public static boolean hasMfa(Claims claims) {
+        if (claims == null) {
+            return false;
+        }
+        Object raw = claims.get(CLAIM_MFA);
+        return raw instanceof Boolean b ? b : "true".equalsIgnoreCase(String.valueOf(raw));
+    }
+
+    /** Thời điểm qua 2FA ghi trong token ({@code mfa_at}); {@code null} khi token không có dấu 2FA. */
+    public static java.time.Instant mfaVerifiedAt(Claims claims) {
+        if (!hasMfa(claims)) {
+            return null;
+        }
+        Object raw = claims.get(CLAIM_MFA_AT);
+        if (raw instanceof Number n) {
+            return java.time.Instant.ofEpochSecond(n.longValue());
+        }
+        try {
+            return raw == null ? null : java.time.Instant.ofEpochSecond(Long.parseLong(String.valueOf(raw)));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** {@code true} khi token không mang claim {@code typ} (phát hành trước 09/11/2026). */

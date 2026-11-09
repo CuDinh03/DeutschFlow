@@ -163,5 +163,16 @@ public enum NotificationType {
      * {@code NotificationContentRenderer} CỐ Ý không nhắc ngày sinh — body này đi thẳng vào push
      * Expo và hiện trên màn hình khoá; giá trị nằm ở payload cho web/mobile hiện trong chi tiết.
      */
-    BIRTH_DATE_UPDATED
+    BIRTH_DATE_UPDATED,
+
+    // ── Xác thực hai lớp cho ADMIN (09/11/2026) — người nhận luôn là CHÍNH chủ tài khoản ──────────
+
+    /** Vừa bật 2FA. Payload: {@code enabledAt} (ISO). */
+    MFA_ENABLED,
+    /** Vừa đăng nhập bằng một mã khôi phục. Payload: {@code remaining} (số mã chưa dùng). */
+    MFA_RECOVERY_CODE_USED,
+    /** Còn ít hơn 3 mã khôi phục. Payload: {@code remaining}. */
+    MFA_RECOVERY_CODES_LOW,
+    /** Một ADMIN khác đặt lại 2FA của người nhận (mọi phiên bị đóng). Payload: {@code actorEmail}. */
+    MFA_RESET_BY_ADMIN
 }

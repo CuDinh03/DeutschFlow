@@ -212,7 +212,7 @@ class AuthServiceUnitTest {
         when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var req = new LoginRequest("  User@X.com  ", RAW_PASSWORD);
-        var res = authService.login(req);
+        var res = ((com.deutschflow.user.dto.LoginResult.Session) authService.login(req)).response();
 
         assertEquals("ACCESS", res.accessToken());
         // authenticate() receives the trimmed email (not the raw spaced value).

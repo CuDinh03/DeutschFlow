@@ -31,4 +31,11 @@ public class RefreshToken {
     @Column(nullable = false)
     @Builder.Default
     private boolean revoked = false;
+
+    /**
+     * Lúc phiên này qua bước 2FA (V369). NULL = phiên không qua 2FA. Refresh xoay vòng CHÉP nguyên giá trị
+     * sang dòng mới (không đặt lại "bây giờ"), nên tuổi 2FA của một phiên không bao giờ được gia hạn ngầm.
+     */
+    @Column(name = "mfa_verified_at")
+    private java.time.Instant mfaVerifiedAt;
 }

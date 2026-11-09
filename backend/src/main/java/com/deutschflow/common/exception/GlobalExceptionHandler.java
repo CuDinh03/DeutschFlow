@@ -201,6 +201,18 @@ public class GlobalExceptionHandler {
                 "One or more fields are invalid.", request.getRequestURI(), errors, null);
     }
 
+    /**
+     * Lỗi luồng xác thực hai lớp (09/11/2026): status do nơi ném chọn (400/401/403/409/503), mã ở
+     * {@code extensions.code} — xem danh mục trong {@link com.deutschflow.user.mfa.MfaException}.
+     */
+    @ExceptionHandler(com.deutschflow.user.mfa.MfaException.class)
+    public ResponseEntity<ProblemDetail> handleMfa(com.deutschflow.user.mfa.MfaException ex,
+                                                   HttpServletRequest request) {
+        HttpStatus status = ex.getStatus();
+        return problem(status, "mfa", status.getReasonPhrase(), ex.getMessage(), request.getRequestURI(),
+                null, Map.of("code", ex.getCode()));
+    }
+
     // --- 403 Forbidden ---
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ProblemDetail> handleForbidden(ForbiddenException ex,
