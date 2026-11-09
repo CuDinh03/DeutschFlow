@@ -103,17 +103,19 @@
       "roles": {
         "STUDENT": "Học viên",
         "TEACHER": "Giáo viên",
-        "ADMIN": "Quản trị"
+        "ADMIN": "Quản trị",
+        "MANAGER": "Quản lý",
+        "OWNER": "Giám đốc"
       },
       "stats": {
         "totalUsers": "Tổng người dùng",
-        "mrr": "Doanh thu (MRR)",
         "aiCost": "Chi phí AI (30 ngày)",
         "aiCostSub": "ước tính ledger",
         "aiActivity": "Hoạt động AI",
-        "aiActivitySub": "dùng AI 30 ngày"
+        "aiActivitySub": "dùng AI 30 ngày",
+        "netRemaining": "Còn lại sau phí & AI",
+        "netRemainingSub": "kỳ gần nhất · {period}"
       },
-      "subscribersByPeriod": "Thuê bao trả phí theo kỳ",
       "recentPeriods": "{count} kỳ gần nhất",
       "noPeriodData": "Chưa có dữ liệu kỳ.",
       "roleDistribution": "Phân bổ theo vai trò",
@@ -124,7 +126,8 @@
         "reviewVocabImages": "Duyệt ảnh từ vựng còn thiếu",
         "checkPendingOrgs": "Kiểm tra tổ chức B2B chờ kích hoạt",
         "trackAiBudget": "Theo dõi ngân sách chi phí AI"
-      }
+      },
+      "successTxByPeriod": "Giao dịch thành công theo kỳ"
     },
     "revenue": {
       "title": "Doanh thu & Thuê bao",
@@ -1087,8 +1090,8 @@
       "cancel": "Huỷ"
     },
     "aiUsage": {
-      "title": "AI usage",
-      "subtitle": "Token, giây STT và chi phí ước tính theo feature × model × phiên — đọc từ ledger thật",
+      "title": "Chi phí AI",
+      "subtitle": "Token, giây STT và chi phí ước tính của AI — tổng quan 30 ngày và chi tiết theo ledger",
       "back": "Về quản trị",
       "dismiss": "Đóng",
       "from": "Từ ngày",
@@ -1116,7 +1119,10 @@
       "sessions": "Top phiên tốn nhất",
       "sessionsHint": "Một mock B1 ≈ tổng các dòng EXAM_SPEAKING_* của cùng phiên (kế hoạch N0.6 ước A1 20–30k, B1 50–80k token).",
       "colSession": "Phiên",
-      "colFeatures": "Feature"
+      "colFeatures": "Feature",
+      "tabsLabel": "Chế độ xem chi phí AI",
+      "tabOverview": "Tổng quan",
+      "tabLedger": "Theo ledger"
     }
   }
 }

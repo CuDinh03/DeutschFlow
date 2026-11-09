@@ -331,17 +331,6 @@
       "text-[13.5px]": 1
     }
   },
-  "src/app/v2/admin/tokens/page.tsx": {
-    "hex-literal": {
-      "#E07B39": 1
-    },
-    "arbitrary-font-size": {
-      "text-[14px]": 4,
-      "text-[10px]": 1,
-      "text-[12px]": 1,
-      "text-[13.5px]": 1
-    }
-  },
   "src/app/v2/admin/training-dataset/page.tsx": {
     "arbitrary-font-size": {
       "text-[20px]": 1,
@@ -487,17 +476,6 @@
       "text-[15px]": 1,
       "text-[12.5px]": 1,
       "text-[12px]": 1
-    }
-  },
-  "src/app/v2/forgot-password/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[26px]": 1,
-      "text-[30px]": 1,
-      "text-[38px]": 1,
-      "text-[15px]": 1,
-      "text-[13.5px]": 2,
-      "text-[12px]": 1,
-      "text-[14px]": 1
     }
   },
   "src/app/v2/login/page.tsx": {
@@ -1274,34 +1252,6 @@
       "text-[22px]": 1,
       "text-[14px]": 2,
       "text-[12px]": 2
-    }
-  },
-  "src/app/v2/student/speaking/exam/page.tsx": {
-    "hex-literal": {
-      "#A39E94": 4
-    },
-    "arbitrary-font-size": {
-      "text-[13px]": 5,
-      "text-[10px]": 1,
-      "text-[22px]": 1,
-      "text-[26px]": 1,
-      "text-[13.5px]": 1,
-      "text-[12.5px]": 2,
-      "text-[18px]": 2,
-      "text-[14.5px]": 1,
-      "text-[14px]": 2,
-      "text-[12px]": 1
-    }
-  },
-  "src/app/v2/student/speaking/exam/weakness/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[13px]": 3,
-      "text-[12.5px]": 1,
-      "text-[14px]": 1,
-      "text-[12px]": 1,
-      "text-[11.5px]": 1,
-      "text-[13.5px]": 2,
-      "text-[16px]": 1
     }
   },
   "src/app/v2/student/speaking/history/page.tsx": {
@@ -2158,6 +2108,9 @@
       "text-[32px]": 1,
       "text-[38px]": 1,
       "text-[44px]": 1,
+      "text-[24px]": 1,
+      "text-[12.5px]": 1,
+      "text-[13.5px]": 1,
       "text-[11px]": 2,
       "text-[40px]": 2,
       "text-[54px]": 1,
@@ -2165,9 +2118,6 @@
       "text-[18px]": 1,
       "text-[13px]": 2,
       "text-[17px]": 1,
-      "text-[24px]": 1,
-      "text-[12.5px]": 1,
-      "text-[13.5px]": 1,
       "text-[19px]": 1,
       "text-[21px]": 1,
       "text-[14.5px]": 1

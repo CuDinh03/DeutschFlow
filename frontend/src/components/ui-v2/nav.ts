@@ -141,50 +141,85 @@ export const teacherNav: RoleNav = {
 /**
  * adminNav — quản trị nền tảng (platform ADMIN).
  *
- * Một nhóm chính không heading (vận hành: doanh thu, token AI, tổ chức, người dùng, lớp, gói,
- * bộ đề, nội dung, cấu hình AI, marketing, phân tích, báo cáo, nhật ký, training data, cấu hình)
- * + nhóm "Tài khoản" (hồ sơ). Đây là bề mặt rộng nhất, bao quát toàn hệ thống.
+ * 09/11/2026 (đợt 1 "Nền móng + Người dùng"): 29 mục phẳng → 6 nhóm có tiêu đề + nhóm "Tài khoản".
+ * Trang bị gộp vẫn giữ route và được chuyển hướng (frontend/admin-redirects.mjs): `tokens` → tab
+ * "Tổng quan" của Chi phí AI. Trang chỉ có vỏ (`settings`, `plans`) rời menu nhưng URL vẫn mở được;
+ * "Phân tích" chỉ hiện khi đã đặt NEXT_PUBLIC_POSTHOG_SHARED_DASHBOARD_URL (không đặt = iframe trống).
  */
+const ADMIN_ANALYTICS_ENABLED = Boolean(process.env.NEXT_PUBLIC_POSTHOG_SHARED_DASHBOARD_URL)
+
 export const adminNav: RoleNav = {
   role: 'admin',
   rootHref: '/v2/admin',
   sections: [
     {
+      label: 'Số liệu',
+      labelKey: 'adminInsights',
       items: [
         { id: 'admin', label: 'Tổng quan', href: '/v2/admin', icon: 'dashboard' },
         { id: 'admin-revenue', label: 'Doanh thu', href: '/v2/admin/revenue', icon: 'paid' },
-        { id: 'admin-tokens', label: 'AI Token', href: '/v2/admin/tokens', icon: 'toll' },
-        { id: 'admin-orgs', label: 'Tổ chức', href: '/v2/admin/organizations', icon: 'corporate_fare' },
-        { id: 'admin-free-teachers', label: 'Giáo viên tự do', href: '/v2/admin/free-teachers', icon: 'person_search' },
+        // N0.6/T.3 + 09/11: chi phí AI thật từ ledger; tab "Tổng quan" nhận lại nội dung trang tokens cũ.
+        { id: 'admin-ai-usage', label: 'Chi phí AI', href: '/v2/admin/ai-usage', icon: 'gauge' },
+        { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'file_chart' },
+        { id: 'admin-marketing', label: 'Tăng trưởng', href: '/v2/admin/marketing', icon: 'trending_up' },
+        ...(ADMIN_ANALYTICS_ENABLED
+          ? [{ id: 'admin-analytics', label: 'Phân tích', href: '/v2/admin/analytics', icon: 'monitoring' }]
+          : []),
+      ],
+    },
+    {
+      label: 'Người dùng',
+      labelKey: 'adminPeople',
+      items: [
         { id: 'admin-users', label: 'Người dùng', href: '/v2/admin/users', icon: 'group' },
+        { id: 'admin-free-teachers', label: 'Giáo viên tự do', href: '/v2/admin/free-teachers', icon: 'person_search' },
         { id: 'admin-classes', label: 'Lớp học', href: '/v2/admin/classes', icon: 'school_building' },
-        { id: 'admin-plans', label: 'Gói', href: '/v2/admin/plans', icon: 'sell' },
-        { id: 'admin-mock-packs', label: 'Bộ đề thi', href: '/v2/admin/mock-exam-packs', icon: 'layers' },
         // 04/11/2026: chọn học viên được dùng luyện đề telc (practice.telc.access / allowlist).
         { id: 'admin-practice-access', label: 'Quyền luyện đề', href: '/v2/admin/practice-access', icon: 'key' },
-        { id: 'admin-vocab', label: 'Từ vựng', href: '/v2/admin/vocabulary', icon: 'menu_book' },
+      ],
+    },
+    {
+      label: 'Trung tâm B2B',
+      labelKey: 'adminB2b',
+      items: [
+        { id: 'admin-orgs', label: 'Tổ chức', href: '/v2/admin/organizations', icon: 'corporate_fare' },
+      ],
+    },
+    {
+      label: 'Nội dung & đề thi',
+      labelKey: 'adminContent',
+      items: [
+        { id: 'admin-mock-packs', label: 'Bộ đề thi', href: '/v2/admin/mock-exam-packs', icon: 'layers' },
+        // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
+        { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'library_big' },
+        // G.1 Golden set: giám khảo người chấm tay phiên mock → đồng thuận máy↔người (gate ra mắt).
+        { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'scale' },
+        { id: 'admin-weekly', label: 'Speaking tuần', href: '/v2/admin/weekly-speaking', icon: 'mic' },
         { id: 'admin-grammar-review', label: 'Duyệt ngữ pháp', href: '/v2/admin/grammar-review', icon: 'spellcheck' },
         // Đợt 2b A+B+E: câu hỏi + từ chuyên môn AI tạo cho từng nghề → giáo viên tiếng Đức duyệt.
         { id: 'admin-occupation-review', label: 'Duyệt câu hỏi nghề', href: '/v2/admin/occupation-review', icon: 'work' },
-        { id: 'admin-media', label: 'Ảnh', href: '/v2/admin/media', icon: 'photo_library' },
-        { id: 'admin-ai', label: 'Cấu hình AI', href: '/v2/admin/ai-config', icon: 'brain_cog' },
-        { id: 'admin-broadcast', label: 'Thông báo', href: '/v2/admin/broadcast', icon: 'campaign' },
-        { id: 'admin-maintenance', label: 'Bảo trì', href: '/v2/admin/maintenance', icon: 'build' },
-        { id: 'admin-marketing', label: 'Tăng trưởng', href: '/v2/admin/marketing', icon: 'trending_up' },
-        { id: 'admin-analytics', label: 'Phân tích', href: '/v2/admin/analytics', icon: 'monitoring' },
-        { id: 'admin-weekly', label: 'Speaking tuần', href: '/v2/admin/weekly-speaking', icon: 'mic' },
-        // G.1 Golden set: giám khảo người chấm tay phiên mock → đồng thuận máy↔người (gate ra mắt).
-        { id: 'admin-exam-golden', label: 'Golden set Nói', href: '/v2/admin/exam-golden', icon: 'scale' },
-        // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
-        { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'library_big' },
-        // N0.6/T.3: chi phí AI thật theo feature × model × phiên (token, giây STT, USD/VND ước tính) từ ledger.
-        { id: 'admin-ai-usage', label: 'AI usage', href: '/v2/admin/ai-usage', icon: 'gauge' },
-        { id: 'admin-reports', label: 'Báo cáo', href: '/v2/admin/reports', icon: 'file_chart' },
+        { id: 'admin-vocab', label: 'Từ vựng', href: '/v2/admin/vocabulary', icon: 'menu_book' },
+        // Thư viện ảnh CHUNG của sản phẩm (landing, persona, marketing…), không riêng từ vựng.
+        { id: 'admin-media', label: 'Thư viện ảnh', href: '/v2/admin/media', icon: 'photo_library' },
         { id: 'admin-personas', label: 'Persona', href: '/v2/admin/personas', icon: 'theater_comedy' },
         { id: 'admin-interviews', label: 'Phỏng vấn', href: '/v2/admin/interviews', icon: 'forum' },
-        { id: 'admin-audit', label: 'Nhật ký', href: '/v2/admin/audit', icon: 'history' },
+      ],
+    },
+    {
+      label: 'Vận hành',
+      labelKey: 'ops',
+      items: [
+        { id: 'admin-broadcast', label: 'Thông báo', href: '/v2/admin/broadcast', icon: 'campaign' },
+        { id: 'admin-maintenance', label: 'Bảo trì', href: '/v2/admin/maintenance', icon: 'build' },
+        { id: 'admin-ai', label: 'Cấu hình AI', href: '/v2/admin/ai-config', icon: 'brain_cog' },
         { id: 'admin-training', label: 'Training data', href: '/v2/admin/training-dataset', icon: 'database' },
-        { id: 'admin-settings', label: 'Cấu hình', href: '/v2/admin/settings', icon: 'settings' },
+      ],
+    },
+    {
+      label: 'Kiểm soát',
+      labelKey: 'adminControl',
+      items: [
+        { id: 'admin-audit', label: 'Nhật ký', href: '/v2/admin/audit', icon: 'history' },
       ],
     },
     {

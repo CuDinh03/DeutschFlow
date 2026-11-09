@@ -50,7 +50,7 @@
       "admin-vocab": "Wortschatz",
       "admin-grammar-review": "Grammatikprüfung",
       "admin-occupation-review": "Berufsfragen prüfen",
-      "admin-media": "Medien",
+      "admin-media": "Medienbibliothek",
       "admin-ai": "KI-Konfiguration",
       "admin-broadcast": "Rundsendung",
       "admin-marketing": "Wachstum",
@@ -90,7 +90,9 @@
       "objectives": "Lernzielmatrix",
       "org-settings": "Zentrumseinstellungen",
       "org-audit": "Aktivitätsprotokoll",
-      "org-certificates": "Zertifikate"
+      "org-certificates": "Zertifikate",
+      "admin-ai-usage": "KI-Kosten",
+      "admin-exam-bank": "Sprechen-Aufgabenbank"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",
@@ -103,7 +105,12 @@
       "classes": "Kurse",
       "personal": "Persönlich",
       "ops": "Betrieb",
-      "staff": "Personal"
+      "staff": "Personal",
+      "adminInsights": "Kennzahlen",
+      "adminPeople": "Nutzer",
+      "adminB2b": "B2B-Zentren",
+      "adminContent": "Inhalte & Prüfungen",
+      "adminControl": "Kontrolle"
     },
     "roles": {
       "teacher": "Lehrkraft",
@@ -214,7 +221,11 @@
     "messages": "Nachrichten",
     "more": "Mehr",
     "areaNav": "Bereichsnavigation",
-    "sectionNav": "Navigation im Bereich"
+    "sectionNav": "Navigation im Bereich",
+    "confirmReasonLabel": "Begründung (Pflicht, mindestens {min} Zeichen) — wird im Protokoll gespeichert",
+    "confirmReasonCount": "{count} Zeichen · min. {min}, max. {max}",
+    "confirmPhraseLabel": "Zum Bestätigen „{phrase}“ eingeben",
+    "cancel": "Abbrechen"
   },
   "maintenance": {
     "overlayTitle": "Systemwartung läuft",

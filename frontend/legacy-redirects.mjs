@@ -175,7 +175,7 @@ const ADMIN = [
   ['/admin/plans', '/v2/admin/plans'],
   ['/admin/revenue', '/v2/admin/revenue'],
   ['/admin/settings', '/v2/admin/settings'],
-  ['/admin/token-analytics', '/v2/admin/tokens'],
+  ['/admin/token-analytics', '/v2/admin/ai-usage?tab=overview'], // 09/11/2026: trang tokens gộp vào Chi phí AI
   ['/admin/training-dataset', '/v2/admin/training-dataset'],
   ['/admin/users', '/v2/admin/users'],
   ['/admin/vocabulary', '/v2/admin/vocabulary'],
