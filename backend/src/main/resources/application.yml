@@ -459,11 +459,12 @@ app:
     # chính mình thêm vào — nên kẻ tấn công KHÔNG thể giả mạo XFF để né rate-limit.
     # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
     trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
-    # Phiên hỗ trợ chỉ-đọc (token typ=support). JwtAuthFilter từ chối (401) loại token này khi tắt.
-    # GIỮ false cho tới khi PR "phiên hỗ trợ chỉ-đọc" có bộ lọc chặn ghi — bật sớm thì token support
-    # được xác thực như access token của người dùng đích, KHÔNG có giới hạn chỉ-đọc nào.
+    # Phiên hỗ trợ chỉ-đọc (token typ=support, V370). Mặc định BẬT từ bản có SupportSessionReadOnlyFilter
+    # (chặn mọi method ghi + danh sách GET có tác dụng phụ), connection DB READ ONLY cho request hỗ trợ và chặn
+    # mọi đường gọi AI. false = KILL-SWITCH: mọi token support bị 401 ngay (phiên đang mở coi như chết); tab hỗ
+    # trợ hiện "phiên đã kết thúc". Không ảnh hưởng phiên đăng nhập thường.
     support-session:
-      enabled: ${APP_SECURITY_SUPPORT_SESSION_ENABLED:false}
+      enabled: ${APP_SECURITY_SUPPORT_SESSION_ENABLED:true}
     # Xác thực hai lớp (TOTP) BẮT BUỘC cho ADMIN (owner chốt 09/11/2026) — docs/RUNBOOK_2FA_ADMIN.md.
     # enforced=false là KILL-SWITCH khi khoá ngoài: admin CHƯA bật 2FA đăng nhập bằng mật khẩu (admin đã bật vẫn
     # phải nhập mã). Bật lại ngay sau khi xử lý xong. max-session-hours: tuổi tối đa của một lần qua 2FA — quá

@@ -78,6 +78,14 @@ describe('notificationDisplay — i18n', () => {
     expect(notifTone('MFA_RECOVERY_CODE_USED')).toBe('red')
   })
 
+  // Phiên hỗ trợ chỉ-đọc (V370): người dùng được báo khi đội hỗ trợ xem tài khoản — lối về Hồ sơ → Bảo mật.
+  it('nhãn + lối đi của thông báo ADMIN_SUPPORT_VIEW', () => {
+    expect(notifTitle(item('ADMIN_SUPPORT_VIEW'), tVi)).toBe('Đội hỗ trợ đã xem tài khoản')
+    expect(notifTitle(item('ADMIN_SUPPORT_VIEW'), tDe)).toBe('Der Support hat Ihr Konto angesehen')
+    expect(TYPE_ICON.ADMIN_SUPPORT_VIEW).toBe('visibility')
+    expect(resolveNotificationHref(item('ADMIN_SUPPORT_VIEW'), 'student')).toBe('/v2/profile?tab=security')
+  })
+
   // Đợt 2 admin (09/11/2026): đội hỗ trợ đặt lại mật khẩu — người nhận là chính người bị đổi.
   it('nhãn + tông + lối đi của thông báo đặt lại mật khẩu bởi đội hỗ trợ', () => {
     expect(notifTitle(item('PASSWORD_RESET_BY_ADMIN'), tVi)).toBe('Mật khẩu đã được đặt lại')

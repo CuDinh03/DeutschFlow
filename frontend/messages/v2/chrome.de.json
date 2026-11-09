@@ -291,6 +291,7 @@
       "MFA_RECOVERY_CODE_USED": "Wiederherstellungscode verwendet",
       "MFA_RECOVERY_CODES_LOW": "Wiederherstellungscodes gehen zur Neige",
       "MFA_RESET_BY_ADMIN": "Zwei-Faktor-Authentifizierung zurückgesetzt",
+      "ADMIN_SUPPORT_VIEW": "Der Support hat Ihr Konto angesehen",
       "PASSWORD_RESET_BY_ADMIN": "Passwort wurde zurückgesetzt"
     }
   },
@@ -333,5 +334,18 @@
     "fixSuspended": "Bitte die DeutschFlow-Systemverwaltung kontaktieren, um das Zentrum zu entsperren.",
     "tooltipExpired": "Lizenz abgelaufen — nur Lesen, nichts Neues anlegbar. Rechnung bezahlen, um wieder zu öffnen.",
     "tooltipSuspended": "Zentrum gesperrt — nur Lesen, nichts Neues anlegbar. Systemverwaltung kontaktieren."
+  },
+  "supportSession": {
+    "bannerViewing": "Sie sehen das Konto von {name} ({email})",
+    "bannerReadOnly": "schreibgeschützt",
+    "bannerRemaining": "noch {time}",
+    "end": "Beenden",
+    "ended": "Die Support-Sitzung ist beendet",
+    "endedBody": "Das Support-Token wurde widerrufen. Schließen Sie diesen Tab und kehren Sie zur Administration zurück.",
+    "close": "Tab schließen",
+    "redeeming": "Support-Sitzung wird geöffnet…",
+    "redeemFailed": "Support-Sitzung konnte nicht geöffnet werden",
+    "redeemFailedBody": "Der Link ist ungültig, bereits verwendet oder abgelaufen (60 Sekunden). Schließen Sie diesen Tab und klicken Sie in der Administration erneut auf „Als Nutzer ansehen“.",
+    "missingCode": "Code der Support-Sitzung fehlt"
   }
 }

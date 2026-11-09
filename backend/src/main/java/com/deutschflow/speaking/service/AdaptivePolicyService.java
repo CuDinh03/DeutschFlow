@@ -57,13 +57,20 @@ public class AdaptivePolicyService {
 
     @Transactional
     public SpeakingUserState getOrCreateState(Long userId) {
-        return stateRepository.findById(userId).orElseGet(() ->
-                stateRepository.save(SpeakingUserState.builder()
-                        .userId(userId)
-                        .rollingAccuracyPct(new BigDecimal("100.00"))
-                        .rollingWindow(8)
-                        .difficultyKnob((short) 0)
-                        .build()));
+        // Phiên hỗ trợ chỉ-đọc: dùng trạng thái mặc định CHƯA lưu thay vì tạo dòng mới thay người dùng.
+        boolean readOnlyView = com.deutschflow.common.security.support.SupportSessionContextHolder.isActive();
+        return stateRepository.findById(userId).orElseGet(() -> readOnlyView
+                ? newDefaultState(userId)
+                : stateRepository.save(newDefaultState(userId)));
+    }
+
+    private static SpeakingUserState newDefaultState(Long userId) {
+        return SpeakingUserState.builder()
+                .userId(userId)
+                .rollingAccuracyPct(new BigDecimal("100.00"))
+                .rollingWindow(8)
+                .difficultyKnob((short) 0)
+                .build();
     }
 
     /**
@@ -217,6 +224,9 @@ public class AdaptivePolicyService {
     }
 
     private void persistFocusSnapshot(SpeakingUserState state, List<String> focusCodes) {
+        if (com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()) {
+            return; // phiên hỗ trợ chỉ-đọc: không ghi (kể cả dirty-check của entity managed)
+        }
         try {
             state.setCurrentFocusCodesJson(objectMapper.writeValueAsString(focusCodes));
             stateRepository.save(state);

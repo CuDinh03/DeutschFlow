@@ -79,6 +79,15 @@ public class AdminManagementService {
     private final OrgMembershipService orgMembershipService;
     private final OrganizationRepository organizationRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    /** Phiên hỗ trợ chỉ-đọc (V370): đóng phiên đang mở khi quyền của admin/đích thay đổi. Null trong test dựng tay. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.context.ApplicationEventPublisher supportSessionEvents;
+
+    private void revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent event) {
+        if (supportSessionEvents != null) {
+            supportSessionEvents.publishEvent(event);
+        }
+    }
     private final AdminPasswordResetNotifier adminPasswordResetNotifier;
 
     /** Mã ổn định (extensions.code) khi admin cố đặt lại mật khẩu của một tài khoản ADMIN — web bắt theo chuỗi này. */
@@ -755,6 +764,15 @@ public class AdminManagementService {
         // mang authorities của vai trò CŨ và JwtAuthFilter cache UserDetails 60s, nên nếu không
         // revoke thì người vừa bị hạ quyền còn giữ quyền cũ tới hết vòng đời refresh token (7 ngày).
         refreshTokenRepository.revokeAllByUserId(userId);
+        // Phiên hỗ trợ chỉ-đọc: admin bị hạ quyền ⇒ đóng phiên admin đó đang mở; người dùng được nâng lên ADMIN ⇒
+        // đóng các phiên đang xem họ (ADMIN không bao giờ là đích).
+        if ("ADMIN".equals(previousRole) && !"ADMIN".equals(normalized)) {
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forAdmin(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_ADMIN_ROLE_CHANGED));
+        } else if (!"ADMIN".equals(previousRole) && "ADMIN".equals(normalized)) {
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forTarget(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_TARGET_ROLE_CHANGED));
+        }
         return Map.of(
                 "id", user.getId(),
                 "email", user.getEmail(),
@@ -846,6 +864,11 @@ public class AdminManagementService {
         // access token hết hạn rồi mới chặn ở lần refresh kế tiếp.
         if (!active) {
             refreshTokenRepository.revokeAllByUserId(userId);
+            // Phiên hỗ trợ chỉ-đọc: khoá admin ⇒ đóng phiên admin đó mở; khoá người dùng ⇒ đóng phiên đang xem họ.
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forAdmin(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_ADMIN_DEACTIVATED));
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forTarget(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_TARGET_DEACTIVATED));
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());

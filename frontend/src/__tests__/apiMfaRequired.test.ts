@@ -14,6 +14,8 @@ vi.mock('@/lib/authSession', () => ({
   setTokens: mocks.setTokens,
   recordTokenRefresh: vi.fn(),
   isNative: () => false,
+  isSupportMode: () => false,
+  markSupportSessionEnded: vi.fn(),
   getPlatform: () => 'web',
   clearTokens: mocks.clearTokens,
 }))

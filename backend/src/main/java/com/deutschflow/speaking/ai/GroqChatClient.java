@@ -160,6 +160,7 @@ public class GroqChatClient implements OpenAiChatClient {
     @Override
     public AiChatCompletionResult chatCompletion(List<ChatMessage> messages, String model, double temperature,
                                                  Integer maxTokens, boolean forceJson) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("chat");
         String effectiveModel = (model == null || model.isBlank()) ? defaultModel : model.trim();
         String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, false, null, forceJson);
         log.debug("Calling Groq API (blocking): model={}", defaultModel);
@@ -174,6 +175,7 @@ public class GroqChatClient implements OpenAiChatClient {
     @Override
     public AiChatCompletionResult chatCompletionForTier(List<ChatMessage> messages, TierSpec tier,
                                                  double temperature, Integer maxTokens, boolean forceJson) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("chat");
         if (tier == null) {
             return chatCompletion(messages, (String) null, temperature, maxTokens, forceJson);
         }
@@ -323,6 +325,7 @@ public class GroqChatClient implements OpenAiChatClient {
                                         Integer maxTokens, Consumer<String> onToken,
                                         Consumer<AiChatCompletionResult> onComplete,
                                         AtomicBoolean cancelled) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("chat-stream");
         String effectiveModel = (model == null || model.isBlank()) ? defaultModel : model.trim();
         String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, true, null, true);
         log.debug("Calling Groq API (stream): model={}", defaultModel);
@@ -336,6 +339,7 @@ public class GroqChatClient implements OpenAiChatClient {
                                         Integer maxTokens, Consumer<String> onToken,
                                         Consumer<AiChatCompletionResult> onComplete,
                                         AtomicBoolean cancelled) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("chat-stream");
         if (tier == null) {
             return chatCompletionStream(messages, (String) null, temperature, maxTokens,
                     onToken, onComplete, cancelled);

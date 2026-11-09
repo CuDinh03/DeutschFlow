@@ -108,6 +108,11 @@ function ProfileBody() {
     (tab) => tab.id !== 'learning' || !ROLES_WITHOUT_LEARNING.has(storeUser?.roles?.[0] ?? '')
   )
   const [tab, setTab] = useState<Tab>('info')
+  // Liên kết sâu `?tab=security` (thông báo bảo mật — 2FA, phiên hỗ trợ chỉ-đọc V370) mở thẳng tab Bảo mật.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab')
+    if (wanted === 'security') setTab('security')
+  }, [])
   const [loading, setLoading] = useState(true)
 
   // info

@@ -182,15 +182,14 @@ class JwtAuthFilterTokenTypeTest {
         }
 
         @Test
-        @DisplayName("token support khi cờ BẬT → qua kiểm loại, request mang TOKEN_TYPE=support cho filter sau")
-        void supportTokenPassesTypeCheckWhenFlagOn() throws Exception {
-            when(userDetailsService.loadUserByUsername(EMAIL)).thenReturn(student());
-
+        @DisplayName("token support khi cờ BẬT nhưng không có validator phiên → 401 (fail-closed)")
+        void supportTokenRejectedWithoutValidator() throws Exception {
             Result r = run(filter(true), bearer(sign(EMAIL, Map.of("typ", "support", "role", "STUDENT"))));
 
-            assertThat(r.chainCalled()).isTrue();
-            assertThat(auth()).isNotNull();
-            assertThat(r.request().getAttribute(AuthTokenAttributes.TOKEN_TYPE)).isEqualTo(JwtService.TYP_SUPPORT);
+            assertThat(r.response().getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+            assertThat(r.chainCalled()).isFalse();
+            assertThat(auth()).isNull();
+            verify(userDetailsService, never()).loadUserByUsername(anyString());
         }
 
         @Test

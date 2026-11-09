@@ -82,6 +82,14 @@ public class MfaService {
     private final AuditOrgResolver auditOrgResolver;
     private final TransactionTemplate tx;
 
+    /** Phiên hỗ trợ chỉ-đọc (V370): đóng phiên của admin bị đặt lại 2FA. Null trong test dựng tay. */
+    private org.springframework.context.ApplicationEventPublisher supportSessionEvents;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setSupportSessionEvents(org.springframework.context.ApplicationEventPublisher supportSessionEvents) {
+        this.supportSessionEvents = supportSessionEvents;
+    }
+
     public MfaService(MfaKeyMaterial keys,
                       MfaChallengeTokens challengeTokens,
                       UserMfaStore store,
@@ -366,6 +374,12 @@ public class MfaService {
         Map<String, Object> result = tx.execute(s -> {
             boolean hadMfa = store.deleteAll(targetUserId) > 0;
             int revoked = refreshTokenRepository.revokeAllByUserId(targetUserId);
+            // Phiên hỗ trợ chỉ-đọc: admin bị đặt lại 2FA ⇒ phiên "xem như người dùng" của admin đó đóng theo.
+            if (supportSessionEvents != null) {
+                supportSessionEvents.publishEvent(
+                        com.deutschflow.common.security.support.SupportSessionRevocationEvent.forAdmin(targetUserId,
+                                com.deutschflow.admin.support.SupportSessionService.END_ADMIN_MFA_RESET));
+            }
             Map<String, Object> meta = new LinkedHashMap<>();
             meta.put("hadMfa", hadMfa);
             meta.put("revokedSessions", revoked);

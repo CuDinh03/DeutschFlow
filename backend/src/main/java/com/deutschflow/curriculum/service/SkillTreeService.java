@@ -193,6 +193,9 @@ public class SkillTreeService {
      * để user mới thấy điểm bắt đầu là UNLOCKED thay vì toàn bộ LOCKED.
      */
     private void autoUnlockFirstNodeIfNeeded(long userId, RoadmapEntry entry) {
+        if (com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()) {
+            return; // phiên hỗ trợ chỉ-đọc: không mở khoá node thay người dùng
+        }
         Integer existingProgress = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM skill_tree_user_progress WHERE user_id = ?",
                 Integer.class, userId);

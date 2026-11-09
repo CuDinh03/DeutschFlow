@@ -154,6 +154,7 @@ public class GroqWhisperClient {
      * Transcribes with verbose_json + word timestamps for pronunciation scoring.
      */
     public VerboseTranscript transcribeVerbose(byte[] audioBytes, String filename, String language, String prompt) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("stt");
         if (apiKey == null || apiKey.isBlank()) {
             throw new AiServiceException(AiErrorCode.AI_NOT_CONFIGURED,
                     "Tính năng nhận diện giọng nói chưa được bật trên hệ thống.", null);
@@ -264,6 +265,7 @@ public class GroqWhisperClient {
      * @return transcribed text and audio duration in seconds
      */
     public TranscribeResult transcribe(byte[] audioBytes, String filename, String language, String prompt) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("stt");
         if (apiKey == null || apiKey.isBlank()) {
             throw new AiServiceException(AiErrorCode.AI_NOT_CONFIGURED,
                     "Tính năng nhận diện giọng nói chưa được bật trên hệ thống.", null);

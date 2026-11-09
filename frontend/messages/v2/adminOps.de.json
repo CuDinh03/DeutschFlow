@@ -628,6 +628,23 @@
           "detailAudit": "Die Aktion wird mit Ihrer Begründung im Protokoll festgehalten.",
           "confirm": "2FA zurücksetzen",
           "cancel": "Abbrechen"
+        },
+        "supportView": {
+          "button": "Als Nutzer ansehen",
+          "started": "Tab „Als Nutzer ansehen“ geöffnet",
+          "ended": "Supportansicht beendet",
+          "activeUntil": "Schreibgeschützte Ansicht aktiv (bis {time})",
+          "end": "Beenden",
+          "confirm": {
+            "title": "Ansicht als Nutzer öffnen?",
+            "description": "Sie sehen die App so, wie {name} sie sieht – in einem neuen Tab.",
+            "detailLimits": "30 Minuten · schreibgeschützt · der Nutzer wird benachrichtigt",
+            "detailBlocked": "Alle Schreibaktionen, Zahlungen und KI-Funktionen sind gesperrt",
+            "detailAudit": "Die Sitzung wird mit Begründung und jeder geöffneten Seite protokolliert",
+            "reasonLabel": "Begründung (mindestens 15 Zeichen)",
+            "confirm": "Ansicht öffnen",
+            "cancel": "Abbrechen"
+          }
         }
       },
       "create": {

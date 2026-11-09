@@ -116,6 +116,8 @@ If you believe a child has provided us personal data outside the cases above, co
 
 We protect your data with industry-standard measures: passwords are stored only as salted hashes; authentication tokens are stored in the device's secure keychain; and all traffic uses HTTPS with App Transport Security enforced. No method of transmission or storage is 100% secure, but we work continuously to protect your data.
 
+**Staff access for support.** Administrator accounts are protected with two-factor authentication. When you ask us for help, or when we need to investigate a problem with your account, an authorized DeutschFlow staff member may open a read-only support view of your account for at most 30 minutes. In this view they see what you see in the app but cannot change your data, make purchases, or use AI features on your behalf. Every support view is logged with the staff member, the time and the reason, and you receive an in-app notification; you can review these events under Profile → Security → Security activity.
+
 ### 10. International data transfers
 
 Your data may be processed in countries other than the one you live in — for example, our servers in Vietnam, analytics in the United States, and file storage and network traffic through Cloudflare. Where we transfer data internationally, we rely on appropriate safeguards (such as standard contractual clauses) as required by applicable law.
@@ -242,6 +244,8 @@ Nếu bạn cho rằng một trẻ em đã cung cấp dữ liệu cá nhân cho 
 
 Chúng tôi bảo vệ dữ liệu bằng các biện pháp tiêu chuẩn ngành: mật khẩu chỉ lưu dưới dạng băm có salt; token đăng nhập lưu trong keychain bảo mật của thiết bị; và mọi kết nối dùng HTTPS với App Transport Security được bật. Không phương pháp truyền hay lưu trữ nào an toàn tuyệt đối, nhưng chúng tôi luôn nỗ lực bảo vệ dữ liệu của bạn.
 
+**Nhân viên truy cập để hỗ trợ.** Tài khoản quản trị được bảo vệ bằng xác thực hai lớp. Khi bạn cần hỗ trợ hoặc khi chúng tôi cần kiểm tra sự cố trên tài khoản của bạn, nhân viên DeutschFlow được cấp quyền có thể mở chế độ xem hỗ trợ chỉ đọc cho tài khoản của bạn, tối đa 30 phút. Trong chế độ này, nhân viên thấy những gì bạn thấy trong ứng dụng nhưng không thể thay đổi dữ liệu, mua hàng hay dùng tính năng AI thay bạn. Mỗi lần xem đều được ghi lại người xem, thời điểm và lý do, và bạn sẽ nhận được thông báo trong ứng dụng; bạn có thể xem lại các sự kiện này ở Hồ sơ → Bảo mật → Hoạt động bảo mật.
+
 ### 10. Chuyển dữ liệu quốc tế
 
 Dữ liệu của bạn có thể được xử lý ở quốc gia khác với nơi bạn sinh sống — ví dụ máy chủ của chúng tôi tại Việt Nam, phân tích tại Hoa Kỳ, lưu tệp và lưu lượng mạng qua Cloudflare. Khi chuyển dữ liệu ra quốc tế, chúng tôi áp dụng các biện pháp bảo vệ phù hợp (như điều khoản hợp đồng chuẩn) theo yêu cầu của pháp luật.
@@ -367,6 +371,8 @@ Wenn Sie glauben, dass uns ein Kind außerhalb der oben genannten Fälle persone
 ### 9. Sicherheit
 
 Wir schützen Ihre Daten mit branchenüblichen Maßnahmen: Passwörter werden nur als gesalzene Hashes gespeichert; Authentifizierungs-Tokens werden im sicheren Schlüsselbund des Geräts abgelegt; und der gesamte Datenverkehr nutzt HTTPS mit erzwungener App Transport Security. Keine Übertragungs- oder Speichermethode ist zu 100 % sicher, aber wir arbeiten kontinuierlich am Schutz Ihrer Daten.
+
+**Zugriff durch Mitarbeitende zu Supportzwecken.** Administratorkonten sind mit Zwei-Faktor-Authentifizierung geschützt. Wenn Sie uns um Hilfe bitten oder wir ein Problem mit Ihrem Konto untersuchen müssen, kann eine berechtigte Mitarbeiterin oder ein berechtigter Mitarbeiter von DeutschFlow für höchstens 30 Minuten eine schreibgeschützte Supportansicht Ihres Kontos öffnen. Dabei sieht sie oder er, was Sie in der App sehen, kann aber weder Ihre Daten ändern noch Käufe tätigen oder KI-Funktionen in Ihrem Namen nutzen. Jede Supportansicht wird mit Person, Zeitpunkt und Grund protokolliert, und Sie erhalten eine Benachrichtigung in der App; Sie können diese Ereignisse unter Profil → Sicherheit → Sicherheitsaktivität einsehen.
 
 ### 10. Internationale Datenübermittlungen
 
