@@ -30,7 +30,7 @@ const readyListeners = new Set<(ph: PostHog) => void>()
 /**
  * Tab đang (hoặc sắp) ở chế độ hỗ trợ chỉ-đọc. Trang `/v2/support-session` tính luôn là hỗ trợ: lúc nó
  * đang đổi mã thì `isSupportMode()` còn false, mà PostHog khởi động lúc tab rảnh (thường đúng lúc chờ
- * redeem) — để lọt là autocapture/ghi phiên chạy suốt trên dữ liệu của người dùng (review #805).
+ * redeem) — để lọt là autocapture/ghi phiên chạy suốt trên dữ liệu của người dùng (review PR 805).
  */
 function inSupportContext(): boolean {
   if (isSupportMode()) return true

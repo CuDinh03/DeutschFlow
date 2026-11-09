@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -52,6 +53,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.hikari.maximum-pool-size=3",
         "spring.datasource.hikari.minimum-idle=1"
 })
+// Context riêng (property + @Import) ⇒ đóng sau lớp để không giữ pool tới hết lượt CI ("too many clients").
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @AutoConfigureMockMvc
 @Import(SupportSessionFlowIntegrationTest.WritingGetController.class)
 @DisplayName("Phiên hỗ trợ chỉ-đọc — Integration")

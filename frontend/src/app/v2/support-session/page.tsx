@@ -76,7 +76,7 @@ export default function SupportSessionPage() {
         })
         stopPostHogForSupport()
         // Tải lại TOÀN TRANG (không router.replace): mọi thứ đã khởi động trước khi tab vào chế độ hỗ trợ
-        // (PostHog, listener…) phải chết theo trang này — review #805.
+        // (PostHog, listener…) phải chết theo trang này — review PR 805.
         hardReplace(homeFor(s.role, { orgRole: s.orgRole }))
       } catch {
         setView('failed')
