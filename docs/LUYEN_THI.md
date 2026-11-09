@@ -297,9 +297,9 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | **V363** | `exam_plan_state.day_order_json` (JSONB, mặc định `{}`) |
 | **V364** | `user_ui_tours (user_id, tour_key, seen_at)` |
 | **V365** | `exam_diagnostics (user_id PK, exam_id, result_json, started_at, finished_at)` |
-| **V368** | `exam_passage_marks (user_id, exam_id, teil_key, attempt_id NULL = luyện Teil, marks_json, …)` — đánh dấu bài đọc, hai chỉ mục duy nhất một phần |
+| **V374** | `exam_passage_marks (user_id, exam_id, teil_key, attempt_id NULL = luyện Teil, marks_json, …)` — đánh dấu bài đọc, hai chỉ mục duy nhất một phần |
 
-V363–V365 và V368 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
+V363–V365 và V374 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
 
 ---
 
@@ -343,7 +343,7 @@ V363–V365 và V368 chỉ thêm cột/bảng (tương thích ngược khi blue-
 
 ## 6. Vận hành
 
-- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365 (→ V368 đánh dấu bài đọc), backend deploy trước frontend.
+- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365 (→ V374 đánh dấu bài đọc; V368–V370 là admin), backend deploy trước frontend.
 - Mở cho học viên: trang admin Quyền luyện đề (cờ `ALLOWLIST` thêm người, hoặc `ALL`).
 - Mobile **chưa** có giao diện mới; mobile vẫn dùng endpoint cũ — không gỡ endpoint cũ cho tới khi mobile chuyển xong.
   `/exam-plan` chỉ thêm trường mới (`days`), không phá mobile.
