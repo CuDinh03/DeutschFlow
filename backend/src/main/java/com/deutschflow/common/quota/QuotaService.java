@@ -13,9 +13,16 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.List;
+import java.util.Objects;
+import org.springframework.jdbc.core.RowCallbackHandler;
 
 @Slf4j
 @Service
@@ -43,6 +50,106 @@ public class QuotaService {
     @Transactional(readOnly = true, propagation = Propagation.REQUIRED)
     public QuotaSnapshot getSnapshotReadOnly(long userId, Instant now) {
         return buildSnapshotReadOnly(userId, now);
+    }
+
+    /**
+     * Batch read-only snapshots for ONE PAGE of the admin user list (đợt 1 admin, 09/11/2026).
+     *
+     * <p>{@link #getSnapshotReadOnly} costs 2–4 queries per user; the old {@code GET /admin/users}
+     * called it for every user in the table (≈4N+2 queries). This runs exactly three queries for the
+     * whole page — active subscription, today's usage, wallet — and feeds the SAME pure function
+     * ({@link #snapshotFrom}) the single-user path uses, so the two can never disagree on the wallet
+     * accrual math. Users without an active covering subscription get the DEFAULT empty snapshot.
+     *
+     * @return snapshot per requested id, in the iteration order of {@code userIds} (duplicates/null dropped)
+     */
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRED)
+    public Map<Long, QuotaSnapshot> getSnapshotsReadOnly(Collection<Long> userIds, Instant now) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = userIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        String in = String.join(",", Collections.nCopies(ids.size(), "?"));
+        Timestamp nowTs = Timestamp.from(now);
+
+        Map<Long, SubscriptionRow> subs = new HashMap<>();
+        List<Object> subArgs = new ArrayList<>(ids);
+        subArgs.add(nowTs);
+        subArgs.add(nowTs);
+        // Same predicate + tie-break as loadActiveCoveringSubscription, one row per user.
+        jdbcTemplate.query("""
+                        SELECT DISTINCT ON (us.user_id)
+                               us.user_id AS uid,
+                               us.id AS sid,
+                               us.plan_code AS plan_code,
+                               us.starts_at AS starts_at,
+                               us.ends_at AS ends_at,
+                               COALESCE(us.monthly_token_limit_override, sp.daily_token_grant) AS daily_grant_raw,
+                               sp.wallet_cap_days AS wallet_cap_days,
+                               us.source AS source
+                        FROM user_subscriptions us
+                        JOIN subscription_plans sp ON sp.code = us.plan_code
+                        WHERE us.user_id IN (%s)
+                          AND us.status = 'ACTIVE'
+                          AND sp.is_active
+                          AND us.starts_at <= ?
+                          AND (us.ends_at IS NULL OR us.ends_at > ?)
+                        ORDER BY us.user_id, us.starts_at DESC, us.id DESC
+                        """.formatted(in),
+                (RowCallbackHandler) rs -> {
+                    Timestamp startsTs = rs.getTimestamp("starts_at");
+                    Timestamp endsTs = rs.getTimestamp("ends_at");
+                    subs.put(rs.getLong("uid"), new SubscriptionRow(
+                            rs.getLong("sid"),
+                            rs.getString("plan_code"),
+                            startsTs == null ? Instant.EPOCH : startsTs.toInstant(),
+                            endsTs == null ? null : endsTs.toInstant(),
+                            toLong(rs.getObject("daily_grant_raw")),
+                            toInt(rs.getObject("wallet_cap_days")),
+                            rs.getString("source")));
+                },
+                subArgs.toArray());
+
+        Instant[] vn = QuotaVnCalendar.vnDayBoundsInclusiveExclusive(now);
+        Map<Long, Long> usedToday = new HashMap<>();
+        List<Object> usageArgs = new ArrayList<>(ids);
+        usageArgs.add(Timestamp.from(vn[0]));
+        usageArgs.add(Timestamp.from(vn[1]));
+        jdbcTemplate.query("""
+                        SELECT user_id, COALESCE(SUM(total_tokens), 0) AS used
+                        FROM ai_token_usage_events
+                        WHERE user_id IN (%s)
+                          AND created_at >= ?
+                          AND created_at < ?
+                        GROUP BY user_id
+                        """.formatted(in),
+                (RowCallbackHandler) rs -> usedToday.put(rs.getLong("user_id"), rs.getLong("used")),
+                usageArgs.toArray());
+
+        Map<Long, Long> balances = new HashMap<>();
+        Map<Long, LocalDate> lastAccrual = new HashMap<>();
+        jdbcTemplate.query(
+                "SELECT user_id, balance, last_accrual_local_date FROM user_ai_token_wallets WHERE user_id IN (%s)"
+                        .formatted(in),
+                (RowCallbackHandler) rs -> {
+                    long uid = rs.getLong("user_id");
+                    balances.put(uid, rs.getLong("balance"));
+                    Date d = rs.getDate("last_accrual_local_date");
+                    if (d != null) {
+                        lastAccrual.put(uid, d.toLocalDate());
+                    }
+                },
+                ids.toArray());
+
+        Map<Long, QuotaSnapshot> out = new LinkedHashMap<>();
+        for (Long id : ids) {
+            out.put(id, snapshotFrom(subs.get(id), usedToday.getOrDefault(id, 0L),
+                    lastAccrual.get(id), balances.getOrDefault(id, 0L), now));
+        }
+        return out;
     }
 
     /**
@@ -231,6 +338,30 @@ public class QuotaService {
         Instant[] vn = QuotaVnCalendar.vnDayBoundsInclusiveExclusive(now);
         long usedToday = sumUsageBetween(userId, vn[0], vn[1]);
 
+        LocalDate lastAccruedTo = null;
+        long currentBalance = 0L;
+        if (isWalletPlan(row.planCode)) {
+            lastAccruedTo = loadWalletLastAccrualLocalDate(userId);
+            currentBalance = loadWalletBalanceOrZero(userId);
+        }
+        return snapshotFrom(row, usedToday, lastAccruedTo, currentBalance, now);
+    }
+
+    /**
+     * Pure read-only snapshot math (no JDBC) — shared by {@link #getSnapshotReadOnly} and the batch
+     * {@link #getSnapshotsReadOnly} so both paths compute the wallet accrual identically.
+     *
+     * @param row            active covering subscription, or {@code null} → DEFAULT empty snapshot
+     * @param lastAccruedTo  wallet {@code last_accrual_local_date} (only read for PRO/ULTRA)
+     * @param currentBalance wallet {@code balance} as stored (only read for PRO/ULTRA)
+     */
+    static QuotaSnapshot snapshotFrom(SubscriptionRow row, long usedToday, LocalDate lastAccruedTo,
+                                      long currentBalance, Instant now) {
+        if (row == null) {
+            return emptySnapshot(now, PLAN_DEFAULT);
+        }
+        Instant[] vn = QuotaVnCalendar.vnDayBoundsInclusiveExclusive(now);
+
         long dailyGrant = Math.max(0L, row.dailyGrant);
         int capDays = Math.max(0, row.walletCapDays);
         long walletCap = capDays > 0 ? capDays * dailyGrant : 0L;
@@ -251,8 +382,6 @@ public class QuotaService {
         }
 
         if (isWalletPlan(row.planCode)) {
-            LocalDate lastAccruedTo = loadWalletLastAccrualLocalDate(userId);
-            long currentBalance = loadWalletBalanceOrZero(userId);
             long walletBalance = computeAccruedWalletBalance(subscriptionStartLocalDate(row), lastAccruedTo, walletCap,
                     dailyGrant, QuotaVnCalendar.localDateOf(now), currentBalance);
             long remaining = Math.max(0L, walletBalance);

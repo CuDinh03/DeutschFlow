@@ -255,7 +255,10 @@ class AdminReadAuditIntegrationTest extends AbstractPostgresIntegrationTest {
         return mockMvc.perform(patch("/api/admin/users/{userId}/password", target.getId())
                 .with(user(admin))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of("password", rawPassword))));
+                // Đợt 1 admin (09/11/2026): đặt lại mật khẩu bắt buộc lý do 10–500 ký tự.
+                .content(objectMapper.writeValueAsString(Map.of(
+                        "password", rawPassword,
+                        "reason", "Giám đốc mất quyền truy cập, cần khôi phục"))));
     }
 
     /**

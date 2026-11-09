@@ -525,6 +525,14 @@ app:
       bank-account: ${SEPAY_BANK_ACCOUNT:}
       bank-name: ${SEPAY_BANK_NAME:}
       account-name: ${SEPAY_ACCOUNT_NAME:}
+    # Phí cổng thanh toán trừ vào doanh thu trên trang admin (đợt 1 admin, 09/11/2026 — owner chốt):
+    # Apple 15% (chương trình doanh nghiệp nhỏ); Stripe/MoMo/SePay mặc định 0, đặt tỉ lệ thật qua env
+    # khi có — không cần sửa code. Giá trị 0..1; nhà cung cấp không có ở đây tính 0%.
+    fee-rate:
+      apple: ${PAYMENT_FEE_RATE_APPLE:0.15}
+      stripe: ${PAYMENT_FEE_RATE_STRIPE:0}
+      momo: ${PAYMENT_FEE_RATE_MOMO:0}
+      sepay: ${PAYMENT_FEE_RATE_SEPAY:0}
 
   auth:
     # Bulkhead: trần số request CÙNG LÚC được vào vùng chạy BCrypt (login/register).

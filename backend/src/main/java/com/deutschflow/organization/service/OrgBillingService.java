@@ -178,6 +178,10 @@ public class OrgBillingService {
         if (STATUS_SENT.equals(status) && invoice.getDueDate() == null) {
             invoice.setDueDate(Instant.now().plus(DUE_DAYS_AFTER_SENT, ChronoUnit.DAYS));
         }
+        // V366: mốc tháng doanh thu B2B trên báo cáo admin — chỉ khi thực sự BƯỚC VÀO PAID.
+        if (nowPaid && invoice.getPaidAt() == null) {
+            invoice.setPaidAt(Instant.now());
+        }
         invoice.setStatus(status);
         OrgInvoiceDto dto = toDto(invoiceRepo.save(invoice));
         Map<String, Object> auditMeta = new HashMap<>();
