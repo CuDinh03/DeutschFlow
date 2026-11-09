@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -107,7 +107,7 @@ describe('exercise runner (A3: no answer key before submit)', () => {
     await renderPage()
     await screen.findByText(/___ Haus/)
 
-    const dieButtons = screen.getAllByRole('button', { name: 'die' })
+    const dieButtons = screen.getAllByRole('radio', { name: 'die' })
     await user.click(dieButtons[0]) // q1 — sai
     await user.click(dieButtons[1]) // q2 — đúng
     await user.click(screen.getByRole('button', { name: 'Nộp bài' }))
@@ -120,6 +120,12 @@ describe('exercise runner (A3: no answer key before submit)', () => {
     expect(screen.getByText('Đúng 1/2 câu')).toBeInTheDocument()
     expect(screen.getByText('Sai')).toBeInTheDocument()
     expect(screen.getByText('Đúng')).toBeInTheDocument()
+    // A7: phán quyết từng phương án bằng chữ (không chỉ màu) và nút khoá sau khi nộp.
+    const q1 = screen.getByRole('radiogroup', { name: /___ Haus/ })
+    expect(within(q1).getByRole('radio', { name: /die.*Bạn chọn · sai/ })).toHaveAttribute('aria-checked', 'true')
+    expect(within(q1).getByRole('radio', { name: /das.*Đáp án đúng/ })).toHaveAttribute('aria-checked', 'false')
+    const q2 = screen.getByRole('radiogroup', { name: /___ Frau/ })
+    expect(within(q2).getByRole('radio', { name: /die.*Bạn chọn · đúng/ })).toHaveAttribute('aria-disabled', 'true')
     // Không có lời gọi nào tới API cũ (trả contentJson kèm đáp án) hay POST /practice/submit tự báo điểm.
     expect(apiPost.mock.calls.map((c) => c[0])).not.toContain('/practice/submit')
   })
@@ -152,7 +158,7 @@ describe('exercise runner (A3: no answer key before submit)', () => {
     await renderPage()
     await screen.findByText(/___ Haus/)
 
-    const dasButtons = screen.getAllByRole('button', { name: 'das' })
+    const dasButtons = screen.getAllByRole('radio', { name: 'das' })
     await user.click(dasButtons[0])
     await user.click(dasButtons[1])
     await user.click(screen.getByRole('button', { name: 'Nộp bài' }))

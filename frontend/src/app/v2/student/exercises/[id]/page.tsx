@@ -19,6 +19,7 @@ import {
   GaBtn,
   GaCap,
   GaCard,
+  GaChoiceGroup,
   GaGlyph,
   GaPageHdr,
   LoadingState,
@@ -199,7 +200,7 @@ export default function V2StudentExerciseRunnerPage() {
                 return (
                   <GaCard key={q.id} className="space-y-4 p-4 lg:p-6">
                     <div className="flex items-start justify-between gap-3">
-                      <p className="ga-ui min-w-0 break-words text-[15px] font-semibold text-ga-ink">
+                      <p id={`exercise-q-${idx}`} className="ga-ui min-w-0 break-words text-[15px] font-semibold text-ga-ink">
                         {idx + 1}. {q.question}
                       </p>
                       {verdict !== undefined && (
@@ -211,29 +212,18 @@ export default function V2StudentExerciseRunnerPage() {
                     </div>
 
                     {q.options && q.options.length > 0 ? (
-                      <div className="flex flex-wrap gap-2.5">
-                        {q.options.map((opt) => {
-                          const active = picked === opt
-                          const isAnswer = !!grade && q.gradable && result?.correctAnswer === opt
-                          return (
-                            <button
-                              key={opt}
-                              type="button"
-                              disabled={!!grade}
-                              onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                              className={`ga-ui rounded-ga border px-4 py-3 text-[13.5px] font-semibold transition-colors disabled:cursor-default lg:py-2.5 ${
-                                isAnswer
-                                  ? 'border-ga-green bg-ga-green-soft text-ga-green'
-                                  : active
-                                    ? 'border-ga-ink bg-ga-ink text-ga-bg'
-                                    : 'border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      <GaChoiceGroup
+                        aria-labelledby={`exercise-q-${idx}`}
+                        layout="wrap"
+                        letters={false}
+                        options={q.options.map((opt) => ({ value: opt, label: opt }))}
+                        value={picked || null}
+                        onChange={(opt) => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                        locked={!!grade}
+                        // Đáp án đúng chỉ có SAU khi server chấm (A3) — trước đó chỉ hiện "Đã chọn".
+                        correctValue={grade && q.gradable ? (result?.correctAnswer ?? null) : null}
+                        verdict={verdict ?? null}
+                      />
                     ) : (
                       <input
                         type="text"

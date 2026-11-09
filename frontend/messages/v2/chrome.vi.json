@@ -225,7 +225,11 @@
     "confirmReasonLabel": "Lý do (bắt buộc, ít nhất {min} ký tự) — sẽ được ghi vào nhật ký",
     "confirmReasonCount": "{count} ký tự · tối thiểu {min}, tối đa {max}",
     "confirmPhraseLabel": "Gõ “{phrase}” để xác nhận",
-    "cancel": "Huỷ"
+    "cancel": "Huỷ",
+    "choiceSelected": "Đã chọn",
+    "choiceCorrectPicked": "Bạn chọn · đúng",
+    "choiceWrongPicked": "Bạn chọn · sai",
+    "choiceCorrectAnswer": "Đáp án đúng"
   },
   "maintenance": {
     "overlayTitle": "Hệ thống đang bảo trì",
