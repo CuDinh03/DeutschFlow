@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,9 +72,17 @@ class JwtAuthFilterAdminMfaTest {
     }
 
     private static MockHttpServletRequest bearer(String token) {
-        MockHttpServletRequest r = new MockHttpServletRequest("GET", "/api/admin/users");
+        return bearer("GET", "/api/admin/users", token);
+    }
+
+    private static MockHttpServletRequest bearer(String method, String path, String token) {
+        MockHttpServletRequest r = new MockHttpServletRequest(method, path);
         r.addHeader("Authorization", "Bearer " + token);
         return r;
+    }
+
+    private String adminTokenWithMfaAt(Instant at) {
+        return jwtService.generateAccessToken(admin(), null, null, at);
     }
 
     @Test
@@ -147,5 +156,114 @@ class JwtAuthFilterAdminMfaTest {
 
         assertThat(r.chainCalled()).isTrue();
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    // ─── trần tuổi 2FA (mfa_at) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("ADMIN + mfa_at cũ hơn 12 giờ → 401 MFA_REQUIRED (không dùng tiếp token đúc từ lần 2FA quá hạn)")
+    void adminWithStaleMfaRejected() throws Exception {
+        when(userDetailsService.loadUserByUsername("owner@deutschflow.app")).thenReturn(admin());
+
+        Result r = run(filter(true), bearer(adminTokenWithMfaAt(Instant.now().minus(13, ChronoUnit.HOURS))));
+
+        assertThat(r.response().getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+        assertThat(r.response().getContentAsString()).contains("\"code\":\"MFA_REQUIRED\"");
+        assertThat(r.chainCalled()).isFalse();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("ADMIN + mfa_at còn trong hạn (11 giờ) → qua")
+    void adminWithMfaInsideMaxAgeAccepted() throws Exception {
+        when(userDetailsService.loadUserByUsername("owner@deutschflow.app")).thenReturn(admin());
+
+        Result r = run(filter(true), bearer(adminTokenWithMfaAt(Instant.now().minus(11, ChronoUnit.HOURS))));
+
+        assertThat(r.chainCalled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Trần tuổi theo cấu hình max-session-hours (2 giờ): mfa_at 3 giờ trước → 401")
+    void maxAgeFollowsConfig() throws Exception {
+        when(userDetailsService.loadUserByUsername("owner@deutschflow.app")).thenReturn(admin());
+        JwtAuthFilter f = new JwtAuthFilter(jwtService, userDetailsService, sseTicketService, false, true, 2);
+
+        Result r = run(f, bearer(adminTokenWithMfaAt(Instant.now().minus(3, ChronoUnit.HOURS))));
+
+        assertThat(r.response().getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+        assertThat(r.chainCalled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Kill-switch tắt vẫn áp trần tuổi cho token ADMIN CÓ dấu 2FA")
+    void staleMfaRejectedEvenWithKillSwitchOff() throws Exception {
+        when(userDetailsService.loadUserByUsername("owner@deutschflow.app")).thenReturn(admin());
+
+        Result r = run(filter(false), bearer(adminTokenWithMfaAt(Instant.now().minus(13, ChronoUnit.HOURS))));
+
+        assertThat(r.response().getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("Người dùng thường mang mfa_at cũ → không bị trần tuổi")
+    void staleMfaIgnoredForNonAdmin() throws Exception {
+        when(userDetailsService.loadUserByUsername("hv@x.com")).thenReturn(student());
+
+        Result r = run(filter(true), bearer(jwtService.generateAccessToken(student(), null, null,
+                Instant.now().minus(30, ChronoUnit.HOURS))));
+
+        assertThat(r.chainCalled()).isTrue();
+    }
+
+    // ─── bearer ADMIN cũ trên đường đăng nhập / 2FA / đăng xuất ─────────────
+
+    @Test
+    @DisplayName("Bearer ADMIN chưa qua 2FA trên /api/auth/login và /api/auth/mfa/** → bỏ qua token, đi tiếp không xác thực")
+    void staleAdminBearerIgnoredOnLoginAndMfaSteps() throws Exception {
+        when(userDetailsService.loadUserByUsername("owner@deutschflow.app")).thenReturn(admin());
+        String plain = jwtService.generateAccessToken(admin());
+        String stale = adminTokenWithMfaAt(Instant.now().minus(13, ChronoUnit.HOURS));
+
+        for (String[] c : new String[][]{
+                {"/api/auth/login", plain}, {"/api/auth/mfa/verify", plain},
+                {"/api/auth/mfa/enroll/confirm", stale}, {"/api/auth/refresh", plain}}) {
+            SecurityContextHolder.clearContext();
+            MockHttpServletRequest req = bearer("POST", c[0], c[1]);
+
+            Result r = run(filter(true), req);
+
+            assertThat(r.chainCalled()).as(c[0]).isTrue();
+            assertThat(r.response().getStatus()).as(c[0]).isEqualTo(200);
+            assertThat(SecurityContextHolder.getContext().getAuthentication()).as(c[0]).isNull();
+            assertThat(req.getAttribute(AuthTokenAttributes.CLAIMS)).as(c[0]).isNull();
+        }
+    }
+
+    @Test
+    @DisplayName("Bearer ADMIN chưa qua 2FA trên POST /api/auth/logout → vẫn xác thực để thu hồi phiên")
+    void staleAdminBearerCanStillLogout() throws Exception {
+        when(userDetailsService.loadUserByUsername("owner@deutschflow.app")).thenReturn(admin());
+
+        Result r = run(filter(true), bearer("POST", "/api/auth/logout", jwtService.generateAccessToken(admin())));
+
+        assertThat(r.chainCalled()).isTrue();
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).isInstanceOf(User.class);
+    }
+
+    @Test
+    @DisplayName("Ngoại lệ chỉ đúng các đường đó: /api/auth/me, /api/auth/login-x, GET /api/auth/logout vẫn 401")
+    void exemptionIsNarrow() throws Exception {
+        when(userDetailsService.loadUserByUsername("owner@deutschflow.app")).thenReturn(admin());
+        String plain = jwtService.generateAccessToken(admin());
+
+        for (String[] c : new String[][]{{"GET", "/api/auth/me"}, {"POST", "/api/auth/login-x"},
+                {"GET", "/api/auth/logout"}, {"PATCH", "/api/auth/me/locale"}}) {
+            SecurityContextHolder.clearContext();
+            Result r = run(filter(true), bearer(c[0], c[1], plain));
+
+            assertThat(r.response().getStatus()).as(c[1]).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+            assertThat(r.chainCalled()).as(c[1]).isFalse();
+        }
     }
 }

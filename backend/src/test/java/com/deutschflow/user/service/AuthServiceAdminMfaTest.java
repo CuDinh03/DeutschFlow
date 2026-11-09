@@ -207,7 +207,7 @@ class AuthServiceAdminMfaTest {
     @Test
     @DisplayName("completeMfaLogin: thu hồi phiên cũ, token mang dấu 2FA, dòng refresh lưu mfa_verified_at")
     void completeMfaLoginIssuesMarkedSession() {
-        Instant at = Instant.parse("2026-11-09T10:00:00Z");
+        Instant at = Instant.now().truncatedTo(ChronoUnit.SECONDS);
 
         AuthResponse r = authService.completeMfaLogin(admin(), at);
 
@@ -263,6 +263,61 @@ class AuthServiceAdminMfaTest {
         ArgumentCaptor<RefreshToken> saved = ArgumentCaptor.forClass(RefreshToken.class);
         verify(refreshTokenRepository).save(saved.capture());
         assertThat(saved.getValue().getMfaVerifiedAt()).isEqualTo(at);
+    }
+
+    private static void callerWithMfaAt(Instant at) {
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.setAttribute(AuthTokenAttributes.CLAIMS, Jwts.claims()
+                .add(JwtService.CLAIM_MFA, true)
+                .add(JwtService.CLAIM_MFA_AT, at.getEpochSecond())
+                .build());
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(req));
+    }
+
+    @Test
+    @DisplayName("updateLocale với mfa_at cũ hơn 12 giờ → 401 MFA_REQUIRED, không cấp token (không kéo dài 2FA)")
+    void updateLocaleRejectsStaleMfa() {
+        callerWithMfaAt(Instant.now().minus(13, ChronoUnit.HOURS));
+
+        MfaException ex = assertThrows(MfaException.class, () -> authService.updateLocale(admin(), "de"));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_REQUIRED);
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        verify(jwtService, never()).generateAccessToken(any(), any(), any(), any());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("revokeOtherSessions với mfa_at cũ hơn 12 giờ → 401 MFA_REQUIRED, không cấp token")
+    void revokeOtherSessionsRejectsStaleMfa() {
+        callerWithMfaAt(Instant.now().minus(12, ChronoUnit.HOURS).minusSeconds(30));
+
+        MfaException ex = assertThrows(MfaException.class, () -> authService.revokeOtherSessions(admin()));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_REQUIRED);
+        verify(jwtService, never()).generateAccessToken(any(), any(), any(), any());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("revokeOtherSessions với mfa_at còn hạn → cặp token mới mang đúng mfa_at gốc")
+    void revokeOtherSessionsWithFreshMfa() {
+        Instant at = Instant.now().minus(11, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        callerWithMfaAt(at);
+
+        AuthResponse r = authService.revokeOtherSessions(admin());
+
+        assertThat(r.accessToken()).isEqualTo("ACCESS-MFA");
+        verify(refreshTokenRepository).revokeAllByUserId(1L);
+        verify(jwtService).generateAccessToken(any(), any(), any(), eq(at));
+    }
+
+    @Test
+    @DisplayName("Người dùng thường không bị trần tuổi 2FA (mfa_at cũ trong claims bị bỏ qua)")
+    void staleMfaIgnoredForNonAdmin() {
+        callerWithMfaAt(Instant.now().minus(30, ChronoUnit.HOURS));
+
+        assertThat(authService.updateLocale(student(), "de").accessToken()).isNotNull();
     }
 
     // ─── refresh ─────────────────────────────────────────────────────────────

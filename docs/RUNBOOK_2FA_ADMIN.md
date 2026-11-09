@@ -70,10 +70,13 @@ Deploy lại bản mới sau đó: dữ liệu 2FA còn nguyên, admin chỉ c�
 ## 4. Vận hành thường ngày
 
 - Mỗi lần đăng nhập: mật khẩu + mã 6 số (hoặc một mã khôi phục — mỗi mã dùng một lần; dùng xong có thông báo + email).
-- Phiên 2FA sống tối đa 12 giờ (`ADMIN_MFA_MAX_SESSION_HOURS`), sau đó đăng nhập lại.
+- Phiên 2FA sống tối đa 12 giờ (`ADMIN_MFA_MAX_SESSION_HOURS`), sau đó đăng nhập lại. Trần này áp cho MỌI đường
+  cấp token (refresh, đổi ngôn ngữ, đăng xuất phiên khác) và cho chính access token (`mfa_at` cũ hơn ⇒ 401
+  `MFA_REQUIRED`).
 - Còn < 3 mã khôi phục ⇒ thông báo + email. Tạo bộ mới: Hồ sơ → Bảo mật → "Tạo mã khôi phục mới" (cần mã 6 số hiện
   tại; bộ cũ hết hiệu lực ngay).
-- Nhập sai 5 lần / 15 phút (theo tài khoản và theo IP) ⇒ `429`, chờ hết cửa sổ. Bộ đếm nằm ở Redis
+- Nhập sai 5 lần / 15 phút (theo tài khoản và theo IP) ⇒ `429`, chờ hết cửa sổ. Mỗi lượt nhập mã giữ chỗ trong
+  bộ đếm TRƯỚC khi kiểm (gửi song song không vượt được 5); mã đúng được trả chỗ. Bộ đếm nằm ở Redis
   (`rl:mfa-fail-user|<id>`, `rl:mfa-fail-ip|<ip>`); restart Redis/backend xoá bộ đếm.
 - Có từ hai ADMIN trở lên: admin mất điện thoại + hết mã ⇒ admin KHÁC vào `/v2/admin/users/<id>` → "Đặt lại 2FA"
   (bắt buộc lý do, cắt mọi phiên, ghi vết `admin.user.mfa.reset`). Không ai tự đặt lại được cho chính mình.
