@@ -2135,6 +2135,8 @@
         "speakNow": "Nói thử đi",
         "speakerTitle": "Loa",
         "speakerSub": "Nghe giọng giám khảo",
+        "speakerBlocked": "Trình duyệt chưa cho phát âm thanh. Tắt chế độ im lặng của điện thoại, tăng âm lượng rồi bấm Nghe thử lần nữa.",
+        "speakerFailed": "Không phát được giọng giám khảo. Kiểm tra kết nối mạng rồi thử lại.",
         "speakerPlay": "Nghe thử",
         "quietTitle": "Chỗ yên tĩnh",
         "quietSub": "Tiếng ồn làm sai điểm phát âm",

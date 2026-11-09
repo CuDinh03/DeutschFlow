@@ -2135,6 +2135,8 @@
         "speakNow": "Say something",
         "speakerTitle": "Speaker",
         "speakerSub": "Hear the examiner's voice",
+        "speakerBlocked": "Your browser blocked the audio. Turn off silent mode, raise the volume and tap Play again.",
+        "speakerFailed": "Couldn't play the examiner's voice. Check your connection and try again.",
         "speakerPlay": "Play test",
         "quietTitle": "Quiet place",
         "quietSub": "Noise lowers your pronunciation score",
