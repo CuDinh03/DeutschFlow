@@ -445,6 +445,8 @@ app:
     rsa-private-key: ${JWT_RSA_PRIVATE_KEY:}
     rsa-public-key: ${JWT_RSA_PUBLIC_KEY:}
     rsa-public-key-previous: ${JWT_RSA_PUBLIC_KEY_PREVIOUS:}
+    # Token thử thách 2FA (typ=mfa) sống giữa bước mật khẩu và bước mã. Mặc định 5 phút.
+    mfa-token-expiry-ms: ${JWT_MFA_TOKEN_EXPIRY_MS:300000}
 
   security:
     # Số reverse proxy tin cậy đứng trước app (ALB/CloudFront/nginx). Client IP dùng cho rate-limit
@@ -452,6 +454,11 @@ app:
     # chính mình thêm vào — nên kẻ tấn công KHÔNG thể giả mạo XFF để né rate-limit.
     # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
     trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
+    # Phiên hỗ trợ chỉ-đọc (token typ=support). JwtAuthFilter từ chối (401) loại token này khi tắt.
+    # GIỮ false cho tới khi PR "phiên hỗ trợ chỉ-đọc" có bộ lọc chặn ghi — bật sớm thì token support
+    # được xác thực như access token của người dùng đích, KHÔNG có giới hạn chỉ-đọc nào.
+    support-session:
+      enabled: ${APP_SECURITY_SUPPORT_SESSION_ENABLED:false}
     # Kiểm "người thật" ở đăng ký — Cloudflare Turnstile (owner chốt 07/11/2026). Mặc định TẮT.
     # Bật: Cloudflare dashboard → Turnstile → Add widget (mode Managed, hostname mydeutschflow.com);
     # secret vào backend.env (TURNSTILE_SECRET), site key vào frontend-build.env
