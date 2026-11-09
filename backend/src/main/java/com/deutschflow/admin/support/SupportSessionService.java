@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -106,6 +107,8 @@ public class SupportSessionService {
     private final RunAfterCommitService runAfterCommit;
     private final AdminMfaPolicy adminMfaPolicy;
     private final TransactionTemplate tx;
+    /** Transaction MỚI cho việc chạy sau commit (xem {@link #notifyTarget}). */
+    private final TransactionTemplate newTx;
     private final boolean enabled;
 
     public SupportSessionService(SupportSessionStore store,
@@ -133,6 +136,8 @@ public class SupportSessionService {
         this.runAfterCommit = runAfterCommit;
         this.adminMfaPolicy = adminMfaPolicy;
         this.tx = new TransactionTemplate(transactionManager);
+        this.newTx = new TransactionTemplate(transactionManager);
+        this.newTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.enabled = enabled;
     }
 
@@ -206,7 +211,11 @@ public class SupportSessionService {
             if (expiresAt != null) {
                 payload.put("expiresAt", expiresAt.toString());
             }
-            notifications.deliverToUser(targetUserId, NotificationType.ADMIN_SUPPORT_VIEW, payload);
+            // Chạy trong afterCompletion của transaction vừa commit: tài nguyên transaction cũ VẪN gắn với thread,
+            // nên save() kiểu REQUIRED sẽ "tham gia" transaction đã kết thúc và không bao giờ được commit (thông
+            // báo mất trong im lặng — IT trên Postgres thật bắt được). Ép một transaction MỚI.
+            newTx.executeWithoutResult(status ->
+                    notifications.deliverToUser(targetUserId, NotificationType.ADMIN_SUPPORT_VIEW, payload));
         } catch (RuntimeException e) {
             log.warn("[SupportSession] Không tạo được thông báo cho userId={}: {}", targetUserId, e.getMessage());
         }
