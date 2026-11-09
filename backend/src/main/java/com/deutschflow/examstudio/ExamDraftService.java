@@ -1,0 +1,1067 @@
+package com.deutschflow.examstudio;
+
+import com.deutschflow.ai.queue.AiJob;
+import com.deutschflow.ai.queue.AiJobRepository;
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.examspeaking.metrics.GoetheWordlist;
+import com.deutschflow.examstudio.ExamStudioDtos.*;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Xưởng đề: bản nháp một Teil đi qua 5 bước Khung → Nguồn → Bài đọc → Câu hỏi → Kiểm & duyệt.
+ *
+ * <p>Thao tác AI không chạy trong request: {@link #enqueue} đặt {@code busy_op} (chỉ khi đang rảnh) rồi xếp một
+ * {@link AiJob} kiểu {@link ExamStudioJobHandler#JOB_TYPE}; job gọi các hàm {@code run*} ở dưới rồi gỡ
+ * {@code busy_op}. Client hỏi lại {@code GET /drafts/{id}} cho tới khi rảnh.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ExamDraftService {
+
+    static final List<String> STEPS = List.of("FRAME", "SOURCE", "TEXT", "ITEMS", "REVIEW", "APPROVED");
+    private static final List<String> LEVEL_ORDER = List.of("A1", "A2", "B1", "B2", "C1", "C2");
+    private static final int LINE_WIDTH = 62;
+    private static final double DUPLICATE_LIMIT = 0.3;
+
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper mapper;
+    private final AiJobRepository jobs;
+    private final ExamStudioAi ai;
+    private final SourceFetcher fetcher;
+    private final GoetheWordlist wordlist;
+
+    // ── Trạng thái nạp từ DB ────────────────────────────────────────────────────────────────
+
+    /** Phần text_json: bài + id dữ kiện AI đã dùng. */
+    record StoredText(Text text, List<String> usedFactIds) {}
+
+    record Row(long id, String examFormat, String cefrLevel, String section, int teil, String teilType,
+               String theme, String mode, Map<String, Integer> plan, String step, String status, String busyOp,
+               Long busyJobId, String lastError, StoredText text, List<Item> items, List<Check> checks,
+               String verifiedHash, Map<String, Boolean> reviewChecklist, Long blockId, Instant createdAt,
+               Instant updatedAt) {
+
+        TeilSpec spec() {
+            return TeilSpec.find(examFormat, cefrLevel, section, teil)
+                    .orElseThrow(() -> new IllegalStateException("Không có khuôn cho bản nháp " + id));
+        }
+
+        int itemCount() {
+            if ("PRACTICE".equals(mode)) {
+                int sum = plan.values().stream().mapToInt(Integer::intValue).sum();
+                return Math.max(1, Math.min(10, sum));
+            }
+            return spec().itemCount();
+        }
+    }
+
+    record SourceRow(Source source, Set<Long> shingles) {}
+
+    private <T> T read(String json, TypeReference<T> type, T fallback) {
+        if (json == null || json.isBlank()) return fallback;
+        try {
+            return mapper.readValue(json, type);
+        } catch (Exception e) {
+            log.warn("[ExamStudio] JSON hỏng: {}", e.getMessage());
+            return fallback;
+        }
+    }
+
+    private String json(Object o) {
+        try {
+            return mapper.writeValueAsString(o);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private Row mapRow(ResultSet rs) throws SQLException {
+        return new Row(
+                rs.getLong("id"), rs.getString("exam_format"), rs.getString("cefr_level"), rs.getString("section"),
+                rs.getInt("teil"), rs.getString("teil_type"), rs.getString("theme"), rs.getString("mode"),
+                read(rs.getString("difficulty_plan"), new TypeReference<Map<String, Integer>>() {}, new HashMap<>()),
+                rs.getString("step"), rs.getString("status"), rs.getString("busy_op"),
+                (Long) rs.getObject("busy_job_id"), rs.getString("last_error"),
+                read(rs.getString("text_json"), new TypeReference<StoredText>() {}, null),
+                read(rs.getString("items_json"), new TypeReference<List<Item>>() {}, new ArrayList<>()),
+                read(rs.getString("checks_json"), new TypeReference<List<Check>>() {}, new ArrayList<>()),
+                rs.getString("verified_hash"),
+                read(rs.getString("review_checklist"), new TypeReference<Map<String, Boolean>>() {}, new HashMap<>()),
+                (Long) rs.getObject("block_id"),
+                instant(rs.getTimestamp("created_at")), instant(rs.getTimestamp("updated_at")));
+    }
+
+    private static Instant instant(Timestamp t) {
+        return t == null ? null : t.toInstant();
+    }
+
+    Row load(long id) {
+        List<Row> rows = jdbc.query("""
+                SELECT id, exam_format, cefr_level, section, teil, teil_type, theme, mode,
+                       difficulty_plan::text AS difficulty_plan, step, status, busy_op, busy_job_id, last_error,
+                       text_json::text AS text_json, items_json::text AS items_json, checks_json::text AS checks_json,
+                       verified_hash, review_checklist::text AS review_checklist, block_id, created_at, updated_at
+                FROM exam_drafts WHERE id = ?
+                """, (rs, n) -> mapRow(rs), id);
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy bản nháp " + id + ".");
+        return rows.get(0);
+    }
+
+    List<SourceRow> sources(long draftId) {
+        return jdbc.query("""
+                SELECT s.id, s.url, s.publisher, s.title, s.author, s.published_at, s.license_text, s.usage_mode,
+                       s.usage_mode_confirmed, s.neutrality, s.neutrality_reason, s.facts_json::text AS facts_json,
+                       s.shingle_hashes::text AS shingle_hashes
+                FROM exam_draft_sources ds JOIN exam_sources s ON s.id = ds.source_id
+                WHERE ds.draft_id = ? ORDER BY ds.position, s.id
+                """, (rs, n) -> new SourceRow(new Source(
+                        rs.getLong("id"), rs.getString("url"), rs.getString("publisher"), rs.getString("title"),
+                        rs.getString("author"), rs.getString("published_at"), rs.getString("license_text"),
+                        rs.getString("usage_mode"), rs.getBoolean("usage_mode_confirmed"), rs.getString("neutrality"),
+                        rs.getString("neutrality_reason"),
+                        read(rs.getString("facts_json"), new TypeReference<List<Fact>>() {}, new ArrayList<>())),
+                        TextChecks.toSet(read(rs.getString("shingle_hashes"),
+                                new TypeReference<List<Long>>() {}, List.of()))),
+                draftId);
+    }
+
+    // ── Đọc ─────────────────────────────────────────────────────────────────────────────────
+
+    public List<DraftSummary> list(String status) {
+        String st = status == null || status.isBlank() ? null : status.trim().toUpperCase(Locale.ROOT);
+        return jdbc.query("""
+                SELECT id, cefr_level, section, teil, theme, text_json->'text'->>'titleDe' AS title_de, step, status,
+                       busy_op, updated_at
+                FROM exam_drafts
+                WHERE (?::text IS NULL AND status <> 'DISCARDED') OR status = ?::text
+                ORDER BY updated_at DESC LIMIT 200
+                """, (rs, n) -> new DraftSummary(rs.getLong("id"), rs.getString("cefr_level"), rs.getString("section"),
+                        rs.getInt("teil"), rs.getString("theme"), rs.getString("title_de"), rs.getString("step"),
+                        rs.getString("status"), rs.getString("busy_op"), instant(rs.getTimestamp("updated_at"))),
+                st, st);
+    }
+
+    public Draft get(long id) {
+        Row r = load(id);
+        if (r.busyOp() != null && r.busyJobId() != null) {
+            // Lưới đỡ: job đã kết thúc (bị quét FAILED, worker chết) mà busy_op vẫn còn ⇒ gỡ.
+            Optional<AiJob> job = jobs.findById(r.busyJobId());
+            if (job.isEmpty() || AiJob.STATUS_FAILED.equals(job.get().getStatus())
+                    || AiJob.STATUS_COMPLETED.equals(job.get().getStatus())) {
+                String err = job.map(AiJob::getErrorMsg).orElse(null);
+                finishBusy(id, AiJob.STATUS_FAILED.equals(job.map(AiJob::getStatus).orElse(AiJob.STATUS_FAILED))
+                        ? (err == null || err.isBlank() ? "Thao tác AI bị dừng giữa chừng, hãy thử lại." : err) : null);
+                r = load(id);
+            }
+        }
+        return toDto(r, sources(id));
+    }
+
+    Draft toDto(Row r, List<SourceRow> srcs) {
+        List<Source> sourceDtos = srcs.stream().map(SourceRow::source).toList();
+        TextMetrics metrics = r.text() == null ? null : metrics(r, srcs);
+        return new Draft(r.id(), r.examFormat(), r.cefrLevel(), r.section(), r.teil(), r.teilType(), r.theme(),
+                r.mode(), r.itemCount(), normalizedPlan(r.plan()), r.step(), r.status(), r.busyOp(), r.lastError(),
+                sourceDtos, r.text() == null ? null : r.text().text(), metrics, r.items(), r.checks(),
+                suggestions(r, srcs, metrics), r.reviewChecklist(), quelle(srcs), r.blockId(), r.createdAt(),
+                r.updatedAt());
+    }
+
+    static Map<String, Integer> normalizedPlan(Map<String, Integer> plan) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (String l : TeilSpec.LEVELS) out.put(l, plan == null ? 0 : Math.max(0, plan.getOrDefault(l, 0)));
+        return out;
+    }
+
+    // ── Tạo / sửa ───────────────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public Draft create(CreateDraftRequest req, long userId) {
+        TeilSpec spec = TeilSpec.find(req.examFormat(), req.cefrLevel(), req.section(), req.teil())
+                .orElseThrow(() -> new BadRequestException(
+                        "Đợt này Xưởng đề chỉ làm telc · B1 · Lesen Teil 2. Các Teil khác làm ở đợt sau."));
+        String mode = normalizeMode(req.mode());
+        Map<String, Integer> plan = validatePlan(req.difficultyPlan(), mode, spec);
+        Long id = jdbc.queryForObject("""
+                INSERT INTO exam_drafts (exam_format, cefr_level, section, teil, teil_type, theme, mode,
+                                         difficulty_plan, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?) RETURNING id
+                """, Long.class, spec.examFormat(), spec.cefrLevel(), spec.section(), spec.teil(), spec.teilType(),
+                blankToNull(req.theme()), mode, json(plan), userId);
+        return get(id);
+    }
+
+    @Transactional
+    public Draft patch(long id, PatchDraftRequest req) {
+        Row r = requireEditable(id);
+        if (req.theme() != null) {
+            jdbc.update("UPDATE exam_drafts SET theme = ?, updated_at = now() WHERE id = ?", blankToNull(req.theme()), id);
+        }
+        if (req.mode() != null || req.difficultyPlan() != null) {
+            String mode = req.mode() == null ? r.mode() : normalizeMode(req.mode());
+            Map<String, Integer> plan = validatePlan(req.difficultyPlan() == null ? r.plan() : req.difficultyPlan(),
+                    mode, r.spec());
+            jdbc.update("UPDATE exam_drafts SET mode = ?, difficulty_plan = ?::jsonb, updated_at = now() WHERE id = ?",
+                    mode, json(plan), id);
+        }
+        if (req.text() != null) {
+            Text t = sanitizeText(req.text());
+            List<String> used = r.text() == null ? List.of() : r.text().usedFactIds();
+            saveText(id, new StoredText(t, used));
+        }
+        if (req.items() != null) {
+            saveItems(id, sanitizeItems(req.items(), r));
+        }
+        if (req.reviewChecklist() != null) {
+            Map<String, Boolean> cl = new LinkedHashMap<>();
+            for (String k : TeilSpec.CHECKLIST_KEYS) cl.put(k, Boolean.TRUE.equals(req.reviewChecklist().get(k)));
+            jdbc.update("UPDATE exam_drafts SET review_checklist = ?::jsonb, updated_at = now() WHERE id = ?", json(cl), id);
+        }
+        return get(id);
+    }
+
+    @Transactional
+    public void discard(long id) {
+        Row r = load(id);
+        if ("APPROVED".equals(r.status())) throw new ConflictException("Bản nháp đã duyệt vào kho, không bỏ được.");
+        jdbc.update("UPDATE exam_drafts SET status = 'DISCARDED', updated_at = now() WHERE id = ?", id);
+    }
+
+    // ── Nguồn ───────────────────────────────────────────────────────────────────────────────
+
+    public Draft addSource(long id, AddSourceRequest req, long userId) {
+        requireEditable(id);
+        boolean hasUrl = req.url() != null && !req.url().isBlank();
+        boolean hasText = req.pastedText() != null && !req.pastedText().isBlank();
+        if (hasUrl == hasText) throw new BadRequestException("Nhập đường dẫn HOẶC dán văn bản (một trong hai).");
+        if (hasText && req.pastedText().trim().length() < 300) {
+            throw new BadRequestException("Văn bản dán quá ngắn (dưới 300 ký tự).");
+        }
+        if (hasUrl) fetcher.validate(req.url()); // báo lỗi đường dẫn ngay, không đợi job
+        Map<String, Object> payload = new HashMap<>();
+        if (hasUrl) payload.put("url", req.url().trim());
+        if (hasText) payload.put(ExamStudioJobHandler.PASTED_TEXT, req.pastedText());
+        if (req.title() != null) payload.put("title", req.title());
+        if (req.publisher() != null) payload.put("publisher", req.publisher());
+        enqueue(id, "FACTS", userId, payload);
+        return get(id);
+    }
+
+    @Transactional
+    public Draft patchSource(long id, long sourceId, PatchSourceRequest req) {
+        requireEditable(id);
+        SourceRow s = sources(id).stream().filter(x -> x.source().id() == sourceId).findFirst()
+                .orElseThrow(() -> new NotFoundException("Nguồn không thuộc bản nháp này."));
+        if (req.usageMode() != null) {
+            String m = req.usageMode().trim().toUpperCase(Locale.ROOT);
+            if (!m.equals("ADAPT") && !m.equals("FACTS_ONLY")) throw new BadRequestException("Loại dùng không hợp lệ.");
+            jdbc.update("UPDATE exam_sources SET usage_mode = ?, usage_mode_confirmed = TRUE WHERE id = ?", m, sourceId);
+        }
+        if (req.selectedFactIds() != null) {
+            Set<String> sel = new HashSet<>(req.selectedFactIds());
+            List<Fact> facts = s.source().facts().stream().map(f -> f.withSelected(sel.contains(f.id()))).toList();
+            jdbc.update("UPDATE exam_sources SET facts_json = ?::jsonb WHERE id = ?", json(facts), sourceId);
+        }
+        touch(id);
+        return get(id);
+    }
+
+    @Transactional
+    public Draft removeSource(long id, long sourceId) {
+        requireEditable(id);
+        jdbc.update("DELETE FROM exam_draft_sources WHERE draft_id = ? AND source_id = ?", id, sourceId);
+        jdbc.update("DELETE FROM exam_sources s WHERE id = ? AND NOT EXISTS "
+                + "(SELECT 1 FROM exam_draft_sources d WHERE d.source_id = s.id)", sourceId);
+        touch(id);
+        return get(id);
+    }
+
+    /** Chạy trong job FACTS. {@code pastedText} chỉ sống trong bộ nhớ. */
+    void runFacts(long draftId, long userId, Map<String, Object> payload, String pastedText) {
+        Row r = load(draftId);
+        String url = (String) payload.get("url");
+        SourceFetcher.Fetched f;
+        if (url != null) {
+            f = fetcher.fetch(url);
+        } else {
+            f = new SourceFetcher.Fetched(null, null, null, null, null, null, false, pastedText);
+        }
+        List<SourceRow> existing = sources(draftId);
+        List<Fact> existingFacts = existing.stream().flatMap(s -> s.source().facts().stream()).toList();
+        JsonNode out = ai.extractFacts(userId, r.cefrLevel(), r.theme(), f.text(), existingFacts);
+
+        String title = firstNonBlank((String) payload.get("title"), f.title(), text(out, "title"));
+        String publisher = firstNonBlank((String) payload.get("publisher"), f.publisher(), text(out, "publisher"));
+        String author = firstNonBlank(f.author(), text(out, "author"));
+        String published = firstNonBlank(f.publishedAt(), text(out, "publishedAt"));
+        boolean neutral = !out.has("neutral") || out.path("neutral").asBoolean(true);
+        String reason = neutral ? null : firstNonBlank(text(out, "neutralityReasonVi"), "Chủ đề nhạy cảm.");
+
+        // id dữ kiện duy nhất trong bản nháp: s<n>f<k>
+        int srcNo = existing.size() + 1;
+        Set<String> confirms = new HashSet<>();
+        out.path("confirms").forEach(n -> confirms.add(n.asText()));
+        List<Fact> facts = new ArrayList<>();
+        int k = 0;
+        for (JsonNode n : out.path("facts")) {
+            String t = text(n, "text");
+            if (t == null) continue;
+            String sameAs = text(n, "sameAs");
+            if (sameAs != null) confirms.add(sameAs);
+            k++;
+            facts.add(new Fact("s" + srcNo + "f" + k, t, text(n, "figure"), text(n, "year"),
+                    n.hasNonNull("paragraph") ? n.path("paragraph").asInt() : null, sameAs != null, false));
+            if (k >= 20) break;
+        }
+        if (facts.isEmpty()) throw new BadRequestException("AI không rút được dữ kiện nào từ nguồn này.");
+
+        String usage = f.ccBy() ? "ADAPT" : "FACTS_ONLY";
+        List<Long> shingles = TextChecks.shingleHashes(f.text(), TeilSpec.OVERLAP_LIMIT);
+        Long sourceId = jdbc.queryForObject("""
+                INSERT INTO exam_sources (url, publisher, title, author, published_at, license_text, usage_mode,
+                                          neutrality, neutrality_reason, facts_json, shingle_hashes, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?) RETURNING id
+                """, Long.class, url, cut(publisher, 300), title, cut(author, 500), cut(published, 40),
+                cut(f.licenseText(), 500), usage, neutral ? "OK" : "FLAGGED", reason, json(facts), json(shingles),
+                userId);
+        jdbc.update("INSERT INTO exam_draft_sources (draft_id, source_id, position) VALUES (?, ?, ?)",
+                draftId, sourceId, srcNo);
+        // Dữ kiện cũ được nguồn mới xác nhận ⇒ đánh dấu đã đối chiếu.
+        for (SourceRow s : existing) {
+            List<Fact> updated = s.source().facts().stream()
+                    .map(x -> confirms.contains(x.id()) ? x.withCorroborated(true) : x).toList();
+            if (!updated.equals(s.source().facts())) {
+                jdbc.update("UPDATE exam_sources SET facts_json = ?::jsonb WHERE id = ?", json(updated), s.source().id());
+            }
+        }
+        advanceStep(draftId, "SOURCE");
+    }
+
+    // ── Bài đọc ─────────────────────────────────────────────────────────────────────────────
+
+    public Draft writeText(long id, WriteTextRequest req, long userId) {
+        Row r = requireEditable(id);
+        Map<String, Object> payload = new HashMap<>();
+        if (req != null && req.selection() != null && !req.selection().isBlank()) {
+            if (r.text() == null) throw new BadRequestException("Chưa có bài để viết lại.");
+            if (!r.text().text().context().contains(req.selection())) {
+                throw new BadRequestException("Đoạn bôi đen không còn nằm trong bài (bài đã đổi?).");
+            }
+            payload.put("selection", req.selection());
+            payload.put("mode", "SIMPLIFY".equalsIgnoreCase(req.mode()) ? "SIMPLIFY" : "REWRITE");
+        } else if (selectedFacts(sources(id)).isEmpty()) {
+            throw new BadRequestException("Hãy tích ít nhất một dữ kiện ở bước Nguồn.");
+        } else if (sources(id).stream().anyMatch(s -> "FLAGGED".equals(s.source().neutrality())
+                && s.source().facts().stream().anyMatch(Fact::selected))) {
+            throw new BadRequestException("Có nguồn bị cờ chủ đề nhạy cảm — bỏ dữ kiện của nguồn đó trước.");
+        }
+        if (req != null && req.note() != null) payload.put("note", req.note());
+        enqueue(id, "TEXT", userId, payload);
+        return get(id);
+    }
+
+    void runText(long draftId, long userId, Map<String, Object> payload) {
+        Row r = load(draftId);
+        String selection = (String) payload.get("selection");
+        String note = (String) payload.get("note");
+        if (selection != null) {
+            JsonNode out = ai.rewrite(userId, r.spec(), r.text().text(), selection, (String) payload.get("mode"), note);
+            String repl = text(out, "replacement");
+            if (repl == null) throw new IllegalStateException("AI không trả đoạn viết lại.");
+            Text t = r.text().text();
+            Text nt = new Text(t.titleDe(), t.vorspannDe(), t.context().replace(selection, repl.trim()), t.glossary());
+            saveText(draftId, new StoredText(nt, r.text().usedFactIds()));
+            return;
+        }
+        List<Fact> facts = selectedFacts(sources(draftId));
+        JsonNode out = ai.writeText(userId, r.spec(), r.theme(), facts, note);
+        List<String> paras = new ArrayList<>();
+        out.path("paragraphs").forEach(p -> {
+            if (!p.asText("").isBlank()) paras.add(p.asText().trim());
+        });
+        if (paras.isEmpty()) throw new IllegalStateException("AI không trả bài đọc.");
+        List<GlossaryEntry> glossary = new ArrayList<>();
+        out.path("glossary").forEach(g -> {
+            String term = text(g, "term");
+            String expl = text(g, "explanationDe");
+            if (term != null && expl != null) glossary.add(new GlossaryEntry(term, expl));
+        });
+        List<String> used = new ArrayList<>();
+        out.path("usedFactIds").forEach(u -> used.add(u.asText()));
+        Text t = new Text(firstNonBlank(text(out, "titleDe"), "Ohne Titel"), firstNonBlank(text(out, "vorspannDe"), ""),
+                String.join("\n\n", paras), glossary);
+        saveText(draftId, new StoredText(t, used));
+        advanceStep(draftId, "TEXT");
+    }
+
+    // ── Câu hỏi ─────────────────────────────────────────────────────────────────────────────
+
+    public Draft generateItems(long id, long userId) {
+        Row r = requireEditable(id);
+        if (r.text() == null) throw new BadRequestException("Chưa có bài đọc.");
+        enqueue(id, "ITEMS", userId, new HashMap<>());
+        return get(id);
+    }
+
+    public Draft regenerateItem(long id, String itemId, String difficulty, long userId) {
+        Row r = requireEditable(id);
+        if (r.items().stream().noneMatch(i -> i.id().equals(itemId))) throw new NotFoundException("Không có câu " + itemId + ".");
+        if (difficulty != null && !TeilSpec.isLevel(difficulty)) throw new BadRequestException("Bậc không hợp lệ.");
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("itemId", itemId);
+        if (difficulty != null) payload.put("difficulty", difficulty.toUpperCase(Locale.ROOT));
+        enqueue(id, "ITEM", userId, payload);
+        return get(id);
+    }
+
+    void runItems(long draftId, long userId, Map<String, Object> payload) {
+        Row r = load(draftId);
+        TeilSpec spec = r.spec();
+        int count = r.itemCount();
+        String onlyId = (String) payload.get("itemId");
+        String newLevel = (String) payload.get("difficulty");
+
+        // Bậc giao cho từng vị trí: theo ma trận, xáo theo id bản nháp để bậc không lộ theo thứ tự câu.
+        List<String> planned = new ArrayList<>(ItemRules.slots(r.plan(), count));
+        Collections.shuffle(planned, new Random(draftId));
+
+        Map<String, Item> byId = new HashMap<>();
+        for (Item it : r.items()) byId.put(it.id(), it);
+        List<Item> current = new ArrayList<>();
+        for (int s = 0; s < count; s++) current.add(byId.get(spec.itemId(s)));
+
+        List<int[]> todo = new ArrayList<>();
+        List<String> todoLevels = new ArrayList<>();
+        for (int s = 0; s < count; s++) {
+            Item existing = current.get(s);
+            String id = spec.itemId(s);
+            boolean regen = onlyId == null ? existing == null || !existing.locked() : id.equals(onlyId);
+            if (!regen) continue;
+            String level = onlyId != null && newLevel != null ? newLevel
+                    : existing != null && onlyId != null ? existing.difficultyTarget() : planned.get(s);
+            todo.add(new int[]{s});
+            todoLevels.add(level);
+        }
+        if (todo.isEmpty()) throw new BadRequestException("Mọi câu đều đang khoá.");
+        List<Item> keep = new ArrayList<>();
+        for (int s = 0; s < count; s++) {
+            int fs = s;
+            if (current.get(s) != null && todo.stream().noneMatch(t -> t[0] == fs)) keep.add(current.get(s));
+        }
+
+        JsonNode out = ai.generateItems(userId, spec, r.text().text(), todo, todoLevels, keep);
+        Map<Integer, JsonNode> bySlot = new HashMap<>();
+        int fallback = 0;
+        for (JsonNode n : out.path("items")) {
+            int slot = n.has("slot") ? n.path("slot").asInt(-1) : -1;
+            final int asked = slot;
+            if (slot < 0 || todo.stream().noneMatch(t -> t[0] == asked) || bySlot.containsKey(slot)) {
+                while (fallback < todo.size() && bySlot.containsKey(todo.get(fallback)[0])) fallback++;
+                if (fallback >= todo.size()) break;
+                slot = todo.get(fallback)[0];
+            }
+            bySlot.put(slot, n);
+        }
+
+        List<String> letters = new ArrayList<>();
+        for (int s = 0; s < count; s++) letters.add(current.get(s) == null ? null : current.get(s).correct());
+        Random rnd = new Random(draftId * 31 + System.nanoTime());
+        List<String> problems = new ArrayList<>();
+        for (int i = 0; i < todo.size(); i++) {
+            int s = todo.get(i)[0];
+            JsonNode n = bySlot.get(s);
+            if (n == null) {
+                problems.add(spec.itemId(s));
+                continue;
+            }
+            List<ItemRules.RawOption> raw = new ArrayList<>();
+            n.path("options").forEach(o -> raw.add(new ItemRules.RawOption(
+                    firstNonBlank(text(o, "text"), ""), o.path("correct").asBoolean(false), text(o, "trap"))));
+            if (raw.size() != 3 || raw.stream().filter(ItemRules.RawOption::correct).count() != 1) {
+                problems.add(spec.itemId(s));
+                continue;
+            }
+            letters.set(s, null);
+            String letter = ItemRules.chooseLetter(letters, s, rnd);
+            letters.set(s, letter);
+            ItemRules.Lettered l = ItemRules.letter(raw, letter, text(n, "explanationVi"));
+            current.set(s, new Item(spec.itemId(s), firstNonBlank(text(n, "question"), ""), l.options(), l.correct(),
+                    l.explanation(), firstNonBlank(text(n, "evidence"), ""), l.traps(), todoLevels.get(i), null,
+                    current.get(s) != null && current.get(s).locked(), null, List.of()));
+        }
+        List<Item> result = current.stream().filter(Objects::nonNull).toList();
+        saveItems(draftId, result);
+        advanceStep(draftId, "ITEMS");
+        if (!problems.isEmpty()) {
+            throw new IllegalStateException("AI trả hỏng câu " + String.join(", ", problems) + " — bấm Sinh lại cho câu đó.");
+        }
+    }
+
+    // ── Tự kiểm ─────────────────────────────────────────────────────────────────────────────
+
+    public Draft verify(long id, long userId) {
+        Row r = requireEditable(id);
+        if (r.text() == null || r.items().isEmpty()) throw new BadRequestException("Cần có bài đọc và câu hỏi trước.");
+        enqueue(id, "VERIFY", userId, new HashMap<>());
+        return get(id);
+    }
+
+    void runVerify(long draftId, long userId) {
+        Row r = load(draftId);
+        List<SourceRow> srcs = sources(draftId);
+        Text text = r.text().text();
+        List<Item> items = r.items();
+
+        JsonNode rubric = ai.rubric(userId, r.spec(), text, items);
+        Map<String, String> strong = answers(ai.solveStrong(userId, text, items));
+        Map<String, String> weak = answers(ai.solveWeak(userId, text, items));
+        Map<String, String> blind = answers(ai.solveBlind(userId, items));
+        Map<String, JsonNode> rubricById = new HashMap<>();
+        rubric.path("items").forEach(n -> rubricById.put(n.path("id").asText(), n));
+
+        String context = norm(text.context());
+        List<Item> verified = new ArrayList<>();
+        for (Item it : items) {
+            List<String> flags = new ArrayList<>();
+            int sev = 0;
+            if (!formatOk(it)) {
+                flags.add("Thiếu câu hỏi, phương án hoặc đáp án.");
+                sev = 2;
+            }
+            if (it.evidence() == null || it.evidence().isBlank() || !context.contains(norm(it.evidence()))) {
+                flags.add("Câu bằng chứng không có nguyên văn trong bài.");
+                sev = Math.max(sev, 1);
+            }
+            String s = strong.get(it.id());
+            if (s != null && !s.equals(it.correct())) {
+                flags.add("AI giỏi chọn " + s + " thay vì " + it.correct() + ": câu có thể mơ hồ hoặc đáp án sai.");
+                sev = 2;
+            }
+            String b = blind.get(it.id());
+            if (b != null && b.equals(it.correct())) {
+                flags.add("Trả lời đúng được khi KHÔNG đọc bài: câu đoán mò được.");
+                sev = 2;
+            }
+            DifficultyMeasured measured = null;
+            JsonNode rn = rubricById.get(it.id());
+            if (rn != null) {
+                Scores sc = new Scores(ItemRules.clamp(rn.path("phrasing").asInt()), ItemRules.clamp(rn.path("evidence").asInt()),
+                        ItemRules.clamp(rn.path("distractors").asInt()), ItemRules.clamp(rn.path("language").asInt()));
+                boolean multi = rn.path("multiParagraph").asBoolean(false);
+                boolean half = rn.path("halfTrue").asBoolean(false);
+                String level = ItemRules.levelOf(sc, multi, half);
+                String hint = ItemRules.hint(it.difficultyTarget(), level, sc, multi, half);
+                measured = new DifficultyMeasured(sc, sc.total(), level, hint);
+                if (hint != null) {
+                    flags.add("Độ khó lệch: " + hint);
+                    sev = Math.max(sev, 1);
+                }
+            }
+            String w = weak.get(it.id());
+            if (w != null && w.equals(it.correct())
+                    && ("HARD".equals(it.difficultyTarget()) || "EXPERT".equals(it.difficultyTarget()))) {
+                flags.add("AI đóng vai học viên A2 vẫn làm đúng: có lẽ dễ hơn nhãn " + ItemRules.label(it.difficultyTarget()) + ".");
+                sev = Math.max(sev, 1);
+            }
+            verified.add(it.withVerification(measured, sev == 2 ? "RED" : sev == 1 ? "YELLOW" : "GREEN", flags));
+        }
+
+        TextMetrics m = metrics(r, srcs);
+        List<Check> checks = teilChecks(r, srcs, m, verified, strong);
+        String hash = contentHash(text, verified);
+        jdbc.update("""
+                UPDATE exam_drafts SET items_json = ?::jsonb, checks_json = ?::jsonb, verified_hash = ?,
+                       updated_at = now() WHERE id = ?
+                """, json(verified), json(checks), hash, draftId);
+        advanceStep(draftId, "REVIEW");
+    }
+
+    List<Check> teilChecks(Row r, List<SourceRow> srcs, TextMetrics m, List<Item> items, Map<String, String> strong) {
+        List<Check> out = new ArrayList<>();
+        int expected = r.itemCount();
+        boolean formatOk = items.size() == expected && items.stream().allMatch(ExamDraftService::formatOk);
+        out.add(new Check("FORMAT", "Đúng khuôn Teil", formatOk ? "GREEN" : "RED",
+                formatOk ? null : "Cần " + expected + " câu, mỗi câu 3 phương án và đúng 1 đáp án."));
+
+        boolean solverOk = !strong.isEmpty() && items.stream().allMatch(i -> i.correct().equals(strong.get(i.id())));
+        out.add(new Check("SOLVER", "AI giỏi giải đúng mọi câu", solverOk ? "GREEN" : "RED",
+                solverOk ? null : "Có câu AI giỏi chọn khác đáp án — xem đèn từng câu."));
+
+        out.add(new Check("OVERLAP", "Không trùng nguyên văn nguồn", m.overlapMaxRun() >= m.overlapLimit() ? "RED" : "GREEN",
+                m.overlapMaxRun() >= m.overlapLimit() ? "Có đoạn " + m.overlapMaxRun() + " từ trùng nguồn." : null));
+
+        boolean wordsOk = m.wordCount() >= m.wordRange().get(0) && m.wordCount() <= m.wordRange().get(1);
+        out.add(new Check("LENGTH", "Độ dài bài", wordsOk ? "GREEN" : "YELLOW",
+                m.wordCount() + " từ (khuôn " + m.wordRange().get(0) + "–" + m.wordRange().get(1) + ")."));
+
+        boolean lexOk = m.aboveLevelRatio() <= m.maxAboveLevelRatio();
+        out.add(new Check("LEXICAL", "Từ vựng đúng cấp", lexOk ? "GREEN" : "YELLOW",
+                String.format(Locale.ROOT, "%.1f%% từ trên cấp (ngưỡng %.0f%%).", m.aboveLevelRatio() * 100,
+                        m.maxAboveLevelRatio() * 100)));
+
+        Map<String, Integer> planned = normalizedPlan(r.plan());
+        Map<String, Integer> measured = new LinkedHashMap<>();
+        for (String l : TeilSpec.LEVELS) measured.put(l, 0);
+        boolean allMeasured = true;
+        for (Item i : items) {
+            if (i.difficultyMeasured() == null) allMeasured = false;
+            else measured.merge(i.difficultyMeasured().level(), 1, Integer::sum);
+        }
+        boolean matrixOk = allMeasured && measured.equals(planned);
+        String matrixDetail = "Giao " + fmtPlan(planned) + " · đo được " + fmtPlan(measured) + ".";
+        if ("EXAM".equals(r.mode()) && planned.get("EXPERT") > 1) matrixDetail += " Quá 1 câu Siêu khó: khó hơn đề thật.";
+        out.add(new Check("MATRIX", "Ma trận độ khó", matrixOk && !("EXAM".equals(r.mode()) && planned.get("EXPERT") > 1)
+                ? "GREEN" : "YELLOW", matrixDetail));
+
+        boolean letterOk = lettersBalanced(items.stream().map(Item::correct).toList());
+        out.add(new Check("ANSWERS", "Phân bố đáp án a/b/c", letterOk ? "GREEN" : "YELLOW",
+                letterOk ? null : "Đáp án dồn vào một chữ hoặc 3 câu liền cùng chữ."));
+
+        String ctx = norm(r.text().text().context());
+        List<Integer> pos = items.stream().map(i -> i.evidence() == null ? -1 : ctx.indexOf(norm(i.evidence()))).toList();
+        boolean followsText = pos.stream().allMatch(p -> p >= 0) && items.size() > 2;
+        for (int i = 1; i < pos.size() && followsText; i++) if (pos.get(i) <= pos.get(i - 1)) followsText = false;
+        out.add(new Check("ORDER", "Thứ tự câu không theo thứ tự bài", followsText ? "YELLOW" : "GREEN",
+                followsText ? "Mọi câu đang theo đúng thứ tự bài — đề telc không như vậy." : null));
+
+        List<SourceRow> used = usedSources(srcs);
+        boolean flagged = used.stream().anyMatch(s -> "FLAGGED".equals(s.source().neutrality()));
+        out.add(new Check("NEUTRAL", "Chủ đề trung lập", flagged ? "RED" : "GREEN",
+                flagged ? "Có nguồn bị cờ chủ đề nhạy cảm." : null));
+        long uncorroborated = used.stream().filter(s -> "FACTS_ONLY".equals(s.source().usageMode()))
+                .flatMap(s -> s.source().facts().stream()).filter(f -> f.selected() && !f.corroborated()).count();
+        out.add(new Check("CORROBORATION", "Dữ kiện báo có nguồn thứ hai", uncorroborated > 0 ? "YELLOW" : "GREEN",
+                uncorroborated > 0 ? uncorroborated + " dữ kiện báo chưa có nguồn thứ hai xác nhận." : null));
+        boolean confirmed = used.stream().allMatch(s -> s.source().usageModeConfirmed());
+        out.add(new Check("USAGE", "Loại dùng nguồn đã xác nhận", confirmed ? "GREEN" : "YELLOW",
+                confirmed ? null : "Xác nhận \"Chuyển thể\" hay \"Chỉ dữ kiện\" cho từng nguồn ở bước Nguồn."));
+
+        double dup = duplicateScore(r, r.text().text().context());
+        out.add(new Check("DUPLICATE", "Không trùng Teil đã có trong kho", dup > DUPLICATE_LIMIT ? "RED" : "GREEN",
+                dup > DUPLICATE_LIMIT ? String.format(Locale.ROOT, "Giống %.0f%% một Teil trong kho.", dup * 100) : null));
+        return out;
+    }
+
+    private double duplicateScore(Row r, String context) {
+        List<String> others = jdbc.queryForList("""
+                SELECT content_json->>'context' FROM exam_teil_blocks
+                WHERE exam_format = ? AND cefr_level = ? AND section = ? AND teil = ? AND status = 'APPROVED'
+                """, String.class, r.examFormat(), r.cefrLevel(), r.section(), r.teil());
+        double max = 0;
+        for (String o : others) {
+            if (o == null) continue;
+            max = Math.max(max, TextChecks.containment(context,
+                    new HashSet<>(TextChecks.shingleHashes(o, TeilSpec.OVERLAP_LIMIT)), TeilSpec.OVERLAP_LIMIT));
+        }
+        return max;
+    }
+
+    // ── Duyệt ───────────────────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public Draft approve(long id, Map<String, Boolean> checklist, long userId) {
+        Row r = requireEditable(id);
+        if (r.text() == null || r.items().isEmpty()) throw new BadRequestException("Chưa có bài và câu hỏi.");
+        if (r.checks().isEmpty() || r.verifiedHash() == null
+                || !r.verifiedHash().equals(contentHash(r.text().text(), r.items()))) {
+            throw new ConflictException("Nội dung đã đổi sau lần tự kiểm cuối — hãy chạy tự kiểm lại.");
+        }
+        if (r.checks().stream().anyMatch(c -> "RED".equals(c.light()))
+                || r.items().stream().anyMatch(i -> "RED".equals(i.light()))) {
+            throw new ConflictException("Còn đèn đỏ — sửa trước khi duyệt.");
+        }
+        List<String> missing = TeilSpec.CHECKLIST_KEYS.stream()
+                .filter(k -> checklist == null || !Boolean.TRUE.equals(checklist.get(k))).toList();
+        if (!missing.isEmpty()) throw new BadRequestException("Chưa tích đủ danh sách duyệt: " + String.join(", ", missing));
+        List<SourceRow> used = usedSources(sources(id));
+        if (used.isEmpty()) throw new BadRequestException("Teil phải có ít nhất một nguồn có dữ kiện đã tích.");
+        if (used.stream().anyMatch(s -> !s.source().usageModeConfirmed())) {
+            throw new BadRequestException("Hãy xác nhận loại dùng (Chuyển thể / Chỉ dữ kiện) cho mọi nguồn đã dùng.");
+        }
+
+        Map<String, Object> content = blockContent(r, used);
+        String hash = TextChecks.sha256(r.text().text().context());
+        Integer dup = jdbc.queryForObject("SELECT COUNT(*) FROM exam_teil_blocks WHERE content_hash = ?", Integer.class, hash);
+        if (dup != null && dup > 0) throw new ConflictException("Bài đọc này đã có trong kho.");
+        Long blockId = jdbc.queryForObject("""
+                INSERT INTO exam_teil_blocks (exam_format, cefr_level, section, teil, teil_type, theme, content_json,
+                                              content_hash, reviewed_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) RETURNING id
+                """, Long.class, r.examFormat(), r.cefrLevel(), r.section(), r.teil(), r.teilType(), r.theme(),
+                json(content), hash, userId);
+        Map<String, Boolean> cl = new LinkedHashMap<>();
+        for (String k : TeilSpec.CHECKLIST_KEYS) cl.put(k, true);
+        jdbc.update("""
+                UPDATE exam_drafts SET status = 'APPROVED', step = 'APPROVED', block_id = ?, review_checklist = ?::jsonb,
+                       updated_at = now() WHERE id = ?
+                """, blockId, json(cl), id);
+        return get(id);
+    }
+
+    /** Một phần tử {@code teile[]} đúng khuôn {@code sections_json} (như bản thử Schlaf), cộng các khoá xưởng. */
+    Map<String, Object> blockContent(Row r, List<SourceRow> used) {
+        TeilSpec spec = r.spec();
+        Text t = r.text().text();
+        Map<String, Object> c = new LinkedHashMap<>();
+        c.put("teil", spec.teil());
+        c.put("type", spec.teilType());
+        c.put("point_per_item", spec.pointsPerItem());
+        c.put("instruction_de", spec.instructionDe());
+        c.put("instruction_vi", spec.instructionVi());
+        c.put("title_de", t.titleDe());
+        c.put("vorspann_de", t.vorspannDe());
+        c.put("context_lines", true);
+        c.put("glossary", t.glossary().stream().map(g -> Map.of("term", g.term(), "explanation_de", g.explanationDe())).toList());
+        c.put("context", TextChecks.wrap(t.context(), LINE_WIDTH));
+        Source primary = used.get(0).source();
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("title", primary.title());
+        source.put("author", primary.author());
+        source.put("publisher", primary.publisher());
+        source.put("url", primary.url());
+        source.put("license", "ADAPT".equals(primary.usageMode()) ? primary.licenseText() : null);
+        source.put("usage", primary.usageMode());
+        source.put("changed", true);
+        source.put("quelle", quelle(used));
+        c.put("source", source);
+        if (used.size() > 1) {
+            c.put("sources", used.stream().map(s -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("title", s.source().title());
+                m.put("publisher", s.source().publisher());
+                m.put("url", s.source().url());
+                m.put("usage", s.source().usageMode());
+                return m;
+            }).toList());
+        }
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (Item it : r.items()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", it.id());
+            m.put("question", it.question());
+            m.put("options", it.options());
+            m.put("correct", it.correct());
+            m.put("explanation_vi", it.explanationVi());
+            m.put("evidence", it.evidence());
+            m.put("traps", it.traps());
+            m.put("difficulty_target", it.difficultyTarget());
+            m.put("difficulty_measured", it.difficultyMeasured() == null ? null : it.difficultyMeasured().level());
+            items.add(m);
+        }
+        c.put("items", items);
+        return c;
+    }
+
+    // ── Kho Teil ────────────────────────────────────────────────────────────────────────────
+
+    public List<BlockSummary> listBlocks(String level, String section, Integer teil) {
+        return jdbc.query("""
+                SELECT b.id, b.exam_format, b.cefr_level, b.section, b.teil, b.theme, b.content_json->>'title_de' AS title_de,
+                       b.content_json->'items' AS items, u.email AS reviewer, b.reviewed_at
+                FROM exam_teil_blocks b LEFT JOIN users u ON u.id = b.reviewed_by
+                WHERE b.status = 'APPROVED' AND (?::text IS NULL OR b.cefr_level = ?::text)
+                  AND (?::text IS NULL OR b.section = ?::text) AND (?::int IS NULL OR b.teil = ?::int)
+                ORDER BY b.reviewed_at DESC LIMIT 500
+                """, (rs, n) -> new BlockSummary(rs.getLong("id"), rs.getString("exam_format"), rs.getString("cefr_level"),
+                        rs.getString("section"), rs.getInt("teil"), rs.getString("theme"), rs.getString("title_de"),
+                        counts(rs.getString("items")), rs.getString("reviewer"), instant(rs.getTimestamp("reviewed_at"))),
+                level, level, section, section, teil, teil);
+    }
+
+    public BlockDetail getBlock(long id) {
+        List<BlockDetail> rows = jdbc.query("""
+                SELECT b.id, b.exam_format, b.cefr_level, b.section, b.teil, b.theme, b.content_json::text AS content,
+                       u.email AS reviewer, b.reviewed_at
+                FROM exam_teil_blocks b LEFT JOIN users u ON u.id = b.reviewed_by WHERE b.id = ?
+                """, (rs, n) -> {
+            Map<String, Object> content = read(rs.getString("content"), new TypeReference<Map<String, Object>>() {}, Map.of());
+            return new BlockDetail(rs.getLong("id"), rs.getString("exam_format"), rs.getString("cefr_level"),
+                    rs.getString("section"), rs.getInt("teil"), rs.getString("theme"), (String) content.get("title_de"),
+                    counts(json(content.getOrDefault("items", List.of()))), rs.getString("reviewer"),
+                    instant(rs.getTimestamp("reviewed_at")), content);
+        }, id);
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy Teil " + id + ".");
+        return rows.get(0);
+    }
+
+    private Map<String, Integer> counts(String itemsJson) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (String l : TeilSpec.LEVELS) out.put(l, 0);
+        List<Map<String, Object>> items = read(itemsJson, new TypeReference<List<Map<String, Object>>>() {}, List.of());
+        for (Map<String, Object> it : items) {
+            Object lv = it.get("difficulty_target");
+            if (lv != null && out.containsKey(lv.toString())) out.merge(lv.toString(), 1, Integer::sum);
+        }
+        return out;
+    }
+
+    // ── Job: đặt / gỡ busy ──────────────────────────────────────────────────────────────────
+
+    @Transactional
+    void enqueue(long draftId, String op, long userId, Map<String, Object> extra) {
+        int n = jdbc.update("""
+                UPDATE exam_drafts SET busy_op = ?, busy_job_id = NULL, last_error = NULL, updated_at = now()
+                WHERE id = ? AND busy_op IS NULL AND status = 'DRAFT'
+                """, op, draftId);
+        if (n == 0) throw new ConflictException("Đang có một thao tác AI chạy trên bản nháp này, đợi xong rồi thử lại.");
+        Map<String, Object> payload = new HashMap<>(extra);
+        payload.put("draftId", draftId);
+        payload.put("op", op);
+        AiJob job = jobs.save(AiJob.builder().jobType(ExamStudioJobHandler.JOB_TYPE).userId(userId).payload(payload).build());
+        jdbc.update("UPDATE exam_drafts SET busy_job_id = ? WHERE id = ?", job.getId(), draftId);
+    }
+
+    void finishBusy(long draftId, String error) {
+        jdbc.update("UPDATE exam_drafts SET busy_op = NULL, busy_job_id = NULL, last_error = ?, updated_at = now() WHERE id = ?",
+                error, draftId);
+    }
+
+    // ── Lưu & tính phụ ──────────────────────────────────────────────────────────────────────
+
+    private void saveText(long id, StoredText t) {
+        Row r = load(id);
+        List<Item> cleared = r.items().stream().map(Item::cleared).toList();
+        jdbc.update("""
+                UPDATE exam_drafts SET text_json = ?::jsonb, items_json = ?::jsonb, checks_json = '[]'::jsonb,
+                       verified_hash = NULL, updated_at = now() WHERE id = ?
+                """, json(t), json(cleared), id);
+    }
+
+    private void saveItems(long id, List<Item> items) {
+        jdbc.update("""
+                UPDATE exam_drafts SET items_json = ?::jsonb, checks_json = '[]'::jsonb, verified_hash = NULL,
+                       updated_at = now() WHERE id = ?
+                """, json(items.stream().map(Item::cleared).toList()), id);
+    }
+
+    private void advanceStep(long id, String step) {
+        Row r = load(id);
+        if (STEPS.indexOf(step) > STEPS.indexOf(r.step())) {
+            jdbc.update("UPDATE exam_drafts SET step = ?, updated_at = now() WHERE id = ?", step, id);
+        }
+    }
+
+    private void touch(long id) {
+        jdbc.update("UPDATE exam_drafts SET updated_at = now() WHERE id = ?", id);
+    }
+
+    private Row requireEditable(long id) {
+        Row r = load(id);
+        if (!"DRAFT".equals(r.status())) throw new ConflictException("Bản nháp đã " + ("APPROVED".equals(r.status())
+                ? "duyệt vào kho" : "bị bỏ") + ", không sửa được.");
+        if (r.busyOp() != null) throw new ConflictException("Đang có thao tác AI chạy, đợi xong rồi thử lại.");
+        return r;
+    }
+
+    TextMetrics metrics(Row r, List<SourceRow> srcs) {
+        TeilSpec spec = r.spec();
+        Text t = r.text().text();
+        List<String> ws = TextChecks.words(t.context());
+        Set<String> glossaryTerms = t.glossary().stream().map(g -> g.term().toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
+        int target = LEVEL_ORDER.indexOf(spec.cefrLevel());
+        Set<String> types = new LinkedHashSet<>();
+        for (String w : ws) types.add(w.toLowerCase(Locale.ROOT));
+        List<String> above = new ArrayList<>();
+        for (String w : types) {
+            if (glossaryTerms.contains(w)) continue;
+            int lv = wordlist.levelOf(w).map(LEVEL_ORDER::indexOf).orElse(-1);
+            if (lv > target) above.add(w);
+        }
+        double ratio = types.isEmpty() ? 0 : (double) above.size() / types.size();
+        Set<Long> hashes = new HashSet<>();
+        for (SourceRow s : srcs) hashes.addAll(s.shingles());
+        String full = t.titleDe() + "\n\n" + t.vorspannDe() + "\n\n" + t.context();
+        TextChecks.Overlap ov = TextChecks.overlap(full, hashes, TeilSpec.OVERLAP_LIMIT);
+        Set<String> used = new HashSet<>(r.text().usedFactIds() == null ? List.of() : r.text().usedFactIds());
+        List<String> unused = selectedFacts(srcs).stream().map(Fact::id).filter(fid -> !used.contains(fid)).toList();
+        return new TextMetrics(ws.size(), List.of(spec.minWords(), spec.maxWords()), above, ratio,
+                spec.maxAboveLevelRatio(), ov.maxRun(), TeilSpec.OVERLAP_LIMIT, ov.snippets(), unused);
+    }
+
+    Map<String, Boolean> suggestions(Row r, List<SourceRow> srcs, TextMetrics m) {
+        Map<String, Boolean> s = new LinkedHashMap<>();
+        Map<String, String> light = new HashMap<>();
+        for (Check c : r.checks()) light.put(c.key(), c.light());
+        boolean verified = !r.checks().isEmpty();
+        s.put("LEVEL", m == null || !verified ? null : "GREEN".equals(light.get("LEXICAL")) && "GREEN".equals(light.get("LENGTH")));
+        s.put("FORMAT", verified ? "GREEN".equals(light.get("FORMAT")) && "GREEN".equals(light.get("ANSWERS")) : null);
+        s.put("SINGLE_ANSWER", verified ? "GREEN".equals(light.get("SOLVER")) : null);
+        List<SourceRow> used = usedSources(srcs);
+        s.put("NEUTRAL", used.isEmpty() ? null : used.stream().noneMatch(x -> "FLAGGED".equals(x.source().neutrality())));
+        s.put("FACTS_MATCH", null);
+        s.put("NO_COPY", m == null ? null : m.overlapMaxRun() < m.overlapLimit());
+        s.put("QUELLE", used.isEmpty() ? null : used.stream().allMatch(x -> x.source().usageModeConfirmed()));
+        s.put("EXPLANATION", null);
+        return s;
+    }
+
+    /** Dòng nguồn hiện dưới bài đọc, theo loại dùng của từng nguồn. */
+    static String quelle(List<SourceRow> srcs) {
+        List<SourceRow> used = usedSources(srcs);
+        if (used.isEmpty()) return null;
+        List<String> parts = new ArrayList<>();
+        boolean adapted = false;
+        for (SourceRow sr : used) {
+            Source s = sr.source();
+            if ("ADAPT".equals(s.usageMode())) {
+                adapted = true;
+                StringBuilder sb = new StringBuilder("nach ");
+                if (s.author() != null) sb.append(s.author()).append(": ");
+                sb.append("„").append(firstNonBlank(s.title(), "ohne Titel")).append("“");
+                if (s.publisher() != null) sb.append(", ").append(s.publisher());
+                if (s.publishedAt() != null) sb.append(" ").append(year(s.publishedAt()));
+                if (s.url() != null) sb.append(", ").append(s.url());
+                if (s.licenseText() != null) sb.append(" · ").append(s.licenseText());
+                parts.add(sb.toString());
+            } else {
+                StringBuilder sb = new StringBuilder("Daten: ").append(firstNonBlank(s.publisher(), s.title(), "Presse"));
+                if (s.publishedAt() != null) sb.append(", ").append(s.publishedAt().length() >= 10
+                        ? s.publishedAt().substring(0, 10) : s.publishedAt());
+                parts.add(sb.toString());
+            }
+        }
+        String tail = adapted ? "für die Prüfung neu geschrieben und vereinfacht" : "Text für die Prüfung neu geschrieben";
+        return (adapted ? "Quelle: " : "") + String.join(" · ", parts) + " · " + tail + ".";
+    }
+
+    static List<SourceRow> usedSources(List<SourceRow> srcs) {
+        return srcs.stream().filter(s -> s.source().facts().stream().anyMatch(Fact::selected)).toList();
+    }
+
+    static List<Fact> selectedFacts(List<SourceRow> srcs) {
+        return srcs.stream().flatMap(s -> s.source().facts().stream()).filter(Fact::selected).toList();
+    }
+
+    static boolean formatOk(Item i) {
+        return i.question() != null && !i.question().isBlank() && i.options() != null
+                && ItemRules.LETTERS.stream().allMatch(l -> i.options().get(l) != null && !i.options().get(l).isBlank())
+                && i.options().size() == 3 && ItemRules.LETTERS.contains(i.correct());
+    }
+
+    static boolean lettersBalanced(List<String> letters) {
+        Map<String, Integer> c = new HashMap<>();
+        for (String l : letters) c.merge(l, 1, Integer::sum);
+        int max = c.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+        if (letters.size() >= 3 && max > Math.ceil(letters.size() * 0.4)) return false;
+        for (int i = 2; i < letters.size(); i++) {
+            if (letters.get(i).equals(letters.get(i - 1)) && letters.get(i).equals(letters.get(i - 2))) return false;
+        }
+        return true;
+    }
+
+    String contentHash(Text t, List<Item> items) {
+        List<Map<String, Object>> core = items.stream().map(i -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", i.id());
+            m.put("q", i.question());
+            m.put("o", new TreeMap<>(i.options() == null ? Map.of() : i.options()));
+            m.put("c", i.correct());
+            m.put("e", i.explanationVi());
+            m.put("ev", i.evidence());
+            m.put("d", i.difficultyTarget());
+            return m;
+        }).toList();
+        return TextChecks.sha256(json(t) + json(core));
+    }
+
+    private Map<String, String> answers(JsonNode node) {
+        Map<String, String> out = new HashMap<>();
+        node.path("answers").forEach(a -> {
+            String v = a.path("answer").isNull() ? null : a.path("answer").asText(null);
+            if (v != null) {
+                v = v.trim().toLowerCase(Locale.ROOT);
+                if (v.length() > 1) v = v.substring(0, 1);
+                if (ItemRules.LETTERS.contains(v)) out.put(a.path("id").asText(), v);
+            }
+        });
+        return out;
+    }
+
+    private Text sanitizeText(Text t) {
+        List<GlossaryEntry> g = t.glossary() == null ? List.of() : t.glossary().stream()
+                .filter(e -> e.term() != null && !e.term().isBlank()).toList();
+        return new Text(nz(t.titleDe()), nz(t.vorspannDe()), nz(t.context()), g);
+    }
+
+    private List<Item> sanitizeItems(List<Item> in, Row r) {
+        Set<String> valid = new HashSet<>();
+        for (int s = 0; s < r.itemCount(); s++) valid.add(r.spec().itemId(s));
+        List<Item> out = new ArrayList<>();
+        for (Item i : in) {
+            if (!valid.contains(i.id())) throw new BadRequestException("Mã câu không hợp lệ: " + i.id());
+            String target = TeilSpec.isLevel(i.difficultyTarget()) ? i.difficultyTarget().toUpperCase(Locale.ROOT) : "MEDIUM";
+            out.add(new Item(i.id(), nz(i.question()), i.options() == null ? Map.of() : i.options(), i.correct(),
+                    nz(i.explanationVi()), nz(i.evidence()), i.traps() == null ? List.of() : i.traps(), target,
+                    i.difficultyMeasured(), i.locked(), null, List.of()));
+        }
+        return out;
+    }
+
+    private static Map<String, Integer> validatePlan(Map<String, Integer> plan, String mode, TeilSpec spec) {
+        Map<String, Integer> p = normalizedPlan(plan);
+        int sum = p.values().stream().mapToInt(Integer::intValue).sum();
+        if ("EXAM".equals(mode) && sum != spec.itemCount()) {
+            throw new BadRequestException("Chế độ Đề thi thử cần đúng " + spec.itemCount() + " câu (đang " + sum + ").");
+        }
+        if (sum < 1 || sum > 10) throw new BadRequestException("Số câu phải từ 1 đến 10.");
+        return p;
+    }
+
+    private static String normalizeMode(String m) {
+        return "PRACTICE".equalsIgnoreCase(m) ? "PRACTICE" : "EXAM";
+    }
+
+    private static String fmtPlan(Map<String, Integer> p) {
+        return p.get("EASY") + "-" + p.get("MEDIUM") + "-" + p.get("HARD") + "-" + p.get("EXPERT");
+    }
+
+    private static String norm(String s) {
+        return s == null ? "" : s.replaceAll("[\\s*]+", " ").trim().toLowerCase(Locale.ROOT)
+                .replaceAll("[„“”\"]", "\"");
+    }
+
+    static String text(JsonNode n, String field) {
+        if (n == null || !n.hasNonNull(field)) return null;
+        String v = n.path(field).asText("").trim();
+        return v.isEmpty() || v.equalsIgnoreCase("null") ? null : v;
+    }
+
+    static String firstNonBlank(String... vs) {
+        for (String v : vs) if (v != null && !v.isBlank()) return v.trim();
+        return null;
+    }
+
+    private static String year(String date) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(19|20)\\d\\d").matcher(date);
+        return m.find() ? m.group() : date;
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static String cut(String s, int max) {
+        return s == null ? null : s.length() <= max ? s : s.substring(0, max);
+    }
+}

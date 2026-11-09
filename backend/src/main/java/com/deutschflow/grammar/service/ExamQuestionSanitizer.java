@@ -27,9 +27,13 @@ import java.util.Map;
 public class ExamQuestionSanitizer {
     private static final ObjectMapper om = new ObjectMapper();
 
-    /** Answer-revealing fields removed from every question item before serving. */
+    /**
+     * Answer-revealing fields removed from every question item before serving. Từ Xưởng đề (V371): câu bằng
+     * chứng, bẫy theo phương án và nhãn độ khó cũng lộ đáp án nên bỏ cùng.
+     */
     private static final List<String> ANSWER_FIELDS =
-            List.of("correct", "correct_answer", "explanation_vi", "explanation");
+            List.of("correct", "correct_answer", "explanation_vi", "explanation",
+                    "evidence", "traps", "difficulty_target", "difficulty_measured", "difficulty_empirical");
 
     /**
      * Parse the stored {@code sections_json}, annotate each item with a {@code type},
