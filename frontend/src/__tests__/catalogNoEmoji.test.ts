@@ -43,14 +43,14 @@ function hasEmoji(text: string): boolean {
 /**
  * Khoá được miễn — emoji ở đó là NỘI DUNG, không phải icon của giao diện:
  *   · cờ quốc gia — bộ Lucide không có cờ;
- *   · hướng dẫn cấp quyền micro — đang mô tả biểu tượng của TRÌNH DUYỆT, không phải của ta;
- *   · chú giải bảng mục tiêu — giải thích chính bộ glyph "— ✓ !" mà bảng đó vẽ.
+ *   · hướng dẫn cấp quyền micro — đang mô tả biểu tượng của TRÌNH DUYỆT, không phải của ta.
+ * Chú giải bảng mục tiêu (`teacher.objectives.legend`) đã rời danh sách 09/11/2026: nay chèn ô icon qua thẻ
+ * rich-text <na>/<ok>/<np>, không còn ký tự "— ✓ !".
  */
 const ALLOW = new Set([
   'student.grammarAi.tabs.cultural',
   'student.micGuide.site',
   'student.examSpeaking.mic.deniedSteps.site',
-  'teacher.objectives.legend',
 ])
 
 function walk(node: unknown, path: string, out: string[]): void {
@@ -93,7 +93,7 @@ describe('catalog /v2 — emoji không được đóng vai icon', () => {
     const found: string[] = []
     walk(catalogMessages('vi').v2, '', found)
     expect(found).toEqual([])
-    // Bỏ miễn trừ ⇒ đúng 4 khoá đó phải hiện ra; nếu không, danh sách đã lỗi thời.
+    // Bỏ miễn trừ ⇒ đúng 3 khoá đó phải hiện ra; nếu không, danh sách đã lỗi thời.
     const withoutAllow: string[] = []
     const walkAll = (node: unknown, path: string): void => {
       if (typeof node === 'string') {

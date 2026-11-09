@@ -103,17 +103,19 @@
       "roles": {
         "STUDENT": "Lernende",
         "TEACHER": "Lehrkraft",
-        "ADMIN": "Admin"
+        "ADMIN": "Admin",
+        "MANAGER": "Leitung",
+        "OWNER": "Inhaber"
       },
       "stats": {
         "totalUsers": "Nutzer gesamt",
-        "mrr": "Umsatz (MRR)",
         "aiCost": "KI-Kosten (30 Tage)",
         "aiCostSub": "Ledger-Schätzung",
         "aiActivity": "KI-Aktivität",
-        "aiActivitySub": "KI in 30 Tagen genutzt"
+        "aiActivitySub": "KI in 30 Tagen genutzt",
+        "netRemaining": "Rest nach Gebühren & KI",
+        "netRemainingSub": "letzte Periode · {period}"
       },
-      "subscribersByPeriod": "Zahlende Abonnenten nach Zeitraum",
       "recentPeriods": "letzte {count} Zeiträume",
       "noPeriodData": "Noch keine Zeitraumdaten.",
       "roleDistribution": "Verteilung nach Rolle",
@@ -124,7 +126,8 @@
         "reviewVocabImages": "Fehlende Vokabelbilder prüfen",
         "checkPendingOrgs": "B2B-Organisationen zur Aktivierung prüfen",
         "trackAiBudget": "KI-Kostenbudget verfolgen"
-      }
+      },
+      "successTxByPeriod": "Erfolgreiche Transaktionen pro Periode"
     },
     "revenue": {
       "title": "Umsatz & Abonnements",
@@ -621,6 +624,7 @@
     },
     "learningDetail": {
       "title": "Lernprofil",
+      "close": "Schließen",
       "loading": "Lernprofil wird geladen...",
       "backendBusy": "Das Backend lädt noch Daten, bitte versuchen Sie es erneut.",
       "tabs": {
@@ -1009,7 +1013,9 @@
       "savedCap": "Bewertung gespeichert",
       "savedHuman": "Mensch",
       "savedMachine": "Maschine",
-      "savedAgree": "Bestanden-Übereinstimmung: {pass} · Stufen ±1: {within1}/{pairs}, exakt: {exact}/{pairs}",
+      "savedAgree": "Bestanden-Übereinstimmung: <pass></pass> · Stufen ±1: {within1}/{pairs}, exakt: {exact}/{pairs}",
+      "agreeYes": "stimmt überein",
+      "agreeNo": "weicht ab",
       "teilCap": "Teil {n}",
       "globalCap": "Kriterien der Gesamtprüfung",
       "maxPts": "max. {max} P.",
@@ -1084,8 +1090,8 @@
       "cancel": "Abbrechen"
     },
     "aiUsage": {
-      "title": "KI-Nutzung",
-      "subtitle": "Token, STT-Sekunden und geschätzte Kosten nach Feature × Modell × Sitzung — aus dem echten Ledger",
+      "title": "KI-Kosten",
+      "subtitle": "KI-Token, STT-Sekunden und geschätzte Kosten — 30-Tage-Überblick und Ledger-Details",
       "back": "Zurück zur Verwaltung",
       "dismiss": "Schließen",
       "from": "Von",
@@ -1113,7 +1119,10 @@
       "sessions": "Teuerste Sitzungen",
       "sessionsHint": "Eine B1-Probeprüfung ≈ Summe der EXAM_SPEAKING_*-Zeilen derselben Sitzung (Plan N0.6: A1 20–30k, B1 50–80k Token).",
       "colSession": "Sitzung",
-      "colFeatures": "Features"
+      "colFeatures": "Features",
+      "tabsLabel": "Ansichten der KI-Kosten",
+      "tabOverview": "Überblick",
+      "tabLedger": "Nach Ledger"
     }
   }
 }

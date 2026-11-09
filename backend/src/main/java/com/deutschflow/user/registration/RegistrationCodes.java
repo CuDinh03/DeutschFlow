@@ -9,8 +9,8 @@ import java.security.SecureRandom;
 import java.util.HexFormat;
 
 /**
- * Lõi mã PIN 6 số: sinh, băm, so. Không phụ thuộc bảng nào — dự kiến dùng lại để vá OTP quên mật khẩu
- * (thiết kế §9, PR riêng).
+ * Lõi mã PIN 6 số: sinh, băm, so. Không phụ thuộc bảng nào — dùng cho mã đăng ký và mã quên mật khẩu
+ * ({@code PasswordResetService}, V366).
  *
  * <p><b>Vì sao HMAC có pepper chứ không SHA-256 trơn:</b> không gian mã chỉ 10⁶. Có SHA-256 trơn thì vét
  * cạn ngược ra mã trong chưa tới một giây, tức hash trơn không bảo vệ gì khi rò DB. Pepper nằm ngoài DB

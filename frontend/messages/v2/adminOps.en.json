@@ -103,17 +103,19 @@
       "roles": {
         "STUDENT": "Student",
         "TEACHER": "Teacher",
-        "ADMIN": "Admin"
+        "ADMIN": "Admin",
+        "MANAGER": "Manager",
+        "OWNER": "Owner"
       },
       "stats": {
         "totalUsers": "Total users",
-        "mrr": "Revenue (MRR)",
         "aiCost": "AI cost (30 days)",
         "aiCostSub": "ledger estimate",
         "aiActivity": "AI activity",
-        "aiActivitySub": "used AI in 30 days"
+        "aiActivitySub": "used AI in 30 days",
+        "netRemaining": "Left after fees & AI",
+        "netRemainingSub": "latest period · {period}"
       },
-      "subscribersByPeriod": "Paid subscribers by period",
       "recentPeriods": "last {count} periods",
       "noPeriodData": "No period data yet.",
       "roleDistribution": "Distribution by role",
@@ -124,7 +126,8 @@
         "reviewVocabImages": "Review missing vocabulary images",
         "checkPendingOrgs": "Check B2B organizations pending activation",
         "trackAiBudget": "Track AI cost budget"
-      }
+      },
+      "successTxByPeriod": "Successful transactions per period"
     },
     "revenue": {
       "title": "Revenue & Subscriptions",
@@ -621,6 +624,7 @@
     },
     "learningDetail": {
       "title": "Learning profile",
+      "close": "Close",
       "loading": "Loading learning profile...",
       "backendBusy": "The backend is still loading data, please try again.",
       "tabs": {
@@ -1009,7 +1013,9 @@
       "savedCap": "Ratings saved",
       "savedHuman": "Human",
       "savedMachine": "Machine",
-      "savedAgree": "Pass/fail agreement: {pass} · bands ±1: {within1}/{pairs}, exact: {exact}/{pairs}",
+      "savedAgree": "Pass/fail agreement: <pass></pass> · bands ±1: {within1}/{pairs}, exact: {exact}/{pairs}",
+      "agreeYes": "match",
+      "agreeNo": "mismatch",
       "teilCap": "Teil {n}",
       "globalCap": "Whole-exam criteria",
       "maxPts": "max {max} pts",
@@ -1084,8 +1090,8 @@
       "cancel": "Cancel"
     },
     "aiUsage": {
-      "title": "AI usage",
-      "subtitle": "Tokens, STT seconds and estimated cost by feature × model × session — from the real ledger",
+      "title": "AI costs",
+      "subtitle": "AI tokens, STT seconds and estimated cost — 30-day overview and ledger detail",
       "back": "Back to admin",
       "dismiss": "Dismiss",
       "from": "From",
@@ -1113,7 +1119,10 @@
       "sessions": "Most expensive sessions",
       "sessionsHint": "One B1 mock ≈ the sum of EXAM_SPEAKING_* rows for that session (plan N0.6 estimated A1 20–30k, B1 50–80k tokens).",
       "colSession": "Session",
-      "colFeatures": "Features"
+      "colFeatures": "Features",
+      "tabsLabel": "AI cost views",
+      "tabOverview": "Overview",
+      "tabLedger": "By ledger"
     }
   }
 }

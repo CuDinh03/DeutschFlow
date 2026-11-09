@@ -163,7 +163,7 @@ export default function V2StudentSpeakingPage() {
                   <GaGlyph icon={m.icon} size="lg" tone="navy" className="mb-3" />
                   <p className="font-ga-display text-[18px] font-medium text-ga-ink">{t(m.titleKey)}</p>
                   <p className="ga-ui mt-1 text-[13.5px] text-ga-muted">{t(m.descKey)}</p>
-                  <span className="ga-ui mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent">
+                  <span className="ga-ui mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-ink underline decoration-ga-line-strong underline-offset-4 group-hover:decoration-ga-ink">
                     {t('enter')} <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
                   </span>
                 </GaCard>

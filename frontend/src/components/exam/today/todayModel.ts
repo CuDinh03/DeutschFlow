@@ -1,9 +1,10 @@
 /**
  * Hàm thuần cho màn Hôm nay (đợt (d) làm mới Luyện thi, 07/11/2026): bốn kỹ năng tính từ lượt luyện
- * từng Teil và lần thi nói gần nhất, chọn đề để mở một Teil, và nội dung thẻ Hôm nay.
+ * từng Teil, điểm Teil của lượt thi thử (09/11/2026) và lần thi nói gần nhất, chọn đề để mở một Teil,
+ * và nội dung thẻ Hôm nay.
  */
 import { oralEntryHref } from '@/lib/exam/oralRoutes'
-import type { PracticeOverview } from '@/lib/telcPracticeApi'
+import type { MockTeilScore, PracticeOverview } from '@/lib/telcPracticeApi'
 import type { ExamResultView } from '@/types/exam-speaking'
 import { teilKeyOf, type ExamPlan, type ExamPlanDay } from '@/lib/examPlanApi'
 
@@ -45,22 +46,40 @@ export function statusOf(pct: number | null): SkillStatus {
 interface Latest {
   score: number
   max: number
-  at: string
+  /** Mốc thời gian (ms). So bằng số, không so chuỗi: ngày luyện và mốc thi thử có thể khác dạng ISO. */
+  at: number
 }
 
-/** Lần kiểm tra gần nhất của mỗi Teil, gộp qua mọi đề. */
-function latestByKey(overviews: PracticeOverview[]): Map<string, Latest> {
+const msOf = (iso: string | null | undefined) => {
+  const t = iso ? Date.parse(iso) : NaN
+  return Number.isNaN(t) ? 0 : t
+}
+
+/**
+ * Lần chấm gần nhất của mỗi Teil, gộp qua mọi đề: lượt luyện từng Teil và (09/11/2026) điểm Teil của
+ * lượt thi thử đã nộp hoặc dừng giữa chừng. Điểm thi thử chỉ tính cho đề đang có trong `overviews`
+ * (đề telc của trang này) — khoá Teil như `LESEN-1` trùng giữa telc và Goethe.
+ */
+function latestByKey(overviews: PracticeOverview[], mock: MockTeilScore[] = []): Map<string, Latest> {
   const out = new Map<string, Latest>()
+  const put = (key: string, score: number, max: number, at: number) => {
+    const prev = out.get(key)
+    if (!prev || at > prev.at) out.set(key, { score, max, at })
+  }
   for (const o of overviews) {
     for (const x of o.teile) {
       const p = x.progress
       if (!p?.checked || p.score == null) continue
       const max = p.max ?? x.maxPoints
       if (!(max > 0)) continue
-      const at = p.updatedAt ?? ''
-      const prev = out.get(x.key)
-      if (!prev || at > prev.at) out.set(x.key, { score: p.score, max, at })
+      // Mốc CHẤM, không phải mốc lưu: lưu nháp Viết sau khi chấm đổi `updatedAt` mà vẫn giữ điểm cũ.
+      put(x.key, p.score, max, msOf(p.checkedAt ?? p.updatedAt))
     }
+  }
+  const exams = new Set(overviews.map((o) => o.examId))
+  for (const m of mock) {
+    if (!exams.has(m.examId) || !(m.max > 0)) continue
+    put(m.key, m.score, m.max, msOf(m.at))
   }
   return out
 }
@@ -80,8 +99,8 @@ function weakestOf(teile: TeilScore[]): TeilScore | null {
   return (low.pct as number) >= PASS_PCT && fresh ? fresh : low
 }
 
-export function skillsFrom(overviews: PracticeOverview[], oral: ExamResultView | null): Skill[] {
-  const latest = latestByKey(overviews)
+export function skillsFrom(overviews: PracticeOverview[], oral: ExamResultView | null, mock: MockTeilScore[] = []): Skill[] {
+  const latest = latestByKey(overviews, mock)
   const written = (Object.keys(SKILL_SECTIONS) as Exclude<SkillId, 'SPRECHEN'>[]).map((id): Skill => {
     const teile = teilOrder(overviews, SKILL_SECTIONS[id]).map((x): TeilScore => {
       const l = latest.get(x.key)

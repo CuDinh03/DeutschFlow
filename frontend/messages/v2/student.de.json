@@ -2880,7 +2880,7 @@
       "todayDone": "Heute · erledigt",
       "start": "Starten",
       "practiceMore": "Weiter üben",
-      "reasonLastPct": "Beim letzten Mal {pct} % richtig.",
+      "reasonLastPct": "Beim letzten Mal {pct} % erreicht.",
       "reasonWeakest": "Ihr schwächster Teil: {pct} %.",
       "reasonNew": "Diesen Teil haben Sie noch nicht geübt.",
       "reasonStart": "Beginnen Sie mit einem Teil, den Sie noch nicht geübt haben.",

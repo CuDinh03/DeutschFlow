@@ -1,6 +1,6 @@
 # DeutschFlow — chỉ dẫn cho phiên Claude Code
 
-Repo PUBLIC — không commit credential. Trả lời tiếng Việt; giữ nguyên tên file/lệnh/field/commit.
+Repo PRIVATE từ 08/11/2026 (trước đó public, có thể còn bản sao cũ) — vẫn không commit credential. Trả lời tiếng Việt; giữ nguyên tên file/lệnh/field/commit.
 
 > **BẮT BUỘC: trước mỗi lần merge vào `main` hoặc deploy (frontend, backend, mobile OTA/build, hạ tầng) phải đọc hết `docs/QUY_TRINH_PHAT_HANH.md` và làm đúng checklist trong đó.** Production đã rời AWS (tự host sau Cloudflare Tunnel); merge vào `main` KHÔNG tự deploy; máy chủ có thể đang deploy từ nhánh khác `main` (§2 của tài liệu).
 

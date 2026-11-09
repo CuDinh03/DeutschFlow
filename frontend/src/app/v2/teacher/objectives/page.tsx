@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, CircleAlert, Loader2, Minus, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
@@ -31,6 +31,22 @@ const CELL_STYLE: Record<Cell['status'], { bg: string; fg: string; Icon: LucideI
   NOT_ASSESSED: { bg: 'transparent', fg: 'var(--ga-subtle)', Icon: Minus },
   ACHIEVED: { bg: 'var(--ga-green-soft)', fg: 'var(--ga-green)', Icon: Check },
   NEEDS_PRACTICE: { bg: 'var(--ga-red-soft)', fg: 'var(--ga-red)', Icon: CircleAlert },
+}
+
+/** Chú giải dùng đúng ô icon của ma trận (không dùng ký tự — ✓ !, xem frontend/ICON_WEB.md). */
+function LegendCell({ status, children }: { status: Cell['status']; children: ReactNode }) {
+  const st = CELL_STYLE[status]
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      <span
+        className="inline-flex h-4 w-4 items-center justify-center rounded-ga border"
+        style={{ background: st.bg, color: st.fg, borderColor: 'var(--ga-line)' }}
+      >
+        <st.Icon size={11} aria-hidden />
+      </span>
+      {children}
+    </span>
+  )
 }
 
 export default function V2ObjectiveMatrixPage() {
@@ -184,7 +200,13 @@ export default function V2ObjectiveMatrixPage() {
                 </tbody>
               </table>
             </div>
-            <p className="ga-ui mt-2.5 text-[12px] text-ga-subtle">{t('legend')}</p>
+            <p className="ga-ui mt-2.5 text-[12px] leading-relaxed text-ga-subtle">
+              {t.rich('legend', {
+                na: (c) => <LegendCell status="NOT_ASSESSED">{c}</LegendCell>,
+                ok: (c) => <LegendCell status="ACHIEVED">{c}</LegendCell>,
+                np: (c) => <LegendCell status="NEEDS_PRACTICE">{c}</LegendCell>,
+              })}
+            </p>
           </>
         )}
       </div>

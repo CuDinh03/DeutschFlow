@@ -3,7 +3,7 @@
  * không được bịa câu "AI sẽ hỏi". Bộ câu hỏi chép từ ngân hàng ở `interviewSamples` (đã có test đối chiếu Java).
  */
 import { describe, expect, it } from 'vitest'
-import { GUIDE_ARTICLES, guideArticle } from '@/data/camNang'
+import { GUIDE_ARTICLES, guideArticle, guideDocumentTitle } from '@/data/camNang'
 import { INTERVIEW_SAMPLES, COMMON_INTRO_QUESTION, fillPosition } from '@/data/interviewSamples'
 
 describe('Cẩm nang', () => {
@@ -20,5 +20,13 @@ describe('Cẩm nang', () => {
       expect(a.faqs.length).toBeGreaterThan(0)
       for (const q of a.questions) expect(q.sample.length).toBeGreaterThan(0)
     }
+  })
+
+  it('tiêu đề thẻ title có tên thương hiệu', () => {
+    for (const a of GUIDE_ARTICLES) expect(guideDocumentTitle(a.title)).toMatch(/ · myDeutschFlow$/)
+  })
+
+  it('lời mở bài không khẳng định buổi luyện chỉ có ba chủ đề cố định', () => {
+    for (const a of GUIDE_ARTICLES) expect(a.intro).not.toMatch(/câu hỏi xoay quanh/)
   })
 })

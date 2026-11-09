@@ -1,5 +1,6 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import { legacyV1Redirects } from './legacy-redirects.mjs';
+import { adminMergeRedirects } from './admin-redirects.mjs';
 import { mediaRemotePatterns } from './media-origins.mjs';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
@@ -140,6 +141,9 @@ const nextConfig = {
       // nào khỏi đây kèm theo việc xoá trang.
       // Bảng ánh xạ + danh sách trang CỐ Ý giữ lại: ./legacy-redirects.mjs
       ...legacyV1Redirects,
+
+      // Trang admin đã gộp vào trang khác (09/11/2026) — 307, xem ./admin-redirects.mjs.
+      ...adminMergeRedirects,
     ];
   },
 

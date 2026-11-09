@@ -13,9 +13,6 @@ import {
 import { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaCard, GaCap, GaBtn, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
-/** Chỗ trống trong chuỗi dịch `savedAgree` để chèn icon khớp/lệch (không xuất hiện trong bản dịch). */
-const AGREE_SLOT = '\u0000'
-
 const keyOf = (teilNo: number, code: string) => (teilNo === 0 ? `G:${code}` : `T${teilNo}:${code}`)
 
 /**
@@ -106,28 +103,20 @@ export default function AdminExamGoldenRatePage() {
               <Pass passed={saved.machine.passed} borderline={saved.machine.borderline} t={t} />
             </p>
             <p className="ga-ui mt-1 text-[13px] text-ga-muted">
-              {(() => {
-                // Khớp/lệch vẽ bằng Lucide (Check/X) thay ký tự ✓/✗: dịch với chỗ trống rồi chèn icon vào.
-                const [before, after = ''] = t('savedAgree', {
-                  pass: AGREE_SLOT,
-                  within1: saved.bands.within1,
-                  exact: saved.bands.exact,
-                  pairs: saved.bands.pairs,
-                }).split(AGREE_SLOT)
-                return (
-                  <>
-                    {before}
-                    {saved.passAgree === null ? (
-                      '—'
-                    ) : saved.passAgree ? (
-                      <><Check size={14} aria-hidden className="inline align-[-2px] text-ga-green" /><span className="sr-only">✓</span></>
-                    ) : (
-                      <><X size={14} aria-hidden className="inline align-[-2px] text-ga-red" /><span className="sr-only">✗</span></>
-                    )}
-                    {after}
-                  </>
-                )
-              })()}
+              {/* Khớp/lệch vẽ bằng Lucide (Check/X), không dùng ký tự ✓/✗; trình đọc màn hình nghe chữ. */}
+              {t.rich('savedAgree', {
+                within1: saved.bands.within1,
+                exact: saved.bands.exact,
+                pairs: saved.bands.pairs,
+                pass: () =>
+                  saved.passAgree === null ? (
+                    '—'
+                  ) : saved.passAgree ? (
+                    <><Check size={14} aria-hidden className="inline align-[-2px] text-ga-green" /><span className="sr-only">{t('agreeYes')}</span></>
+                  ) : (
+                    <><X size={14} aria-hidden className="inline align-[-2px] text-ga-red" /><span className="sr-only">{t('agreeNo')}</span></>
+                  ),
+              })}
             </p>
           </GaCard>
         )}

@@ -19,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -69,6 +70,15 @@ public class MockExamPracticeController {
     public PracticeDtos.AttemptAnalysis attemptAnalysis(@PathVariable long attemptId,
                                                         @AuthenticationPrincipal User user) {
         return practice.attemptAnalysis(user, attemptId);
+    }
+
+    /**
+     * Điểm từng Teil của các lượt thi thử gần nhất (đã nộp hoặc dừng giữa chừng) — "Bốn kỹ năng" ở trang
+     * Hôm nay gộp cùng điểm luyện (09/11/2026). Spring ưu tiên đường dẫn cố định hơn {@code /{examId}}.
+     */
+    @GetMapping("/mock-teile")
+    public List<PracticeDtos.MockTeilScore> mockTeilScores(@AuthenticationPrincipal User user) {
+        return practice.mockTeilScores(user);
     }
 
     @GetMapping("/{examId}")

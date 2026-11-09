@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 import api from '@/lib/api'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
-import { GaSection, GaBars, GaDonut, GaLegend } from '../analyticsShared'
+import { GaSection, GaBars, GaDonut, GaLegend, GA_CHART } from '../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
 
 type OverviewUser = { id: number; role?: string; isActive?: boolean; isactive?: boolean; usageLast30Days?: number }
@@ -16,6 +16,11 @@ type DailyCostRow = { costUsd: number }
 type DailyCostDto = { data?: DailyCostRow[] }
 
 const ROLE_COLOR: Record<string, string> = { STUDENT: '#2F6FC9', TEACHER: '#7C56C8', ADMIN: '#DA291C' }
+// 09/11/2026: MANAGER/OWNER là vai nền tảng thật (User.Role) — trước đây donut bỏ sót họ. Màu lấy từ
+// bảng GA_CHART (teal, gold) thay vì thêm hex mới.
+ROLE_COLOR.MANAGER = GA_CHART[2]
+ROLE_COLOR.OWNER = GA_CHART[6]
+const ROLE_ORDER = ['STUDENT', 'TEACHER', 'MANAGER', 'OWNER', 'ADMIN'] as const
 
 export default function V2AdminOverviewPage() {
   const t = useTranslations('v2.adminOps.overview')
@@ -49,20 +54,27 @@ export default function V2AdminOverviewPage() {
     acc[r] = (acc[r] ?? 0) + 1
     return acc
   }, {})
-  const roleSegs = (['STUDENT', 'TEACHER', 'ADMIN'] as const)
+  const roleSegs = ROLE_ORDER
     .filter((r) => (roleCounts[r] ?? 0) > 0)
     .map((r) => ({ label: t(`roles.${r}`), value: roleCounts[r], color: ROLE_COLOR[r] ?? '#76716A' }))
 
   const chart = revenue?.chartData ?? []
   const latest = chart.length > 0 ? chart[chart.length - 1] : null
-  const mrr = latest?.netVnd ?? revenue?.totals?.netVnd ?? 0
+  // KHÔNG phải MRR (ADMIN-08 / AC-ADMIN-13): đây là phần còn lại sau phí thanh toán và chi phí AI
+  // của kỳ gần nhất. Âm = kỳ lỗ → tô cam như trang Doanh thu.
+  const netRemaining = latest?.netVnd ?? revenue?.totals?.netVnd ?? 0
   const aiCost = (daily?.data ?? []).reduce((s, r) => s + (Number(r.costUsd) || 0), 0)
   const activeUsers = users.filter((u) => (Number(u.usageLast30Days) || 0) > 0).length
   const pausedUsers = users.filter((u) => u.isActive === false || u.isactive === false).length
 
   const cells: GaStatItem[] = [
     { label: t('stats.totalUsers'), value: fmt.num(users.length), tone: 'navy' },
-    { label: t('stats.mrr'), value: fmt.vndCompact(mrr), tone: 'green', sub: latest?.period },
+    {
+      label: t('stats.netRemaining'),
+      value: fmt.vndCompact(netRemaining),
+      tone: netRemaining < 0 ? 'orange' : 'green',
+      sub: latest?.period ? t('stats.netRemainingSub', { period: latest.period }) : undefined,
+    },
     { label: t('stats.aiCost'), value: `$${aiCost.toFixed(2)}`, tone: 'orange', sub: t('stats.aiCostSub') },
     { label: t('stats.aiActivity'), value: fmt.num(activeUsers), tone: 'violet', sub: t('stats.aiActivitySub') },
   ]
@@ -71,7 +83,7 @@ export default function V2AdminOverviewPage() {
     ...(pausedUsers > 0 ? [{ text: t('todo.pausedAccounts', { count: pausedUsers }), href: '/v2/admin/users' }] : []),
     { text: t('todo.reviewVocabImages'), href: '/v2/admin/vocabulary' },
     { text: t('todo.checkPendingOrgs'), href: '/v2/admin/organizations' },
-    { text: t('todo.trackAiBudget'), href: '/v2/admin/tokens' },
+    { text: t('todo.trackAiBudget'), href: '/v2/admin/ai-usage' },
   ]
 
   return (
@@ -90,7 +102,7 @@ export default function V2AdminOverviewPage() {
             <GaStatStrip items={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
-              <GaSection title={t('subscribersByPeriod')} right={<span className="ga-ui text-[12.5px] text-ga-muted">{t('recentPeriods', { count: chart.length })}</span>}>
+              <GaSection title={t('successTxByPeriod')} right={<span className="ga-ui text-[12.5px] text-ga-muted">{t('recentPeriods', { count: chart.length })}</span>}>
                 {chart.length > 0 ? (
                   <GaBars data={chart.map((r) => ({ label: r.period, value: r.subscribers }))} color="#27406B" height={180} />
                 ) : (

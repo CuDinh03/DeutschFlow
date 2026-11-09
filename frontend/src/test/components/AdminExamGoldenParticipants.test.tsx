@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import adminOpsVi from '../../../messages/v2/adminOps.vi.json'
+import chromeVi from '../../../messages/v2/chrome.vi.json'
 import AdminExamGoldenPage from '@/app/v2/admin/exam-golden/page'
 
 const mocks = vi.hoisted(() => ({
@@ -27,7 +28,7 @@ vi.mock('@/lib/adminExamGoldenApi', async (importOriginal) => ({
 
 function renderPage() {
   return render(
-    <NextIntlClientProvider locale="vi" messages={{ v2: { ...adminOpsVi } }}>
+    <NextIntlClientProvider locale="vi" messages={{ v2: { ...adminOpsVi, ...chromeVi } }}>
       <AdminExamGoldenPage />
     </NextIntlClientProvider>,
   )
@@ -72,16 +73,35 @@ describe('Golden set — danh sách đồng ý lưu audio', () => {
     mocks.listParticipants.mockResolvedValue({
       data: [{ userId: 7, displayName: 'Cu', email: 'cu@test', consentedAt: '2026-08-20T09:00:00Z', note: null }],
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const user = userEvent.setup()
     renderPage()
 
     const list = await screen.findByTestId('participants-list')
     expect(list.textContent).toContain('Cu')
 
+    // 09/11/2026: hộp ConfirmDialog thay window.confirm — nêu đúng tên người bị rút đồng ý.
     await user.click(within_(list))
-    expect(confirmSpy).toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('Rút đồng ý của Cu?')
+    await user.click(screen.getByRole('button', { name: 'Huỷ' }))
     expect(mocks.removeParticipant).not.toHaveBeenCalled()
+  })
+
+  it('xác nhận trong hộp thoại mới gọi API xoá đúng người', async () => {
+    mocks.listParticipants.mockResolvedValue({
+      data: [{ userId: 7, displayName: 'Cu', email: 'cu@test', consentedAt: '2026-08-20T09:00:00Z', note: null }],
+    })
+    mocks.removeParticipant.mockResolvedValue({})
+    const user = userEvent.setup()
+    renderPage()
+
+    const list = await screen.findByTestId('participants-list')
+    await user.click(within_(list))
+    const dialog = await screen.findByRole('dialog')
+    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) => b.getAttribute('data-tone') === 'danger')
+    expect(confirmBtn).toBeTruthy()
+    await user.click(confirmBtn as HTMLElement)
+    await waitFor(() => expect(mocks.removeParticipant).toHaveBeenCalledWith(7))
   })
 })
 

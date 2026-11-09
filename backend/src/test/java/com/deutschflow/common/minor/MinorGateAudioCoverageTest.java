@@ -147,7 +147,8 @@ class MinorGateAudioCoverageTest {
                     .forEach(p -> {
                         int n = dem(pattern, doc(p));
                         if (n > 0) {
-                            found.put(MAIN_SOURCES.relativize(p).toString(), n);
+                            // Khoá bảng viết bằng "/"; Windows trả "\" nên chuẩn hoá trước khi so.
+                            found.put(MAIN_SOURCES.relativize(p).toString().replace('\\', '/'), n);
                         }
                     });
         } catch (IOException e) {

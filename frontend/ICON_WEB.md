@@ -49,7 +49,8 @@ import { GaGlyph } from '@/components/ui-v2'
 | `plain` | `ga-side-active` / `ga-muted` | trống, khoá, phụ, chỉ để biết |
 | `yellow` | `ga-yellow` / `ga-ink` | điểm nhấn DUY NHẤT của màn (việc hôm nay, kết quả) |
 | `ink` | `ga-ink` / `ga-card` | đang chọn, trên nền mực |
-| `green` / `red` | soft / đậm | đạt / lỗi, huỷ, cảnh báo |
+| `green` / `red` | soft / đậm | đạt / lỗi, huỷ |
+| `orange` | `ga-orange-soft` / `ga-orange` | cảnh báo không phải lỗi (lời mời hết hạn) |
 | `accent` | màu vai trò soft / `ga-ink` | hiếm; khi cần màu vai trò |
 
 `EmptyState`, `ErrorBanner` (biến thể page), lỗi route, chuông/toast/trang thông báo đã dùng `GaGlyph`. Ô `Glyph` của
@@ -77,5 +78,7 @@ Luyện thi (`components/exam/today/visual.tsx`) là `GaGlyph`.
   (`iconSystem.test.tsx` kiểm loại thông báo và thanh bên admin).
 - `PenTool` là bút vẽ vector của phần mềm đồ hoạ, không phải "viết": dùng `PenLine`.
 - Test mock `@/components/ui-v2` phải có `GaGlyph` khi component dùng nó.
-- Trang công khai ngoài `.ga-scope` (`app/luyen-thi`, `free-grade`, `certificate`, `report`, `teachers`, `payment/success`) chưa
-  chuyển Galerie: token `ga-*` không có hiệu lực ở đó — đồng bộ icon phải đi cùng việc chuyển cả trang.
+- Trang công khai ngoài `.ga-scope` (`certificate`, `teachers`, `payment/success`) chưa chuyển Galerie: token `ga-*` không có
+  hiệu lực ở đó — đồng bộ icon phải đi cùng việc chuyển cả trang. `luyen-thi`, `luyen-thi/[slug]`, `free-grade`, `report` đã
+  chuyển (icon đợt B, 09/11/2026) và nằm trong phạm vi `check:design-tokens` + `src/test/publicGaleriePages.test.ts`.
+  `ShareButtons`/`GradeScore` (`components/marketing`) dùng token `ga-*`, chỉ đặt trong trang có `.ga-scope`.

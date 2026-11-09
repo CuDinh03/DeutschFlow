@@ -50,7 +50,7 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
     occupationNameDe: 'Koch/Köchin',
     interviewer: 'Klaus',
     intro:
-      'Trong buổi luyện nghề bếp, câu hỏi xoay quanh ba chủ đề: bạn là ai và đã làm gì trong bếp, bạn xử lý vệ sinh an toàn thực phẩm thế nào, và bạn giữ nhịp ra sao lúc đông khách. Người phỏng vấn muốn nghe ví dụ cụ thể, không chỉ một danh sách kỹ năng.',
+      'Trong buổi luyện nghề bếp, câu hỏi thường xoay quanh ba chủ đề: bạn là ai và đã làm gì trong bếp, bạn xử lý vệ sinh an toàn thực phẩm thế nào, và bạn giữ nhịp ra sao lúc đông khách. Người phỏng vấn muốn nghe ví dụ cụ thể, không chỉ một danh sách kỹ năng.',
     questions: [
       {
         de: 'Bitte stellen Sie sich kurz vor: Werdegang, relevante Erfahrung für Koch/Köchin, und Ihr nächster Schritt.',
@@ -132,4 +132,9 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
 
 export function guideArticle(slug: string): GuideArticle | undefined {
   return GUIDE_ARTICLES.find((a) => a.slug === slug)
+}
+
+/** Tiêu đề thẻ `<title>` của một bài: tên bài + thương hiệu, cùng kiểu với trang mục lục `/cam-nang/`. */
+export function guideDocumentTitle(title: string): string {
+  return `${title} · myDeutschFlow`
 }
