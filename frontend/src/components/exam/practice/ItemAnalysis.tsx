@@ -1,10 +1,11 @@
 'use client'
 
-import type * as React from 'react'
+import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, TextSearch, TriangleAlert, X } from 'lucide-react'
+import { Check, NotebookPen, TextSearch, TriangleAlert, X } from 'lucide-react'
 import type { PracticeItemResult } from '@/lib/telcPracticeApi'
 import { cn } from '@/lib/utils'
+import { AskAiPanel, ItemAssist } from './itemAssist'
 
 /** Chữ cái đáp án trong vòng tròn — dùng chung cho kho lựa chọn, ô trả lời và phân tích. */
 export function LetterBadge({
@@ -41,6 +42,9 @@ export function LetterBadge({
  * Phân tích MỘT câu sau khi kiểm tra — luôn trả lời đủ: bạn chọn gì và vì sao sai (kèm loại bẫy),
  * đáp án đúng và vì sao đúng, dấu hiệu trong bài, chỗ này cần gì / quy tắc nào. Câu làm đúng vẫn có
  * "vì sao đúng" để người học biết mình đúng có cơ sở hay đoán trúng.
+ *
+ * B3 (09/11/2026): ghi chú "vì sao tôi chọn" lúc làm bài hiện ngay trên phần giải thích để người học tự so
+ * lối nghĩ của mình; nút "Hỏi AI về câu này" ở cuối khi trang cấp `askAi` (context `ItemAssist`).
  */
 export function ItemAnalysis({
   item,
@@ -56,6 +60,9 @@ export function ItemAnalysis({
   extra?: React.ReactNode
 }) {
   const t = useTranslations('v2.student.practice')
+  const ta = useTranslations('v2.student.practice.assist')
+  const { askAi, notes } = React.useContext(ItemAssist)
+  const myNote = notes?.[item.id]?.trim()
   const status = !item.answered ? 'none' : item.isCorrect ? 'ok' : 'bad'
 
   return (
@@ -81,6 +88,11 @@ export function ItemAnalysis({
       </div>
 
       {extra}
+      {myNote && (
+        <Block tone="neutral" label={ta('noteYours')} icon={<NotebookPen size={13} aria-hidden />}>
+          <p className="whitespace-pre-line" data-testid="my-note">{myNote}</p>
+        </Block>
+      )}
 
       {item.need && (
         <Block tone="neutral" label={t('needLabel')}>
@@ -145,6 +157,8 @@ export function ItemAnalysis({
           </>
         )}
       </Block>
+
+      {askAi && <AskAiPanel key={item.id} itemId={item.id} ask={askAi} />}
     </div>
   )
 }
@@ -153,11 +167,13 @@ function Block({
   tone,
   head,
   label,
+  icon,
   children,
 }: {
   tone: 'ok' | 'bad' | 'neutral'
   head?: React.ReactNode
   label: string
+  icon?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -170,7 +186,10 @@ function Block({
       )}
     >
       {head && <div className="mb-2 flex items-center gap-2.5 font-semibold text-ga-ink">{head}</div>}
-      <p className="text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{label}</p>
+      <p className="flex items-center gap-1.5 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">
+        {icon}
+        {label}
+      </p>
       <div className="mt-1 text-ga-ink">{children}</div>
     </section>
   )

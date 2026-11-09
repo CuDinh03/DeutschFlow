@@ -7,6 +7,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.grammar.dto.PracticeDtos;
 import com.deutschflow.grammar.service.AiExamEvaluatorService;
+import com.deutschflow.grammar.service.ExamItemAiService;
 import com.deutschflow.grammar.service.ExamScoringService;
 import com.deutschflow.grammar.service.MockExamPracticeService;
 import com.deutschflow.organization.service.OrgPoolGuard;
@@ -44,11 +45,12 @@ public class MockExamPracticeController {
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
     private final ObjectMapper om;
+    private final ExamItemAiService itemAi;
 
     public MockExamPracticeController(MockExamPracticeService practice, ExamScoringService scoring,
                                       AiExamEvaluatorService evaluator, AsyncJobService jobs,
                                       @Qualifier("aiExecutor") Executor aiExecutor, QuotaService quotaService,
-                                      OrgPoolGuard orgPoolGuard, ObjectMapper om) {
+                                      OrgPoolGuard orgPoolGuard, ObjectMapper om, ExamItemAiService itemAi) {
         this.practice = practice;
         this.scoring = scoring;
         this.evaluator = evaluator;
@@ -57,6 +59,7 @@ public class MockExamPracticeController {
         this.quotaService = quotaService;
         this.orgPoolGuard = orgPoolGuard;
         this.om = om;
+        this.itemAi = itemAi;
     }
 
     /** Client hỏi trước khi hiện lối vào "Luyện đề" — không bao giờ 403, chỉ trả bật/tắt. */
@@ -81,6 +84,19 @@ public class MockExamPracticeController {
         return practice.mockTeilScores(user);
     }
 
+    /**
+     * "Hỏi AI về câu này" (B3, 09/11/2026) cho một câu của lượt thi thử đã nộp / dừng giữa chừng.
+     * POST vì có thể gọi AI và ghi bộ nhớ đệm (QLT-21: GET không bao giờ ghi hay gọi AI).
+     * Lượt của người khác ⇒ 404; lượt đang làm ⇒ 409; hết quota ⇒ 429. Bản đã lưu không trừ quota.
+     */
+    @PostMapping("/attempts/{attemptId}/teile/{teilKey}/items/{itemId}/ask-ai")
+    public PracticeDtos.ItemAiAnswer askAttemptItem(@PathVariable long attemptId, @PathVariable String teilKey,
+                                                    @PathVariable String itemId,
+                                                    @RequestBody(required = false) PracticeDtos.AskAiRequest body,
+                                                    @AuthenticationPrincipal User user) {
+        return itemAi.askAttempt(user, attemptId, teilKey, itemId, body == null ? null : body.locale());
+    }
+
     @GetMapping("/{examId}")
     public PracticeDtos.Overview overview(@PathVariable long examId, @AuthenticationPrincipal User user) {
         return practice.overview(user, examId);
@@ -90,14 +106,26 @@ public class MockExamPracticeController {
     public PracticeDtos.Progress saveDraft(@PathVariable long examId, @PathVariable String teilKey,
                                            @RequestBody PracticeDtos.SaveRequest body,
                                            @AuthenticationPrincipal User user) {
-        return practice.saveDraft(user, examId, teilKey, body.answers(), body.elapsedSeconds());
+        return practice.saveDraft(user, examId, teilKey, body.answers(), body.elapsedSeconds(), body.notes());
     }
 
     @PostMapping("/{examId}/teile/{teilKey}/check")
     public PracticeDtos.Progress check(@PathVariable long examId, @PathVariable String teilKey,
                                        @RequestBody PracticeDtos.SaveRequest body,
                                        @AuthenticationPrincipal User user) {
-        return practice.check(user, examId, teilKey, body.answers(), body.elapsedSeconds());
+        return practice.check(user, examId, teilKey, body.answers(), body.elapsedSeconds(), body.notes());
+    }
+
+    /**
+     * "Hỏi AI về câu này" (B3) cho một câu của Teil luyện ĐÃ kiểm tra. Chưa kiểm tra ⇒ 409. Xem
+     * {@link ExamItemAiService} cho bộ nhớ đệm và quota.
+     */
+    @PostMapping("/{examId}/teile/{teilKey}/items/{itemId}/ask-ai")
+    public PracticeDtos.ItemAiAnswer askPracticeItem(@PathVariable long examId, @PathVariable String teilKey,
+                                                     @PathVariable String itemId,
+                                                     @RequestBody(required = false) PracticeDtos.AskAiRequest body,
+                                                     @AuthenticationPrincipal User user) {
+        return itemAi.askPractice(user, examId, teilKey, itemId, body == null ? null : body.locale());
     }
 
     /** {@code keepMarks=false} xoá cả đánh dấu bài đọc; mặc định giữ (client cũ không gửi tham số). */

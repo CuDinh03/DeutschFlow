@@ -34,9 +34,15 @@ public class MockExamDraftService {
 
     /** Draft columns of one attempt row, as last persisted. */
     public record DraftState(String answersJson, Integer sectionIndex, Integer questionIndex,
-                             long version, Timestamp savedAt) {
+                             long version, Timestamp savedAt, String flagsJson) {
+        public DraftState(String answersJson, Integer sectionIndex, Integer questionIndex, long version, Timestamp savedAt) {
+            this(answersJson, sectionIndex, questionIndex, version, savedAt, null);
+        }
         public boolean exists() { return savedAt != null; }
     }
+
+    /** Tối đa số câu đánh dấu lưu được — một đề telc B1 có ~60 câu khách quan. */
+    public static final int MAX_FLAGS = 200;
 
     public record SaveResult(Outcome outcome, DraftState server, Instant deadlineAt) {}
 
@@ -70,6 +76,16 @@ public class MockExamDraftService {
     public SaveResult save(long uid, long attemptId, String answersJson,
                            Integer sectionIndex, Integer questionIndex,
                            long baseVersion, Instant now) {
+        return save(uid, attemptId, answersJson, sectionIndex, questionIndex, baseVersion, now, null);
+    }
+
+    /**
+     * @param flags câu "đánh dấu xem lại" (B3, V374); {@code null} = giữ nguyên giá trị đang lưu (client cũ).
+     */
+    public SaveResult save(long uid, long attemptId, String answersJson,
+                           Integer sectionIndex, Integer questionIndex,
+                           long baseVersion, Instant now, List<String> flags) {
+        String flagsJson = flagsJson(flags);
         if (answersJson != null && answersJson.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_DRAFT_BYTES) {
             return new SaveResult(Outcome.DRAFT_TOO_LARGE, null, null);
         }
@@ -96,11 +112,12 @@ public class MockExamDraftService {
             SET draft_json = ?::jsonb,
                 draft_section_index = ?,
                 draft_question_index = ?,
+                draft_flags_json = COALESCE(?::jsonb, draft_flags_json),
                 draft_version = draft_version + 1,
                 draft_saved_at = NOW()
             WHERE id = ? AND user_id = ? AND status = 'IN_PROGRESS' AND draft_version = ?
-            RETURNING draft_version, draft_saved_at
-            """, answersJson, sectionIndex, questionIndex, attemptId, uid, baseVersion);
+            RETURNING draft_version, draft_saved_at, draft_flags_json::text AS draft_flags_json
+            """, answersJson, sectionIndex, questionIndex, flagsJson, attemptId, uid, baseVersion);
 
         if (updated.isEmpty()) {
             // Raced by another device (or a finish): report the winning server state.
@@ -109,7 +126,8 @@ public class MockExamDraftService {
         }
         Map<String, Object> row = updated.get(0);
         DraftState saved = new DraftState(answersJson, sectionIndex, questionIndex,
-                ((Number) row.get("draft_version")).longValue(), (Timestamp) row.get("draft_saved_at"));
+                ((Number) row.get("draft_version")).longValue(), (Timestamp) row.get("draft_saved_at"),
+                (String) row.get("draft_flags_json"));
         return new SaveResult(Outcome.SAVED, saved, deadline);
     }
 
@@ -117,7 +135,7 @@ public class MockExamDraftService {
     public DraftState load(long uid, long attemptId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
             SELECT draft_json::text AS draft_json, draft_section_index, draft_question_index,
-                   draft_version, draft_saved_at
+                   draft_version, draft_saved_at, draft_flags_json::text AS draft_flags_json
             FROM mock_exam_attempts
             WHERE id = ? AND user_id = ?
             """, attemptId, uid);
@@ -128,7 +146,37 @@ public class MockExamDraftService {
                 (Integer) r.get("draft_section_index"),
                 (Integer) r.get("draft_question_index"),
                 ((Number) r.get("draft_version")).longValue(),
-                (Timestamp) r.get("draft_saved_at"));
+                (Timestamp) r.get("draft_saved_at"),
+                (String) r.get("draft_flags_json"));
+    }
+
+    /** Danh sách câu đánh dấu → JSON (bỏ trùng, bỏ id rỗng/dài bất thường, tối đa {@link #MAX_FLAGS}). */
+    String flagsJson(List<String> flags) {
+        if (flags == null) return null;
+        java.util.LinkedHashSet<String> clean = new java.util.LinkedHashSet<>();
+        for (String f : flags) {
+            if (clean.size() >= MAX_FLAGS) break;
+            if (f == null) continue;
+            String t = f.strip();
+            if (!t.isEmpty() && t.length() <= 80) clean.add(t);
+        }
+        try {
+            return om.writeValueAsString(new java.util.ArrayList<>(clean));
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    /** JSON đã lưu → danh sách (hỏng hay rỗng ⇒ {@code null}, để DTO bỏ trường). */
+    @SuppressWarnings("unchecked")
+    public List<String> parseFlags(String flagsJson) {
+        if (flagsJson == null || flagsJson.isBlank()) return null;
+        try {
+            List<String> list = om.readValue(flagsJson, List.class);
+            return list.isEmpty() ? null : list;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

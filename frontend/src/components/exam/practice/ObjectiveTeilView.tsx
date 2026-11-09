@@ -16,6 +16,7 @@ import { diagnose, groupSelector, groupsForItem, isStruck, setStruck, type Piece
 import type { PassageMarks } from '@/components/exam/marks/usePassageMarks'
 import { parseGappedText } from '@/components/exam/telc/telcTeil'
 import { ItemAnalysis, LetterBadge } from './ItemAnalysis'
+import { FlagToggle, FlaggedList, ItemAssist, NoteField } from './itemAssist'
 import { PracticeFootSlot } from './PracticeShell'
 import { SplitPanes, type SheetSnap } from './SplitPanes'
 import {
@@ -78,6 +79,10 @@ type Req<T> = { n: number } & T
  * Thao tác owner chốt (phương án A, 03/11/2026): chạm câu → chạm đáp án; lựa chọn đã dùng ở câu khác
  * thì viền đứt + "ở câu N" (vẫn chọn được — nó chuyển sang câu đang chọn); đúng/sai chỉ hiện sau khi
  * kiểm tra cả Teil. Hàng ô số câu nằm ở thanh dưới của vỏ (portal).
+ *
+ * B3 (09/11/2026, context `ItemAssist`): cờ "đánh dấu xem lại" cho MỌI dạng câu (trắc nghiệm trong thẻ câu,
+ * dạng nối/chỗ trống/rao vặt cạnh câu đang chọn, phím F) + hàng "Câu đã đánh dấu" để nhảy tới; trang cấp
+ * `flags` thì cờ do trang giữ (thi thử lưu cùng nháp). Ô "Vì sao tôi chọn" khi trang cấp `onNote` (luyện Teil).
  */
 export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks }: Props) {
   const t = useTranslations('v2.student.practice')
@@ -89,12 +94,16 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
   const isGap = kind === 'gap-mc' || kind === 'gap-bank'
   const isAds = kind === 'match' && teil.type === 'MATCH_AD_X'
   const footSlot = React.useContext(PracticeFootSlot)
+  const ta = useTranslations('v2.student.practice.assist')
+  const assist = React.useContext(ItemAssist)
+  const canNote = !checked && !!assist.onNote
 
   // Câu đang chọn đáp án (nối / chỗ trống) · câu đang làm (trắc nghiệm, cho phím tắt và ô số câu).
   const [active, setActive] = React.useState<string | null>(() => nextUnanswered(items, answers))
   const [current, setCurrent] = React.useState<string | null>(() => nextUnanswered(items, answers) ?? items[0]?.id ?? null)
   const [selected, setSelected] = React.useState<string | null>(null)
-  const [flags, setFlags] = React.useState<Set<string>>(() => new Set())
+  const [localFlags, setLocalFlags] = React.useState<Set<string>>(() => new Set())
+  const flags: ReadonlySet<string> = assist.flags ?? localFlags
   const [snapReq, setSnapReq] = React.useState<Req<{ snap: SheetSnap }> | undefined>()
   const [revealReq, setRevealReq] = React.useState<Req<{ selector: string }> | undefined>()
   const scrollTarget = React.useRef<string | null>(null)
@@ -165,13 +174,18 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     requestSnap(isAds && !checked ? 0 : 1)
   }
 
-  const toggleFlag = (id: string) =>
-    setFlags((prev) => {
+  const toggleFlag = (id: string) => {
+    if (assist.onToggleFlag) {
+      assist.onToggleFlag(id)
+      return
+    }
+    setLocalFlags((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
+  }
 
   const answerMc = (id: string, value: string) => {
     if (checked) return
@@ -218,6 +232,8 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
         e.preventDefault()
         const real = optionsFor(teil, cur).find((o) => o.key.toLowerCase() === k)?.key ?? k
         act.current.pick(real)
+      } else if (k === 'f') {
+        act.current.toggleFlag(cur.id)
       } else if (e.key === 'Enter') {
         const idx = s.items.findIndex((it) => it.id === cur.id)
         const next = s.items[(idx + 1) % s.items.length]
@@ -323,6 +339,13 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     return <MarkDiagnosis diagnosis={d} where={where} mine={mine} isCorrect={res.isCorrect} />
   }
 
+  // Trang yêu cầu nhảy tới một câu (danh sách câu đánh dấu của cả chặng thi). Teil mới gắn vào cũng nhận.
+  const jumpReq = assist.jump
+  React.useEffect(() => {
+    if (!jumpReq || !items.some((it) => it.id === jumpReq.id)) return
+    act.current.jumpTo(jumpReq.id)
+  }, [jumpReq, items])
+
   const activeItem = items.find((it) => it.id === active) ?? null
   const currentItem = items.find((it) => it.id === current) ?? null
   const answered = items.filter((it) => answers[it.id]).length
@@ -370,6 +393,16 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     )
   }
 
+  const noteFor = (item: PracticeItem) => (
+    <NoteField
+      key={item.id}
+      itemId={item.id}
+      label={ta('noteLabel', { n: itemLabel(item) })}
+      value={assist.notes?.[item.id] ?? ''}
+      onChange={(v) => assist.onNote?.(item.id, v)}
+    />
+  )
+
   const cardFor = (item: PracticeItem, analysisInline: boolean) => (
     <ItemCard
       key={item.id}
@@ -381,6 +414,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       current={isMc && !checked && current === item.id}
       flagged={flags.has(item.id)}
       onFlag={isMc && !checked ? () => toggleFlag(item.id) : undefined}
+      note={canNote && isMc && (answers[item.id] || assist.notes?.[item.id]) ? noteFor(item) : undefined}
       res={byId.get(item.id)}
       selected={selected === item.id}
       wide={!analysisInline}
@@ -498,10 +532,14 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
   } else if (isAds) {
     answersPane = (
       <div>
-        <p className="ga-ui mb-2.5 text-ga-small text-ga-muted">
-          {activeItem ? (wide ? tf('pickAdLeft', { n: itemLabel(activeItem) }) : tf('pickAdAbove', { n: itemLabel(activeItem) })) : t('answeredCount', { done: answered, total: items.length })}
-        </p>
+        <div className="mb-2.5 flex items-center gap-2">
+          <p className="ga-ui min-w-0 flex-1 text-ga-small text-ga-muted">
+            {activeItem ? (wide ? tf('pickAdLeft', { n: itemLabel(activeItem) }) : tf('pickAdAbove', { n: itemLabel(activeItem) })) : t('answeredCount', { done: answered, total: items.length })}
+          </p>
+          {activeItem && <FlagToggle label={tf('flag', { n: itemLabel(activeItem) })} flagged={flags.has(activeItem.id)} onToggle={() => toggleFlag(activeItem.id)} />}
+        </div>
         {teil.allow_none && <div className="mb-4">{optionList(activeItem, true)}</div>}
+        {canNote && activeItem && <div className="mb-4">{noteFor(activeItem)}</div>}
         <div className="space-y-2.5">
           {items.map((item) => (
             <SituationRow
@@ -523,10 +561,14 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
   } else {
     answersPane = activeItem ? (
       <div>
-        <p className="ga-ui mb-2.5 text-ga-eyebrow uppercase text-ga-muted">
-          {kind === 'match' ? t('pickFor', { n: itemLabel(activeItem) }) : t('pickForGap', { n: itemLabel(activeItem) })}
-        </p>
+        <div className="mb-2.5 flex items-center gap-2">
+          <p className="ga-ui min-w-0 flex-1 text-ga-eyebrow uppercase text-ga-muted">
+            {kind === 'match' ? t('pickFor', { n: itemLabel(activeItem) }) : t('pickForGap', { n: itemLabel(activeItem) })}
+          </p>
+          <FlagToggle label={tf('flag', { n: itemLabel(activeItem) })} flagged={flags.has(activeItem.id)} onToggle={() => toggleFlag(activeItem.id)} />
+        </div>
         {optionList(activeItem)}
+        {canNote && <div className="mt-3">{noteFor(activeItem)}</div>}
         {kind === 'gap-bank' && <p className="ga-ui mt-3 text-ga-caption text-ga-muted">{t('singleUseHint')}</p>}
         {isGap && <GapOverview teil={teil} items={items} answers={answers} active={active} onOpen={(id) => jumpTo(id)} />}
       </div>
@@ -534,6 +576,10 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       <p className="ga-ui text-ga-body text-ga-muted">{t('answeredCount', { done: answered, total: items.length })}</p>
     )
   }
+
+  // Hàng "Câu đã đánh dấu" trên cột trả lời khi đang làm.
+  const flaggedItems = checked ? [] : items.filter((it) => flags.has(it.id)).map((it) => ({ id: it.id, label: itemLabel(it) }))
+  if (flaggedItems.length > 0) answersPane = <>{<FlaggedList items={flaggedItems} onJump={jumpTo} />}{answersPane}</>
 
   const sheetItem = checked ? selectedRes : isMc ? currentItem : activeItem
   const sheetLabel = checked
@@ -624,7 +670,7 @@ function QuestionDots({
   answers: Record<string, string>
   byId: Map<string, PracticeItemResult>
   current: string | null
-  flags: Set<string>
+  flags: ReadonlySet<string>
   /** Câu có đoạn gắn trong bài (đánh dấu bài đọc): vạch nhỏ dưới số. */
   marked?: Set<string>
   onPick: (id: string) => void
@@ -747,6 +793,7 @@ function ItemCard({
   current,
   flagged,
   onFlag,
+  note,
   res,
   selected,
   wide,
@@ -768,6 +815,8 @@ function ItemCard({
   current: boolean
   flagged: boolean
   onFlag?: () => void
+  /** Ô "Vì sao tôi chọn" (B3) dưới các lựa chọn, khi đang luyện. */
+  note?: React.ReactNode
   res?: PracticeItemResult
   selected: boolean
   /** `true` = phân tích nằm ở cột khác (không mở ngay trong thẻ). */
@@ -911,6 +960,7 @@ function ItemCard({
         </button>
       ) : null}
 
+      {note && <div className="border-t border-ga-line bg-ga-bg px-4 pb-2.5 pt-1">{note}</div>}
       {checked && (
         <div className="ga-ui flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-ga-line px-4 py-2.5 text-ga-body">
           {kind !== 'mc' && (
