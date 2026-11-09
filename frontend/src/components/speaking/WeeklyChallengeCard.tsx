@@ -9,7 +9,6 @@ import { apiMessage, httpStatus } from "@/lib/api";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import { weeklySpeakingApi, type WeeklyPromptResponse, type WeeklySubmissionResponse } from "@/lib/weeklySpeakingApi";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
-import { CYAN } from "./types";
 
 type Props = {
   /** Must match learner CEFR band used on the backend (e.g. A2, B1). */
@@ -157,13 +156,13 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
     return (
       <div
         role="alert"
-        className="rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-6 text-center text-sm text-[#64748B]"
+        className="rounded-[20px] border border-ga-line bg-ga-surface p-6 text-center text-sm text-ga-muted"
       >
         <p>{t("weeklyLoadFailed")}</p>
         <button
           type="button"
           onClick={() => setReloadKey((v) => v + 1)}
-          className="mt-3 rounded-full border border-[#CBD5E1] px-4 py-1.5 text-[13px] font-semibold text-[#334155] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="mt-3 rounded-full border border-ga-line-strong px-4 py-1.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           {t("weeklyRetry")}
         </button>
@@ -172,7 +171,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
   }
   if (!prompt) {
     return (
-      <div className="rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-6 text-center text-sm text-[#64748B]">
+      <div className="rounded-[20px] border border-ga-line bg-ga-surface p-6 text-center text-sm text-ga-muted">
         {availableBands && availableBands.length > 0
           ? t("weeklyNoPromptOtherBands", { bands: availableBands.join(", ") })
           : t("weeklyNoPromptWeek")}
@@ -184,8 +183,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
 
   return (
     <div
-      className="rounded-[20px] border border-[#E2E8F0] bg-white p-4 shadow-[0_2px_8px_rgba(0,48,94,0.04)]"
-      style={{ boxShadow: `inset 0 1px 0 0 ${CYAN}18` }}
+      className="rounded-[20px] border border-ga-line bg-ga-card p-4"
     >
       <MicDeniedGuide className="mb-3" />
       <button
@@ -197,8 +195,8 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold mb-2 bg-ga-side-active text-ga-muted">
             <CalendarDays size={11} className="text-ga-muted" aria-hidden /> {t("weeklyBadge")}
           </div>
-          <h3 className="text-[#121212] font-bold text-sm leading-snug pr-2 break-words">{prompt.title}</h3>
-          <p className="text-[11px] mt-1 text-[#64748B]">
+          <h3 className="text-ga-ink font-bold text-sm leading-snug pr-2 break-words">{prompt.title}</h3>
+          <p className="text-[11px] mt-1 text-ga-muted">
             {prompt.cefrBand} · {prompt.weekStartDate}
           </p>
         </div>
@@ -211,15 +209,15 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
 
       {expanded && (
         <div className="mt-3 space-y-3">
-          <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-[#334155]">
+          <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-ga-ink">
             {prompt.promptDe}
           </p>
           {prompt.mandatoryPoints?.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-[#0E7490]">
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-ga-muted">
                 {t("weeklyMandatory")}
               </p>
-              <ul className="text-[12px] space-y-1 list-disc pl-4 text-[#475569]">
+              <ul className="text-[12px] space-y-1 list-disc pl-4 text-ga-ink">
                 {prompt.mandatoryPoints.map((p) => (
                   <li key={p}>{p}</li>
                 ))}
@@ -228,10 +226,10 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
           )}
           {prompt.optionalPoints?.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-[#94A3B8]">
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-ga-subtle">
                 {t("weeklyOptional")}
               </p>
-              <ul className="text-[11px] space-y-0.5 list-disc pl-4 text-[#64748B]">
+              <ul className="text-[11px] space-y-0.5 list-disc pl-4 text-ga-muted">
                 {prompt.optionalPoints.map((p) => (
                   <li key={p}>{p}</li>
                 ))}
@@ -240,19 +238,19 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
           )}
 
           {result ? (
-            <div className="rounded-[14px] p-3 space-y-2 border border-cyan-200/60 bg-cyan-50/80">
-              <p className="text-xs font-bold text-[#0E7490]">
+            <div className="rounded-[14px] p-3 space-y-2 border border-ga-line bg-ga-surface">
+              <p className="text-xs font-bold text-ga-ink">
                 {t("weeklyResultTitle")} · {t("weeklyTaskScore", { n: tc?.score_1_to_5 ?? "—" })}
               </p>
-              <p className="text-[12px] leading-relaxed text-[#1e293b]">
+              <p className="text-[12px] leading-relaxed text-ga-ink">
                 {result.rubric.feedback_vi_summary}
               </p>
               {result.rubric.grammar?.summary_de ? (
-                <p className="text-[11px] italic text-[#64748B]">
+                <p className="text-[11px] italic text-ga-muted">
                   {result.rubric.grammar.summary_de}
                 </p>
               ) : null}
-              <p className="text-[10px] text-[#64748B]">{result.rubric.disclaimer_vi}</p>
+              <p className="text-[10px] text-ga-muted">{result.rubric.disclaimer_vi}</p>
             </div>
           ) : (
             <>
@@ -263,11 +261,9 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
                   disabled={submitting || weeklyRec !== "idle"}
                   placeholder={t("weeklyTranscriptPlaceholder")}
                   rows={4}
-                  className="flex-1 min-w-0 px-3 py-2.5 rounded-[12px] text-[13px] outline-none resize-y border bg-[#F8FAFC] text-[#0F172A] placeholder:text-[#94A3B8]"
-                  style={{
-                    borderColor: transcript ? `${CYAN}55` : "#E2E8F0",
-                    caretColor: CYAN,
-                  }}
+                  className={`flex-1 min-w-0 px-3 py-2.5 rounded-[12px] text-[13px] outline-none resize-y border bg-ga-surface text-ga-ink caret-ga-ink placeholder:text-ga-subtle focus-visible:border-ga-ink ${
+                    transcript ? "border-ga-line-strong" : "border-ga-line"
+                  }`}
                 />
                 <button
                   type="button"
@@ -286,12 +282,12 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
                 </button>
               </div>
               {weeklyRec === "listening" && (
-                <p className="text-[11px] font-medium text-[#0E7490]">{t("weeklyRecordingHint")}</p>
+                <p className="text-[11px] font-medium text-ga-red">{t("weeklyRecordingHint")}</p>
               )}
               {weeklyRec === "processing" && (
-                <p className="text-[11px] text-[#64748B]">{t("transcribing")}</p>
+                <p className="text-[11px] text-ga-muted">{t("transcribing")}</p>
               )}
-              {submitErr && <p className="text-[11px] text-red-600">{submitErr}</p>}
+              {submitErr && <p className="text-[11px] text-ga-red">{submitErr}</p>}
               <button
                 type="button"
                 disabled={submitting || weeklyRec !== "idle"}
