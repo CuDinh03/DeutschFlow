@@ -59,5 +59,12 @@ public class RegistrationVerificationConfig {
     public int codeTtlMinutes() { return codeTtlMinutes; }
     public int maxAttemptsPerCode() { return maxAttemptsPerCode; }
     public int resendCooldownSeconds() { return resendCooldownSeconds; }
-    public boolean legacyRegisterEnabled() { return legacyRegisterEnabled; }
+    /**
+     * {@code /register} cũ (tạo tài khoản KHÔNG qua mã) chỉ được mở khi công tắc mã PIN TẮT. Luật đã chốt:
+     * công tắc bật thì mọi tài khoản tự đăng ký phải qua mã hợp lệ — chặn ở server cho MỌI client, kể cả
+     * bản app đã phát hành chỉ biết gọi {@code /register} (bug 09/11/2026: app mobile chưa OTA vẫn tạo được
+     * tài khoản không mã vì {@code LEGACY_REGISTER_ENABLED} mặc định true). {@code LEGACY_REGISTER_ENABLED}
+     * giờ chỉ còn tác dụng khi công tắc tắt (nút rollback: tắt mã PIN ⇒ đường cũ mở lại, trừ khi cờ này false).
+     */
+    public boolean legacyRegisterAllowed() { return legacyRegisterEnabled && !enabled; }
 }
