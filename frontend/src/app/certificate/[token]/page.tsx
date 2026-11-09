@@ -143,7 +143,7 @@ export default async function CertificatePage({ params, searchParams }: PageProp
           <div role="status" className="flex items-start gap-3 border border-ga-red bg-ga-red-soft px-6 py-5 text-ga-ink">
             <GaGlyph icon={ShieldOff} tone="red" size="sm" />
             <div>
-              <p className="text-ga-eyebrow uppercase text-ga-red">{dict.erasedTitle}</p>
+              <p className="text-ga-eyebrow uppercase text-ga-ink">{dict.erasedTitle}</p>
               <p className="mt-1 text-ga-body text-ga-ink">
                 {fillCertificateText(dict.erasedBody, { code: cert.certificateCode, issuer })}
               </p>
@@ -170,13 +170,13 @@ export default async function CertificatePage({ params, searchParams }: PageProp
         {/* Tấm chứng nhận */}
         <article className="relative overflow-hidden border border-ga-border bg-ga-card print:border-0">
           {/* Vạch trên — đỏ khi đã thu hồi để bản in cũng mang dấu hiệu. */}
-          <div className={revoked ? 'h-2 w-full bg-ga-red' : 'h-2 w-full bg-ga-yellow'} data-revoked={revoked || undefined} />
+          <div className={revoked ? 'h-2 w-full bg-ga-red' : 'h-2 w-full bg-ga-yellow'} />
 
           {revoked ? (
             <div role="status" className="flex items-start gap-3 border-b border-ga-red bg-ga-red-soft px-6 py-4 text-ga-ink sm:px-14">
               <GaGlyph icon={ShieldOff} tone="red" size="sm" />
               <div>
-                <p className="text-ga-eyebrow uppercase text-ga-red">{dict.revokedTitle}</p>
+                <p className="text-ga-eyebrow uppercase text-ga-ink">{dict.revokedTitle}</p>
                 <p className="mt-1 text-ga-body text-ga-ink">
                   {fillCertificateText(dict.revokedBody, { code: cert.certificateCode, issuer })}
                 </p>
@@ -259,16 +259,17 @@ export default async function CertificatePage({ params, searchParams }: PageProp
 
                 {/* Dải xác thực */}
                 {revoked ? (
-                  <div className="mt-6 flex items-center justify-center gap-2 bg-ga-red-soft px-4 py-3 text-ga-red">
-                    <ShieldOff size={16} className="shrink-0" aria-hidden />
-                    <span className="text-ga-caption font-semibold [overflow-wrap:anywhere]">
+                  <div className="mt-6 flex items-center justify-center gap-2 bg-ga-red-soft px-4 py-3">
+                    <ShieldOff size={16} className="shrink-0 text-ga-red" aria-hidden />
+                    {/* Chữ màu mực: đỏ/xanh trên nền nhạt chỉ ~3–4:1, dòng này là chỗ người kiểm đọc. */}
+                    <span className="text-ga-caption font-semibold text-ga-ink [overflow-wrap:anywhere]">
                       {fillCertificateText(dict.revokedStrip, { url: verifyHost })}
                     </span>
                   </div>
                 ) : (
-                  <div className="mt-6 flex items-center justify-center gap-2 bg-ga-green-soft px-4 py-3 text-ga-green">
-                    <ShieldCheck size={16} className="shrink-0" aria-hidden />
-                    <span className="text-ga-caption font-semibold [overflow-wrap:anywhere]">
+                  <div className="mt-6 flex items-center justify-center gap-2 bg-ga-green-soft px-4 py-3">
+                    <ShieldCheck size={16} className="shrink-0 text-ga-green" aria-hidden />
+                    <span className="text-ga-caption font-semibold text-ga-ink [overflow-wrap:anywhere]">
                       {fillCertificateText(dict.validStrip, { url: verifyHost })}
                     </span>
                   </div>
