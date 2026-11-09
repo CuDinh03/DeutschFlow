@@ -2513,6 +2513,70 @@
       }
     },
     "practice": {
+      "marks": {
+        "toolbar": "Công cụ đánh dấu",
+        "colorY": "Vàng · từ khoá",
+        "colorG": "Xanh · bằng chứng",
+        "colorP": "Hồng · chưa chắc",
+        "underline": "Gạch chân",
+        "quick": "Câu {n}",
+        "quickHint": "Tô xanh và gắn vào câu đang làm (Q)",
+        "tag": "Gắn vào câu",
+        "tagTo": "Gắn vào câu",
+        "untag": "Bỏ gắn",
+        "currentItem": "Câu đang làm",
+        "note": "Ghi chú",
+        "erase": "Tẩy đánh dấu trong vùng chọn",
+        "remove": "Xoá đánh dấu này",
+        "noteTitle": "Ghi chú · {where}",
+        "notePlaceholder": "Vd: ý chính đoạn này / bẫy: „meistens“ khác „immer“",
+        "noteSave": "Lưu",
+        "noteCancel": "Huỷ",
+        "noteDelete": "Xoá ghi chú",
+        "noteHint": "Ctrl+Enter để lưu · Esc để đóng",
+        "line": "dòng {n}",
+        "lines": "dòng {a}–{b}",
+        "inQuestion": "đề câu {n}",
+        "tagBadge": "Đã gắn vào câu {n}, bấm để mở câu",
+        "noteBadge": "Ghi chú: {note}",
+        "evidenceTag": "Đ/A {n}",
+        "seeMarks": "Đã đánh dấu {count} chỗ · Xem trong bài",
+        "strike": "Gạch bỏ phương án {k}",
+        "unstrike": "Bỏ gạch phương án {k}",
+        "announceTag": "Đã gắn vào câu {n}",
+        "announceUntag": "Đã bỏ gắn câu",
+        "announceNote": "Đã lưu ghi chú",
+        "announceNoteDeleted": "Đã xoá ghi chú",
+        "announceErase": "Đã tẩy đánh dấu trong vùng chọn",
+        "announceDelete": "Đã xoá đánh dấu",
+        "bar": {
+          "title": "Bút đánh dấu",
+          "legend": "Ý nghĩa màu",
+          "hint": "Bôi đen chữ trong bài hoặc trong câu hỏi để tô màu, gạch chân, gắn vào số câu hay ghi chú. Bấm vào đoạn đã tô để sửa. Nút ⊘ cạnh đáp án để gạch bỏ phương án đã loại.",
+          "hintNarrow": "Mở màn hình rộng hơn (từ 760px) để tạo đánh dấu; đánh dấu đã có vẫn hiện ở đây.",
+          "undo": "Hoàn tác đánh dấu (Ctrl+Z)",
+          "hide": "Ẩn đánh dấu để đọc bài sạch",
+          "show": "Hiện lại đánh dấu",
+          "stale": "Đề vừa được sửa chữ, đánh dấu cũ của bài này đã được bỏ.",
+          "saveError": "Chưa lưu được đánh dấu, sẽ thử lại ở lần đánh dấu sau."
+        },
+        "diag": {
+          "title": "Bạn tìm bằng chứng thế nào",
+          "found": "Bạn đã đánh dấu đúng chỗ chứa đáp án ({where}).",
+          "offTarget": "Bạn gắn câu này ở {mine}, nhưng đáp án nằm ở {where}.",
+          "untagged": "Bạn đã tô đúng đoạn ({where}) nhưng chưa gắn vào câu này.",
+          "none": "Bạn chưa đánh dấu chỗ chứa đáp án. Đáp án nằm ở {where}.",
+          "tipFound": "Đã tìm đúng đoạn mà vẫn chọn sai: đọc kỹ lại câu có gạch xanh đứt, so từng chữ với phương án.",
+          "tipMiss": "Chưa tìm ra đoạn chứa đáp án: luyện dò từ khoá của đề trong bài trước khi chọn."
+        },
+        "redo": {
+          "title": "Làm lại Teil này?",
+          "body": "Đáp án và kết quả lần này sẽ bị xoá.",
+          "keep": "Giữ đánh dấu trong bài",
+          "confirm": "Làm lại",
+          "cancel": "Thôi"
+        }
+      },
       "saveSaving": "Đang lưu…",
       "saveSaved": "Đã lưu",
       "saveError": "Chưa lưu được — sẽ thử lại",
@@ -3148,6 +3212,10 @@
         }
       },
       "teil": {
+        "marks": {
+          "t": "Bút đánh dấu",
+          "p": "Bôi đen chữ để đánh dấu như trên giấy. Vàng = từ khoá, Xanh = bằng chứng, Hồng = chưa chắc. Gắn đoạn vào số câu để bấm là tìm lại được."
+        },
         "source": {
           "t": "Bài đọc",
           "p": "Đọc ở đây. Cột này cuộn riêng với câu hỏi."

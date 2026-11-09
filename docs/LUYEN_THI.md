@@ -142,6 +142,7 @@ Chọn đề để mở một Teil (`pickExamFor`): đề đang làm dở Teil �
 | `SplitPanes.tsx` | ≥ 760px: hai cột cuộn riêng, vạch chia kéo được 35–65% (nhớ `df.practice.split`, nhấp đúp về 52%, phím mũi tên). < 760px: ngăn câu hỏi kéo lên xuống, mốc 28/55/88%. Thanh cuộn chỉ hiện khi đang cuộn (`.ga-autoscroll`) |
 | `ObjectiveTeilView.tsx` | 6 dạng khách quan (nối tiêu đề, a/b/c, rao vặt + x, chỗ trống a/b/c, kho từ, richtig/falsch); đáp án đã dùng có viền đứt; đánh dấu câu (mọi dạng, phím F, hàng "Câu đã đánh dấu" để nhảy tới); phím tắt; sau khi nộp: `ItemAnalysis` (vì sao sai + bẫy, vì sao đúng + "Xem trong bài", ghi chú "vì sao tôi chọn", "Hỏi AI về câu này") |
 | `itemAssist.tsx` | B3 (09/11/2026): context `ItemAssist` (`askAi`, `notes`/`onNote`, `flags`/`onToggleFlag`, `jump`) — trang cấp, `ObjectiveTeilView`/`ItemAnalysis` đọc (Hören đi qua `HoerenTeilView` không đổi props); `AskAiPanel`, `NoteField`, `FlagToggle`, `FlaggedList`, `useCachedAsk` |
+| `components/exam/marks/` (09/11/2026) | **Đánh dấu bài đọc** — đợt 1: luyện Teil Lesen có bài đọc (a/b/c), màn ≥ 760px. Bôi đen trong bài / đề câu ⇒ `PassageMarker` (thanh nổi: 3 màu Vàng từ khoá · Xanh bằng chứng · Hồng chưa chắc, gạch chân, gắn câu, "Câu N", ghi chú, tẩy; phím 1/2/3 U Q T N Del Esc); `MarkedText` vẽ khối chữ thành `span[data-seg][data-b][data-s]`; `MarksBar` (chú thích màu, Hoàn tác, Ẩn, `data-tour="marks"`); nút ⊘ gạch bỏ phương án; chip "Xem trong bài"; `MarkDiagnosis` sau kiểm tra. Mô hình thuần `marksModel.ts` (+ test), lưu `usePassageMarks` (hẹn 1,5 s, `keepalive`). Bằng chứng tìm bằng `lib/exam/evidenceRanges.ts` (khoảng trắng gộp, câu trích vắt hai dòng vẫn tô). Kế hoạch các đợt: `plans/2026-11-09-ke-hoach-danh-dau-bai-doc.md` (LOCAL) |
 | `HoerenTeilView.tsx` + `useHoerenRitual.ts` + `HoerenPlayer.tsx` | Hören 4 bước Chuẩn bị → Hướng dẫn (Ansage) → Đọc câu hỏi → Nghe; câu hỏi khoá tới hết Ansage; lượt nghe theo `max_plays` của đề (T1 1 lần + 30s đọc, T2 2 lần + 60s, T3 2 lần, không giờ đọc). Luyện từng Teil có công tắc "Như thi thật / Luyện thoải mái" (nhớ `df.practice.hoerenMode`); thi thử luôn như thi thật. Audio đọc bằng TTS (`speakExamLine`) |
 | `WritingTeilView.tsx` | Đề + 4 ý tự đánh dấu \| ô viết, đếm tới 80 từ, cụm chèn nhanh; điện thoại hai thẻ Đề bài \| Bài viết |
 | `WritingResultView.tsx` | Bài viết đã chấm: ô điểm /45 có vạch 60% và nhãn **"Ước tính"**, VI/DE nhớ `df.practice.writingLang`, lỗi tô vàng trong bài, ý thiếu là nhãn đỏ, thẻ ghi chú, 3 tiêu chí A–D, bài mẫu |
@@ -256,7 +257,8 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | POST | `/mock-exams/practice/{examId}/teile/{key}/check` | Nộp Teil khách quan ⇒ phân tích từng câu (+ `notes`) | 〃 |
 | POST | `/mock-exams/practice/{examId}/teile/{key}/items/{itemId}/ask-ai` `{locale}` | "Hỏi AI về câu này" — Teil đã kiểm tra (chưa ⇒ 409) | 〃 + `ExamItemAiService` |
 | POST | `/mock-exams/practice/attempts/{id}/teile/{key}/items/{itemId}/ask-ai` `{locale}` | 〃 cho lượt thi thử đã nộp/dừng (người khác ⇒ 404, đang làm ⇒ 409) | 〃 |
-| DELETE | `/mock-exams/practice/{examId}/teile/{key}` | Làm lại Teil | 〃 |
+| DELETE | `/mock-exams/practice/{examId}/teile/{key}[?keepMarks=false]` | Làm lại Teil (mặc định giữ đánh dấu bài đọc) | 〃 |
+| GET/PUT | `/mock-exams/practice/{examId}/teile/{key}/marks` | Đánh dấu bài đọc của Teil (ghi đè cả gói; sai ⇒ 400) | 〃 + `PassageMarksValidator` |
 | POST | `/mock-exams/practice/{examId}/schreiben` | Chấm Viết bằng AI (trả `jobId`) | 〃 |
 | GET | `/mock-exams/practice/attempts/{id}/analysis` | Phân tích từng câu của lượt thi thử | 〃 |
 | GET | `/mock-exams/practice/mock-teile` | Điểm từng Teil của 30 lượt thi thử gần nhất (`COMPLETED` + `PARTIAL`) cho Bốn kỹ năng | 〃 + `MockAttemptTeilScores` |
@@ -330,8 +332,9 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | **V364** | `user_ui_tours (user_id, tour_key, seen_at)` |
 | **V365** | `exam_diagnostics (user_id PK, exam_id, result_json, started_at, finished_at)` |
 | **V374** | B3: `mock_exam_practice_progress.notes_json` (JSONB `{}`), `mock_exam_attempts.draft_flags_json` (JSONB), bảng `exam_item_ai_explanations` (bộ đệm "Hỏi AI", `UNIQUE (exam_id, teil_key, item_id, chosen, locale, content_hash)`) |
+| **V375** | `exam_passage_marks (user_id, exam_id, teil_key, attempt_id NULL = luyện Teil, marks_json, …)` — đánh dấu bài đọc, hai chỉ mục duy nhất một phần |
 
-V363–V365, V374 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
+V363–V365, V374, V375 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
 V374 cần V368–V372 lên trước (`out-of-order: false`).
 
 ---
@@ -376,7 +379,7 @@ V374 cần V368–V372 lên trước (`out-of-order: false`).
 
 ## 6. Vận hành
 
-- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365, backend deploy trước frontend.
+- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365 (→ V368–V370 admin → V374 B3 → V375 đánh dấu bài đọc), backend deploy trước frontend.
 - Mở cho học viên: trang admin Quyền luyện đề (cờ `ALLOWLIST` thêm người, hoặc `ALL`).
 - Mobile **chưa** có giao diện mới; mobile vẫn dùng endpoint cũ — không gỡ endpoint cũ cho tới khi mobile chuyển xong.
   `/exam-plan` chỉ thêm trường mới (`days`), không phá mobile.

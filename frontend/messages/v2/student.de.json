@@ -2513,6 +2513,70 @@
       }
     },
     "practice": {
+      "marks": {
+        "toolbar": "Markierwerkzeuge",
+        "colorY": "Gelb · Schlüsselwort",
+        "colorG": "Grün · Beleg",
+        "colorP": "Rosa · unsicher",
+        "underline": "Unterstreichen",
+        "quick": "Aufg. {n}",
+        "quickHint": "Grün markieren und der aktuellen Aufgabe zuordnen (Q)",
+        "tag": "Aufgabe zuordnen",
+        "tagTo": "Zuordnen zu",
+        "untag": "Zuordnung lösen",
+        "currentItem": "Aktuelle Aufgabe",
+        "note": "Notiz",
+        "erase": "Markierungen in der Auswahl löschen",
+        "remove": "Diese Markierung löschen",
+        "noteTitle": "Notiz · {where}",
+        "notePlaceholder": "Z. B. Hauptaussage des Absatzes / Falle: „meistens“ ist nicht „immer“",
+        "noteSave": "Speichern",
+        "noteCancel": "Abbrechen",
+        "noteDelete": "Notiz löschen",
+        "noteHint": "Strg+Enter speichert · Esc schließt",
+        "line": "Zeile {n}",
+        "lines": "Zeilen {a}–{b}",
+        "inQuestion": "Aufgabe {n}",
+        "tagBadge": "Aufgabe {n} zugeordnet, klicken öffnet sie",
+        "noteBadge": "Notiz: {note}",
+        "evidenceTag": "Lsg. {n}",
+        "seeMarks": "{count, plural, one {# Markierung} other {# Markierungen}} · Im Text zeigen",
+        "strike": "Option {k} durchstreichen",
+        "unstrike": "Option {k} wiederherstellen",
+        "announceTag": "Aufgabe {n} zugeordnet",
+        "announceUntag": "Zuordnung gelöst",
+        "announceNote": "Notiz gespeichert",
+        "announceNoteDeleted": "Notiz gelöscht",
+        "announceErase": "Markierungen in der Auswahl gelöscht",
+        "announceDelete": "Markierung gelöscht",
+        "bar": {
+          "title": "Textmarker",
+          "legend": "Bedeutung der Farben",
+          "hint": "Text im Lesetext oder in einer Aufgabe markieren: farbig hervorheben, unterstreichen, einer Aufgabe zuordnen oder notieren. Markierung anklicken zum Bearbeiten. ⊘ neben einer Option streicht sie durch.",
+          "hintNarrow": "Markierungen auf einem breiteren Bildschirm (ab 760 px) anlegen; vorhandene bleiben sichtbar.",
+          "undo": "Markierung rückgängig (Strg+Z)",
+          "hide": "Markierungen ausblenden",
+          "show": "Markierungen einblenden",
+          "stale": "Der Text wurde korrigiert, deine alten Markierungen darin wurden entfernt.",
+          "saveError": "Markierungen noch nicht gespeichert, nächster Versuch bei der nächsten Markierung."
+        },
+        "diag": {
+          "title": "Wie du den Beleg gefunden hast",
+          "found": "Du hast die Stelle mit der Lösung markiert ({where}).",
+          "offTarget": "Du hast diese Aufgabe {mine} zugeordnet, die Lösung steht aber in {where}.",
+          "untagged": "Du hast die richtige Stelle ({where}) markiert, aber nicht dieser Aufgabe zugeordnet.",
+          "none": "Du hast die Stelle mit der Lösung nicht markiert. Sie steht in {where}.",
+          "tipFound": "Stelle gefunden, aber falsch gewählt: Lies den grün gestrichelten Satz genau und vergleiche Wort für Wort mit den Optionen.",
+          "tipMiss": "Stelle nicht gefunden: Suche zuerst die Schlüsselwörter der Aufgabe im Text."
+        },
+        "redo": {
+          "title": "Teil neu beginnen?",
+          "body": "Antworten und Ergebnis dieses Versuchs werden gelöscht.",
+          "keep": "Markierungen im Text behalten",
+          "confirm": "Neu beginnen",
+          "cancel": "Abbrechen"
+        }
+      },
       "saveSaving": "Wird gespeichert…",
       "saveSaved": "Gespeichert",
       "saveError": "Noch nicht gespeichert — neuer Versuch",
@@ -3148,6 +3212,10 @@
         }
       },
       "teil": {
+        "marks": {
+          "t": "Textmarker",
+          "p": "Text markieren wie auf Papier. Gelb = Schlüsselwort, Grün = Beleg, Rosa = unsicher. Ordne eine Stelle einer Aufgabe zu, um sie mit einem Klick wiederzufinden."
+        },
         "source": {
           "t": "Lesetext",
           "p": "Hier lesen. Diese Spalte scrollt für sich."

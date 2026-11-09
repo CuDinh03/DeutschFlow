@@ -50,11 +50,14 @@ export function ItemAnalysis({
   item,
   title,
   onShowEvidence,
+  extra,
 }: {
   item: PracticeItemResult
   title: string
   /** Có khi bằng chứng nằm ở cột nguồn: hiện nút "Xem trong bài" để cuộn tới và tô chỗ đó. */
   onShowEvidence?: () => void
+  /** Khối đặt ngay dưới tiêu đề — chẩn đoán "bạn tìm bằng chứng thế nào" (đánh dấu bài đọc, 09/11/2026). */
+  extra?: React.ReactNode
 }) {
   const t = useTranslations('v2.student.practice')
   const ta = useTranslations('v2.student.practice.assist')
@@ -84,6 +87,7 @@ export function ItemAnalysis({
         )}
       </div>
 
+      {extra}
       {myNote && (
         <Block tone="neutral" label={ta('noteYours')} icon={<NotebookPen size={13} aria-hidden />}>
           <p className="whitespace-pre-line" data-testid="my-note">{myNote}</p>

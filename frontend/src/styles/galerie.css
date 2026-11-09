@@ -57,6 +57,14 @@
   --ga-navy: #27406B;
   --ga-navy-soft: rgba(39, 64, 107, 0.10);
 
+  /* Đánh dấu bài đọc (09/11/2026): 3 màu bút của học viên + gạch chân + vị trí đáp án sau kiểm tra.
+     Đậm hơn bản -soft để đọc ra là "bút dạ quang", vẫn giữ chữ đạt tương phản trên nền giấy. */
+  --ga-mark-y: rgba(255, 205, 0, 0.42);   /* Vàng · từ khoá */
+  --ga-mark-g: rgba(30, 158, 97, 0.24);   /* Xanh · bằng chứng */
+  --ga-mark-p: rgba(226, 84, 146, 0.22);  /* Hồng · chưa chắc */
+  --ga-mark-ul: var(--ga-navy);
+  --ga-mark-ev: var(--ga-green);
+
   /* Role accent — default (neutral). Overridden per-role below. */
   --ga-accent: var(--ga-navy);
   --ga-accent-soft: var(--ga-navy-soft);
@@ -363,6 +371,41 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
 @keyframes gaEvidenceGlow { 50% { background: var(--ga-yellow); } }
 @media (prefers-reduced-motion: reduce) {
   .ga-timer-pulse, .ga-evidence-glow { animation: none; }
+}
+
+/* Đánh dấu bài đọc (09/11/2026, components/exam/marks). Lớp xếp chồng trên từng đoạn chữ:
+   màu (một), gạch chân, vị trí đáp án (gạch xanh đứt — khác hẳn ba màu bút của học viên). */
+.ga-mark-y { background-color: var(--ga-mark-y); }
+.ga-mark-g { background-color: var(--ga-mark-g); }
+.ga-mark-p { background-color: var(--ga-mark-p); }
+.ga-mark-ul {
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--ga-mark-ul);
+  text-decoration-skip-ink: none;
+}
+.ga-mark-on { cursor: pointer; }
+.ga-mark-ev {
+  background-image: repeating-linear-gradient(90deg, var(--ga-mark-ev) 0 6px, transparent 6px 10px);
+  background-size: 100% 2.5px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  padding-bottom: 2px;
+}
+.ga-marks-hidden .ga-mark-y,
+.ga-marks-hidden .ga-mark-g,
+.ga-marks-hidden .ga-mark-p { background-color: transparent; }
+.ga-marks-hidden .ga-mark-ul { text-decoration-line: none; }
+.ga-marks-hidden .ga-mark-tag { display: none; }
+/* Nhãn số câu / ghi chú: neo rộng 0px ở cuối đoạn tô, nổi lên trên dòng ⇒ không làm tràn dòng tác giả ngắt. */
+.ga-mark-anchor { position: relative; display: inline-block; width: 0; height: 1em; vertical-align: -0.1em; user-select: none; -webkit-user-select: none; }
+.ga-mark-anchor > span { position: absolute; left: -3px; bottom: 0.8em; display: flex; gap: 2px; white-space: nowrap; z-index: 1; }
+.ga-mark-tag { box-shadow: 0 0 0 1.5px var(--ga-card); cursor: pointer; }
+.ga-mark-flash { animation: gaMarkFlash 1.3s var(--ga-ease-out); }
+@keyframes gaMarkFlash { 15%, 55% { box-shadow: 0 0 0 3px rgba(39, 64, 107, 0.5); } }
+@media (prefers-reduced-motion: reduce) {
+  .ga-mark-flash { animation: none; outline: 2px solid var(--ga-navy); }
 }
 
 /* Phòng thi nói (Đợt 1 phòng thi nói, 07/11/2026). Đến lượt: vòng vàng lan ra 1,6s lặp; đang ghi:
