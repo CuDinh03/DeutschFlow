@@ -2004,7 +2004,8 @@
           "busy": "Micro đang bị ứng dụng khác dùng.",
           "insecure": "Micro cần HTTPS.",
           "unsupported": "Trình duyệt không hỗ trợ thu âm.",
-          "unknown": "Không thu âm được. Hãy thử lại."
+          "unknown": "Không thu âm được. Hãy thử lại.",
+          "tooShort": "Bản ghi quá ngắn. Bấm micro, nói hết câu rồi mới bấm dừng."
         },
         "retry": "Thử lại với micro",
         "deniedSteps": {

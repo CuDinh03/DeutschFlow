@@ -2004,7 +2004,8 @@
           "busy": "Das Mikrofon wird von einer anderen App benutzt.",
           "insecure": "Das Mikrofon braucht HTTPS.",
           "unsupported": "Dieser Browser kann keine Audioaufnahme.",
-          "unknown": "Aufnahme fehlgeschlagen. Bitte erneut versuchen."
+          "unknown": "Aufnahme fehlgeschlagen. Bitte erneut versuchen.",
+          "tooShort": "Die Aufnahme war zu kurz. Tippen Sie auf das Mikrofon, sprechen Sie Ihre Antwort und tippen Sie dann auf Stopp."
         },
         "retry": "Mikrofon erneut versuchen",
         "deniedSteps": {

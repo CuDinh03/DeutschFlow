@@ -2004,7 +2004,8 @@
           "busy": "The microphone is used by another app.",
           "insecure": "Microphone needs HTTPS.",
           "unsupported": "This browser cannot record audio.",
-          "unknown": "Could not record. Please retry."
+          "unknown": "Could not record. Please retry.",
+          "tooShort": "That recording was too short. Tap the mic, say your full answer, then tap stop."
         },
         "retry": "Try microphone again",
         "deniedSteps": {

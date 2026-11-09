@@ -76,6 +76,8 @@ Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về 
   "Chạm để nghe" (`tts-blocked`). Chạm thì gọi `unlockExamAudio` trong cú chạm rồi phát lại câu đó; "Bỏ qua, tôi đọc chữ"
   thì mở lượt (lời vẫn hiện trong hội thoại). Không tự phát lại ở cú chạm sau, vì cú chạm đó có thể là nút micro và
   giọng AI sẽ lọt vào bản ghi.
+- Bản ghi quá ngắn (`MicBar`, 10/11/2026): bấm dừng tay trước 0,6 giây (`MIN_TURN_MS`) thì không gửi STT, báo
+  "Bản ghi quá ngắn" để ghi lại. Hết trần thời lượng hay tự dừng khi im không bị chặn.
 
 ### 1.2 Hiện có cho kỳ thi nào
 
