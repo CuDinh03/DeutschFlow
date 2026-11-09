@@ -60,11 +60,20 @@ function v2RoleHome(role: Role): string {
   return '/v2/student/dashboard'
 }
 
+/**
+ * `pathname` là `prefix` hoặc nằm dưới nó — khớp theo NGUYÊN đoạn đường dẫn. `startsWith('/teacher')`
+ * trần từng khớp cả `/teachers/…` (hồ sơ giáo viên công khai), nên học viên bị đá về Dashboard và
+ * khách bị đá sang đăng nhập (09/11/2026).
+ */
+function isUnder(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`)
+}
+
 /** Trang chỉ dành cho một vai trò (prefix cứng). */
 function requiredRole(pathname: string): Role | null {
-  if (pathname.startsWith('/admin')) return 'ADMIN'
-  if (pathname.startsWith('/teacher')) return 'TEACHER'
-  if (pathname.startsWith('/student')) return 'STUDENT'
+  if (isUnder(pathname, '/admin')) return 'ADMIN'
+  if (isUnder(pathname, '/teacher')) return 'TEACHER'
+  if (isUnder(pathname, '/student')) return 'STUDENT'
   return null
 }
 
