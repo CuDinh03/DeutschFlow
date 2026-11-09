@@ -621,6 +621,7 @@
     },
     "learningDetail": {
       "title": "Learning profile",
+      "close": "Close",
       "loading": "Loading learning profile...",
       "backendBusy": "The backend is still loading data, please try again.",
       "tabs": {

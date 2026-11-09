@@ -621,6 +621,7 @@
     },
     "learningDetail": {
       "title": "Hồ sơ học tập",
+      "close": "Đóng",
       "loading": "Đang tải hồ sơ học tập...",
       "backendBusy": "Backend đang tải dữ liệu, vui lòng thử lại.",
       "tabs": {

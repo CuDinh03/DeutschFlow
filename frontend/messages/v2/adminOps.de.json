@@ -621,6 +621,7 @@
     },
     "learningDetail": {
       "title": "Lernprofil",
+      "close": "Schließen",
       "loading": "Lernprofil wird geladen...",
       "backendBusy": "Das Backend lädt noch Daten, bitte versuchen Sie es erneut.",
       "tabs": {
