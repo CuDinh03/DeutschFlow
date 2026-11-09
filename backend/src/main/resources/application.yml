@@ -249,6 +249,11 @@ server:
     min-response-size: 1024
 
 app:
+  # A2 (09/11/2026): bài tập bổ trợ "external" (chỉ có source_url, không có đáp án để server chấm)
+  # → học viên tự xác nhận hoàn thành được XP CỐ ĐỊNH này, mỗi bài tối đa 1 lần/ngày (giờ VN).
+  # Không tính theo phần trăm client gửi. Không vượt xp_reward của bài.
+  practice:
+    external-completion-xp: ${PRACTICE_EXTERNAL_COMPLETION_XP:5}
   # Mảng Luyện thi Nói (plans/2026-08-19-ke-hoach-luyen-thi-noi.md). allow-text-turns-in-mock CHỈ dev/test:
   # prod mock phải nhận audio (server phiên âm) để chống dán văn bản.
   examspeaking:

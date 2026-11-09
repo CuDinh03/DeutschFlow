@@ -234,7 +234,7 @@ public class LearningSessionWorkflowService {
             st.setReinforcementJson(null);
             st.setLastSeenAt(java.time.LocalDateTime.now());
             sessionStateRepository.save(st);
-            learningSessionProgressService.markSessionCompleted(user, week, sessionIndex, null, null);
+            learningSessionProgressService.markCompletedByServer(user, week, sessionIndex, scorePercent);
             scheduleSessionVocab(user, detail);
             int[] n = storedLearningPlanSupport.computeNextSessionPointer(planObj, plan, week, sessionIndex);
             if (n != null) {
