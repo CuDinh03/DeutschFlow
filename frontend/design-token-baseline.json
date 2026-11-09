@@ -103,13 +103,6 @@
       "text-[11.5px]": 1
     }
   },
-  "src/app/v2/admin/free-teachers/page.tsx": {
-    "arbitrary-font-size": {
-      "text-[14px]": 2,
-      "text-[12px]": 1,
-      "text-[13px]": 1
-    }
-  },
   "src/app/v2/admin/grammar-review/page.tsx": {
     "arbitrary-font-size": {
       "text-[11.5px]": 3,
@@ -362,20 +355,12 @@
       "text-[12px]": 3,
       "text-[10px]": 1,
       "text-[13.5px]": 1,
-      "text-[11px]": 2,
-      "text-[12.5px]": 2,
+      "text-[11px]": 1,
+      "text-[12.5px]": 1,
       "text-[14.5px]": 1
     },
     "arbitrary-radius": {
       "rounded-[3px]": 2
-    }
-  },
-  "src/app/v2/admin/users/UserDetailModal.tsx": {
-    "arbitrary-font-size": {
-      "text-[13px]": 10,
-      "text-[12px]": 6,
-      "text-[12.5px]": 1,
-      "text-[11px]": 1
     }
   },
   "src/app/v2/admin/vocabulary/GalerieReviewGrid.tsx": {

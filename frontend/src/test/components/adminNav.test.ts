@@ -34,7 +34,7 @@ describe('Menu admin — 6 nhóm có tiêu đề', () => {
 
   it('trang đã gộp hoặc chỉ có vỏ không còn trên menu; Chi phí AI và Thư viện ảnh vẫn có', async () => {
     const hrefs = (await loadNav()).sections.flatMap((s) => s.items.map((i) => i.href))
-    for (const gone of ['/v2/admin/tokens', '/v2/admin/settings', '/v2/admin/plans']) {
+    for (const gone of ['/v2/admin/tokens', '/v2/admin/settings', '/v2/admin/plans', '/v2/admin/free-teachers']) {
       expect(hrefs).not.toContain(gone)
     }
     expect(hrefs).toContain('/v2/admin/ai-usage')

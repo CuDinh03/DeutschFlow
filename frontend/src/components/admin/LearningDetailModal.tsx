@@ -612,7 +612,12 @@ function InterviewTab({ userId }: { userId: number }) {
   );
 }
 
-export default function LearningDetailModal({ userId, userName, onClose }: { userId: number; userName: string; onClose: () => void }) {
+/**
+ * Thân của hồ sơ học (tab + nội dung) — tách 09/11/2026 để trang hồ sơ người dùng
+ * /v2/admin/users/[id] nhúng thẳng vào tab "Học tập & phỏng vấn"; modal bên dưới chỉ còn là vỏ.
+ * Mỗi lần mở vẫn gọi đúng các endpoint cũ, nên vết đọc (DEC-13) không đổi.
+ */
+export function LearningDetailPanel({ userId }: { userId: number }) {
   const t = useTranslations('v2.adminOps.learningDetail');
   const [tab, setTab] = useState<Tab>("profile");
   const [detail, setDetail] = useState<LearningDetail | null>(null);
@@ -640,20 +645,7 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
   }, [userId]);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col rounded-[24px] bg-white overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2 px-4 lg:px-6 py-4 border-b" style={{ borderColor: P.border }}>
-          <div className="min-w-0">
-            <h3 className="font-bold text-base" style={{ color: P.text }}>{t('title')}</h3>
-            <p className="text-xs break-words" style={{ color: P.muted }}>#{userId} · {userName}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-ga-muted hover:bg-ga-side-active">
-            <X size={16} aria-hidden />
-          </button>
-        </div>
-
+    <>
         {/* Tabs */}
         <div className="flex gap-1 px-4 lg:px-6 py-2 border-b overflow-x-auto" style={{ borderColor: P.border, background: P.bg }}>
           {TABS.map(item => (
@@ -686,6 +678,27 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
             </>
           )}
         </div>
+    </>
+  );
+}
+
+export default function LearningDetailModal({ userId, userName, onClose }: { userId: number; userName: string; onClose: () => void }) {
+  const t = useTranslations('v2.adminOps.learningDetail');
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col rounded-[24px] bg-white overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-2 px-4 lg:px-6 py-4 border-b" style={{ borderColor: P.border }}>
+          <div className="min-w-0">
+            <h3 className="font-bold text-base" style={{ color: P.text }}>{t('title')}</h3>
+            <p className="text-xs break-words" style={{ color: P.muted }}>#{userId} · {userName}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-ga-muted hover:bg-ga-side-active">
+            <X size={16} aria-hidden />
+          </button>
+        </div>
+        <LearningDetailPanel userId={userId} />
       </div>
     </div>
   );

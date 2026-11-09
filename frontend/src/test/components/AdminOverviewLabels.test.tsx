@@ -24,19 +24,27 @@ vi.mock('@/lib/api', async (importOriginal) => {
   return { ...actual, default: { get: mocks.get } }
 })
 
-const USERS = [
-  { id: 1, role: 'STUDENT', isActive: true },
-  { id: 2, role: 'TEACHER', isActive: true },
-  { id: 3, role: 'MANAGER', isActive: true },
-  { id: 4, role: 'OWNER', isActive: true },
-  { id: 5, role: 'ADMIN', isActive: true },
-]
+// GĐ3 (09/11/2026): Tổng quan đọc KPI người dùng từ /admin/users/stats, không tải cả danh sách nữa.
+const STATS = {
+  total: 5,
+  active: 4,
+  locked: 1,
+  byRole: { STUDENT: 1, TEACHER: 1, MANAGER: 1, OWNER: 1, ADMIN: 1 },
+  aiActive30d: 2,
+  freeTeachers: 0,
+  topUsage30d: [],
+}
 
 function mockApi(netVnd: number) {
   mocks.get.mockImplementation((url: string) => {
-    if (url === '/admin/users') return Promise.resolve({ data: USERS })
+    if (url === '/admin/users/stats') return Promise.resolve({ data: STATS })
     if (url === '/admin/analytics/revenue')
-      return Promise.resolve({ data: { totals: { netVnd }, chartData: [{ period: '2026-10', netVnd, subscribers: 3 }] } })
+      return Promise.resolve({
+        data: {
+          totals: { netVnd },
+          chartData: [{ period: '2026-10', netVnd, subscribers: 3, b2cGrossVnd: 1_000_000, b2bGrossVnd: 2_000_000 }],
+        },
+      })
     return Promise.resolve({ data: { data: [] } })
   })
 }
@@ -60,7 +68,17 @@ describe('Tổng quan admin — nhãn đúng nghĩa', () => {
     expect(text).not.toMatch(/MRR/)
     expect(text).not.toMatch(/Thuê bao/)
     expect(text).toContain('Giao dịch thành công theo kỳ')
-    expect(text).toContain('kỳ gần nhất · 2026-10')
+    // Thẻ tách nguồn: cá nhân (B2C) và trung tâm (B2B, hoá đơn đã thu).
+    expect(text).toMatch(/2026-10 · cá nhân .+ · trung tâm .+/)
+    // Không còn tải cả bảng người dùng chỉ để đếm.
+    expect(mocks.get).not.toHaveBeenCalledWith('/admin/users')
+  })
+
+  it('tài khoản tạm dừng dẫn thẳng tới danh sách đã lọc "Đã khoá"', async () => {
+    mockApi(2_000_000)
+    renderPage()
+    const link = await screen.findByText(/1 tài khoản đang tạm dừng/)
+    expect(link.closest('a')?.getAttribute('href')).toBe('/v2/admin/users?status=locked')
   })
 
   it('donut vai trò có đủ Quản lý và Giám đốc', async () => {

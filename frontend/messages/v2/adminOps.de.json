@@ -114,7 +114,7 @@
         "aiActivity": "KI-Aktivität",
         "aiActivitySub": "KI in 30 Tagen genutzt",
         "netRemaining": "Rest nach Gebühren & KI",
-        "netRemainingSub": "letzte Periode · {period}"
+        "netRemainingSplit": "{period} · Einzelpersonen {b2c} · Zentren {b2b}"
       },
       "recentPeriods": "letzte {count} Zeiträume",
       "noPeriodData": "Noch keine Zeitraumdaten.",
@@ -131,7 +131,7 @@
     },
     "revenue": {
       "title": "Umsatz & Abonnements",
-      "subtitle": "MRR, Wachstum und aktuelle Transaktionen verfolgen",
+      "subtitle": "Umsatz von Einzelpersonen und Zentren, Zahlungsgebühren, KI-Kosten und letzte Transaktionen",
       "loadError": "Umsatzdaten konnten nicht geladen werden.",
       "loading": "Umsatz wird geladen…",
       "stats": {
@@ -158,15 +158,17 @@
       "prev": "Zurück",
       "next": "Weiter",
       "rowGross": "Bruttoumsatz",
-      "rowStoreFee": "Gateway-/Store-Gebühr (angenommen 15 %)",
+      "rowStoreFee": "Zahlungsgebühren (Apple 15 %, andere laut Konfiguration)",
       "rowAiCost": "KI-Kosten (Schätzung)",
       "rowNet": "Rest",
-      "breakdownNote": "Die Store-Gebühr wird mit 15 % angenommen; die KI-Kosten sind eine Schätzung aus dem Token-Ledger. Dies ist kein vollständiger buchhalterischer Gewinn.",
+      "breakdownNote": "Zahlungsgebühren je Anbieter; KI-Kosten geschätzt aus dem Token-Ledger; Demo-Konten und -Zentren ausgeschlossen. Dies ist kein vollständiger buchhalterischer Gewinn.",
       "statusSuccess": "ERFOLGREICH",
       "statusFailed": "FEHLGESCHLAGEN",
       "statusPending": "AUSSTEHEND",
       "statusCancelled": "STORNIERT",
-      "statusUnknown": "UNBEKANNT"
+      "statusUnknown": "UNBEKANNT",
+      "rowB2c": "· Einzelpersonen (erfolgreiche Transaktionen)",
+      "rowB2b": "· Zentren (bezahlte Rechnungen)"
     },
     "tokens": {
       "title": "KI-Kostenanalyse",
@@ -467,15 +469,6 @@
         }
       }
     },
-    "freeTeachers": {
-      "title": "Freie Lehrkräfte",
-      "subtitle": "Lehrkräfte, die noch keinem Zentrum angehören — zum Einladen oder Koordinieren",
-      "loadError": "Liste der freien Lehrkräfte konnte nicht geladen werden",
-      "colTeacher": "Lehrkraft",
-      "colUserId": "Nutzer-ID",
-      "itemNoun": "Lehrkräfte",
-      "empty": "Keine freien Lehrkräfte."
-    },
     "users": {
       "title": "Nutzerverwaltung",
       "subtitle": "Rollen, Tarife und Kontingente jedes Kontos",
@@ -496,20 +489,16 @@
         "role": "Rolle",
         "plan": "Tarif",
         "quota": "KI-Kontingent",
-        "status": "Status"
+        "status": "Status",
+        "usage30d": "Tokens (30 Tage)"
       },
       "unlimited": "Unbegrenzt",
       "quotaUsed": "{pct}% genutzt",
       "statusActive": "Aktiv",
       "statusPaused": "Pausiert",
-      "manage": "Verwalten",
       "itemNoun": "Nutzer",
       "empty": "Keine Nutzer gefunden.",
       "detail": {
-        "close": "Schließen",
-        "saveChanges": "Änderungen speichern",
-        "learningProfile": "Lernprofil",
-        "loadingQuotaUsage": "Kontingent & Nutzung werden geladen…",
         "quotaCap": "Kontingentdetails",
         "unlimited": "Unbegrenzt",
         "noQuotaSnapshot": "Noch keine Kontingentaufnahme.",
@@ -569,7 +558,8 @@
           "detailSessions": "Alle laufenden Sitzungen dieser Person werden beendet.",
           "detailAudit": "Die Aktion wird im Audit-Log erfasst.",
           "confirm": "Rolle ändern",
-          "cancel": "Abbrechen"
+          "cancel": "Abbrechen",
+          "phraseLabel": "Zum Bestätigen die E-Mail {email} eingeben"
         },
         "confirmLock": {
           "title": "Dieses Konto sperren?",
@@ -579,6 +569,51 @@
           "detailReversible": "Das Konto lässt sich jederzeit wieder entsperren.",
           "confirm": "Konto sperren",
           "cancel": "Abbrechen"
+        },
+        "back": "Zurück zur Liste",
+        "loadingProfile": "Profil wird geladen…",
+        "loadError": "Das Nutzerprofil konnte nicht geladen werden.",
+        "notFoundTitle": "Nutzer nicht gefunden",
+        "notFound": "Es gibt keinen Nutzer #{id}, oder das Konto wurde gelöscht.",
+        "orgOf": "Zentrum: {name}",
+        "noOrg": "Kein Zentrum",
+        "createdAt": "Erstellt am {date}",
+        "learningIntro": "Lernprofil, XP, Sprechen, Wortschatz und Interviewsitzungen. Jeder Aufruf wird protokolliert und ist für die Zentrumsleitung sichtbar.",
+        "tabs": {
+          "label": "Bereiche des Nutzerprofils",
+          "overview": "Überblick & Tarif",
+          "usage": "KI-Nutzung",
+          "learning": "Lernen & Interviews",
+          "audit": "Protokoll"
+        },
+        "audit": {
+          "colTime": "Zeitpunkt",
+          "colEvent": "Aktion",
+          "colActor": "Ausgeführt von",
+          "colReason": "Begründung",
+          "empty": "Noch keine Aktionen zu diesem Nutzer."
+        },
+        "confirmPw": {
+          "title": "Passwort zurücksetzen?",
+          "description": "{name} muss sich mit dem neuen Passwort anmelden.",
+          "detailSessions": "Alle laufenden Sitzungen dieser Person werden beendet.",
+          "detailNoNotice": "Die Person wird NICHT automatisch benachrichtigt — bitte über den Support informieren.",
+          "detailAudit": "Aktion und Begründung werden im Protokoll gespeichert.",
+          "confirm": "Passwort zurücksetzen",
+          "cancel": "Abbrechen"
+        },
+        "confirmPlan": {
+          "open": "Tarif ändern…",
+          "title": "Tarif für {name} ändern?",
+          "description": "Tarif {from} → {to}. Dies kann nicht rückgängig gemacht werden.",
+          "detailEndActive": "Alle aktiven Tarife dieser Person enden sofort.",
+          "detailWalletReset": "Das aktuelle Guthaben von {balance} Tokens wird auf die Startzuteilung von {to} zurückgesetzt.",
+          "detailWalletCleared": "Das aktuelle Guthaben von {balance} Tokens wird gelöscht.",
+          "detailSnapshot": "Guthaben zum Zeitpunkt des Seitenaufrufs.",
+          "detailAudit": "Alter Tarif, altes Guthaben und Begründung werden protokolliert.",
+          "confirm": "Tarif ändern",
+          "cancel": "Abbrechen",
+          "done": "Auf Tarif {plan} umgestellt."
         }
       },
       "create": {
@@ -619,6 +654,25 @@
           "detailAudit": "Die Aktion wird im Audit-Log erfasst.",
           "confirm": "Adminkonto anlegen",
           "cancel": "Abbrechen"
+        }
+      },
+      "openProfile": "Profil von {name} öffnen",
+      "view": {
+        "label": "Nutzeransicht",
+        "all": "Alle Nutzer",
+        "freeTeachers": "Freie Lehrkräfte",
+        "freeTeachersCount": "Freie Lehrkräfte · {count}",
+        "freeTeachersHint": "Aktive Lehrkräfte, die noch keinem Zentrum angehören — der Rekrutierungspool für B2B-Zentren."
+      },
+      "filters": {
+        "roleLabel": "Nach Rolle filtern",
+        "statusLabel": "Nach Status filtern",
+        "planLabel": "Nach Tarif filtern",
+        "planAll": "Alle Tarife",
+        "status": {
+          "all": "Jeder Status",
+          "active": "Aktiv",
+          "locked": "Gesperrt"
         }
       }
     },
