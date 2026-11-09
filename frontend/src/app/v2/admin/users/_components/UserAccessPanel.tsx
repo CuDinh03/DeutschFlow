@@ -29,7 +29,9 @@ export interface UserAccessPanelProps {
  * - cấp hoặc bỏ ADMIN: danger + lý do + gõ lại email người bị đổi;
  * - khoá tài khoản: danger + lý do (cắt mọi phiên đang chạy);
  * - mở khoá: KHÔNG hỏi lại — khôi phục quyền chứ không lấy đi (AC-ADMIN-16);
- * - đặt lại mật khẩu: caution + lý do (người dùng không nhận thông báo tự động).
+ * - đặt lại mật khẩu: caution + lý do. Từ đợt 2 (09/11/2026) người bị đổi nhận thông báo + email
+ *   (không kèm lý do/tên admin), và tài khoản ADMIN không còn đặt lại được ở đây — backend trả 403
+ *   ADMIN_PASSWORD_RESET_FORBIDDEN; admin tự đặt lại qua "Quên mật khẩu".
  */
 export function UserAccessPanel({ userId, userName, email, role, isActive, onChanged }: UserAccessPanelProps) {
   const t = useTranslations('v2.adminOps.users.detail')
@@ -163,26 +165,34 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
 
       <div className="space-y-2">
         <GaCap>{t('pwCap')}</GaCap>
-        <div className="flex items-center gap-2">
-          <input
-            type="password"
-            value={newPw}
-            onChange={(e) => setNewPw(e.target.value)}
-            autoComplete="new-password"
-            placeholder={t('pwPlaceholder')}
-            aria-label={t('pwCap')}
-            className={inputCls}
-          />
-          <GaBtn
-            variant="primary"
-            loading={savingPw}
-            disabled={newPw.length < 8}
-            onClick={() => newPw.length >= 8 && setConfirmPw(true)}
-          >
-            {t('pwReset')}
-          </GaBtn>
-        </div>
-        <p className="ga-ui text-ga-caption text-ga-subtle">{t('pwNote')}</p>
+        {currentRole === 'ADMIN' ? (
+          <p className="ga-ui text-ga-small text-ga-muted" data-testid="pw-admin-note">
+            {t('pwAdminNote')}
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                autoComplete="new-password"
+                placeholder={t('pwPlaceholder')}
+                aria-label={t('pwCap')}
+                className={inputCls}
+              />
+              <GaBtn
+                variant="primary"
+                loading={savingPw}
+                disabled={newPw.length < 8}
+                onClick={() => newPw.length >= 8 && setConfirmPw(true)}
+              >
+                {t('pwReset')}
+              </GaBtn>
+            </div>
+            <p className="ga-ui text-ga-caption text-ga-subtle">{t('pwNote')}</p>
+          </>
+        )}
       </div>
 
       <ConfirmDialog
@@ -226,7 +236,7 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
         requireReason
         title={t('confirmPw.title')}
         description={t('confirmPw.description', { name: userName })}
-        details={[t('confirmPw.detailSessions'), t('confirmPw.detailNoNotice'), t('confirmPw.detailAudit')]}
+        details={[t('confirmPw.detailSessions'), t('confirmPw.detailNotice'), t('confirmPw.detailAudit')]}
         confirmLabel={t('confirmPw.confirm')}
         cancelLabel={t('confirmPw.cancel')}
         loading={savingPw}

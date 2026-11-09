@@ -96,7 +96,25 @@
       "fieldReminderHour": "Uhrzeit der Lernerinnerung",
       "reminderHourHint": "Eine Benachrichtigung pro Tag zu dieser Uhrzeit (in der Zeitzone oben). Leer lassen = Standarderinnerung um 18:00 Uhr, wenn du noch nicht gelernt hast.",
       "reminderHourNone": "Standard (18:00 Uhr)",
-      "reminderHourAt": "{hour}:00 Uhr"
+      "reminderHourAt": "{hour}:00 Uhr",
+      "securityActivityTitle": "Sicherheitsaktivität",
+      "securityActivityDesc": "Wann sich dein Passwort oder dein Kontostatus geändert hat.",
+      "securityActivityEmpty": "Noch keine Sicherheitsaktivität.",
+      "securityActivityError": "Sicherheitsaktivität konnte nicht geladen werden.",
+      "securityActivityMore": "Mehr anzeigen",
+      "securityEvents": {
+        "passwordChanged": "Du hast dein Passwort geändert",
+        "passwordReset": "Du hast dein Passwort über „Passwort vergessen“ zurückgesetzt",
+        "passwordResetBySupport": "Das Support-Team hat dein Passwort zurückgesetzt",
+        "accountLocked": "Konto gesperrt",
+        "accountUnlocked": "Konto entsperrt",
+        "supportSessionStarted": "Das Support-Team hat eine Support-Sitzung gestartet",
+        "supportSessionEnded": "Support-Sitzung beendet",
+        "mfaEnabled": "Zwei-Faktor-Authentifizierung aktiviert",
+        "mfaRecoveryUsed": "Ein Wiederherstellungscode wurde verwendet",
+        "mfaResetBySupport": "Das Support-Team hat die Zwei-Faktor-Authentifizierung zurückgesetzt",
+        "other": "Sicherheitsänderung"
+      }
     },
     "payment": {
       "title": "Tarif upgraden",

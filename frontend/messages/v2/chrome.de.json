@@ -286,7 +286,8 @@
       "TIMESHEET_PERIOD_APPROVED": "Stundenzettel genehmigt",
       "TIMESHEET_PERIOD_RETURNED": "Stundenzettel zurückgegeben",
       "CERTIFICATE_ISSUED": "Neue Bescheinigung",
-      "BIRTH_DATE_UPDATED": "Geburtsdatum aktualisiert"
+      "BIRTH_DATE_UPDATED": "Geburtsdatum aktualisiert",
+      "PASSWORD_RESET_BY_ADMIN": "Passwort wurde zurückgesetzt"
     }
   },
   "inbox": {

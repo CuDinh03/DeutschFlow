@@ -12,6 +12,7 @@ import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.audit.AuditOrgResolver;
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.teacher.service.ClassEnrollmentService;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
 import com.deutschflow.vocabulary.service.GlosbeViEnrichmentService;
@@ -336,13 +337,32 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         // Đây là đường ĐÓNG VAI: đặt lại mật khẩu của một người rồi đăng nhập là mang đúng danh
-        // tính người đó — không có bước nào khác chặn lại, và endpoint này KHÔNG gửi thông báo cho
-        // người bị đổi (khác createUser và updatePlan). Vết vì vậy là chứng cứ duy nhất, và nó phải
-        // rơi vào sổ của trung tâm NGƯỜI BỊ ĐỔI chứ không phải sổ trống của admin nền tảng.
+        // tính người đó. Từ đợt 2 (09/11/2026) người bị đổi được báo (thông báo + email, không lý do,
+        // không danh tính admin) và tài khoản ADMIN không còn đặt lại được qua đây. Vết vẫn phải rơi
+        // vào sổ của trung tâm NGƯỜI BỊ ĐỔI chứ không phải sổ trống của admin nền tảng.
         // Đợt 1 (09/11/2026): bắt buộc lý do — vết là chứng cứ duy nhất nên phải trả lời được "vì sao".
         String reason = requireReason(req.reason());
         Long touchedOrgId = auditOrgResolver.forUser(userId);
-        Map<String, Object> updated = adminManagementService.setUserPassword(userId, req.password());
+        Map<String, Object> updated;
+        try {
+            updated = adminManagementService.setUserPassword(userId, req.password());
+        } catch (ForbiddenException ex) {
+            // Đợt 2 (09/11/2026): mục tiêu là ADMIN ⇒ service chặn (403 ADMIN_PASSWORD_RESET_FORBIDDEN).
+            // Lần thử bị chặn là đúng loại tín hiệu cần thấy; service đã rollback xong nên vết này
+            // ghi autocommit và sống sót (controller không mở transaction).
+            if (AdminManagementService.ADMIN_PASSWORD_RESET_FORBIDDEN.equals(ex.getCode())) {
+                Map<String, Object> blocked = new LinkedHashMap<>();
+                putReason(blocked, reason);
+                auditLogService.log(
+                        "admin.user.password.reset.blocked",
+                        AuditActor.ofAuthentication(authentication),
+                        "USER",
+                        String.valueOf(userId),
+                        touchedOrgId,
+                        blocked);
+            }
+            throw ex;
+        }
         Map<String, Object> meta = new LinkedHashMap<>();
         putReason(meta, reason);
         auditLogService.log(

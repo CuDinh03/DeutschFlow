@@ -135,6 +135,50 @@ public final class CodeMail {
         return new Rendered(subject, text, page(lang, subject, intro, body, warnTitle, warnBody));
     }
 
+    /**
+     * Thư báo "đội hỗ trợ vừa đặt lại mật khẩu của bạn" (đợt 2 admin, 09/11/2026).
+     *
+     * <p>⛔ Cố ý KHÔNG nhận lý do nội bộ hay danh tính admin làm tham số: thư rời hệ thống, nằm trong
+     * hộp thư (có thể bị chuyển tiếp) — người nhận chỉ cần biết "có người đã đổi, lúc nào" để báo lại
+     * nếu không phải họ yêu cầu.
+     *
+     * @param whenDisplay thời điểm đã render sẵn theo múi giờ của người nhận
+     */
+    public static Rendered passwordResetByAdmin(String locale, String whenDisplay, String forgotUrl) {
+        String lang = lang(locale);
+        String subject = pick(lang, "Mật khẩu myDeutschFlow của bạn vừa được đặt lại",
+                "Your myDeutschFlow password was reset", "Dein myDeutschFlow-Passwort wurde zurückgesetzt");
+        String cap = pick(lang, "Bảo mật tài khoản", "Account security", "Kontosicherheit");
+        String heading = pick(lang, "Mật khẩu đã được đặt lại", "Your password was reset", "Passwort zurückgesetzt");
+        String intro = pick(lang,
+                "Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại lúc " + whenDisplay
+                        + ". Mọi phiên đăng nhập cũ đã bị đăng xuất.",
+                "Your password was just reset by the DeutschFlow support team at " + whenDisplay
+                        + ". All previous sessions have been signed out.",
+                "Dein Passwort wurde soeben vom DeutschFlow-Supportteam zurückgesetzt (" + whenDisplay
+                        + "). Alle bisherigen Sitzungen wurden abgemeldet.");
+        String forgot = pick(lang, "Đặt lại mật khẩu của riêng bạn", "Set your own password", "Eigenes Passwort festlegen");
+        String warnTitle = pick(lang, "Không phải bạn yêu cầu?", "Didn't ask for this?", "Hast du das nicht angefordert?");
+        String warnBody = pick(lang, "Hãy liên hệ hỗ trợ ngay bằng cách trả lời thư này.",
+                "Please contact support right away by replying to this email.",
+                "Bitte wende dich sofort an den Support, indem du auf diese E-Mail antwortest.");
+
+        String text = cap.toUpperCase(java.util.Locale.ROOT) + "\n\n"
+                + heading + "\n\n"
+                + intro + "\n\n"
+                + forgot + ": " + forgotUrl + "\n\n"
+                + warnTitle + " " + warnBody + "\n\n"
+                + "-- \n" + footer(lang) + "\n";
+
+        String body = capHtml(cap)
+                + headingHtml(heading)
+                + paragraphHtml(intro, "0 0 16px")
+                + "<p style=\"margin:0;font-family:" + SANS + ";font-size:14px;line-height:1.5;\">"
+                + "<a href=\"" + esc(forgotUrl) + "\" style=\"color:" + LINK + ";\">" + esc(forgot) + "</a></p>";
+
+        return new Rendered(subject, text, page(lang, subject, intro, body, warnTitle, warnBody));
+    }
+
     // ─── Khung chung ──────────────────────────────────────────────────────────
 
     private static String page(String lang, String title, String preheader, String body,

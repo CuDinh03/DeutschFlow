@@ -163,5 +163,16 @@ public enum NotificationType {
      * {@code NotificationContentRenderer} CỐ Ý không nhắc ngày sinh — body này đi thẳng vào push
      * Expo và hiện trên màn hình khoá; giá trị nằm ở payload cho web/mobile hiện trong chi tiết.
      */
-    BIRTH_DATE_UPDATED
+    BIRTH_DATE_UPDATED,
+
+    // ── Bảo mật tài khoản (đợt 2 admin, 09/11/2026) ─────────────────────
+
+    /**
+     * Đội hỗ trợ (admin nền tảng) vừa đặt lại mật khẩu của người nhận. Recipient: chính người đó.
+     * Payload: {@code resetAt} (ISO-8601 UTC), {@code resetAtDisplay} (giờ theo múi của người nhận,
+     * render sẵn). ⛔ KHÔNG mang lý do nội bộ, KHÔNG mang danh tính admin — người nhận chỉ cần biết
+     * "có người đã đổi" để báo lại nếu không phải họ yêu cầu. Ghi qua notification_outbox trong giao
+     * dịch đặt lại (G2), worker gửi sau commit.
+     */
+    PASSWORD_RESET_BY_ADMIN
 }

@@ -96,7 +96,25 @@
       "fieldReminderHour": "Giờ nhắc học",
       "reminderHourHint": "Một thông báo mỗi ngày vào giờ này (theo múi giờ ở trên). Để trống = nhắc lúc 18:00 khi bạn chưa học.",
       "reminderHourNone": "Mặc định (18:00)",
-      "reminderHourAt": "{hour}:00"
+      "reminderHourAt": "{hour}:00",
+      "securityActivityTitle": "Hoạt động bảo mật",
+      "securityActivityDesc": "Những lần mật khẩu hoặc trạng thái tài khoản của bạn thay đổi.",
+      "securityActivityEmpty": "Chưa có hoạt động bảo mật nào.",
+      "securityActivityError": "Không tải được hoạt động bảo mật.",
+      "securityActivityMore": "Xem thêm",
+      "securityEvents": {
+        "passwordChanged": "Bạn đã đổi mật khẩu",
+        "passwordReset": "Bạn đã đặt lại mật khẩu qua \"Quên mật khẩu\"",
+        "passwordResetBySupport": "Đội hỗ trợ đã đặt lại mật khẩu của bạn",
+        "accountLocked": "Tài khoản bị khoá",
+        "accountUnlocked": "Tài khoản được mở khoá",
+        "supportSessionStarted": "Đội hỗ trợ bắt đầu một phiên hỗ trợ",
+        "supportSessionEnded": "Phiên hỗ trợ đã kết thúc",
+        "mfaEnabled": "Đã bật xác thực hai lớp",
+        "mfaRecoveryUsed": "Đã dùng mã khôi phục",
+        "mfaResetBySupport": "Đội hỗ trợ đã đặt lại xác thực hai lớp",
+        "other": "Thay đổi bảo mật"
+      }
     },
     "payment": {
       "title": "Nâng cấp gói",

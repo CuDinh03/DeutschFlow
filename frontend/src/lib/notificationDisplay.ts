@@ -45,6 +45,8 @@ export const TYPE_ICON: Record<string, string> = {
   // Ngày sinh do trung tâm đặt/sửa (Q-02, 14/09/2026) — người nhận là CHÍNH học viên.
   BIRTH_DATE_UPDATED: 'cake',
   CERTIFICATE_ISSUED: 'workspace_premium',
+  // Đội hỗ trợ đặt lại mật khẩu (đợt 2 admin, 09/11/2026) — người nhận là CHÍNH người bị đổi.
+  PASSWORD_RESET_BY_ADMIN: 'key',
 }
 
 /**
@@ -54,7 +56,7 @@ export const TYPE_ICON: Record<string, string> = {
  */
 export type NotifTone = 'navy' | 'red' | 'green' | 'plain'
 
-const RED: string[] = ['CLASS_SESSION_CANCELLED', 'ACCOUNT_DELETED', 'ADMIN_SYSTEM_ALERT', 'SCHEDULE_CHANGE_REJECTED']
+const RED: string[] = ['CLASS_SESSION_CANCELLED', 'ACCOUNT_DELETED', 'ADMIN_SYSTEM_ALERT', 'SCHEDULE_CHANGE_REJECTED', 'PASSWORD_RESET_BY_ADMIN']
 const GREEN: string[] = ['ASSIGNMENT_GRADED', 'JOIN_REQUEST_APPROVED', 'ADMIN_LEARNER_SUBSCRIBED', 'ADMIN_ORG_INVOICE_PAID', 'TIMESHEET_PERIOD_APPROVED', 'CERTIFICATE_ISSUED']
 const PLAIN: string[] = ['CLASS_STUDENT_REMOVED', 'JOIN_REQUEST_REJECTED', 'USER_REGISTERED']
 
@@ -105,6 +107,7 @@ export const TYPE_LABEL: Record<string, string> = {
   TIMESHEET_PERIOD_RETURNED: 'Kỳ công bị trả lại',
   BIRTH_DATE_UPDATED: 'Ngày sinh được cập nhật',
   CERTIFICATE_ISSUED: 'Có chứng nhận mới',
+  PASSWORD_RESET_BY_ADMIN: 'Mật khẩu đã được đặt lại',
 }
 
 
@@ -201,6 +204,9 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       return '/v2/student/classes'
     case 'BIRTH_DATE_UPDATED':
       // Về hồ sơ của chính mình: thông báo này chỉ có ích khi người nhận đối chiếu được giá trị.
+      return '/v2/profile'
+    case 'PASSWORD_RESET_BY_ADMIN':
+      // Hồ sơ → tab Bảo mật có "Hoạt động bảo mật" và nút đổi mật khẩu.
       return '/v2/profile'
     case 'CERTIFICATE_ISSUED':
       return '/v2/student/certificates'

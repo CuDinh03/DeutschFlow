@@ -57,6 +57,7 @@ class PasswordResetServiceUnitTest {
     @Mock JavaMailSender mailSender;
     @Mock PasswordEncoder passwordEncoder;
     @Mock RefreshTokenRepository refreshTokenRepository;
+    @Mock com.deutschflow.common.audit.AuditLogService auditLogService;
 
     PasswordResetService service;
 
@@ -67,7 +68,7 @@ class PasswordResetServiceUnitTest {
         SentMails.stub(mailSender);
         // Executor chạy ngay trên luồng test: không có transaction nên afterCommit cũng chạy ngay.
         service = new PasswordResetService(jdbc, mail, passwordEncoder, refreshTokenRepository, Runnable::run,
-                config(PEPPER));
+                config(PEPPER), auditLogService);
         // INSERT ... RETURNING id của requestReset.
         when(jdbc.queryForObject(contains("INSERT INTO password_reset_tokens"), eq(Long.class), any(), any()))
                 .thenReturn(42L);
@@ -108,6 +109,10 @@ class PasswordResetServiceUnitTest {
         verify(jdbc).update(contains("password_hash"), eq("HASH"), eq(20L));
         // AUTH-1: a password reset must revoke all of the user's refresh tokens.
         verify(refreshTokenRepository).revokeAllByUserId(20L);
+        // Đợt 2 admin: vết "user.password.reset" cho Hoạt động bảo mật, target = chính người đó.
+        verify(auditLogService).log(eq("user.password.reset"), any(com.deutschflow.common.audit.AuditActor.class),
+                eq("USER"), eq("20"), org.mockito.ArgumentMatchers.<Long>isNull(),
+                org.mockito.ArgumentMatchers.<Map<String, Object>>isNull());
     }
 
     @Test
@@ -120,6 +125,7 @@ class PasswordResetServiceUnitTest {
 
         // No password write may happen when the OTP is invalid.
         verify(jdbc, never()).update(contains("UPDATE users"), any(), any());
+        org.mockito.Mockito.verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -225,7 +231,7 @@ class PasswordResetServiceUnitTest {
         var mail = new TransactionalMail(mailSender, "smtp.example.com",
                 "support@mydeutschflow.com", "support@mydeutschflow.com", new SimpleMeterRegistry());
         var noPepper = new PasswordResetService(jdbc, mail, passwordEncoder, refreshTokenRepository, Runnable::run,
-                config(""));
+                config(""), auditLogService);
         when(jdbc.queryForList(contains("SELECT locale FROM users"), eq(String.class), eq("user@x.com")))
                 .thenReturn(List.of("vi"));
 
