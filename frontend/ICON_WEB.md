@@ -78,5 +78,7 @@ Luyện thi (`components/exam/today/visual.tsx`) là `GaGlyph`.
   (`iconSystem.test.tsx` kiểm loại thông báo và thanh bên admin).
 - `PenTool` là bút vẽ vector của phần mềm đồ hoạ, không phải "viết": dùng `PenLine`.
 - Test mock `@/components/ui-v2` phải có `GaGlyph` khi component dùng nó.
-- Trang công khai ngoài `.ga-scope` (`app/luyen-thi`, `free-grade`, `certificate`, `report`, `teachers`, `payment/success`) chưa
-  chuyển Galerie: token `ga-*` không có hiệu lực ở đó — đồng bộ icon phải đi cùng việc chuyển cả trang.
+- Trang công khai ngoài `.ga-scope` (`certificate`, `teachers`, `payment/success`) chưa chuyển Galerie: token `ga-*` không có
+  hiệu lực ở đó — đồng bộ icon phải đi cùng việc chuyển cả trang. `luyen-thi`, `luyen-thi/[slug]`, `free-grade`, `report` đã
+  chuyển (icon đợt B, 09/11/2026) và nằm trong phạm vi `check:design-tokens` + `src/test/publicGaleriePages.test.ts`.
+  `ShareButtons`/`GradeScore` (`components/marketing`) dùng token `ga-*`, chỉ đặt trong trang có `.ga-scope`.

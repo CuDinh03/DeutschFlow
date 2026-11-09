@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { Check, Copy, Share2 } from 'lucide-react'
+import { GaBtn } from '@/components/ui-v2/GaBtn'
 
 /**
  * Nút chia sẻ báo cáo (vòng lặp PLG D6). "Chia sẻ qua Zalo" dùng Web Share API — trên mobile mở
  * khay chia sẻ gồm Zalo; nếu không hỗ trợ thì copy link để dán vào Zalo. Kèm nút Copy link riêng.
+ * Galerie (icon đợt B, 09/11/2026): dùng `GaBtn`, phải nằm trong `.ga-scope` (`/free-grade`, `/report`).
  */
 export function ShareButtons({ url, score }: { url: string; score: number }) {
   const [copied, setCopied] = useState(false)
@@ -45,20 +47,12 @@ export function ShareButtons({ url, score }: { url: string; score: number }) {
 
   return (
     <div className="flex flex-wrap gap-3">
-      <button
-        type="button"
-        onClick={share}
-        className="inline-flex items-center gap-2 rounded-xl bg-[#0068FF] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:brightness-110"
-      >
-        <Share2 size={16} /> Chia sẻ qua Zalo
-      </button>
-      <button
-        type="button"
-        onClick={copy}
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-      >
-        {copied ? <><Check size={16} className="text-emerald-500" /> Đã copy link</> : <><Copy size={16} /> Copy link</>}
-      </button>
+      <GaBtn type="button" variant="ink" onClick={share}>
+        <Share2 size={16} aria-hidden /> Chia sẻ qua Zalo
+      </GaBtn>
+      <GaBtn type="button" variant="ghost" onClick={copy} aria-live="polite">
+        {copied ? <><Check size={16} aria-hidden /> Đã copy link</> : <><Copy size={16} aria-hidden /> Copy link</>}
+      </GaBtn>
     </div>
   )
 }
