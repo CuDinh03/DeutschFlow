@@ -192,6 +192,43 @@ class GroqWhisperClientErrorTest {
         server.start();
     }
 
+    @Test
+    @DisplayName("STT_API_KEY riêng được ưu tiên hơn key chat; rỗng thì lùi về key chat (09/11/2026)")
+    void sttKeyTakesPrecedenceOverChatKey() {
+        java.util.List<String> auth = new java.util.concurrent.CopyOnWriteArrayList<>();
+        server.createContext("/stt", exchange -> {
+            auth.add(exchange.getRequestHeaders().getFirst("Authorization"));
+            byte[] body = "{\"text\":\"Hallo\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) { os.write(body); }
+        });
+        server.start();
+        CircuitBreakers breakers = new CircuitBreakers(CircuitBreakerRegistry.ofDefaults());
+
+        new GroqWhisperClient("chat-key", "fw-key", STT_MODEL, new ObjectMapper(),
+                new GroqConcurrencyLimiter(new GroqProperties()), breakers, endpointUrl, "false")
+                .transcribe(AUDIO, "a.webm", "de", null);
+        new GroqWhisperClient("chat-key", " ", STT_MODEL, new ObjectMapper(),
+                new GroqConcurrencyLimiter(new GroqProperties()), breakers, endpointUrl, "false")
+                .transcribe(AUDIO, "a.webm", "de", null);
+
+        assertThat(auth).containsExactly("Bearer fw-key", "Bearer chat-key");
+    }
+
+    @Test
+    @DisplayName("Có STT_API_KEY → mặc định Fireworks turbo; chưa có → giữ Groq (deploy không cần sửa env)")
+    void providerDefaultsFollowSttKey() {
+        CircuitBreakers breakers = new CircuitBreakers(CircuitBreakerRegistry.ofDefaults());
+        GroqConcurrencyLimiter limiter = new GroqConcurrencyLimiter(new GroqProperties());
+        assertThat(new GroqWhisperClient("chat-key", "fw-key", "", new ObjectMapper(), limiter, breakers, "", "")
+                .getWhisperModel()).isEqualTo("whisper-v3-turbo");
+        assertThat(new GroqWhisperClient("chat-key", "", "", new ObjectMapper(), limiter, breakers, "", "")
+                .getWhisperModel()).isEqualTo("whisper-large-v3");
+        assertThat(new GroqWhisperClient("chat-key", "fw-key", "whisper-v3", new ObjectMapper(), limiter, breakers, "", "")
+                .getWhisperModel()).isEqualTo("whisper-v3");
+    }
+
     /** Breaker ngưỡng thấp nhất — hành vi cũ sẽ OPEN từ lượt 3 và trả AI_BUSY thay vì RATE_LIMITED. */
     private GroqWhisperClient clientWithBreakerOpeningAfter(int minimumCalls) {
         CircuitBreakers breakers = new CircuitBreakers(CircuitBreakerRegistry.of(

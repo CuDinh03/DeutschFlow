@@ -201,12 +201,68 @@ public class GlobalExceptionHandler {
                 "One or more fields are invalid.", request.getRequestURI(), errors, null);
     }
 
+    /**
+     * Lỗi luồng xác thực hai lớp (09/11/2026): status do nơi ném chọn (400/401/403/409/503), mã ở
+     * {@code extensions.code} — xem danh mục trong {@link com.deutschflow.user.mfa.MfaException}.
+     */
+    @ExceptionHandler(com.deutschflow.user.mfa.MfaException.class)
+    public ResponseEntity<ProblemDetail> handleMfa(com.deutschflow.user.mfa.MfaException ex,
+                                                   HttpServletRequest request) {
+        HttpStatus status = ex.getStatus();
+        return problem(status, "mfa", status.getReasonPhrase(), ex.getMessage(), request.getRequestURI(),
+                null, Map.of("code", ex.getCode()));
+    }
+
+    /** Phiên hỗ trợ (V370): lỗi nghiệp vụ mang {@code extensions.code} — xem {@code SupportSessionException}. */
+    @ExceptionHandler(com.deutschflow.admin.support.SupportSessionException.class)
+    public ResponseEntity<ProblemDetail> handleSupportSession(com.deutschflow.admin.support.SupportSessionException ex,
+                                                              HttpServletRequest request) {
+        HttpStatus status = ex.getStatus();
+        return problem(status, "support-session", status.getReasonPhrase(), ex.getMessage(), request.getRequestURI(),
+                null, Map.of("code", ex.getCode()));
+    }
+
+    /** Thao tác bị chặn trong phiên hỗ trợ chỉ-đọc (gọi AI, ghi…) → 403 {@code SUPPORT_SESSION_READ_ONLY}. */
+    @ExceptionHandler(com.deutschflow.common.security.support.SupportSessionReadOnlyException.class)
+    public ResponseEntity<ProblemDetail> handleSupportReadOnly(
+            com.deutschflow.common.security.support.SupportSessionReadOnlyException ex, HttpServletRequest request) {
+        return supportReadOnly(request);
+    }
+
+    private ResponseEntity<ProblemDetail> supportReadOnly(HttpServletRequest request) {
+        return problem(HttpStatus.FORBIDDEN, "support-session-read-only", "Forbidden",
+                "Chế độ hỗ trợ chỉ đọc — không thực hiện được thao tác này.", request.getRequestURI(), null,
+                Map.of("code", com.deutschflow.common.security.support.SupportSessionReadOnlyException.CODE));
+    }
+
+    /**
+     * Lưới chặn DB của phiên hỗ trợ ({@code SupportReadOnlyDataSource}) làm một GET "ghi khi đọc" nổ với SQLSTATE
+     * 25006 ({@code read_only_sql_transaction}). Trong phiên hỗ trợ, đổi lỗi đó thành 403 chỉ-đọc thay vì 500.
+     */
+    static boolean isSupportReadOnlyViolation(Throwable ex) {
+        if (!com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()) {
+            return false;
+        }
+        for (Throwable t = ex; t != null; t = t.getCause()) {
+            if (t instanceof java.sql.SQLException sql && "25006".equals(sql.getSQLState())) {
+                return true;
+            }
+            if (t.getCause() == t) {
+                break;
+            }
+        }
+        return false;
+    }
+
     // --- 403 Forbidden ---
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ProblemDetail> handleForbidden(ForbiddenException ex,
                                                          HttpServletRequest request) {
+        // Nơi ném gắn mã (ví dụ ADMIN_PASSWORD_RESET_FORBIDDEN) thì phát ở extensions.code;
+        // không mã ⇒ extensions null, hợp đồng 403 cũ không đổi.
+        Map<String, Object> ext = ex.getCode() == null ? null : Map.of("code", ex.getCode());
         return problem(HttpStatus.FORBIDDEN, "forbidden", "Forbidden",
-                ex.getMessage(), request.getRequestURI(), null, null);
+                ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
     /**
@@ -452,6 +508,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ProblemDetail> handleDataIntegrity(DataIntegrityViolationException ex,
                                                              HttpServletRequest request) {
+        if (isSupportReadOnlyViolation(ex)) {
+            log.warn("[support-session] Ghi bị chặn ở tầng DB trên {} {}", request.getMethod(), request.getRequestURI());
+            return supportReadOnly(request);
+        }
         String errorId = "ERR-" + Long.toHexString(ERROR_SEQ.incrementAndGet()).toUpperCase();
         log.warn("[409][{}] Data integrity violation on {}: {}", errorId, request.getRequestURI(),
                 ex.getMostSpecificCause().getMessage());
@@ -500,6 +560,10 @@ public class GlobalExceptionHandler {
         // Never leak the exception class/message to the client (it can expose table/column names,
         // JPQL, SQL fragments, internal paths). Log the full detail server-side under a reference
         // id and return only that reference so support can correlate without disclosure.
+        if (isSupportReadOnlyViolation(ex)) {
+            log.warn("[support-session] Ghi bị chặn ở tầng DB trên {} {}", request.getMethod(), request.getRequestURI());
+            return supportReadOnly(request);
+        }
         String errorId = "ERR-" + Long.toHexString(ERROR_SEQ.incrementAndGet()).toUpperCase();
         log.error("[500][{}] Unhandled exception on {}", errorId, request.getRequestURI(), ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error",

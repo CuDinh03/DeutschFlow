@@ -13,6 +13,7 @@ import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
 import { getMyLearningProfile } from "@/lib/profileApi";
 import { apiMessage, httpStatus } from "@/lib/api";
+import { isSupportMode } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
 import { useLocale, useTranslations } from "next-intl";
 import { useAiSpeakingQuota } from "@/hooks/useAiSpeakingQuota";
@@ -250,7 +251,10 @@ export function CompanionSelect({
       const status = httpStatus(error);
       const message = apiMessage(error);
 
-      if (status === 401) {
+      if (status === 401 && isSupportMode()) {
+        // Tab phiên hỗ trợ: phiên hỗ trợ đã kết thúc — không đưa về /v2/login (cookie admin vẫn còn).
+        setCreateSessionError(tc("errors.sessionExpired"));
+      } else if (status === 401) {
         setCreateSessionError(tc("errors.sessionExpired"));
         setTimeout(() => {
           if (typeof window !== 'undefined') {

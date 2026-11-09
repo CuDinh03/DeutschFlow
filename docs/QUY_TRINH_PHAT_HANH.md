@@ -90,6 +90,8 @@ nhánh feature ──► PR vào main ──► CI xanh + tự kiểm (§4) ─�
 - [ ] CI xanh trên PR: `security-ci` (gitleaks, Semgrep, npm audit, OWASP) + CI của phần bị đổi. Check "skipped" chỉ hợp lệ khi phần đó không đổi.
 - [ ] Diff chỉ chứa đúng phạm vi PR (không lẫn file của việc khác, không lẫn `.env*`, không lẫn file lớn).
 - [ ] SRS đã cập nhật (luật §0.8).
+- [ ] Không có token/mã một lần trong URL gửi tới analytics (PostHog) hay ở lại thanh địa chỉ sau khi trang đọc xong (QLT-20).
+- [ ] Trang công khai mới có title riêng; không số liệu hard-code (số học viên, số đề, điểm sao), không giá gạch, không đếm ngược (QLT-19).
 
 **Frontend** (`frontend/`)
 - [ ] `npm run lint`, `npx tsc --noEmit`, `npm run check:design-tokens` (sửa `src/app/v2`, `src/components/ui-v2`, `src/components/landing-v2` thì bắt buộc), `npx vitest run`, `npm run build` — đạt. Lỗi sẵn có trên Windows (`noRelativeApiFetch.test.ts`, `designTokenLint.test.ts`) ghi rõ trong PR.
@@ -98,6 +100,7 @@ nhánh feature ──► PR vào main ──► CI xanh + tự kiểm (§4) ─�
 
 **Backend** (`backend/`)
 - [ ] `./mvnw test` đạt (CI chạy compile, unit, integration).
+- [ ] Endpoint GET mới không ghi DB và không gọi AI (QLT-21). Buộc phải ghi khi đọc thì thêm vào `SupportSessionRequestPolicy` hoặc bỏ qua bước ghi khi `SupportSessionContextHolder.isActive()` — nếu không, Phiên hỗ trợ chỉ đọc của admin sẽ 403 ở trang đó.
 - [ ] Migration mới: số lớn hơn mọi migration trên `main` **và mọi nhánh đang mở** — kiểm bằng `git ls-tree -r --name-only origin/<nhánh> backend/src/main/resources/db/migration | sort -V | tail -3` cho từng nhánh liên quan.
 - [ ] Migration tương thích ngược (màu cũ vẫn chạy được trên schema mới trong lúc blue-green, §6.2).
 - [ ] Chạy được trên DB trắng: `scripts/verify-fresh-migrations.sh` (cần Docker) hoặc CI integration xanh.

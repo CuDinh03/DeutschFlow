@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import api, { httpStatus } from "@/lib/api";
-import { getAccessToken, clearTokens, tokenCacheReady } from "@/lib/authSession";
+import { getAccessToken, clearTokens, tokenCacheReady, isSupportMode } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
 import { homeFor } from "@/lib/roleRouting";
 import { withPostHog } from "@/lib/posthogClient";
@@ -12,6 +12,13 @@ import { withPostHog } from "@/lib/posthogClient";
 // Bề mặt đăng nhập DUY NHẤT (xem middleware.ts + next.config redirect /login → /v2/login).
 // Trỏ thẳng vào đây thay vì "/login" để khỏi tốn một chặng redirect, và để hook không còn phụ
 // thuộc vào sự tồn tại của cây v1 khi cây đó bị xoá.
+/** Lỗi tải trong tab phiên hỗ trợ chỉ-đọc (admin xem như người dùng). */
+const SUPPORT_LOAD_ERRORS = {
+  vi: { ended: "Phiên hỗ trợ đã kết thúc.", readOnly: "Chế độ hỗ trợ chỉ đọc — không tải được mục này." },
+  en: { ended: "The support session has ended.", readOnly: "Read-only support mode — this item cannot be loaded." },
+  de: { ended: "Die Support-Sitzung ist beendet.", readOnly: "Schreibgeschützter Support-Modus — dieser Inhalt kann nicht geladen werden." },
+} as const;
+
 const LOGIN_ROUTE = "/v2/login";
 
 export type PracticeSessionUser = {
@@ -141,6 +148,13 @@ export function useStudentPracticeSession(options?: {
       setStreakDays(newStreak);
     } catch (err: unknown) {
       const st = httpStatus(err);
+      // Tab phiên hỗ trợ chỉ-đọc: 401/403 KHÔNG phải mất phiên đăng nhập — interceptor của api.ts đã hiện
+      // trạng thái "phiên đã kết thúc" hoặc toast chỉ-đọc; không xoá token, không đưa về /v2/login.
+      if ((st === 401 || st === 403) && isSupportMode()) {
+        const msg = SUPPORT_LOAD_ERRORS[locale === "en" || locale === "de" ? locale : "vi"];
+        setLoadError(st === 401 ? msg.ended : msg.readOnly);
+        return;
+      }
       if (st === 401 || st === 403) {
         clearTokens();
         toastApiError(err, { locale });

@@ -22,6 +22,8 @@ public class SpeakingConfig {
         executor.setQueueCapacity(queueCapacity);
         executor.setKeepAliveSeconds(60);
         executor.setThreadNamePrefix("sse-speak-");
+        // Phiên hỗ trợ chỉ-đọc theo sang thread stream: guard AI + READ ONLY vẫn có hiệu lực (review #805).
+        executor.setTaskDecorator(com.deutschflow.common.security.support.SupportSessionTaskDecorator::wrap);
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         executor.initialize();

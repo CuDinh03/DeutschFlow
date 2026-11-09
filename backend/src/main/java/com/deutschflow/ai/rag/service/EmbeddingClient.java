@@ -30,6 +30,7 @@ public class EmbeddingClient {
     }
 
     public float[] getEmbedding(String text) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("embedding");
         if (openAiKey == null || openAiKey.isBlank()) {
             throw new IllegalStateException("OpenAI API Key is missing. Cannot generate embeddings.");
         }

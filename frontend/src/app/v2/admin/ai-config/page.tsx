@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
-import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { GaPageHdr, GaBtn, GaCap, ConfirmDialog } from '@/components/ui-v2'
+import { AiConfigHistory } from './AiConfigHistory'
 
 interface AiConfig {
   prompt: string
@@ -45,6 +46,9 @@ export default function V2AdminAiConfigPage() {
   const [maxTokens, setMaxTokens] = useState(1024)
   const [topP, setTopP] = useState(0.9)
   const [saving, setSaving] = useState(false)
+  // Đợt 2 admin (09/11/2026): Lưu phải qua hộp xác nhận (caution + lý do) — backend trả 400 nếu thiếu.
+  const [confirmSave, setConfirmSave] = useState(false)
+  const [historyKey, setHistoryKey] = useState(0)
 
   /**
    * Audit F-M7 (03/09/2026): TRƯỚC ĐÂY điều kiện ở đây chỉ là `if (loading) return`, và trang không
@@ -66,11 +70,15 @@ export default function V2AdminAiConfigPage() {
     setTopP(data.topP ?? 0.9)
   }, [loaded, data])
 
-  const save = async () => {
+  const save = async (reason: string) => {
     setSaving(true)
     try {
-      await api.put('/admin/ai-config', { prompt, temperature, maxTokens, topP })
-      toast.success(t('saved'))
+      const res = await api.put('/admin/ai-config', { prompt, temperature, maxTokens, topP, reason })
+      // historyId null = không khoá nào đổi giá trị ⇒ backend không ghi gì.
+      if (res?.data && res.data.historyId == null) toast.info(t('nothingChanged'))
+      else toast.success(t('saved'))
+      setConfirmSave(false)
+      setHistoryKey((k) => k + 1)
       await reload({ silent: true })
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -106,7 +114,7 @@ export default function V2AdminAiConfigPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <GaBtn variant="yellow" disabled={saving || loading || !loaded} onClick={save}>
+          <GaBtn variant="yellow" disabled={saving || loading || !loaded} onClick={() => setConfirmSave(true)}>
             <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-ink" />
             {saving ? t('saving') : t('saveConfig')}
           </GaBtn>
@@ -209,6 +217,22 @@ export default function V2AdminAiConfigPage() {
           </div>
         </div>
       </div>
+
+      <AiConfigHistory refreshKey={historyKey} onRestored={() => void reload({ silent: true })} />
+
+      <ConfirmDialog
+        open={confirmSave}
+        onOpenChange={setConfirmSave}
+        tone="caution"
+        requireReason
+        title={t('confirmSaveTitle')}
+        description={t('confirmSaveDesc')}
+        details={[t('confirmSaveDetailHistory'), t('confirmSaveDetailAudit')]}
+        confirmLabel={t('saveConfig')}
+        cancelLabel={t('cancel')}
+        loading={saving}
+        onConfirm={({ reason }) => reason && void save(reason)}
+      />
     </div>
   )
 }

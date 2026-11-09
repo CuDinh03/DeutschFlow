@@ -73,29 +73,39 @@ public class ApiTelemetryFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
-            long latencyMs = Math.max(0L, System.currentTimeMillis() - startedAt);
-            int statusCode = response.getStatus();
-            boolean isError = statusCode >= 400;
-            Long userId = extractUserId(request);
-            String role = extractRole();
-            String sessionId = request.getRequestedSessionId();
-            String eventName = "api.request." + (isError ? "error" : "completed");
+            // Phiên hỗ trợ chỉ-đọc: request của ADMIN dưới danh tính người dùng — KHÔNG tính vào telemetry hoạt
+            // động của người dùng đó (nhật ký riêng: admin_support_session_events).
+            if (!isSupportSessionRequest(request)) {
+                long latencyMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+                int statusCode = response.getStatus();
+                boolean isError = statusCode >= 400;
+                Long userId = extractUserId(request);
+                String role = extractRole();
+                String sessionId = request.getRequestedSessionId();
+                String eventName = "api.request." + (isError ? "error" : "completed");
 
-            apiTelemetryService.record(new ApiTelemetryEvent(
-                    eventName,
-                    LocalDateTime.now(),
-                    userId,
-                    sessionId,
-                    role,
-                    requestId,
-                    request.getMethod(),
-                    resolveEndpoint(request),
-                    statusCode,
-                    latencyMs,
-                    isError
-            ));
+                apiTelemetryService.record(new ApiTelemetryEvent(
+                        eventName,
+                        LocalDateTime.now(),
+                        userId,
+                        sessionId,
+                        role,
+                        requestId,
+                        request.getMethod(),
+                        resolveEndpoint(request),
+                        statusCode,
+                        latencyMs,
+                        isError
+                ));
+            }
             MDC.remove("requestId");
         }
+    }
+
+    /** Request của phiên hỗ trợ chỉ-đọc ({@code JwtAuthFilter} đặt attribute sau khi xác minh token support). */
+    static boolean isSupportSessionRequest(HttpServletRequest request) {
+        return request.getAttribute(
+                com.deutschflow.common.security.support.SupportSessionContext.REQUEST_ATTRIBUTE) != null;
     }
 
     /**

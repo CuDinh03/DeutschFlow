@@ -1,6 +1,8 @@
 package com.deutschflow.common.security;
 
 import com.deutschflow.user.entity.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -58,6 +60,10 @@ class JwtAuthFilterDisabledUserTest {
                 .build();
     }
 
+    private static Claims accessClaims() {
+        return Jwts.claims().subject("locked@deutschflow.app").add(JwtService.CLAIM_TYP, JwtService.TYP_ACCESS).build();
+    }
+
     private MockHttpServletRequest requestWithBearer() {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/auth/me");
         request.addHeader("Authorization", "Bearer valid-token");
@@ -67,9 +73,8 @@ class JwtAuthFilterDisabledUserTest {
     @Test
     @DisplayName("user bị khóa: 401 và KHÔNG đi tiếp filter chain")
     void disabledUserIsRejected() throws Exception {
-        JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService, sseTicketService);
-        when(jwtService.isTokenValid("valid-token")).thenReturn(true);
-        when(jwtService.extractEmail("valid-token")).thenReturn("locked@deutschflow.app");
+        JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService, sseTicketService, false);
+        when(jwtService.extractClaims("valid-token")).thenReturn(accessClaims());
         when(userDetailsService.loadUserByUsername("locked@deutschflow.app")).thenReturn(user(false));
 
         MockHttpServletRequest request = requestWithBearer();
@@ -84,9 +89,8 @@ class JwtAuthFilterDisabledUserTest {
     @Test
     @DisplayName("user còn hoạt động: đặt Authentication và đi tiếp bình thường")
     void activeUserPassesThrough() throws Exception {
-        JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService, sseTicketService);
-        when(jwtService.isTokenValid("valid-token")).thenReturn(true);
-        when(jwtService.extractEmail("valid-token")).thenReturn("locked@deutschflow.app");
+        JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService, sseTicketService, false);
+        when(jwtService.extractClaims("valid-token")).thenReturn(accessClaims());
         when(userDetailsService.loadUserByUsername("locked@deutschflow.app")).thenReturn(user(true));
 
         MockHttpServletRequest request = requestWithBearer();

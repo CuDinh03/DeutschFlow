@@ -225,7 +225,11 @@
     "confirmReasonLabel": "Lý do (bắt buộc, ít nhất {min} ký tự) — sẽ được ghi vào nhật ký",
     "confirmReasonCount": "{count} ký tự · tối thiểu {min}, tối đa {max}",
     "confirmPhraseLabel": "Gõ “{phrase}” để xác nhận",
-    "cancel": "Huỷ"
+    "cancel": "Huỷ",
+    "choiceSelected": "Đã chọn",
+    "choiceCorrectPicked": "Bạn chọn · đúng",
+    "choiceWrongPicked": "Bạn chọn · sai",
+    "choiceCorrectAnswer": "Đáp án đúng"
   },
   "maintenance": {
     "overlayTitle": "Hệ thống đang bảo trì",
@@ -286,7 +290,13 @@
       "TIMESHEET_PERIOD_APPROVED": "Kỳ công đã được duyệt",
       "TIMESHEET_PERIOD_RETURNED": "Kỳ công bị trả lại",
       "CERTIFICATE_ISSUED": "Có chứng nhận mới",
-      "BIRTH_DATE_UPDATED": "Ngày sinh được cập nhật"
+      "BIRTH_DATE_UPDATED": "Ngày sinh được cập nhật",
+      "MFA_ENABLED": "Đã bật xác thực hai lớp",
+      "MFA_RECOVERY_CODE_USED": "Đã dùng mã khôi phục",
+      "MFA_RECOVERY_CODES_LOW": "Sắp hết mã khôi phục",
+      "MFA_RESET_BY_ADMIN": "Xác thực hai lớp đã được đặt lại",
+      "ADMIN_SUPPORT_VIEW": "Đội hỗ trợ đã xem tài khoản",
+      "PASSWORD_RESET_BY_ADMIN": "Mật khẩu đã được đặt lại"
     }
   },
   "inbox": {
@@ -328,5 +338,18 @@
     "fixSuspended": "Hãy liên hệ quản trị hệ thống DeutschFlow để mở lại trung tâm.",
     "tooltipExpired": "Giấy phép trung tâm đã hết hạn — chỉ đọc, không tạo mới. Thanh toán hoá đơn để mở lại.",
     "tooltipSuspended": "Trung tâm đang bị tạm ngưng — chỉ đọc, không tạo mới. Liên hệ quản trị hệ thống để mở lại."
+  },
+  "supportSession": {
+    "bannerViewing": "Đang xem tài khoản {name} ({email})",
+    "bannerReadOnly": "chỉ đọc",
+    "bannerRemaining": "còn {time}",
+    "end": "Kết thúc",
+    "ended": "Phiên hỗ trợ đã kết thúc",
+    "endedBody": "Token hỗ trợ đã bị thu hồi. Đóng tab này và quay lại trang quản trị.",
+    "close": "Đóng tab",
+    "redeeming": "Đang mở phiên hỗ trợ…",
+    "redeemFailed": "Không mở được phiên hỗ trợ",
+    "redeemFailedBody": "Liên kết không hợp lệ, đã dùng hoặc đã hết hạn (60 giây). Hãy đóng tab này và bấm \"Xem như người dùng\" lại từ trang quản trị.",
+    "missingCode": "Thiếu mã phiên hỗ trợ"
   }
 }

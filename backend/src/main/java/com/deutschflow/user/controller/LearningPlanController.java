@@ -4,6 +4,7 @@ import com.deutschflow.user.dto.AdaptiveRefreshDto;
 import com.deutschflow.user.dto.LearningSessionAttemptSummaryDto;
 import com.deutschflow.user.dto.LearningPlanResponse;
 import com.deutschflow.user.dto.SessionCompleteRequest;
+import com.deutschflow.user.dto.SessionCompleteResponse;
 import com.deutschflow.user.dto.SessionDetailResponse;
 import com.deutschflow.user.dto.SessionSubmitRequest;
 import com.deutschflow.user.dto.SessionSubmitResponse;
@@ -69,10 +70,15 @@ public class LearningPlanController {
         return learningPlanService.submitSession(user, request);
     }
 
+    /**
+     * Client tự báo xong buổi. A2 (09/11/2026): chỉ COMPLETED khi đã có lần nộp đạt do server chấm;
+     * chưa có thì vẫn 200 với {@code completed=false} (không 4xx — client cũ không vỡ). Gọi lại khi đã
+     * COMPLETED là no-op ({@code reason=ALREADY_COMPLETED}), không cộng XP tuần lần hai.
+     */
     @PostMapping("/sessions/complete")
-    public void complete(@AuthenticationPrincipal User user,
-                         @Valid @RequestBody SessionCompleteRequest request) {
-        learningPlanService.markSessionCompleted(
+    public SessionCompleteResponse complete(@AuthenticationPrincipal User user,
+                                            @Valid @RequestBody SessionCompleteRequest request) {
+        return learningPlanService.markSessionCompleted(
                 user,
                 request.week(),
                 request.sessionIndex(),

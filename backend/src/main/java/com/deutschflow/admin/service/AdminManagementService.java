@@ -3,6 +3,7 @@ package com.deutschflow.admin.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.PrivilegedActionBlockedException;
 import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.organization.repository.OrganizationRepository;
@@ -78,6 +79,19 @@ public class AdminManagementService {
     private final OrgMembershipService orgMembershipService;
     private final OrganizationRepository organizationRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    /** Phiên hỗ trợ chỉ-đọc (V370): đóng phiên đang mở khi quyền của admin/đích thay đổi. Null trong test dựng tay. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.context.ApplicationEventPublisher supportSessionEvents;
+
+    private void revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent event) {
+        if (supportSessionEvents != null) {
+            supportSessionEvents.publishEvent(event);
+        }
+    }
+    private final AdminPasswordResetNotifier adminPasswordResetNotifier;
+
+    /** Mã ổn định (extensions.code) khi admin cố đặt lại mật khẩu của một tài khoản ADMIN — web bắt theo chuỗi này. */
+    public static final String ADMIN_PASSWORD_RESET_FORBIDDEN = "ADMIN_PASSWORD_RESET_FORBIDDEN";
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
@@ -750,6 +764,15 @@ public class AdminManagementService {
         // mang authorities của vai trò CŨ và JwtAuthFilter cache UserDetails 60s, nên nếu không
         // revoke thì người vừa bị hạ quyền còn giữ quyền cũ tới hết vòng đời refresh token (7 ngày).
         refreshTokenRepository.revokeAllByUserId(userId);
+        // Phiên hỗ trợ chỉ-đọc: admin bị hạ quyền ⇒ đóng phiên admin đó đang mở; người dùng được nâng lên ADMIN ⇒
+        // đóng các phiên đang xem họ (ADMIN không bao giờ là đích).
+        if ("ADMIN".equals(previousRole) && !"ADMIN".equals(normalized)) {
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forAdmin(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_ADMIN_ROLE_CHANGED));
+        } else if (!"ADMIN".equals(previousRole) && "ADMIN".equals(normalized)) {
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forTarget(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_TARGET_ROLE_CHANGED));
+        }
         return Map.of(
                 "id", user.getId(),
                 "email", user.getEmail(),
@@ -841,6 +864,11 @@ public class AdminManagementService {
         // access token hết hạn rồi mới chặn ở lần refresh kế tiếp.
         if (!active) {
             refreshTokenRepository.revokeAllByUserId(userId);
+            // Phiên hỗ trợ chỉ-đọc: khoá admin ⇒ đóng phiên admin đó mở; khoá người dùng ⇒ đóng phiên đang xem họ.
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forAdmin(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_ADMIN_DEACTIVATED));
+            revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forTarget(
+                    userId, com.deutschflow.admin.support.SupportSessionService.END_TARGET_DEACTIVATED));
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());
@@ -857,15 +885,29 @@ public class AdminManagementService {
      */
     @Transactional
     public Map<String, Object> setUserPassword(Long userId, String rawPassword) {
-        PasswordPolicy.requireStrongEnough(rawPassword);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        // Đợt 2 admin (09/11/2026): đặt lại mật khẩu của một ADMIN (kể cả CHÍNH MÌNH) là leo thang
+        // ngang — một admin chiếm được phiên của admin khác mà không để lại dấu ở phía nạn nhân. Admin
+        // tự đặt lại qua "Quên mật khẩu" (OTP về chính hộp thư của họ). Chặn TRƯỚC mọi kiểm tra khác
+        // để client nhận đúng 403 + mã, không phải 400 vì mật khẩu yếu.
+        if (user.getRole() == User.Role.ADMIN) {
+            throw new ForbiddenException(
+                    "Không thể đặt lại mật khẩu của tài khoản quản trị. Quản trị viên tự đặt lại qua \"Quên mật khẩu\".",
+                    ADMIN_PASSWORD_RESET_FORBIDDEN);
+        }
+        PasswordPolicy.requireStrongEnough(rawPassword);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
         userRepository.save(user);
         // Audit F-H3 (03/09/2026): đổi mật khẩu qua self-service và qua OTP quên-mật-khẩu đều revoke
         // session; riêng đường admin đặt lại hộ thì không — bất đối xứng đúng ở tình huống cần nhất
         // (gỡ credential mặc định, thu hồi tài khoản bị chiếm). Revoke cho khớp hai đường kia.
         refreshTokenRepository.revokeAllByUserId(userId);
+        // Cùng lý do với PasswordResetService.resetPassword: thiết bị của kẻ chiếm giữ push token —
+        // xoá để thông báo của tài khoản thôi rơi vào đó; máy hợp lệ đăng ký lại khi đăng nhập.
+        userRepository.clearPushToken(userId);
+        // Báo cho chính người bị đổi (thông báo qua outbox + email sau commit) — KHÔNG lý do, KHÔNG admin.
+        adminPasswordResetNotifier.notifyReset(user, Instant.now());
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());
         out.put("email", user.getEmail());
