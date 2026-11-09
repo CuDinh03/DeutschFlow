@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
@@ -14,6 +14,7 @@ import {
 import { homeFor } from '@/lib/roleRouting'
 import { useUserStore } from '@/stores/useUserStore'
 import { apiMessage } from '@/lib/api'
+import { useOneTimeUrlToken } from '@/lib/oneTimeUrlToken'
 import { GaBtn, GaCap, GaGlyph, LoadingState } from '@/components/ui-v2'
 import { GaAuthShell, GaField, AuthErrorBanner } from '../../../authShared'
 import {
@@ -31,6 +32,9 @@ import {
 // rồi gọi chính requiresOrg()), nên URL này đi lọt tới đây mà không bị đá về /v2/login — mất
 // ?token= là đứt hẳn luồng mời B2B.
 //
+// QLT-20 (09/11/2026): token đọc MỘT lần lúc mount rồi xoá ngay khỏi thanh địa chỉ/lịch sử
+// (useOneTimeUrlToken) — không đợi nhận lời mời thành công; tải lại trang thì lấy lại từ sessionStorage.
+//
 // Chuỗi hiển thị đi qua next-intl ('v2.org.accept.…'), KHÔNG hardcode tiếng Việt như bản v1:
 // GaAuthShell có sẵn <LanguageToggle>, nên người dùng đổi ngôn ngữ ngay trên trang này; và người
 // đã dùng app với cookie `locale=en|de` rồi mới được trung tâm mời sẽ thấy khung EN/DE. Hardcode
@@ -39,10 +43,13 @@ import {
 
 type FormState = { displayName: string; password: string }
 
+/** sessionStorage: token lời mời sống qua lần tải lại trang, xoá khi xong (QLT-20). */
+const INVITE_TOKEN_KEY = 'df.orgInviteToken'
+
 export default function V2OrgAcceptPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const token = searchParams.get('token') ?? ''
+  // null = chưa đọc URL (lần render đầu) → vẫn hiện "đang tải", chưa báo thiếu token.
+  const { token, forget } = useOneTimeUrlToken(INVITE_TOKEN_KEY)
   const t = useTranslations('v2.org.accept')
 
   const setUser = useUserStore((s) => s.setUser)
@@ -58,6 +65,7 @@ export default function V2OrgAcceptPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const loadPreview = useCallback(async () => {
+    if (token === null) return
     if (!token) {
       setLoadError(t('errorMissingToken'))
       setLoading(false)
@@ -68,12 +76,13 @@ export default function V2OrgAcceptPage() {
     try {
       const data = await previewInvitation(token)
       setPreview(data)
+      if (data.expired) forget()
     } catch (e) {
       setLoadError(apiMessage(e) || t('errorLoadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [token, t])
+  }, [token, t, forget])
 
   useEffect(() => {
     loadPreview()
@@ -81,7 +90,7 @@ export default function V2OrgAcceptPage() {
 
   const handleAccept = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (!preview || submitting) return
+    if (!preview || submitting || !token) return
     setSubmitting(true)
     setSubmitError(null)
 
@@ -97,6 +106,7 @@ export default function V2OrgAcceptPage() {
       // Mirror the login flow: clear any stale token before establishing the new session.
       clearTokens()
       const auth = await acceptInvitation(token, body)
+      forget()
 
       setTokens(auth)
       recordTokenRefresh()

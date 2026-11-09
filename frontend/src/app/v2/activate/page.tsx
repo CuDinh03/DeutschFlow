@@ -1,12 +1,13 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { CheckCircle2 } from 'lucide-react'
 import api from '@/lib/api'
+import { useOneTimeUrlToken } from '@/lib/oneTimeUrlToken'
 import { GaCap, GaBtn } from '@/components/ui-v2'
 import { GaAuthShell, GaField, AuthErrorBanner, pwStrength } from '../authShared'
 
@@ -21,11 +22,14 @@ import { GaAuthShell, GaField, AuthErrorBanner, pwStrength } from '../authShared
 //   POST /auth/activate { token, newPassword } → 204
 //
 // KHÁC màn /v2/forgot-password ở hai điểm cố ý:
-//   1. token đến từ URL (email), nên ở đây BUỘC phải dùng useSearchParams → bọc <Suspense>, nếu
-//      không Next chỉ prerender được fallback và trang chớp trắng;
+//   1. token đến từ URL (email). QLT-20 (09/11/2026): đọc một lần lúc mount rồi xoá NGAY khỏi thanh địa
+//      chỉ/lịch sử (useOneTimeUrlToken), tải lại trang thì lấy lại từ sessionStorage;
 //   2. hỏi trạng thái TRƯỚC khi hiện form. Để người dùng gõ xong mật khẩu rồi mới báo "liên kết hết
 //      hạn" là bắt họ làm việc thừa đúng lúc họ đang bối rối nhất.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** sessionStorage: token kích hoạt sống qua lần tải lại trang, xoá khi xong (QLT-20). */
+const ACTIVATE_TOKEN_KEY = 'df.activateToken'
 
 type State = 'VALID' | 'EXPIRED' | 'USED' | 'UNKNOWN'
 type Preview = { state: State; maskedEmail: string; orgName: string }
@@ -38,7 +42,8 @@ function apiDetail(err: unknown): string | undefined {
 function ActivateInner() {
   const t = useTranslations('v2.auth')
   const router = useRouter()
-  const token = (useSearchParams().get('token') ?? '').trim()
+  // null = chưa đọc URL (lần render đầu) → vẫn hiện khung chờ, chưa kết luận "liên kết lạ".
+  const { token, forget } = useOneTimeUrlToken(ACTIVATE_TOKEN_KEY)
 
   const [preview, setPreview] = useState<Preview | null>(null)
   const [checking, setChecking] = useState(true)
@@ -50,6 +55,7 @@ function ActivateInner() {
   const st = pwStrength(pw)
 
   const check = useCallback(async () => {
+    if (token === null) return
     if (!token) {
       setPreview({ state: 'UNKNOWN', maskedEmail: '', orgName: '' })
       setChecking(false)
@@ -58,13 +64,15 @@ function ActivateInner() {
     try {
       const res = await api.get<Preview>('/auth/activate', { params: { token } })
       setPreview(res.data)
+      // Liên kết chắc chắn chết thì không giữ token trong tab nữa (UNKNOWN có thể là mạng hỏng: giữ để thử lại).
+      if (res.data.state === 'EXPIRED' || res.data.state === 'USED') forget()
     } catch {
       // Mạng hỏng hoặc 429: coi như chưa biết, cho người dùng thử lại bằng cách tải lại trang.
       setPreview({ state: 'UNKNOWN', maskedEmail: '', orgName: '' })
     } finally {
       setChecking(false)
     }
-  }, [token])
+  }, [token, forget])
 
   useEffect(() => { void check() }, [check])
 
@@ -81,6 +89,7 @@ function ActivateInner() {
     setError('')
     try {
       await api.post('/auth/activate', { token, newPassword: pw })
+      forget()
       toast.success(t('activate.success'))
       // Endpoint không cấp token phiên — vào bằng chính mật khẩu vừa đặt, như mọi lần sau.
       router.replace('/v2/login')
