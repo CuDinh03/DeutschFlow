@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ArrowRight, CalendarClock, CalendarDays, ChartNoAxesColumn, Check, ChevronRight, CircleCheck, CircleX, FileText, Headphones, Lock, Mic, RotateCcw, Route, Target, type LucideIcon } from 'lucide-react'
 import { getMockPack, getMockPacks, type PackExam } from '@/lib/mockPackApi'
-import { getPracticeAccess, getPracticeOverview, type PracticeOverview } from '@/lib/telcPracticeApi'
+import { getMockTeilScores, getPracticeAccess, getPracticeOverview, type MockTeilScore, type PracticeOverview } from '@/lib/telcPracticeApi'
 import { listMyAttempts, type MyAttempt } from '@/lib/exam/mockAttemptApi'
 import { examPlanApi, currentWeekOf, localIsoDate, swapLocally, teilKeyOf, todaySession, type ExamPlan, type ExamPlanDay } from '@/lib/examPlanApi'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
@@ -51,6 +51,7 @@ export default function V2StudentExamHubPage() {
   const [locked, setLocked] = React.useState<LockedPack[]>([])
   const [attempts, setAttempts] = React.useState<MyAttempt[]>([])
   const [overviews, setOverviews] = React.useState<PracticeOverview[]>([])
+  const [mockTeile, setMockTeile] = React.useState<MockTeilScore[]>([])
   const [plan, setPlan] = React.useState<ExamPlan | null>(null)
   const [oral, setOral] = React.useState<ExamResultView | null>(null)
   const [diagnostic, setDiagnostic] = React.useState<DiagnosticStatus | null>(null)
@@ -89,8 +90,13 @@ export default function V2StudentExamHubPage() {
       setRows(list)
       if (enabled) {
         const ready = list.filter((r) => !r.exam.comingSoon)
-        const ovs = await Promise.all(ready.map((r) => getPracticeOverview(r.exam.id).catch(() => null)))
+        // Điểm Teil của lượt thi thử (09/11/2026) cũng vào Bốn kỹ năng; lỗi thì chỉ còn điểm luyện.
+        const [ovs, mockScores] = await Promise.all([
+          Promise.all(ready.map((r) => getPracticeOverview(r.exam.id).catch(() => null))),
+          getMockTeilScores(),
+        ])
         setOverviews(ovs.filter((o): o is PracticeOverview => !!o))
+        setMockTeile(mockScores)
       }
     } catch (e) {
       setError(apiMessage(e) || tRef.current('loadError'))
@@ -100,7 +106,7 @@ export default function V2StudentExamHubPage() {
     void load()
   }, [load])
 
-  const skills = React.useMemo(() => skillsFrom(overviews, oral), [overviews, oral])
+  const skills = React.useMemo(() => skillsFrom(overviews, oral, mockTeile), [overviews, oral, mockTeile])
   const week = currentWeekOf(plan)
   const today = todaySession(plan)
   const card = todayCard(today, plan, overviews, skills)

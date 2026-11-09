@@ -75,6 +75,8 @@ export interface PracticeProgress {
   elapsedSeconds: number
   updatedAt: string | null
   result: PracticeTeilResult | WritingEvaluation | null
+  /** Lúc chấm gần nhất (09/11/2026). Khác `updatedAt`: lưu nháp Viết đổi `updatedAt` mà giữ điểm cũ. */
+  checkedAt?: string | null
 }
 
 export interface PracticeTeil {
@@ -105,6 +107,28 @@ export async function getPracticeAccess(): Promise<boolean> {
     return !!data?.enabled
   } catch {
     return false
+  }
+}
+
+/** Điểm một Teil lấy từ một lượt thi thử đã nộp hoặc dừng giữa chừng (09/11/2026). `at` = lúc lượt kết thúc. */
+export interface MockTeilScore {
+  attemptId: number
+  examId: number
+  key: string
+  section: string
+  teil: number
+  score: number
+  max: number
+  at: string
+}
+
+/** Điểm từng Teil của các lượt thi thử gần nhất — gộp vào "Bốn kỹ năng". Lỗi thì coi như chưa có lượt nào. */
+export async function getMockTeilScores(): Promise<MockTeilScore[]> {
+  try {
+    const { data } = await api.get<MockTeilScore[]>('/mock-exams/practice/mock-teile')
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
   }
 }
 

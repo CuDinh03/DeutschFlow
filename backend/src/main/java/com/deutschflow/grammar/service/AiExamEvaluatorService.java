@@ -521,6 +521,8 @@ public class AiExamEvaluatorService {
             // Bài đã sửa đổi chỗ nào mà không ghi chú nào nói tới thì thêm ghi chú cho chỗ đó — người học
             // không phải tự dò hai bản để tìm "sửa ngầm" (gặp 07/11/2026: „Am Wochenende ich gehe", „urlaub").
             if (!muster.isEmpty()) out.addAll(silentChangeNotes(emailContent, muster, out));
+            // Luật máy V2 (09/11/2026): mô hình đôi khi bỏ sót „Am Wochenende ich gehe" cả ở ghi chú lẫn bài đã sửa.
+            out.addAll(v2Notes(emailContent, out));
             eval.put("annotations", out);
             eval.put("musterloesung", muster);
         } catch (Exception e) {
@@ -615,6 +617,178 @@ public class AiExamEvaluatorService {
         while (m.find()) out.add(new Tok(m.group(), m.start(), m.end()));
         return out;
     }
+
+    // ─── Luật máy: động từ vị trí 2 sau trạng ngữ đầu câu (Đợt 4 kế hoạch sửa lỗi, 09/11/2026) ────────
+
+    /** Số ghi chú V2 tối đa máy thêm vào một bài. */
+    static final int MAX_V2_NOTES = 3;
+
+    /** Trạng ngữ một từ hay đứng đầu câu ở bài A2–B1. Không có „Natürlich" (cho phép dấu phẩy, vị trí 0). */
+    private static final String V2_ADVERB =
+            "Heute|Morgen|Gestern|Übermorgen|Dann|Danach|Jetzt|Leider|Deshalb|Deswegen|Darum|Trotzdem|Außerdem"
+            + "|Zuerst|Später|Manchmal|Oft|Hier|Dort|Vielleicht|Bald|Abends|Morgens|Mittags|Nachmittags|Normalerweise";
+
+    /** Từ hạn định có thể đứng giữa giới từ và danh từ của cụm trạng ngữ („In meiner Freizeit"). */
+    private static final String V2_DET =
+            "der|die|das|dem|den|des|ein|eine|einem|einen|einer|mein|meine|meinem|meinen|meiner|dein|deinem|deiner"
+            + "|unser|unsere|unserem|unseren|unserer|diesem|dieser|diesen|jedem|jeder|nächsten|nächste|letzten|letzte";
+
+    /**
+     * Đầu câu + trạng ngữ + đại từ chủ ngữ + một từ viết thường. "Đầu câu" = đầu bài, sau . ! ?, hoặc đầu
+     * dòng mà dòng trên kết thúc bằng dấu câu (lời chào „Hallo Lena,") hay là dòng trống — KHÔNG phải mọi
+     * chỗ xuống dòng: „…, weil⏎am Wochenende wir …" là mệnh đề phụ đúng. Cụm giới từ phải có danh từ viết
+     * hoa hoặc giờ („Um 8 Uhr") — tránh „Mit ihr gehe ich"; không có „Seit" (còn là liên từ: „Seit Peter
+     * sie kennt, …").
+     */
+    private static final java.util.regex.Pattern V2_AFTER_ADVERBIAL = java.util.regex.Pattern.compile(
+            "(?:^|(?<=[.!?]\\s{1,3})|(?<=[.!?:,][ \\t]{0,3}\\r?\\n)|(?<=\\n[ \\t]{0,3}\\r?\\n))"
+            + "(?<adv>(?i:" + V2_ADVERB + ")"
+            + "|(?i:Am|Im|Um|An|In|Nach|Vor|Bei|Zum|Zur|Ab|Mit)\\s+(?:(?:" + V2_DET + ")\\s+)?"
+            + "(?:\\p{Lu}\\p{L}+|\\d{1,2}(?:[.:]\\d{2})?\\s+Uhr))"
+            // [ \t]+ chứ không \s+: „Am Wochenende⏎ich …" có thể là tiêu đề rồi xuống dòng, không phải một câu.
+            + "(?<comma>,?)[ \\t]+(?<subj>ich|du|er|sie|Sie|es|wir|ihr|man)[ \\t]+(?<verb>\\p{Ll}[\\p{L}]*)\\b");
+
+    /**
+     * Từ đứng sau chủ ngữ mà KHÔNG phải động từ chia dù đuôi giống động từ (meine, heute, gerne, erst…),
+     * hoặc là giới từ/mạo từ/trạng từ — gặp thì động từ nằm chỗ khác (thường cuối câu: „Heute ich ins Kino
+     * gehe"), không đoán được câu sửa ngắn, bỏ qua.
+     */
+    private static final Set<String> V2_NOT_VERB = Set.of(
+            "und", "oder", "aber", "auch", "nicht", "nichts", "schon", "noch", "sehr", "gern", "gerne", "oft",
+            "immer", "nur", "zusammen", "selbst", "allein", "wieder", "dann", "bitte", "zu", "mal", "jetzt",
+            "heute", "morgen", "gestern", "erst", "zuerst", "bestimmt", "leider", "wirklich", "natürlich",
+            "lieber", "endlich", "einfach", "etwas", "ganz", "recht", "später", "bald", "hier", "dort",
+            "meine", "deine", "seine", "ihre", "unsere", "eure", "eine", "keine", "diese", "jede", "alle",
+            "ein", "einen", "einem", "einer", "der", "die", "das", "den", "dem", "des",
+            "in", "im", "ins", "an", "am", "auf", "mit", "nach", "bei", "von", "vom", "zum", "zur", "aus",
+            "für", "um", "über", "unter", "vor", "ohne", "ihn", "ihm", "ihnen", "uns", "euch", "mich", "dich",
+            "ich", "du", "er", "sie", "es", "wir", "ihr", "man",
+            "viele", "nie", "gerade", "lange", "alleine", "andere", "anderen", "gute", "guten", "gut", "kalt",
+            "warm", "fast", "meinen", "deinen", "seinen", "ihren", "unseren", "euren", "keinen", "diesen",
+            "jeden", "allen", "eigentlich", "vielleicht", "wahrscheinlich", "manchmal", "normalerweise",
+            // Tính từ vị ngữ hay gặp ở câu THIẾU „sein" (chuyển từ tiếng Việt: „Heute ich müde.") — không phải
+            // động từ, đảo lên sẽ ra câu sửa sai.
+            "müde", "leise", "böse", "spät", "nett", "alt", "laut", "kaputt", "leicht", "schlecht", "bereit",
+            "satt", "weit", "breit", "bunt", "fit", "hart", "zuhause", "daheim", "zufrieden", "offen",
+            "geschlossen");
+
+    /**
+     * Trợ động từ và động từ khuyết thiếu đã chia: gặp ngay sau chủ ngữ thì CHẮC là động từ chia, dù cuối
+     * câu còn một động từ khác („Am Montag ich habe gearbeitet", „Heute ich kann nicht kommen").
+     */
+    private static final Set<String> V2_AUX = Set.of(
+            "bin", "bist", "ist", "sind", "seid", "habe", "hast", "hat", "haben", "habt",
+            "kann", "kannst", "können", "könnt", "will", "willst", "wollen", "wollt", "muss", "musst", "müssen",
+            "müsst", "darf", "darfst", "dürfen", "dürft", "soll", "sollst", "sollen", "sollt", "mag", "magst",
+            "mögen", "möchte", "möchtest", "möchten", "möchtet", "werde", "wirst", "wird", "werden", "werdet",
+            "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hattet", "gibt");
+
+    /** Từ viết thường (ứng viên động từ) trong phần còn lại của mệnh đề. */
+    private static final java.util.regex.Pattern V2_LOWER_WORD = java.util.regex.Pattern.compile("(?<![\\p{L}])\\p{Ll}\\p{L}*");
+
+    /** Liên từ mở mệnh đề mới — người học hay bỏ dấu phẩy trước chúng („…kaufe weil sie kaputt sind"). */
+    private static final java.util.regex.Pattern V2_CLAUSE_CONJ = java.util.regex.Pattern.compile(
+            "(?<![\\p{L}])(?:und|oder|aber|weil|dass|wenn|denn|als|ob|sondern)(?![\\p{L}])");
+
+    /**
+     * Động từ chia có thể KHÔNG phải từ ngay sau chủ ngữ („Am Wochenende wir spazieren gehen", „Heute ich
+     * neue Schuhe kaufe", „Heute er spät kommt nach Hause") — khi đó câu sửa ngắn sẽ sai. Danh sách loại
+     * trừ luôn hở (tính từ biến cách, danh từ viết thường cũng mang đuôi -e/-t/-en), nên chốt bằng cấu trúc:
+     * trong phần còn lại của mệnh đề (cắt ở , . ! ? ; : xuống dòng, hoặc liên từ) có BẤT KỲ từ viết thường nào
+     * khác cũng khớp đuôi với chủ ngữ ⇒ bỏ qua; trừ khi ứng viên là trợ động từ/động từ khuyết thiếu. Chủ ngữ
+     * số nhiều, mệnh đề hết ngay sau ứng viên đuôi -en („Am Abend wir fernsehen") cũng bỏ qua: dễ là nguyên
+     * mẫu của động từ tách. Đo 09/11/2026 trên 223 câu: báo nhầm 0/91, câu sửa sai 2/69 (câu thiếu „sein" với phân từ đuôi -t).
+     */
+    static boolean verbMayBeAtEnd(String subj, String verb, String restOfText) {
+        if (V2_AUX.contains(verb)) return false;
+        int end = restOfText.length();
+        for (int i = 0; i < restOfText.length(); i++) {
+            if (",.!?;:\n".indexOf(restOfText.charAt(i)) >= 0) { end = i; break; }
+        }
+        var conj = V2_CLAUSE_CONJ.matcher(restOfText);
+        if (conj.find() && conj.start() < end) end = conj.start();
+        boolean anyWord = false;
+        var w = V2_LOWER_WORD.matcher(restOfText.substring(0, end));
+        while (w.find()) {
+            anyWord = true;
+            if (agrees(subj, w.group())) return true;
+        }
+        if (!anyWord) return List.of("wir", "Sie", "sie").contains(subj) && verb.endsWith("en");
+        return false;
+    }
+
+    /** Động từ bất quy tắc hay gặp, đã chia, không theo đuôi -e/-st/-t/-en. */
+    private static final Set<String> V2_IRREGULAR_ICH_ER = Set.of(
+            "bin", "ist", "kann", "will", "muss", "darf", "mag", "soll", "weiß", "war");
+
+    /**
+     * Từ sau chủ ngữ có đuôi khớp với chủ ngữ không (ich → -e, du → -st, er/sie/es/man → -t, wir/Sie → -en,
+     * ihr → -t). Không khớp thì nhiều khả năng không phải động từ chia ⇒ không ghi chú (thà bỏ sót còn hơn
+     * đưa câu sửa sai, kiểu „Am Wochenende in ich").
+     */
+    static boolean agrees(String subj, String verb) {
+        if (V2_NOT_VERB.contains(verb)) return false;
+        return switch (subj) {
+            case "ich" -> verb.endsWith("e") || V2_IRREGULAR_ICH_ER.contains(verb) && !"ist".equals(verb);
+            case "du" -> verb.endsWith("st");
+            case "er", "es", "man" -> verb.endsWith("t") || V2_IRREGULAR_ICH_ER.contains(verb) && !"bin".equals(verb);
+            case "wir", "Sie" -> verb.endsWith("en") || "sind".equals(verb);
+            case "ihr" -> verb.endsWith("t") || "seid".equals(verb);
+            // "sie": cô ấy (-t) hoặc họ (-en)
+            default -> verb.endsWith("t") || verb.endsWith("en") || "sind".equals(verb)
+                    || V2_IRREGULAR_ICH_ER.contains(verb) && !"bin".equals(verb);
+        };
+    }
+
+    /**
+     * Chỗ câu mở đầu bằng trạng ngữ mà động từ chia KHÔNG đứng vị trí 2 („Am Wochenende ich gehe"), chưa
+     * nằm trong trích dẫn hay câu sửa của ghi chú nào ⇒ thêm ghi chú. Mô hình đôi khi bỏ sót lỗi này dù
+     * nó rõ và hay gặp (07/11/2026); luật máy rẻ và ổn định hơn chấm hai lượt. Không đổi điểm.
+     */
+    static List<Map<String, Object>> v2Notes(String original, List<Map<String, Object>> notes) {
+        List<Map<String, Object>> added = new ArrayList<>();
+        if (original == null || original.isBlank()) return added;
+        List<int[]> covered = new ArrayList<>();
+        Set<String> corrections = new HashSet<>();
+        for (Map<String, Object> n : notes) {
+            if (n.get("quote") instanceof String q && !q.isBlank()) {
+                int at = original.indexOf(q);
+                if (at >= 0) covered.add(new int[]{at, at + q.length()});
+            }
+            if (n.get("correction") instanceof String c && !c.isBlank()) corrections.add(normalizeForCompare(c));
+        }
+        var m = V2_AFTER_ADVERBIAL.matcher(original);
+        while (m.find() && added.size() < MAX_V2_NOTES) {
+            String verb = m.group("verb");
+            if (!agrees(m.group("subj"), verb)) continue;
+            if (verbMayBeAtEnd(m.group("subj"), verb, original.substring(m.end()))) continue;
+            // Có dấu phẩy sau trạng ngữ thì bỏ qua: „Im Gegenteil, ich finde…", „Im Ernst, ich habe…",
+            // „Hier, ich schicke dir…" là cụm dẫn ý đứng ngoài câu — đúng ngữ pháp; danh sách cụm đó không đóng
+            // được nên không cố phân biệt với „Am Wochenende, ich gehe" (bỏ sót chấp nhận được).
+            if (!m.group("comma").isEmpty()) continue;
+            int s = m.start(), e = m.end();
+            if (covered.stream().anyMatch(c -> c[0] < e && s < c[1])) continue;
+            String adv = m.group("adv");
+            String fixed = adv + " " + verb + " " + m.group("subj");
+            if (corrections.contains(normalizeForCompare(fixed))) continue;
+            Map<String, Object> a = new LinkedHashMap<>();
+            a.put("quote", original.substring(s, e));
+            a.put("insertAfter", null);
+            a.put("correction", fixed);
+            a.put("category", "GRAMMATIK");
+            a.put("kriterium", "III");
+            a.put("leitpunkt", null);
+            a.put("whyVi", "Câu mở đầu bằng trạng ngữ „" + adv + "“ nên động từ chia „" + verb
+                    + "“ phải đứng ngay sau nó (vị trí 2), chủ ngữ „" + m.group("subj") + "“ lùi ra sau động từ.");
+            a.put("errorCode", V2_CODE);
+            a.put("ruleVi", ErrorRuleCatalog.ruleVi(V2_CODE));
+            a.put("source", "RULE_V2");
+            added.add(a);
+        }
+        return added;
+    }
+
+    private static final String V2_CODE = "WORD_ORDER.INVERSION_AFTER_ADVERBIAL";
 
     /**
      * Chỗ bài đã sửa khác bài gốc mà không ghi chú nào phủ: so từng từ (LCS), mỗi cụm khác nhau ngắn

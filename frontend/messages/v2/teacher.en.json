@@ -1247,7 +1247,7 @@
         "NEEDS_PRACTICE": "Needs practice"
       },
       "cellLabel": "Assess {name} — currently: {status}",
-      "legend": "Click to cycle: — not assessed → ✓ achieved → ! needs practice. \"Awaiting grading\" is neutral — submitted work waiting for the teacher, never a weak result. Suggestions only count assessed students and never change the curriculum by themselves."
+      "legend": "Click a cell to cycle: <na>not assessed</na>, <ok>achieved</ok>, <np>needs practice</np>. \"Awaiting grading\" is neutral — submitted work waiting for the teacher, never a weak result. Suggestions only count assessed students and never change the curriculum by themselves."
     },
     "fourAxis": {
       "contentCap": "Content taught",

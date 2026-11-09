@@ -20,9 +20,18 @@ public final class PracticeDtos {
     public record Teil(String key, String section, int teil, String type, int items, double maxPoints,
                        Integer suggestMinutes, Progress progress) {}
 
-    /** {@code result}: phân tích đã lưu (Teil khách quan) hoặc phiếu chấm AI (Teil Viết). */
+    /**
+     * {@code result}: phân tích đã lưu (Teil khách quan) hoặc phiếu chấm AI (Teil Viết).
+     * {@code checkedAt} (09/11/2026): lúc CHẤM gần nhất — khác {@code updatedAt}, vốn đổi cả khi chỉ lưu
+     * nháp (Viết giữ điểm cũ khi lưu nháp). "Bốn kỹ năng" so mốc này với lượt thi thử.
+     */
     public record Progress(Map<String, String> answers, boolean checked, Double score, Double max,
-                           int elapsedSeconds, Instant updatedAt, Object result) {}
+                           int elapsedSeconds, Instant updatedAt, Object result, Instant checkedAt) {
+        public Progress(Map<String, String> answers, boolean checked, Double score, Double max,
+                        int elapsedSeconds, Instant updatedAt, Object result) {
+            this(answers, checked, score, max, elapsedSeconds, updatedAt, result, null);
+        }
+    }
 
     public record SaveRequest(Map<String, String> answers, Integer elapsedSeconds) {}
 
@@ -31,6 +40,13 @@ public final class PracticeDtos {
     public record Access(boolean enabled) {}
 
     public record JobAccepted(String jobId, String status) {}
+
+    /**
+     * Điểm một Teil lấy từ một lượt thi thử (09/11/2026) — trang Hôm nay gộp vào "Bốn kỹ năng".
+     * {@code at} = lúc lượt đó kết thúc, so với {@code Progress.checkedAt} để lấy lần gần nhất.
+     */
+    public record MockTeilScore(long attemptId, long examId, String key, String section, int teil,
+                                double score, double max, Instant at) {}
 
     /**
      * Phân tích một lượt thi thử trọn đề (06/11/2026) bằng cùng bộ phân tích của chế độ luyện:

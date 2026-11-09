@@ -40,3 +40,10 @@ ec53f1c7dfa929e8e7a5bc55e2d197370cb4060a:frontend/src/components/features/ai-spe
 # nguyên dòng đó vào chú thích ở đây nên cũng bị bắt (dòng thứ hai bên dưới).
 2bd21c67eaa246654f7659e10aa6e327cdffbaf3:backend/src/main/resources/db/migration/V360__sua_de1_cau27_gern.sql:generic-api-key:38
 b78e5515ae2e91ae9bfa837707d48800293c3f3c:.gitleaksignore:generic-api-key:38
+
+# KHOÁ TEIL trong dữ liệu test "Bốn kỹ năng" (Đợt 5, PR #789) — KHÔNG phải khoá API.
+# Đã mở đúng dòng đó ngày 09/11/2026: một phần tử mảng điểm thi thử giả, trường `key` là tên Teil của đề
+# telc (phần Sprachbausteine, Teil 1). Rule `generic-api-key` chấm theo entropy nên bắt nhầm.
+# Source đã sửa ở commit kế tiếp (đổi sang khoá Teil ngắn), nhưng commit dưới còn trong dải quét của PR.
+# Không dán nguyên văn dòng đó vào đây (file này sẽ tự bị bắt).
+ba11faba710c2a1bb23ade9111ab958544d39b5b:frontend/src/test/components/todayModel.test.ts:generic-api-key:40

@@ -1247,7 +1247,7 @@
         "NEEDS_PRACTICE": "Cần luyện thêm"
       },
       "cellLabel": "Đánh giá {name} — hiện tại: {status}",
-      "legend": "Bấm ô để xoay: — chưa đánh giá → ✓ đạt → ! cần luyện thêm. \"Chờ chấm\" là trạng thái trung tính — bài đã nộp đang đợi giáo viên, không phải kết quả yếu. Gợi ý chỉ tính học viên đã được đánh giá và không tự thay đổi giáo trình."
+      "legend": "Bấm ô để đổi lần lượt: <na>chưa đánh giá</na>, <ok>đạt</ok>, <np>cần luyện thêm</np>. \"Chờ chấm\" là trạng thái trung tính — bài đã nộp đang đợi giáo viên, không phải kết quả yếu. Gợi ý chỉ tính học viên đã được đánh giá và không tự thay đổi giáo trình."
     },
     "fourAxis": {
       "contentCap": "Nội dung đã dạy",

@@ -277,13 +277,8 @@ function StatusCard({
   return (
     <GaAuthShell>
       <div className="flex flex-col items-center rounded-ga border border-ga-line bg-ga-card px-4 py-8 text-center sm:px-6 lg:py-10">
-        {/* Hết hạn (cam) khác lỗi (đỏ): GaGlyph không có tông cam nên đè màu nền/chữ bằng token cam. */}
-        <GaGlyph
-          icon={AlertTriangle}
-          size="lg"
-          tone="red"
-          className={tone === 'orange' ? 'bg-ga-orange-soft text-ga-orange' : undefined}
-        />
+        {/* Hết hạn (cam) khác lỗi (đỏ). */}
+        <GaGlyph icon={AlertTriangle} size="lg" tone={tone} />
         <h1 className="mb-2 mt-5 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">{title}</h1>
         <p className="ga-ui m-0 max-w-sm break-words text-[13.5px] leading-relaxed text-ga-muted">{message}</p>
         <GaBtn variant="ink" size="lg" className="mt-6" asChild>

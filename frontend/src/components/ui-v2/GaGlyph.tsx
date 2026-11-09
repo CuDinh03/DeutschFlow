@@ -21,6 +21,7 @@ import { iconNameForEmoji } from './emojiIconMap'
  *   yellow — điểm nhấn duy nhất trên màn (việc hôm nay, gợi ý chính): nền `ga-yellow`, icon `ga-ink`.
  *   ink    — đang chọn: nền `ga-ink`, icon `ga-card`.
  *   green / red — trạng thái đạt / lỗi.
+ *   orange — cảnh báo không phải lỗi (lời mời hết hạn): khác hẳn đỏ "không hợp lệ".
  *   accent — theo vai trò (tím giáo viên, xanh ngọc trung tâm…), icon luôn `ga-ink` để đủ tương phản
  *            cả với nền vàng nhạt của học viên.
  *
@@ -30,7 +31,7 @@ import { iconNameForEmoji } from './emojiIconMap'
  * tin DUY NHẤT.
  */
 export type GaGlyphSize = 'sm' | 'md' | 'lg'
-export type GaGlyphTone = 'navy' | 'plain' | 'yellow' | 'ink' | 'green' | 'red' | 'accent'
+export type GaGlyphTone = 'navy' | 'plain' | 'yellow' | 'ink' | 'green' | 'red' | 'orange' | 'accent'
 
 /** Hình dạng chung của Lucide và glyph tự vẽ (`./glyphs`). */
 export type GaGlyphIcon = React.ComponentType<{
@@ -65,6 +66,7 @@ const TONE: Record<GaGlyphTone, string> = {
   ink: 'bg-ga-ink text-ga-card',
   green: 'bg-ga-green-soft text-ga-green',
   red: 'bg-ga-red-soft text-ga-red',
+  orange: 'bg-ga-orange-soft text-ga-orange',
   accent: 'bg-ga-accent-soft text-ga-ink',
 }
 

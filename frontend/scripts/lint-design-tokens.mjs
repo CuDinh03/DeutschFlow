@@ -30,7 +30,18 @@ const BASELINE_PATH = join(ROOT, 'design-token-baseline.json')
 const EXCEPTIONS_PATH = join(ROOT, 'design-token-exceptions.json')
 
 /** Surface canonical được lint. Legacy (src/app ngoài /v2, components/ui, globals.css) KHÔNG lint. */
-const SCAN_DIRS = ['src/app/v2', 'src/components/ui-v2', 'src/components/landing-v2']
+// Trang công khai đã chuyển Galerie (icon đợt B, 09/11/2026) vào luôn để không lùi về màu/cỡ lạc.
+const SCAN_DIRS = [
+  'src/app/v2',
+  'src/components/ui-v2',
+  'src/components/landing-v2',
+  'src/app/luyen-thi',
+  'src/app/free-grade',
+  'src/app/report',
+  'src/components/marketing',
+  'src/app/certificate',
+  'src/components/certificate',
+]
 const SCAN_EXT = new Set(['.tsx', '.ts', '.css'])
 
 /** Rule → regex GLOBAL bắt từng match trên một dòng (dùng matchAll để lấy identity). */

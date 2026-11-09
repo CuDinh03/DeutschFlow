@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Sparkles, Loader2, CheckCircle2, ArrowRight, PenLine, Clock, ShieldCheck } from 'lucide-react'
+import { Sparkles, Loader2, Check, ArrowRight, Clock, ShieldCheck } from 'lucide-react'
 import { httpStatus } from '@/lib/api'
 import { submitFreeGrade, type ContactType, type FreeGradeResult } from '@/lib/marketingApi'
 import { ShareButtons } from '@/components/marketing/ShareButtons'
+import { GradeScore } from '@/components/marketing/GradeScore'
+import { GaBtn } from '@/components/ui-v2/GaBtn'
+import { GaInput, GaTextarea } from '@/components/ui-v2/GaInput'
 import { useTracking } from '@/hooks/useTracking'
 import { B2B_EVENT } from '@/lib/analytics/b2bEvents'
 
@@ -78,67 +81,60 @@ export default function FreeGradeClientPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Hero band */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white">
-        {/* German-flag accent stripe */}
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-black via-[#DD0000] to-[#FFCE00]" />
-        <div className="absolute right-0 top-0 -mr-16 -mt-10 opacity-10">
-          <PenLine size={260} />
-        </div>
-        <div className="relative z-10 mx-auto max-w-4xl px-5 pb-12 pt-14 sm:pt-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-indigo-200">
-            <Sparkles size={14} /> Chấm thử miễn phí
-          </span>
-          <h1 className="mt-5 text-4xl font-black leading-[1.05] sm:text-5xl">
-            Bài Schreiben B1 của bạn<br className="hidden sm:block" /> được mấy điểm?
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg text-slate-300">
-            Dán bài viết tiếng Đức vào ô bên dưới — AI chấm điểm theo thang Goethe/telc kèm nhận
-            xét ngữ pháp, từ vựng, cấu trúc câu <span className="font-semibold text-white">trong ~15 giây</span>.
-            Không cần đăng ký.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-300">
-            <span className="inline-flex items-center gap-2"><Clock size={16} className="text-[#FFCE00]" /> Kết quả tức thì</span>
-            <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-[#FFCE00]" /> Theo tiêu chí Goethe/telc</span>
-            <span className="inline-flex items-center gap-2"><CheckCircle2 size={16} className="text-[#FFCE00]" /> Miễn phí, không cần tài khoản</span>
-          </div>
-        </div>
-      </section>
+    <main className="mx-auto max-w-[1080px] px-5 pb-16 pt-10 sm:px-8 md:pt-14">
+      <div className="mb-[18px] inline-flex items-center gap-2 text-ga-eyebrow uppercase text-ga-muted">
+        <span className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />Chấm thử miễn phí
+      </div>
+      <h1 className="max-w-[760px] font-ga-display text-ga-h1-m font-medium leading-[1.1] sm:text-ga-h1">
+        Bài Schreiben B1 của bạn được mấy điểm?
+      </h1>
+      <p className="mt-5 max-w-[680px] text-ga-body-lg text-ga-muted">
+        Dán bài viết tiếng Đức vào ô bên dưới — AI chấm điểm theo thang Goethe/telc kèm nhận
+        xét ngữ pháp, từ vựng, cấu trúc câu <span className="font-semibold text-ga-ink">trong ~15 giây</span>.
+        Không cần đăng ký.
+      </p>
+      <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ga-small text-ga-muted">
+        <li className="inline-flex items-center gap-2"><Clock size={16} aria-hidden className="text-ga-ink" /> Kết quả tức thì</li>
+        <li className="inline-flex items-center gap-2"><ShieldCheck size={16} aria-hidden className="text-ga-ink" /> Theo tiêu chí Goethe/telc</li>
+        <li className="inline-flex items-center gap-2"><Check size={16} aria-hidden className="text-ga-ink" /> Miễn phí, không cần tài khoản</li>
+      </ul>
 
-      <div className="mx-auto grid max-w-4xl gap-6 px-5 py-10 lg:grid-cols-5">
+      <div className="mt-10 grid gap-6 lg:grid-cols-5">
         {/* Form */}
-        <form onSubmit={onSubmit} className="lg:col-span-3 space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <form onSubmit={onSubmit} className="space-y-5 border border-ga-border bg-ga-card p-5 sm:p-8 lg:col-span-3">
           <div>
-            <label htmlFor="topic" className="mb-1.5 block text-sm font-bold text-slate-700">
-              Chủ đề bài viết <span className="font-normal text-slate-400">(tùy chọn)</span>
+            <label htmlFor="topic" className="mb-1.5 block text-ga-small font-semibold text-ga-ink">
+              Chủ đề bài viết <span className="font-normal text-ga-muted">(tùy chọn)</span>
             </label>
-            <input
+            <GaInput
               id="topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="VD: Eine E-Mail an einen Freund schreiben"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label htmlFor="essay" className="text-sm font-bold text-slate-700">Bài viết tiếng Đức</label>
-              <span className={`text-xs font-semibold ${tooShort ? 'text-rose-500' : 'text-slate-400'}`}>
+              <label htmlFor="essay" className="text-ga-small font-semibold text-ga-ink">Bài viết tiếng Đức</label>
+              <span className={`text-ga-caption font-semibold tabular-nums ${tooShort ? 'text-ga-red' : 'text-ga-muted'}`}>
                 {charCount}/{MAX_CHARS}
               </span>
             </div>
-            <textarea
+            <GaTextarea
               id="essay"
               value={essay}
               onChange={(e) => setEssay(e.target.value.slice(0, MAX_CHARS))}
               rows={9}
+              invalid={tooShort}
+              aria-describedby={tooShort ? 'essay-short' : undefined}
               placeholder="Dán hoặc gõ bài viết tiếng Đức của bạn vào đây…"
-              className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm leading-relaxed outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="resize-y leading-relaxed"
             />
             {tooShort && (
-              <p className="mt-1 text-xs font-medium text-rose-500">Bài viết cần tối thiểu {MIN_CHARS} ký tự.</p>
+              <p id="essay-short" className="mt-1 text-ga-caption font-medium text-ga-red">
+                Bài viết cần tối thiểu {MIN_CHARS} ký tự.
+              </p>
             )}
           </div>
 
@@ -156,26 +152,20 @@ export default function FreeGradeClientPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="name" className="mb-1.5 block text-sm font-bold text-slate-700">
-                Tên <span className="font-normal text-slate-400">(tùy chọn)</span>
+              <label htmlFor="name" className="mb-1.5 block text-ga-small font-semibold text-ga-ink">
+                Tên <span className="font-normal text-ga-muted">(tùy chọn)</span>
               </label>
-              <input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Tên của bạn"
-                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              />
+              <GaInput id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên của bạn" />
             </div>
             <div>
-              <label htmlFor="contact" className="mb-1.5 block text-sm font-bold text-slate-700">
+              <label htmlFor="contact" className="mb-1.5 block text-ga-small font-semibold text-ga-ink">
                 Email / Zalo nhận kết quả
               </label>
-              <div className="flex overflow-hidden rounded-xl border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
+              <div className="flex min-h-11 overflow-hidden rounded-ga-touch border border-ga-line bg-ga-card focus-within:ring-2 focus-within:ring-ga-focus lg:min-h-9">
                 <select
                   value={contactType}
                   onChange={(e) => setContactType(e.target.value as ContactType)}
-                  className="border-r border-slate-200 bg-slate-50 px-2 text-xs font-semibold text-slate-600 outline-none"
+                  className="border-r border-ga-line bg-ga-surface px-2 text-ga-caption font-semibold text-ga-ink outline-none"
                   aria-label="Loại liên hệ"
                 >
                   <option value="EMAIL">Email</option>
@@ -186,48 +176,44 @@ export default function FreeGradeClientPage() {
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                   placeholder={contactType === 'EMAIL' ? 'ban@email.com' : '09xx xxx xxx'}
-                  className="w-full px-3 py-2.5 text-sm outline-none"
+                  className="w-full bg-transparent px-3 py-2.5 text-ga-small font-medium text-ga-ink outline-none placeholder:text-ga-subtle"
                 />
               </div>
             </div>
           </div>
 
           {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600">
+            <div role="alert" className="border border-ga-red bg-ga-red-soft px-4 py-3 text-ga-small font-medium text-ga-red">
               {error}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-          >
+          <GaBtn type="submit" variant="ink" size="lg" disabled={!canSubmit} className="w-full">
             {submitting ? (
-              <><Loader2 size={18} className="animate-spin" /> Đang chấm…</>
+              <><Loader2 size={18} aria-hidden className="ga-spin" /> Đang chấm…</>
             ) : (
-              <><Sparkles size={18} /> Chấm bài miễn phí</>
+              <><Sparkles size={18} aria-hidden /> Chấm bài miễn phí</>
             )}
-          </button>
-          <p className="text-center text-xs text-slate-400">
+          </GaBtn>
+          <p className="text-center text-ga-caption text-ga-muted">
             Chúng tôi chỉ dùng email/Zalo để gửi kết quả và tài liệu luyện thi. Không spam.
           </p>
         </form>
 
         {/* Result / pitch sidebar */}
-        <aside className="lg:col-span-2 space-y-4">
+        <aside className="space-y-4 lg:col-span-2" aria-live="polite">
           {result ? (
             <ResultCard result={result} />
           ) : (
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-base font-bold text-slate-800">Bạn sẽ nhận được gì?</h2>
-              <ul className="mt-4 space-y-3 text-sm text-slate-600">
+            <div className="border border-ga-border bg-ga-card p-6">
+              <h2 className="text-ga-h3 text-ga-ink">Bạn sẽ nhận được gì?</h2>
+              <ul className="mt-4 space-y-3 text-ga-small text-ga-muted">
                 <Bullet>Điểm số theo thang 100, tham chiếu tiêu chí chấm Goethe/telc (mô phỏng, không liên kết với hai tổ chức này).</Bullet>
                 <Bullet>Nhận xét cụ thể về ngữ pháp, từ vựng, cấu trúc câu.</Bullet>
                 <Bullet>Gợi ý cách cải thiện để lên điểm bài thi thật.</Bullet>
               </ul>
-              <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                <span className="font-semibold text-slate-800">Là giáo viên?</span> myDeutschFlow chấm nháp cả lớp
+              <div className="mt-5 bg-ga-surface p-4 text-ga-small text-ga-muted">
+                <span className="font-semibold text-ga-ink">Là giáo viên?</span> myDeutschFlow chấm nháp cả lớp
                 để bạn chốt điểm, theo dõi tiến độ và mức sẵn sàng thi của từng học viên.
               </div>
             </div>
@@ -239,33 +225,27 @@ export default function FreeGradeClientPage() {
 }
 
 function ResultCard({ result }: { result: FreeGradeResult }) {
-  const tone =
-    result.score >= 80 ? 'from-emerald-500 to-teal-600' :
-    result.score >= 60 ? 'from-indigo-500 to-violet-600' :
-    'from-amber-500 to-orange-600'
   return (
     <div className="space-y-4">
-      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${tone} p-6 text-white shadow-lg`}>
-        <p className="text-xs font-bold uppercase tracking-widest text-white/80">Điểm AI chấm</p>
-        <p className="mt-1 text-6xl font-black leading-none">{result.score}<span className="text-2xl font-bold text-white/70">/100</span></p>
+      <div>
+        <GradeScore score={result.score} />
+        <div className="border-x border-b border-ga-border bg-ga-card p-6">
+          <p className="text-ga-eyebrow uppercase text-ga-muted">Nhận xét</p>
+          <p className="mt-2 whitespace-pre-line text-ga-body text-ga-ink">{result.feedback}</p>
+          {result.shareToken && (
+            <div className="mt-5 border-t border-ga-border pt-5">
+              <p className="mb-3 text-ga-small font-semibold text-ga-ink">Chia sẻ kết quả</p>
+              <ShareButtons url={`/report/${result.shareToken}/`} score={result.score} />
+            </div>
+          )}
+        </div>
       </div>
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-bold uppercase tracking-wider text-slate-500">Nhận xét</p>
-        <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700">{result.feedback}</p>
-        {result.shareToken && (
-          <div className="mt-5 border-t border-slate-100 pt-5">
-            <p className="mb-3 text-sm font-semibold text-slate-700">Chia sẻ kết quả</p>
-            <ShareButtons url={`/report/${result.shareToken}/`} score={result.score} />
-          </div>
-        )}
-      </div>
-      <Link
-        href="/v2/register"
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
-      >
-        Luyện thi tiếp với myDeutschFlow <ArrowRight size={16} />
-      </Link>
-      <p className="px-1 text-center text-xs text-slate-400">{result.message}</p>
+      <GaBtn asChild variant="ink" size="lg" className="w-full">
+        <Link href="/v2/register">
+          Luyện thi tiếp với myDeutschFlow <ArrowRight size={16} aria-hidden />
+        </Link>
+      </GaBtn>
+      <p className="px-1 text-center text-ga-caption text-ga-muted">{result.message}</p>
     </div>
   )
 }
@@ -273,7 +253,7 @@ function ResultCard({ result }: { result: FreeGradeResult }) {
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2.5">
-      <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-500" />
+      <Check size={16} aria-hidden className="mt-0.5 shrink-0 text-ga-ink" />
       <span>{children}</span>
     </li>
   )

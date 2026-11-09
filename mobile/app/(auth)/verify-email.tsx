@@ -9,7 +9,7 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
 import { captureEvent } from '@/lib/analytics'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, TextField, Button, GaGlyph } from '@/components/ui'
+import { Screen, ThemedText, Button, GaGlyph, PinCells } from '@/components/ui'
 import { useT } from '@/lib/i18n'
 import { authMessages } from '@/lib/i18n/messages/auth'
 import {
@@ -134,21 +134,18 @@ export default function VerifyEmailScreen() {
               </ThemedText>
             </View>
 
-            <TextField
+            <PinCells
               label={t('verify.code')}
               value={code}
-              onChangeText={(v) => {
+              onChange={(v) => {
                 const digits = sanitizePin(v)
                 setCode(digits)
                 // Đủ 6 số (gõ, dán hoặc iOS tự điền từ Mail) là tự gửi — trừ đúng mã vừa bị từ chối.
                 if (digits.length === PIN_LENGTH && digits !== lastSubmitted.current) void verify(digits)
               }}
-              placeholder="123456"
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              autoComplete="one-time-code"
-              maxLength={PIN_LENGTH}
+              length={PIN_LENGTH}
               autoFocus
+              testID="verify-code"
             />
             <Button
               label={t('verify.submit')}

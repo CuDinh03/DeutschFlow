@@ -678,6 +678,7 @@
     },
     "learningDetail": {
       "title": "Hồ sơ học tập",
+      "close": "Đóng",
       "loading": "Đang tải hồ sơ học tập...",
       "backendBusy": "Backend đang tải dữ liệu, vui lòng thử lại.",
       "tabs": {
@@ -1066,7 +1067,9 @@
       "savedCap": "Đã lưu phiếu chấm",
       "savedHuman": "Người",
       "savedMachine": "Máy",
-      "savedAgree": "Đồng thuận đạt/trượt: {pass} · band ±1: {within1}/{pairs}, trùng: {exact}/{pairs}",
+      "savedAgree": "Đồng thuận đạt/trượt: <pass></pass> · band ±1: {within1}/{pairs}, trùng: {exact}/{pairs}",
+      "agreeYes": "khớp",
+      "agreeNo": "lệch",
       "teilCap": "Teil {n}",
       "globalCap": "Tiêu chí toàn phiên",
       "maxPts": "tối đa {max}đ",

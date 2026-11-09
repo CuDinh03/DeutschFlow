@@ -3,9 +3,9 @@
 > **Bắt buộc đọc hết tài liệu này trước mỗi lần merge vào `main` hoặc deploy bất cứ thứ gì lên production** (luật trong `CLAUDE.md`).
 > Tài liệu nằm trong repo để không phụ thuộc trí nhớ của người hay của phiên AI nào. Khi quy trình đổi, sửa tài liệu này trong cùng PR với thay đổi đó.
 >
-> Repo PUBLIC: tài liệu này **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
+> Repo PRIVATE từ 08/11/2026 (từng public, có thể còn bản sao cũ; có thể public lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
 >
-> Cập nhật lần cuối: 20/10/2026.
+> Cập nhật lần cuối: 08/11/2026 (repo private: máy chủ lấy code bằng deploy key chỉ đọc, §8.5).
 
 ---
 
@@ -14,7 +14,7 @@
 1. **Production không còn chạy trên AWS.** Frontend và backend chạy trên máy chủ tự host `deutschflow-srv` (VM Ubuntu, sau Cloudflare Tunnel). `amplify.yml` và job "Deploy to EC2" trong `backend-ci.yml` đã gỡ. `deploy-backend.sh`, `cleanup-deploy.sh` ở gốc repo là **di sản AWS — đã chặn bằng `exit 1`, không dùng, không "sửa cho chạy"** (script cũ ghi đè env của máy chủ bằng env EC2 cũ ⇒ mất DB, chết mọi phiên đăng nhập).
 2. **Merge vào `main` KHÔNG tự deploy.** Không còn Amplify tự build. Muốn lên web phải chạy script deploy trên máy chủ (§5, §6), trực tiếp qua SSH hoặc qua workflow "Deploy production" chạy tay, owner duyệt từng lần (§5.0).
 3. **Deploy production (frontend, backend, OTA mobile) chỉ khi owner ra lệnh trực tiếp** trong phiên làm việc. "Merge đi" không có nghĩa là "deploy đi" — hỏi lại nếu chưa rõ.
-4. **`main` được bảo vệ**: chỉ nhận thay đổi qua Pull Request, CI phải xanh. Không push thẳng, không force-push.
+4. **`main` được bảo vệ**: chỉ nhận thay đổi qua Pull Request, CI phải xanh. Không push thẳng, không force-push. Repo private trên gói GitHub miễn phí thì GitHub **không** áp luật bảo vệ nhánh (cần GitHub Pro): khi đó luật này chỉ còn do hook máy dev và kỷ luật giữ — vẫn làm đúng, không vì GitHub không chặn mà merge khi CI chưa xanh.
 5. **Biết máy chủ đang deploy từ nhánh nào trước khi làm gì** (§2). Deploy một nhánh thiếu code tự host (R2, Dockerfile, CSP) sẽ làm hỏng production.
 6. **Migration Flyway chạy theo thứ tự, không cho chạy lệch** (`out-of-order: false`). Số migration phải lớn hơn mọi số đang có trên `main` **và trên mọi nhánh đang mở**; nhánh có số nhỏ hơn phải lên prod trước (§6.2).
 7. **Env và secret chỉ sống trên máy chủ.** Không bao giờ chép `.env` từ máy dev lên, không commit, không in giá trị ra log hay chat.
@@ -42,7 +42,7 @@ GitHub Actions "Deploy production" (chạy tay + owner duyệt) ──► Cloudf
 
 | Thành phần | Ở đâu | Ghi chú |
 |---|---|---|
-| Repo trên máy chủ | `/srv/deutschflow/repo` (clone nông) | Script deploy tự `fetch` + `reset --hard` về nhánh deploy |
+| Repo trên máy chủ | `/srv/deutschflow/repo` (clone nông) | Script deploy tự `fetch` + `reset --hard` về nhánh deploy. Remote `origin` = `git@github.com:…` qua deploy key chỉ đọc (§8.5) |
 | Script deploy | `deploy/self-host/` | Xem `deploy/self-host/README.md` |
 | Env backend | `/srv/deutschflow/env/backend.env` | Nguồn chân lý nằm trên máy chủ |
 | Build args frontend | `/srv/deutschflow/env/frontend-build.env` + JWT public key | Nhúng lúc build |
@@ -130,7 +130,7 @@ Workflow tự chạy phần `curl` của §9. Phần kiểm bằng mắt của �
 3. Khoá SSH riêng của workflow: `restrict`, `from="127.0.0.1,::1"` (cloudflared đưa kết nối vào từ localhost), forced command `deploy/self-host/remote-deploy-guard.sh`. Khoá này chỉ chạy được ba lệnh trên, không có shell.
 4. Host key máy chủ được ghim (`StrictHostKeyChecking yes`).
 
-Repo PUBLIC ⇒ **log Actions ai cũng đọc được**. Script deploy chỉ in tên biến, không in giá trị. Không thêm `set -x`, `env`, `cat *.env` vào script deploy hay workflow.
+Coi **log Actions là công khai** (repo từng public và có thể public lại; người có quyền đọc repo đều xem được). Script deploy chỉ in tên biến, không in giá trị. Không thêm `set -x`, `env`, `cat *.env` vào script deploy hay workflow.
 
 **Thu hồi khẩn**: xoá dòng khoá trong `authorized_keys` **hoặc** revoke service token trên Cloudflare. Một trong hai là đủ chặn.
 
@@ -248,6 +248,25 @@ Runbook đầy đủ: `mobile/DEPLOYMENT.md` (local). Tóm tắt luật:
 ### 8.4 Dọn dẹp, tài nguyên
 - `deploy/self-host/cleanup-vm.sh`: giữ `:latest`, `:prev`, 3 tag commit gần nhất; không đụng volume. **Không** dùng `docker system prune --volumes`.
 - Hai JVM cùng chạy lúc blue-green ≈ 2 × 1,1 GB; build frontend ≈ 1,5–2 GB. Không deploy frontend và backend **cùng lúc** nếu RAM trống dưới ~4 GB.
+
+### 8.5 Máy chủ lấy code từ repo private (deploy key)
+Từ 08/11/2026 repo private ⇒ clone HTTPS không có thông tin đăng nhập trên máy chủ không `fetch` được (`could not read
+Username for 'https://github.com'`; script dừng ở "Lấy code", production không bị đụng). Cách đang dùng:
+
+- Khoá riêng `~/.ssh/github_deploy` của user `deploy` (ed25519, chỉ nằm trên máy chủ). Khoá công khai thêm ở GitHub →
+  repo → Settings → **Deploy keys**, tên `deutschflow-srv (chi doc, deploy)`, **không** cho ghi.
+- `~/.ssh/config` của `deploy`: `Host github.com` → `IdentityFile ~/.ssh/github_deploy`, `IdentitiesOnly yes`,
+  `UserKnownHostsFile ~/.ssh/github_known_hosts`, `StrictHostKeyChecking yes`. `github_known_hosts` lấy từ
+  `https://api.github.com/meta` (`ssh_keys`), không nhận khoá bừa. GitHub đổi khoá máy chủ thì lấy lại file này.
+- `git -C /srv/deutschflow/repo remote set-url origin git@github.com:CuDinh03/DeutschFlow.git`. Kiểm:
+  `git -C /srv/deutschflow/repo fetch --depth 1 origin main`.
+- Workflow "Deploy production" (§5.0) chạy script dưới user `deploy` nên dùng chung cách này.
+- **Thu hồi**: xoá deploy key ở GitHub (có hiệu lực ngay). Lộ máy chủ ⇒ xoá key, tạo cặp mới, thêm lại.
+- **Dự phòng** khi máy chủ không ra được GitHub: ở máy dev `git bundle create f <commit máy chủ đang có>..origin/main`, gửi
+  lên qua lệnh SSH (stdin) rồi `git fetch /tmp/f refs/remotes/origin/main:refs/remotes/origin/main && git reset --hard
+  origin/main` trong repo máy chủ, deploy với `SKIP_FETCH=1`. Repo máy chủ là clone nông: bundle cần các commit nền có sẵn
+  (`git bundle verify` báo).
+- Repo private trên gói miễn phí: Actions có hạn mức phút mỗi tháng, luật bảo vệ nhánh không được áp (§0.4).
 
 ---
 

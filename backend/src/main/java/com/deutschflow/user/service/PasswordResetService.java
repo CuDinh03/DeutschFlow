@@ -2,6 +2,8 @@ package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.mail.TransactionalMail;
+import com.deutschflow.user.registration.RegistrationCodes;
+import com.deutschflow.user.registration.RegistrationVerificationConfig;
 import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.common.mail.CodeMail;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -27,19 +29,34 @@ import java.util.concurrent.Executor;
  *
  * The OTP is a 6-digit numeric code with a 15-minute TTL.
  * Configure SMTP via spring.mail.* environment variables.
+ *
+ * <p><b>Lưu mã (V366, 09/11/2026):</b> bảng chỉ giữ {@code code_hash} = HMAC-SHA256(pepper, id + ":" + mã)
+ * qua lõi {@link RegistrationCodes} của luồng đăng ký; mã thô chỉ nằm trong thư. Mỗi mã có
+ * {@code attempts}: nhập sai thì cộng một và COMMIT trước khi báo lỗi, đủ ngưỡng thì mã bị huỷ — kẻ dò
+ * chỉ có vài lượt cho mỗi mã thay vì cả cửa sổ rate-limit.
  */
 @Slf4j
 @Service
 public class PasswordResetService {
 
     private static final int OTP_TTL_MINUTES = 15;
-    private static final SecureRandom RANDOM = new SecureRandom();
+
+    /**
+     * Pepper dự phòng khi máy không cấu hình {@code REGISTRATION_CODE_PEPPER} (máy dev, test). Repo public
+     * nên dự phòng này KHÔNG bảo vệ gì khi rò DB — chỉ để luồng vẫn chạy (bảo vệ ngang mức trước V366).
+     * Prod đang bật luồng mã PIN nên {@link RegistrationVerificationConfig} buộc có pepper; nhưng tắt mã PIN
+     * mà XOÁ luôn pepper thì prod sẽ rơi vào đây — log ERROR để thấy. Tắt mã PIN thì giữ nguyên pepper.
+     */
+    private static final byte[] FALLBACK_PEPPER =
+            "deutschflow-password-reset-dev-only-pepper".getBytes(StandardCharsets.UTF_8);
 
     private final JdbcTemplate jdbc;
     private final TransactionalMail mail;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final Executor mailExecutor;
+    private final byte[] pepper;
+    private final int maxAttemptsPerCode;
 
     /**
      * Chống dò email bằng THỜI GIAN (08/11/2026): trước đây thư OTP gửi đồng bộ ngay trong request, nên
@@ -52,16 +69,25 @@ public class PasswordResetService {
                                 TransactionalMail mail,
                                 PasswordEncoder passwordEncoder,
                                 RefreshTokenRepository refreshTokenRepository,
-                                @Qualifier("taskExecutor") Executor mailExecutor) {
+                                @Qualifier("taskExecutor") Executor mailExecutor,
+                                RegistrationVerificationConfig codeConfig) {
         this.jdbc = jdbc;
         this.mail = mail;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenRepository = refreshTokenRepository;
         this.mailExecutor = mailExecutor;
+        byte[] configured = codeConfig.pepper();
+        if (configured.length == 0) {
+            log.error("[PasswordReset] REGISTRATION_CODE_PEPPER chưa đặt — mã quên mật khẩu băm bằng pepper dự phòng công khai (chỉ chấp nhận ở máy dev/test)");
+            this.pepper = FALLBACK_PEPPER.clone();
+        } else {
+            this.pepper = configured;
+        }
+        this.maxAttemptsPerCode = codeConfig.maxAttemptsPerCode();
     }
 
     /**
-     * Generates a 6-digit OTP for the given email, persists it with a TTL, and
+     * Generates a 6-digit OTP for the given email, persists its hash with a TTL, and
      * sends it via email. Always returns success to prevent email enumeration.
      */
     @Transactional
@@ -83,13 +109,17 @@ public class PasswordResetService {
             return;
         }
 
-        String code = String.format("%06d", RANDOM.nextInt(1_000_000));
+        String code = RegistrationCodes.generate();
         Instant expiresAt = Instant.now().plus(OTP_TTL_MINUTES, ChronoUnit.MINUTES);
 
-        jdbc.update(
-                "INSERT INTO password_reset_tokens (email, code, expires_at) VALUES (lower(?), ?, ?)",
-                email.trim(), code, java.sql.Timestamp.from(expiresAt)
+        // Hash ghép id của chính dòng này (như hồ sơ đăng ký) nên phải có id trước rồi mới ghi hash.
+        // Cùng transaction: không ai thấy dòng chưa có hash.
+        Long tokenId = jdbc.queryForObject(
+                "INSERT INTO password_reset_tokens (email, expires_at) VALUES (lower(?), ?) RETURNING id",
+                Long.class, email.trim(), java.sql.Timestamp.from(expiresAt)
         );
+        jdbc.update("UPDATE password_reset_tokens SET code_hash = ? WHERE id = ?",
+                RegistrationCodes.hash(pepper, tokenId, code), tokenId);
 
         String to = email.trim();
         String locale = locales.get(0);
@@ -100,20 +130,27 @@ public class PasswordResetService {
     /**
      * Verifies the OTP and resets the password if valid.
      *
-     * @throws BadRequestException if the code is invalid, expired, or already used
+     * <p>{@code noRollbackFor}: lần nhập sai phải được COMMIT ({@code attempts++}, có thể kèm huỷ mã)
+     * TRƯỚC khi báo lỗi — rollback thì bộ đếm không bao giờ tăng. 🪤 Đừng gọi hàm này từ bên trong một
+     * {@code @Transactional} mặc định khác: lỗi ném ra sẽ đánh dấu transaction ngoài rollback-only và bộ
+     * đếm lặng lẽ mất (luồng đăng ký tránh việc này bằng {@code TransactionTemplate}).
+     *
+     * @throws BadRequestException if the code is invalid, expired, already used, or locked after too many tries
      */
-    @Transactional
+    @Transactional(noRollbackFor = BadRequestException.class)
     public void resetPassword(String email, String code, String newPassword) {
+        // Chỉ mã MỚI NHẤT còn mở (requestReset đã huỷ mã cũ). FOR UPDATE: hai lượt đoán song song không
+        // cùng đọc một giá trị attempts rồi ghi đè nhau.
         var rows = jdbc.queryForList(
                 """
-                SELECT id, expires_at FROM password_reset_tokens
-                WHERE lower(email) = lower(?)
-                  AND code = ?
+                SELECT id, code_hash, attempts, expires_at FROM password_reset_tokens
+                WHERE email = lower(?)
                   AND NOT used
-                ORDER BY created_at DESC
+                ORDER BY created_at DESC, id DESC
                 LIMIT 1
+                FOR UPDATE
                 """,
-                email.trim(), code.trim()
+                email.trim()
         );
 
         if (rows.isEmpty()) {
@@ -121,12 +158,28 @@ public class PasswordResetService {
         }
 
         var row = rows.get(0);
+        long tokenId = ((Number) row.get("id")).longValue();
         var expiresAt = ((java.sql.Timestamp) row.get("expires_at")).toInstant();
         if (Instant.now().isAfter(expiresAt)) {
             throw invalidCode();
         }
 
-        long tokenId = ((Number) row.get("id")).longValue();
+        // Dòng do bản cũ phát (chỉ có mã thô, không có hash) không còn dùng được — người dùng gửi mã mới.
+        String codeHash = (String) row.get("code_hash");
+        String typed = code == null ? null : code.trim();
+        if (codeHash == null || !RegistrationCodes.matches(pepper, tokenId, typed, codeHash)) {
+            int attempts = ((Number) row.get("attempts")).intValue() + 1;
+            boolean lock = attempts >= maxAttemptsPerCode;
+            jdbc.update("UPDATE password_reset_tokens SET attempts = ?, used = ? WHERE id = ?",
+                    attempts, lock, tokenId);
+            if (lock) {
+                log.info("[PasswordReset] code locked after {} wrong attempts for email={}***",
+                        attempts, email.substring(0, Math.min(3, email.length())));
+            }
+            // Cùng một câu cho mọi trường hợp — không cho biết còn bao nhiêu lượt hay mã đã bị huỷ.
+            throw invalidCode();
+        }
+
         jdbc.update("UPDATE password_reset_tokens SET used = TRUE WHERE id = ?", tokenId);
 
         // Column is password_hash (see User entity / V3) — NOT "password". The old "SET password"
@@ -157,9 +210,9 @@ public class PasswordResetService {
     public static final String INVALID_CODE = "RESET_CODE_INVALID";
 
     /**
-     * MỘT câu cho mọi trường hợp mã hỏng (sai, đã dùng, hết hạn, tài khoản không còn): chống dò email
-     * (08/11/2026). Trước đây "Không tìm thấy tài khoản." và "đã hết hạn" là hai câu riêng; câu chung
-     * không cho người lạ suy ra thêm gì, còn người thật chỉ cần biết "lấy mã mới".
+     * MỘT câu cho mọi trường hợp mã hỏng (sai, đã dùng, hết hạn, bị huỷ vì sai quá nhiều, tài khoản không
+     * còn): chống dò email (08/11/2026). Câu chung không cho người lạ suy ra thêm gì, còn người thật chỉ
+     * cần biết "lấy mã mới".
      */
     private static BadRequestException invalidCode() {
         return new BadRequestException("Mã không đúng hoặc đã hết hạn. Hãy kiểm tra lại mã hoặc gửi mã mới.", INVALID_CODE);

@@ -2,7 +2,7 @@ import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { GUIDE_ARTICLES, guideArticle } from '@/data/camNang'
+import { GUIDE_ARTICLES, guideArticle, guideDocumentTitle } from '@/data/camNang'
 import { absoluteUrl } from '@/lib/siteUrl'
 import { occupationOgImage } from '@/lib/ogImage'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
@@ -25,7 +25,8 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   if (!a) return {}
   const url = absoluteUrl(`/cam-nang/${a.slug}/`)
   return {
-    title: a.title,
+    // Root layout không có template tiêu đề — tự gắn tên thương hiệu như trang mục lục Cẩm nang.
+    title: guideDocumentTitle(a.title),
     description: a.description,
     alternates: { canonical: url },
     openGraph: {
@@ -61,6 +62,8 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
         datePublished: a.published,
         dateModified: a.published,
         mainEntityOfPage: url,
+        // Google đòi `image` cho Article; dùng chính ảnh chia sẻ của trang (URL tuyệt đối).
+        image: absoluteUrl(occupationOgImage(a.occupationCode, 'vi', a.title).url),
         author: { '@type': 'Organization', name: 'myDeutschFlow', url: absoluteUrl('/') },
         publisher: { '@type': 'Organization', name: 'myDeutschFlow', logo: { '@type': 'ImageObject', url: absoluteUrl('/icon-512.png') } },
       },
