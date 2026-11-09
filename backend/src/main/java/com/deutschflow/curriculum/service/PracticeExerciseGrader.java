@@ -87,7 +87,7 @@ public final class PracticeExerciseGrader {
      * không đọc được thì {@code grade} trả 0 câu, và bên gọi sẽ rơi về điểm do client tự báo, đúng
      * thứ lớp chấm này sinh ra để chặn.
      */
-    private static List<?> findExercises(Map<?, ?> payload) {
+    static List<?> findExercises(Map<?, ?> payload) {
         if (payload.get("exercises") instanceof List<?> named) {
             return named;
         }
@@ -100,7 +100,7 @@ public final class PracticeExerciseGrader {
     }
 
     /** Mirrors the web client's handleAnswer precedence: correct_index → correct_answer → "spoken". */
-    private static boolean isCorrect(Map<String, Object> exercise, Object submitted) {
+    static boolean isCorrect(Map<String, Object> exercise, Object submitted) {
         Object correctIndex = exercise.get("correct_index");
         if (correctIndex instanceof Number ci && submitted instanceof Number sn) {
             return ci.intValue() == sn.intValue();

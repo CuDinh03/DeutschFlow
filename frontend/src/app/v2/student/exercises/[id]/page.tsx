@@ -6,14 +6,11 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft, Check, ExternalLink, Trophy, X } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
-  gradableQuestions,
-  gradePractice,
-  parsePracticeContent,
   practiceApi,
   type PracticeAnswers,
-  type PracticeContent,
-  type PracticeExercise,
-  type PracticeGrade,
+  type PracticeGradeResult,
+  type PracticeQuestionResult,
+  type PracticeQuiz,
 } from '@/lib/practiceApi'
 import { useTracking } from '@/hooks/useTracking'
 import {
@@ -31,18 +28,16 @@ import {
 /**
  * /v2/student/exercises/[id] — làm một bài tập bổ trợ.
  *
- * GET /practice/exercises/{id} → parse `contentJson` → render đề → CHẤM THẬT trên `correctAnswer`
- * do API trả về → POST /practice/submit { practiceId, scorePercent, answerDataJson }.
- * Backend nhân XP theo tỉ lệ điểm (PracticeService: earnedXp = score/100 * xpReward), nên chấm
- * thật là điều kiện để XP có ý nghĩa.
+ * A3 (09/11/2026): đề lấy từ GET /practice/catalog/{id} — KHÔNG kèm đáp án. Nộp bài bằng
+ * POST /practice/catalog/{id}/grade { answers }: server chấm trên đáp án lưu trong DB, ghi lượt làm
+ * + XP (PracticeService), rồi mới trả đúng/sai, đáp án đúng và giải thích từng câu. Trước A3 trang
+ * này nhận `contentJson` có sẵn `correctAnswer` (mở DevTools là thấy) và tự chấm ở trình duyệt.
  *
  * ⚠️ v1 KHÔNG có màn này: `/student/practice` POST thẳng `scorePercent: 100` từ thẻ danh sách,
- * không hiện lấy một câu hỏi. Đây là chỗ sửa bug, không phải "cải tiến ngoài phạm vi" — port
- * nguyên si sẽ bê theo lỗ hổng phát XP miễn phí.
+ * không hiện lấy một câu hỏi. Port nguyên si sẽ bê theo lỗ hổng phát XP miễn phí.
  *
- * Bài KHÔNG có `correctAnswer` (tài nguyên ngoài: chỉ có source_url, không có đề trong DB) thì
- * KHÔNG chấm được — giữ nguyên hành vi v1: mở nguồn + tự xác nhận hoàn thành (100%). Không bịa
- * đáp án cho dữ liệu API không trả.
+ * Bài không có câu chấm được (tài nguyên ngoài: chỉ có source_url, không có đề trong DB) thì giữ
+ * hành vi v1: mở nguồn + tự xác nhận hoàn thành (gửi `scorePercent: 100`, server kẹp 0..100).
  */
 
 export default function V2StudentExerciseRunnerPage() {
@@ -53,10 +48,9 @@ export default function V2StudentExerciseRunnerPage() {
 
   const exerciseId = Number(params?.id)
 
-  const [exercise, setExercise] = useState<PracticeExercise | null>(null)
-  const [content, setContent] = useState<PracticeContent | null>(null)
+  const [exercise, setExercise] = useState<PracticeQuiz | null>(null)
   const [answers, setAnswers] = useState<PracticeAnswers>({})
-  const [grade, setGrade] = useState<PracticeGrade | null>(null)
+  const [grade, setGrade] = useState<PracticeGradeResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -71,9 +65,7 @@ export default function V2StudentExerciseRunnerPage() {
     setLoading(true)
     setError(null)
     try {
-      const ex = await practiceApi.get(exerciseId)
-      setExercise(ex)
-      setContent(parsePracticeContent(ex.contentJson))
+      setExercise(await practiceApi.quiz(exerciseId))
     } catch (e) {
       setError(apiMessage(e))
     } finally {
@@ -85,9 +77,15 @@ export default function V2StudentExerciseRunnerPage() {
     void load()
   }, [load])
 
-  const questions = useMemo(() => content?.questions ?? [], [content])
-  /** Chỉ chấm được câu API có trả đáp án đúng. */
-  const gradable = useMemo(() => gradableQuestions(questions), [questions])
+  const questions = useMemo(() => exercise?.questions ?? [], [exercise])
+  /** Câu server chấm được (có đáp án trong DB) — chỉ biết là CÓ, không biết đáp án là gì. */
+  const gradable = useMemo(() => questions.filter((q) => q.gradable), [questions])
+  /** Kết quả từng câu — chỉ có SAU khi nộp. */
+  const resultById = useMemo(() => {
+    const map: Record<string, PracticeQuestionResult> = {}
+    for (const r of grade?.questions ?? []) map[r.id] = r
+    return map
+  }, [grade])
   const canGrade = gradable.length > 0
   const allAnswered = gradable.every((q) => (answers[q.id] ?? '').trim().length > 0)
 
@@ -96,23 +94,13 @@ export default function V2StudentExerciseRunnerPage() {
     setSubmitting(true)
     setSubmitError(null)
 
-    // Bài chấm được → điểm thật. Bài "tài nguyên ngoài" (không có đáp án) → giữ hành vi v1 (100%).
-    const result = canGrade ? gradePractice(questions, answers) : null
-    const scorePercent = result ? result.scorePercent : 100
-
     try {
-      await practiceApi.submit({
-        practiceId: exercise.id,
-        scorePercent,
-        answerDataJson: JSON.stringify({
-          answers,
-          correct: result?.correct ?? null,
-          total: result?.total ?? null,
-          scorePercent,
-          graded: canGrade,
-        }),
+      // Bài chấm được → server tự chấm từ `answers`. Bài "tài nguyên ngoài" → tự xác nhận (v1: 100%).
+      const result = await practiceApi.grade(exercise.id, {
+        answers,
+        ...(canGrade ? {} : { scorePercent: 100 }),
       })
-      setGrade(result ?? { correct: 0, total: 0, scorePercent, perQuestion: {} })
+      setGrade(result)
       trackFeatureAction('practice_exercise', 'completed', { exerciseId: exercise.id })
     } catch (e) {
       setSubmitError(apiMessage(e))
@@ -121,7 +109,7 @@ export default function V2StudentExerciseRunnerPage() {
     }
   }
 
-  const heading = exercise?.examName || content?.title || t('title')
+  const heading = exercise?.examName || exercise?.title || t('title')
 
   if (loading) {
     return (
@@ -149,7 +137,13 @@ export default function V2StudentExerciseRunnerPage() {
     )
   }
 
-  const earnedXp = grade ? Math.round((grade.scorePercent / 100) * exercise.xpReward) : 0
+  // XP: lấy đúng con số server trao (luật riêng cho bài nguồn ngoài, giới hạn theo ngày…). Chỉ khi
+  // backend không báo (`xpEarned` thiếu) mới ước lượng như cũ: điểm% × xpReward.
+  const earnedXp = !grade
+    ? 0
+    : typeof grade.xpEarned === 'number'
+      ? grade.xpEarned
+      : Math.round((grade.scorePercent / 100) * exercise.xpReward)
 
   return (
     <div className="flex min-h-full flex-col">
@@ -157,7 +151,7 @@ export default function V2StudentExerciseRunnerPage() {
         accent
         eyebrow={`${exercise.cefrLevel} · ${exercise.skillType}`}
         title={heading}
-        subtitle={content?.instructions}
+        subtitle={exercise.instructions ?? undefined}
         right={
           <GaBtn variant="ghost" onClick={() => router.push('/v2/student/exercises')}>
             <ArrowLeft size={15} aria-hidden />
@@ -174,7 +168,7 @@ export default function V2StudentExerciseRunnerPage() {
               <GaGlyph icon={Trophy} size="lg" tone="yellow" />
               <p className="font-ga-display text-[24px] font-medium text-ga-ink">
                 {canGrade
-                  ? t('resultTitle', { correct: grade.correct, total: grade.total })
+                  ? t('resultTitle', { correct: grade.correctCount, total: grade.total })
                   : t('resultMarkedDone')}
               </p>
               <p className="ga-ui text-[13px] text-ga-muted">
@@ -185,11 +179,11 @@ export default function V2StudentExerciseRunnerPage() {
           )}
 
           {/* Bài đọc (nếu có) */}
-          {content?.readingText && (
+          {exercise.readingText && (
             <GaCard className="p-5 lg:p-7">
               <GaCap className="mb-3 block">{t('readingCap')}</GaCap>
               <p className="ga-ui whitespace-pre-line break-words text-[15px] leading-relaxed text-ga-ink">
-                {content.readingText}
+                {exercise.readingText}
               </p>
             </GaCard>
           )}
@@ -199,8 +193,8 @@ export default function V2StudentExerciseRunnerPage() {
             <div className="space-y-4">
               {questions.map((q, idx) => {
                 const picked = answers[q.id] ?? ''
-                const isGradable = !!q.correctAnswer
-                const verdict = grade && isGradable ? grade.perQuestion[q.id] : undefined
+                const result = resultById[q.id]
+                const verdict = grade && q.gradable ? (result?.correct ?? undefined) : undefined
 
                 return (
                   <GaCard key={q.id} className="space-y-4 p-4 lg:p-6">
@@ -220,7 +214,7 @@ export default function V2StudentExerciseRunnerPage() {
                       <div className="flex flex-wrap gap-2.5">
                         {q.options.map((opt) => {
                           const active = picked === opt
-                          const isAnswer = grade && isGradable && q.correctAnswer === opt
+                          const isAnswer = !!grade && q.gradable && result?.correctAnswer === opt
                           return (
                             <button
                               key={opt}
@@ -252,9 +246,9 @@ export default function V2StudentExerciseRunnerPage() {
                       />
                     )}
 
-                    {grade && q.explanation && (
+                    {grade && result?.explanation && (
                       <p className="ga-ui rounded-ga bg-ga-surface px-4 py-3 text-[12.5px] text-ga-muted">
-                        {q.explanation}
+                        {result.explanation}
                       </p>
                     )}
                   </GaCard>

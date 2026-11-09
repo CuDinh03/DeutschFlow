@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import api from '@/lib/api'
 import { isAsyncJobAccepted, waitForAsyncJob } from '@/lib/asyncJob'
-import { pickExplanation } from '@/lib/practice/explanation'
+import { pickExplanation, type ExplanationFields } from '@/lib/practice/explanation'
 import { classifyPracticeError, type PracticeErrorInfo } from '@/lib/practice/practiceError'
 import { MASTERY_PERCENT } from '@/lib/roadmap-tree/practiceStats'
 import { LeafProgress } from '@/components/practice/LeafProgress'
@@ -48,14 +48,19 @@ import { useFmt } from '@/lib/i18n/useFmt'
  * /v2/student/practice/[nodeId]/[skill] — RUNNER luyện kỹ năng CÓ CHẤM ĐIỂM (vỏ Galerie).
  *
  * Port của /student/practice-session/[nodeId]/[skill]. GIỮ NGUYÊN contract param
- * (`nodeId` số + `skill` chữ thường: hoeren|sprechen|lesen|schreiben) và mọi endpoint:
+ * (`nodeId` số + `skill` chữ thường: hoeren|sprechen|lesen|schreiben). Endpoint:
  *   · POST /skill-tree/{nodeId}/practice/{SKILL}/start   — lấy/tạo session
- *   · GET  /skill-tree/practice/{sessionId}              — đề bài
- *   · POST /skill-tree/practice/{sessionId}/submit       — nộp bài (ghi điểm + XP)
+ *   · GET  /skill-tree/practice/{sessionId}/quiz         — đề bài ĐÃ ẨN ĐÁP ÁN (A3)
+ *   · POST /skill-tree/practice/{sessionId}/check        — chấm câu vừa trả lời (A3, không ghi DB)
+ *   · POST /skill-tree/practice/{sessionId}/submit       — nộp bài (server chấm lại, ghi điểm + XP)
+ *   · GET  /skill-tree/practice/{sessionId}/review       — đáp án + giải thích, chỉ sau khi nộp (A3)
  *   · POST /skill-tree/{nodeId}/practice/{SKILL}/next    — sinh thế hệ mới
  *
- * Chấm điểm giữ y hệt v1: chấm phía client (so `correct_index` / `correct_answer` + `accept_also`,
- * bài nói coi như đúng khi học viên tự xác nhận đã đọc), rồi POST `score_percent` + `answers`.
+ * A3 (09/11/2026): trước đây trang lấy GET /skill-tree/practice/{sessionId}: đề kèm sẵn đáp án và
+ * giải thích, trình duyệt tự chấm (mở DevTools là thấy đáp án). Giờ đúng/sai từng câu do server
+ * chấm qua /check NGAY sau khi trả lời (trắc nghiệm: kèm phương án đúng để tô xanh như cũ); đáp án
+ * chữ + giải thích chỉ về qua /review sau khi nộp. Luật chấm không đổi (PracticeExerciseGrader,
+ * khớp v1): bài nói tính đúng khi học viên tự xác nhận đã đọc.
  *
  * Sửa đúng một khiếm khuyết của v1 (KHÔNG phải thêm tính năng): `start` (lần sinh đầu) và `next`
  * (LUÔN LUÔN) trả 202 + {jobId} sau khi backend đẩy sinh-bài ra chạy nền (S-5). v1 chỉ đọc
@@ -83,8 +88,13 @@ const treeHref = (nodeId: number, skill: Skill, feiern: boolean) =>
 /** Các dạng bài "nói" — không chấm tự động, học viên tự xác nhận đã đọc (giữ nguyên v1). */
 const SPEAKING_TYPES = ['SPEAKING_REPEAT', 'SPEAKING_RESPONSE', 'ROLE_PLAY', 'SPEAKING_DESCRIBE']
 
+/** Ô trả lời server bảo client dựng (A3: client không còn nhìn đáp án để tự suy ra). */
+type AnswerMode = 'choice' | 'text' | 'spoken' | 'none'
+
+/** Một câu trong ĐỀ — GET …/quiz, đã ẩn mọi trường đáp án/giải thích. */
 interface Exercise {
   type: string
+  answer_mode?: AnswerMode
   /** Hợp đồng mới 18/08: đề 100% tiếng Đức. Field `*_vi` chỉ còn ở session sinh trước ngày đổi. */
   instruction_de?: string
   instruction_vi?: string
@@ -92,37 +102,35 @@ interface Exercise {
   question_vi?: string
   sentence_with_blank?: string
   sentence_de?: string
-  sentence_vi?: string
   question_de?: string
-  expected_answer?: string
-  grading_keywords?: string[]
   focus_sounds?: string[]
   scenario_vi?: string
   scenario_de?: string
   partner_line_de?: string
-  expected_response?: string
   situation_vi?: string
   situation_de?: string
-  expected_phrases?: string[]
   statement_de?: string
   words?: string[]
-  correct_order?: string[]
-  translation_vi?: string
   hint_vi?: string
   hint_de?: string
-  grammar_rule_vi?: string
   prompt_vi?: string
   prompt_de?: string
   min_words?: number
-  example_answer?: string
   options?: string[]
+}
+
+/** Đáp án + giải thích của một câu — CHỈ có sau khi nộp (GET …/review). */
+interface ExerciseReview extends ExplanationFields {
   correct_index?: number
   correct_answer?: string | boolean
-  accept_also?: string[]
-  explanation_vi?: string
-  explanation_en?: string
-  explanation_de?: string
-  pairs?: { de: string; vi: string }[]
+  grammar_rule_vi?: string
+  sentence_vi?: string
+}
+
+/** POST …/check: đúng/sai từng câu vừa trả lời; trắc nghiệm kèm phương án đúng. */
+interface CheckVerdict {
+  correct: boolean
+  correctIndex?: number
 }
 
 type ExercisePayload =
@@ -190,7 +198,10 @@ function ExerciseCard({
   accent,
   onAnswer,
   answered,
+  pending,
   isCorrect,
+  correctIndex,
+  review,
   revealExplanations,
 }: {
   exercise: Exercise
@@ -198,7 +209,13 @@ function ExerciseCard({
   accent: string
   onAnswer: (answer: AnswerValue) => void
   answered: boolean
+  /** Đang chờ server chấm câu này (POST …/check). */
+  pending: boolean
   isCorrect: boolean | null
+  /** Phương án đúng của câu trắc nghiệm — server trả SAU khi học viên đã chọn. */
+  correctIndex?: number
+  /** Đáp án + giải thích — chỉ có sau khi nộp. */
+  review?: ExerciseReview
   /** Chỉ true SAU khi nộp bài — mọi giải thích/dịch nghĩa (VI/EN) giấu đến lúc đó (product 18/08). */
   revealExplanations: boolean
 }) {
@@ -206,13 +223,15 @@ function ExerciseCard({
   const locale = useLocale()
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [textInput, setTextInput] = useState('')
-  const explanation = pickExplanation(exercise, locale)
+  const explanation = review ? pickExplanation(review, locale) : null
+  const locked = answered || pending
+  const typeLabel = exercise.type ?? ''
 
-  const isSpeaking = SPEAKING_TYPES.includes(exercise.type)
-  const isReadingType = ['READ_AND_CHOOSE', 'READ_TRUE_FALSE', 'READ_AND_FILL'].includes(exercise.type)
-  // Ô nhập chữ: chỉ khi không có options và đáp án là chuỗi (chính tả/dịch/điền) — giữ nguyên v1.
-  const hasTextInput =
-    !exercise.options && typeof exercise.correct_answer === 'string' && !isSpeaking
+  const isSpeaking = SPEAKING_TYPES.includes(typeLabel)
+  const isReadingType = ['READ_AND_CHOOSE', 'READ_TRUE_FALSE', 'READ_AND_FILL'].includes(typeLabel)
+  // Ô nhập chữ (chính tả/dịch/điền): server báo qua `answer_mode` — cùng luật v1 (không options,
+  // đáp án là chuỗi, không phải bài nói) nhưng client không phải nhìn đáp án nữa.
+  const hasTextInput = !exercise.options && exercise.answer_mode === 'text' && !isSpeaking
 
   const borderColor = !answered
     ? 'var(--ga-line)'
@@ -227,7 +246,7 @@ function ExerciseCard({
           {index + 1}
         </span>
         <span className="ga-ui min-w-0 break-words rounded-ga-pill bg-ga-surface px-2 py-0.5 text-[10px] font-semibold uppercase text-ga-subtle">
-          {exercise.type.replace(/_/g, ' ')}
+          {typeLabel.replace(/_/g, ' ')}
         </span>
       </div>
 
@@ -284,8 +303,8 @@ function ExerciseCard({
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
           <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">{exercise.sentence_de}</p>
           {/* Dịch nghĩa (session cũ) chỉ lộ sau khi nộp — trong bài là 100% tiếng Đức. */}
-          {revealExplanations && exercise.sentence_vi && (
-            <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{exercise.sentence_vi}</p>
+          {revealExplanations && review?.sentence_vi && (
+            <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{review.sentence_vi}</p>
           )}
           <button
             type="button"
@@ -325,7 +344,7 @@ function ExerciseCard({
         <div className="mb-3 space-y-2">
           {exercise.options.map((opt, idx) => {
             const isSelected = selectedOption === idx
-            const isAnswer = exercise.correct_index === idx
+            const isAnswer = (correctIndex ?? review?.correct_index) === idx
             const showCorrect = answered && isAnswer
             const showWrong = answered && isSelected && !isAnswer
 
@@ -334,11 +353,11 @@ function ExerciseCard({
                 key={idx}
                 type="button"
                 onClick={() => {
-                  if (answered) return
+                  if (locked) return
                   setSelectedOption(idx)
                   onAnswer(idx)
                 }}
-                disabled={answered}
+                disabled={locked}
                 className="ga-ui flex w-full items-center gap-2.5 break-words rounded-ga border-2 px-4 py-3 text-left text-[14px] font-medium transition-colors disabled:cursor-default"
                 style={{
                   borderColor: showCorrect
@@ -383,15 +402,16 @@ function ExerciseCard({
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !answered && textInput.trim()) onAnswer(textInput.trim())
+              if (e.key === 'Enter' && !locked && textInput.trim()) onAnswer(textInput.trim())
             }}
-            disabled={answered}
+            disabled={locked}
             placeholder={t('answerPlaceholder')}
             className="ga-ui min-w-0 flex-1 rounded-ga border-2 border-ga-line bg-ga-card px-4 py-3 text-[14px] text-ga-ink outline-none focus:border-ga-accent disabled:opacity-70"
           />
           {!answered && (
             <button
               type="button"
+              disabled={pending}
               onClick={() => textInput.trim() && onAnswer(textInput.trim())}
               className="ga-ui grid w-12 shrink-0 place-items-center rounded-ga bg-ga-accent text-ga-accent-ink transition-opacity hover:opacity-90"
               aria-label={t('check')}
@@ -406,6 +426,7 @@ function ExerciseCard({
       {isSpeaking && !answered && (
         <button
           type="button"
+          disabled={pending}
           onClick={() => onAnswer('spoken')}
           className="ga-ui flex w-full items-center justify-center gap-2 rounded-ga border-2 py-3 text-[13.5px] font-semibold transition-opacity hover:opacity-80"
           style={{ borderColor: accent, color: accent }}
@@ -432,13 +453,13 @@ function ExerciseCard({
             {isCorrect ? t('correct') : t('incorrect')}
           </p>
           <p className="ga-ui break-words text-[13.5px] text-ga-muted">{explanation}</p>
-          {!isCorrect && typeof exercise.correct_answer === 'string' && (
+          {!isCorrect && typeof review?.correct_answer === 'string' && (
             <p className="ga-ui mt-1 break-words text-[13.5px] font-semibold text-ga-ink">
-              {t('answerIs')} {exercise.correct_answer}
+              {t('answerIs')} {review.correct_answer}
             </p>
           )}
-          {exercise.grammar_rule_vi && (
-            <p className="ga-ui mt-1 text-[12.5px] font-medium text-ga-accent">{exercise.grammar_rule_vi}</p>
+          {review?.grammar_rule_vi && (
+            <p className="ga-ui mt-1 text-[12.5px] font-medium text-ga-accent">{review.grammar_rule_vi}</p>
           )}
         </div>
       )}
@@ -466,6 +487,13 @@ export default function V2StudentPracticeRunnerPage() {
   const [error, setError] = useState<string | null>(null)
   const [errorInfo, setErrorInfo] = useState<PracticeErrorInfo | null>(null)
   const [answers, setAnswers] = useState<Map<number, { answer: AnswerValue; correct: boolean }>>(new Map())
+  /** Phương án đúng của câu trắc nghiệm đã trả lời (server trả qua /check). */
+  const [choiceKeys, setChoiceKeys] = useState<Map<number, number>>(new Map())
+  /** Câu đang chờ server chấm. */
+  const [pending, setPending] = useState<Set<number>>(new Set())
+  const [checkError, setCheckError] = useState<string | null>(null)
+  /** Đáp án + giải thích — chỉ nạp SAU khi nộp (GET …/review). */
+  const [review, setReview] = useState<ExerciseReview[] | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null)
   const [draftRestored, setDraftRestored] = useState(false)
@@ -485,6 +513,27 @@ export default function V2StudentPracticeRunnerPage() {
   /** Chặn effect ghi chạy TRƯỚC effect khôi phục — nếu không nó ghi đè nháp bằng một Map rỗng. */
   const draftReadyRef = useRef<string | null>(null)
 
+  /** Ghi đúng/sai (và phương án đúng của câu trắc nghiệm) do server chấm vào state. */
+  const applyVerdicts = useCallback((results: Record<string, CheckVerdict>) => {
+    const entries = Object.entries(results)
+    if (entries.length === 0) return
+    setAnswers((prev) => {
+      const next = new Map(prev)
+      for (const [idx, v] of entries) {
+        const current = next.get(Number(idx))
+        if (current) next.set(Number(idx), { ...current, correct: v.correct })
+      }
+      return next
+    })
+    setChoiceKeys((prev) => {
+      const next = new Map(prev)
+      for (const [idx, v] of entries) {
+        if (typeof v.correctIndex === 'number') next.set(Number(idx), v.correctIndex)
+      }
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     pruneStaleLessonDrafts(Date.now())
   }, [])
@@ -502,9 +551,23 @@ export default function V2StudentPracticeRunnerPage() {
       )
       setDraftSavedAt(saved.savedAt)
       setDraftRestored(true)
+      // Nháp chỉ giữ đáp án đã chọn; đúng/sai + phương án đúng lấy lại từ server (A3) — cờ
+      // `correct` trong localStorage không đáng tin, và client không còn đáp án để tự tô.
+      const rawAnswers = Object.fromEntries(
+        Object.entries(saved.answers).map(([idx, a]) => [idx, a.answer] as const),
+      )
+      void api
+        .post<{ results?: Record<string, CheckVerdict> }>(
+          `/skill-tree/practice/${session.sessionId}/check`,
+          { answers: rawAnswers },
+        )
+        .then(({ data }) => applyVerdicts(data?.results ?? {}))
+        .catch(() => {
+          /* giữ cờ của nháp — lần nộp vẫn được server chấm lại */
+        })
     }
     draftReadyRef.current = draftScope
-  }, [session, draftScope])
+  }, [session, draftScope, applyVerdicts])
 
   useEffect(() => {
     if (!draftScope || draftReadyRef.current !== draftScope || !session) return
@@ -554,7 +617,7 @@ export default function V2StudentPracticeRunnerPage() {
 
   const loadDetail = useCallback(
     async (sessionId: number) => {
-      const { data } = await api.get<SessionDetail>(`/skill-tree/practice/${sessionId}`)
+      const { data } = await api.get<SessionDetail>(`/skill-tree/practice/${sessionId}/quiz`)
       applyDetail(data)
     },
     [applyDetail],
@@ -635,24 +698,33 @@ export default function V2StudentPracticeRunnerPage() {
     if (me && nodeId && skill) void fetchSession()
   }, [me, nodeId, skill, fetchSession])
 
-  /** Chấm phía client — giữ NGUYÊN luật của v1. */
-  const handleAnswer = (index: number, answer: AnswerValue) => {
-    const exercise = exercises[index]
-    if (!exercise) return
-
-    let correct = false
-    if (exercise.correct_index !== undefined && typeof answer === 'number') {
-      correct = answer === exercise.correct_index
-    } else if (exercise.correct_answer !== undefined && typeof answer === 'string') {
-      const given = answer.toLowerCase().trim()
-      correct = String(exercise.correct_answer).toLowerCase().trim() === given
-      if (!correct && exercise.accept_also) {
-        correct = exercise.accept_also.some((alt) => alt.toLowerCase().trim() === given)
-      }
+  /**
+   * Chấm câu vừa trả lời TRÊN SERVER (A3): POST …/check — không ghi DB, không gọi AI. Luật chấm
+   * giữ nguyên v1 (PracticeExerciseGrader). Hỏng mạng thì câu chưa tính là đã trả lời: học viên
+   * trả lời lại được, không bị khoá vào một kết quả "sai" giả.
+   */
+  const handleAnswer = async (index: number, answer: AnswerValue) => {
+    if (!session || !exercises[index] || answers.has(index) || pending.has(index)) return
+    setPending((prev) => new Set(prev).add(index))
+    setCheckError(null)
+    try {
+      const { data } = await api.post<{ results?: Record<string, CheckVerdict> }>(
+        `/skill-tree/practice/${session.sessionId}/check`,
+        { answers: { [index]: answer } },
+      )
+      const verdict = data?.results?.[String(index)]
+      if (!verdict) throw new Error('missing verdict')
+      setAnswers((prev) => new Map(prev).set(index, { answer, correct: verdict.correct }))
+      applyVerdicts({ [index]: verdict })
+    } catch {
+      setCheckError(t('checkError'))
+    } finally {
+      setPending((prev) => {
+        const next = new Set(prev)
+        next.delete(index)
+        return next
+      })
     }
-    if (answer === 'spoken') correct = true
-
-    setAnswers((prev) => new Map(prev).set(index, { answer, correct }))
   }
 
   const correctCount = useMemo(
@@ -674,6 +746,15 @@ export default function V2StudentPracticeRunnerPage() {
         { score_percent: scorePercent, answers: Object.fromEntries(answers) },
       )
       setSubmitResult(data)
+      // Đã nộp ⇒ server mới chịu trả đáp án chữ + giải thích (A3).
+      try {
+        const { data: reviewed } = await api.get<{ exercises?: ExerciseReview[] }>(
+          `/skill-tree/practice/${session.sessionId}/review`,
+        )
+        setReview(Array.isArray(reviewed?.exercises) ? reviewed.exercises : null)
+      } catch {
+        /* giải thích không tải được: kết quả + đúng/sai vẫn hiện đủ */
+      }
     } catch {
       // v1 vẫn hiện kết quả cục bộ khi submit hỏng — giữ nguyên để học viên không mất công làm bài.
       setSubmitResult({ scorePercent, xpEarned: 0, status: 'COMPLETED' })
@@ -698,6 +779,10 @@ export default function V2StudentPracticeRunnerPage() {
       if (sessionId) {
         await loadDetail(sessionId)
         setAnswers(new Map())
+        setChoiceKeys(new Map())
+        setPending(new Set())
+        setCheckError(null)
+        setReview(null)
         setSubmitted(false)
         setSubmitResult(null)
         // Đề mới ⇒ nháp của đề cũ vô nghĩa. Xoá cả khoá lẫn cờ sẵn-sàng để vòng khôi phục chạy lại
@@ -860,14 +945,19 @@ export default function V2StudentPracticeRunnerPage() {
                   exercise={exercise}
                   index={idx}
                   accent={accent}
-                  onAnswer={(answer) => handleAnswer(idx, answer)}
+                  onAnswer={(answer) => void handleAnswer(idx, answer)}
                   answered={answers.has(idx)}
+                  pending={pending.has(idx)}
                   isCorrect={answers.get(idx)?.correct ?? null}
+                  correctIndex={choiceKeys.get(idx)}
+                  review={review?.[idx]}
                   revealExplanations={submitted}
                 />
               ))}
             </div>
           )}
+
+          {checkError && <ErrorBanner message={checkError} />}
 
           {/* Nộp bài */}
           {allAnswered && !submitted && (

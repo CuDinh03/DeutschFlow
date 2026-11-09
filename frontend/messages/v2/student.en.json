@@ -1619,6 +1619,7 @@
       "correct": "Correct!",
       "incorrect": "Not quite",
       "answerIs": "Answer:",
+      "checkError": "Couldn't check this answer — please answer again.",
       "submit": "Submit · {correct}/{total} correct",
       "resultLine": "{correct} / {total} correct",
       "generateNext": "Practise a new set",
