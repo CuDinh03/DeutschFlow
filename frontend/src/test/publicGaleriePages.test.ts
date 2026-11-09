@@ -17,6 +17,7 @@ const PAGES = [
   'src/app/luyen-thi/[slug]/page.tsx',
   'src/app/free-grade/page.tsx',
   'src/app/report/[token]/page.tsx',
+  'src/app/certificate/[token]/page.tsx',
 ]
 
 /** Mọi file của các trang đó, kể cả phần client và thành phần dùng chung. */
@@ -25,6 +26,7 @@ const FILES = [
   'src/app/free-grade/client-page.tsx',
   'src/components/marketing/ShareButtons.tsx',
   'src/components/marketing/GradeScore.tsx',
+  'src/components/certificate/CertificateActions.tsx',
 ]
 
 const LEGACY_PALETTE =
