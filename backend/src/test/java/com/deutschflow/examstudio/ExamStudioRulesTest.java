@@ -265,4 +265,31 @@ class ExamStudioRulesTest {
             assertThat(ExamDraftService.quelle(List.of(s))).isNull();
         }
     }
+
+    @Nested
+    @DisplayName("Lesen Teil 1 — ghép tiêu đề")
+    class Headlines {
+        private ExamStudioDtos.Item item(String id, String correct, Map<String, String> options) {
+            return new ExamStudioDtos.Item(id, "Text 1", options, correct, "x", "ev", List.of(), "EASY", null, false, null, List.of());
+        }
+
+        @Test
+        void formatNeedsCorrectPlusOneNearHeadline() {
+            TeilSpec t1 = TeilSpec.find("TELC", "B1", "LESEN", 1).orElseThrow();
+            assertThat(t1.headlines()).isTrue();
+            assertThat(ExamDraftService.formatOk(item("LV1-1", "g", Map.of("g", "Richtig", "c", "Falle")), t1)).isTrue();
+            assertThat(ExamDraftService.formatOk(item("LV1-1", "k", Map.of("k", "Richtig", "c", "Falle")), t1)).isFalse();
+            assertThat(ExamDraftService.formatOk(item("LV1-1", "g", Map.of("g", "Richtig")), t1)).isFalse();
+        }
+
+        @Test
+        void tenDistinctLettersAndHeadlines() {
+            var ok = List.of(item("LV1-1", "a", Map.of("a", "A", "b", "B")), item("LV1-2", "c", Map.of("c", "C", "d", "D")));
+            assertThat(ExamDraftService.headlinesOk(ok)).isTrue();
+            var dupLetter = List.of(item("LV1-1", "a", Map.of("a", "A", "b", "B")), item("LV1-2", "a", Map.of("a", "C", "d", "D")));
+            assertThat(ExamDraftService.headlinesOk(dupLetter)).isFalse();
+            var dupText = List.of(item("LV1-1", "a", Map.of("a", "Gleich", "b", "B")), item("LV1-2", "c", Map.of("c", "gleich", "d", "D")));
+            assertThat(ExamDraftService.headlinesOk(dupText)).isFalse();
+        }
+    }
 }

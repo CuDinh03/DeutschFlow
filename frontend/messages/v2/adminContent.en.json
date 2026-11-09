@@ -531,7 +531,7 @@
     "examStudio": {
       "title": "Exam studio",
       "subtitle": "Build an exam Teil from German news sources: AI drafts the text and items by difficulty matrix, the owner approves into the bank.",
-      "hint": "Phase 1: telc · B1 · Lesen · Teil 2 (article + 5 a/b/c items)",
+      "hint": "telc · B1 · Lesen Teil 1 (5 texts + 10 headlines a–j) and Teil 2 (article + 5 a/b/c items)",
       "createTeil": "New Teil",
       "loading": "Loading…",
       "next": "Next step",
@@ -593,7 +593,8 @@
       },
       "tabs": {
         "drafts": "Drafts",
-        "blocks": "Teil bank"
+        "blocks": "Teil bank",
+        "assemblies": "Exam sets"
       },
       "create": {
         "title": "New Teil",
@@ -612,7 +613,8 @@
         "themeAny": "Let AI suggest based on gaps in the bank",
         "mode": "Mode",
         "matrix": "Difficulty matrix",
-        "save": "Save frame"
+        "save": "Save frame",
+        "blueprintHintT1": "From the blueprint: Lesen Teil 1 B1 has {itemCount} short texts (55–110 words each) and 10 headlines a–j — one correct headline per text, the other 5 are distractors."
       },
       "matrix": {
         "decrease": "One fewer {level} item",
@@ -684,7 +686,10 @@
         "glossAdd": "Add gloss",
         "save": "Save manual edits",
         "discard": "Discard edits",
-        "preview": "Preview (passages copied from the source in red)"
+        "preview": "Preview (passages copied from the source in red)",
+        "matchHint": "5 short texts, {lo}–{hi} words each. Text i belongs to item i.",
+        "matchText": "Text {n}",
+        "matchWords": "{n} words / {lo}–{hi}"
       },
       "metrics": {
         "none": "Metrics appear once there is a text.",
@@ -727,7 +732,21 @@
         "regenerate": "Regenerate",
         "lock": "Lock",
         "unlock": "Unlock",
-        "edit": "Edit"
+        "edit": "Edit",
+        "headlinesLegend": "Two headlines (pick the correct one)",
+        "headlineRight": "Correct headline",
+        "headlineDistractor": "Distractor headline",
+        "headlineTable": "10 headlines a–j",
+        "dupLetters": "Duplicate letters: {list}",
+        "dupTexts": "Duplicate headline wording: {list}",
+        "missingLetters": "Missing letters: {list}",
+        "invalidLetters": "Letters outside a–j: {list}",
+        "badItems": "Items without exactly 2 headlines or with an answer outside them: {list}",
+        "colLetter": "Letter",
+        "colHeadline": "Headline",
+        "colRole": "Role",
+        "roleRight": "Correct for text {n}",
+        "roleDistractor": "Distractor for text {n}"
       },
       "score": {
         "phrasing": "Answer phrasing",
@@ -776,7 +795,10 @@
       "preview": {
         "noTitle": "(no title yet)",
         "noText": "(no reading text yet)",
-        "correct": "Correct answer"
+        "correct": "Correct answer",
+        "headlines": "Headlines a–j",
+        "matchAnswer": "Answer: {letter} — {headline}",
+        "matchText": "Text {n}"
       },
       "wizard": {
         "back": "Back to exam studio",
@@ -804,6 +826,49 @@
         "reviewed": "reviewed by {by} at {at}",
         "countsAria": "Items per difficulty level",
         "view": "View"
+      },
+      "assembly": {
+        "loadError": "Could not load exam assembly data",
+        "formTitle": "Assemble a new exam",
+        "noBases": "No telc B1 base exam available to assemble from.",
+        "baseField": "Base exam",
+        "titleField": "Exam title",
+        "titleSuggestion": "telc Deutsch B1 — Assembled set {n}",
+        "slotsLegend": "Teile replaced from the bank",
+        "noSlots": "The bank has no Teil matching a slot of this base exam.",
+        "keepBase": "Keep the base exam's Teil",
+        "exposure": "used {n} times",
+        "preview": "Preview",
+        "previewAria": "Preview Teil #{id}",
+        "typeMismatch": "Cannot replace: this base slot is type {base}, the bank Teil is type {bank}.",
+        "reuseWarning": "Teile that are not replaced are copied from the base exam — students who took the base exam will see them again.",
+        "assemble": "Assemble",
+        "assembled": "Exam assembled — now in Coming soon",
+        "replacingCount": "{n} Teile will be replaced",
+        "error": {
+          "NO_BASE": "Choose a base exam.",
+          "NO_TITLE": "Enter a title.",
+          "NO_REPLACEMENT": "Pick at least one bank Teil to replace."
+        },
+        "listTitle": "Assembled exams",
+        "empty": "No assembled exams yet",
+        "emptyHint": "Use the form above to assemble the first one.",
+        "base": "Base: {title}",
+        "replaced": "{slot} ← Teil #{id}",
+        "status": {
+          "UPCOMING": "Coming soon",
+          "PUBLISHED": "Published",
+          "RETIRED": "Retired"
+        },
+        "viewAsStudent": "View as student",
+        "publish": "Publish",
+        "publishTitle": "Publish this exam?",
+        "publishBody": "Once published, students will see \"{title}\" in their exam list and can take it right away.",
+        "published": "Exam published",
+        "retire": "Retire",
+        "retireTitle": "Retire this exam?",
+        "retireBody": "\"{title}\" will be hidden from students' exam list. You can publish it again later.",
+        "retired": "Exam retired"
       }
     }
   }

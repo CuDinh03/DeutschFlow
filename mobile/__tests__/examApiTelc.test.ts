@@ -7,7 +7,7 @@
  * sai cả số lượng, sai cả chữ hoa/thường, và không hiện một dòng tiêu đề nào.
  */
 import { describe, it, expect } from '@jest/globals'
-import { parseExamSections, itemChoices } from '@/lib/examApi'
+import { parseExamSections, itemChoices, quelleOf } from '@/lib/examApi'
 
 const TELC = JSON.stringify({
   format: 'TELC',
@@ -269,5 +269,14 @@ describe('bài đọc dài, Beispiele và mẩu tin kích thích trên app', () 
     const [t2] = parsed.sections[0].groups
     expect(t2.stimulusAd).toBeUndefined()
     expect(t2.examples).toBeUndefined()
+  })
+})
+
+describe('dòng nguồn (Xưởng đề)', () => {
+  it('quelleOf đọc source.quelle, bỏ qua khi vắng hoặc rỗng', () => {
+    expect(quelleOf({ source: { quelle: ' Daten: tagesschau.de · Text neu geschrieben. ' } }))
+      .toBe('Daten: tagesschau.de · Text neu geschrieben.')
+    expect(quelleOf({ source: { quelle: '' } })).toBeUndefined()
+    expect(quelleOf({})).toBeUndefined()
   })
 })

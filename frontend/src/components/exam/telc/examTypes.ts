@@ -41,6 +41,11 @@ export interface ExamTeil {
   vorspann_de?: string
   context_lines?: boolean
   glossary?: Array<{ term: string; explanation_de: string }>
+  /**
+   * Nguồn của bài đọc (Xưởng đề, V371): `quelle` là dòng ghi nguồn bắt buộc theo giấy phép (CC BY:
+   * tác giả + giấy phép + "bearbeitet"; báo: "Daten: …"), hiện nhỏ dưới bài. Đề viết tay không khai.
+   */
+  source?: { quelle?: string | null }
   audio_script?: AudioScript
   /** Số lần được phép nghe (telc: 1 ở HV Teil 1, 2 ở Teil 2–3). Bỏ trống = không giới hạn. */
   max_plays?: number

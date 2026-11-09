@@ -11,7 +11,7 @@ import { DifficultyMatrix } from './DifficultyMatrix'
 import { ModeSelect, ThemeSelect } from './FrameFields'
 import { studioField } from './ui'
 
-/** Phần / Teil hiện trong form; Đợt 1 chỉ mở LESEN · Teil 2, còn lại khoá "Đợt sau". */
+/** Phần / Teil hiện trong form; đang mở LESEN · Teil 1 và Teil 2, còn lại khoá "Đợt sau". */
 const SECTIONS = [
   { value: 'LESEN', enabled: true },
   { value: 'SPRACHBAUSTEINE', enabled: false },
@@ -19,6 +19,8 @@ const SECTIONS = [
   { value: 'SCHREIBEN', enabled: false },
 ] as const
 const TEILS = [1, 2, 3, 4, 5]
+/** Teil đã mở (Lesen); số câu đều là 5. */
+const ENABLED_TEILS = new Set([1, 2])
 
 interface Props {
   open: boolean
@@ -32,6 +34,7 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
   const [theme, setTheme] = useState<string>('')
   const [mode, setMode] = useState<'EXAM' | 'PRACTICE'>('EXAM')
   const [plan, setPlan] = useState<DifficultyPlan>({ ...DIFFICULTY_PRESETS[0].plan })
+  const [teil, setTeil] = useState(2)
   const [saving, setSaving] = useState(false)
   const check = checkMatrix(plan, mode, STUDIO_TEIL_ITEM_COUNT)
 
@@ -40,7 +43,7 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
     setSaving(true)
     try {
       const d = await createDraft({
-        examFormat: 'TELC', cefrLevel: 'B1', section: 'LESEN', teil: 2,
+        examFormat: 'TELC', cefrLevel: 'B1', section: 'LESEN', teil,
         theme: theme || null, mode, difficultyPlan: plan,
       })
       toast.success(t('create.created'))
@@ -94,16 +97,19 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
           </div>
           <div>
             <label htmlFor="create-teil" className="mb-1.5 block"><GaCap>{t('frame.teil')}</GaCap></label>
-            <select id="create-teil" className={studioField} value="2" onChange={() => undefined}>
+            <select id="create-teil" className={studioField} value={String(teil)}
+              onChange={(e) => setTeil(Number(e.target.value))}>
               {TEILS.map((n) => (
-                <option key={n} value={String(n)} disabled={n !== 2}>
-                  Teil {n}{n === 2 ? '' : ` — ${t('later')}`}
+                <option key={n} value={String(n)} disabled={!ENABLED_TEILS.has(n)}>
+                  Teil {n}{ENABLED_TEILS.has(n) ? '' : ` — ${t('later')}`}
                 </option>
               ))}
             </select>
           </div>
         </div>
-        <p className="ga-ui text-ga-caption text-ga-muted">{t('frame.blueprintHint', { itemCount: STUDIO_TEIL_ITEM_COUNT })}</p>
+        <p className="ga-ui text-ga-caption text-ga-muted">{teil === 1
+          ? t('frame.blueprintHintT1', { itemCount: STUDIO_TEIL_ITEM_COUNT })
+          : t('frame.blueprintHint', { itemCount: STUDIO_TEIL_ITEM_COUNT })}</p>
 
         <ThemeSelect id="create-theme" value={theme} onChange={setTheme} />
         <ModeSelect value={mode} onChange={setMode} />

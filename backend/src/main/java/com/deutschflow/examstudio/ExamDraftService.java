@@ -196,7 +196,7 @@ public class ExamDraftService {
     public Draft create(CreateDraftRequest req, long userId) {
         TeilSpec spec = TeilSpec.find(req.examFormat(), req.cefrLevel(), req.section(), req.teil())
                 .orElseThrow(() -> new BadRequestException(
-                        "Đợt này Xưởng đề chỉ làm telc · B1 · Lesen Teil 2. Các Teil khác làm ở đợt sau."));
+                        "Xưởng đề hiện làm telc · B1 · Lesen Teil 1 và Teil 2. Các Teil khác làm ở đợt sau."));
         String mode = normalizeMode(req.mode());
         Map<String, Integer> plan = validatePlan(req.difficultyPlan(), mode, spec);
         Long id = jdbc.queryForObject("""
@@ -392,6 +392,22 @@ public class ExamDraftService {
         }
         List<Fact> facts = selectedFacts(sources(draftId));
         JsonNode out = ai.writeText(userId, r.spec(), r.theme(), facts, note);
+        if (r.spec().headlines()) {
+            List<String> texts = new ArrayList<>();
+            Set<String> usedIds = new LinkedHashSet<>();
+            out.path("texts").forEach(t -> {
+                String body = text(t, "text");
+                if (body != null) texts.add(body.replaceAll("\\s+", " ").trim());
+                t.path("usedFactIds").forEach(u -> usedIds.add(u.asText()));
+            });
+            if (texts.size() < r.spec().textCount()) {
+                throw new IllegalStateException("AI chỉ trả " + texts.size() + "/" + r.spec().textCount() + " văn bản, hãy thử lại.");
+            }
+            Text t = new Text("", "", String.join("\n\n", texts.subList(0, r.spec().textCount())), List.of());
+            saveText(draftId, new StoredText(t, new ArrayList<>(usedIds)));
+            advanceStep(draftId, "TEXT");
+            return;
+        }
         List<String> paras = new ArrayList<>();
         out.path("paragraphs").forEach(p -> {
             if (!p.asText("").isBlank()) paras.add(p.asText().trim());
@@ -480,10 +496,54 @@ public class ExamDraftService {
             bySlot.put(slot, n);
         }
 
-        List<String> letters = new ArrayList<>();
-        for (int s = 0; s < count; s++) letters.add(current.get(s) == null ? null : current.get(s).correct());
         Random rnd = new Random(draftId * 31 + System.nanoTime());
         List<String> problems = new ArrayList<>();
+        if (spec.headlines()) {
+            List<String> paras = TextChecks.paragraphs(r.text().text().context());
+            // Chữ a–j: Teil giữ nguyên dùng lại chữ cũ; câu sinh lại dùng lại hai chữ của nó, câu mới bốc chữ còn trống.
+            Set<String> taken = new HashSet<>();
+            for (int s = 0; s < count; s++) {
+                int fs = s;
+                if (current.get(s) != null && todo.stream().noneMatch(t -> t[0] == fs)) taken.addAll(current.get(s).options().keySet());
+            }
+            List<String> free = new ArrayList<>(TeilSpec.HEADLINE_LETTERS);
+            free.removeAll(taken);
+            Collections.shuffle(free, rnd);
+            for (int i = 0; i < todo.size(); i++) {
+                int s = todo.get(i)[0];
+                JsonNode n = bySlot.get(s);
+                String head = n == null ? null : text(n, "headline");
+                String near = n == null ? null : text(n, "nearHeadline");
+                if (head == null || near == null || head.equalsIgnoreCase(near)) {
+                    problems.add(spec.itemId(s));
+                    continue;
+                }
+                List<String> mine = new ArrayList<>();
+                if (current.get(s) != null) mine.addAll(current.get(s).options().keySet());
+                free.removeAll(mine);
+                while (mine.size() < 2 && !free.isEmpty()) mine.add(free.remove(0));
+                Collections.shuffle(mine, rnd);
+                String cl = mine.get(0);
+                String nl = mine.get(1);
+                Map<String, String> options = new TreeMap<>();
+                options.put(cl, head);
+                options.put(nl, near);
+                String expl = firstNonBlank(text(n, "explanationVi"), "").replace("{1}", cl).replace("{2}", nl);
+                String trap = text(n, "trap");
+                current.set(s, new Item(spec.itemId(s), "Text " + (s + 1), options, cl, expl,
+                        firstNonBlank(text(n, "evidence"), s < paras.size() ? paras.get(s) : ""),
+                        trap == null ? List.of() : List.of(new Trap(nl, trap)), todoLevels.get(i), null,
+                        current.get(s) != null && current.get(s).locked(), null, List.of()));
+            }
+            saveItems(draftId, current.stream().filter(Objects::nonNull).toList());
+            advanceStep(draftId, "ITEMS");
+            if (!problems.isEmpty()) {
+                throw new IllegalStateException("AI trả hỏng câu " + String.join(", ", problems) + " — bấm Sinh lại cho câu đó.");
+            }
+            return;
+        }
+        List<String> letters = new ArrayList<>();
+        for (int s = 0; s < count; s++) letters.add(current.get(s) == null ? null : current.get(s).correct());
         for (int i = 0; i < todo.size(); i++) {
             int s = todo.get(i)[0];
             JsonNode n = bySlot.get(s);
@@ -529,10 +589,12 @@ public class ExamDraftService {
         Text text = r.text().text();
         List<Item> items = r.items();
 
-        JsonNode rubric = ai.rubric(userId, r.spec(), text, items);
-        Map<String, String> strong = answers(ai.solveStrong(userId, text, items));
-        Map<String, String> weak = answers(ai.solveWeak(userId, text, items));
-        Map<String, String> blind = answers(ai.solveBlind(userId, items));
+        TeilSpec spec = r.spec();
+        JsonNode rubric = ai.rubric(userId, spec, text, items);
+        Map<String, String> strong = answers(ai.solveStrong(userId, spec, text, items), spec);
+        Map<String, String> weak = answers(ai.solveWeak(userId, spec, text, items), spec);
+        // Ghép tiêu đề: không có bài thì không biết "Text 3" nói gì — giải khi giấu bài vô nghĩa, bỏ qua.
+        Map<String, String> blind = spec.headlines() ? Map.of() : answers(ai.solveBlind(userId, spec, items), spec);
         Map<String, JsonNode> rubricById = new HashMap<>();
         rubric.path("items").forEach(n -> rubricById.put(n.path("id").asText(), n));
 
@@ -541,7 +603,7 @@ public class ExamDraftService {
         for (Item it : items) {
             List<String> flags = new ArrayList<>();
             int sev = 0;
-            if (!formatOk(it)) {
+            if (!formatOk(it, spec)) {
                 flags.add("Thiếu câu hỏi, phương án hoặc đáp án.");
                 sev = 2;
             }
@@ -596,9 +658,12 @@ public class ExamDraftService {
     List<Check> teilChecks(Row r, List<SourceRow> srcs, TextMetrics m, List<Item> items, Map<String, String> strong) {
         List<Check> out = new ArrayList<>();
         int expected = r.itemCount();
-        boolean formatOk = items.size() == expected && items.stream().allMatch(ExamDraftService::formatOk);
-        out.add(new Check("FORMAT", "Đúng khuôn Teil", formatOk ? "GREEN" : "RED",
-                formatOk ? null : "Cần " + expected + " câu, mỗi câu 3 phương án và đúng 1 đáp án."));
+        TeilSpec spec = r.spec();
+        boolean formatOk = items.size() == expected && items.stream().allMatch(i -> formatOk(i, spec))
+                && (!spec.headlines() || headlinesOk(items));
+        out.add(new Check("FORMAT", "Đúng khuôn Teil", formatOk ? "GREEN" : "RED", formatOk ? null : spec.headlines()
+                ? "Cần " + expected + " văn bản, mỗi văn bản 1 tiêu đề đúng + 1 tiêu đề nhiễu, 10 tiêu đề a–j không trùng."
+                : "Cần " + expected + " câu, mỗi câu 3 phương án và đúng 1 đáp án."));
 
         boolean solverOk = !strong.isEmpty() && items.stream().allMatch(i -> i.correct().equals(strong.get(i.id())));
         out.add(new Check("SOLVER", "AI giỏi giải đúng mọi câu", solverOk ? "GREEN" : "RED",
@@ -607,9 +672,23 @@ public class ExamDraftService {
         out.add(new Check("OVERLAP", "Không trùng nguyên văn nguồn", m.overlapMaxRun() >= m.overlapLimit() ? "RED" : "GREEN",
                 m.overlapMaxRun() >= m.overlapLimit() ? "Có đoạn " + m.overlapMaxRun() + " từ trùng nguồn." : null));
 
-        boolean wordsOk = m.wordCount() >= m.wordRange().get(0) && m.wordCount() <= m.wordRange().get(1);
-        out.add(new Check("LENGTH", "Độ dài bài", wordsOk ? "GREEN" : "YELLOW",
-                m.wordCount() + " từ (khuôn " + m.wordRange().get(0) + "–" + m.wordRange().get(1) + ")."));
+        if (spec.headlines()) {
+            List<String> paras = TextChecks.paragraphs(r.text().text().context());
+            List<String> bad = new ArrayList<>();
+            for (int i = 0; i < paras.size(); i++) {
+                int wc = TextChecks.wordCount(paras.get(i));
+                if (wc < spec.minWords() || wc > spec.maxWords()) bad.add("Text " + (i + 1) + ": " + wc + " từ");
+            }
+            boolean countOk = paras.size() == spec.textCount();
+            out.add(new Check("LENGTH", "Độ dài từng văn bản", countOk && bad.isEmpty() ? "GREEN" : "YELLOW",
+                    (countOk ? "" : paras.size() + "/" + spec.textCount() + " văn bản. ")
+                            + (bad.isEmpty() ? "Mỗi văn bản " + spec.minWords() + "–" + spec.maxWords() + " từ."
+                            : String.join("; ", bad) + " (khuôn " + spec.minWords() + "–" + spec.maxWords() + ").")));
+        } else {
+            boolean wordsOk = m.wordCount() >= m.wordRange().get(0) && m.wordCount() <= m.wordRange().get(1);
+            out.add(new Check("LENGTH", "Độ dài bài", wordsOk ? "GREEN" : "YELLOW",
+                    m.wordCount() + " từ (khuôn " + m.wordRange().get(0) + "–" + m.wordRange().get(1) + ")."));
+        }
 
         boolean lexOk = m.aboveLevelRatio() <= m.maxAboveLevelRatio();
         out.add(new Check("LEXICAL", "Từ vựng đúng cấp", lexOk ? "GREEN" : "YELLOW",
@@ -630,6 +709,10 @@ public class ExamDraftService {
         out.add(new Check("MATRIX", "Ma trận độ khó", matrixOk && !("EXAM".equals(r.mode()) && planned.get("EXPERT") > 1)
                 ? "GREEN" : "YELLOW", matrixDetail));
 
+        if (spec.headlines()) {
+            out.addAll(sourceAndDuplicateChecks(r, srcs));
+            return out;
+        }
         boolean letterOk = lettersBalanced(items.stream().map(Item::correct).toList());
         out.add(new Check("ANSWERS", "Phân bố đáp án a/b/c", letterOk ? "GREEN" : "YELLOW",
                 letterOk ? null : "Đáp án dồn vào một chữ hoặc 3 câu liền cùng chữ."));
@@ -641,6 +724,12 @@ public class ExamDraftService {
         out.add(new Check("ORDER", "Thứ tự câu không theo thứ tự bài", followsText ? "YELLOW" : "GREEN",
                 followsText ? "Mọi câu đang theo đúng thứ tự bài — đề telc không như vậy." : null));
 
+        out.addAll(sourceAndDuplicateChecks(r, srcs));
+        return out;
+    }
+
+    private List<Check> sourceAndDuplicateChecks(Row r, List<SourceRow> srcs) {
+        List<Check> out = new ArrayList<>();
         List<SourceRow> used = usedSources(srcs);
         boolean flagged = used.stream().anyMatch(s -> "FLAGGED".equals(s.source().neutrality()));
         out.add(new Check("NEUTRAL", "Chủ đề trung lập", flagged ? "RED" : "GREEN",
@@ -718,6 +807,7 @@ public class ExamDraftService {
     /** Một phần tử {@code teile[]} đúng khuôn {@code sections_json} (như bản thử Schlaf), cộng các khoá xưởng. */
     Map<String, Object> blockContent(Row r, List<SourceRow> used) {
         TeilSpec spec = r.spec();
+        if (spec.headlines()) return headlineContent(r, used);
         Text t = r.text().text();
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("teil", spec.teil());
@@ -767,6 +857,54 @@ public class ExamDraftService {
         }
         c.put("items", items);
         return c;
+    }
+
+    /** Lesen Teil 1 đúng khuôn đề telc (V343): headlines a–j ở cấp Teil, mỗi item một văn bản. */
+    Map<String, Object> headlineContent(Row r, List<SourceRow> used) {
+        TeilSpec spec = r.spec();
+        List<String> paras = TextChecks.paragraphs(r.text().text().context());
+        Map<String, Object> c = new LinkedHashMap<>();
+        c.put("teil", spec.teil());
+        c.put("type", spec.teilType());
+        c.put("point_per_item", spec.pointsPerItem());
+        c.put("single_use", true);
+        c.put("instruction_de", spec.instructionDe());
+        c.put("instruction_vi", spec.instructionVi());
+        Map<String, String> headlines = new TreeMap<>();
+        for (Item it : r.items()) headlines.putAll(it.options());
+        c.put("headlines", headlines);
+        c.put("source", sourceMap(used));
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (int i = 0; i < r.items().size(); i++) {
+            Item it = r.items().get(i);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", it.id());
+            m.put("question", it.question());
+            m.put("text", i < paras.size() ? paras.get(i) : "");
+            m.put("correct", it.correct());
+            m.put("explanation_vi", it.explanationVi());
+            m.put("evidence", it.evidence());
+            m.put("traps", it.traps());
+            m.put("difficulty_target", it.difficultyTarget());
+            m.put("difficulty_measured", it.difficultyMeasured() == null ? null : it.difficultyMeasured().level());
+            items.add(m);
+        }
+        c.put("items", items);
+        return c;
+    }
+
+    private Map<String, Object> sourceMap(List<SourceRow> used) {
+        Source primary = used.get(0).source();
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("title", primary.title());
+        source.put("author", primary.author());
+        source.put("publisher", primary.publisher());
+        source.put("url", primary.url());
+        source.put("license", "ADAPT".equals(primary.usageMode()) ? primary.licenseText() : null);
+        source.put("usage", primary.usageMode());
+        source.put("changed", true);
+        source.put("quelle", quelle(used));
+        return source;
     }
 
     // ── Kho Teil ────────────────────────────────────────────────────────────────────────────
@@ -891,7 +1029,7 @@ public class ExamDraftService {
         TextChecks.Overlap ov = TextChecks.overlap(full, hashes, TeilSpec.OVERLAP_LIMIT);
         Set<String> used = new HashSet<>(r.text().usedFactIds() == null ? List.of() : r.text().usedFactIds());
         List<String> unused = selectedFacts(srcs).stream().map(Fact::id).filter(fid -> !used.contains(fid)).toList();
-        return new TextMetrics(ws.size(), List.of(spec.minWords(), spec.maxWords()), above, ratio,
+        return new TextMetrics(ws.size(), List.of(spec.minWords() * spec.textCount(), spec.maxWords() * spec.textCount()), above, ratio,
                 spec.maxAboveLevelRatio(), ov.maxRun(), TeilSpec.OVERLAP_LIMIT, ov.snippets(), unused);
     }
 
@@ -901,7 +1039,8 @@ public class ExamDraftService {
         for (Check c : r.checks()) light.put(c.key(), c.light());
         boolean verified = !r.checks().isEmpty();
         s.put("LEVEL", m == null || !verified ? null : "GREEN".equals(light.get("LEXICAL")) && "GREEN".equals(light.get("LENGTH")));
-        s.put("FORMAT", verified ? "GREEN".equals(light.get("FORMAT")) && "GREEN".equals(light.get("ANSWERS")) : null);
+        s.put("FORMAT", verified ? "GREEN".equals(light.get("FORMAT"))
+                && !"YELLOW".equals(light.get("ANSWERS")) : null);
         s.put("SINGLE_ANSWER", verified ? "GREEN".equals(light.get("SOLVER")) : null);
         List<SourceRow> used = usedSources(srcs);
         s.put("NEUTRAL", used.isEmpty() ? null : used.stream().noneMatch(x -> "FLAGGED".equals(x.source().neutrality())));
@@ -949,10 +1088,30 @@ public class ExamDraftService {
         return srcs.stream().flatMap(s -> s.source().facts().stream()).filter(Fact::selected).toList();
     }
 
-    static boolean formatOk(Item i) {
-        return i.question() != null && !i.question().isBlank() && i.options() != null
-                && ItemRules.LETTERS.stream().allMatch(l -> i.options().get(l) != null && !i.options().get(l).isBlank())
+    static boolean formatOk(Item i, TeilSpec spec) {
+        if (i.question() == null || i.question().isBlank() || i.options() == null) return false;
+        if (spec.headlines()) {
+            return i.options().size() == 2 && i.options().containsKey(i.correct())
+                    && TeilSpec.HEADLINE_LETTERS.containsAll(i.options().keySet())
+                    && i.options().values().stream().allMatch(h -> h != null && !h.isBlank());
+        }
+        return ItemRules.LETTERS.stream().allMatch(l -> i.options().get(l) != null && !i.options().get(l).isBlank())
                 && i.options().size() == 3 && ItemRules.LETTERS.contains(i.correct());
+    }
+
+    /** Lesen Teil 1: 10 chữ a–j không trùng giữa các văn bản, 10 tiêu đề không trùng chữ. */
+    static boolean headlinesOk(List<Item> items) {
+        Set<String> letters = new HashSet<>();
+        Set<String> texts = new HashSet<>();
+        int n = 0;
+        for (Item i : items) {
+            for (Map.Entry<String, String> e : i.options().entrySet()) {
+                n++;
+                letters.add(e.getKey());
+                texts.add(e.getValue().trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return letters.size() == n && texts.size() == n;
     }
 
     static boolean lettersBalanced(List<String> letters) {
@@ -981,14 +1140,14 @@ public class ExamDraftService {
         return TextChecks.sha256(json(t) + json(core));
     }
 
-    private Map<String, String> answers(JsonNode node) {
+    private Map<String, String> answers(JsonNode node, TeilSpec spec) {
         Map<String, String> out = new HashMap<>();
         node.path("answers").forEach(a -> {
             String v = a.path("answer").isNull() ? null : a.path("answer").asText(null);
             if (v != null) {
                 v = v.trim().toLowerCase(Locale.ROOT);
                 if (v.length() > 1) v = v.substring(0, 1);
-                if (ItemRules.LETTERS.contains(v)) out.put(a.path("id").asText(), v);
+                if (spec.answerLetters().contains(v)) out.put(a.path("id").asText(), v);
             }
         });
         return out;

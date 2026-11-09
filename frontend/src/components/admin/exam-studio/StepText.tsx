@@ -1,11 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { Plus, Save, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import { patchDraft, writeText, type StudioDraft, type StudioText } from '@/lib/adminExamStudioApi'
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
+import {
+  MATCH_TEXT_WORD_RANGE, countWords, isMatchHeadline, joinMatchTexts, matchTextInRange, splitMatchTexts,
+} from '@/lib/examStudioLogic'
 import { TeilPreview } from './TeilPreview'
 import { Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
 
@@ -17,12 +20,17 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
   const [text, setText] = useState<StudioText>(draft.text ?? EMPTY_TEXT)
   const [dirty, setDirty] = useState(false)
   const [selection, setSelection] = useState('')
-  const areaRef = useRef<HTMLTextAreaElement>(null)
+  // Lesen T1: 5 văn bản ngắn sửa trong 5 ô riêng; lưu thì ghép lại bằng dòng trống.
+  const match = isMatchHeadline(draft.teilType)
+  const [texts, setTexts] = useState<string[]>(() => splitMatchTexts(draft.text?.context, draft.itemCount))
 
   // Bản máy chủ đổi (AI viết xong, lưu xong) → nạp lại nếu người dùng không có sửa dở.
   const serverJson = JSON.stringify(draft.text)
   useEffect(() => {
-    if (!dirty) setText(draft.text ?? EMPTY_TEXT)
+    if (!dirty) {
+      setText(draft.text ?? EMPTY_TEXT)
+      setTexts(splitMatchTexts(draft.text?.context, draft.itemCount))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverJson])
 
@@ -30,17 +38,28 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
   const editGloss = (i: number, patch: Partial<StudioText['glossary'][number]>) =>
     edit({ glossary: text.glossary.map((g, j) => (j === i ? { ...g, ...patch } : g)) })
 
-  const readSelection = () => {
-    const el = areaRef.current
-    if (!el) return
+  const editMatch = (i: number, value: string) => {
+    setTexts((xs) => xs.map((x, j) => (j === i ? value : x)))
+    setDirty(true)
+  }
+
+  /** Đoạn bôi đen trong ô đang thao tác (bài T2 hoặc một trong 5 ô T1). */
+  const readSelection = (e: SyntheticEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget
     setSelection(el.value.slice(el.selectionStart, el.selectionEnd).trim())
   }
 
   const save = async () => {
-    const cleaned: StudioText = { ...text, glossary: text.glossary.filter((g) => g.term.trim()) }
+    const cleaned: StudioText = match
+      ? { titleDe: '', vorspannDe: '', context: joinMatchTexts(texts), glossary: [] }
+      : { ...text, glossary: text.glossary.filter((g) => g.term.trim()) }
     if (await run(() => patchDraft(draft.id, { text: cleaned }), t('saved'))) setDirty(false)
   }
-  const discard = () => { setText(draft.text ?? EMPTY_TEXT); setDirty(false) }
+  const discard = () => {
+    setText(draft.text ?? EMPTY_TEXT)
+    setTexts(splitMatchTexts(draft.text?.context, draft.itemCount))
+    setDirty(false)
+  }
   const rewrite = async (mode: 'REWRITE' | 'SIMPLIFY') => {
     if (await run(() => writeText(draft.id, { selection, mode }))) setSelection('')
   }
@@ -61,6 +80,7 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
             <p className="ga-ui text-ga-small text-ga-muted">{t('text.empty')}</p>
           ) : (
             <>
+              {!match && (<>
               <div>
                 <label htmlFor="text-title" className="mb-1.5 block"><GaCap>{t('text.titleDe')}</GaCap></label>
                 <input id="text-title" lang="de" className={studioField} value={text.titleDe} disabled={locked}
@@ -71,11 +91,14 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
                 <textarea id="text-vorspann" lang="de" rows={2} className={studioField} value={text.vorspannDe} disabled={locked}
                   onChange={(e) => edit({ vorspannDe: e.target.value })} />
               </div>
+              </>)}
+              {match ? (
+                <MatchTextsEditor texts={texts} locked={locked} onChange={editMatch} onSelectText={readSelection} />
+              ) : (
               <div>
                 <label htmlFor="text-context" className="mb-1.5 block"><GaCap>{t('text.context')}</GaCap></label>
                 <textarea
                   id="text-context"
-                  ref={areaRef}
                   lang="de"
                   rows={16}
                   className={cn(studioField, 'whitespace-pre-wrap font-mono text-ga-small leading-relaxed')}
@@ -89,6 +112,7 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
                 />
                 <p id="text-context-hint" className="ga-ui mt-1 text-ga-caption text-ga-muted">{t('text.contextHint')}</p>
               </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" className={studioMiniBtn} disabled={locked || dirty || !selection}
                   onClick={() => rewrite('REWRITE')}>
@@ -103,6 +127,7 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
                 </span>
               </div>
 
+              {!match && (
               <fieldset>
                 <legend className="mb-1.5"><GaCap>{t('text.glossary')}</GaCap></legend>
                 <div className="flex flex-col gap-2">
@@ -129,6 +154,7 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
                   </div>
                 </div>
               </fieldset>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 <GaBtn variant="primary" size="sm" disabled={locked || !dirty} onClick={save}>
@@ -143,7 +169,8 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
         {draft.text && (
           <section aria-labelledby="text-preview-h">
             <h3 id="text-preview-h" className="mb-2"><GaCap>{t('text.preview')}</GaCap></h3>
-            <TeilPreview text={draft.text} items={[]} quelle={draft.quelle}
+            <TeilPreview text={draft.text} items={[]} quelle={draft.quelle} showAnswers={false}
+              layout={match ? 'MATCH_HEADLINE' : 'ARTICLE'}
               highlightSnippets={draft.textMetrics?.overlapSnippets ?? []} />
           </section>
         )}
@@ -154,6 +181,53 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
       </div>
 
       <MetricsPanel draft={draft} />
+    </div>
+  )
+}
+
+/** Lesen T1: 5 ô "Text 1…5", mỗi ô có số từ; tô vàng khi ngoài 55–110 từ. */
+function MatchTextsEditor({
+  texts, locked, onChange, onSelectText,
+}: {
+  texts: string[]
+  locked: boolean
+  onChange: (i: number, value: string) => void
+  onSelectText: (e: SyntheticEvent<HTMLTextAreaElement>) => void
+}) {
+  const t = useTranslations('v2.adminContent.examStudio')
+  const [lo, hi] = MATCH_TEXT_WORD_RANGE
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="ga-ui text-ga-caption text-ga-muted">{t('text.matchHint', { lo, hi })}</p>
+      {texts.map((value, i) => {
+        const n = countWords(value)
+        const ok = matchTextInRange(value)
+        const id = `match-text-${i + 1}`
+        return (
+          <div key={i}>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <label htmlFor={id}><GaCap>{t('text.matchText', { n: i + 1 })}</GaCap></label>
+              <span id={`${id}-count`} className={cn('ga-ui rounded-ga px-1.5 text-ga-caption font-semibold',
+                ok ? 'text-ga-green' : 'bg-ga-yellow-soft text-ga-gold')}>
+                {t('text.matchWords', { n, lo, hi })}
+              </span>
+            </div>
+            <textarea
+              id={id}
+              lang="de"
+              rows={5}
+              className={cn(studioField, 'whitespace-pre-wrap font-mono text-ga-small leading-relaxed', !ok && 'border-ga-gold')}
+              value={value}
+              disabled={locked}
+              aria-describedby={`${id}-count`}
+              onChange={(e) => onChange(i, e.target.value)}
+              onSelect={onSelectText}
+              onKeyUp={onSelectText}
+              onMouseUp={onSelectText}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }

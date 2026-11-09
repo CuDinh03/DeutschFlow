@@ -14,7 +14,8 @@ export type DraftStep = 'FRAME' | 'SOURCE' | 'TEXT' | 'ITEMS' | 'REVIEW' | 'APPR
 export type DraftStatus = 'DRAFT' | 'APPROVED' | 'DISCARDED'
 export type BusyOp = 'FACTS' | 'TEXT' | 'ITEMS' | 'ITEM' | 'VERIFY'
 export type Light = 'GREEN' | 'YELLOW' | 'RED'
-export type OptionKey = 'a' | 'b' | 'c'
+/** a/b/c cho Lesen Teil 2; a–j cho tiêu đề Lesen Teil 1. */
+export type OptionKey = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j'
 
 export interface StudioFact {
   id: string
@@ -80,7 +81,8 @@ export interface StudioItem {
   /** Ví dụ "LV2-6". */
   id: string
   question: string
-  options: Record<OptionKey, string>
+  /** 3 khoá a/b/c (Teil 2) hoặc 2 khoá trong a–j (Teil 1). */
+  options: Partial<Record<OptionKey, string>>
   correct: OptionKey
   explanationVi: string
   /** Câu bằng chứng trích từ BÀI MỚI. */
@@ -260,4 +262,73 @@ export const DIFFICULTY_PRESETS: { key: string; label: string; plan: DifficultyP
 
 export const DIFFICULTY_LABEL: Record<DifficultyLevel, string> = {
   EASY: 'Dễ', MEDIUM: 'Vừa', HARD: 'Khó', EXPERT: 'Siêu khó',
+}
+
+// ── Ghép bộ đề từ kho (đợt 2) ─────────────────────────────────────────────────────────────
+// Đề nền = đề viết tay đang chạy; thay một số Teil bằng Teil đã duyệt trong kho ⇒ mock_exams mới
+// origin STUDIO, reviewed = false ("Sắp có") tới khi bấm Phát hành. Phát hành ⇒ học viên làm được.
+
+export interface AssemblySlot { section: string; teil: number; type: string | null }
+
+export interface AssemblyBase {
+  id: number
+  title: string
+  reviewed: boolean
+  /** Mọi Teil của đề nền (để biết ô nào thay được). */
+  slots: AssemblySlot[]
+}
+
+export interface AssemblyBlockOption {
+  id: number
+  titleDe: string | null
+  theme: string | null
+  difficultyCounts: DifficultyPlan
+  /** Số bộ đề đã dùng Teil này — ít dùng xếp trước. */
+  exposureCount: number
+}
+
+export interface AssemblySlotBlocks {
+  section: string
+  teil: number
+  type: string
+  blocks: AssemblyBlockOption[]
+}
+
+export interface AssembledExam {
+  id: number
+  title: string
+  cefrLevel: string
+  examFormat: string
+  /** false = "Sắp có" (chưa phát hành). */
+  reviewed: boolean
+  /** false = đã gỡ khỏi danh sách học viên. */
+  active: boolean
+  baseExamId: number | null
+  teile: { section: string; teil: number; blockId: number }[]
+  createdAt: string | null
+}
+
+export interface AssembleBody {
+  baseExamId: number
+  title: string
+  replacements: { section: string; teil: number; blockId: number }[]
+}
+
+export async function listAssemblyBases(examFormat = 'TELC', cefrLevel = 'B1'): Promise<AssemblyBase[]> {
+  return (await api.get<AssemblyBase[]>(`${BASE}/assembly/bases`, { params: { examFormat, cefrLevel } })).data
+}
+export async function listAssemblySlots(examFormat = 'TELC', cefrLevel = 'B1'): Promise<AssemblySlotBlocks[]> {
+  return (await api.get<AssemblySlotBlocks[]>(`${BASE}/assembly/slots`, { params: { examFormat, cefrLevel } })).data
+}
+export async function listAssembledExams(): Promise<AssembledExam[]> {
+  return (await api.get<AssembledExam[]>(`${BASE}/assemblies`)).data
+}
+export async function assembleExam(body: AssembleBody): Promise<AssembledExam> {
+  return (await api.post<AssembledExam>(`${BASE}/assemblies`, body)).data
+}
+export async function publishAssembledExam(examId: number): Promise<AssembledExam> {
+  return (await api.post<AssembledExam>(`${BASE}/assemblies/${examId}/publish`, {})).data
+}
+export async function retireAssembledExam(examId: number): Promise<AssembledExam> {
+  return (await api.post<AssembledExam>(`${BASE}/assemblies/${examId}/retire`, {})).data
 }

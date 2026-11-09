@@ -8,7 +8,7 @@ import {
   approveDraft, patchDraft, verifyDraft,
   type ChecklistKey,
 } from '@/lib/adminExamStudioApi'
-import { CHECKLIST_KEYS, approveBlockers } from '@/lib/examStudioLogic'
+import { CHECKLIST_KEYS, approveBlockers, isMatchHeadline } from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, GaCard, GaGlyph, TkBadge } from '@/components/ui-v2'
 import { TeilPreview } from './TeilPreview'
 import { LightDot, Note, type StudioStepProps } from './ui'
@@ -124,7 +124,7 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
             </label>
           </div>
           <TeilPreview text={draft.text} items={draft.items} quelle={draft.quelle} showAnswers={showAnswers}
-            startNumber={draft.teil === 2 ? 6 : 1} />
+            startNumber={draft.teil === 2 ? 6 : 1} layout={isMatchHeadline(draft.teilType) ? 'MATCH_HEADLINE' : 'ARTICLE'} />
         </section>
       )}
     </div>

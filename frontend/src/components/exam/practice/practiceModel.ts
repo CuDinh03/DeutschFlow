@@ -37,6 +37,11 @@ export interface PracticeTeilData {
   vorspann_de?: string
   context_lines?: boolean
   glossary?: Array<{ term: string; explanation_de: string }>
+  /**
+   * Nguồn của bài đọc (Xưởng đề, V371): `quelle` là dòng ghi nguồn bắt buộc theo giấy phép (CC BY:
+   * tác giả + giấy phép + "bearbeitet"; báo: "Daten: …"), hiện nhỏ dưới bài. Đề viết tay không khai.
+   */
+  source?: { quelle?: string | null }
   stimulus?: { type?: string; from?: string; subject?: string; body: string }
   writing_points?: string[]
   shuffle_points?: boolean

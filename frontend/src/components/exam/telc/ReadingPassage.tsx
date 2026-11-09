@@ -10,6 +10,11 @@ export interface RichPassageTeil {
   vorspann_de?: string
   context_lines?: boolean
   glossary?: Array<{ term: string; explanation_de: string }>
+  /**
+   * Nguồn của bài đọc (Xưởng đề, V371): `quelle` là dòng ghi nguồn bắt buộc theo giấy phép (CC BY:
+   * tác giả + giấy phép + "bearbeitet"; báo: "Daten: …"), hiện nhỏ dưới bài. Đề viết tay không khai.
+   */
+  source?: { quelle?: string | null }
 }
 
 /** Đề khai Vorspann / số dòng / chú thích thì dựng theo kiểu đề thật; đề Goethe không khai ⇒ nhánh cũ. */
@@ -88,6 +93,9 @@ export function ReadingPassage({ teil, highlights = [] }: { teil: RichPassageTei
             </div>
           ))}
         </dl>
+      )}
+      {teil.source?.quelle && (
+        <p data-quelle className="ga-ui mt-3 break-words text-ga-caption text-ga-subtle">{teil.source.quelle}</p>
       )}
     </article>
   )

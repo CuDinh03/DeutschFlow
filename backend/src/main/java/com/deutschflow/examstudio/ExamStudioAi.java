@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -112,8 +114,24 @@ public class ExamStudioAi {
              "glossary": [{"term": "...", "explanationDe": "..."}], "usedFactIds": ["f1", "..."]}
             """;
 
+    static final String TEXT_T1_SYSTEM = """
+            Du schreibst FÜNF NEUE kurze Texte für telc Deutsch %s, Leseverstehen Teil 1 (Kurzmeldungen aus
+            Zeitung oder Internet, jeweils ein eigenes Ereignis oder Angebot).
+            Regeln:
+            - Benutze NUR die gegebenen Fakten; erfinde keine Zahlen, Namen oder Studien. Fehlen Fakten, ergänze
+              nur harmloses Alltagswissen ohne Zahlen.
+            - Komplett eigene Worte, keine Formulierung einer Quelle.
+            - Jeder Text %d–%d Wörter, Wortschatz %s, klare Sätze, ein eindeutiges Hauptthema pro Text.
+            - Die fünf Texte unterscheiden sich, bleiben aber im selben Themenfeld (damit verwechselbare
+              Überschriften möglich sind).
+            - Keine Überschriften schreiben.
+            Antworte NUR mit JSON: {"texts": [{"text": "...", "usedFactIds": ["s1f1"]}]}
+            """;
+
     JsonNode writeText(long userId, TeilSpec spec, String theme, List<Fact> facts, String note) {
-        String system = TEXT_SYSTEM.formatted(spec.cefrLevel(), spec.minWords(), spec.maxWords(), spec.cefrLevel());
+        String system = spec.headlines()
+                ? TEXT_T1_SYSTEM.formatted(spec.cefrLevel(), spec.minWords(), spec.maxWords(), spec.cefrLevel())
+                : TEXT_SYSTEM.formatted(spec.cefrLevel(), spec.minWords(), spec.maxWords(), spec.cefrLevel());
         String user = "Thema: " + (theme == null ? "frei" : theme) + "\nFakten:\n" + facts.stream()
                 .map(f -> f.id() + ": " + f.text()
                         + (f.figure() == null ? "" : " [Zahl: " + f.figure() + "]")
@@ -169,8 +187,30 @@ public class ExamStudioAi {
               "explanationVi": "...", "selfScore": {...}}]}
             """;
 
+    static final String ITEMS_T1_SYSTEM = """
+            Du erstellst Überschriften für telc Deutsch %s, Leseverstehen Teil 1: fünf Texte, zehn Überschriften
+            (a–j). Für jeden angegebenen Text schreibst du GENAU ZWEI Überschriften:
+            - "headline": passt am besten zum Text (Hauptaussage, nicht nur ein Detail);
+            - "nearHeadline": eine verwechselbare Falle, die NICHT passt (übertreibt "die meisten"/"alle",
+              behauptet, was der Text verneint, vertauscht Rollen oder Ursache und Wirkung, greift ein
+              Schlüsselwort auf, verfehlt aber die Aussage). Sie darf auch zu keinem anderen Text passen.
+            Schwierigkeit pro Text (Niveau bleibt %s), je 0–2 Punkte:
+            - phrasing: 0 = Überschrift wiederholt Schlüsselwörter; 1 = umformuliert; 2 = Hauptaussage erschließen.
+            - evidence: 0 = ein Satz verrät alles; 1 = mehrere Sätze nötig; 2 = nur der ganze Text ergibt es.
+            - distractors: 0 = Falle offensichtlich falsch; 1 = Falle nimmt ein Textdetail; 2 = feine Falle.
+            - language: 0 = Grundwortschatz; 1 = ein Randwort; 2 = schwierige Struktur.
+            Summe 0–1 EASY, 2–4 MEDIUM, 5–6 HARD, 7–8 EXPERT (EXPERT: Falle ist halb richtig und die Aussage
+            ergibt sich aus mehreren Textteilen).
+            Pro Text außerdem: "evidence" (wörtliches Zitat aus dem Text), "trap" (Fallenregel auf Deutsch),
+            "explanationVi" (VIETNAMESISCH: warum {1} passt und warum {2} nicht; Überschriften NUR als {1} und
+            {2} bezeichnen), "selfScore".
+            Antworte NUR mit JSON: {"items": [{"slot": 0, "headline": "...", "nearHeadline": "...", "trap": "...",
+              "evidence": "...", "explanationVi": "...", "selfScore": {}}]}
+            """;
+
     JsonNode generateItems(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
                            List<Item> keep) {
+        if (spec.headlines()) return generateHeadlines(userId, spec, text, slotIdx, slotLevels, keep);
         String system = ITEMS_SYSTEM.formatted(spec.cefrLevel(), spec.cefrLevel());
         StringBuilder u = new StringBuilder();
         u.append("TEXT\nÜberschrift: ").append(text.titleDe()).append("\nVorspann: ").append(text.vorspannDe())
@@ -188,6 +228,24 @@ public class ExamStudioAi {
         return call(userId, "ITEMS", LlmTier.CONTENT, system, u.toString(), 0.7, 3_500);
     }
 
+    JsonNode generateHeadlines(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
+                               List<Item> keep) {
+        StringBuilder u = new StringBuilder("TEXTE\n");
+        List<String> paras = TextChecks.paragraphs(text.context());
+        for (int i = 0; i < paras.size(); i++) u.append("[Text ").append(i + 1).append("] ").append(paras.get(i)).append("\n");
+        u.append("\nSchreibe Überschriften für (slot → Text → Schwierigkeit):\n");
+        for (int i = 0; i < slotIdx.size(); i++) {
+            int sl = slotIdx.get(i)[0];
+            u.append("slot ").append(sl).append(" → Text ").append(sl + 1).append(" → ").append(slotLevels.get(i)).append("\n");
+        }
+        if (!keep.isEmpty()) {
+            u.append("\nSchon vergebene Überschriften (nicht wiederholen):\n");
+            for (Item it : keep) it.options().values().forEach(h -> u.append("- ").append(h).append("\n"));
+        }
+        return call(userId, "ITEMS", LlmTier.CONTENT, ITEMS_T1_SYSTEM.formatted(spec.cefrLevel(), spec.cefrLevel()),
+                u.toString(), 0.7, 2_500);
+    }
+
     // ── 4. Tự kiểm: chấm thang, giải thử ─────────────────────────────────────────────────────
 
     static final String RUBRIC_SYSTEM = """
@@ -203,17 +261,18 @@ public class ExamStudioAi {
 
     JsonNode rubric(long userId, TeilSpec spec, Text text, List<Item> items) {
         return call(userId, "VERIFY", LlmTier.GRADING_EXAM, RUBRIC_SYSTEM.formatted(spec.cefrLevel()),
-                textBlock(text) + "\nAUFGABEN MIT LÖSUNG:\n" + itemsBlock(items, true), 0.0, 2_000);
+                textBlock(spec, text) + "\nAUFGABEN MIT LÖSUNG:\n" + itemsBlock(spec, items, true), 0.0, 2_000);
     }
 
     static final String SOLVE_SYSTEM = """
-            Löse die Aufgaben zum Text. Wähle pro Aufgabe a, b oder c.
+            Löse die Aufgaben zum Text. Wähle pro Aufgabe den Buchstaben der passenden Option bzw. Überschrift
+            (jede Überschrift höchstens einmal).
             Antworte NUR mit JSON: {"answers": [{"id": "...", "answer": "a"}]}
             """;
 
     static final String WEAK_SOLVE_SYSTEM = """
             Du bist ein Deutschlerner auf Niveau A2. Du liest langsam und verstehst schwierige Sätze
-            nicht immer. Löse die Aufgaben zum Text so, wie ein A2-Lerner es tun würde (wähle a, b oder c).
+            nicht immer. Löse die Aufgaben zum Text so, wie ein A2-Lerner es tun würde (wähle den Buchstaben).
             Antworte NUR mit JSON: {"answers": [{"id": "...", "answer": "a"}]}
             """;
 
@@ -223,30 +282,47 @@ public class ExamStudioAi {
             sonst "answer": null. Antworte NUR mit JSON: {"answers": [{"id": "...", "answer": null}]}
             """;
 
-    JsonNode solveStrong(long userId, Text text, List<Item> items) {
+    JsonNode solveStrong(long userId, TeilSpec spec, Text text, List<Item> items) {
         return call(userId, "VERIFY", LlmTier.GRADING_EXAM, SOLVE_SYSTEM,
-                textBlock(text) + "\nAUFGABEN:\n" + itemsBlock(items, false), 0.0, 800);
+                textBlock(spec, text) + "\nAUFGABEN:\n" + itemsBlock(spec, items, false), 0.0, 800);
     }
 
-    JsonNode solveWeak(long userId, Text text, List<Item> items) {
+    JsonNode solveWeak(long userId, TeilSpec spec, Text text, List<Item> items) {
         return call(userId, "VERIFY", LlmTier.CHAT_FREE, WEAK_SOLVE_SYSTEM,
-                textBlock(text) + "\nAUFGABEN:\n" + itemsBlock(items, false), 0.3, 800);
+                textBlock(spec, text) + "\nAUFGABEN:\n" + itemsBlock(spec, items, false), 0.3, 800);
     }
 
-    JsonNode solveBlind(long userId, List<Item> items) {
+    JsonNode solveBlind(long userId, TeilSpec spec, List<Item> items) {
         return call(userId, "VERIFY", LlmTier.GRADING_EXAM, BLIND_SOLVE_SYSTEM,
-                "AUFGABEN:\n" + itemsBlock(items, false), 0.0, 800);
+                "AUFGABEN:\n" + itemsBlock(spec, items, false), 0.0, 800);
     }
 
-    static String textBlock(Text text) {
-        StringBuilder sb = new StringBuilder("TEXT\n").append(text.titleDe()).append("\n").append(text.vorspannDe()).append("\n");
+    static String textBlock(TeilSpec spec, Text text) {
         List<String> paras = TextChecks.paragraphs(text.context());
+        StringBuilder sb = new StringBuilder();
+        if (spec.headlines()) {
+            sb.append("TEXTE\n");
+            for (int i = 0; i < paras.size(); i++) sb.append("[Text ").append(i + 1).append("] ").append(paras.get(i)).append("\n");
+            return sb.toString();
+        }
+        sb.append("TEXT\n").append(text.titleDe()).append("\n").append(text.vorspannDe()).append("\n");
         for (int i = 0; i < paras.size(); i++) sb.append("[Absatz ").append(i + 1).append("] ").append(paras.get(i)).append("\n");
         return sb.toString();
     }
 
-    static String itemsBlock(List<Item> items, boolean withKey) {
+    static String itemsBlock(TeilSpec spec, List<Item> items, boolean withKey) {
         StringBuilder sb = new StringBuilder();
+        if (spec.headlines()) {
+            Map<String, String> all = new TreeMap<>();
+            for (Item it : items) all.putAll(it.options());
+            sb.append("ÜBERSCHRIFTEN\n");
+            all.forEach((l, h) -> sb.append("  ").append(l).append(") ").append(h).append("\n"));
+            for (Item it : items) {
+                sb.append(it.id()).append(": ").append(it.question()).append("\n");
+                if (withKey) sb.append("  Lösung: ").append(it.correct()).append("\n");
+            }
+            return sb.toString();
+        }
         for (Item it : items) {
             sb.append(it.id()).append(": ").append(it.question()).append("\n");
             for (String l : ItemRules.LETTERS) sb.append("  ").append(l).append(") ").append(it.options().get(l)).append("\n");

@@ -531,7 +531,7 @@
     "examStudio": {
       "title": "Xưởng đề",
       "subtitle": "Tạo Teil đề thi từ nguồn báo Đức: AI viết bài, ra câu theo ma trận độ khó, owner duyệt vào kho.",
-      "hint": "Đợt 1: telc · B1 · Lesen · Teil 2 (bài báo + 5 câu a/b/c)",
+      "hint": "telc · B1 · Lesen Teil 1 (5 văn bản + 10 tiêu đề a–j) và Teil 2 (bài báo + 5 câu a/b/c)",
       "createTeil": "Tạo Teil mới",
       "loading": "Đang tải…",
       "next": "Bước tiếp",
@@ -593,7 +593,8 @@
       },
       "tabs": {
         "drafts": "Bản nháp",
-        "blocks": "Kho Teil"
+        "blocks": "Kho Teil",
+        "assemblies": "Bộ đề"
       },
       "create": {
         "title": "Tạo Teil mới",
@@ -612,7 +613,8 @@
         "themeAny": "Để AI gợi ý theo chỗ còn thiếu trong kho",
         "mode": "Chế độ",
         "matrix": "Ma trận độ khó",
-        "save": "Lưu khung"
+        "save": "Lưu khung",
+        "blueprintHintT1": "Thông số lấy từ blueprint: Lesen Teil 1 B1 có {itemCount} văn bản ngắn (55–110 từ mỗi văn bản) và 10 tiêu đề a–j — mỗi văn bản một tiêu đề đúng, 5 tiêu đề còn lại là nhiễu."
       },
       "matrix": {
         "decrease": "Bớt một câu {level}",
@@ -684,7 +686,10 @@
         "glossAdd": "Thêm chú thích",
         "save": "Lưu sửa tay",
         "discard": "Bỏ sửa",
-        "preview": "Xem trước (đoạn trùng nguồn tô đỏ)"
+        "preview": "Xem trước (đoạn trùng nguồn tô đỏ)",
+        "matchHint": "5 văn bản ngắn, mỗi văn bản {lo}–{hi} từ. Văn bản thứ i ứng với câu i.",
+        "matchText": "Text {n}",
+        "matchWords": "{n} từ / {lo}–{hi}"
       },
       "metrics": {
         "none": "Bảng đo hiện sau khi có bài.",
@@ -727,7 +732,21 @@
         "regenerate": "Sinh lại",
         "lock": "Khoá",
         "unlock": "Mở khoá",
-        "edit": "Sửa tay"
+        "edit": "Sửa tay",
+        "headlinesLegend": "Hai tiêu đề (chọn tiêu đề đúng)",
+        "headlineRight": "Tiêu đề đúng",
+        "headlineDistractor": "Tiêu đề nhiễu",
+        "headlineTable": "10 tiêu đề a–j",
+        "dupLetters": "Trùng chữ: {list}",
+        "dupTexts": "Trùng nội dung tiêu đề: {list}",
+        "missingLetters": "Thiếu chữ: {list}",
+        "invalidLetters": "Chữ ngoài a–j: {list}",
+        "badItems": "Câu không có đúng 2 tiêu đề hoặc đáp án không thuộc 2 tiêu đề đó: {list}",
+        "colLetter": "Chữ",
+        "colHeadline": "Tiêu đề",
+        "colRole": "Vai trò",
+        "roleRight": "Đúng cho Text {n}",
+        "roleDistractor": "Nhiễu của Text {n}"
       },
       "score": {
         "phrasing": "Diễn đạt đáp án",
@@ -776,7 +795,10 @@
       "preview": {
         "noTitle": "(chưa có tiêu đề)",
         "noText": "(chưa có bài đọc)",
-        "correct": "Đáp án đúng"
+        "correct": "Đáp án đúng",
+        "headlines": "Tiêu đề a–j",
+        "matchAnswer": "Đáp án: {letter} — {headline}",
+        "matchText": "Text {n}"
       },
       "wizard": {
         "back": "Về danh sách Xưởng đề",
@@ -804,6 +826,49 @@
         "reviewed": "duyệt bởi {by} lúc {at}",
         "countsAria": "Số câu theo bậc độ khó",
         "view": "Xem"
+      },
+      "assembly": {
+        "loadError": "Không tải được dữ liệu ghép bộ đề",
+        "formTitle": "Ghép bộ đề mới",
+        "noBases": "Chưa có đề nền telc B1 nào để ghép.",
+        "baseField": "Đề nền",
+        "titleField": "Tên bộ đề",
+        "titleSuggestion": "telc Deutsch B1 — Bộ đề ghép {n}",
+        "slotsLegend": "Teil thay bằng kho",
+        "noSlots": "Kho chưa có Teil nào khớp với một ô của đề nền này.",
+        "keepBase": "Giữ Teil của đề nền",
+        "exposure": "đã dùng {n} lần",
+        "preview": "Xem trước",
+        "previewAria": "Xem trước Teil #{id}",
+        "typeMismatch": "Không thay được: ô này của đề nền là dạng {base}, Teil trong kho là dạng {bank}.",
+        "reuseWarning": "Các Teil không thay được lấy nguyên từ đề nền — học viên đã làm đề nền sẽ gặp lại các Teil đó.",
+        "assemble": "Ghép",
+        "assembled": "Đã ghép bộ đề — đang ở trạng thái Sắp có",
+        "replacingCount": "Sẽ thay {n} Teil",
+        "error": {
+          "NO_BASE": "Chọn đề nền.",
+          "NO_TITLE": "Nhập tên bộ đề.",
+          "NO_REPLACEMENT": "Chọn ít nhất một Teil trong kho để thay."
+        },
+        "listTitle": "Bộ đề đã ghép",
+        "empty": "Chưa có bộ đề ghép nào",
+        "emptyHint": "Dùng form phía trên để ghép bộ đề đầu tiên.",
+        "base": "Đề nền: {title}",
+        "replaced": "{slot} ← Teil #{id}",
+        "status": {
+          "UPCOMING": "Sắp có",
+          "PUBLISHED": "Đã phát hành",
+          "RETIRED": "Đã gỡ"
+        },
+        "viewAsStudent": "Xem như học viên",
+        "publish": "Phát hành",
+        "publishTitle": "Phát hành bộ đề này?",
+        "publishBody": "Sau khi phát hành, học viên sẽ thấy \"{title}\" trong danh sách đề và làm được ngay.",
+        "published": "Đã phát hành bộ đề",
+        "retire": "Gỡ",
+        "retireTitle": "Gỡ bộ đề này?",
+        "retireBody": "\"{title}\" sẽ bị ẩn khỏi danh sách đề của học viên. Có thể phát hành lại sau.",
+        "retired": "Đã gỡ bộ đề"
       }
     }
   }

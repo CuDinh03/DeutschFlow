@@ -427,13 +427,14 @@ export default function ExamAttemptScreen() {
                   ) : null}
 
                   {group.passage ? (
-                    group.passageLines || group.vorspann || group.glossary ? (
+                    group.passageLines || group.vorspann || group.glossary || group.quelle ? (
                       <ReadingPassage
                         title={group.passageTitle}
                         vorspann={group.vorspann}
                         body={group.passage}
                         numbered={group.passageLines === true}
                         glossary={group.glossary}
+                        quelle={group.quelle}
                       />
                     ) : (
                       <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>

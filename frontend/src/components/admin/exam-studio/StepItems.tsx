@@ -8,12 +8,18 @@ import {
   generateItems, patchDraft, regenerateItem,
   type DifficultyLevel, type OptionKey, type StudioItem,
 } from '@/lib/adminExamStudioApi'
-import { DIFFICULTY_ORDER, countByLevel } from '@/lib/examStudioLogic'
+import {
+  DIFFICULTY_ORDER, countByLevel, hasHeadlineIssues, headlineIssues, headlineTable, isMatchHeadline,
+  matchTextIndex, normalizeHeadline, optionKeys, splitMatchTexts,
+} from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import { LightDot, Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
 
-const OPTION_KEYS: OptionKey[] = ['a', 'b', 'c']
+/** Phương án dạng bản đồ chuỗi: T2 có a/b/c, T1 có 2 chữ trong a–j (type cũ chỉ khai a|b|c). */
+const optsOf = (it: Pick<StudioItem, 'options'>) => it.options as Record<string, string>
+const EXCERPT_CHARS = 220
+const excerpt = (s: string) => (s.length > EXCERPT_CHARS ? `${s.slice(0, EXCERPT_CHARS).trimEnd()}…` : s)
 
 /** Bước 4 — Câu hỏi theo ma trận độ khó: sinh, đo lại bậc, sinh lại từng câu, khoá, sửa tay. */
 export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { onNext: () => void }) {
@@ -22,6 +28,8 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
   const target = countByLevel(draft.items, 'target')
   const measured = countByLevel(draft.items, 'measured')
   const allLocked = draft.items.length > 0 && draft.items.every((i) => i.locked)
+  const match = isMatchHeadline(draft.teilType)
+  const texts = match ? splitMatchTexts(draft.text?.context, draft.itemCount) : []
 
   const saveItem = (next: StudioItem) =>
     run(() => patchDraft(draft.id, { items: draft.items.map((it) => (it.id === next.id ? next : it)) }), t('saved'))
@@ -68,6 +76,8 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
         </div>
       </GaCard>
 
+      {match && draft.items.length > 0 && <HeadlineTable items={draft.items} />}
+
       {draft.items.length === 0 ? (
         <p className="ga-ui rounded-ga border border-dashed border-ga-line px-4 py-8 text-center text-ga-small text-ga-muted">
           {draft.text ? t('items.empty') : t('items.needText')}
@@ -78,6 +88,8 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
             key={it.id}
             item={it}
             index={i}
+            match={match}
+            excerptText={match ? excerpt(texts[matchTextIndex(it.id, i)] ?? '') : undefined}
             locked={locked}
             onSave={saveItem}
             onRegenerate={(lv) => run(() => regenerateItem(draft.id, it.id, lv))}
@@ -93,10 +105,13 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
 }
 
 function ItemCard({
-  item, index, locked, onSave, onRegenerate,
+  item, index, match, excerptText, locked, onSave, onRegenerate,
 }: {
   item: StudioItem
   index: number
+  /** Lesen T1: câu = "Text i", 2 tiêu đề (đúng + nhiễu). */
+  match: boolean
+  excerptText?: string
   locked: boolean
   onSave: (next: StudioItem) => Promise<boolean>
   onRegenerate: (level?: DifficultyLevel) => void
@@ -150,20 +165,22 @@ function ItemCard({
 
       {editing ? (
         <div className="flex flex-col gap-2.5">
-          <Field id={`${item.id}-q`} label={t('items.question')}>
-            <textarea id={`${item.id}-q`} lang="de" rows={2} className={studioField} value={form.question}
-              onChange={(e) => setForm({ ...form, question: e.target.value })} />
-          </Field>
+          {!match && (
+            <Field id={`${item.id}-q`} label={t('items.question')}>
+              <textarea id={`${item.id}-q`} lang="de" rows={2} className={studioField} value={form.question}
+                onChange={(e) => setForm({ ...form, question: e.target.value })} />
+            </Field>
+          )}
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1"><GaCap>{t('items.options')}</GaCap></legend>
-            {OPTION_KEYS.map((k) => (
+            <legend className="mb-1"><GaCap>{match ? t('items.headlinesLegend') : t('items.options')}</GaCap></legend>
+            {optionKeys(optsOf(form)).map((k) => (
               <div key={k} className="flex items-center gap-2">
                 <input type="radio" name={`${item.id}-correct`} checked={form.correct === k}
-                  aria-label={t('items.markCorrect', { k })} onChange={() => setForm({ ...form, correct: k })}
+                  aria-label={t('items.markCorrect', { k })} onChange={() => setForm({ ...form, correct: k as OptionKey })}
                   style={{ accentColor: 'var(--ga-green)' }} />
                 <span className="w-4 font-semibold text-ga-muted">{k}</span>
-                <input lang="de" className={studioField} value={form.options[k]} aria-label={t('items.optionN', { k })}
-                  onChange={(e) => setForm({ ...form, options: { ...form.options, [k]: e.target.value } })} />
+                <input lang="de" className={studioField} value={optsOf(form)[k]} aria-label={t('items.optionN', { k })}
+                  onChange={(e) => setForm({ ...form, options: { ...optsOf(form), [k]: e.target.value } as StudioItem['options'] })} />
               </div>
             ))}
           </fieldset>
@@ -183,8 +200,13 @@ function ItemCard({
       ) : (
         <>
           <p className="text-ga-body font-semibold text-ga-ink" lang="de">{item.question}</p>
+          {match && excerptText != null && (
+            <p className="whitespace-pre-line rounded-ga border border-ga-line px-3 py-2 text-ga-small text-ga-muted" lang="de">
+              {excerptText || t('preview.noText')}
+            </p>
+          )}
           <ul className="flex flex-col gap-1" lang="de">
-            {OPTION_KEYS.map((k) => {
+            {optionKeys(optsOf(item)).map((k) => {
               const trap = item.traps.find((tr) => tr.option === k)
               const right = item.correct === k
               return (
@@ -192,8 +214,9 @@ function ItemCard({
                   right ? 'bg-ga-green-soft' : 'bg-ga-surface')}>
                   <span className="flex items-start gap-2 text-ga-ink">
                     <span className="w-4 shrink-0 font-semibold text-ga-muted">{k}</span>
-                    <span className="min-w-0 flex-1">{item.options[k]}</span>
-                    {right && <TkBadge tone="green" lang="vi">{t('preview.correct')}</TkBadge>}
+                    <span className="min-w-0 flex-1">{optsOf(item)[k]}</span>
+                    {right && <TkBadge tone="green" lang="vi">{match ? t('items.headlineRight') : t('preview.correct')}</TkBadge>}
+                    {!right && match && <TkBadge tone="yellow" lang="vi">{t('items.headlineDistractor')}</TkBadge>}
                   </span>
                   {trap && (
                     <span className="ga-ui pl-6 text-ga-caption text-ga-muted" lang="vi">{t('items.trap', { rule: trap.rule })}</span>
@@ -242,6 +265,59 @@ function ItemCard({
           </button>
         </div>
       )}
+    </GaCard>
+  )
+}
+
+/** Lesen T1: bảng 10 tiêu đề a–j gộp từ 5 câu; đỏ khi trùng chữ / trùng nội dung / thiếu chữ. */
+function HeadlineTable({ items }: { items: StudioItem[] }) {
+  const t = useTranslations('v2.adminContent.examStudio')
+  const asMap = items.map((it) => ({ id: it.id, options: optsOf(it), correct: it.correct }))
+  const rows = headlineTable(asMap)
+  const issues = headlineIssues(asMap)
+  const dupLetters = new Set(issues.duplicateLetters)
+  const dupTexts = new Set(issues.duplicateTexts.map(normalizeHeadline))
+
+  return (
+    <GaCard className="flex flex-col gap-2 p-4 sm:p-5">
+      <h3><GaCap>{t('items.headlineTable')}</GaCap></h3>
+      {hasHeadlineIssues(issues) && (
+        <div className="flex flex-col gap-1">
+          {issues.duplicateLetters.length > 0 && <Note tone="red">{t('items.dupLetters', { list: issues.duplicateLetters.join(', ') })}</Note>}
+          {issues.duplicateTexts.length > 0 && <Note tone="red">{t('items.dupTexts', { list: issues.duplicateTexts.join(' · ') })}</Note>}
+          {issues.missingLetters.length > 0 && <Note tone="red">{t('items.missingLetters', { list: issues.missingLetters.join(', ') })}</Note>}
+          {issues.invalidLetters.length > 0 && <Note tone="red">{t('items.invalidLetters', { list: issues.invalidLetters.join(', ') })}</Note>}
+          {issues.badItems.length > 0 && <Note tone="red">{t('items.badItems', { list: issues.badItems.join(', ') })}</Note>}
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="ga-ui w-full min-w-[420px] text-ga-small">
+          <caption className="sr-only">{t('items.headlineTable')}</caption>
+          <thead>
+            <tr className="text-left text-ga-caption text-ga-muted">
+              <th scope="col" className="w-8 py-1 pr-2 font-semibold">{t('items.colLetter')}</th>
+              <th scope="col" className="py-1 pr-2 font-semibold">{t('items.colHeadline')}</th>
+              <th scope="col" className="py-1 font-semibold">{t('items.colRole')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const bad = dupLetters.has(r.letter) || dupTexts.has(normalizeHeadline(r.text))
+              return (
+                <tr key={`${r.letter}-${r.itemId}`} className={cn('border-t border-ga-line', bad && 'bg-ga-red-soft')}>
+                  <td className={cn('py-1.5 pr-2 font-semibold', bad ? 'text-ga-red' : 'text-ga-ink')}>{r.letter}</td>
+                  <td className="py-1.5 pr-2 text-ga-ink" lang="de">{r.text}</td>
+                  <td className="py-1.5 text-ga-muted">
+                    {r.correct
+                      ? t('items.roleRight', { n: r.itemIndex + 1 })
+                      : t('items.roleDistractor', { n: r.itemIndex + 1 })}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </GaCard>
   )
 }

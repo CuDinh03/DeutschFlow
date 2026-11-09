@@ -531,7 +531,7 @@
     "examStudio": {
       "title": "Prüfungswerkstatt",
       "subtitle": "Prüfungsteile aus deutschen Nachrichtenquellen erstellen: KI schreibt Text und Aufgaben nach Schwierigkeitsmatrix, der Owner gibt sie für den Pool frei.",
-      "hint": "Phase 1: telc · B1 · Lesen · Teil 2 (Artikel + 5 Aufgaben a/b/c)",
+      "hint": "telc · B1 · Lesen Teil 1 (5 Texte + 10 Überschriften a–j) und Teil 2 (Artikel + 5 Aufgaben a/b/c)",
       "createTeil": "Neuer Teil",
       "loading": "Wird geladen…",
       "next": "Nächster Schritt",
@@ -593,7 +593,8 @@
       },
       "tabs": {
         "drafts": "Entwürfe",
-        "blocks": "Teil-Pool"
+        "blocks": "Teil-Pool",
+        "assemblies": "Prüfungssätze"
       },
       "create": {
         "title": "Neuer Teil",
@@ -612,7 +613,8 @@
         "themeAny": "KI schlägt nach Lücken im Pool vor",
         "mode": "Modus",
         "matrix": "Schwierigkeitsmatrix",
-        "save": "Rahmen speichern"
+        "save": "Rahmen speichern",
+        "blueprintHintT1": "Laut Blueprint: Lesen Teil 1 B1 hat {itemCount} kurze Texte (je 55–110 Wörter) und 10 Überschriften a–j — je Text eine richtige, die übrigen 5 sind Distraktoren."
       },
       "matrix": {
         "decrease": "Eine Aufgabe {level} weniger",
@@ -684,7 +686,10 @@
         "glossAdd": "Erklärung hinzufügen",
         "save": "Änderungen speichern",
         "discard": "Verwerfen",
-        "preview": "Vorschau (aus der Quelle kopierte Stellen rot)"
+        "preview": "Vorschau (aus der Quelle kopierte Stellen rot)",
+        "matchHint": "5 kurze Texte, je {lo}–{hi} Wörter. Text i gehört zu Aufgabe i.",
+        "matchText": "Text {n}",
+        "matchWords": "{n} Wörter / {lo}–{hi}"
       },
       "metrics": {
         "none": "Messwerte erscheinen, sobald ein Text vorliegt.",
@@ -727,7 +732,21 @@
         "regenerate": "Neu erstellen",
         "lock": "Sperren",
         "unlock": "Entsperren",
-        "edit": "Bearbeiten"
+        "edit": "Bearbeiten",
+        "headlinesLegend": "Zwei Überschriften (richtige auswählen)",
+        "headlineRight": "Richtige Überschrift",
+        "headlineDistractor": "Distraktor",
+        "headlineTable": "10 Überschriften a–j",
+        "dupLetters": "Doppelte Buchstaben: {list}",
+        "dupTexts": "Doppelte Überschriften: {list}",
+        "missingLetters": "Fehlende Buchstaben: {list}",
+        "invalidLetters": "Buchstaben außerhalb a–j: {list}",
+        "badItems": "Aufgaben ohne genau 2 Überschriften oder mit Lösung außerhalb davon: {list}",
+        "colLetter": "Buchstabe",
+        "colHeadline": "Überschrift",
+        "colRole": "Rolle",
+        "roleRight": "Richtig für Text {n}",
+        "roleDistractor": "Distraktor zu Text {n}"
       },
       "score": {
         "phrasing": "Formulierung der Lösung",
@@ -776,7 +795,10 @@
       "preview": {
         "noTitle": "(noch kein Titel)",
         "noText": "(noch kein Lesetext)",
-        "correct": "Richtige Lösung"
+        "correct": "Richtige Lösung",
+        "headlines": "Überschriften a–j",
+        "matchAnswer": "Lösung: {letter} — {headline}",
+        "matchText": "Text {n}"
       },
       "wizard": {
         "back": "Zurück zur Prüfungswerkstatt",
@@ -804,6 +826,49 @@
         "reviewed": "geprüft von {by} am {at}",
         "countsAria": "Aufgaben je Schwierigkeitsstufe",
         "view": "Ansehen"
+      },
+      "assembly": {
+        "loadError": "Daten zum Zusammenstellen konnten nicht geladen werden",
+        "formTitle": "Neuen Prüfungssatz zusammenstellen",
+        "noBases": "Kein telc-B1-Basistest zum Zusammenstellen vorhanden.",
+        "baseField": "Basistest",
+        "titleField": "Titel des Prüfungssatzes",
+        "titleSuggestion": "telc Deutsch B1 — Zusammengestellter Satz {n}",
+        "slotsLegend": "Aus dem Pool ersetzte Teile",
+        "noSlots": "Der Pool hat keinen Teil, der zu einem Platz dieses Basistests passt.",
+        "keepBase": "Teil des Basistests behalten",
+        "exposure": "{n}-mal verwendet",
+        "preview": "Vorschau",
+        "previewAria": "Vorschau Teil #{id}",
+        "typeMismatch": "Nicht ersetzbar: Dieser Platz im Basistest hat den Typ {base}, der Pool-Teil den Typ {bank}.",
+        "reuseWarning": "Nicht ersetzte Teile stammen unverändert aus dem Basistest — wer den Basistest gemacht hat, sieht sie erneut.",
+        "assemble": "Zusammenstellen",
+        "assembled": "Prüfungssatz erstellt — Status: Demnächst",
+        "replacingCount": "{n} Teile werden ersetzt",
+        "error": {
+          "NO_BASE": "Basistest wählen.",
+          "NO_TITLE": "Titel eingeben.",
+          "NO_REPLACEMENT": "Mindestens einen Pool-Teil zum Ersetzen wählen."
+        },
+        "listTitle": "Zusammengestellte Prüfungssätze",
+        "empty": "Noch keine zusammengestellten Prüfungssätze",
+        "emptyHint": "Mit dem Formular oben den ersten zusammenstellen.",
+        "base": "Basis: {title}",
+        "replaced": "{slot} ← Teil #{id}",
+        "status": {
+          "UPCOMING": "Demnächst",
+          "PUBLISHED": "Veröffentlicht",
+          "RETIRED": "Zurückgezogen"
+        },
+        "viewAsStudent": "Als Lernende ansehen",
+        "publish": "Veröffentlichen",
+        "publishTitle": "Diesen Prüfungssatz veröffentlichen?",
+        "publishBody": "Nach der Veröffentlichung sehen Lernende \"{title}\" in ihrer Prüfungsliste und können ihn sofort bearbeiten.",
+        "published": "Prüfungssatz veröffentlicht",
+        "retire": "Zurückziehen",
+        "retireTitle": "Diesen Prüfungssatz zurückziehen?",
+        "retireBody": "\"{title}\" wird in der Prüfungsliste der Lernenden ausgeblendet. Später erneut veröffentlichbar.",
+        "retired": "Prüfungssatz zurückgezogen"
       }
     }
   }

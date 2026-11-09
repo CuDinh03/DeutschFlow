@@ -96,6 +96,25 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                                {"text": "Rentner schlafen an allen Tagen ähnlich lange.", "paragraph": 4}],
                      "confirms": []}""";
         }
+        if (system.startsWith("Du schreibst FÜNF NEUE")) {
+            List<String> texts = new ArrayList<>();
+            for (int i = 1; i <= 5; i++) {
+                texts.add("{\"text\": \"Meldung " + i + ": " + (PARAS[i % PARAS.length] + " ").repeat(4).trim()
+                        + "\", \"usedFactIds\": [\"s1f1\"]}");
+            }
+            return "{\"texts\": [" + String.join(",", texts) + "]}";
+        }
+        if (system.startsWith("Du erstellst Überschriften")) {
+            Matcher m = Pattern.compile("slot (\\d+) → Text").matcher(user);
+            List<String> items = new ArrayList<>();
+            while (m.find()) {
+                int s = Integer.parseInt(m.group(1));
+                items.add(("{\"slot\": %d, \"headline\": \"RICHTIG %d\", \"nearHeadline\": \"Falle %d\","
+                        + " \"trap\": \"übertreibt\", \"evidence\": \"Meldung %d\","
+                        + " \"explanationVi\": \"{1} đúng, {2} là bẫy.\"}").formatted(s, s + 1, s + 1, s + 1));
+            }
+            return "{\"items\": [" + String.join(",", items) + "]}";
+        }
         if (system.startsWith("Du schreibst einen NEUEN Lesetext")) {
             StringBuilder sb = new StringBuilder("{\"titleDe\": \"Zu wenig Schlaf\", \"vorspannDe\": \"Eine Umfrage zeigt:"
                     + " Viele schlafen werktags zu kurz.\", \"glossary\": [], \"usedFactIds\": [\"s1f1\", \"s1f2\"],"
@@ -121,13 +140,22 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
             return "{\"items\": [" + String.join(",", items) + "]}";
         }
         if (system.contains("Prüfungsexperte")) {
-            Matcher m = Pattern.compile("(LV2-\\d+):").matcher(user);
+            Matcher m = Pattern.compile("(LV[12]-\\d+):").matcher(user);
             List<String> out = new ArrayList<>();
             while (m.find()) {
                 out.add("{\"id\": \"" + m.group(1) + "\", \"phrasing\": 1, \"evidence\": 1, \"distractors\": 1,"
                         + " \"language\": 0, \"multiParagraph\": false, \"halfTrue\": false}");
             }
             return "{\"items\": [" + String.join(",", out) + "]}";
+        }
+        if (system.startsWith("Löse die Aufgaben") && user.contains("ÜBERSCHRIFTEN")) {
+            Matcher q = Pattern.compile("(LV1-(\\d+)): Text").matcher(user);
+            List<String> out = new ArrayList<>();
+            while (q.find()) {
+                Matcher h = Pattern.compile("  ([a-j])\\) RICHTIG " + q.group(2) + "\\n").matcher(user);
+                out.add("{\"id\": \"" + q.group(1) + "\", \"answer\": \"" + (h.find() ? h.group(1) : "a") + "\"}");
+            }
+            return "{\"answers\": [" + String.join(",", out) + "]}";
         }
         if (system.startsWith("Löse die Aufgaben")) {
             // AI giỏi: chọn phương án bắt đầu bằng RICHTIG
@@ -244,6 +272,48 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                 .hasMessageContaining("đúng 5 câu");
         assertThatThrownBy(() -> service.create(new CreateDraftRequest("TELC", "B1", "LESEN", 3, null, "EXAM",
                 Map.of("EASY", 5)), admin))
-                .hasMessageContaining("Lesen Teil 2");
+                .hasMessageContaining("Lesen Teil 1 và Teil 2");
+    }
+
+    @Test
+    @DisplayName("Lesen Teil 1: 5 văn bản, 10 tiêu đề a–j không trùng, vào kho đúng khuôn MATCH_HEADLINE")
+    void lesenTeil1Flow() {
+        Draft d = service.create(new CreateDraftRequest("TELC", "B1", "LESEN", 1, "Wohnen", "EXAM",
+                Map.of("EASY", 1, "MEDIUM", 2, "HARD", 1, "EXPERT", 1)), admin);
+        service.addSource(d.id(), new AddSourceRequest(null, SOURCE_TEXT, null, null), admin);
+        runPendingJob(d.id());
+        d = service.get(d.id());
+        service.patchSource(d.id(), d.sources().get(0).id(), new PatchSourceRequest("FACTS_ONLY", List.of("s1f1")));
+        service.writeText(d.id(), new WriteTextRequest(null, null, null), admin);
+        runPendingJob(d.id());
+        d = service.get(d.id());
+        assertThat(TextChecks.paragraphs(d.text().context())).hasSize(5);
+
+        service.generateItems(d.id(), admin);
+        runPendingJob(d.id());
+        d = service.get(d.id());
+        assertThat(d.items()).extracting(Item::id).containsExactly("LV1-1", "LV1-2", "LV1-3", "LV1-4", "LV1-5");
+        java.util.Set<String> letters = new java.util.HashSet<>();
+        d.items().forEach(i -> letters.addAll(i.options().keySet()));
+        assertThat(letters).hasSize(10).allMatch(l -> "abcdefghij".contains(l));
+        assertThat(d.items()).allSatisfy(i -> {
+            assertThat(i.options().get(i.correct())).startsWith("RICHTIG");
+            assertThat(i.explanationVi()).startsWith(i.correct() + " đúng");
+        });
+
+        service.verify(d.id(), admin);
+        runPendingJob(d.id());
+        d = service.get(d.id());
+        assertThat(d.checks()).extracting(Check::key).doesNotContain("ORDER", "ANSWERS");
+        assertThat(d.checks()).noneMatch(c -> "RED".equals(c.light()));
+        Map<String, Boolean> all = new java.util.HashMap<>();
+        TeilSpec.CHECKLIST_KEYS.forEach(k -> all.put(k, true));
+        d = service.approve(d.id(), all, admin);
+
+        Map<String, Object> content = service.getBlock(d.blockId()).content();
+        assertThat(content).containsEntry("type", "MATCH_HEADLINE").containsEntry("single_use", true);
+        assertThat((Map<?, ?>) content.get("headlines")).hasSize(10);
+        assertThat((List<?>) content.get("items")).hasSize(5)
+                .allSatisfy(it -> assertThat(((Map<?, ?>) it).get("text").toString()).startsWith("Meldung"));
     }
 }

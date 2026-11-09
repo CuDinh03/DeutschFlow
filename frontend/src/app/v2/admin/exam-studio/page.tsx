@@ -19,6 +19,7 @@ import {
 } from '@/components/ui-v2'
 import { CreateDraftModal } from '@/components/admin/exam-studio/CreateDraftModal'
 import { BlockPreviewModal } from '@/components/admin/exam-studio/BlockPreviewModal'
+import { AssembliesTab } from '@/components/admin/exam-studio/AssembliesTab'
 import { studioMiniBtn } from '@/components/admin/exam-studio/ui'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +27,8 @@ import { studioMiniBtn } from '@/components/admin/exam-studio/ui'
 // plans/2026-11-09-thiet-ke-co-che-tao-de.md (LOCAL). Đợt 1: telc · B1 · LESEN · Teil 2.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Tab = 'drafts' | 'blocks'
+type Tab = 'drafts' | 'blocks' | 'assemblies'
+const TABS: Tab[] = ['drafts', 'blocks', 'assemblies']
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -40,9 +42,10 @@ export default function AdminExamStudioPage() {
   const [tab, setTab] = useState<Tab>('drafts')
   const [creating, setCreating] = useState(false)
 
-  // ?tab=blocks (từ màn duyệt xong). Đọc tay để khỏi cần Suspense cho useSearchParams.
+  // ?tab=blocks (từ màn duyệt xong) / ?tab=assemblies. Đọc tay để khỏi cần Suspense cho useSearchParams.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('tab') === 'blocks') setTab('blocks')
+    const q = new URLSearchParams(window.location.search).get('tab')
+    if (q && (TABS as string[]).includes(q)) setTab(q as Tab)
   }, [])
 
   return (
@@ -64,9 +67,11 @@ export default function AdminExamStudioPage() {
           <TkTabsList>
             <TkTabsTrigger value="drafts">{t('tabs.drafts')}</TkTabsTrigger>
             <TkTabsTrigger value="blocks">{t('tabs.blocks')}</TkTabsTrigger>
+            <TkTabsTrigger value="assemblies">{t('tabs.assemblies')}</TkTabsTrigger>
           </TkTabsList>
           <TkTabsContent value="drafts"><DraftsTab active={tab === 'drafts'} /></TkTabsContent>
           <TkTabsContent value="blocks"><BlocksTab active={tab === 'blocks'} /></TkTabsContent>
+          <TkTabsContent value="assemblies"><AssembliesTab active={tab === 'assemblies'} /></TkTabsContent>
         </TkTabs>
       </div>
 

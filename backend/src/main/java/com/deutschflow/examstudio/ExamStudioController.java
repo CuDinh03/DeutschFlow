@@ -24,6 +24,7 @@ import java.util.Map;
 public class ExamStudioController {
 
     private final ExamDraftService service;
+    private final ExamAssemblyService assembly;
     private final AuditLogService audit;
 
     @GetMapping("/drafts")
@@ -112,6 +113,48 @@ public class ExamStudioController {
     @GetMapping("/blocks/{id}")
     public BlockDetail block(@PathVariable long id) {
         return service.getBlock(id);
+    }
+
+    // ── Ghép bộ đề từ kho (đợt 2) ───────────────────────────────────────────────────────────
+
+    @GetMapping("/assembly/bases")
+    public List<ExamAssemblyService.BaseExam> bases(@RequestParam(defaultValue = "TELC") String examFormat,
+                                                    @RequestParam(defaultValue = "B1") String cefrLevel) {
+        return assembly.bases(examFormat, cefrLevel);
+    }
+
+    @GetMapping("/assembly/slots")
+    public List<ExamAssemblyService.SlotBlocks> slots(@RequestParam(defaultValue = "TELC") String examFormat,
+                                                      @RequestParam(defaultValue = "B1") String cefrLevel) {
+        return assembly.slots(examFormat, cefrLevel);
+    }
+
+    @GetMapping("/assemblies")
+    public List<ExamAssemblyService.Assembled> assemblies() {
+        return assembly.list();
+    }
+
+    @PostMapping("/assemblies")
+    public ExamAssemblyService.Assembled assemble(@RequestBody ExamAssemblyService.AssembleRequest req,
+                                                  @AuthenticationPrincipal User actor) {
+        ExamAssemblyService.Assembled a = assembly.assemble(req);
+        audit.log("admin.exam_studio.exam_assembled", AuditActor.of(actor), "MOCK_EXAM", String.valueOf(a.id()),
+                Map.of("baseExamId", a.baseExamId(), "teile", a.teile().size()));
+        return a;
+    }
+
+    @PostMapping("/assemblies/{examId}/publish")
+    public ExamAssemblyService.Assembled publish(@PathVariable long examId, @AuthenticationPrincipal User actor) {
+        ExamAssemblyService.Assembled a = assembly.publish(examId);
+        audit.log("admin.exam_studio.exam_published", AuditActor.of(actor), "MOCK_EXAM", String.valueOf(examId), Map.of());
+        return a;
+    }
+
+    @PostMapping("/assemblies/{examId}/retire")
+    public ExamAssemblyService.Assembled retire(@PathVariable long examId, @AuthenticationPrincipal User actor) {
+        ExamAssemblyService.Assembled a = assembly.retire(examId);
+        audit.log("admin.exam_studio.exam_retired", AuditActor.of(actor), "MOCK_EXAM", String.valueOf(examId), Map.of());
+        return a;
     }
 
     private void log(String event, User actor, long draftId) {
