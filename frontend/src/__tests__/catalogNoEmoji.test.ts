@@ -93,7 +93,7 @@ describe('catalog /v2 — emoji không được đóng vai icon', () => {
     const found: string[] = []
     walk(catalogMessages('vi').v2, '', found)
     expect(found).toEqual([])
-    // Bỏ miễn trừ ⇒ đúng 4 khoá đó phải hiện ra; nếu không, danh sách đã lỗi thời.
+    // Bỏ miễn trừ ⇒ đúng 3 khoá đó phải hiện ra; nếu không, danh sách đã lỗi thời.
     const withoutAllow: string[] = []
     const walkAll = (node: unknown, path: string): void => {
       if (typeof node === 'string') {

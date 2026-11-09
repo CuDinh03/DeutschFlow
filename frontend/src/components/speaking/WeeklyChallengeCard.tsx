@@ -226,7 +226,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
           )}
           {prompt.optionalPoints?.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-ga-subtle">
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-ga-muted">
                 {t("weeklyOptional")}
               </p>
               <ul className="text-[11px] space-y-0.5 list-disc pl-4 text-ga-muted">
@@ -261,7 +261,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
                   disabled={submitting || weeklyRec !== "idle"}
                   placeholder={t("weeklyTranscriptPlaceholder")}
                   rows={4}
-                  className={`flex-1 min-w-0 px-3 py-2.5 rounded-[12px] text-[13px] outline-none resize-y border bg-ga-surface text-ga-ink caret-ga-ink placeholder:text-ga-subtle focus-visible:border-ga-ink ${
+                  className={`flex-1 min-w-0 px-3 py-2.5 rounded-[12px] text-[13px] outline-none resize-y border bg-ga-surface text-ga-ink caret-ga-ink placeholder:text-ga-subtle focus-visible:border-ga-ink focus-visible:ring-2 focus-visible:ring-ga-focus ${
                     transcript ? "border-ga-line-strong" : "border-ga-line"
                   }`}
                 />
