@@ -1,0 +1,89 @@
+# ============================================================
+# monitoring.compose.yml — giám sát NHẸ trên VM tự host (Giai đoạn 0 "Không mù", 09/11/2026)
+#
+# Chỉ 3 dịch vụ: Prometheus + Alertmanager + node-exporter (trần RAM ~600 MB).
+# KHÔNG chạy Grafana/Loki/Promtail của docker-compose.prod.yml: VM chỉ có ~5,8 GB RAM và blue-green
+# backend cần +2,2 GB lúc deploy; Grafana còn trùng cổng 127.0.0.1:3001 với frontend-green.
+#
+# Chạy (trên VM, từ /srv/deutschflow/repo):
+#   docker compose -p deutschflow-monitoring -f deploy/self-host/monitoring.compose.yml up -d
+# Hướng dẫn đầy đủ: docs/GIAM_SAT_TU_HOST.md
+#
+# Bí mật KHÔNG nằm trong repo — đọc từ /home/deploy/secrets/:
+#   prometheus_scrape_token   cùng giá trị PROMETHEUS_SCRAPE_TOKEN trong /srv/deutschflow/env/backend.env
+#   telegram_bot_token        token bot Telegram (owner tạo qua @BotFather)
+# Cấu hình Alertmanager thật (/srv/deutschflow/env/alertmanager.yml) sinh từ
+# docker/alertmanager/alertmanager.yml.example bằng deploy/self-host/install-monitoring.sh.
+# ============================================================
+name: deutschflow-monitoring
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.2
+    container_name: deutschflow-prometheus
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 400m
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ../../docker/prometheus:/etc/prometheus:ro
+      - /home/deploy/secrets/prometheus_scrape_token:/etc/prometheus-secrets/scrape-token:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=2GB'
+      - '--web.enable-lifecycle'
+    networks:
+      - deutschflow-net
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: deutschflow-alertmanager
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - /srv/deutschflow/env/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - /home/deploy/secrets/telegram_bot_token:/etc/alertmanager-secrets/telegram_bot_token:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - deutschflow-net
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: deutschflow-node-exporter
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    command:
+      - '--path.rootfs=/host'
+      # Số đo do deploy/self-host/metrics-textfile.sh ghi (backup, token AI) — xem file đó.
+      - '--collector.textfile.directory=/host/var/lib/node_exporter/textfile_collector'
+    networks:
+      - deutschflow-net
+
+networks:
+  deutschflow-net:
+    # Mạng do _lib.sh (DF_NET) tạo, backend/frontend/postgres đã nằm sẵn trong đó.
+    external: true
+
+volumes:
+  prometheus_data:
+  alertmanager_data:

@@ -32,13 +32,15 @@ groups:
       # target cũ `backend:8080` không resolve được từ network của Prometheus nên toàn bộ dashboard
       # + alert backend câm lặng từ đầu. Hai rule này bảo đảm sự cố scrape tự lên tiếng.
       - alert: BackendScrapeDown
-        expr: up{job="deutschflow-backend"} == 0
+        # Blue-green: luôn có một màu đã gỡ (target down là bình thường) ⇒ chỉ kêu khi KHÔNG màu
+        # nào scrape được. Trong lúc deploy hai màu cùng sống vài phút — vẫn không kêu.
+        expr: max(up{job="deutschflow-backend"}) == 0
         for: 2m
         labels:
           severity: critical
         annotations:
           summary: "Prometheus không scrape được backend"
-          description: "Target deutschflow-backend:8080 down >2 phút — backend chết HOẶC sai network/tên container. Kiểm: docker network inspect + docker exec deutschflow-prometheus wget -qO- deutschflow-backend:8080/actuator/prometheus."
+          description: "Cả deutschflow-backend và deutschflow-backend-green đều không scrape được >2 phút — backend chết, sai mạng/tên container, HOẶC token scrape lệch. Kiểm: curl 127.0.0.1:9090/api/v1/targets trên VM."
 
       - alert: BackendScrapeAbsent
         expr: absent(up{job="deutschflow-backend"})
@@ -152,3 +154,47 @@ groups:
         annotations:
           summary: "Circuit breaker {{ $labels.name }} dang OPEN"
           description: "Dich vu ngoai sau breaker nay dang hong lien tuc. Kiem tra provider tuong ung (Groq/Fireworks/TTS) va log loi gan nhat."
+
+  # ── VM tự host (Giai đoạn 0 "Không mù", 09/11/2026) ──────────────────────────
+  # Số đo backup và token AI do deploy/self-host/metrics-textfile.sh ghi mỗi 5 phút vào textfile
+  # collector của node-exporter. Script chết ⇒ serie cũ dần ⇒ DeutschflowTextfileStale kêu.
+  - name: deutschflow_selfhost
+    rules:
+      - alert: DeutschflowTextfileStale
+        expr: time() - deutschflow_textfile_last_run_timestamp_seconds > 1800 or absent(deutschflow_textfile_last_run_timestamp_seconds)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Số đo backup/AI không cập nhật"
+          description: "metrics-textfile.sh không chạy >30 phút ⇒ BackupStale/AiTokensSpike đang mù. Kiểm: systemctl status deutschflow-metrics.timer deutschflow-metrics.service."
+
+      - alert: BackupStale
+        # Timer backup chạy 03:00 VN mỗi ngày (+≤10 phút ngẫu nhiên). 26h = trễ một lần là kêu.
+        expr: time() - deutschflow_backup_last_success_timestamp_seconds > 26 * 3600
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backup DB quá 26 giờ chưa thành công"
+          description: "/backup/db/.last-success cũ hơn 26 giờ. Kiểm: journalctl -u deutschflow-backup.service -n 100. Chạy tay: sudo systemctl start deutschflow-backup.service."
+
+      - alert: AiTokensSpike
+        # Chưa có trần ngân sách do owner chốt ⇒ ngưỡng tương đối: hôm nay (giờ VN) vượt 300k token
+        # VÀ gấp 3 lần trung bình 7 ngày trước. Mức dùng 11/2026 ~10-35k token/ngày.
+        expr: deutschflow_ai_tokens_today > 300000 and deutschflow_ai_tokens_today > 3 * deutschflow_ai_tokens_avg_7d
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Token AI hôm nay tăng bất thường"
+          description: "Hôm nay {{ $value | humanize }} token (giờ VN), vượt 300k và gấp 3 lần trung bình 7 ngày. Xem /v2/admin/ai-usage để tìm người/tính năng tiêu nhiều."
+
+      - alert: SpeakingAiFailures
+        expr: sum(increase(speaking_ai_failures_total[15m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Lỗi gọi AI luyện nói tăng"
+          description: "Hơn 10 lỗi speaking.ai.failures trong 15 phút (theo nhãn code: RATE_LIMITED, TIMEOUT…). Nhà cung cấp AI có thể đang sự cố hoặc hết hạn mức."

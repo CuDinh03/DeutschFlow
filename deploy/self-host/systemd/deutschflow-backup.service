@@ -2,6 +2,8 @@
 Description=DeutschFlow — backup Postgres (age) lên /backup + R2
 Wants=network-online.target docker.service
 After=network-online.target docker.service
+# Backup hỏng ⇒ báo Telegram TRỰC TIẾP (không cần Prometheus còn sống). Xem telegram-alert.sh.
+OnFailure=deutschflow-alert@%n.service
 
 [Service]
 Type=oneshot
