@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
   replace: vi.fn(),
+  stopPostHog: vi.fn(),
   startSupportSession: vi.fn(),
   getSupportSession: vi.fn(),
   isSupportMode: vi.fn(() => false),
@@ -31,6 +32,12 @@ vi.mock('@/lib/api', async (importOriginal) => {
     default: { get: mocks.get, post: mocks.post },
     apiMessage: (e: unknown) => (e instanceof Error ? e.message : 'lỗi'),
   }
+})
+// Trang đổi mã điều hướng bằng tải lại toàn trang (hardReplace) để PostHog/khác đã khởi động chết theo.
+vi.mock('@/lib/hardNavigate', () => ({ hardReplace: mocks.replace }))
+vi.mock('@/lib/posthogClient', async (importOriginal) => {
+  const actual = await importOriginal<object>()
+  return { ...actual, stopPostHogForSupport: mocks.stopPostHog }
 })
 vi.mock('sonner', () => ({ toast: Object.assign(() => undefined, { success: vi.fn(), error: vi.fn() }) }))
 vi.mock('next/navigation', () => ({
@@ -136,6 +143,7 @@ describe('/v2/support-session — đổi mã', () => {
     expect(sessionStorage.getItem('accessToken')).toBeNull()
     expect(mocks.post).toHaveBeenCalledWith('/auth/support-session/redeem', { code: 'HANDOFF123' }, { withCredentials: true })
     expect(mocks.startSupportSession).toHaveBeenCalledWith('support.jwt', expect.objectContaining({ id: 77, role: 'TEACHER', orgRole: 'MANAGER' }))
+    expect(mocks.stopPostHog).toHaveBeenCalled()
   })
 
   it('mã hỏng / hết hạn → thông báo rõ + nút đóng tab, không lưu gì', async () => {

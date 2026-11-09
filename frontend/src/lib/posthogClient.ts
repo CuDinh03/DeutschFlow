@@ -27,9 +27,33 @@ const queue: Task[] = []
 const readyListeners = new Set<(ph: PostHog) => void>()
 
 /** Chạy `task` với PostHog đã init; chưa sẵn sàng thì xếp hàng (bỏ bớt khi hàng đầy). */
+/**
+ * Tab đang (hoặc sắp) ở chế độ hỗ trợ chỉ-đọc. Trang `/v2/support-session` tính luôn là hỗ trợ: lúc nó
+ * đang đổi mã thì `isSupportMode()` còn false, mà PostHog khởi động lúc tab rảnh (thường đúng lúc chờ
+ * redeem) — để lọt là autocapture/ghi phiên chạy suốt trên dữ liệu của người dùng (review #805).
+ */
+function inSupportContext(): boolean {
+  if (isSupportMode()) return true
+  return typeof window !== 'undefined' && window.location.pathname.includes('/v2/support-session')
+}
+
+/**
+ * Lưới cuối: tab vừa vào chế độ hỗ trợ mà PostHog lỡ đã chạy → tắt ghi phiên + ngừng capture.
+ * Trang phiên hỗ trợ còn tải lại toàn trang (hardReplace) nên instance cũ chết theo.
+ */
+export function stopPostHogForSupport(): void {
+  if (!instance) return
+  try {
+    instance.stopSessionRecording()
+    instance.opt_out_capturing()
+  } catch {
+    // analytics hỏng không được làm hỏng trang
+  }
+}
+
 export function withPostHog(task: Task): void {
   // Tab phiên hỗ trợ chỉ-đọc: ADMIN đang xem như người dùng — không identify/capture gì dưới danh tính họ.
-  if (isSupportMode()) return
+  if (inSupportContext()) return
   if (instance) {
     task(instance)
     return
@@ -49,7 +73,7 @@ export function getPostHog(): PostHog | null {
  */
 export function loadPostHog(init: (ph: PostHog) => void): Promise<PostHog | null> {
   // Tab phiên hỗ trợ: KHÔNG init PostHog (không pageview, không ghi phiên, không autocapture).
-  if (isSupportMode()) return Promise.resolve(null)
+  if (inSupportContext()) return Promise.resolve(null)
   if (instance) return Promise.resolve(instance)
   if (loading) return loading
   loading = import('posthog-js')

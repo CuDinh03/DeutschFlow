@@ -7,6 +7,8 @@ import { Eye } from 'lucide-react'
 import api from '@/lib/api'
 import { getSupportSession, isSupportMode, startSupportSession } from '@/lib/authSession'
 import { homeFor } from '@/lib/roleRouting'
+import { hardReplace } from '@/lib/hardNavigate'
+import { stopPostHogForSupport } from '@/lib/posthogClient'
 import { GaBtn } from '@/components/ui-v2'
 import { closeSupportTab } from '@/components/ui-v2/SupportSessionBanner'
 import { readHandoffCode } from './supportHandoff'
@@ -72,7 +74,10 @@ export default function SupportSessionPage() {
           targetName: s.targetName || s.targetEmail,
           targetEmail: s.targetEmail,
         })
-        router.replace(homeFor(s.role, { orgRole: s.orgRole }))
+        stopPostHogForSupport()
+        // Tải lại TOÀN TRANG (không router.replace): mọi thứ đã khởi động trước khi tab vào chế độ hỗ trợ
+        // (PostHog, listener…) phải chết theo trang này — review #805.
+        hardReplace(homeFor(s.role, { orgRole: s.orgRole }))
       } catch {
         setView('failed')
       }
