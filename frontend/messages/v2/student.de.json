@@ -1619,6 +1619,7 @@
       "correct": "Richtig!",
       "incorrect": "Noch nicht richtig",
       "answerIs": "Lösung:",
+      "checkError": "Diese Antwort konnte nicht geprüft werden — bitte noch einmal antworten.",
       "submit": "Abgeben · {correct}/{total} richtig",
       "resultLine": "{correct} / {total} richtig",
       "generateNext": "Neue Übung machen",

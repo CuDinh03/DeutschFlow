@@ -1619,6 +1619,7 @@
       "correct": "Chính xác!",
       "incorrect": "Chưa đúng",
       "answerIs": "Đáp án:",
+      "checkError": "Chưa chấm được câu này — thử trả lời lại.",
       "submit": "Nộp bài · {correct}/{total} đúng",
       "resultLine": "{correct} / {total} câu đúng",
       "generateNext": "Làm thêm bài mới",
