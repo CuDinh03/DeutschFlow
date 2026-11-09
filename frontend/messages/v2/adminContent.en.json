@@ -553,6 +553,284 @@
       "removed": "Removed {name}",
       "removeOne": "Remove {name}",
       "unknownCap": "Entries that match no account"
+    },
+    "examStudio": {
+      "title": "Exam studio",
+      "subtitle": "Build an exam Teil from German news sources: AI drafts the text and items by difficulty matrix, the owner approves into the bank.",
+      "hint": "Phase 1: telc · B1 · Lesen · Teil 2 (article + 5 a/b/c items)",
+      "createTeil": "New Teil",
+      "loading": "Loading…",
+      "next": "Next step",
+      "cancel": "Cancel",
+      "saved": "Saved",
+      "unsaved": "Unsaved changes",
+      "later": "Later phase",
+      "lastErrorTitle": "The last AI operation failed",
+      "busyHint": "This screen updates itself when done.",
+      "busy": {
+        "FACTS": "Reading the source and extracting facts…",
+        "TEXT": "AI is writing the text…",
+        "ITEMS": "AI is writing the questions…",
+        "ITEM": "Regenerating the item…",
+        "VERIFY": "Running self-checks…"
+      },
+      "busyShort": {
+        "FACTS": "Extracting facts",
+        "TEXT": "Writing text",
+        "ITEMS": "Writing items",
+        "ITEM": "Regenerating item",
+        "VERIFY": "Self-check"
+      },
+      "light": {
+        "GREEN": "Green light",
+        "YELLOW": "Yellow light",
+        "RED": "Red light",
+        "NONE": "Not checked"
+      },
+      "status": {
+        "DRAFT": "Draft",
+        "APPROVED": "Approved",
+        "DISCARDED": "Discarded"
+      },
+      "step": {
+        "FRAME": "Frame",
+        "SOURCE": "Sources",
+        "TEXT": "Text",
+        "ITEMS": "Items",
+        "REVIEW": "Check & approve"
+      },
+      "stepper": {
+        "label": "Teil creation steps",
+        "done": "(done)"
+      },
+      "mode": {
+        "EXAM": "Mock exam",
+        "PRACTICE": "Teil practice"
+      },
+      "modeHint": {
+        "EXAM": "The item total must match the Teil's item count, like the real exam.",
+        "PRACTICE": "Standalone practice: item count may differ, no difficulty warning."
+      },
+      "section": {
+        "LESEN": "Reading (Lesen)",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Listening (Hören)",
+        "SCHREIBEN": "Writing (Schreiben)"
+      },
+      "tabs": {
+        "drafts": "Drafts",
+        "blocks": "Teil bank"
+      },
+      "create": {
+        "title": "New Teil",
+        "subtitle": "The draft's frame. Theme and difficulty matrix can be changed later in the Frame step.",
+        "submit": "Create draft",
+        "created": "Draft created"
+      },
+      "frame": {
+        "exam": "Exam",
+        "level": "Level",
+        "section": "Section",
+        "teil": "Teil",
+        "itemCount": "Items",
+        "blueprintHint": "From the blueprint: Lesen Teil 2 B1 has {itemCount} a/b/c items and a 300–450 word text.",
+        "theme": "Theme (optional)",
+        "themeAny": "Let AI suggest based on gaps in the bank",
+        "mode": "Mode",
+        "matrix": "Difficulty matrix",
+        "save": "Save frame"
+      },
+      "matrix": {
+        "decrease": "One fewer {level} item",
+        "increase": "One more {level} item",
+        "total": "Total = {total} / {itemCount}",
+        "practiceFree": "practice may differ from the real item count",
+        "sumError": "A mock exam must have exactly {itemCount} items.",
+        "empty": "At least one item is required.",
+        "expertWarning": "More than 1 very hard item: harder than the real exam.",
+        "presets": "Presets"
+      },
+      "source": {
+        "addTitle": "Add a source",
+        "addSecond": "Add a second source to cross-check",
+        "kind": "How to add the source",
+        "kindUrl": "Paste URL",
+        "kindPaste": "Paste text",
+        "url": "Article URL",
+        "paste": "Paste text (for paywalled pages) — the text is not stored",
+        "titleOptional": "Title (optional)",
+        "publisherOptional": "Publisher (optional)",
+        "submit": "Read source",
+        "flaggedBlock": "A source in use is flagged for neutrality. Untick its facts or remove the source to continue.",
+        "needFact": "Tick at least one fact for the AI to write from.",
+        "selectedCount": "{n} facts ticked",
+        "removeTitle": "Remove this source?",
+        "remove": "Remove source",
+        "removeAria": "Remove source {title}",
+        "untitled": "Untitled source",
+        "usageConfirmed": "Confirmed",
+        "usageGuess": "Machine guess, not confirmed",
+        "confirmUsage": "Confirm",
+        "switchUsage": "Switch to {mode}",
+        "neutralOk": "Neutral",
+        "neutralFlagged": "Neutrality flag",
+        "license": "Licence",
+        "licenseNone": "No licence line found — facts only by default.",
+        "facts": "Facts ({n})",
+        "noFacts": "No facts extracted yet.",
+        "figure": "Figure: {v}",
+        "year": "Year: {v}",
+        "paragraph": "Paragraph {n}",
+        "corroborated": "Second source",
+        "noSecond": "no second source yet"
+      },
+      "usage": {
+        "ADAPT": "Adaptation (CC BY)",
+        "FACTS_ONLY": "Facts only"
+      },
+      "text": {
+        "write": "AI write text",
+        "rewriteAll": "AI rewrite whole text",
+        "saveFirst": "Save or discard manual edits before calling AI.",
+        "empty": "No text yet. Click \"AI write text\": the only input is the facts ticked in Sources.",
+        "titleDe": "Title (German)",
+        "vorspannDe": "Lead / Vorspann",
+        "context": "Reading text",
+        "contextHint": "Separate paragraphs with a blank line; glossed words are marked with *.",
+        "rewriteSel": "Rewrite this passage",
+        "simplifySel": "Simpler",
+        "selected": "About {n} words selected",
+        "selectHint": "Select a passage in the text to rewrite it.",
+        "glossary": "Glossary",
+        "glossTerm": "Glossed word {n}",
+        "glossTermPh": "Word",
+        "glossExpl": "German explanation {n}",
+        "glossExplPh": "Explanation (German)",
+        "glossRemove": "Remove gloss {n}",
+        "glossAdd": "Add gloss",
+        "save": "Save manual edits",
+        "discard": "Discard edits",
+        "preview": "Preview (passages copied from the source in red)"
+      },
+      "metrics": {
+        "none": "Metrics appear once there is a text.",
+        "title": "Metrics",
+        "words": "Word count",
+        "wordsValue": "{n} / {lo}–{hi}",
+        "aboveLevel": "Above-level words",
+        "ratioValue": "{v} / max {max}",
+        "overlap": "Source overlap (consecutive words)",
+        "overlapValue": "{n} / limit {limit}",
+        "unused": "Unused facts",
+        "overlapBlock": "The text still copies the source verbatim — rewrite the red passages."
+      },
+      "items": {
+        "generate": "Generate items",
+        "regenerateAll": "Regenerate unlocked items",
+        "generateHint": "AI writes each item at its assigned level; locked items are kept.",
+        "matrixCaption": "Difficulty matrix: plan vs current",
+        "row": {
+          "planned": "Plan",
+          "target": "Assigned",
+          "measured": "Measured"
+        },
+        "empty": "No items yet. Click \"Generate items\".",
+        "needText": "A reading text is needed before generating items.",
+        "itemN": "Item {n}",
+        "difficulty": "Assigned: {target} · Measured: {measured} ({total}/8)",
+        "difficultyUnmeasured": "Assigned: {target} · not measured",
+        "lockedBadge": "Locked",
+        "scoreDetails": "4-factor scores",
+        "question": "Question",
+        "options": "Options (pick the correct one)",
+        "markCorrect": "Correct answer is {k}",
+        "optionN": "Option {k}",
+        "evidence": "Evidence sentence in the text",
+        "explanation": "Explanation",
+        "saveEdit": "Save item",
+        "trap": "Trap: {rule}",
+        "changeLevel": "Change level",
+        "regenerate": "Regenerate",
+        "lock": "Lock",
+        "unlock": "Unlock",
+        "edit": "Edit"
+      },
+      "score": {
+        "phrasing": "Answer phrasing",
+        "evidence": "Evidence spread",
+        "distractors": "Distractors",
+        "language": "Question language"
+      },
+      "checklist": {
+        "LEVEL": "Correct CEFR level",
+        "FORMAT": "Matches the telc format",
+        "SINGLE_ANSWER": "Exactly one correct answer per item",
+        "NEUTRAL": "Neutral topic",
+        "FACTS_MATCH": "Facts match the source",
+        "NO_COPY": "No verbatim copying",
+        "QUELLE": "Source line matches the licence",
+        "EXPLANATION": "Vietnamese explanations are correct"
+      },
+      "review": {
+        "verify": "Run self-check",
+        "verifyHint": "Checks format, source overlap, AI test solve and difficulty. Red lights block approval.",
+        "noChecks": "Self-check has not run yet.",
+        "checklist": "Review checklist (owner ticks every item)",
+        "machine": {
+          "PASS": "Machine: pass",
+          "FAIL": "Machine: fail",
+          "UNKNOWN": "Machine: cannot check"
+        },
+        "quelle": "Quelle line",
+        "quelleNone": "No Quelle line yet.",
+        "blocker": {
+          "CHECKLIST": "Tick all 8 checklist items.",
+          "RED_ITEM": "Some items have a red light — edit or regenerate them.",
+          "RED_CHECK": "The self-check still has red lights.",
+          "NO_ITEMS": "No items yet.",
+          "BUSY": "An AI operation is running.",
+          "NOT_DRAFT": "This is no longer a draft."
+        },
+        "approve": "Approve and add to bank",
+        "approvedToast": "Approved and added to the Teil bank",
+        "approvedTitle": "Approved",
+        "approvedBody": "The Teil is in the bank as #{id}.",
+        "toBlocks": "Open Teil bank",
+        "preview": "Student view",
+        "showAnswers": "Show answers and explanations"
+      },
+      "preview": {
+        "noTitle": "(no title yet)",
+        "noText": "(no reading text yet)",
+        "correct": "Correct answer"
+      },
+      "wizard": {
+        "back": "Back to exam studio",
+        "badId": "Invalid draft id.",
+        "loadError": "Could not load the draft",
+        "untitled": "Draft #{id}",
+        "discarded": "This draft was discarded — read only."
+      },
+      "drafts": {
+        "loadError": "Could not load drafts",
+        "empty": "No drafts yet",
+        "emptyHint": "Click \"New Teil\" to start.",
+        "open": "Open",
+        "discard": "Discard draft",
+        "discardAria": "Discard draft {title}",
+        "discardTitle": "Discard this draft?",
+        "discardBody": "Draft \"{title}\" will be marked discarded and disappear from this list.",
+        "discarded": "Draft discarded"
+      },
+      "blocks": {
+        "loadError": "Could not load the Teil bank",
+        "empty": "The Teil bank is empty",
+        "emptyHint": "Teile approved in the Check & approve step appear here.",
+        "previewTitle": "Teil #{id}",
+        "reviewed": "reviewed by {by} at {at}",
+        "countsAria": "Items per difficulty level",
+        "view": "View"
+      }
     }
   }
 }

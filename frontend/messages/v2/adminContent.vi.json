@@ -553,6 +553,284 @@
       "removed": "Đã gỡ {name}",
       "removeOne": "Gỡ {name}",
       "unknownCap": "Mục không khớp tài khoản nào"
+    },
+    "examStudio": {
+      "title": "Xưởng đề",
+      "subtitle": "Tạo Teil đề thi từ nguồn báo Đức: AI viết bài, ra câu theo ma trận độ khó, owner duyệt vào kho.",
+      "hint": "Đợt 1: telc · B1 · Lesen · Teil 2 (bài báo + 5 câu a/b/c)",
+      "createTeil": "Tạo Teil mới",
+      "loading": "Đang tải…",
+      "next": "Bước tiếp",
+      "cancel": "Huỷ",
+      "saved": "Đã lưu",
+      "unsaved": "Có thay đổi chưa lưu",
+      "later": "Đợt sau",
+      "lastErrorTitle": "Thao tác AI gần nhất bị lỗi",
+      "busyHint": "Màn hình tự cập nhật khi xong.",
+      "busy": {
+        "FACTS": "Đang đọc nguồn và rút dữ kiện…",
+        "TEXT": "AI đang viết bài…",
+        "ITEMS": "AI đang ra câu hỏi…",
+        "ITEM": "Đang sinh lại câu…",
+        "VERIFY": "Đang tự kiểm…"
+      },
+      "busyShort": {
+        "FACTS": "Rút dữ kiện",
+        "TEXT": "Viết bài",
+        "ITEMS": "Ra câu hỏi",
+        "ITEM": "Sinh lại câu",
+        "VERIFY": "Tự kiểm"
+      },
+      "light": {
+        "GREEN": "Đèn xanh",
+        "YELLOW": "Đèn vàng",
+        "RED": "Đèn đỏ",
+        "NONE": "Chưa kiểm"
+      },
+      "status": {
+        "DRAFT": "Bản nháp",
+        "APPROVED": "Đã duyệt",
+        "DISCARDED": "Đã huỷ"
+      },
+      "step": {
+        "FRAME": "Khung",
+        "SOURCE": "Nguồn",
+        "TEXT": "Bài đọc",
+        "ITEMS": "Câu hỏi",
+        "REVIEW": "Kiểm & duyệt"
+      },
+      "stepper": {
+        "label": "Các bước tạo Teil",
+        "done": "(đã xong)"
+      },
+      "mode": {
+        "EXAM": "Đề thi thử",
+        "PRACTICE": "Bài luyện Teil"
+      },
+      "modeHint": {
+        "EXAM": "Tổng số câu phải bằng số câu của Teil, như đề thật.",
+        "PRACTICE": "Bài luyện lẻ: số câu được khác đề thật, không cảnh báo độ khó."
+      },
+      "section": {
+        "LESEN": "Đọc (Lesen)",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Nghe (Hören)",
+        "SCHREIBEN": "Viết (Schreiben)"
+      },
+      "tabs": {
+        "drafts": "Bản nháp",
+        "blocks": "Kho Teil"
+      },
+      "create": {
+        "title": "Tạo Teil mới",
+        "subtitle": "Khung của bản nháp. Chủ đề và ma trận độ khó sửa lại được ở bước Khung.",
+        "submit": "Tạo bản nháp",
+        "created": "Đã tạo bản nháp"
+      },
+      "frame": {
+        "exam": "Kỳ thi",
+        "level": "Cấp",
+        "section": "Phần",
+        "teil": "Teil",
+        "itemCount": "Số câu",
+        "blueprintHint": "Thông số lấy từ blueprint: Lesen Teil 2 B1 có {itemCount} câu a/b/c, bài 300–450 từ.",
+        "theme": "Chủ đề (tuỳ chọn)",
+        "themeAny": "Để AI gợi ý theo chỗ còn thiếu trong kho",
+        "mode": "Chế độ",
+        "matrix": "Ma trận độ khó",
+        "save": "Lưu khung"
+      },
+      "matrix": {
+        "decrease": "Bớt một câu {level}",
+        "increase": "Thêm một câu {level}",
+        "total": "Tổng = {total} / {itemCount}",
+        "practiceFree": "bài luyện được khác số câu đề thật",
+        "sumError": "Đề thi thử phải có đúng {itemCount} câu.",
+        "empty": "Cần ít nhất một câu.",
+        "expertWarning": "Hơn 1 câu Siêu khó: đề này khó hơn đề thật.",
+        "presets": "Mẫu nhanh"
+      },
+      "source": {
+        "addTitle": "Thêm nguồn",
+        "addSecond": "Thêm nguồn thứ hai để đối chiếu",
+        "kind": "Cách thêm nguồn",
+        "kindUrl": "Dán URL",
+        "kindPaste": "Dán văn bản",
+        "url": "URL bài báo",
+        "paste": "Dán văn bản (khi trang có paywall) — văn bản không được lưu",
+        "titleOptional": "Tiêu đề (tuỳ chọn)",
+        "publisherOptional": "Nơi đăng (tuỳ chọn)",
+        "submit": "Đọc nguồn",
+        "flaggedBlock": "Có nguồn đang dùng bị cờ trung lập. Bỏ tích dữ kiện của nguồn đó hoặc xoá nguồn để sang bước sau.",
+        "needFact": "Tích ít nhất một dữ kiện để AI viết bài.",
+        "selectedCount": "Đã tích {n} dữ kiện",
+        "removeTitle": "Xoá nguồn này?",
+        "remove": "Xoá nguồn",
+        "removeAria": "Xoá nguồn {title}",
+        "untitled": "Nguồn chưa có tiêu đề",
+        "usageConfirmed": "Đã xác nhận",
+        "usageGuess": "Máy đoán, chưa xác nhận",
+        "confirmUsage": "Xác nhận",
+        "switchUsage": "Đổi sang {mode}",
+        "neutralOk": "Trung lập",
+        "neutralFlagged": "Bị cờ trung lập",
+        "license": "Giấy phép",
+        "licenseNone": "Không đọc được dòng giấy phép — mặc định chỉ dùng dữ kiện.",
+        "facts": "Dữ kiện ({n})",
+        "noFacts": "Chưa rút được dữ kiện nào.",
+        "figure": "Số liệu: {v}",
+        "year": "Năm: {v}",
+        "paragraph": "Đoạn {n}",
+        "corroborated": "Có nguồn thứ hai",
+        "noSecond": "chưa có nguồn thứ hai"
+      },
+      "usage": {
+        "ADAPT": "Chuyển thể (CC BY)",
+        "FACTS_ONLY": "Chỉ dữ kiện"
+      },
+      "text": {
+        "write": "AI viết bài",
+        "rewriteAll": "AI viết lại cả bài",
+        "saveFirst": "Lưu hoặc bỏ sửa tay trước khi gọi AI.",
+        "empty": "Chưa có bài. Bấm \"AI viết bài\": đầu vào chỉ là các dữ kiện đã tích ở bước Nguồn.",
+        "titleDe": "Tiêu đề (tiếng Đức)",
+        "vorspannDe": "Sapo / Vorspann",
+        "context": "Bài đọc",
+        "contextHint": "Các đoạn cách nhau bằng một dòng trống; từ có chú thích đánh dấu *.",
+        "rewriteSel": "Viết lại đoạn này",
+        "simplifySel": "Đơn giản hơn",
+        "selected": "Đã chọn khoảng {n} từ",
+        "selectHint": "Bôi đen một đoạn trong bài để viết lại.",
+        "glossary": "Chú thích từ khó",
+        "glossTerm": "Từ cần chú thích {n}",
+        "glossTermPh": "Từ",
+        "glossExpl": "Giải nghĩa tiếng Đức {n}",
+        "glossExplPh": "Giải nghĩa (tiếng Đức)",
+        "glossRemove": "Xoá chú thích {n}",
+        "glossAdd": "Thêm chú thích",
+        "save": "Lưu sửa tay",
+        "discard": "Bỏ sửa",
+        "preview": "Xem trước (đoạn trùng nguồn tô đỏ)"
+      },
+      "metrics": {
+        "none": "Bảng đo hiện sau khi có bài.",
+        "title": "Bảng đo",
+        "words": "Số từ",
+        "wordsValue": "{n} / {lo}–{hi}",
+        "aboveLevel": "Từ trên cấp",
+        "ratioValue": "{v} / tối đa {max}",
+        "overlap": "Trùng nguồn (từ liên tiếp)",
+        "overlapValue": "{n} / ngưỡng {limit}",
+        "unused": "Dữ kiện chưa dùng",
+        "overlapBlock": "Bài còn đoạn chép nguyên văn từ nguồn — viết lại các đoạn tô đỏ."
+      },
+      "items": {
+        "generate": "Sinh câu hỏi",
+        "regenerateAll": "Sinh lại các câu chưa khoá",
+        "generateHint": "AI ra từng câu đúng bậc được giao; câu đã khoá được giữ nguyên.",
+        "matrixCaption": "Ma trận độ khó: kế hoạch so với hiện có",
+        "row": {
+          "planned": "Kế hoạch",
+          "target": "Đang giao",
+          "measured": "Đo lại"
+        },
+        "empty": "Chưa có câu hỏi. Bấm \"Sinh câu hỏi\".",
+        "needText": "Cần có bài đọc trước khi sinh câu hỏi.",
+        "itemN": "Câu {n}",
+        "difficulty": "Giao: {target} · Đo: {measured} ({total}/8)",
+        "difficultyUnmeasured": "Giao: {target} · chưa đo",
+        "lockedBadge": "Đã khoá",
+        "scoreDetails": "Điểm 4 yếu tố",
+        "question": "Câu hỏi",
+        "options": "Phương án (chọn đáp án đúng)",
+        "markCorrect": "Đáp án đúng là {k}",
+        "optionN": "Phương án {k}",
+        "evidence": "Câu bằng chứng trong bài",
+        "explanation": "Giải thích",
+        "saveEdit": "Lưu câu",
+        "trap": "Bẫy: {rule}",
+        "changeLevel": "Đổi bậc",
+        "regenerate": "Sinh lại",
+        "lock": "Khoá",
+        "unlock": "Mở khoá",
+        "edit": "Sửa tay"
+      },
+      "score": {
+        "phrasing": "Diễn đạt đáp án",
+        "evidence": "Vị trí bằng chứng",
+        "distractors": "Phương án nhiễu",
+        "language": "Ngôn ngữ câu hỏi"
+      },
+      "checklist": {
+        "LEVEL": "Trình độ đúng cấp",
+        "FORMAT": "Đúng dạng telc",
+        "SINGLE_ANSWER": "Mỗi câu một đáp án đúng",
+        "NEUTRAL": "Chủ đề trung lập",
+        "FACTS_MATCH": "Dữ kiện khớp nguồn",
+        "NO_COPY": "Không chép nguyên văn",
+        "QUELLE": "Dòng nguồn đúng giấy phép",
+        "EXPLANATION": "Giải thích tiếng Việt đúng"
+      },
+      "review": {
+        "verify": "Chạy tự kiểm",
+        "verifyHint": "Kiểm khuôn, trùng nguồn, AI giải thử, độ khó. Còn đèn đỏ thì không duyệt được.",
+        "noChecks": "Chưa chạy tự kiểm.",
+        "checklist": "Danh sách duyệt (owner tích từng mục)",
+        "machine": {
+          "PASS": "Máy: đạt",
+          "FAIL": "Máy: chưa đạt",
+          "UNKNOWN": "Máy: không tự kiểm được"
+        },
+        "quelle": "Dòng Quelle",
+        "quelleNone": "Chưa có dòng Quelle.",
+        "blocker": {
+          "CHECKLIST": "Tích đủ 8 mục duyệt.",
+          "RED_ITEM": "Còn câu đèn đỏ — sửa hoặc sinh lại.",
+          "RED_CHECK": "Tự kiểm còn đèn đỏ.",
+          "NO_ITEMS": "Chưa có câu hỏi.",
+          "BUSY": "Đang có thao tác AI chạy.",
+          "NOT_DRAFT": "Bản nháp không còn ở trạng thái nháp."
+        },
+        "approve": "Duyệt và đưa vào kho",
+        "approvedToast": "Đã duyệt và đưa vào kho Teil",
+        "approvedTitle": "Đã duyệt",
+        "approvedBody": "Teil đã vào kho với mã #{id}.",
+        "toBlocks": "Xem kho Teil",
+        "preview": "Xem như học viên",
+        "showAnswers": "Hiện đáp án và giải thích"
+      },
+      "preview": {
+        "noTitle": "(chưa có tiêu đề)",
+        "noText": "(chưa có bài đọc)",
+        "correct": "Đáp án đúng"
+      },
+      "wizard": {
+        "back": "Về danh sách Xưởng đề",
+        "badId": "Mã bản nháp không hợp lệ.",
+        "loadError": "Không tải được bản nháp",
+        "untitled": "Bản nháp #{id}",
+        "discarded": "Bản nháp này đã bị huỷ — chỉ xem."
+      },
+      "drafts": {
+        "loadError": "Không tải được danh sách bản nháp",
+        "empty": "Chưa có bản nháp nào",
+        "emptyHint": "Bấm \"Tạo Teil mới\" để bắt đầu.",
+        "open": "Mở",
+        "discard": "Huỷ bản nháp",
+        "discardAria": "Huỷ bản nháp {title}",
+        "discardTitle": "Huỷ bản nháp này?",
+        "discardBody": "Bản nháp \"{title}\" sẽ chuyển sang Đã huỷ và không hiện trong danh sách nữa.",
+        "discarded": "Đã huỷ bản nháp"
+      },
+      "blocks": {
+        "loadError": "Không tải được kho Teil",
+        "empty": "Kho Teil còn trống",
+        "emptyHint": "Teil được duyệt ở bước Kiểm & duyệt sẽ hiện ở đây.",
+        "previewTitle": "Teil #{id}",
+        "reviewed": "duyệt bởi {by} lúc {at}",
+        "countsAria": "Số câu theo bậc độ khó",
+        "view": "Xem"
+      }
     }
   }
 }

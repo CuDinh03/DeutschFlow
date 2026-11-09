@@ -553,6 +553,284 @@
       "removed": "{name} entfernt",
       "removeOne": "{name} entfernen",
       "unknownCap": "Einträge ohne passendes Konto"
+    },
+    "examStudio": {
+      "title": "Prüfungswerkstatt",
+      "subtitle": "Prüfungsteile aus deutschen Nachrichtenquellen erstellen: KI schreibt Text und Aufgaben nach Schwierigkeitsmatrix, der Owner gibt sie für den Pool frei.",
+      "hint": "Phase 1: telc · B1 · Lesen · Teil 2 (Artikel + 5 Aufgaben a/b/c)",
+      "createTeil": "Neuer Teil",
+      "loading": "Wird geladen…",
+      "next": "Nächster Schritt",
+      "cancel": "Abbrechen",
+      "saved": "Gespeichert",
+      "unsaved": "Ungespeicherte Änderungen",
+      "later": "Spätere Phase",
+      "lastErrorTitle": "Der letzte KI-Vorgang ist fehlgeschlagen",
+      "busyHint": "Die Ansicht aktualisiert sich automatisch.",
+      "busy": {
+        "FACTS": "Quelle wird gelesen, Fakten werden extrahiert…",
+        "TEXT": "KI schreibt den Text…",
+        "ITEMS": "KI erstellt die Aufgaben…",
+        "ITEM": "Aufgabe wird neu erstellt…",
+        "VERIFY": "Selbstprüfung läuft…"
+      },
+      "busyShort": {
+        "FACTS": "Fakten",
+        "TEXT": "Text",
+        "ITEMS": "Aufgaben",
+        "ITEM": "Aufgabe neu",
+        "VERIFY": "Selbstprüfung"
+      },
+      "light": {
+        "GREEN": "Grünes Licht",
+        "YELLOW": "Gelbes Licht",
+        "RED": "Rotes Licht",
+        "NONE": "Nicht geprüft"
+      },
+      "status": {
+        "DRAFT": "Entwurf",
+        "APPROVED": "Freigegeben",
+        "DISCARDED": "Verworfen"
+      },
+      "step": {
+        "FRAME": "Rahmen",
+        "SOURCE": "Quellen",
+        "TEXT": "Lesetext",
+        "ITEMS": "Aufgaben",
+        "REVIEW": "Prüfen & freigeben"
+      },
+      "stepper": {
+        "label": "Schritte zum Teil",
+        "done": "(erledigt)"
+      },
+      "mode": {
+        "EXAM": "Modelltest",
+        "PRACTICE": "Teil-Übung"
+      },
+      "modeHint": {
+        "EXAM": "Die Summe muss der Aufgabenzahl des Teils entsprechen, wie in der echten Prüfung.",
+        "PRACTICE": "Einzelübung: Aufgabenzahl darf abweichen, keine Schwierigkeitswarnung."
+      },
+      "section": {
+        "LESEN": "Lesen",
+        "SPRACHBAUSTEINE": "Sprachbausteine",
+        "HOEREN": "Hören",
+        "SCHREIBEN": "Schreiben"
+      },
+      "tabs": {
+        "drafts": "Entwürfe",
+        "blocks": "Teil-Pool"
+      },
+      "create": {
+        "title": "Neuer Teil",
+        "subtitle": "Rahmen des Entwurfs. Thema und Schwierigkeitsmatrix lassen sich im Schritt Rahmen ändern.",
+        "submit": "Entwurf anlegen",
+        "created": "Entwurf angelegt"
+      },
+      "frame": {
+        "exam": "Prüfung",
+        "level": "Niveau",
+        "section": "Prüfungsteil",
+        "teil": "Teil",
+        "itemCount": "Aufgaben",
+        "blueprintHint": "Laut Blueprint: Lesen Teil 2 B1 hat {itemCount} Aufgaben a/b/c und einen Text mit 300–450 Wörtern.",
+        "theme": "Thema (optional)",
+        "themeAny": "KI schlägt nach Lücken im Pool vor",
+        "mode": "Modus",
+        "matrix": "Schwierigkeitsmatrix",
+        "save": "Rahmen speichern"
+      },
+      "matrix": {
+        "decrease": "Eine Aufgabe {level} weniger",
+        "increase": "Eine Aufgabe {level} mehr",
+        "total": "Summe = {total} / {itemCount}",
+        "practiceFree": "Übungen dürfen von der echten Aufgabenzahl abweichen",
+        "sumError": "Ein Modelltest braucht genau {itemCount} Aufgaben.",
+        "empty": "Mindestens eine Aufgabe ist nötig.",
+        "expertWarning": "Mehr als 1 sehr schwere Aufgabe: schwerer als die echte Prüfung.",
+        "presets": "Vorlagen"
+      },
+      "source": {
+        "addTitle": "Quelle hinzufügen",
+        "addSecond": "Zweite Quelle zum Abgleich hinzufügen",
+        "kind": "Art der Quelle",
+        "kindUrl": "URL einfügen",
+        "kindPaste": "Text einfügen",
+        "url": "Artikel-URL",
+        "paste": "Text einfügen (bei Paywall) — der Text wird nicht gespeichert",
+        "titleOptional": "Titel (optional)",
+        "publisherOptional": "Medium (optional)",
+        "submit": "Quelle lesen",
+        "flaggedBlock": "Eine verwendete Quelle ist als nicht neutral markiert. Fakten abwählen oder Quelle entfernen, um fortzufahren.",
+        "needFact": "Mindestens einen Fakt auswählen, damit die KI schreiben kann.",
+        "selectedCount": "{n} Fakten ausgewählt",
+        "removeTitle": "Quelle entfernen?",
+        "remove": "Quelle entfernen",
+        "removeAria": "Quelle {title} entfernen",
+        "untitled": "Quelle ohne Titel",
+        "usageConfirmed": "Bestätigt",
+        "usageGuess": "Maschinelle Schätzung, nicht bestätigt",
+        "confirmUsage": "Bestätigen",
+        "switchUsage": "Wechseln zu {mode}",
+        "neutralOk": "Neutral",
+        "neutralFlagged": "Neutralität markiert",
+        "license": "Lizenz",
+        "licenseNone": "Keine Lizenzzeile gefunden — standardmäßig nur Fakten.",
+        "facts": "Fakten ({n})",
+        "noFacts": "Noch keine Fakten extrahiert.",
+        "figure": "Zahl: {v}",
+        "year": "Jahr: {v}",
+        "paragraph": "Absatz {n}",
+        "corroborated": "Zweite Quelle",
+        "noSecond": "noch keine zweite Quelle"
+      },
+      "usage": {
+        "ADAPT": "Bearbeitung (CC BY)",
+        "FACTS_ONLY": "Nur Fakten"
+      },
+      "text": {
+        "write": "KI schreibt Text",
+        "rewriteAll": "KI schreibt den ganzen Text neu",
+        "saveFirst": "Manuelle Änderungen erst speichern oder verwerfen.",
+        "empty": "Noch kein Text. \"KI schreibt Text\" nutzt nur die ausgewählten Fakten aus Quellen.",
+        "titleDe": "Titel (Deutsch)",
+        "vorspannDe": "Vorspann",
+        "context": "Lesetext",
+        "contextHint": "Absätze durch eine Leerzeile trennen; erklärte Wörter mit * markieren.",
+        "rewriteSel": "Abschnitt neu schreiben",
+        "simplifySel": "Einfacher",
+        "selected": "Etwa {n} Wörter markiert",
+        "selectHint": "Einen Abschnitt im Text markieren, um ihn neu zu schreiben.",
+        "glossary": "Worterklärungen",
+        "glossTerm": "Erklärtes Wort {n}",
+        "glossTermPh": "Wort",
+        "glossExpl": "Erklärung {n}",
+        "glossExplPh": "Erklärung (Deutsch)",
+        "glossRemove": "Erklärung {n} entfernen",
+        "glossAdd": "Erklärung hinzufügen",
+        "save": "Änderungen speichern",
+        "discard": "Verwerfen",
+        "preview": "Vorschau (aus der Quelle kopierte Stellen rot)"
+      },
+      "metrics": {
+        "none": "Messwerte erscheinen, sobald ein Text vorliegt.",
+        "title": "Messwerte",
+        "words": "Wörter",
+        "wordsValue": "{n} / {lo}–{hi}",
+        "aboveLevel": "Wörter über Niveau",
+        "ratioValue": "{v} / max. {max}",
+        "overlap": "Übereinstimmung mit Quelle (Wörter in Folge)",
+        "overlapValue": "{n} / Grenze {limit}",
+        "unused": "Ungenutzte Fakten",
+        "overlapBlock": "Der Text kopiert noch wörtlich aus der Quelle — rote Stellen neu schreiben."
+      },
+      "items": {
+        "generate": "Aufgaben erstellen",
+        "regenerateAll": "Nicht gesperrte Aufgaben neu erstellen",
+        "generateHint": "Die KI erstellt jede Aufgabe auf der zugewiesenen Stufe; gesperrte bleiben erhalten.",
+        "matrixCaption": "Schwierigkeitsmatrix: Plan und Ist",
+        "row": {
+          "planned": "Plan",
+          "target": "Zugewiesen",
+          "measured": "Gemessen"
+        },
+        "empty": "Noch keine Aufgaben. \"Aufgaben erstellen\" klicken.",
+        "needText": "Vor den Aufgaben wird ein Lesetext benötigt.",
+        "itemN": "Aufgabe {n}",
+        "difficulty": "Zugewiesen: {target} · Gemessen: {measured} ({total}/8)",
+        "difficultyUnmeasured": "Zugewiesen: {target} · nicht gemessen",
+        "lockedBadge": "Gesperrt",
+        "scoreDetails": "Punkte der 4 Faktoren",
+        "question": "Frage",
+        "options": "Optionen (richtige auswählen)",
+        "markCorrect": "Richtige Antwort ist {k}",
+        "optionN": "Option {k}",
+        "evidence": "Belegsatz im Text",
+        "explanation": "Erklärung",
+        "saveEdit": "Aufgabe speichern",
+        "trap": "Falle: {rule}",
+        "changeLevel": "Stufe ändern",
+        "regenerate": "Neu erstellen",
+        "lock": "Sperren",
+        "unlock": "Entsperren",
+        "edit": "Bearbeiten"
+      },
+      "score": {
+        "phrasing": "Formulierung der Lösung",
+        "evidence": "Lage des Belegs",
+        "distractors": "Distraktoren",
+        "language": "Sprache der Frage"
+      },
+      "checklist": {
+        "LEVEL": "Richtiges Niveau",
+        "FORMAT": "Entspricht dem telc-Format",
+        "SINGLE_ANSWER": "Genau eine richtige Lösung je Aufgabe",
+        "NEUTRAL": "Neutrales Thema",
+        "FACTS_MATCH": "Fakten stimmen mit der Quelle überein",
+        "NO_COPY": "Keine wörtliche Übernahme",
+        "QUELLE": "Quellenzeile passt zur Lizenz",
+        "EXPLANATION": "Vietnamesische Erklärungen korrekt"
+      },
+      "review": {
+        "verify": "Selbstprüfung starten",
+        "verifyHint": "Prüft Format, Quellenübereinstimmung, KI-Testlösung und Schwierigkeit. Rote Lichter blockieren die Freigabe.",
+        "noChecks": "Selbstprüfung noch nicht gelaufen.",
+        "checklist": "Freigabe-Checkliste (Owner hakt jeden Punkt ab)",
+        "machine": {
+          "PASS": "Maschine: erfüllt",
+          "FAIL": "Maschine: nicht erfüllt",
+          "UNKNOWN": "Maschine: nicht prüfbar"
+        },
+        "quelle": "Quellenzeile",
+        "quelleNone": "Noch keine Quellenzeile.",
+        "blocker": {
+          "CHECKLIST": "Alle 8 Punkte abhaken.",
+          "RED_ITEM": "Aufgaben mit rotem Licht — bearbeiten oder neu erstellen.",
+          "RED_CHECK": "Die Selbstprüfung hat noch rote Lichter.",
+          "NO_ITEMS": "Noch keine Aufgaben.",
+          "BUSY": "Ein KI-Vorgang läuft.",
+          "NOT_DRAFT": "Dies ist kein Entwurf mehr."
+        },
+        "approve": "Freigeben und in den Pool",
+        "approvedToast": "Freigegeben und im Teil-Pool",
+        "approvedTitle": "Freigegeben",
+        "approvedBody": "Der Teil liegt im Pool als #{id}.",
+        "toBlocks": "Teil-Pool öffnen",
+        "preview": "Ansicht wie Lernende",
+        "showAnswers": "Lösungen und Erklärungen zeigen"
+      },
+      "preview": {
+        "noTitle": "(noch kein Titel)",
+        "noText": "(noch kein Lesetext)",
+        "correct": "Richtige Lösung"
+      },
+      "wizard": {
+        "back": "Zurück zur Prüfungswerkstatt",
+        "badId": "Ungültige Entwurfs-ID.",
+        "loadError": "Entwurf konnte nicht geladen werden",
+        "untitled": "Entwurf #{id}",
+        "discarded": "Dieser Entwurf wurde verworfen — nur Ansicht."
+      },
+      "drafts": {
+        "loadError": "Entwürfe konnten nicht geladen werden",
+        "empty": "Noch keine Entwürfe",
+        "emptyHint": "\"Neuer Teil\" klicken, um zu beginnen.",
+        "open": "Öffnen",
+        "discard": "Entwurf verwerfen",
+        "discardAria": "Entwurf {title} verwerfen",
+        "discardTitle": "Diesen Entwurf verwerfen?",
+        "discardBody": "Entwurf \"{title}\" wird als verworfen markiert und verschwindet aus der Liste.",
+        "discarded": "Entwurf verworfen"
+      },
+      "blocks": {
+        "loadError": "Teil-Pool konnte nicht geladen werden",
+        "empty": "Der Teil-Pool ist leer",
+        "emptyHint": "Im Schritt Prüfen & freigeben freigegebene Teile erscheinen hier.",
+        "previewTitle": "Teil #{id}",
+        "reviewed": "geprüft von {by} am {at}",
+        "countsAria": "Aufgaben je Schwierigkeitsstufe",
+        "view": "Ansehen"
+      }
     }
   }
 }
