@@ -12,7 +12,7 @@ import { isAttemptAlreadyFinished } from '@/lib/mockExamFinish'
 import { classifyDraftSaveError, parseDraftAnswers, type DraftSaveResult } from '@/lib/exam/examDraftSync'
 import type { ExamGate } from '@/components/exam/telc/examGates'
 import type { ExamBudget } from '@/components/exam/telc/examBudget'
-import type { PracticeTeilResult, WritingEvaluation } from '@/lib/telcPracticeApi'
+import type { ItemAiAnswer, PracticeTeilResult, WritingEvaluation } from '@/lib/telcPracticeApi'
 
 export interface StartedAttempt {
   attemptId: number
@@ -23,6 +23,8 @@ export interface StartedAttempt {
   answers: Record<string, string>
   sectionIndex: number
   draftVersion: number
+  /** Câu "đánh dấu xem lại" đã lưu cùng nháp (B3, V373). */
+  flags: string[]
   /** Lượt trước của đề này vừa được server chốt "Dừng giữa chừng" vì quá giờ khi vắng mặt. */
   closedAttemptId: number | null
 }
@@ -33,7 +35,7 @@ interface StartResponse {
   sections_json?: unknown
   time_limit_minutes?: number
   remaining_seconds?: number
-  draft?: { answers_json?: string | null; section_index?: number | null; version: number }
+  draft?: { answers_json?: string | null; section_index?: number | null; version: number; flags?: string[] | null }
   closed_attempt_id?: number | null
 }
 
@@ -65,20 +67,26 @@ export async function startAttempt(examId: number): Promise<StartedAttempt> {
     answers: parseDraftAnswers(data?.draft?.answers_json),
     sectionIndex: typeof data?.draft?.section_index === 'number' ? data.draft.section_index : 0,
     draftVersion: data?.draft?.version ?? 0,
+    flags: parseFlags(data?.draft?.flags),
     closedAttemptId: typeof data?.closed_attempt_id === 'number' ? data.closed_attempt_id : null,
   }
 }
 
-/** PATCH …/draft — kết quả theo union của autosaver (`examDraftSync`). */
+export function parseFlags(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && x !== '') : []
+}
+
+/** PATCH …/draft — kết quả theo union của autosaver (`examDraftSync`). `flags` thiếu ⇒ server giữ giá trị cũ. */
 export async function saveAttemptDraft(
   attemptId: number,
-  payload: { answers: Record<string, string>; sectionIndex: number },
+  payload: { answers: Record<string, string>; sectionIndex: number; flags?: string[] },
   baseVersion: number,
 ): Promise<DraftSaveResult> {
   try {
     const res = await api.patch(`/mock-exams/attempts/${attemptId}/draft`, {
       answers: payload.answers,
       sectionIndex: payload.sectionIndex,
+      ...(payload.flags ? { flags: payload.flags } : {}),
       baseVersion,
     })
     const data = res.data as { version?: number; remaining_seconds?: number | null }
@@ -248,4 +256,16 @@ export function sectionScores(detailedJson: string | null | undefined): Record<s
   } catch {
     return {}
   }
+}
+
+/**
+ * "Hỏi AI về câu này" cho một câu của lượt thi thử đã nộp / dừng giữa chừng (B3). Lượt của người khác 404,
+ * lượt đang làm 409, hết lượt AI 429.
+ */
+export async function askAttemptItemAi(attemptId: number, teilKey: string, itemId: string, locale: string): Promise<ItemAiAnswer> {
+  const { data } = await api.post<ItemAiAnswer>(
+    `/mock-exams/practice/attempts/${attemptId}/teile/${encodeURIComponent(teilKey)}/items/${encodeURIComponent(itemId)}/ask-ai`,
+    { locale },
+  )
+  return data
 }

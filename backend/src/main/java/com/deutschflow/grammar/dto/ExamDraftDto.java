@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * Live autosaved draft of an in-progress mock exam attempt, embedded in
@@ -20,4 +21,10 @@ public record ExamDraftDto(
         @JsonProperty("section_index") Integer sectionIndex,
         @JsonProperty("question_index") Integer questionIndex,
         long version,
-        @JsonProperty("saved_at") Date savedAt) {}
+        @JsonProperty("saved_at") Date savedAt,
+        /* B3 (V373): câu đã "đánh dấu xem lại" — null thì bỏ khỏi JSON (NON_NULL). */
+        List<String> flags) {
+    public ExamDraftDto(String answersJson, Integer sectionIndex, Integer questionIndex, long version, Date savedAt) {
+        this(answersJson, sectionIndex, questionIndex, version, savedAt, null);
+    }
+}

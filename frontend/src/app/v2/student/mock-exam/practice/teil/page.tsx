@@ -9,6 +9,7 @@ import { BookOpen, ChevronRight, ClipboardList, GripHorizontal, Headphones, Ligh
 import { apiMessage } from '@/lib/api'
 import {
   WRITING_KEY,
+  askPracticeItemAi,
   checkPracticeTeil,
   getPracticeOverview,
   gradePracticeWriting,
@@ -30,6 +31,7 @@ import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { REWRITE_KEY } from '@/components/exam/mock/mockModel'
 import { useScreenTour, type TourStep } from '@/components/exam/tour/ScreenTour'
+import { ItemAssist, useCachedAsk, type ItemAssistValue } from '@/components/exam/practice/itemAssist'
 
 export default function PracticeTeilRoute() {
   return (
@@ -58,6 +60,8 @@ function PracticeTeilPage() {
   const [overview, setOverview] = React.useState<PracticeOverview | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [answers, setAnswers] = React.useState<Record<string, string>>({})
+  // "Vì sao tôi chọn" (B3): lưu cùng nháp và lúc nộp, hiện cạnh giải thích sau khi nộp.
+  const [notes, setNotes] = React.useState<Record<string, string>>({})
   const [result, setResult] = React.useState<PracticeTeilResult | null>(null)
   const [seconds, setSeconds] = React.useState(0)
   const [tipsOpen, setTipsOpen] = React.useState(false)
@@ -117,6 +121,7 @@ function PracticeTeilPage() {
           }
         } else {
           setAnswers(p?.answers ?? {})
+          setNotes(p?.notes ?? {})
           if (p?.checked && p.result) setResult(p.result as PracticeTeilResult)
         }
       })
@@ -193,6 +198,7 @@ function PracticeTeilPage() {
     examId,
     teilKey: overview ? teilKey : null,
     payload: draftPayload,
+    notes: isWriting ? undefined : notes,
     elapsed: () => secondsRef.current,
     enabled: draftOpen,
     hasWork: touched || meta?.progress != null,
@@ -210,6 +216,27 @@ function PracticeTeilPage() {
       return next
     })
   }, [])
+
+  const onNote = React.useCallback((id: string, text: string) => {
+    markDirtyRef.current()
+    setNotes((prev) => {
+      const next = { ...prev }
+      if (text.trim() === '') delete next[id]
+      else next[id] = text
+      return next
+    })
+  }, [])
+
+  // Sau khi nộp: hỏi AI về từng câu (server giữ bộ nhớ đệm; trang nhớ thêm để mở lại câu không gọi lại).
+  const askRaw = React.useCallback(
+    (itemId: string) => askPracticeItemAi(examId, teilKey, itemId, locale),
+    [examId, teilKey, locale],
+  )
+  const askAi = useCachedAsk(result ? askRaw : null, `${examId}|${teilKey}|${result ? 'checked' : ''}`)
+  const assist = React.useMemo<ItemAssistValue>(
+    () => (result ? { askAi, notes } : { notes, onNote }),
+    [result, askAi, notes, onNote],
+  )
 
   const onText = (v: string) => {
     markDirtyRef.current()
@@ -234,7 +261,8 @@ function PracticeTeilPage() {
     setConfirmOpen(false)
     setBusy(true)
     try {
-      const p = await checkPracticeTeil(examId, teilKey, answers, seconds)
+      const p = await checkPracticeTeil(examId, teilKey, answers, seconds, notes)
+      if (p.notes) setNotes(p.notes)
       setResult(p.result as PracticeTeilResult)
       setTipsOpen(false)
       draft.reset()
@@ -251,6 +279,7 @@ function PracticeTeilPage() {
       await resetPracticeTeil(examId, teilKey)
       setResult(null)
       setAnswers({})
+      setNotes({})
       setSeconds(0)
       draft.reset()
     } catch (e) {
@@ -475,19 +504,21 @@ function PracticeTeilPage() {
       saveState={result ? 'idle' : saveState}
       footer={footer}
     >
-      {meta.section === 'HOEREN' ? (
-        <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} />
-      ) : (
-        <ObjectiveTeilView
-          teil={teil}
-          kind={kind as 'match' | 'mc' | 'gap-mc' | 'gap-bank'}
-          answers={answers}
-          onAnswer={onAnswer}
-          result={result}
-          wide={wide}
-          tips={tips}
-        />
-      )}
+      <ItemAssist.Provider value={assist}>
+        {meta.section === 'HOEREN' ? (
+          <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} />
+        ) : (
+          <ObjectiveTeilView
+            teil={teil}
+            kind={kind as 'match' | 'mc' | 'gap-mc' | 'gap-bank'}
+            answers={answers}
+            onAnswer={onAnswer}
+            result={result}
+            wide={wide}
+            tips={tips}
+          />
+        )}
+      </ItemAssist.Provider>
     </PracticeShell>
     {drawer}
     {tour.overlay}

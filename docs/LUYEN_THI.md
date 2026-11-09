@@ -125,13 +125,15 @@ Chọn đề để mở một Teil (`pickExamFor`): đề đang làm dở Teil �
 |---|---|
 | `PracticeShell.tsx` | Khung toàn màn: thanh trên (thoát · ô icon + tên Teil · dấu hỏi hướng dẫn · bóng đèn chiến thuật · đồng hồ), thanh dưới (ô số câu gắn qua `PracticeFootSlot`, "Đã lưu", nút chính). Đồng hồ luyện đếm lên, ẩn được; thi thử đếm xuống, cam ≤ 5', đỏ ≤ 1' |
 | `SplitPanes.tsx` | ≥ 760px: hai cột cuộn riêng, vạch chia kéo được 35–65% (nhớ `df.practice.split`, nhấp đúp về 52%, phím mũi tên). < 760px: ngăn câu hỏi kéo lên xuống, mốc 28/55/88%. Thanh cuộn chỉ hiện khi đang cuộn (`.ga-autoscroll`) |
-| `ObjectiveTeilView.tsx` | 6 dạng khách quan (nối tiêu đề, a/b/c, rao vặt + x, chỗ trống a/b/c, kho từ, richtig/falsch); đáp án đã dùng có viền đứt; đánh dấu câu; phím tắt; sau khi nộp: `ItemAnalysis` (vì sao sai + bẫy, vì sao đúng + "Xem trong bài") |
+| `ObjectiveTeilView.tsx` | 6 dạng khách quan (nối tiêu đề, a/b/c, rao vặt + x, chỗ trống a/b/c, kho từ, richtig/falsch); đáp án đã dùng có viền đứt; đánh dấu câu (mọi dạng, phím F, hàng "Câu đã đánh dấu" để nhảy tới); phím tắt; sau khi nộp: `ItemAnalysis` (vì sao sai + bẫy, vì sao đúng + "Xem trong bài", ghi chú "vì sao tôi chọn", "Hỏi AI về câu này") |
+| `itemAssist.tsx` | B3 (09/11/2026): context `ItemAssist` (`askAi`, `notes`/`onNote`, `flags`/`onToggleFlag`, `jump`) — trang cấp, `ObjectiveTeilView`/`ItemAnalysis` đọc (Hören đi qua `HoerenTeilView` không đổi props); `AskAiPanel`, `NoteField`, `FlagToggle`, `FlaggedList`, `useCachedAsk` |
 | `HoerenTeilView.tsx` + `useHoerenRitual.ts` + `HoerenPlayer.tsx` | Hören 4 bước Chuẩn bị → Hướng dẫn (Ansage) → Đọc câu hỏi → Nghe; câu hỏi khoá tới hết Ansage; lượt nghe theo `max_plays` của đề (T1 1 lần + 30s đọc, T2 2 lần + 60s, T3 2 lần, không giờ đọc). Luyện từng Teil có công tắc "Như thi thật / Luyện thoải mái" (nhớ `df.practice.hoerenMode`); thi thử luôn như thi thật. Audio đọc bằng TTS (`speakExamLine`) |
 | `WritingTeilView.tsx` | Đề + 4 ý tự đánh dấu \| ô viết, đếm tới 80 từ, cụm chèn nhanh; điện thoại hai thẻ Đề bài \| Bài viết |
 | `WritingResultView.tsx` | Bài viết đã chấm: ô điểm /45 có vạch 60% và nhãn **"Ước tính"**, VI/DE nhớ `df.practice.writingLang`, lỗi tô vàng trong bài, ý thiếu là nhãn đỏ, thẻ ghi chú, 3 tiêu chí A–D, bài mẫu |
 
 Trang luyện Teil: `app/v2/student/mock-exam/practice/teil/page.tsx` — lưu nháp tự động (`PUT .../draft`, hook
-`usePracticeDraft`: hẹn giờ 1,5 s, lưu ngay khi thoát, `keepalive` khi đóng/ẩn tab), nộp
+`usePracticeDraft`: hẹn giờ 1,5 s, lưu ngay khi thoát, `keepalive` khi đóng/ẩn tab; từ B3 gửi kèm `notes` = ghi chú
+"vì sao tôi chọn" theo câu, tối đa 300 ký tự, không bắt buộc), nộp
 (`POST .../check`) hoặc chấm Viết (`POST .../schreiben`, job nền), "Làm lại", "Viết lại bài này", nộp dưới 60% có
 nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoải mái và khi hướng dẫn đang mở.
 
@@ -144,12 +146,16 @@ nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoả
    Chỉ chuyển Teil trong chặng hiện tại; "Sang Hören" mở màn tối đếm 10s (`HoerenRitual.tsx`), "Sang Schreiben" có hộp
    xác nhận; chặng lưu theo lượt ở `df.fullExam.stage.{attemptId}`. Nháp lưu lên server (`PATCH /attempts/{id}/draft`,
    có phiên bản chống ghi đè, rời trang thì `fetch keepalive`). Hết giờ ⇒ tự nộp, màn "Hết giờ. Bài đã tự nộp." + các bước chấm.
+   **Đánh dấu xem lại** (B3): cờ ở từng câu (mọi dạng, phím F) lưu cùng nháp (`flags`, cột `draft_flags_json`, V373) — tải
+   lại/đổi máy vẫn còn; nút "Câu đánh dấu (N)" ở thanh dưới (`components/exam/mock/FlaggedNav.tsx`) liệt kê câu của chặng
+   đang thi, bấm để sang Teil đó và tới câu đó. Thi thử không có ô "vì sao tôi chọn".
 3. **Nộp**: `POST /attempts/{id}/finish` → job chấm nền (Viết bằng AI) → client chờ `/async-jobs` → mở kết quả.
 4. **Dừng giữa chừng**: bấm thoát (mục 2.8) → `POST /attempts/{id}/stop` → kết quả "Dừng giữa chừng" (`PartialSummary`).
 
 ### 2.5 Kết quả thi thử — `components/exam/mock/ResultSummary.tsx`
 
 - Tiêu đề là kết luận: "Đỗ phần viết, hơn ngưỡng N điểm" / "Còn thiếu N điểm phần viết".
+- Xem lại một Teil khách quan (Lesen, Sprachbausteine, Hören) có nút **"Hỏi AI về câu này"** ở phân tích từng câu (mục 3.6).
 - Hai ô điểm (phần viết, phần nói) từ `gates` của `/attempts/{id}/result`; trạng thái **"Ước tính · Đỗ/Chưa đỗ · cần N"**
   và một dòng "điểm AI chấm theo tiêu chí telc, không phải điểm chính thức". Phần nói chưa thi ⇒ "Thi phần nói".
 - **Lấy lại điểm**: 3 dòng mất nhiều điểm nhất từ `budget.losses` (bỏ Nói, dòng chưa chấm), bấm mở Teil ở chế độ xem lại
@@ -231,14 +237,16 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | GET | `/mock-exams/packs`, `/mock-exams/packs/{id}` | Bộ đề, khoá theo gói | `MockExamPackController` |
 | GET | `/mock-exams/practice/access` | Có quyền luyện đề không | `MockExamPracticeController` |
 | GET | `/mock-exams/practice/{examId}` | Đề (đã bỏ đáp án) + tiến độ từng Teil | 〃 |
-| PUT | `/mock-exams/practice/{examId}/teile/{key}/draft` | Lưu nháp Teil | 〃 |
-| POST | `/mock-exams/practice/{examId}/teile/{key}/check` | Nộp Teil khách quan ⇒ phân tích từng câu | 〃 |
+| PUT | `/mock-exams/practice/{examId}/teile/{key}/draft` | Lưu nháp Teil (+ `notes` tuỳ chọn, B3; thiếu ⇒ giữ ghi chú cũ) | 〃 |
+| POST | `/mock-exams/practice/{examId}/teile/{key}/check` | Nộp Teil khách quan ⇒ phân tích từng câu (+ `notes`) | 〃 |
+| POST | `/mock-exams/practice/{examId}/teile/{key}/items/{itemId}/ask-ai` `{locale}` | "Hỏi AI về câu này" — Teil đã kiểm tra (chưa ⇒ 409) | 〃 + `ExamItemAiService` |
+| POST | `/mock-exams/practice/attempts/{id}/teile/{key}/items/{itemId}/ask-ai` `{locale}` | 〃 cho lượt thi thử đã nộp/dừng (người khác ⇒ 404, đang làm ⇒ 409) | 〃 |
 | DELETE | `/mock-exams/practice/{examId}/teile/{key}` | Làm lại Teil | 〃 |
 | POST | `/mock-exams/practice/{examId}/schreiben` | Chấm Viết bằng AI (trả `jobId`) | 〃 |
 | GET | `/mock-exams/practice/attempts/{id}/analysis` | Phân tích từng câu của lượt thi thử | 〃 |
 | GET | `/mock-exams/practice/mock-teile` | Điểm từng Teil của 30 lượt thi thử gần nhất (`COMPLETED` + `PARTIAL`) cho Bốn kỹ năng | 〃 + `MockAttemptTeilScores` |
 | POST | `/mock-exams/{examId}/start` | Bắt đầu / làm tiếp thi thử (idempotent) | `MockExamController` |
-| PATCH | `/mock-exams/attempts/{id}/draft` | Lưu nháp thi thử (có phiên bản) | 〃 |
+| PATCH | `/mock-exams/attempts/{id}/draft` | Lưu nháp thi thử (có phiên bản; `flags` tuỳ chọn = câu đánh dấu, B3; thiếu ⇒ giữ) | 〃 |
 | POST | `/mock-exams/attempts/{id}/finish` | Nộp ⇒ job chấm nền | 〃 |
 | POST | `/mock-exams/attempts/{id}/stop` | Dừng giữa chừng ⇒ `PARTIAL` (chấm theo Teil) / `CANCELLED` (chưa chạm câu); idempotent | 〃 + `MockExamStopService` |
 | GET | `/mock-exams/attempts/me[?includePartial=true]`, `/mock-exams/attempts/{id}/result` | Lịch sử (mặc định không có `PARTIAL` cho mobile), kết quả (`gates`, `budget`; lượt `PARTIAL` không có) | 〃 |
@@ -280,6 +288,23 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
   (`MockExamOralGateService`). `ExamBudgetService` tính điểm mất từng Teil.
 - Mọi lần chấm bằng AI trừ quota AI của học viên.
 
+### 3.6 "Hỏi AI về câu này" (B3, 09/11/2026)
+
+`ExamItemAiService` + `ExamItemAiPrompt` (hàm thuần). Chỉ POST (QLT-21: GET không ghi, không gọi AI).
+
+1. Quyền: `MockExamPracticeService.practiceReview` (Teil luyện của chính mình, phải `checked`, không thì 409; Viết 400)
+   / `attemptReview` (lượt của chính mình, không thì 404; `IN_PROGRESS` 409; chỉ `COMPLETED`/`PARTIAL`).
+2. Ngữ cảnh gửi AI: đoạn văn / Lückentext quanh ô / lời nghe (cắt ~2 400 ký tự quanh dấu hiệu), câu hỏi, lựa chọn
+   (Lesen 3 chỉ mẩu đã chọn + mẩu đúng), đáp án đã chọn, đáp án đúng, giải thích sẵn (`PracticeAnalysis`). Ghi chú
+   "vì sao tôi chọn" KHÔNG gửi AI.
+3. Bộ nhớ đệm `exam_item_ai_explanations` (V373), khoá (đề, Teil, câu, đáp án đã chọn, ngôn ngữ `vi|en|de`,
+   SHA-256 của ngữ cảnh). Dùng chung mọi người. Có sẵn ⇒ trả `cached: true`: không gọi AI, không giới hạn lượt, không
+   trừ quota. Sửa đề/giải thích ⇒ hash mới ⇒ hỏi lại AI.
+4. Chưa có: giới hạn lượt (`AiRateLimiterService` bucket `TEXT`, 429) → `QuotaService.assertAllowed` (ví, 429) →
+   `OrgPoolGuard` (pool trung tâm, 429) → AI tầng `EXPLAIN`, văn bản thường, tối đa 900 token → sổ token
+   `EXAM_ITEM_EXPLAIN` (`AiUsageLedgerService`, trừ ví/pool theo token thật) → lưu bộ đệm. Trả lời ngắn (≤ 6 câu) theo
+   ngôn ngữ giao diện; web nhớ thêm trong trang (`useCachedAsk`).
+
 ### 3.5 Dữ liệu và migration
 
 | Migration | Nội dung |
@@ -289,8 +314,10 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | **V363** | `exam_plan_state.day_order_json` (JSONB, mặc định `{}`) |
 | **V364** | `user_ui_tours (user_id, tour_key, seen_at)` |
 | **V365** | `exam_diagnostics (user_id PK, exam_id, result_json, started_at, finished_at)` |
+| **V373** | B3: `mock_exam_practice_progress.notes_json` (JSONB `{}`), `mock_exam_attempts.draft_flags_json` (JSONB), bảng `exam_item_ai_explanations` (bộ đệm "Hỏi AI", `UNIQUE (exam_id, teil_key, item_id, chosen, locale, content_hash)`) |
 
-V363–V365 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
+V363–V365, V373 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
+V373 cần V368–V372 lên trước (`out-of-order: false`).
 
 ---
 

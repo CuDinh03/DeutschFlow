@@ -11,6 +11,8 @@
 export interface DraftPayload {
   answers: Record<string, string>
   sectionIndex: number
+  /** Câu "đánh dấu xem lại" (B3, V373). Không có ⇒ server giữ giá trị cũ. */
+  flags?: string[]
 }
 
 export interface ServerDraft {
@@ -18,6 +20,8 @@ export interface ServerDraft {
   sectionIndex: number | null
   questionIndex: number | null
   version: number
+  /** Câu đánh dấu của bản trên server (B3); `undefined` khi server không gửi. */
+  flags?: string[]
 }
 
 export type DraftSaveResult =
@@ -177,6 +181,9 @@ export function classifyDraftSaveError(status: number, data: unknown): DraftSave
           sectionIndex: typeof rawDraft.section_index === 'number' ? rawDraft.section_index : null,
           questionIndex: typeof rawDraft.question_index === 'number' ? rawDraft.question_index : null,
           version: typeof rawDraft.version === 'number' ? rawDraft.version : serverVersion,
+          ...(Array.isArray(rawDraft.flags)
+            ? { flags: (rawDraft.flags as unknown[]).filter((x): x is string => typeof x === 'string') }
+            : {}),
         }
       : null
     return { kind: 'conflict', serverVersion: Number.isFinite(serverVersion) ? serverVersion : 0, draft }

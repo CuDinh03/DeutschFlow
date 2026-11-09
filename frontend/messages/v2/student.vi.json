@@ -2826,6 +2826,26 @@
         "passed": "Đỗ",
         "failed": "Chưa đỗ",
         "borderline": "Sát ngưỡng"
+      },
+      "assist": {
+        "ask": "Hỏi AI về câu này",
+        "title": "AI giải thích",
+        "loading": "AI đang đọc câu này…",
+        "cached": "Đã có sẵn, không tính lượt AI",
+        "disclaimer": "AI có thể nhầm, hãy đối chiếu với bài.",
+        "error": "Chưa hỏi được AI. Bạn thử lại sau nhé.",
+        "retry": "Thử lại",
+        "noteOpen": "Ghi vì sao tôi chọn",
+        "noteLabel": "Vì sao tôi chọn câu {n} (không bắt buộc)",
+        "notePlaceholder": "Ví dụ: thấy bài nhắc đúng ngày đó nên chọn…",
+        "noteYours": "Bạn đã ghi lúc làm bài",
+        "flaggedTitle": "Câu đã đánh dấu",
+        "flaggedJump": "Tới câu {n}",
+        "flaggedNav": "Câu đánh dấu ({count})",
+        "flaggedNavTitle": "Câu đánh dấu trong phần đang thi",
+        "flaggedNavEmpty": "Chưa đánh dấu câu nào. Bấm hình lá cờ ở một câu (hoặc phím F) để đánh dấu xem lại.",
+        "flaggedNavItem": "{teil} · câu {n}",
+        "flaggedNavClose": "Đóng danh sách"
       }
     },
     "examHub": {

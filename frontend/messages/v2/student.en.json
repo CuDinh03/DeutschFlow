@@ -2826,6 +2826,26 @@
         "passed": "Passed",
         "failed": "Not passed",
         "borderline": "Borderline"
+      },
+      "assist": {
+        "ask": "Ask AI about this question",
+        "title": "AI explanation",
+        "loading": "AI is reading this question…",
+        "cached": "Saved answer, no AI credit used",
+        "disclaimer": "AI can be wrong, check it against the text.",
+        "error": "Could not ask the AI. Please try again later.",
+        "retry": "Try again",
+        "noteOpen": "Note why I chose this",
+        "noteLabel": "Why I chose question {n} (optional)",
+        "notePlaceholder": "For example: the text mentions that exact day, so…",
+        "noteYours": "Your note while answering",
+        "flaggedTitle": "Marked questions",
+        "flaggedJump": "Go to question {n}",
+        "flaggedNav": "Marked ({count})",
+        "flaggedNavTitle": "Marked questions in this part",
+        "flaggedNavEmpty": "No questions marked yet. Tap the flag on a question (or press F) to mark it for review.",
+        "flaggedNavItem": "{teil} · question {n}",
+        "flaggedNavClose": "Close list"
       }
     },
     "examHub": {
