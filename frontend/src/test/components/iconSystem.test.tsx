@@ -71,6 +71,14 @@ describe('GaGlyph — ô icon nhận diện', () => {
     expect(container.firstElementChild!.className).toContain('bg-ga-green-soft')
   })
 
+  it('tông cam cho cảnh báo không phải lỗi, chỉ token ga-*', () => {
+    const { container } = render(<GaGlyph icon={BookOpen} tone="orange" />)
+    const cls = container.firstElementChild!.className
+    expect(cls).toContain('bg-ga-orange-soft')
+    expect(cls).toContain('text-ga-orange')
+    expect(cls).not.toContain('bg-ga-red-soft')
+  })
+
   it('EmptyState dùng ô vuông, không còn vòng tròn theo màu vai trò', () => {
     const { container } = render(<EmptyState title="Trống" icon="inbox" />)
     const box = container.querySelector('.h-12')!

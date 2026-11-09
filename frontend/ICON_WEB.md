@@ -49,7 +49,8 @@ import { GaGlyph } from '@/components/ui-v2'
 | `plain` | `ga-side-active` / `ga-muted` | trống, khoá, phụ, chỉ để biết |
 | `yellow` | `ga-yellow` / `ga-ink` | điểm nhấn DUY NHẤT của màn (việc hôm nay, kết quả) |
 | `ink` | `ga-ink` / `ga-card` | đang chọn, trên nền mực |
-| `green` / `red` | soft / đậm | đạt / lỗi, huỷ, cảnh báo |
+| `green` / `red` | soft / đậm | đạt / lỗi, huỷ |
+| `orange` | `ga-orange-soft` / `ga-orange` | cảnh báo không phải lỗi (lời mời hết hạn) |
 | `accent` | màu vai trò soft / `ga-ink` | hiếm; khi cần màu vai trò |
 
 `EmptyState`, `ErrorBanner` (biến thể page), lỗi route, chuông/toast/trang thông báo đã dùng `GaGlyph`. Ô `Glyph` của
