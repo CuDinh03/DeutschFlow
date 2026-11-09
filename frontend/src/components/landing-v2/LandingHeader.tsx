@@ -35,12 +35,14 @@ const NAV_ANCHORS = [
 /**
  * `showLanguage={false}`: trang chỉ có tiếng Việt (`/luyen-thi`) — đổi ngôn ngữ ở đó chỉ đổi chữ header,
  * trang thành hai thứ tiếng, nên ẩn nút (đợt C, 08/11/2026).
+ * `current="none"`: trang công khai không thuộc mục nào của thanh điều hướng (hồ sơ giáo viên,
+ * icon đợt B 09/11/2026) — mọi mục trỏ về trang chủ, không mục nào mang `aria-current`.
  */
 export function LandingHeader({
   current = 'home',
   showLanguage = true,
 }: {
-  current?: 'home' | 'about' | 'interview' | 'exam' | 'centers' | 'training' | 'guide'
+  current?: 'home' | 'about' | 'interview' | 'exam' | 'centers' | 'training' | 'guide' | 'none'
   showLanguage?: boolean
 }) {
   const t = useTranslations('v2.landing')

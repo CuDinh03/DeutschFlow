@@ -3,8 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, BookOpen, CalendarPlus, Mail, Star } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BookOpen, CalendarPlus, Loader2, Mail, Star, UserRound } from "lucide-react";
+import { GaBtn } from "@/components/ui-v2/GaBtn";
+import { GaGlyph } from "@/components/ui-v2/GaGlyph";
 
+/**
+ * Hồ sơ công khai của một giáo viên. Icon đợt B (09/11/2026): giao diện Galerie (token `ga-*`, `GaGlyph`,
+ * `GaBtn`); khung trang + header/footer ở `page.tsx`. Cách tải dữ liệu, link và nút đặt lịch giữ nguyên.
+ */
 interface TeacherProfileDto {
   id: number;
   userId: number;
@@ -33,116 +39,109 @@ export default function TeacherDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]" />
+      <div role="status" className="flex min-h-[50vh] items-center justify-center text-ga-muted">
+        <Loader2 size={28} className="ga-spin" aria-hidden />
+        <span className="sr-only">Đang tải…</span>
       </div>
     );
   }
 
   if (!teacher) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#F8FAFC]">
-        <p className="text-2xl font-bold text-[#0F172A]">Không tìm thấy chuyên gia</p>
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-5 text-center">
+        <GaGlyph icon={UserRound} tone="plain" size="lg" />
+        <p className="font-ga-display text-ga-h1-m font-medium text-ga-ink">Không tìm thấy chuyên gia</p>
         <Link
           href="/teachers"
-          className="flex items-center gap-2 text-sm text-[#6366F1] hover:underline"
+          className="inline-flex items-center gap-2 text-ga-small font-semibold text-ga-ink underline underline-offset-4"
         >
-          <ArrowLeft size={14} /> Quay lại danh sách
+          <ArrowLeft size={14} aria-hidden /> Quay lại danh sách
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <div
-        className="w-full py-16 px-6"
-        style={{ background: "linear-gradient(135deg, #1E293B 0%, #4F46E5 100%)" }}
+    <main className="mx-auto max-w-3xl px-5 pb-16 pt-10 sm:px-8 md:pt-14">
+      <Link
+        href="/teachers"
+        className="mb-8 inline-flex items-center gap-2 text-ga-small text-ga-muted underline-offset-4 hover:text-ga-ink hover:underline"
       >
-        <div className="max-w-3xl mx-auto">
-          <Link
-            href="/teachers"
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-8 transition-colors"
-          >
-            <ArrowLeft size={14} /> Đội ngũ chuyên gia
-          </Link>
-          <div className="flex items-start gap-6">
-            <div
-              className="w-20 h-20 rounded-2xl flex-shrink-0 flex items-center justify-center text-3xl font-black text-white"
-              style={{ background: "rgba(255,255,255,0.15)" }}
-            >
-              {teacher.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-3xl font-black text-white">{teacher.name}</h1>
-                {teacher.featured && (
-                  <span className="flex items-center gap-1 bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-bold px-2 py-1 rounded-full">
-                    <Star size={10} className="fill-current" /> Nổi bật
-                  </span>
-                )}
-              </div>
-              <p className="text-white/70 text-lg">{teacher.headline}</p>
-              <a
-                href={`mailto:${teacher.email}`}
-                className="inline-flex items-center gap-2 mt-3 text-sm text-[#FFCD00] hover:underline"
-              >
-                <Mail size={14} /> {teacher.email}
-              </a>
-            </div>
+        <ArrowLeft size={14} aria-hidden /> Đội ngũ chuyên gia
+      </Link>
+
+      <div className="flex items-start gap-5">
+        <div
+          aria-hidden
+          className="flex h-20 w-20 shrink-0 items-center justify-center bg-ga-ink font-ga-display text-ga-display font-medium text-ga-bg"
+        >
+          {teacher.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-3">
+            <h1 className="font-ga-display text-ga-h1-m font-medium text-ga-ink sm:text-ga-h1">{teacher.name}</h1>
+            {teacher.featured && (
+              <span className="inline-flex items-center gap-1 bg-ga-yellow px-2 py-0.5 text-ga-caption font-semibold text-ga-ink">
+                <Star size={11} aria-hidden className="fill-current" /> Nổi bật
+              </span>
+            )}
           </div>
+          <p className="text-ga-body-lg text-ga-muted">{teacher.headline}</p>
+          <a
+            href={`mailto:${teacher.email}`}
+            className="mt-3 inline-flex items-center gap-2 break-all text-ga-small text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink"
+          >
+            <Mail size={14} aria-hidden className="shrink-0" /> {teacher.email}
+          </a>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
-        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen size={18} className="text-[#6366F1]" />
-            <h2 className="text-lg font-bold text-[#0F172A]">Giới thiệu</h2>
+      <div className="mt-10 space-y-6">
+        <section className="border border-ga-border bg-ga-card p-5 sm:p-6">
+          <div className="mb-4 flex items-center gap-3">
+            <GaGlyph icon={BookOpen} size="sm" />
+            <h2 className="text-ga-h3 text-ga-ink">Giới thiệu</h2>
           </div>
-          <p className="text-[#475569] leading-relaxed whitespace-pre-line">
+          <p className="whitespace-pre-line text-ga-body text-ga-ink">
             {teacher.bio || "Chưa có thông tin giới thiệu."}
           </p>
         </section>
 
         {teacher.qualifications && (
-          <section className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <BadgeCheck size={18} className="text-[#10B981]" />
-              <h2 className="text-lg font-bold text-[#0F172A]">Bằng cấp & Chứng chỉ</h2>
+          <section className="border border-ga-border bg-ga-card p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <GaGlyph icon={BadgeCheck} size="sm" />
+              <h2 className="text-ga-h3 text-ga-ink">Bằng cấp & Chứng chỉ</h2>
             </div>
-            <p className="text-[#475569] leading-relaxed whitespace-pre-line">
-              {teacher.qualifications}
-            </p>
+            <p className="whitespace-pre-line text-ga-body text-ga-ink">{teacher.qualifications}</p>
           </section>
         )}
 
-        <section className="bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-2xl p-6 text-white text-center">
-          <h2 className="text-xl font-black mb-2">Muốn học cùng {teacher.name}?</h2>
-          <p className="text-white/70 text-sm mb-1">
-            Đặt lịch học 1:1 trực tiếp trên DeutschFlow.
-          </p>
+        <section className="border border-ga-border bg-ga-card p-6 text-center">
+          <h2 className="mb-2 font-ga-display text-ga-h2 font-medium text-ga-ink">Muốn học cùng {teacher.name}?</h2>
+          <p className="mb-1 text-ga-small text-ga-muted">Đặt lịch học 1:1 trực tiếp trên DeutschFlow.</p>
           {teacher.hourlyRateVnd > 0 && (
-            <p className="text-white/90 font-semibold text-sm mb-5">
+            <p className="mb-5 text-ga-small font-semibold tabular-nums text-ga-ink">
               {teacher.hourlyRateVnd.toLocaleString("vi-VN")} ₫/giờ
             </p>
           )}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
+          <div className="mt-4 flex flex-col justify-center gap-3 sm:flex-row">
+            <GaBtn
+              type="button"
+              variant="ink"
+              size="lg"
               onClick={() => router.push(`/v2/student/tutor?teacherId=${teacher.id}`)}
-              className="inline-flex items-center justify-center gap-2 bg-white text-[#6366F1] font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
             >
-              <CalendarPlus size={16} /> Đặt lịch học
-            </button>
-            <a
-              href={`mailto:${teacher.email}?subject=Hỏi về lịch học cùng ${encodeURIComponent(teacher.name)}`}
-              className="inline-flex items-center justify-center gap-2 bg-white/10 border border-white/30 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/20 transition-colors"
-            >
-              <Mail size={16} /> Liên hệ Email
-            </a>
+              <CalendarPlus size={16} aria-hidden /> Đặt lịch học
+            </GaBtn>
+            <GaBtn asChild variant="ghost" size="lg">
+              <a href={`mailto:${teacher.email}?subject=Hỏi về lịch học cùng ${encodeURIComponent(teacher.name)}`}>
+                <Mail size={16} aria-hidden /> Liên hệ Email
+              </a>
+            </GaBtn>
           </div>
         </section>
       </div>
-    </div>
+    </main>
   );
 }
