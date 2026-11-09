@@ -2,7 +2,7 @@ import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { BadgeCheck, PenLine, Sparkles } from 'lucide-react'
+import { PenLine, Sparkles } from 'lucide-react'
 import type { GradeReport } from '@/lib/marketingApi'
 import { ShareButtons } from '@/components/marketing/ShareButtons'
 import { GradeScore } from '@/components/marketing/GradeScore'
@@ -57,11 +57,8 @@ export default async function GradeReportPage({ params }: { params: { token: str
     <div className="ga-scope min-h-screen overflow-x-clip bg-ga-bg font-ga-ui text-ga-ink">
       <LandingHeader current="exam" showLanguage={false} />
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-10 sm:px-8 md:pt-14">
-        {/* Dấu "chấm bởi" (watermark) */}
-        <div className="mb-6 flex items-center justify-center gap-2 text-ga-eyebrow uppercase text-ga-muted">
-          <BadgeCheck size={16} aria-hidden />
-          Chấm bởi DeutschFlow
-        </div>
+        {/* Dấu "chấm bởi" (watermark) — chữ trơn kiểu eyebrow, không icon (ICON_WEB §2). */}
+        <p className="mb-6 text-center text-ga-eyebrow uppercase text-ga-muted">Chấm bởi DeutschFlow</p>
 
         <GradeScore score={report.score} topic={report.topic} center />
 

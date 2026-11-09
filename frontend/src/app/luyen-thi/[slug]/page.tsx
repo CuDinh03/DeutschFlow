@@ -2,7 +2,7 @@ import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronDown, ExternalLink, PenLine, Sparkles, Square } from 'lucide-react'
+import { ChevronDown, ExternalLink, PenLine, Sparkles } from 'lucide-react'
 import { GERMAN_EXAMS, getExamBySlug, totalDurationMin, type GermanExam } from '@/data/germanExams'
 import { absoluteUrl } from '@/lib/siteUrl'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
@@ -130,7 +130,8 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
                 <ul className="space-y-2.5">
                   {g.items.map((item, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-ga-small text-ga-ink">
-                      <Square size={15} aria-hidden className="mt-[3px] shrink-0 text-ga-muted" />
+                      {/* Dấu đầu dòng trung tính: ô vuông rỗng trông như checkbox bấm được. */}
+                      <span aria-hidden className="mt-[7px] inline-block h-[5px] w-[5px] shrink-0 bg-ga-muted" />
                       <span>{item}</span>
                     </li>
                   ))}
