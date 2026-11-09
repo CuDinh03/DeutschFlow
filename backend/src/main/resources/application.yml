@@ -459,6 +459,21 @@ app:
     # được xác thực như access token của người dùng đích, KHÔNG có giới hạn chỉ-đọc nào.
     support-session:
       enabled: ${APP_SECURITY_SUPPORT_SESSION_ENABLED:false}
+    # Xác thực hai lớp (TOTP) BẮT BUỘC cho ADMIN (owner chốt 09/11/2026) — docs/RUNBOOK_2FA_ADMIN.md.
+    # enforced=false là KILL-SWITCH khi khoá ngoài: admin CHƯA bật 2FA đăng nhập bằng mật khẩu (admin đã bật vẫn
+    # phải nhập mã). Bật lại ngay sau khi xử lý xong. max-session-hours: tuổi tối đa của một lần qua 2FA — quá
+    # mốc này refresh của admin bị từ chối, phải đăng nhập lại.
+    admin-mfa:
+      enforced: ${ADMIN_MFA_ENFORCED:true}
+      max-session-hours: ${ADMIN_MFA_MAX_SESSION_HOURS:12}
+    # Khoá AES-256-GCM mã hoá bí mật TOTP: base64 của 32 byte (openssl rand -base64 32). Thiếu ⇒ backend VẪN
+    # khởi động, nhưng admin nhận 503 MFA_NOT_CONFIGURED ở bước đăng nhập (đóng chặt). MFA_RECOVERY_PEPPER: pepper
+    # HMAC của mã khôi phục (thiếu ⇒ dẫn xuất từ khoá mã hoá). ĐỪNG đổi/mất hai giá trị này: mất khoá = mọi admin
+    # phải đặt lại 2FA. key-id ghi kèm từng bí mật để xoay khoá về sau.
+    mfa:
+      encryption-key: ${MFA_ENCRYPTION_KEY:}
+      key-id: ${MFA_KEY_ID:k1}
+      recovery-pepper: ${MFA_RECOVERY_PEPPER:}
     # Kiểm "người thật" ở đăng ký — Cloudflare Turnstile (owner chốt 07/11/2026). Mặc định TẮT.
     # Bật: Cloudflare dashboard → Turnstile → Add widget (mode Managed, hostname mydeutschflow.com);
     # secret vào backend.env (TURNSTILE_SECRET), site key vào frontend-build.env

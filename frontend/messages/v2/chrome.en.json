@@ -287,6 +287,10 @@
       "TIMESHEET_PERIOD_RETURNED": "Timesheet period returned",
       "CERTIFICATE_ISSUED": "New certificate",
       "BIRTH_DATE_UPDATED": "Date of birth updated",
+      "MFA_ENABLED": "Two-factor authentication enabled",
+      "MFA_RECOVERY_CODE_USED": "Recovery code used",
+      "MFA_RECOVERY_CODES_LOW": "Running out of recovery codes",
+      "MFA_RESET_BY_ADMIN": "Two-factor authentication was reset",
       "PASSWORD_RESET_BY_ADMIN": "Password was reset"
     }
   },

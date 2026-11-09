@@ -287,6 +287,10 @@
       "TIMESHEET_PERIOD_RETURNED": "Stundenzettel zurückgegeben",
       "CERTIFICATE_ISSUED": "Neue Bescheinigung",
       "BIRTH_DATE_UPDATED": "Geburtsdatum aktualisiert",
+      "MFA_ENABLED": "Zwei-Faktor-Authentifizierung aktiviert",
+      "MFA_RECOVERY_CODE_USED": "Wiederherstellungscode verwendet",
+      "MFA_RECOVERY_CODES_LOW": "Wiederherstellungscodes gehen zur Neige",
+      "MFA_RESET_BY_ADMIN": "Zwei-Faktor-Authentifizierung zurückgesetzt",
       "PASSWORD_RESET_BY_ADMIN": "Passwort wurde zurückgesetzt"
     }
   },
