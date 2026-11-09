@@ -2880,7 +2880,7 @@
       "todayDone": "Hôm nay · đã xong",
       "start": "Bắt đầu",
       "practiceMore": "Luyện thêm",
-      "reasonLastPct": "Lần luyện gần nhất đúng {pct}%.",
+      "reasonLastPct": "Lần gần nhất đạt {pct}%.",
       "reasonWeakest": "Teil thấp điểm nhất của bạn: {pct}%.",
       "reasonNew": "Chưa luyện Teil này lần nào.",
       "reasonStart": "Bắt đầu từ một Teil chưa luyện.",

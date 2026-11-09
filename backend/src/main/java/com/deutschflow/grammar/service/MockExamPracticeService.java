@@ -207,6 +207,50 @@ public class MockExamPracticeService {
                 text, writing);
     }
 
+    /** Số lượt thi thử gần nhất đem tính điểm Teil — đủ để có "lần gần nhất" của mọi Teil, không quét cả lịch sử. */
+    static final int MOCK_TEIL_SCORE_ATTEMPTS = 30;
+
+    /**
+     * Điểm từng Teil của các lượt thi thử đã nộp hoặc dừng giữa chừng gần nhất của người dùng (09/11/2026)
+     * — trang Hôm nay gộp vào "Bốn kỹ năng" cùng điểm chế độ luyện, lấy lần gần nhất mỗi Teil. Xem
+     * {@link MockAttemptTeilScores} cho luật tính. Lượt có JSON hỏng thì bỏ qua, không làm hỏng cả danh sách.
+     */
+    public List<PracticeDtos.MockTeilScore> mockTeilScores(User user) {
+        // Chỉ đề telc (web chỉ hiện telc; khoá Teil trùng với Goethe). Không kéo sections_json theo từng lượt:
+        // nhiều lượt cùng một đề ⇒ nạp và parse mỗi đề đúng một lần bên dưới.
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT a.id, a.exam_id, a.status, COALESCE(a.finished_at, a.created_at, a.started_at) AS ended_at,
+                       a.answers_submitted_json::text AS answers, a.detailed_scores_json::text AS detailed
+                FROM mock_exam_attempts a JOIN mock_exams e ON e.id = a.exam_id
+                WHERE a.user_id = ? AND a.status IN ('COMPLETED', 'PARTIAL') AND UPPER(e.exam_format) = 'TELC'
+                ORDER BY ended_at DESC, a.id DESC
+                LIMIT ?
+                """, user.getId(), MOCK_TEIL_SCORE_ATTEMPTS);
+        Map<Long, Map<String, Object>> structures = new HashMap<>();
+        List<PracticeDtos.MockTeilScore> out = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            long attemptId = ((Number) row.get("id")).longValue();
+            try {
+                long examId = ((Number) row.get("exam_id")).longValue();
+                Map<String, Object> structure = structures.computeIfAbsent(examId, id -> read(jdbc.queryForObject(
+                        "SELECT sections_json::text FROM mock_exams WHERE id = ?", String.class, id)));
+                Map<String, String> answers = new LinkedHashMap<>();
+                read((String) row.get("answers")).forEach((k, v) -> answers.put(k, v == null ? null : String.valueOf(v)));
+                var scores = MockAttemptTeilScores.of((String) row.get("status"), structure,
+                        answers, read((String) row.get("detailed")));
+                java.time.Instant at = ((Timestamp) row.get("ended_at")).toInstant();
+                for (MockAttemptTeilScores.Score s : scores) {
+                    out.add(new PracticeDtos.MockTeilScore(attemptId, examId, s.key(), s.section(), s.teil(),
+                            s.score(), s.max(), at));
+                }
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(MockExamPracticeService.class)
+                        .warn("[Practice] Bỏ qua lượt thi {} khi tính điểm Teil: {}", attemptId, e.getMessage());
+            }
+        }
+        return out;
+    }
+
     private record Exam(long id, String title, String level, String format, String sectionsJson,
                         Map<String, Object> structure) {}
 
@@ -263,7 +307,7 @@ public class MockExamPracticeService {
         Map<String, Map<String, Object>> out = new HashMap<>();
         jdbc.queryForList("""
                 SELECT teil_key, answers_json::text AS answers_json, checked, score, max_score,
-                       elapsed_seconds, updated_at, result_json::text AS result_json
+                       elapsed_seconds, updated_at, checked_at, result_json::text AS result_json
                 FROM mock_exam_practice_progress WHERE user_id = ? AND exam_id = ?
                 """, userId, examId).forEach(r -> out.put((String) r.get("teil_key"), r));
         return out;
@@ -293,7 +337,8 @@ public class MockExamPracticeService {
         return new PracticeDtos.Progress(answers, Boolean.TRUE.equals(row.get("checked")),
                 number(row.get("score")), number(row.get("max_score")),
                 row.get("elapsed_seconds") instanceof Number n ? n.intValue() : 0,
-                row.get("updated_at") instanceof Timestamp ts ? ts.toInstant() : null, result);
+                row.get("updated_at") instanceof Timestamp ts ? ts.toInstant() : null, result,
+                row.get("checked_at") instanceof Timestamp ct ? ct.toInstant() : null);
     }
 
     private static Map<String, String> clean(Map<String, String> answers) {

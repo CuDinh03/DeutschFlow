@@ -110,6 +110,27 @@ class MockExamAttemptAnalysisIntegrationTest extends AbstractPostgresIntegration
                 .isInstanceOf(NotFoundException.class);
     }
 
+    /** Đợt 5 (09/11/2026): điểm Teil của lượt thi thử cho "Bốn kỹ năng" — chỉ của chính mình, đã nộp hoặc dừng. */
+    @Test
+    void diemTeilThiThu_chiCuaMinh_tuLuotDaNopVaLuotDung() {
+        completedAttempt(UID, "{\"HV1-41\":\"richtig\",\"HV1-42\":\"richtig\"}", "{}");
+        jdbc.update("""
+                INSERT INTO mock_exam_attempts (user_id, exam_id, status, answers_submitted_json, detailed_scores_json, finished_at)
+                VALUES (?, ?, 'PARTIAL', '{"HV1-41":"falsch"}'::jsonb, '{}'::jsonb, NOW())
+                """, UID, examId);
+        jdbc.update("""
+                INSERT INTO mock_exam_attempts (user_id, exam_id, status) VALUES (?, ?, 'IN_PROGRESS')
+                """, UID, examId);
+        completedAttempt(OTHER, "{\"HV1-41\":\"richtig\"}", "{}");
+
+        var scores = practice.mockTeilScores(student(UID));
+
+        assertThat(scores).allMatch(s -> s.examId() == examId);
+        assertThat(scores).extracting(PracticeDtos.MockTeilScore::key).containsOnly("HOEREN-1");
+        assertThat(scores).hasSize(2);
+        assertThat(scores).allMatch(s -> s.max() > 0 && s.at() != null);
+    }
+
     private long completedAttempt(long uid, String answers, String detailed) {
         return jdbc.queryForObject("""
                 INSERT INTO mock_exam_attempts (user_id, exam_id, status, passed, total_score,
