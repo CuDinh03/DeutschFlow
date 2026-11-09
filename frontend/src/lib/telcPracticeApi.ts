@@ -77,6 +77,16 @@ export interface PracticeProgress {
   result: PracticeTeilResult | WritingEvaluation | null
   /** Lúc chấm gần nhất (09/11/2026). Khác `updatedAt`: lưu nháp Viết đổi `updatedAt` mà giữ điểm cũ. */
   checkedAt?: string | null
+  /** "Vì sao tôi chọn" (B3, 09/11/2026): ghi chú ngắn theo câu, `{itemId: chữ}`. */
+  notes?: Record<string, string>
+}
+
+/** Lời giải thích AI cho một câu đã nộp (B3). `cached` = bản đã lưu, không trừ lượt AI. */
+export interface ItemAiAnswer {
+  itemId: string
+  locale: string
+  answer: string
+  cached: boolean
 }
 
 export interface PracticeTeil {
@@ -137,15 +147,17 @@ export async function getPracticeOverview(examId: number): Promise<PracticeOverv
   return data
 }
 
+/** `notes` không truyền ⇒ server giữ ghi chú đã lưu (bài chẩn đoán không có ghi chú). */
 export async function savePracticeDraft(
   examId: number,
   teilKey: string,
   answers: Record<string, string>,
   elapsedSeconds: number,
+  notes?: Record<string, string>,
 ): Promise<PracticeProgress | null> {
   const { data } = await api.put<PracticeProgress | null>(
     `/mock-exams/practice/${examId}/teile/${teilKey}/draft`,
-    { answers, elapsedSeconds },
+    notes ? { answers, elapsedSeconds, notes } : { answers, elapsedSeconds },
   )
   return data
 }
@@ -155,11 +167,24 @@ export async function checkPracticeTeil(
   teilKey: string,
   answers: Record<string, string>,
   elapsedSeconds: number,
+  notes?: Record<string, string>,
 ): Promise<PracticeProgress> {
-  const { data } = await api.post<PracticeProgress>(`/mock-exams/practice/${examId}/teile/${teilKey}/check`, {
-    answers,
-    elapsedSeconds,
-  })
+  const { data } = await api.post<PracticeProgress>(
+    `/mock-exams/practice/${examId}/teile/${teilKey}/check`,
+    notes ? { answers, elapsedSeconds, notes } : { answers, elapsedSeconds },
+  )
+  return data
+}
+
+/**
+ * "Hỏi AI về câu này" cho một câu của Teil luyện ĐÃ kiểm tra (B3). POST: có thể gọi AI và ghi bộ nhớ đệm.
+ * 409 = chưa nộp, 429 = hết lượt AI.
+ */
+export async function askPracticeItemAi(examId: number, teilKey: string, itemId: string, locale: string): Promise<ItemAiAnswer> {
+  const { data } = await api.post<ItemAiAnswer>(
+    `/mock-exams/practice/${examId}/teile/${encodeURIComponent(teilKey)}/items/${encodeURIComponent(itemId)}/ask-ai`,
+    { locale },
+  )
   return data
 }
 

@@ -7,7 +7,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const h = vi.hoisted(() => ({ check: vi.fn(), draft: vi.fn(), push: vi.fn() }))
+const h = vi.hoisted(() => ({ check: vi.fn(), draft: vi.fn(), push: vi.fn(), ask: vi.fn() }))
 vi.mock('@/lib/api', () => ({
   default: { get: vi.fn(async () => ({ data: { seen: ['exam.teil'] } })), put: vi.fn(async () => ({ data: {} })) },
   apiMessage: () => 'lỗi',
@@ -39,6 +39,7 @@ vi.mock('@/lib/telcPracticeApi', async (orig) => ({
   getPracticeOverview: vi.fn(async () => OVERVIEW),
   savePracticeDraft: h.draft,
   checkPracticeTeil: h.check,
+  askPracticeItemAi: h.ask,
 }))
 
 import PracticeTeilRoute from '@/app/v2/student/mock-exam/practice/teil/page'
@@ -61,6 +62,7 @@ beforeEach(() => {
   h.check.mockReset()
   h.draft.mockReset()
   h.push.mockReset()
+  h.ask.mockReset()
   h.draft.mockResolvedValue(undefined)
   h.check.mockResolvedValue({ answers: {}, checked: true, score: 0, max: 25, elapsedSeconds: 0, updatedAt: null, result: RESULT })
   window.matchMedia = ((q: string) => ({
@@ -84,7 +86,7 @@ describe('Luyện Teil — kiểm tra khi còn câu trống', () => {
     await user.click(screen.getByRole('button', { name: 'Vẫn kiểm tra' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(h.check).toHaveBeenCalledWith(7, 'LESEN-2', {}, expect.any(Number))
+    expect(h.check).toHaveBeenCalledWith(7, 'LESEN-2', {}, expect.any(Number), {})
     expect(await screen.findByRole('button', { name: /Làm lại/ })).toBeInTheDocument()
   })
 })
@@ -109,7 +111,7 @@ describe('Luyện Teil — thoát giữa chừng', () => {
     expect(h.push).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Lưu và thoát' }))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith('/v2/student/mock-exam/practice?examId=7'))
-    expect(h.draft).toHaveBeenCalledWith(7, 'LESEN-2', { '1': 'a' }, expect.any(Number))
+    expect(h.draft).toHaveBeenCalledWith(7, 'LESEN-2', { '1': 'a' }, expect.any(Number), {})
   })
 
   it('lưu nháp lỗi ⇒ ở lại màn, hộp báo chưa lưu được', async () => {
@@ -121,5 +123,62 @@ describe('Luyện Teil — thoát giữa chừng', () => {
     await user.click(await screen.findByRole('button', { name: 'Lưu và thoát' }))
     expect(await screen.findByText(/Chưa lưu được nháp/)).toBeInTheDocument()
     expect(h.push).not.toHaveBeenCalled()
+  })
+})
+
+describe('Luyện Teil — B3: vì sao tôi chọn + hỏi AI sau khi nộp', () => {
+  const RESULT_B3 = {
+    ...RESULT,
+    items: [
+      { ...RESULT.items[0], given: 'b', givenText: 'zwei', answered: true, whyRight: 'Bài nói „eins“.' },
+      RESULT.items[1],
+    ],
+  }
+
+  it('ghi chú gửi cùng lúc nộp, hiện cạnh giải thích; "Hỏi AI về câu này" gọi API một lần và hiện câu trả lời', async () => {
+    h.check.mockResolvedValue({
+      answers: { '1': 'b' }, checked: true, score: 0, max: 25, elapsedSeconds: 0, updatedAt: null,
+      result: RESULT_B3, notes: { '1': 'Mình đoán theo chữ zwei' },
+    })
+    h.ask.mockResolvedValue({ itemId: '1', locale: 'vi', answer: 'Đáp án a vì bài viết „eins“.', cached: false })
+    const user = userEvent.setup()
+    render(<PracticeTeilRoute />)
+
+    // Chưa trả lời thì chưa có ô ghi chú; trả lời xong mới hiện nút (không bắt buộc).
+    expect(screen.queryByRole('button', { name: 'Ghi vì sao tôi chọn' })).toBeNull()
+    await user.click((await screen.findAllByRole('radio', { name: /zwei/ }))[0])
+    await user.click(screen.getByRole('button', { name: 'Ghi vì sao tôi chọn' }))
+    await user.type(screen.getByLabelText('Vì sao tôi chọn câu 1 (không bắt buộc)'), 'Mình đoán theo chữ zwei')
+    // Gõ chữ trong ô ghi chú không kích hoạt phím tắt chọn đáp án.
+    expect(screen.getAllByRole('radio', { name: /zwei/ })[0]).toHaveAttribute('aria-checked', 'true')
+
+    await user.click(screen.getByRole('button', { name: /Kiểm tra Teil này/ }))
+    await user.click(await screen.findByRole('button', { name: 'Vẫn kiểm tra' }))
+    await waitFor(() =>
+      expect(h.check).toHaveBeenCalledWith(7, 'LESEN-2', { '1': 'b' }, expect.any(Number), { '1': 'Mình đoán theo chữ zwei' }),
+    )
+
+    expect(await screen.findByTestId('my-note')).toHaveTextContent('Mình đoán theo chữ zwei')
+    expect(screen.getByText('Bạn đã ghi lúc làm bài')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Hỏi AI về câu này/ }))
+    expect(await screen.findByTestId('ask-ai-answer')).toHaveTextContent('Đáp án a vì bài viết „eins“.')
+    expect(h.ask).toHaveBeenCalledTimes(1)
+    expect(h.ask).toHaveBeenCalledWith(7, 'LESEN-2', '1', 'vi')
+    expect(screen.queryByRole('button', { name: /Hỏi AI về câu này/ })).toBeNull()
+  })
+
+  it('hết lượt AI ⇒ báo lỗi của server và cho thử lại', async () => {
+    h.check.mockResolvedValue({ answers: {}, checked: true, score: 0, max: 25, elapsedSeconds: 0, updatedAt: null, result: RESULT })
+    h.ask.mockRejectedValueOnce(new Error('429')).mockResolvedValueOnce({ itemId: '1', locale: 'vi', answer: 'Giải thích.', cached: true })
+    const user = userEvent.setup()
+    render(<PracticeTeilRoute />)
+    await user.click(await screen.findByRole('button', { name: /Kiểm tra Teil này/ }))
+    await user.click(await screen.findByRole('button', { name: 'Vẫn kiểm tra' }))
+
+    await user.click(await screen.findByRole('button', { name: /Hỏi AI về câu này/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('lỗi')
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(await screen.findByTestId('ask-ai-answer')).toHaveTextContent('Giải thích.')
+    expect(screen.getByText(/Đã có sẵn, không tính lượt AI/)).toBeInTheDocument()
   })
 })

@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Headphones, PenLine, Send } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
@@ -16,6 +16,7 @@ import {
   type DraftAutosaver,
 } from '@/lib/exam/examDraftSync'
 import {
+  askAttemptItemAi,
   finishAttempt,
   getAttemptAnalysis,
   getAttemptResult,
@@ -37,7 +38,9 @@ import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
-import { displayedPoints, kindOf } from '@/components/exam/practice/practiceModel'
+import { displayedPoints, itemLabel, kindOf } from '@/components/exam/practice/practiceModel'
+import { ItemAssist, useCachedAsk, type ItemAssistValue } from '@/components/exam/practice/itemAssist'
+import { FlaggedNav, type FlaggedEntry } from '@/components/exam/mock/FlaggedNav'
 import {
   fullTeile,
   resumeIndex,
@@ -168,6 +171,9 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [phase, setPhase] = React.useState<'taking' | 'grading'>('taking')
   const [ticks, setTicks] = React.useState<Record<string, boolean>>({})
+  // B3: câu "đánh dấu xem lại" — lưu cùng nháp trên server (V374), tải lại trang vẫn còn.
+  const [flags, setFlags] = React.useState<string[]>([])
+  const [jump, setJump] = React.useState<{ id: string; n: number; teilIdx: number } | null>(null)
   // Chặng đang làm: 0 Lesen + Sprachbausteine · 1 Hören · 2 Schreiben. Sang chặng sau thì khoá chặng trước.
   const [stage, setStage] = React.useState(0)
   const [ritual, setRitual] = React.useState(false)
@@ -200,6 +206,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         setAttemptId(s.attemptId)
         setTeile(list)
         setAnswers(s.answers)
+        setFlags(s.flags ?? [])
         const at = resumeIndex(list, s.sectionIndex)
         let saved: number | null = null
         try {
@@ -285,6 +292,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         baseVersionRef.current = serverVersion
         autosaverRef.current?.adoptVersion(serverVersion)
         if (draft?.answersJson) setAnswers(parseDraftAnswers(draft.answersJson))
+        if (draft?.flags) setFlags(draft.flags)
         setSaveState('saved')
         toast.info(t('draftConflict'))
       },
@@ -309,8 +317,8 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   React.useEffect(() => {
     if (!attemptId || !dirty.current) return
     setSaveState('saving')
-    autosaverRef.current?.notifyChange({ answers, sectionIndex })
-  }, [attemptId, answers, sectionIndex])
+    autosaverRef.current?.notifyChange({ answers, sectionIndex, flags })
+  }, [attemptId, answers, sectionIndex, flags])
 
   // Rời trang: đẩy nháp chưa lưu bằng fetch keepalive (axios không sống quá document).
   React.useEffect(() => {
@@ -323,6 +331,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
       sendKeepalive('PATCH', `/mock-exams/attempts/${attemptId}/draft`, {
         answers: snap.payload.answers,
         sectionIndex: snap.payload.sectionIndex,
+        ...(snap.payload.flags ? { flags: snap.payload.flags } : {}),
         baseVersion: snap.baseVersion,
       })
     }
@@ -361,6 +370,17 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
       return next
     })
   }, [])
+
+  const toggleFlag = React.useCallback((id: string) => {
+    dirty.current = true
+    setFlags((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }, [])
+  const flagSet = React.useMemo(() => new Set(flags), [flags])
+  // Rời Teil của lần nhảy (tự chuyển Teil) ⇒ bỏ yêu cầu nhảy, quay lại Teil đó không bị kéo tới câu cũ.
+  React.useEffect(() => {
+    setJump((j) => (j && j.teilIdx !== idx ? null : j))
+  }, [idx])
+  const assist = React.useMemo<ItemAssistValue>(() => ({ flags: flagSet, onToggleFlag: toggleFlag, jump }), [flagSet, toggleFlag, jump])
 
   // ── dừng giữa chừng ─────────────────────────────────────────────────────────
   // Bấm dừng: chặn autosave + keepalive, gửi /stop (server chấm theo Teil, dừng đồng hồ tại finished_at),
@@ -497,16 +517,39 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
       />
     )
   } else if (cur.section === 'HOEREN') {
-    body = <HoerenTeilView key={cur.key} teil={cur.data} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+    body = (
+      <ItemAssist.Provider value={assist}>
+        <HoerenTeilView key={cur.key} teil={cur.data} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+      </ItemAssist.Provider>
+    )
   } else if (kind !== 'unknown' && kind !== 'writing') {
-    body = <ObjectiveTeilView key={cur.key} teil={cur.data} kind={kind} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+    body = (
+      <ItemAssist.Provider value={assist}>
+        <ObjectiveTeilView key={cur.key} teil={cur.data} kind={kind} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+      </ItemAssist.Provider>
+    )
   } else {
     body = <div className="p-6"><ErrorBanner message={tp('teilMissing')} /></div>
+  }
+
+  // Câu đánh dấu của chặng đang thi (chặng trước đã khoá, không nhảy về được).
+  const flagged: FlaggedEntry[] = []
+  teile.forEach((x, i) => {
+    if (stageOf(x.section) !== stage) return
+    for (const it of x.data.items ?? []) {
+      if (flagSet.has(it.id)) flagged.push({ id: it.id, teilIdx: i, teil: teilName(x), label: itemLabel(it) })
+    }
+  })
+  const jumpToFlag = (e: FlaggedEntry) => {
+    setRitual(false)
+    setIdx(e.teilIdx)
+    setJump((prev) => ({ id: e.id, n: (prev?.n ?? 0) + 1, teilIdx: e.teilIdx }))
   }
 
   const footer = (
     <>
       {error && <div className="w-full"><ErrorBanner message={error} /></div>}
+      {stage !== 2 && <FlaggedNav entries={flagged} onJump={jumpToFlag} />}
       <NavBtn disabled={idx <= firstOfStage} onClick={() => setIdx((i) => Math.max(firstOfStage, i - 1))} label={t('prevTeil')}>
         <ChevronLeft size={16} aria-hidden />
       </NavBtn>
@@ -623,6 +666,7 @@ function NavBtn({ disabled, onClick, label, children }: { disabled: boolean; onC
 function AttemptResultView({ attemptId }: { attemptId: number }) {
   const t = useTranslations('v2.student.fullExam')
   const tp = useTranslations('v2.student.practice')
+  const locale = useLocale()
   const router = useRouter()
   const wide = useWide()
   const split = useWide(SPLIT_MIN_WIDTH)
@@ -643,6 +687,13 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
 
   const teile = React.useMemo(() => fullTeile(analysis?.sectionsJson), [analysis])
   const byKey = React.useMemo(() => new Map(analysis?.teile.map((r) => [r.teilKey, r]) ?? []), [analysis])
+  // B3: "Hỏi AI về câu này" ở màn xem lại từng Teil (Lesen, Sprachbausteine, Hören).
+  const askRaw = React.useCallback(
+    (itemId: string) => askAttemptItemAi(attemptId, open ?? '', itemId, locale),
+    [attemptId, open, locale],
+  )
+  const askAi = useCachedAsk(open && !open.startsWith('SCHREIBEN') ? askRaw : null, `${attemptId}|${open ?? ''}`)
+  const reviewAssist = React.useMemo<ItemAssistValue>(() => ({ askAi }), [askAi])
 
   if (error) {
     return (
@@ -705,9 +756,13 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
       const given = Object.fromEntries((r?.items ?? []).filter((i) => i.given).map((i) => [i.id, i.given as string]))
       const kind = kindOf(openTeil.data, openTeil.key)
       body = openTeil.section === 'HOEREN' ? (
-        <HoerenTeilView key={openTeil.key} teil={openTeil.data} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
+        <ItemAssist.Provider value={reviewAssist}>
+          <HoerenTeilView key={openTeil.key} teil={openTeil.data} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
+        </ItemAssist.Provider>
       ) : kind !== 'unknown' && kind !== 'writing' ? (
-        <ObjectiveTeilView key={openTeil.key} teil={openTeil.data} kind={kind} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
+        <ItemAssist.Provider value={reviewAssist}>
+          <ObjectiveTeilView key={openTeil.key} teil={openTeil.data} kind={kind} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
+        </ItemAssist.Provider>
       ) : (
         <div className="p-6"><ErrorBanner message={tp('teilMissing')} /></div>
       )
