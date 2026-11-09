@@ -62,6 +62,8 @@ class AuthServiceUnitTest {
 
     @Mock
     private UserAvatarService userAvatarService;
+    @Mock
+    com.deutschflow.common.audit.AuditLogService auditLogService;
 
     @InjectMocks
     AuthService authService;
@@ -212,7 +214,7 @@ class AuthServiceUnitTest {
         when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var req = new LoginRequest("  User@X.com  ", RAW_PASSWORD);
-        var res = authService.login(req);
+        var res = ((com.deutschflow.user.dto.LoginResult.Session) authService.login(req)).response();
 
         assertEquals("ACCESS", res.accessToken());
         // authenticate() receives the trimmed email (not the raw spaced value).
@@ -368,6 +370,23 @@ class AuthServiceUnitTest {
 
         verify(refreshTokenRepository).revokeAllByUserId(5L);
         verify(userRepository).clearPushToken(5L);
+        // Đợt 2 admin: vết cho "Hoạt động bảo mật" của chính người dùng.
+        verify(auditLogService).log(org.mockito.ArgumentMatchers.eq("user.password.changed"),
+                org.mockito.ArgumentMatchers.eq(new com.deutschflow.common.audit.AuditActor(5L, "a@b.com", "STUDENT")),
+                org.mockito.ArgumentMatchers.eq("USER"), org.mockito.ArgumentMatchers.eq("5"),
+                org.mockito.ArgumentMatchers.<Long>isNull(), org.mockito.ArgumentMatchers.<java.util.Map<String, Object>>isNull());
+    }
+
+    @Test
+    void changePassword_wrongCurrent_writesNoAudit() {
+        User u = User.builder()
+                .id(6L).email("w@b.com").passwordHash("hash").displayName("W").role(User.Role.STUDENT)
+                .build();
+        when(passwordEncoder.matches("bad", "hash")).thenReturn(false);
+
+        org.junit.jupiter.api.Assertions.assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> authService.changePassword(u, new ChangePasswordRequest("bad", "newpass1")));
+        org.mockito.Mockito.verifyNoInteractions(auditLogService);
     }
 
     @Test

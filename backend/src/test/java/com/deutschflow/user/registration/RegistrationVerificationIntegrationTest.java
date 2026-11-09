@@ -3,6 +3,7 @@ package com.deutschflow.user.registration;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
+import com.deutschflow.user.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,7 +48,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Đăng ký có mã PIN trên PostgreSQL thật — các ca IT 1–9 của thiết kế 05/11 §10 (ca 10 ở
- * {@code RegistrationVerificationSwitchIntegrationTest}, ca 11 ở {@code RegistrationVerificationConfigTest}).
+ * {@code RegistrationVerificationSwitchIntegrationTest}, ca 11 + 11b ở {@code RegistrationCodesUnitTest}). Ca 12–14: luật "phải có mã hợp lệ mới tạo tài khoản" — thiếu/sai mã hoặc gọi
+ * {@code /register} cũ thì KHÔNG có dòng users (bug 09/11/2026, app mobile đã phát hành).
  *
  * <p>Thư bắt qua {@link JavaMailSender} giả; mã đọc từ TIÊU ĐỀ thư (đúng nơi người dùng đọc nó). Mã lưu HMAC
  * có pepper nên không đọc được từ DB — đó chính là điều thiết kế muốn.
@@ -74,6 +76,7 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     @Autowired private JdbcTemplate jdbc;
     @Autowired private UserRepository userRepository;
     @Autowired private RegistrationVerificationService service;
+    @Autowired private AuthService authService;
 
     @MockBean private JavaMailSender mailSender;
 
@@ -108,6 +111,29 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
         return mockMvc.perform(post("/api/auth/register/resend")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("email", email))));
+    }
+
+    /** Gọi /register cũ y như app mobile đã phát hành (không mã). {@code platform} null = web. */
+    private ResultActions legacyRegister(String email, String platform) throws Exception {
+        var req = post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                        "email", email, "password", "MatKhau123!", "displayName", "App cũ",
+                        "locale", "vi")));
+        if (platform != null) req = req.header("X-Platform", platform);
+        return mockMvc.perform(req);
+    }
+
+    private ResultActions verifyRaw(Map<String, String> body) throws Exception {
+        return mockMvc.perform(post("/api/auth/register/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)));
+    }
+
+    private int pendingAttempts(String email) {
+        return jdbc.queryForObject(
+                "SELECT attempts FROM pending_registrations WHERE email = ? AND closed_at IS NULL",
+                Integer.class, email);
     }
 
     /** Thư gần nhất gửi tới {@code email}. */
@@ -356,17 +382,14 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     // ── 8 ────────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("8. /register cũ tạo tài khoản giữa start và verify ⇒ 409")
-    void legacyRegisterRace_conflict() throws Exception {
+    @DisplayName("8. email bị tạo tài khoản bằng đường khác (ADMIN/trung tâm) giữa start và verify ⇒ 409")
+    void accountCreatedElsewhereRace_conflict() throws Exception {
         String email = newEmail();
         start(email).andExpect(status().isAccepted());
         String code = lastCodeTo(email);
 
-        mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "email", email, "password", "MatKhau123!", "displayName", "Đường cũ"))))
-                .andExpect(status().isCreated());
+        // /register cũ không còn tạo được tài khoản khi công tắc bật (ca 12) ⇒ giả lập đường khác tạo hộ.
+        authService.createSelfRegisteredStudent(email, null, "$2a$10$x", "Đường khác", User.Locale.vi);
 
         verifyCode(email, code)
                 .andExpect(status().isConflict())
@@ -391,18 +414,15 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
     }
 
     @Test
-    @DisplayName("chống bot: email hộp thư tạm ⇒ 400 DISPOSABLE_EMAIL, không hồ sơ, không thư (cả /register cũ)")
+    @DisplayName("chống bot: email hộp thư tạm ⇒ 400 DISPOSABLE_EMAIL, không hồ sơ, không thư")
     void disposableEmail_rejected() throws Exception {
         String email = "pin-it-" + UUID.randomUUID() + "@mailinator.com";
         start(email)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.extensions.reason").value("DISPOSABLE_EMAIL"));
-        mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "email", email, "password", "MatKhau123!", "displayName", "Bot"))))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.extensions.reason").value("DISPOSABLE_EMAIL"));
+        // /register cũ: công tắc bật ⇒ 410 trước cả lớp chống bot (ca 12), cũng không có tài khoản.
+        legacyRegister(email, null).andExpect(status().isGone());
+        assertThat(userRepository.existsByEmailIgnoreCase(email)).isFalse();
         Integer rows = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM pending_registrations WHERE email = ?", Integer.class, email);
         assertThat(rows).isZero();
@@ -441,5 +461,81 @@ class RegistrationVerificationIntegrationTest extends AbstractPostgresIntegratio
             verifyCode(email, first).andExpect(status().isBadRequest());
         }
         verifyCode(email, second).andExpect(status().isCreated());
+    }
+
+    // ── 12–14: luật "phải có mã hợp lệ mới tạo tài khoản" (bug 09/11/2026) ─────────────────────────────
+
+    @Test
+    @DisplayName("12. công tắc bật ⇒ /register cũ (web, iOS, Android — app đã phát hành) trả 410, KHÔNG tạo users, không gửi thư")
+    void legacyRegister_withoutCode_gone_noUser() throws Exception {
+        for (String platform : new String[] {null, "ios", "android"}) {
+            String email = newEmail();
+            legacyRegister(email, platform)
+                    .andExpect(status().isGone())
+                    .andExpect(jsonPath("$.extensions.reason").value("LEGACY_REGISTER_DISABLED"))
+                    .andExpect(jsonPath("$.detail").value(containsString("cập nhật ứng dụng")))
+                    .andExpect(jsonPath("$.accessToken").doesNotExist());
+            assertThat(userRepository.existsByEmailIgnoreCase(email)).as("platform=" + platform).isFalse();
+        }
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    @Test
+    @DisplayName("12b. đang có hồ sơ chờ mã ⇒ /register cũ vẫn 410, không users; hồ sơ còn nguyên, mã đúng vẫn vào được")
+    void legacyRegister_duringPending_gone_pendingIntact() throws Exception {
+        String email = newEmail();
+        start(email).andExpect(status().isAccepted());
+        String code = lastCodeTo(email);
+
+        legacyRegister(email, "ios").andExpect(status().isGone());
+        assertThat(userRepository.existsByEmailIgnoreCase(email)).isFalse();
+        assertThat(openPending(email)).isEqualTo(1);
+
+        verifyCode(email, code).andExpect(status().isCreated());
+        Integer users = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, email);
+        assertThat(users).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("13. verify THIẾU mã hoặc mã sai định dạng (rỗng, 5 số, 7 số, chữ) ⇒ 400, không users, không trừ lượt")
+    void verify_missingOrMalformedCode_noUser() throws Exception {
+        String email = newEmail();
+        start(email).andExpect(status().isAccepted());
+
+        verifyRaw(Map.of("email", email)).andExpect(status().isBadRequest());
+        for (String bad : new String[] {"", "   ", "12345", "1234567", "abcdef", "12 34 5"}) {
+            verifyRaw(Map.of("email", email, "code", bad)).andExpect(status().isBadRequest());
+        }
+        assertThat(userRepository.existsByEmailIgnoreCase(email)).isFalse();
+        assertThat(openPending(email)).isEqualTo(1);
+        assertThat(pendingAttempts(email)).as("lỗi định dạng bị chặn ở validation, không tính là đoán mã").isZero();
+    }
+
+    @Test
+    @DisplayName("14. verify SAI mã ⇒ 400 INVALID_CODE, không users, hồ sơ còn mở; mã đúng sau đó mới tạo tài khoản")
+    void verify_wrongCode_noUser_thenCorrectCreates() throws Exception {
+        String email = newEmail();
+        start(email).andExpect(status().isAccepted());
+        String code = lastCodeTo(email);
+
+        verifyCode(email, wrong(code))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.extensions.reason").value("INVALID_CODE"))
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
+        assertThat(userRepository.existsByEmailIgnoreCase(email)).isFalse();
+        assertThat(openPending(email)).isEqualTo(1);
+
+        verifyCode(email, code).andExpect(status().isCreated());
+        assertThat(userRepository.existsByEmailIgnoreCase(email)).isTrue();
+    }
+
+    @Test
+    @DisplayName("14b. verify cho email CHƯA start (đoán mã bừa) ⇒ 400 INVALID_CODE, không users")
+    void verify_withoutStart_noUser() throws Exception {
+        String email = newEmail();
+        verifyCode(email, "123456")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.extensions.reason").value("INVALID_CODE"));
+        assertThat(userRepository.existsByEmailIgnoreCase(email)).isFalse();
     }
 }

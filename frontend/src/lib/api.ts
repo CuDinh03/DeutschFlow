@@ -18,6 +18,25 @@ export function httpStatus(e: unknown): number {
 }
 
 /**
+ * Mã máy-đọc-được của lỗi problem+json (`extensions.code`, ví dụ `MFA_CODE_INVALID`, `RATE_LIMITED`);
+ * `null` khi lỗi không mang mã.
+ */
+export function problemCode(e: unknown): string | null {
+  if (!isAxiosErr(e)) return null
+  const d = e.response?.data as { extensions?: { code?: unknown } } | undefined
+  const code = d?.extensions?.code
+  return typeof code === 'string' ? code : null
+}
+
+/**
+ * 401 `MFA_REQUIRED` (2FA ADMIN, 09/11/2026): access token của tài khoản quản trị chưa qua bước 2FA, hoặc
+ * lần qua 2FA đã quá hạn (refresh từ chối). Refresh KHÔNG cứu được — phải đăng nhập lại từ đầu.
+ */
+export function isMfaRequired(e: unknown): boolean {
+  return httpStatus(e) === 401 && problemCode(e) === 'MFA_REQUIRED'
+}
+
+/**
  * Thông điệp lỗi thân thiện cho người dùng.
  *
  * Audit 24/07 (R-W7, song song R-M1 mobile): KHÔNG BAO GIỜ trả chuỗi kỹ thuật của axios
@@ -300,6 +319,11 @@ export async function refreshAccessToken(): Promise<string | null> {
     // an anonymous request. Transient failures (429 rate-limit, 5xx, network) leave tokens intact
     // so recovery is still possible once the latch releases; we just stopped the immediate storm.
     const refreshStatus = httpStatus(refreshError)
+    if (isMfaRequired(refreshError)) {
+      // Phiên admin quá hạn 2FA (max-session-hours) hoặc phát trước khi có 2FA: đăng nhập lại, không banner.
+      forceMfaRelogin()
+      return null
+    }
     notifyAuthRecovery()
     if (refreshStatus === 400 || refreshStatus === 401 || refreshStatus === 403) {
       clearTokens()
@@ -309,10 +333,28 @@ export async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+/**
+ * Phiên quản trị thiếu 2FA: xoá token phía client và về trang đăng nhập (kèm `?next=` để quay lại đúng
+ * trang). Bật latch để mọi request song song không lao vào refresh — refresh cũng sẽ bị từ chối.
+ */
+function forceMfaRelogin(): void {
+  sessionInvalid = true
+  clearTokens()
+  if (typeof window === 'undefined') return
+  const path = window.location.pathname
+  if (path.startsWith('/v2/login')) return
+  const next = encodeURIComponent(path + window.location.search)
+  window.location.assign(`/v2/login?reason=mfa&next=${next}`)
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
+    if (isMfaRequired(error)) {
+      forceMfaRelogin()
+      return Promise.reject(error)
+    }
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true
 

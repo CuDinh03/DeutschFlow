@@ -1,18 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { TriangleAlert, X } from 'lucide-react'
-import api from '@/lib/api'
+import api, { problemCode } from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
+import { isMfaChallenge, MFA_ERROR, type AuthSession, type MfaChallenge } from '@/lib/mfaApi'
 import { landingAfterLogin } from '@/lib/roleRouting'
 import { useUserStore } from '@/stores/useUserStore'
 import { useTracking } from '@/hooks/useTracking'
 import { registerPushNotifications } from '@/hooks/usePushNotifications'
 import { GaCap, GaBtn } from '@/components/ui-v2'
 import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE } from '../authShared'
+import { MfaLoginStep } from './MfaLoginStep'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Đăng nhập (GaLogin) — Galerie 2.0 reskin of /login. Plumbing reused 1:1 (zero
@@ -28,6 +30,10 @@ import { GaAuthShell, GaField, AuthErrorBanner, EMAIL_RE } from '../authShared'
 // Toàn bộ chuỗi hiển thị lấy từ next-intl ('v2.auth.login.…'): đây là bề mặt đăng nhập DUY NHẤT
 // sau khi cây v1 bị xoá, mà /login cũ mới là trang có 3 thứ tiếng — hard-code tiếng Việt ở đây
 // đồng nghĩa với việc người dùng EN/DE mất bản dịch ngay lúc v1 biến mất.
+//
+// 2FA ADMIN (09/11/2026): /auth/login có thể trả THỬ THÁCH { mfaRequired, mfaToken, enrolled, emailHint }
+// thay cho phiên — KHÔNG token, nên tuyệt đối không setTokens. Trang chuyển sang <MfaLoginStep> (cùng
+// khung GaAuthShell); khi bước 2FA trả phiên thì đi chung phần đuôi `finishLogin` với đăng nhập thường.
 //
 // ĐÃ BỎ: checkbox "Ghi nhớ đăng nhập" và nút "Đăng nhập với Google".
 //   · Checkbox chỉ có `defaultChecked` — không state, không handler, không ai đọc. Phiên đăng nhập
@@ -105,6 +111,64 @@ export default function V2LoginPage() {
   const [errs, setErrs] = useState<FieldErrors>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mfa, setMfa] = useState<MfaChallenge | null>(null)
+  // ?reason=mfa — lib/api.ts đá về đây khi phiên quản trị thiếu/quá hạn 2FA. Đọc sau mount (không đọc
+  // location lúc render: prerender không có window, lệch hydrate).
+  const [mfaNotice, setMfaNotice] = useState(false)
+  useEffect(() => {
+    setMfaNotice(new URLSearchParams(window.location.search).get('reason') === 'mfa')
+  }, [])
+
+  /**
+   * Phần đuôi DÙNG CHUNG của mọi đường có phiên (mật khẩu thường, hoặc sau bước 2FA): lưu token → org →
+   * mốc refresh → cookie locale → /auth/me → store → điều hướng. Ném lỗi cho người gọi tự hiển thị.
+   */
+  const finishLogin = async (data: AuthSession) => {
+    setTokens(data)
+    setOrg({ orgId: data.orgId ?? null, orgRole: data.orgRole ?? null })
+    recordTokenRefresh()
+    if (data.locale && ['vi', 'en', 'de'].includes(data.locale)) {
+      document.cookie = `locale=${data.locale};path=/;max-age=31536000;SameSite=Lax`
+    }
+
+    const { data: user } = await api.get('/auth/me')
+    // Populate the user store so shared screens (sidebar name/email, dashboard
+    // greeting, achievements self-highlight) have an identity to read.
+    setUser({
+      // AuthResponse exposes the id as `userId` (not `id`); reading `user.id` here
+      // stored the literal string "undefined" and broke PostHog identify + any
+      // client-side id usage. Map from the correct field.
+      id: String(user.userId),
+      email: user.email,
+      roles: [String(user.role)],
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+    })
+    // Bản đồ vai trò → trang chủ dùng chung với /login (@/lib/roleRouting): ADMIN → /v2/admin/users
+    // (chưa có trang index), OWNER/MANAGER → /v2/org (console trung tâm), TEACHER legacy mang
+    // orgRole OWNER/MANAGER cũng vào console, còn lại → /v2/student/dashboard.
+    //
+    // `?next=` (middleware đặt khi đá người CHƯA đăng nhập ra khỏi một trang cần quyền) được ưu
+    // tiên hơn bản đồ trên — thiếu nhánh này thì mọi deep-link đều bị nuốt, ai cũng rơi về trang
+    // chủ theo vai trò. Đọc thẳng `window.location` thay vì `useSearchParams()`: hook đó buộc
+    // component phải nằm trong <Suspense>, mà khi đó Next chỉ prerender nổi phần fallback → bề mặt
+    // đăng nhập DUY NHẤT của cả app chớp trắng rồi mới hydrate. Handler này chỉ chạy trên trình
+    // duyệt nên đọc location là an toàn tuyệt đối với prerender.
+    const next = safeNext(new URLSearchParams(window.location.search).get('next'))
+    // Cổng quay lại (Đợt 0 onboarding, 17/09): học viên bỏ dở phễu rồi đăng nhập lại
+    // trước đây rơi thẳng vào dashboard rỗng — chỉ 5 trang luyện tập mới kiểm `hasPlan`.
+    // Hỏi /onboarding/context (Đợt 5 — cùng `hasPlan` với /status, thêm cửa vào để phễu rẽ
+    // bản rút gọn cho học viên trung tâm; class-level STUDENT nên chỉ hỏi khi đúng vai) và đưa
+    // họ về phễu. Lỗi mạng ở đây KHÔNG được chặn đăng nhập → coi như có plan.
+    const hasPlan = user.role === 'STUDENT' && !next
+      ? await api.get<{ hasPlan: boolean }>('/onboarding/context').then((r) => r.data?.hasPlan !== false, () => true)
+      : true
+    router.replace(next ?? landingAfterLogin(user.role, { orgRole: data.orgRole, hasPlan }))
+
+    identifyUser(String(user.userId), { email: user.email, name: user.displayName, role: user.role, locale: user.locale })
+    trackEvent('login_success', { role: user.role })
+    registerPushNotifications()
+  }
 
   const submit = async () => {
     if (loading) return
@@ -126,59 +190,44 @@ export default function V2LoginPage() {
       // would break users whose email was historically stored mixed-case while an older, still
       // case-sensitive backend is live during a rollout. Trimming is safe against any backend version.
       const { data } = await api.post('/auth/login', { email: email.trim(), password })
-      setTokens(data)
-      setOrg({ orgId: data.orgId ?? null, orgRole: data.orgRole ?? null })
-      recordTokenRefresh()
-      if (data.locale && ['vi', 'en', 'de'].includes(data.locale)) {
-        document.cookie = `locale=${data.locale};path=/;max-age=31536000;SameSite=Lax`
+      if (isMfaChallenge(data)) {
+        // Mật khẩu đúng nhưng chưa có phiên: sang bước 2FA. Xoá mật khẩu khỏi bộ nhớ trang.
+        setPassword('')
+        setMfa(data)
+        setMfaNotice(false)
+        setLoading(false)
+        trackEvent('login_mfa_required', { enrolled: data.enrolled })
+        return
       }
-
-      const { data: user } = await api.get('/auth/me')
-      // Populate the user store so shared screens (sidebar name/email, dashboard
-      // greeting, achievements self-highlight) have an identity to read.
-      setUser({
-        // AuthResponse exposes the id as `userId` (not `id`); reading `user.id` here
-        // stored the literal string "undefined" and broke PostHog identify + any
-        // client-side id usage. Map from the correct field.
-        id: String(user.userId),
-        email: user.email,
-        roles: [String(user.role)],
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-      })
-      // Bản đồ vai trò → trang chủ dùng chung với /login (@/lib/roleRouting): ADMIN → /v2/admin/users
-      // (chưa có trang index), OWNER/MANAGER → /v2/org (console trung tâm), TEACHER legacy mang
-      // orgRole OWNER/MANAGER cũng vào console, còn lại → /v2/student/dashboard.
-      //
-      // `?next=` (middleware đặt khi đá người CHƯA đăng nhập ra khỏi một trang cần quyền) được ưu
-      // tiên hơn bản đồ trên — thiếu nhánh này thì mọi deep-link đều bị nuốt, ai cũng rơi về trang
-      // chủ theo vai trò. Đọc thẳng `window.location` thay vì `useSearchParams()`: hook đó buộc
-      // component phải nằm trong <Suspense>, mà khi đó Next chỉ prerender nổi phần fallback → bề mặt
-      // đăng nhập DUY NHẤT của cả app chớp trắng rồi mới hydrate. Handler này chỉ chạy trên trình
-      // duyệt nên đọc location là an toàn tuyệt đối với prerender.
-      const next = safeNext(new URLSearchParams(window.location.search).get('next'))
-      // Cổng quay lại (Đợt 0 onboarding, 17/09): học viên bỏ dở phễu rồi đăng nhập lại
-      // trước đây rơi thẳng vào dashboard rỗng — chỉ 5 trang luyện tập mới kiểm `hasPlan`.
-      // Hỏi /onboarding/context (Đợt 5 — cùng `hasPlan` với /status, thêm cửa vào để phễu rẽ
-      // bản rút gọn cho học viên trung tâm; class-level STUDENT nên chỉ hỏi khi đúng vai) và đưa
-      // họ về phễu. Lỗi mạng ở đây KHÔNG được chặn đăng nhập → coi như có plan.
-      const hasPlan = user.role === 'STUDENT' && !next
-        ? await api.get<{ hasPlan: boolean }>('/onboarding/context').then((r) => r.data?.hasPlan !== false, () => true)
-        : true
-      router.replace(next ?? landingAfterLogin(user.role, { orgRole: data.orgRole, hasPlan }))
-
-      identifyUser(String(user.userId), { email: user.email, name: user.displayName, role: user.role, locale: user.locale })
-      trackEvent('login_success', { role: user.role })
-      registerPushNotifications()
+      await finishLogin(data)
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setErrs(res.errors)
-      else {
+      else if (problemCode(err) === MFA_ERROR.NOT_CONFIGURED) {
+        setError(t('mfa.errors.notConfigured'))
+        trackEvent('login_failed', { reason: MFA_ERROR.NOT_CONFIGURED })
+      } else {
         setError(res?.detail ?? t('login.failed'))
         trackEvent('login_failed', { reason: res?.detail ?? 'unknown' })
       }
       setLoading(false)
     }
+  }
+
+  if (mfa) {
+    return (
+      <GaAuthShell>
+        <MfaLoginStep
+          challenge={mfa}
+          onSession={finishLogin}
+          onRestart={() => {
+            setMfa(null)
+            setError('')
+            clearTokens()
+          }}
+        />
+      </GaAuthShell>
+    )
   }
 
   return (
@@ -188,6 +237,12 @@ export default function V2LoginPage() {
       <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('login.subtitle')}</p>
 
       <MaintenanceBanner />
+
+      {mfaNotice && !error && (
+        <AuthErrorBanner>
+          <strong>{t('mfa.reasonMfa')}</strong>
+        </AuthErrorBanner>
+      )}
 
       {error && (
         <AuthErrorBanner>

@@ -185,4 +185,103 @@ class JwtServiceUnitTest {
         assertTrue(verifierOtherAud.isTokenValid(token),
                 "require-iss-aud=false thì không enforce audience");
     }
+
+    // ── Phân loại token (typ + jti, 09/11/2026) ─────────────────────────────────────
+
+    private static JwtService hs256() {
+        return new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "deutschflow-app", false,
+                "HS256", "", "", "");
+    }
+
+    @Test
+    void accessTokenCarriesTypAccessAndRandomJti() {
+        JwtService jwt = hs256();
+        io.jsonwebtoken.Claims c1 = jwt.extractClaims(jwt.generateAccessToken(student()));
+        io.jsonwebtoken.Claims c2 = jwt.extractClaims(jwt.generateAccessToken(student()));
+
+        assertEquals(JwtService.TYP_ACCESS, c1.get(JwtService.CLAIM_TYP));
+        assertEquals(JwtService.TYP_ACCESS, JwtService.tokenType(c1));
+        assertFalse(JwtService.isLegacyUntyped(c1));
+        assertNotNull(c1.getId(), "jti phải có");
+        assertFalse(c1.getId().isBlank());
+        assertNotEquals(c1.getId(), c2.getId(), "jti phải ngẫu nhiên mỗi token");
+    }
+
+    @Test
+    void rs256AccessTokenAlsoTyped() throws Exception {
+        KeyPair kp = rsaKeyPair();
+        JwtService jwt = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "deutschflow-app", false,
+                "RS256", pkcs8Pem(kp), x509Pem(kp), "");
+        io.jsonwebtoken.Claims c = jwt.extractClaims(jwt.generateAccessToken(student()));
+        assertEquals(JwtService.TYP_ACCESS, JwtService.tokenType(c));
+        assertNotNull(c.getId());
+    }
+
+    @Test
+    void guestTokenCarriesTypGuestAndJti() {
+        JwtService jwt = hs256();
+        io.jsonwebtoken.Claims c = jwt.extractClaims(jwt.generateGuestToken("nick", "123456", 60_000L));
+
+        assertEquals("guest:nick", c.getSubject());
+        assertEquals(JwtService.TYP_GUEST, JwtService.tokenType(c));
+        assertEquals("123456", c.get("pinCode", String.class));
+        assertNotNull(c.getId());
+    }
+
+    @Test
+    void mfaChallengeTokenShape() {
+        JwtService jwt = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                "deutschflow-api", "deutschflow-app", false,
+                "HS256", "", "", "", 120_000L);
+        long before = System.currentTimeMillis();
+        io.jsonwebtoken.Claims c = jwt.extractClaims(jwt.generateMfaChallengeToken(42L));
+
+        assertEquals("mfa:42", c.getSubject());
+        assertEquals(JwtService.TYP_MFA, JwtService.tokenType(c));
+        assertNull(c.get("role"), "token 2FA không được mang role");
+        assertNull(c.get("userId"), "token 2FA không mang userId (đã nằm trong sub)");
+        assertNotNull(c.getId());
+        assertEquals("deutschflow-api", c.getIssuer());
+        assertTrue(c.getAudience().contains("deutschflow-app"));
+        long ttl = c.getExpiration().getTime() - c.getIssuedAt().getTime();
+        assertEquals(120_000L, ttl, "TTL lấy từ app.jwt.mfa-token-expiry-ms");
+        assertTrue(c.getExpiration().getTime() <= before + 120_000L + 1_000L);
+    }
+
+    @Test
+    void mfaChallengeTokenDefaultTtlIsFiveMinutes() {
+        JwtService jwt = hs256();
+        io.jsonwebtoken.Claims c = jwt.extractClaims(jwt.generateMfaChallengeToken(7L));
+        assertEquals(300_000L, c.getExpiration().getTime() - c.getIssuedAt().getTime());
+    }
+
+    @Test
+    void missingTypMeansAccess_legacyProductionTokensStayValid() {
+        // Token phát hành TRƯỚC bản này: không typ, không jti — ký bằng cùng secret.
+        String legacy = io.jsonwebtoken.Jwts.builder()
+                .subject("a@b.com")
+                .claim("role", "STUDENT")
+                .claim("userId", 9L)
+                .issuer("deutschflow-api")
+                .issuedAt(new java.util.Date())
+                .expiration(new java.util.Date(System.currentTimeMillis() + 60_000L))
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                        SECRET_32_PLUS.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .compact();
+        JwtService jwt = hs256();
+
+        assertTrue(jwt.isTokenValid(legacy));
+        io.jsonwebtoken.Claims c = jwt.extractClaims(legacy);
+        assertEquals(JwtService.TYP_ACCESS, JwtService.tokenType(c));
+        assertTrue(JwtService.isLegacyUntyped(c));
+    }
+
+    @Test
+    void blankTypAlsoMeansAccess() {
+        io.jsonwebtoken.Claims c = io.jsonwebtoken.Jwts.claims().add(JwtService.CLAIM_TYP, "  ").build();
+        assertEquals(JwtService.TYP_ACCESS, JwtService.tokenType(c));
+        assertTrue(JwtService.isLegacyUntyped(c));
+    }
 }

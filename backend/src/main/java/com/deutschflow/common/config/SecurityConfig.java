@@ -94,6 +94,10 @@ public class SecurityConfig {
                         // riêng theo email + theo IP nằm ở AuthController.
                         auth.requestMatchers("/api/auth/register/start", "/api/auth/register/verify",
                                 "/api/auth/register/resend").permitAll();
+                        // 2FA ADMIN (09/11/2026): người gọi CHƯA có phiên — xác thực bằng token thử thách typ=mfa
+                        // trong body (MfaChallengeTokens). Hạn mức: trần IP chung + 5 lần sai/15 phút (MfaService).
+                        auth.requestMatchers(HttpMethod.POST, "/api/auth/mfa/email-code", "/api/auth/mfa/enroll/start",
+                                "/api/auth/mfa/enroll/confirm", "/api/auth/mfa/verify").permitAll();
                         auth.requestMatchers("/api/auth/logout").authenticated();
                         auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join

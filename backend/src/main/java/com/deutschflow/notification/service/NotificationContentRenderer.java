@@ -190,6 +190,25 @@ public class NotificationContentRenderer {
                     "Trung tâm " + nonBlankOr(str(p, "orgName"), "của bạn")
                             + (boolOf(p, "firstRecord") ? " đã ghi" : " đã sửa")
                             + " ngày sinh trên hồ sơ của bạn. Mở ứng dụng để xem và báo lại nếu chưa đúng.");
+            case MFA_ENABLED -> new RenderedContent(
+                    "Đã bật xác thực hai lớp",
+                    "Từ giờ mỗi lần đăng nhập cần thêm mã từ ứng dụng xác thực. Cất mã khôi phục ở nơi an toàn.");
+            case MFA_RECOVERY_CODE_USED -> new RenderedContent(
+                    "Đã dùng một mã khôi phục",
+                    "Tài khoản vừa đăng nhập bằng mã khôi phục. Còn " + intStr(p, "remaining") + " mã chưa dùng.");
+            case MFA_RECOVERY_CODES_LOW -> new RenderedContent(
+                    "Sắp hết mã khôi phục",
+                    "Chỉ còn " + intStr(p, "remaining") + " mã khôi phục. Vào Hồ sơ → Bảo mật để tạo bộ mã mới.");
+            case MFA_RESET_BY_ADMIN -> new RenderedContent(
+                    "Xác thực hai lớp đã được đặt lại",
+                    "Một quản trị viên khác đã đặt lại 2FA của bạn. Lần đăng nhập tới bạn sẽ thiết lập lại.");
+
+            // ── Đội hỗ trợ đặt lại mật khẩu — KHÔNG lý do nội bộ, KHÔNG danh tính admin ──
+            case PASSWORD_RESET_BY_ADMIN -> new RenderedContent(
+                    "Mật khẩu đã được đặt lại",
+                    "Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại"
+                            + (str(p, "resetAtDisplay").isBlank() ? "" : " lúc " + str(p, "resetAtDisplay"))
+                            + ". Nếu bạn không yêu cầu, hãy liên hệ hỗ trợ.");
         };
     }
 

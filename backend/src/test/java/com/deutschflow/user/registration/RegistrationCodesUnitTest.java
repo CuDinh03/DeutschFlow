@@ -51,4 +51,20 @@ class RegistrationCodesUnitTest {
         assertThat(new RegistrationVerificationConfig(false, "", 60, 5, 60, true, "").enabled()).isFalse();
         assertThat(new RegistrationVerificationConfig(true, pepper, 60, 5, 60, true, "smtp.x").enabled()).isTrue();
     }
+
+    @Test
+    @DisplayName("11b. công tắc bật ⇒ /register cũ ĐÓNG dù LEGACY_REGISTER_ENABLED=true (bug 09/11: app cũ tạo tài khoản không mã)")
+    void legacyRegisterClosedWheneverVerificationOn() {
+        String pepper = "p".repeat(32);
+        // Đúng tổ hợp prod 09/11: bật mã PIN, LEGACY_REGISTER_ENABLED không đặt (mặc định true).
+        assertThat(new RegistrationVerificationConfig(true, pepper, 60, 5, 60, true, "smtp.x")
+                .legacyRegisterAllowed()).isFalse();
+        assertThat(new RegistrationVerificationConfig(true, pepper, 60, 5, 60, false, "smtp.x")
+                .legacyRegisterAllowed()).isFalse();
+        // Công tắc tắt (rollback) ⇒ cờ legacy quyết định.
+        assertThat(new RegistrationVerificationConfig(false, "", 60, 5, 60, true, "")
+                .legacyRegisterAllowed()).isTrue();
+        assertThat(new RegistrationVerificationConfig(false, "", 60, 5, 60, false, "")
+                .legacyRegisterAllowed()).isFalse();
+    }
 }

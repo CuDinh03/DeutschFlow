@@ -120,6 +120,12 @@ public final class PracticeExerciseGrader {
             }
             return false;
         }
+        // "spoken" chỉ hợp lệ với mục NÓI (không có khoá đáp án nào). Trước 09/11/2026 câu trắc nghiệm /
+        // điền từ nhận "spoken" (chuỗi, nên lọt nhánh correct_index; không có correct_answer) cũng tính
+        // ĐÚNG — client sửa tay được trọn điểm + XP (review A3, kế hoạch eDeutsch A2).
+        if (correctIndex != null || correctAnswer != null) {
+            return false;
+        }
         return "spoken".equals(submitted);
     }
 

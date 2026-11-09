@@ -23,6 +23,7 @@ import {
 import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { defineFilters } from '@/lib/urlFilters'
 import { useFmt } from '@/lib/i18n/useFmt'
+import { useUserStore } from '@/stores/useUserStore'
 import { UserAccessPanel } from '../_components/UserAccessPanel'
 import { UserPlanPanel } from '../_components/UserPlanPanel'
 import { UserQuotaSummary } from '../_components/UserQuotaSummary'
@@ -54,6 +55,8 @@ function AdminUserProfileInner() {
   const params = useParams<{ id: string }>()
   const userId = Number(params?.id)
   const { values, set } = useUrlFilters(TABS)
+  // Id của admin đang đăng nhập — để ẩn "Đặt lại 2FA" trên hồ sơ của chính mình.
+  const currentUserId = useUserStore((s) => s.user?.id ?? null)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [quota, setQuota] = useState<QuotaDetail | null>(null)
@@ -178,6 +181,7 @@ function AdminUserProfileInner() {
                   email={profile.email}
                   role={profile.role}
                   isActive={profile.isActive}
+                  isSelf={String(profile.id) === currentUserId}
                   onChanged={() => void load()}
                 />
               </GaCard>

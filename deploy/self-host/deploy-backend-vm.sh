@@ -20,7 +20,8 @@ ENV_FILE=$DF_ENV/backend.env
 IMAGE=deutschflow-backend
 PUBLIC_HEALTH=https://api.mydeutschflow.com/actuator/health
 REQUIRED=(DB_HOST DB_PASSWORD REDIS_HOST S3_ENDPOINT S3_BUCKET_NAME S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY
-          JWT_ALGORITHM JWT_RSA_PRIVATE_KEY JWT_RSA_PUBLIC_KEY EDGE_TTS_URL GROQ_API_KEY)
+          JWT_ALGORITHM JWT_RSA_PRIVATE_KEY JWT_RSA_PUBLIC_KEY EDGE_TTS_URL GROQ_API_KEY
+          MFA_ENCRYPTION_KEY MFA_RECOVERY_PEPPER)   # 2FA ADMIN (V369) — docs/RUNBOOK_2FA_ADMIN.md
 START=$(date +%s)
 
 # ── Preflight ─────────────────────────────────────────────────
@@ -33,6 +34,9 @@ if grep -qE '^AWS_' "$ENV_FILE"; then error "backend.env còn biến AWS_* — d
 if grep -q FIRSTBOOT_PLACEHOLDER "$ENV_FILE"; then error "backend.env còn khoá R2 giả"; exit 1; fi
 if grep -qE '^JWT_ALGORITHM=RS256' "$ENV_FILE" && grep -qE '^(JWT_SECRET|JWT_SECRET_PREVIOUS)=.' "$ENV_FILE"; then
   warn "backend.env còn JWT_SECRET* dù ký RS256 — backend đã bỏ qua khi verify; gỡ khỏi backend.env và env frontend"
+fi
+if grep -qE '^ADMIN_MFA_ENFORCED=false' "$ENV_FILE"; then
+  warn "ADMIN_MFA_ENFORCED=false — 2FA admin đang TẮT (kill-switch runbook). Bật lại ngay sau khi xử lý xong."
 fi
 if grep -qE '^(GOETHE_AUTO_IMPORT_ON_STARTUP|GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT|CEFR_CURATED_AUTO_IMPORT_STARTUP)=true' "$ENV_FILE"; then
   warn "cờ auto-import đang true — mỗi lần boot sẽ import lại (spike CPU)"

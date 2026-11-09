@@ -65,6 +65,29 @@ describe('notificationDisplay — i18n', () => {
     expect(resolveNotificationHref(item('BIRTH_DATE_UPDATED'), 'student')).toBe('/v2/profile')
   })
 
+  // 2FA ADMIN (09/11/2026): bốn loại gửi cho chính chủ tài khoản quản trị — nhãn ba locale, lối về Hồ sơ.
+  it('nhãn + lối đi của thông báo 2FA', () => {
+    expect(notifTitle(item('MFA_ENABLED'), tVi)).toBe('Đã bật xác thực hai lớp')
+    expect(notifTitle(item('MFA_RECOVERY_CODES_LOW'), tDe)).toBe('Wiederherstellungscodes gehen zur Neige')
+    expect(notifTitle(item('MFA_RESET_BY_ADMIN'))).toBe('Xác thực hai lớp đã được đặt lại')
+    for (const type of ['MFA_ENABLED', 'MFA_RECOVERY_CODE_USED', 'MFA_RECOVERY_CODES_LOW', 'MFA_RESET_BY_ADMIN']) {
+      expect(TYPE_ICON[type]).toBeTruthy()
+      expect(resolveNotificationHref(item(type), 'admin')).toBe('/v2/profile')
+    }
+    expect(notifTone('MFA_ENABLED')).toBe('green')
+    expect(notifTone('MFA_RECOVERY_CODE_USED')).toBe('red')
+  })
+
+  // Đợt 2 admin (09/11/2026): đội hỗ trợ đặt lại mật khẩu — người nhận là chính người bị đổi.
+  it('nhãn + tông + lối đi của thông báo đặt lại mật khẩu bởi đội hỗ trợ', () => {
+    expect(notifTitle(item('PASSWORD_RESET_BY_ADMIN'), tVi)).toBe('Mật khẩu đã được đặt lại')
+    expect(notifTitle(item('PASSWORD_RESET_BY_ADMIN'), tDe)).toBe('Passwort wurde zurückgesetzt')
+    expect(notifTitle(item('PASSWORD_RESET_BY_ADMIN'))).toBe('Mật khẩu đã được đặt lại')
+    expect(TYPE_ICON.PASSWORD_RESET_BY_ADMIN).toBe('key')
+    expect(notifTone('PASSWORD_RESET_BY_ADMIN')).toBe('red')
+    expect(resolveNotificationHref(item('PASSWORD_RESET_BY_ADMIN'), 'student')).toBe('/v2/profile')
+  })
+
   it('không có translator thì giữ hành vi tiếng Việt cũ', () => {
     expect(notifTitle(item('LEVEL_UP'))).toBe('Lên cấp độ')
     expect(dayBucket(new Date().toISOString())).toBe('Hôm nay')
