@@ -1,5 +1,6 @@
 'use client'
 
+import type * as React from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, TextSearch, TriangleAlert, X } from 'lucide-react'
 import type { PracticeItemResult } from '@/lib/telcPracticeApi'
@@ -45,11 +46,14 @@ export function ItemAnalysis({
   item,
   title,
   onShowEvidence,
+  extra,
 }: {
   item: PracticeItemResult
   title: string
   /** Có khi bằng chứng nằm ở cột nguồn: hiện nút "Xem trong bài" để cuộn tới và tô chỗ đó. */
   onShowEvidence?: () => void
+  /** Khối đặt ngay dưới tiêu đề — chẩn đoán "bạn tìm bằng chứng thế nào" (đánh dấu bài đọc, 09/11/2026). */
+  extra?: React.ReactNode
 }) {
   const t = useTranslations('v2.student.practice')
   const status = !item.answered ? 'none' : item.isCorrect ? 'ok' : 'bad'
@@ -75,6 +79,8 @@ export function ItemAnalysis({
           <span className="rounded-ga-pill bg-ga-navy-soft px-2.5 py-0.5 text-ga-caption font-semibold text-ga-navy">{item.rule}</span>
         )}
       </div>
+
+      {extra}
 
       {item.need && (
         <Block tone="neutral" label={t('needLabel')}>

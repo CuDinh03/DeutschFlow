@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { BookOpen, ChevronRight, ClipboardList, GripHorizontal, Headphones, Lightbulb, ListChecks, MoveHorizontal, PenLine, Send, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronRight, ClipboardList, GripHorizontal, Headphones, Highlighter, Lightbulb, ListChecks, MoveHorizontal, PenLine, Send, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
   WRITING_KEY,
@@ -22,7 +22,8 @@ import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
 import { ConfirmDialog, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { PracticeShell, TipsCard } from '@/components/exam/practice/PracticeShell'
 import { usePracticeDraft } from '@/components/exam/practice/usePracticeDraft'
-import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
+import { ObjectiveTeilView, marksTexts } from '@/components/exam/practice/ObjectiveTeilView'
+import { hasContent, usePassageMarks } from '@/components/exam/marks/usePassageMarks'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
@@ -48,6 +49,7 @@ function PracticeTeilPage() {
   const teilKey = params.get('teil') ?? ''
   const rewrite = params.get('rewrite') === '1'
   const tf = useTranslations('v2.student.practice.frame')
+  const tm = useTranslations('v2.student.practice.marks')
   // Khung làm bài chia hai cột từ 760px; màn kết quả Viết giữ mốc 1024px như cũ.
   const wide = useWide(SPLIT_MIN_WIDTH)
   const wideResult = useWide()
@@ -161,6 +163,8 @@ function PracticeTeilPage() {
           ]
         : [
             { target: 'source', icon: BookOpen, title: tt('teil.source.t'), body: tt('teil.source.p') },
+            // chỉ hiện khi có dải "Bút đánh dấu" (bước không có vùng thì tự bỏ) — chú thích ba màu
+            { target: 'marks', icon: Highlighter, title: tt('teil.marks.t'), body: tt('teil.marks.p') },
             { target: 'divider', icon: MoveHorizontal, title: tt('teil.divider.t'), body: tt('teil.divider.p') },
             { target: 'handle', icon: GripHorizontal, title: tt('teil.handle.t'), body: tt('teil.handle.p') },
             { target: 'dots', icon: ListChecks, title: tt('teil.dots.t'), body: tt('teil.dots.p') },
@@ -200,6 +204,13 @@ function PracticeTeilPage() {
   const saveState = draft.saveState
   const markDirtyRef = React.useRef(draft.markDirty)
   markDirtyRef.current = draft.markDirty
+
+  // ── đánh dấu bài đọc (09/11/2026, đợt 1: Lesen có bài đọc, dạng a/b/c) — lưu riêng với nháp đáp án ──
+  const marksEnabled = !!overview && meta?.section === 'LESEN' && kind === 'mc' && !!teil?.context
+  const marksTextMap = React.useMemo(() => (teil ? marksTexts(teil) : {}), [teil])
+  const marks = usePassageMarks({ examId, teilKey: marksEnabled ? teilKey : null, texts: marksTextMap, enabled: marksEnabled })
+  const [redoOpen, setRedoOpen] = React.useState(false)
+  const [keepMarks, setKeepMarks] = React.useState(true)
 
   const onAnswer = React.useCallback((id: string, value: string | null) => {
     markDirtyRef.current()
@@ -245,10 +256,20 @@ function PracticeTeilPage() {
     }
   }
 
-  const redo = async () => {
+  // "Làm lại": Teil có đánh dấu thì hỏi có giữ không (owner chốt 09/11/2026: hỏi mỗi lần, mặc định giữ).
+  const askRedo = () => {
+    if (marksEnabled && hasContent(marks.pack)) {
+      setKeepMarks(true)
+      setRedoOpen(true)
+    } else void redo(true)
+  }
+
+  const redo = async (keep: boolean) => {
+    setRedoOpen(false)
     setBusy(true)
     try {
-      await resetPracticeTeil(examId, teilKey)
+      await resetPracticeTeil(examId, teilKey, keep)
+      if (!keep) marks.clearLocal()
       setResult(null)
       setAnswers({})
       setSeconds(0)
@@ -443,7 +464,7 @@ function PracticeTeilPage() {
           <Lightbulb size={15} aria-hidden /> {tf('suggestStrategy')}
         </FootBtn>
       )}
-      <FootBtn disabled={busy} onClick={redo}>{t('redo')}</FootBtn>
+      <FootBtn disabled={busy} onClick={askRedo}>{t('redo')}</FootBtn>
       <FootBtn primary onClick={goNext}>
         {nextKey ? t('nextTeil') : t('backToMap')} <ChevronRight size={16} aria-hidden />
       </FootBtn>
@@ -486,11 +507,32 @@ function PracticeTeilPage() {
           result={result}
           wide={wide}
           tips={tips}
+          marks={marksEnabled ? marks : null}
         />
       )}
     </PracticeShell>
     {drawer}
     {tour.overlay}
+    <ConfirmDialog
+      open={redoOpen}
+      onOpenChange={setRedoOpen}
+      title={tm('redo.title')}
+      description={tm('redo.body')}
+      confirmLabel={tm('redo.confirm')}
+      cancelLabel={tm('redo.cancel')}
+      destructive={false}
+      onConfirm={() => void redo(keepMarks)}
+    >
+      <label className="ga-ui mt-1 flex cursor-pointer items-center gap-2.5 text-ga-body text-ga-ink">
+        <input
+          type="checkbox"
+          checked={keepMarks}
+          onChange={(e) => setKeepMarks(e.target.checked)}
+          className="h-4 w-4 accent-ga-navy"
+        />
+        {tm('redo.keep')}
+      </label>
+    </ConfirmDialog>
     <ConfirmDialog
       open={confirmOpen}
       onOpenChange={setConfirmOpen}

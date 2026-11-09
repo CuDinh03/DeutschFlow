@@ -145,10 +145,72 @@ public class MockExamPracticeService {
     }
 
     public void reset(User user, long examId, String teilKey) {
+        reset(user, examId, teilKey, true);
+    }
+
+    /**
+     * "Làm lại": xoá đáp án + kết quả. Đánh dấu bài đọc ở bảng riêng — giữ hay xoá do người học chọn
+     * trong hộp xác nhận (owner chốt 09/11/2026: hỏi mỗi lần, mặc định giữ).
+     */
+    public void reset(User user, long examId, String teilKey, boolean keepMarks) {
         Exam exam = loadExam(user, examId);
         requireTeil(exam, teilKey);
         jdbc.update("DELETE FROM mock_exam_practice_progress WHERE user_id = ? AND exam_id = ? AND teil_key = ?",
                 user.getId(), examId, teilKey);
+        if (!keepMarks) {
+            jdbc.update("""
+                    DELETE FROM exam_passage_marks
+                    WHERE user_id = ? AND exam_id = ? AND teil_key = ? AND attempt_id IS NULL
+                    """, user.getId(), examId, teilKey);
+        }
+    }
+
+    // ─── đánh dấu bài đọc (09/11/2026) ──────────────────────────────────────
+
+    public PracticeDtos.Marks marks(User user, long examId, String teilKey) {
+        Exam exam = loadExam(user, examId);
+        requireTeil(exam, teilKey);
+        return marksRow(user.getId(), examId, teilKey);
+    }
+
+    /** Ghi đè cả gói (lần lưu sau thắng). Kiểm + làm sạch ở {@link PassageMarksValidator}. */
+    public PracticeDtos.Marks saveMarks(User user, long examId, String teilKey, Map<String, Object> raw) {
+        Exam exam = loadExam(user, examId);
+        Map<String, Object> teil = requireTeil(exam, teilKey);
+        Map<String, Object> clean = PassageMarksValidator.clean(raw, PassageMarksValidator.blocksOf(teil),
+                itemIds(teil), PassageMarksValidator.optionsOf(teil), PassageMarksValidator.Mode.FULL);
+        String body = json(clean);
+        if (body.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > PassageMarksValidator.MAX_JSON_BYTES) {
+            throw new BadRequestException("Gói đánh dấu quá lớn.");
+        }
+        jdbc.update("""
+                INSERT INTO exam_passage_marks (user_id, exam_id, teil_key, marks_json, updated_at)
+                VALUES (?, ?, ?, ?::jsonb, NOW())
+                ON CONFLICT (user_id, exam_id, teil_key) WHERE attempt_id IS NULL
+                DO UPDATE SET marks_json = EXCLUDED.marks_json, updated_at = NOW()
+                """, user.getId(), examId, teilKey, body);
+        return marksRow(user.getId(), examId, teilKey);
+    }
+
+    private PracticeDtos.Marks marksRow(long userId, long examId, String teilKey) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT marks_json::text AS marks_json, updated_at FROM exam_passage_marks
+                WHERE user_id = ? AND exam_id = ? AND teil_key = ? AND attempt_id IS NULL
+                """, userId, examId, teilKey);
+        if (rows.isEmpty()) return new PracticeDtos.Marks(Map.of(), null);
+        Map<String, Object> row = rows.get(0);
+        return new PracticeDtos.Marks(read((String) row.get("marks_json")),
+                row.get("updated_at") instanceof Timestamp ts ? ts.toInstant() : null);
+    }
+
+    private static java.util.Set<String> itemIds(Map<String, Object> teil) {
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        if (teil.get("items") instanceof List<?> items) {
+            for (Object o : items) {
+                if (o instanceof Map<?, ?> item && item.get("id") != null) ids.add(String.valueOf(item.get("id")));
+            }
+        }
+        return ids;
     }
 
     /** Bối cảnh để chấm Viết: đề bài gửi AI + trình độ. Gọi TRƯỚC khi trừ quota để lỗi đề báo sớm. */

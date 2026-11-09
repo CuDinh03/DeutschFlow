@@ -3,10 +3,17 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronDown, ChevronRight, Flag, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, CircleSlash, Flag, MapPin, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PracticeItemResult, PracticeTeilResult } from '@/lib/telcPracticeApi'
-import { ReadingPassage } from '@/components/exam/telc/ReadingPassage'
+import { evidenceRanges } from '@/lib/exam/evidenceRanges'
+import { ReadingPassage, lineNumberAt, passageLineMap, passageText } from '@/components/exam/telc/ReadingPassage'
+import { MarkedText, type MarkLayer } from '@/components/exam/marks/MarkedText'
+import { MarkDiagnosis } from '@/components/exam/marks/MarkDiagnosis'
+import { MarksBar } from '@/components/exam/marks/MarksBar'
+import { PassageMarker } from '@/components/exam/marks/PassageMarker'
+import { diagnose, groupSelector, groupsForItem, isStruck, setStruck, type Piece } from '@/components/exam/marks/marksModel'
+import type { PassageMarks } from '@/components/exam/marks/usePassageMarks'
 import { parseGappedText } from '@/components/exam/telc/telcTeil'
 import { ItemAnalysis, LetterBadge } from './ItemAnalysis'
 import { PracticeFootSlot } from './PracticeShell'
@@ -43,6 +50,19 @@ interface Props {
   focusId?: string | null
   /** Khối đặt trên cùng cột trả lời (Hören màn hẹp: trình phát của đoạn đang nghe). */
   answersTop?: React.ReactNode
+  /**
+   * Đánh dấu bài đọc (09/11/2026, đợt 1: Lesen 2 ở luyện Teil). Trang tạo bằng `usePassageMarks`;
+   * không truyền ⇒ không có công cụ đánh dấu (thi thử, bài chẩn đoán — đợt 2).
+   */
+  marks?: PassageMarks | null
+}
+
+/** Chữ các khối đánh dấu được của một Teil trắc nghiệm có bài đọc: `ctx` + đề từng câu. */
+export function marksTexts(teil: PracticeTeilData): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (teil.context) out.ctx = passageText(teil.context)
+  for (const it of teil.items ?? []) if (it.question) out[`q:${it.id}`] = passageText(it.question)
+  return out
 }
 
 type Req<T> = { n: number } & T
@@ -59,7 +79,7 @@ type Req<T> = { n: number } & T
  * thì viền đứt + "ở câu N" (vẫn chọn được — nó chuyển sang câu đang chọn); đúng/sai chỉ hiện sau khi
  * kiểm tra cả Teil. Hàng ô số câu nằm ở thanh dưới của vỏ (portal).
  */
-export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop }: Props) {
+export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks }: Props) {
   const t = useTranslations('v2.student.practice')
   const tf = useTranslations('v2.student.practice.frame')
   const items = React.useMemo(() => teil.items ?? [], [teil.items])
@@ -212,6 +232,97 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teil])
 
+  // ── đánh dấu bài đọc (09/11/2026, đợt 1: trắc nghiệm có bài đọc, màn ≥ 760px) ─────────────
+  const tm = useTranslations('v2.student.practice.marks')
+  const marksOn = !!marks && isMc && !!teil.context && marks.ready
+  const canMark = marksOn && wide && !marks!.hidden
+  const marksRoot = React.useRef<HTMLDivElement>(null)
+  const ctxText = React.useMemo(() => passageText(teil.context ?? ''), [teil.context])
+  const ctxLines = React.useMemo(() => passageLineMap(ctxText), [ctxText])
+  const blockOrder = React.useCallback(
+    (b: string) => (b === 'ctx' ? 0 : 1 + items.findIndex((it) => `q:${it.id}` === b)),
+    [items],
+  )
+  const labelOfId = React.useCallback((id: string) => {
+    const it = items.find((i) => i.id === id)
+    return it ? itemLabel(it) : id
+  }, [items])
+  const describe = React.useCallback(
+    (p: Piece) => {
+      if (p.b !== 'ctx') return tm('inQuestion', { n: labelOfId(p.b.slice(2)) })
+      const a = lineNumberAt(ctxLines, p.s)
+      const b = lineNumberAt(ctxLines, Math.max(p.s, p.e - 1))
+      return a === b ? tm('line', { n: a }) : tm('lines', { a, b })
+    },
+    [ctxLines, labelOfId, tm],
+  )
+  const jumpRef = React.useRef(jumpTo)
+  jumpRef.current = jumpTo
+  const pack = marks?.pack
+  const layer = React.useMemo<MarkLayer | null>(
+    () =>
+      marksOn && pack
+        ? {
+            pack,
+            blockOrder,
+            labelOf: labelOfId,
+            onGoItem: (id) => jumpRef.current(id),
+            onOpenNote: (gid) => window.dispatchEvent(new CustomEvent('ga-marks-open-note', { detail: gid })),
+            tagLabel: (n) => tm('tagBadge', { n }),
+            noteLabel: (note) => tm('noteBadge', { note }),
+          }
+        : null,
+    [marksOn, pack, blockOrder, labelOfId, tm],
+  )
+  const markedItems = React.useMemo(
+    () => new Set(pack && marksOn ? items.filter((it) => groupsForItem(pack, it.id, blockOrder).length > 0).map((it) => it.id) : []),
+    [pack, marksOn, items, blockOrder],
+  )
+
+  // "Xem trong bài": cuộn tới đoạn đã gắn vào câu, bấm tiếp ⇒ đoạn sau.
+  const [markCycle, setMarkCycle] = React.useState<Record<string, number>>({})
+  const flashEls = (els: NodeListOf<HTMLElement> | undefined) =>
+    els?.forEach((el) => {
+      el.classList.remove('ga-mark-flash')
+      void el.offsetWidth
+      el.classList.add('ga-mark-flash')
+      window.setTimeout(() => el.classList.remove('ga-mark-flash'), 1400)
+    })
+  const showMarksOf = (id: string) => {
+    if (!pack) return
+    const gs = groupsForItem(pack, id, blockOrder)
+    if (gs.length === 0) return
+    const i = (markCycle[id] ?? 0) % gs.length
+    setMarkCycle((c) => ({ ...c, [id]: i + 1 }))
+    const sel = groupSelector(gs[i])
+    const first = pack.marks.find((m) => m.g === gs[i])
+    if (first?.b === 'ctx') reveal(sel)
+    else marksRoot.current?.querySelector<HTMLElement>(sel)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    window.setTimeout(() => flashEls(marksRoot.current?.querySelectorAll<HTMLElement>(sel)), 300)
+  }
+
+  const struck = (id: string, opt: string) => !!pack && marksOn && isStruck(pack, id, opt)
+  const toggleStrike = (id: string, opt: string) => {
+    if (!marks || checked) return
+    const on = !isStruck(marks.pack, id, opt)
+    marks.apply((p) => setStruck(p, id, opt, on))
+    if (on && answers[id] === opt) onAnswer(id, null) // gạch bỏ phương án đang chọn ⇒ bỏ chọn
+  }
+  const pickMc = (id: string, opt: string) => {
+    if (marks && marksOn && isStruck(marks.pack, id, opt)) marks.apply((p) => setStruck(p, id, opt, false))
+    answerMc(id, opt)
+  }
+
+  const diagnosisFor = (res: PracticeItemResult): React.ReactNode => {
+    if (!marksOn || !pack || res.evidence.length === 0) return null
+    const ev = evidenceRanges(ctxText, res.evidence).map(([s, e]) => ({ b: 'ctx', s, e }))
+    if (ev.length === 0) return null
+    const d = diagnose(pack, res.id, ev)
+    const where = describe({ b: 'ctx', s: ev[0].s, e: ev[ev.length - 1].e })
+    const mine = Array.from(new Set(d.tagged.map(describe))).join(', ')
+    return <MarkDiagnosis diagnosis={d} where={where} mine={mine} isCorrect={res.isCorrect} />
+  }
+
   const activeItem = items.find((it) => it.id === active) ?? null
   const currentItem = items.find((it) => it.id === current) ?? null
   const answered = items.filter((it) => answers[it.id]).length
@@ -275,13 +386,33 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       wide={!analysisInline}
       extra={itemExtra?.(item)}
       onOpen={() => (isMc ? setSelected((cur) => (cur === item.id ? null : item.id)) : openFromSource(item.id))}
-      onMc={(v) => answerMc(item.id, v)}
+      onMc={(v) => pickMc(item.id, v)}
       onShowEvidence={isMc && teil.context ? () => reveal('mark[data-evidence]') : undefined}
+      stem={
+        layer && item.question ? (
+          <MarkedText block={`q:${item.id}`} text={marks!.texts[`q:${item.id}`] ?? item.question} layer={layer} />
+        ) : undefined
+      }
+      struck={marksOn ? (opt) => struck(item.id, opt) : undefined}
+      onStrike={marksOn && !checked ? (opt) => toggleStrike(item.id, opt) : undefined}
+      marksChip={
+        markedItems.has(item.id) ? (
+          <button
+            type="button"
+            onClick={() => showMarksOf(item.id)}
+            className="ga-ui inline-flex min-h-8 items-center gap-1.5 rounded-ga-pill border border-ga-navy-soft bg-ga-navy-soft px-2.5 text-ga-caption font-semibold text-ga-navy hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+          >
+            <MapPin size={13} aria-hidden />
+            {tm('seeMarks', { count: groupsForItem(pack!, item.id, blockOrder).length })}
+          </button>
+        ) : undefined
+      }
+      analysisExtra={byId.get(item.id) ? diagnosisFor(byId.get(item.id)!) : undefined}
     />
   )
 
   // ── cột nguồn ──────────────────────────────────────────────────────────────
-  const passageHighlights = isMc && checked && selectedRes ? selectedRes.evidence : []
+  const passageHighlights = isMc && checked && selectedRes ? selectedRes.evidence : NO_EVIDENCE
   const source = (
     <div className="mx-auto w-full max-w-[720px]">
       {tips}
@@ -289,7 +420,15 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       {intro}
       {result && <ScoreLine result={result} />}
       {teil.examples && teil.examples.length > 0 && <Examples examples={teil.examples} />}
-      {isMc && teil.context && <ReadingPassage teil={teil} highlights={passageHighlights} />}
+      {marksOn && <MarksBar marks={marks!} canEdit={wide} />}
+      {isMc && teil.context && (
+        <ReadingPassage
+          teil={teil}
+          highlights={passageHighlights}
+          evidenceLabel={selectedRes ? tm('evidenceTag', { n: selectedRes.label }) : undefined}
+          layer={layer}
+        />
+      )}
       {isGap && (
         <GappedText teil={teil} items={items} answers={answers} active={active} selected={selected} byId={byId} onOpen={openFromSource} />
       )}
@@ -405,18 +544,41 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       ? `${isGap ? t('gapTitle', { n: itemLabel(sheetItem) }) : t('itemTitle', { n: itemLabel(sheetItem) })} · ${answered}/${items.length}`
       : t('answeredCount', { done: answered, total: items.length })
 
+  const panes = (
+    <SplitPanes
+      wide={wide}
+      source={source}
+      answers={answersOverride ?? (answersTop ? <>{answersTop}{answersPane}</> : answersPane)}
+      sheetLabel={sheetLabel}
+      snapRequest={snapReq}
+      revealRequest={revealReq}
+      sourceLabel={tf('sourceLabel')}
+      answersLabel={tf('answersLabel')}
+    />
+  )
+
   return (
     <>
-      <SplitPanes
-        wide={wide}
-        source={source}
-        answers={answersOverride ?? (answersTop ? <>{answersTop}{answersPane}</> : answersPane)}
-        sheetLabel={sheetLabel}
-        snapRequest={snapReq}
-        revealRequest={revealReq}
-        sourceLabel={tf('sourceLabel')}
-        answersLabel={tf('answersLabel')}
-      />
+      {marks ? (
+        // `contents`: không thêm hộp vào bố cục, chỉ làm gốc cho vùng chọn + lớp ẩn đánh dấu.
+        // Có ngay từ đầu (không chờ tải) để SplitPanes không bị dựng lại khi đánh dấu về.
+        <div ref={marksRoot} className={cn('contents', marks.hidden && 'ga-marks-hidden')}>
+          {panes}
+        </div>
+      ) : (
+        panes
+      )}
+      {marksOn && (
+        <PassageMarker
+          marks={marks!}
+          rootRef={marksRoot}
+          canEdit={canMark}
+          items={items.map((it) => ({ id: it.id, label: itemLabel(it) }))}
+          currentItemId={current}
+          full
+          describe={describe}
+        />
+      )}
       {footSlot &&
         createPortal(
           <QuestionDots
@@ -425,6 +587,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
             byId={byId}
             current={checked ? selected : isMc ? current : active}
             flags={flags}
+            marked={markedItems}
             onPick={jumpTo}
           />,
           footSlot,
@@ -433,6 +596,8 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
     </>
   )
 }
+
+const NO_EVIDENCE: string[] = []
 
 function answerLabel(teil: PracticeTeilData, item: PracticeItem, key: string | undefined, none: string): string | undefined {
   if (!key) return undefined
@@ -452,6 +617,7 @@ function QuestionDots({
   byId,
   current,
   flags,
+  marked,
   onPick,
 }: {
   items: PracticeItem[]
@@ -459,6 +625,8 @@ function QuestionDots({
   byId: Map<string, PracticeItemResult>
   current: string | null
   flags: Set<string>
+  /** Câu có đoạn gắn trong bài (đánh dấu bài đọc): vạch nhỏ dưới số. */
+  marked?: Set<string>
   onPick: (id: string) => void
 }) {
   const tf = useTranslations('v2.student.practice.frame')
@@ -490,6 +658,9 @@ function QuestionDots({
             {label}
             {flags.has(it.id) && !res && (
               <span aria-hidden className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-ga-card bg-ga-yellow" />
+            )}
+            {marked?.has(it.id) && (
+              <span aria-hidden className={cn('absolute bottom-0.5 left-1/2 h-0.5 w-3 -translate-x-1/2 rounded-ga-pill', !res && answers[it.id] ? 'bg-ga-card' : 'bg-ga-navy')} />
             )}
           </button>
         )
@@ -583,6 +754,11 @@ function ItemCard({
   onOpen,
   onMc,
   onShowEvidence,
+  stem,
+  struck,
+  onStrike,
+  marksChip,
+  analysisExtra,
 }: {
   item: PracticeItem
   kind: Props['kind']
@@ -600,9 +776,20 @@ function ItemCard({
   onOpen: () => void
   onMc: (value: string) => void
   onShowEvidence?: () => void
+  /** Đề câu vẽ qua lớp đánh dấu (09/11/2026); không có ⇒ chữ trơn như cũ. */
+  stem?: React.ReactNode
+  /** Phương án đã gạch bỏ. */
+  struck?: (opt: string) => boolean
+  /** Có ⇒ hiện nút gạch bỏ cạnh mỗi phương án (trước khi kiểm tra). */
+  onStrike?: (opt: string) => void
+  /** "Đã đánh dấu N chỗ · Xem trong bài". */
+  marksChip?: React.ReactNode
+  /** Khối thêm vào phân tích (chẩn đoán tìm bằng chứng). */
+  analysisExtra?: React.ReactNode
 }) {
   const t = useTranslations('v2.student.practice')
   const tf = useTranslations('v2.student.practice.frame')
+  const tm = useTranslations('v2.student.practice.marks')
   const label = itemLabel(item)
   const checked = res != null
   const pool = optionsFor(teil, item)
@@ -642,9 +829,10 @@ function ItemCard({
       {extra && <div className="px-4 pt-2">{extra}</div>}
       {body && (
         <p lang="de" className="ga-ui px-4 pb-3 pt-1.5 text-ga-body-lg leading-relaxed text-ga-ink">
-          {checked && selected ? highlight(body, res.evidence) : body}
+          {stem ?? (checked && selected ? highlight(body, res.evidence) : body)}
         </p>
       )}
+      {marksChip && <div className="-mt-1 px-4 pb-3">{marksChip}</div>}
 
       {kind === 'mc' ? (
         <div className="space-y-2 border-t border-ga-line bg-ga-bg px-4 py-3" role="radiogroup" aria-label={t('itemTitle', { n: label })}>
@@ -652,7 +840,8 @@ function ItemCard({
             const mine = answer === o.key
             const isRight = checked && o.key === res.correct
             const isWrongPick = checked && mine && !res.isCorrect
-            return (
+            const out = struck?.(o.key) ?? false
+            const option = (
               <button
                 key={o.key}
                 type="button"
@@ -661,17 +850,18 @@ function ItemCard({
                 disabled={checked}
                 onClick={() => onMc(o.key)}
                 className={cn(
-                  'ga-ui flex min-h-12 w-full items-center gap-3 rounded-ga-touch px-3 py-2 text-left text-ga-body-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+                  'ga-ui flex min-h-12 w-full select-none items-center gap-3 rounded-ga-touch px-3 py-2 text-left text-ga-body-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
                   !checked && 'active:scale-[0.995]',
                   !checked && mine && 'border-[1.5px] border-ga-navy bg-ga-navy text-ga-card',
-                  !checked && !mine && 'border-[1.5px] border-ga-line-strong bg-ga-card hover:bg-ga-navy-soft',
+                  !checked && !mine && !out && 'border-[1.5px] border-ga-line-strong bg-ga-card hover:bg-ga-navy-soft',
+                  !checked && !mine && out && 'border-[1.5px] border-ga-line bg-ga-card text-ga-subtle hover:bg-ga-navy-soft',
                   checked && isRight && 'border-[1.5px] border-ga-green bg-ga-green-soft',
                   checked && isWrongPick && 'border-[1.5px] border-ga-red bg-ga-red-soft',
                   checked && !isRight && !isWrongPick && 'border border-ga-line bg-ga-card text-ga-muted',
                 )}
               >
-                <LetterBadge value={o.key} tone={isRight ? 'ok' : isWrongPick ? 'bad' : !checked && mine ? 'inverse' : 'outline'} />
-                <span lang="de" className="min-w-0 flex-1">{o.label}</span>
+                <LetterBadge value={o.key} tone={isRight ? 'ok' : isWrongPick ? 'bad' : !checked && mine ? 'inverse' : out ? 'muted' : 'outline'} />
+                <span lang="de" className={cn('min-w-0 flex-1', out && 'line-through decoration-2')}>{o.label}</span>
                 {isRight && (
                   <span className="inline-flex shrink-0 items-center gap-1 text-ga-caption font-semibold text-ga-green">
                     <Check size={14} aria-hidden /> {t('correct')}
@@ -683,6 +873,25 @@ function ItemCard({
                   </span>
                 )}
               </button>
+            )
+            if (!onStrike) return option
+            return (
+              <div key={o.key} className="flex items-stretch gap-2">
+                <div className="min-w-0 flex-1">{option}</div>
+                <button
+                  type="button"
+                  onClick={() => onStrike(o.key)}
+                  aria-pressed={out}
+                  aria-label={out ? tm('unstrike', { k: o.key }) : tm('strike', { k: o.key })}
+                  title={out ? tm('unstrike', { k: o.key }) : tm('strike', { k: o.key })}
+                  className={cn(
+                    'inline-flex w-11 shrink-0 items-center justify-center rounded-ga-touch border text-ga-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+                    out ? 'border-ga-ink bg-ga-ink text-ga-card' : 'border-dashed border-ga-line-strong hover:border-solid hover:text-ga-ink',
+                  )}
+                >
+                  <CircleSlash size={18} aria-hidden />
+                </button>
+              </div>
             )
           })}
         </div>
@@ -730,7 +939,7 @@ function ItemCard({
       )}
       {checked && !wide && selected && (
         <div className="border-t border-ga-line px-4 py-4">
-          <ItemAnalysis item={res} title={t('itemTitle', { n: label })} onShowEvidence={res.evidence.length > 0 ? onShowEvidence : undefined} />
+          <ItemAnalysis item={res} title={t('itemTitle', { n: label })} onShowEvidence={res.evidence.length > 0 ? onShowEvidence : undefined} extra={analysisExtra} />
         </div>
       )}
     </article>

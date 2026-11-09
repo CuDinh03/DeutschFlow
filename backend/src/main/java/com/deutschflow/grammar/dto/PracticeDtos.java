@@ -37,6 +37,14 @@ public final class PracticeDtos {
 
     public record WritingRequest(String text, Integer elapsedSeconds) {}
 
+    /**
+     * Gói đánh dấu bài đọc của một Teil (09/11/2026) — xem {@code PassageMarksValidator}. Chưa có ⇒
+     * {@code marks} rỗng, {@code updatedAt} null.
+     */
+    public record Marks(Map<String, Object> marks, Instant updatedAt) {}
+
+    public record MarksRequest(Map<String, Object> marks) {}
+
     public record Access(boolean enabled) {}
 
     public record JobAccepted(String jobId, String status) {}

@@ -123,6 +123,10 @@ const config: Config = {
           'orange-soft': 'var(--ga-orange-soft)',
           navy: 'var(--ga-navy)',
           'navy-soft': 'var(--ga-navy-soft)',
+          // đánh dấu bài đọc (09/11/2026): ba màu bút của học viên
+          'mark-y': 'var(--ga-mark-y)',
+          'mark-g': 'var(--ga-mark-g)',
+          'mark-p': 'var(--ga-mark-p)',
           accent: 'var(--ga-accent)',
           'accent-soft': 'var(--ga-accent-soft)',
           'accent-ink': 'var(--ga-accent-ink)',

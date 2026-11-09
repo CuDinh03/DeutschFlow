@@ -100,11 +100,28 @@ public class MockExamPracticeController {
         return practice.check(user, examId, teilKey, body.answers(), body.elapsedSeconds());
     }
 
+    /** {@code keepMarks=false} xoá cả đánh dấu bài đọc; mặc định giữ (client cũ không gửi tham số). */
     @DeleteMapping("/{examId}/teile/{teilKey}")
     public ResponseEntity<Void> reset(@PathVariable long examId, @PathVariable String teilKey,
+                                      @RequestParam(defaultValue = "true") boolean keepMarks,
                                       @AuthenticationPrincipal User user) {
-        practice.reset(user, examId, teilKey);
+        practice.reset(user, examId, teilKey, keepMarks);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Đánh dấu bài đọc của Teil (09/11/2026). Chưa có ⇒ gói rỗng. */
+    @GetMapping("/{examId}/teile/{teilKey}/marks")
+    public PracticeDtos.Marks marks(@PathVariable long examId, @PathVariable String teilKey,
+                                    @AuthenticationPrincipal User user) {
+        return practice.marks(user, examId, teilKey);
+    }
+
+    /** Ghi đè cả gói đánh dấu. Gói sai cấu trúc / vượt giới hạn ⇒ 400. */
+    @PutMapping("/{examId}/teile/{teilKey}/marks")
+    public PracticeDtos.Marks saveMarks(@PathVariable long examId, @PathVariable String teilKey,
+                                        @RequestBody PracticeDtos.MarksRequest body,
+                                        @AuthenticationPrincipal User user) {
+        return practice.saveMarks(user, examId, teilKey, body == null ? null : body.marks());
     }
 
     /**

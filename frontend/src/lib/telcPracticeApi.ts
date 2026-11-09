@@ -163,8 +163,29 @@ export async function checkPracticeTeil(
   return data
 }
 
-export async function resetPracticeTeil(examId: number, teilKey: string): Promise<void> {
-  await api.delete(`/mock-exams/practice/${examId}/teile/${teilKey}`)
+/** "Làm lại" Teil. `keepMarks = false` xoá cả đánh dấu bài đọc (server mặc định giữ). */
+export async function resetPracticeTeil(examId: number, teilKey: string, keepMarks = true): Promise<void> {
+  await api.delete(`/mock-exams/practice/${examId}/teile/${teilKey}`, keepMarks ? undefined : { params: { keepMarks: false } })
+}
+
+/** Gói đánh dấu bài đọc của Teil (09/11/2026) — xem `components/exam/marks/marksModel.ts`. */
+export interface PracticeMarks {
+  marks: unknown
+  updatedAt: string | null
+}
+
+export function practiceMarksPath(examId: number, teilKey: string): string {
+  return `/mock-exams/practice/${examId}/teile/${teilKey}/marks`
+}
+
+export async function getPracticeMarks(examId: number, teilKey: string): Promise<PracticeMarks> {
+  const { data } = await api.get<PracticeMarks>(practiceMarksPath(examId, teilKey))
+  return data
+}
+
+export async function savePracticeMarks(examId: number, teilKey: string, marks: unknown): Promise<PracticeMarks> {
+  const { data } = await api.put<PracticeMarks>(practiceMarksPath(examId, teilKey), { marks })
+  return data
 }
 
 /** Gửi bài Viết rồi chờ AI chấm xong (poll job nền). */
