@@ -3,6 +3,12 @@
 > **Mã việc:** V-09 · **Soạn:** 2026-09-08 · **Trạng thái:** phần chuẩn bị XONG, phần đăng ký dịch vụ **chờ owner bấm**.
 > **Phạm vi:** thêm MỘT lớp giám sát chạy **ngoài** con EC2 production. Không thay thế Prometheus/Grafana đang có.
 
+
+> **Cập nhật 09/11/2026 — đã chuyển sang VM tự host.** Phần hiện trạng §2 viết cho EC2 (đã bỏ). Trên VM chỉ
+> chạy Prometheus + Alertmanager + node-exporter, cài bằng `deploy/self-host/install-monitoring.sh` —
+> xem `docs/GIAM_SAT_TU_HOST.md`. Mục tiêu theo dõi bên ngoài: `https://api.mydeutschflow.com/actuator/health`
+> và trang chủ. §3 (các bước owner bấm) vẫn dùng nguyên.
+
 ---
 
 ## 1. Vì sao cần — lỗ hổng đang có thật

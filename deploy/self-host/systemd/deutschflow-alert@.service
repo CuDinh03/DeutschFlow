@@ -1,0 +1,8 @@
+[Unit]
+Description=DeutschFlow — báo Telegram khi %i thất bại
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/srv/deutschflow/repo/deploy/self-host/telegram-alert.sh --unit %i
