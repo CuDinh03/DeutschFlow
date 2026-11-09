@@ -72,6 +72,10 @@ Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về 
   chạm đầu tiên (`unlockExamAudio`: listener toàn trang + gọi tay ở "Nghe thử" và "Vào phòng"). `speakExamLine` trả
   `played | blocked | failed | skipped`; "Nghe thử" hiện lời nhắc khi `blocked` (tắt chế độ im lặng, tăng âm lượng)
   hoặc `failed` thay vì im lặng.
+- Lời AI bị chặn trong phòng thi (`ExamRoom.speakSequence`, 10/11/2026): `blocked` thì micro vẫn khoá và hiện khung
+  "Chạm để nghe" (`tts-blocked`). Chạm thì gọi `unlockExamAudio` trong cú chạm rồi phát lại câu đó; "Bỏ qua, tôi đọc chữ"
+  thì mở lượt (lời vẫn hiện trong hội thoại). Không tự phát lại ở cú chạm sau, vì cú chạm đó có thể là nút micro và
+  giọng AI sẽ lọt vào bản ghi.
 
 ### 1.2 Hiện có cho kỳ thi nào
 

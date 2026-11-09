@@ -1980,7 +1980,13 @@
             "drillDone": "Luyện xong Teil {n}"
           },
           "autoStop": "Tự dừng khi im",
-          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi."
+          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi.",
+          "blocked": {
+            "title": "Trình duyệt chưa cho phát tiếng",
+            "sub": "Chạm nút bên dưới để nghe giám khảo. Lời của giám khảo vẫn hiện trong hội thoại.",
+            "play": "Chạm để nghe",
+            "skip": "Bỏ qua, tôi đọc chữ"
+          }
         }
       },
       "mic": {

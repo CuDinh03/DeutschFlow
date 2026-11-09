@@ -1980,7 +1980,13 @@
             "drillDone": "Teil {n} practice done"
           },
           "autoStop": "Auto-stop on silence",
-          "autoStopHint": "On: after you have spoken, 2 seconds of silence stops and sends. Off: tap the microphone again to send."
+          "autoStopHint": "On: after you have spoken, 2 seconds of silence stops and sends. Off: tap the microphone again to send.",
+          "blocked": {
+            "title": "Your browser blocked the audio",
+            "sub": "Tap the button below to hear the examiner. The examiner's words are also shown in the conversation.",
+            "play": "Tap to listen",
+            "skip": "Skip, I'll read it"
+          }
         }
       },
       "mic": {
