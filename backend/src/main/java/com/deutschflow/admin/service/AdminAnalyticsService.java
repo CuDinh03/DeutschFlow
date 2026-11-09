@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  *   <li><b>Phí thanh toán theo nhà cung cấp</b> ({@code provider}) từ cấu hình
  *       {@code app.payment.fee-rate.*}: Apple 15% (chương trình doanh nghiệp nhỏ), Stripe/MoMo/SePay
  *       mặc định 0% — trước đây trừ 15% cho MỌI giao dịch. Nhà cung cấp lạ → 0% (không đoán).</li>
- *   <li><b>B2B</b>: hoá đơn trung tâm {@code org_invoices} PAID theo tháng {@code paid_at} (V366, giờ
+ *   <li><b>B2B</b>: hoá đơn trung tâm {@code org_invoices} PAID theo tháng {@code paid_at} (V367, giờ
  *       VN), đã loại trung tâm demo — trước đây không được cộng.</li>
  *   <li>Chi phí AI theo tháng từ ledger như cũ (đã loại demo).</li>
  * </ul>

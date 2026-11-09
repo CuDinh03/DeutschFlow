@@ -104,7 +104,7 @@ public class SepayWebhookService {
         }
 
         invoice.setStatus(STATUS_PAID);
-        // V366: mốc tháng doanh thu B2B trên báo cáo admin.
+        // V367: mốc tháng doanh thu B2B trên báo cáo admin.
         if (invoice.getPaidAt() == null) {
             invoice.setPaidAt(java.time.Instant.now());
         }

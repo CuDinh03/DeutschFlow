@@ -52,7 +52,7 @@ public class OrgInvoice {
     private Instant dueDate;
 
     /**
-     * Lúc chuyển sang PAID (V366, 09/11/2026) — mốc tháng doanh thu B2B trên báo cáo admin. Gán ở
+     * Lúc chuyển sang PAID (V367, 09/11/2026) — mốc tháng doanh thu B2B trên báo cáo admin. Gán ở
      * OrgBillingService (đổi tay) và SepayWebhookService (tự khớp chuyển khoản). NULL khi chưa PAID.
      */
     @Column(name = "paid_at")

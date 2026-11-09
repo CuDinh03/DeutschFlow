@@ -178,7 +178,7 @@ public class OrgBillingService {
         if (STATUS_SENT.equals(status) && invoice.getDueDate() == null) {
             invoice.setDueDate(Instant.now().plus(DUE_DAYS_AFTER_SENT, ChronoUnit.DAYS));
         }
-        // V366: mốc tháng doanh thu B2B trên báo cáo admin — chỉ khi thực sự BƯỚC VÀO PAID.
+        // V367: mốc tháng doanh thu B2B trên báo cáo admin — chỉ khi thực sự BƯỚC VÀO PAID.
         if (nowPaid && invoice.getPaidAt() == null) {
             invoice.setPaidAt(Instant.now());
         }
