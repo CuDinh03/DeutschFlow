@@ -18,6 +18,8 @@ const PAGES = [
   'src/app/free-grade/page.tsx',
   'src/app/report/[token]/page.tsx',
   'src/app/certificate/[token]/page.tsx',
+  'src/app/teachers/[id]/page.tsx',
+  'src/app/payment/success/page.tsx',
 ]
 
 /** Mọi file của các trang đó, kể cả phần client và thành phần dùng chung. */
@@ -27,6 +29,7 @@ const FILES = [
   'src/components/marketing/ShareButtons.tsx',
   'src/components/marketing/GradeScore.tsx',
   'src/components/certificate/CertificateActions.tsx',
+  'src/app/teachers/[id]/client-page.tsx',
 ]
 
 const LEGACY_PALETTE =
@@ -36,7 +39,7 @@ describe('Trang công khai Galerie (icon đợt B)', () => {
   it.each(PAGES)('%s bọc .ga-scope và nạp galerie.css', (rel) => {
     const src = read(rel)
     expect(src).toContain('ga-scope')
-    expect(src).toContain("import '@/styles/galerie.css'")
+    expect(src).toMatch(/import ['"]@\/styles\/galerie\.css['"]/)
   })
 
   it.each(FILES)('%s không dùng bảng màu Tailwind cũ, không hex', (rel) => {

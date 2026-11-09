@@ -6,9 +6,15 @@
  *
  * Bản thân trang thì đưa người dùng vào bề mặt v2: `/student` cũ nay chỉ còn là redirect 308, đi
  * qua nó chỉ tốn thêm một vòng round-trip ngay sau khi trả tiền.
+ *
+ * Icon đợt B (09/11/2026): giao diện Galerie (`.ga-scope`, token `ga-*`, `GaGlyph`, `GaBtn`). Cố ý KHÔNG gắn
+ * header/footer công khai: đây là trang chờ xác nhận rồi tự chuyển về Dashboard. Logic thanh toán giữ nguyên.
  */
+import "@/styles/galerie.css";
 import { useEffect, useState } from "react";
-import { PartyPopper, Zap, Rocket, Home } from "lucide-react";
+import { Clock, PartyPopper, Zap, Rocket, Home, Loader2 } from "lucide-react";
+import { GaBtn } from "@/components/ui-v2/GaBtn";
+import { GaGlyph } from "@/components/ui-v2/GaGlyph";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import api from "@/lib/api";
@@ -102,62 +108,68 @@ function PaymentSuccessContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 flex flex-col items-center justify-center text-white px-4">
-        <svg className="animate-spin h-10 w-10 text-violet-500 mb-6" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-        </svg>
-        <p className="text-slate-300 text-lg animate-pulse">Đang xác nhận kết quả giao dịch với MoMo...</p>
-        <p className="text-slate-500 text-sm mt-2">Vui lòng không đóng trình duyệt</p>
+      <main role="status" className={`${PAGE} flex flex-col items-center justify-center px-4 text-center`}>
+        <Loader2 size={40} className="ga-spin mb-6 text-ga-ink" aria-hidden />
+        <p className="text-ga-body-lg text-ga-ink">Đang xác nhận kết quả giao dịch với MoMo...</p>
+        <p className="mt-2 text-ga-small text-ga-muted">Vui lòng không đóng trình duyệt</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 flex flex-col items-center justify-center text-white px-4">
-      <div className="text-center max-w-md bg-white/5 backdrop-blur-sm p-8 rounded-3xl border border-white/10 shadow-2xl">
-        <PartyPopper size={64} className="mx-auto mb-6 animate-bounce text-amber-300" aria-hidden />
+    <main className={`${PAGE} flex flex-col items-center justify-center px-4 py-10`}>
+      <div className="w-full max-w-md border border-ga-border bg-ga-card p-6 text-center sm:p-8">
+        {/* Đã có gói: ô vàng (điểm nhấn duy nhất của màn). Chưa thấy gói: ô trung tính, không ăn mừng sớm. */}
+        <GaGlyph
+          icon={plan ? PartyPopper : Clock}
+          tone={plan ? "yellow" : "plain"}
+          size="lg"
+          className="mx-auto mb-6"
+        />
 
-        <h1 className="text-3xl font-extrabold bg-gradient-to-r from-violet-300 via-white to-purple-300 bg-clip-text text-transparent mb-4">
+        <h1 className="mb-4 font-ga-display text-ga-h1-m font-medium text-ga-ink sm:text-ga-h1">
           {plan ? "Thanh toán thành công!" : "Đang hoàn tất kích hoạt gói"}
         </h1>
 
         {plan ? (
-          <div className="bg-white/10 rounded-2xl p-6 mb-6 text-left border border-white/5">
-            <p className="text-sm text-slate-400 mb-1">Gói cước của bạn</p>
-            <p className="text-2xl font-bold text-amber-400 mb-4 flex items-center gap-2">
-              {plan.tier === "ULTRA" ? <Zap size={22} aria-hidden /> : <Rocket size={22} aria-hidden />} {plan.tier}
+          <div className="mb-6 border border-ga-border bg-ga-surface p-5 text-left">
+            <p className="mb-1 text-ga-eyebrow uppercase text-ga-muted">Gói cước của bạn</p>
+            <p className="mb-4 flex items-center gap-2 font-ga-display text-ga-h2 font-medium text-ga-ink">
+              {plan.tier === "ULTRA" ? <Zap size={20} aria-hidden /> : <Rocket size={20} aria-hidden />} {plan.tier}
             </p>
-            <div className="space-y-2 text-sm text-slate-300">
-              <p><span className="text-slate-500">Mở khóa:</span> Toàn bộ Personas, Mock Exam & Tính năng AI</p>
-              <p><span className="text-slate-500">Thời hạn:</span> Đến {fmtPlanInstant(plan.endsAtUtc, locale) ?? "Vô thời hạn"}</p>
+            <div className="space-y-2 text-ga-small text-ga-ink">
+              <p><span className="text-ga-muted">Mở khóa:</span> Toàn bộ Personas, Mock Exam & Tính năng AI</p>
+              <p><span className="text-ga-muted">Thời hạn:</span> Đến {fmtPlanInstant(plan.endsAtUtc, locale) ?? "Vô thời hạn"}</p>
             </div>
           </div>
         ) : (
-          <div className="text-slate-300 text-lg mb-6 space-y-3">
+          <div className="mb-6 space-y-3 text-ga-body text-ga-ink">
             <p>
               MoMo đã xử lý thanh toán. Hệ thống đang đồng bộ gói cước; nếu sau vài phút vẫn chưa thấy gói mới, hãy
               tải lại trang hoặc liên hệ hỗ trợ kèm mã đơn bên dưới.
             </p>
-            {syncNote && <p className="text-amber-200/90 text-sm">{syncNote}</p>}
+            {syncNote && <p className="bg-ga-warning-soft px-3 py-2 text-ga-small text-ga-ink">{syncNote}</p>}
           </div>
         )}
 
         {orderId && (
-          <p className="text-xs text-slate-500 mb-8">
-            Mã đơn hàng: <span className="font-mono text-slate-400">{orderId}</span>
+          <p className="mb-8 text-ga-caption text-ga-muted">
+            Mã đơn hàng: <span className="break-all font-mono text-ga-ink">{orderId}</span>
           </p>
         )}
 
-        <button
+        <GaBtn
           id="btn-go-dashboard"
+          type="button"
+          variant="ink"
+          size="lg"
+          className="w-full"
           onClick={() => router.push("/v2/student/dashboard")}
-          className="w-full inline-flex justify-center items-center gap-2 bg-gradient-to-r from-violet-600 to-purple-700 hover:opacity-90 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg shadow-violet-500/30 transition-all active:scale-95"
         >
           <Home size={17} aria-hidden /> Bắt đầu học ngay
-        </button>
+        </GaBtn>
 
-        <p className="text-slate-600 text-xs mt-6">
+        <p className="mt-6 text-ga-caption text-ga-muted">
           Tự động chuyển về Dashboard sau 10 giây...
         </p>
       </div>
@@ -165,9 +177,12 @@ function PaymentSuccessContent() {
   );
 }
 
+/** Khung trang chung (đang xác nhận, đã xong, Suspense). */
+const PAGE = "ga-scope min-h-screen bg-ga-bg font-ga-ui text-ga-ink";
+
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Đang tải...</div>}>
+    <Suspense fallback={<div className={`${PAGE} flex items-center justify-center`}>Đang tải...</div>}>
       <PaymentSuccessContent />
     </Suspense>
   );

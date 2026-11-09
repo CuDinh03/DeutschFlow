@@ -41,6 +41,8 @@ const SCAN_DIRS = [
   'src/components/marketing',
   'src/app/certificate',
   'src/components/certificate',
+  'src/app/teachers/[id]', // danh sách /teachers đang tắt (MARKETPLACE_ENABLED), còn UI cũ
+  'src/app/payment/success',
 ]
 const SCAN_EXT = new Set(['.tsx', '.ts', '.css'])
 
