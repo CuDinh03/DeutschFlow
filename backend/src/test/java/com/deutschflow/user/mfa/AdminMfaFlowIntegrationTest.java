@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -62,8 +63,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.auth.rate-limit.login-ip-max-per-window=10000",
         "app.auth.rate-limit.refresh-max-per-window=10000",
         "app.auth.rate-limit.mfa-failure-max-per-window=10000",
-        "app.auth.rate-limit.mfa-email-send-max-per-window=10000"
+        "app.auth.rate-limit.mfa-email-send-max-per-window=10000",
+        // Bộ property riêng ⇒ context Spring riêng ⇒ pool Hikari riêng. Giữ pool nhỏ và đóng context sau
+        // lớp này (DirtiesContext) — CI từng vượt max_connections của Postgres ("too many clients") vì các
+        // context có pool riêng sống tới hết lượt chạy (xem commit 52269ef9).
+        "spring.datasource.hikari.maximum-pool-size=3",
+        "spring.datasource.hikari.minimum-idle=1"
 })
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @AutoConfigureMockMvc
 @DisplayName("2FA bắt buộc cho ADMIN — Integration")
 class AdminMfaFlowIntegrationTest extends AbstractPostgresIntegrationTest {
