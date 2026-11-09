@@ -32,6 +32,13 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.ArrayList;
 import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +48,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -73,6 +81,12 @@ class MfaServiceTest {
     private final AuthResponse session = new AuthResponse("ACCESS", "RT", 1L, "owner@deutschflow.app", "Owner",
             "ADMIN", "vi", null, null, null, null, null);
     private byte[] secret;
+    /** Lượt giữ chỗ thật (bộ nhớ) — MfaService chỉ chuyền nó lại cho limiter (mock). */
+    private AuthRateLimiterService.MfaAttempt attempt;
+
+    private static AuthRateLimiterService realLimiter() {
+        return new AuthRateLimiterService(5, 60, 100, 60, 10, 600, 10, 60, 5, 900, null);
+    }
 
     @BeforeEach
     void setUp() {
@@ -93,17 +107,26 @@ class MfaServiceTest {
         when(authService.completeMfaLogin(eq(admin), any())).thenReturn(session);
         when(mail.isEnabled()).thenReturn(true);
         when(rateLimiter.allowMfaEmailSend(anyLong())).thenReturn(true);
+        attempt = realLimiter().tryAcquireMfaAttempt(1L, IP).orElseThrow();
+        when(rateLimiter.tryAcquireMfaAttempt(anyLong(), any())).thenReturn(Optional.of(attempt));
     }
 
     private void enrolled() {
-        when(store.find(1L)).thenReturn(Optional.of(new UserMfaStore.MfaRow(1L,
-                keys.cipher().encrypt(1L, secret), Instant.now().minusSeconds(3600), null)));
+        var row = Optional.of(new UserMfaStore.MfaRow(1L,
+                keys.cipher().encrypt(1L, secret), Instant.now().minusSeconds(3600), null));
+        when(store.find(1L)).thenReturn(row);
+        when(store.findForUpdate(1L)).thenReturn(row);
         when(store.isEnabled(1L)).thenReturn(true);
     }
 
     private void pending() {
-        when(store.find(1L)).thenReturn(Optional.of(new UserMfaStore.MfaRow(1L,
-                keys.cipher().encrypt(1L, secret), null, null)));
+        var row = Optional.of(new UserMfaStore.MfaRow(1L, keys.cipher().encrypt(1L, secret), null, null));
+        when(store.find(1L)).thenReturn(row);
+        when(store.findForUpdate(1L)).thenReturn(row);
+    }
+
+    private String wrongCode() {
+        return "000000".equals(currentCode()) ? "111111" : "000000";
     }
 
     private String currentCode() {
@@ -123,7 +146,9 @@ class MfaServiceTest {
         assertThat(r.session()).isSameAs(session);
         assertThat(r.usedRecoveryCode()).isFalse();
         verify(challengeTokens).burn(challenge);
-        verify(rateLimiter, never()).recordMfaFailure(anyLong(), anyString());
+        verify(store).findForUpdate(1L);
+        verify(rateLimiter, never()).commitMfaFailure(any());
+        verify(rateLimiter).refundMfaAttempt(attempt);
     }
 
     @Test
@@ -135,7 +160,7 @@ class MfaServiceTest {
         MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", currentCode(), null, IP));
 
         assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_INVALID);
-        verify(rateLimiter).recordMfaFailure(1L, IP);
+        verify(rateLimiter).commitMfaFailure(attempt);
         verify(authService, never()).completeMfaLogin(any(), any());
         verify(challengeTokens, never()).burn(any());
     }
@@ -144,22 +169,23 @@ class MfaServiceTest {
     @DisplayName("mã sai làm chạm trần → ghi vết user.mfa.locked")
     void wrongCodeAtLimitAudits() {
         enrolled();
-        when(rateLimiter.recordMfaFailure(1L, IP)).thenReturn(true);
+        when(rateLimiter.commitMfaFailure(attempt)).thenReturn(true);
 
-        assertThrows(MfaException.class, () -> service.verify("tok", "000000".equals(currentCode()) ? "111111" : "000000", null, IP));
+        assertThrows(MfaException.class, () -> service.verify("tok", wrongCode(), null, IP));
 
         verify(auditLogService).log(eq("user.mfa.locked"), any(), eq("USER"), eq("1"), anyMap());
     }
 
     @Test
-    @DisplayName("đang bị khoá → 429 kể cả mã đúng, không chạm DB")
+    @DisplayName("ngân sách đầy (không giữ được chỗ) → 429 kể cả mã đúng, không chạm DB")
     void blockedReturns429() {
-        when(rateLimiter.isMfaBlocked(1L, IP)).thenReturn(true);
+        when(rateLimiter.tryAcquireMfaAttempt(1L, IP)).thenReturn(Optional.empty());
         when(rateLimiter.mfaRetryAfterSeconds()).thenReturn(900);
 
         assertThrows(RateLimitExceededException.class, () -> service.verify("tok", currentCode(), null, IP));
 
         verify(store, never()).find(anyLong());
+        verify(store, never()).findForUpdate(anyLong());
         verify(store, never()).claimStep(anyLong(), anyLong());
     }
 
@@ -188,6 +214,7 @@ class MfaServiceTest {
     @DisplayName("chưa bật 2FA → 409 MFA_NOT_ENROLLED")
     void verifyNotEnrolled() {
         when(store.find(1L)).thenReturn(Optional.empty());
+        when(store.findForUpdate(1L)).thenReturn(Optional.empty());
 
         MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", "123456", null, IP));
 
@@ -224,8 +251,30 @@ class MfaServiceTest {
 
         assertThrows(MfaException.class, () -> service.verify("tok", null, "ABCDE-FGHIJ", IP));
 
-        verify(rateLimiter).recordMfaFailure(1L, IP);
+        verify(rateLimiter).commitMfaFailure(attempt);
         verify(authService, never()).completeMfaLogin(any(), any());
+        verify(challengeTokens, never()).burn(any());
+    }
+
+    @Test
+    @DisplayName("mã khôi phục đúng nhưng token đã bị request song song đổi ra phiên → MFA_TOKEN_INVALID, ROLLBACK (mã không bị phí)")
+    void recoveryCodeBurnRaceRollsBack() {
+        enrolled();
+        when(store.consumeRecoveryCode(eq(1L), anyString())).thenReturn(true);
+        when(challengeTokens.burn(challenge)).thenReturn(false);
+
+        MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", null, "ABCDE-FGHIJ", IP));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_TOKEN_INVALID);
+        var order = inOrder(store, challengeTokens, txManager);
+        order.verify(store).findForUpdate(1L);
+        order.verify(store).consumeRecoveryCode(eq(1L), anyString());
+        order.verify(challengeTokens).burn(challenge);
+        order.verify(txManager).rollback(any());
+        verify(txManager, never()).commit(any());
+        verify(authService, never()).completeMfaLogin(any(), any());
+        verify(rateLimiter, never()).commitMfaFailure(any());
+        verify(rateLimiter).refundMfaAttempt(attempt);
     }
 
     // ─── đăng ký ──────────────────────────────────────────────────────────────
@@ -266,7 +315,7 @@ class MfaServiceTest {
 
         verify(store).recordEmailCodeFailure(55L, 1, false);
         verify(store, never()).upsertPending(anyLong(), anyString());
-        verify(rateLimiter).recordMfaFailure(1L, IP);
+        verify(rateLimiter).commitMfaFailure(attempt);
     }
 
     @Test
@@ -324,18 +373,19 @@ class MfaServiceTest {
     @DisplayName("xác nhận đăng ký: mã sai → MFA_CODE_INVALID, không bật, token còn nguyên")
     void confirmEnrollmentWrongCode() {
         pending();
-        String wrong = "000000".equals(currentCode()) ? "111111" : "000000";
 
-        assertThrows(MfaException.class, () -> service.confirmEnrollment("tok", wrong, IP));
+        assertThrows(MfaException.class, () -> service.confirmEnrollment("tok", wrongCode(), IP));
 
         verify(store, never()).enable(anyLong(), any());
         verify(challengeTokens, never()).burn(any());
+        verify(rateLimiter).commitMfaFailure(attempt);
     }
 
     @Test
     @DisplayName("xác nhận khi chưa bắt đầu → 409 MFA_ENROLLMENT_NOT_STARTED")
     void confirmWithoutStart() {
         when(store.find(1L)).thenReturn(Optional.empty());
+        when(store.findForUpdate(1L)).thenReturn(Optional.empty());
 
         MfaException ex = assertThrows(MfaException.class, () -> service.confirmEnrollment("tok", "123456", IP));
 
@@ -396,5 +446,94 @@ class MfaServiceTest {
 
         assertThat(ex.getCode()).isEqualTo(MfaException.MFA_NOT_CONFIGURED);
         assertThat(ex.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    // ─── chạy song song (ngân sách thật, bộ nhớ) ─────────────────────────────
+
+    private MfaService serviceWith(AuthRateLimiterService limiter) {
+        return new MfaService(keys, challengeTokens, store, userRepository, refreshTokenRepository, limiter,
+                authService, mail, Runnable::run, notifications, auditLogService, auditOrgResolver, txManager);
+    }
+
+    @Test
+    @DisplayName("20 lượt đoán SAI song song → đúng 5 lượt được kiểm mã, 15 lượt 429; sau đó mã ĐÚNG cũng 429")
+    void concurrentWrongGuessesNeverExceedBudget() throws Exception {
+        enrolled();
+        AtomicInteger checked = new AtomicInteger();
+        // Kiểm mã chậm (giữ khoá dòng ~30 ms) để mọi luồng chồng lên nhau — với kiểm-chỉ-đọc cũ cả 20 cùng lọt.
+        when(store.findForUpdate(1L)).thenAnswer(inv -> {
+            checked.incrementAndGet();
+            Thread.sleep(30);
+            return Optional.of(new UserMfaStore.MfaRow(1L, keys.cipher().encrypt(1L, secret),
+                    Instant.now().minusSeconds(3600), null));
+        });
+        when(store.claimStep(eq(1L), anyLong())).thenReturn(true);
+        AuthRateLimiterService limiter = realLimiter();
+        MfaService svc = serviceWith(limiter);
+        String wrong = wrongCode();
+
+        int threads = 20;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Future<String>> results = new ArrayList<>();
+        try {
+            for (int i = 0; i < threads; i++) {
+                results.add(pool.submit(() -> {
+                    go.await();
+                    try {
+                        svc.verify("tok", wrong, null, IP);
+                        return "ok";
+                    } catch (RateLimitExceededException e) {
+                        return "429";
+                    } catch (MfaException e) {
+                        return e.getCode();
+                    }
+                }));
+            }
+            go.countDown();
+            List<String> outcomes = new ArrayList<>();
+            for (Future<String> f : results) {
+                outcomes.add(f.get(10, TimeUnit.SECONDS));
+            }
+            assertThat(outcomes).filteredOn("429"::equals).hasSize(15);
+            assertThat(outcomes).filteredOn(MfaException.MFA_CODE_INVALID::equals).hasSize(5);
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(checked.get()).isEqualTo(5);
+        assertThat(limiter.isMfaBlocked(1L, IP)).isTrue();
+
+        assertThrows(RateLimitExceededException.class, () -> svc.verify("tok", currentCode(), null, IP));
+        verify(store, never()).claimStep(anyLong(), anyLong());
+        verify(authService, never()).completeMfaLogin(any(), any());
+    }
+
+    @Test
+    @DisplayName("lượt ĐÚNG được trả chỗ: 10 lần xác minh đúng liên tiếp không làm đầy ngân sách 5")
+    void successfulAttemptsAreRefunded() {
+        enrolled();
+        when(store.claimStep(eq(1L), anyLong())).thenReturn(true);
+        AuthRateLimiterService limiter = realLimiter();
+        MfaService svc = serviceWith(limiter);
+
+        for (int i = 0; i < 10; i++) {
+            assertThat(svc.verify("tok", currentCode(), null, IP).session()).isSameAs(session);
+        }
+        assertThat(limiter.isMfaBlocked(1L, IP)).isFalse();
+    }
+
+    @Test
+    @DisplayName("request hỏng không phải do đoán mã (token đã đốt) → trả chỗ, không tính lần sai")
+    void nonGuessFailuresAreRefunded() {
+        enrolled();
+        when(store.claimStep(eq(1L), anyLong())).thenReturn(true);
+        when(challengeTokens.burn(challenge)).thenReturn(false);
+        AuthRateLimiterService limiter = realLimiter();
+        MfaService svc = serviceWith(limiter);
+
+        for (int i = 0; i < 10; i++) {
+            assertThrows(MfaException.class, () -> svc.verify("tok", currentCode(), null, IP));
+        }
+        assertThat(limiter.isMfaBlocked(1L, IP)).isFalse();
     }
 }

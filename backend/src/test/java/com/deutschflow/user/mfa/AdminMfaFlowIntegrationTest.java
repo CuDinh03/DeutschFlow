@@ -39,6 +39,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -355,6 +356,35 @@ class AdminMfaFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("reason", "Tự đặt lại cho chính mình xem sao"))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.extensions.code").value("MFA_RESET_SELF_FORBIDDEN"));
+    }
+
+    @Test
+    @DisplayName("Trần 12 giờ áp cả trên access token (mfa_at cũ → 401, không đúc lại được qua đổi ngôn ngữ); "
+            + "bearer ADMIN cũ không chặn đăng nhập lại và vẫn đăng xuất được")
+    void staleMfaAccessTokenAndStaleBearerOnLogin() throws Exception {
+        User admin = newUser(User.Role.ADMIN);
+
+        String stale = jwtService.generateAccessToken(admin, null, null, Instant.now().minusSeconds(13 * 3600));
+        mockMvc.perform(patch("/api/auth/me/locale").header("Authorization", "Bearer " + stale)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"locale\":\"de\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.extensions.code").value("MFA_REQUIRED"));
+
+        String fresh = jwtService.generateAccessToken(admin, null, null, Instant.now().minusSeconds(3600));
+        mockMvc.perform(patch("/api/auth/me/locale").header("Authorization", "Bearer " + fresh)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"locale\":\"de\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").exists());
+
+        String plain = jwtService.generateAccessToken(admin);
+        mockMvc.perform(post("/api/auth/login").header("Authorization", "Bearer " + plain)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", admin.getEmail(), "password", PASSWORD))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mfaRequired").value(true));
+
+        mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + plain))
+                .andExpect(status().isNoContent());
     }
 
     @Test

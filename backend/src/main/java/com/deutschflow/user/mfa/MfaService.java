@@ -47,10 +47,14 @@ import java.util.concurrent.Executor;
  *   <li>đã đăng ký: {@link #verify} bằng mã TOTP hoặc một mã khôi phục → phiên.</li>
  * </ol>
  *
- * <p>Chống dò: mỗi lần sai ghi vào ngân sách 5 lần / 15 phút theo người dùng VÀ theo IP
- * ({@link AuthRateLimiterService#recordMfaFailure}); đang bị khoá thì kể cả mã đúng cũng 429. Chống phát lại:
- * một mã TOTP chỉ dùng được một lần ({@link UserMfaStore#claimStep}), một mã khôi phục chỉ đốt được một lần,
- * và token thử thách bị đốt khi đổi ra phiên ({@link MfaChallengeTokens#burn}).
+ * <p>Chống dò: ngân sách 5 lần sai / 15 phút theo người dùng VÀ theo IP. Mỗi lượt kiểm mã GIỮ CHỖ nguyên tử
+ * TRƯỚC khi kiểm ({@link AuthRateLimiterService#tryAcquireMfaAttempt}) — mã sai thì chỗ thành lần sai, mã đúng
+ * (hoặc request hỏng vì lý do khác) thì trả chỗ; ngân sách đầy thì kể cả mã đúng cũng 429. Thêm vào đó, mọi
+ * lượt kiểm mã TOTP/mã khôi phục của một người xếp hàng qua khoá dòng {@code user_mfa} ({@code FOR UPDATE},
+ * {@link UserMfaStore#findForUpdate}); bước mã email khoá dòng mã email. Chống phát lại: một mã TOTP chỉ dùng
+ * được một lần ({@link UserMfaStore#claimStep}), một mã khôi phục chỉ đốt được một lần, và token thử thách bị
+ * đốt khi đổi ra phiên ({@link MfaChallengeTokens#burn}) — trong CÙNG transaction với việc tiêu mã: đốt thua
+ * (request song song đã đổi token ra phiên) thì rollback, mã khôi phục không bị phí.
  */
 @Slf4j
 @Service
@@ -165,123 +169,149 @@ public class MfaService {
     public EnrollmentStart beginEnrollment(String mfaToken, String emailCode, String ip) {
         keys.requireConfigured();
         MfaChallengeTokens.Challenge c = challengeTokens.parse(mfaToken);
-        guardNotBlocked(c.userId(), ip);
-        User user = loadUser(c.userId());
-        if (store.isEnabled(user.getId())) {
-            throw alreadyEnabled();
+        AuthRateLimiterService.MfaAttempt attempt = acquireAttempt(c.userId(), ip);
+        try {
+            User user = loadUser(c.userId());
+            if (store.isEnabled(user.getId())) {
+                throw alreadyEnabled();
+            }
+            byte[] pepper = keys.emailCodePepper();
+            // checkEmailCode khoá dòng mã email (FOR UPDATE) và đếm lần sai của chính mã đó.
+            Boolean ok = tx.execute(s -> checkEmailCode(user.getId(), emailCode, pepper));
+            if (!Boolean.TRUE.equals(ok)) {
+                throw fail(user, ip, attempt);
+            }
+            byte[] secret = new byte[Totp.SECRET_BYTES];
+            RNG.nextBytes(secret);
+            String enc = keys.cipher().encrypt(user.getId(), secret);
+            if (!store.upsertPending(user.getId(), enc)) {
+                throw alreadyEnabled();
+            }
+            if (!challengeTokens.burn(c)) {
+                throw MfaException.tokenInvalid();
+            }
+            String secretB32 = Base32.encode(secret);
+            return new EnrollmentStart(otpauthUri(user.getEmail(), secretB32), secretB32, challengeTokens.issue(user.getId()));
+        } finally {
+            rateLimiter.refundMfaAttempt(attempt); // no-op khi lượt đã thành lần sai
         }
-        byte[] pepper = keys.emailCodePepper();
-        Boolean ok = tx.execute(s -> checkEmailCode(user.getId(), emailCode, pepper));
-        if (!Boolean.TRUE.equals(ok)) {
-            throw fail(user, ip);
-        }
-        byte[] secret = new byte[Totp.SECRET_BYTES];
-        RNG.nextBytes(secret);
-        String enc = keys.cipher().encrypt(user.getId(), secret);
-        if (!store.upsertPending(user.getId(), enc)) {
-            throw alreadyEnabled();
-        }
-        if (!challengeTokens.burn(c)) {
-            throw MfaException.tokenInvalid();
-        }
-        String secretB32 = Base32.encode(secret);
-        return new EnrollmentStart(otpauthUri(user.getEmail(), secretB32), secretB32, challengeTokens.issue(user.getId()));
     }
 
     /** Mã TOTP đầu tiên đúng → bật 2FA, phát 10 mã khôi phục (hiện MỘT lần) và cấp phiên đã qua 2FA. */
     public EnrollmentResult confirmEnrollment(String mfaToken, String totpCode, String ip) {
         keys.requireConfigured();
         MfaChallengeTokens.Challenge c = challengeTokens.parse(mfaToken);
-        guardNotBlocked(c.userId(), ip);
-        User user = loadUser(c.userId());
-        UserMfaStore.MfaRow row = store.find(user.getId()).orElseThrow(() -> new MfaException(HttpStatus.CONFLICT,
-                MfaException.MFA_ENROLLMENT_NOT_STARTED, "Chưa bắt đầu thiết lập xác thực hai lớp."));
-        if (row.enabled()) {
-            throw alreadyEnabled();
-        }
-        byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
-        OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
-        if (step.isEmpty()) {
-            throw fail(user, ip);
-        }
-        if (!challengeTokens.burn(c)) {
-            throw MfaException.tokenInvalid();
-        }
-        Instant now = Instant.now();
-        List<String> codes = RecoveryCodes.generate();
-        byte[] pepper = keys.recoveryPepper();
-        String outcome = tx.execute(s -> {
-            if (!store.claimStep(user.getId(), step.getAsLong())) {
-                s.setRollbackOnly();
-                return "replay";
+        AuthRateLimiterService.MfaAttempt attempt = acquireAttempt(c.userId(), ip);
+        try {
+            User user = loadUser(c.userId());
+            Instant now = Instant.now();
+            List<String> codes = RecoveryCodes.generate();
+            byte[] pepper = keys.recoveryPepper();
+            String outcome = tx.execute(s -> {
+                // Khoá dòng đang chờ: các lượt xác nhận song song của cùng người xếp hàng ở đây.
+                UserMfaStore.MfaRow row = store.findForUpdate(user.getId()).orElseThrow(() -> new MfaException(
+                        HttpStatus.CONFLICT, MfaException.MFA_ENROLLMENT_NOT_STARTED,
+                        "Chưa bắt đầu thiết lập xác thực hai lớp."));
+                if (row.enabled()) {
+                    throw alreadyEnabled();
+                }
+                byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
+                OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
+                if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
+                    return "wrong"; // sai, hoặc phát lại bước đã dùng — claimStep không ghi gì
+                }
+                // Đốt token sau khi giữ được bước TOTP, trong cùng transaction: thua → ném → rollback.
+                if (!challengeTokens.burn(c)) {
+                    throw MfaException.tokenInvalid();
+                }
+                if (!store.enable(user.getId(), now)) {
+                    s.setRollbackOnly();
+                    return "already";
+                }
+                store.replaceRecoveryCodes(user.getId(), hashAll(pepper, user.getId(), codes));
+                Map<String, Object> meta = new LinkedHashMap<>();
+                meta.put("recoveryCodesIssued", codes.size());
+                auditLogService.log("user.mfa.enabled", AuditActor.of(user), "USER", String.valueOf(user.getId()), meta);
+                return "ok";
+            });
+            if ("wrong".equals(outcome)) {
+                throw fail(user, ip, attempt);
             }
-            if (!store.enable(user.getId(), now)) {
-                s.setRollbackOnly();
-                return "already";
+            if ("already".equals(outcome)) {
+                throw alreadyEnabled();
             }
-            store.replaceRecoveryCodes(user.getId(), hashAll(pepper, user.getId(), codes));
-            Map<String, Object> meta = new LinkedHashMap<>();
-            meta.put("recoveryCodesIssued", codes.size());
-            auditLogService.log("user.mfa.enabled", AuditActor.of(user), "USER", String.valueOf(user.getId()), meta);
-            return "ok";
-        });
-        if ("replay".equals(outcome)) {
-            throw fail(user, ip);
+            AuthResponse session = authService.completeMfaLogin(user, now);
+            notifySafely(user, NotificationType.MFA_ENABLED, Map.of("enabledAt", now.toString()),
+                    CodeMail.SecurityNotice.MFA_ENABLED, 0);
+            log.info("[MFA] 2FA đã bật cho userId={}", user.getId());
+            return new EnrollmentResult(codes, session);
+        } finally {
+            rateLimiter.refundMfaAttempt(attempt);
         }
-        if ("already".equals(outcome)) {
-            throw alreadyEnabled();
-        }
-        AuthResponse session = authService.completeMfaLogin(user, now);
-        notifySafely(user, NotificationType.MFA_ENABLED, Map.of("enabledAt", now.toString()),
-                CodeMail.SecurityNotice.MFA_ENABLED, 0);
-        log.info("[MFA] 2FA đã bật cho userId={}", user.getId());
-        return new EnrollmentResult(codes, session);
     }
 
     /** Đăng nhập bước 2: đúng MỘT trong hai — mã TOTP 6 số hoặc một mã khôi phục. */
     public VerifyResult verify(String mfaToken, String totpCode, String recoveryCode, String ip) {
         keys.requireConfigured();
         MfaChallengeTokens.Challenge c = challengeTokens.parse(mfaToken);
-        guardNotBlocked(c.userId(), ip);
-        User user = loadUser(c.userId());
-        UserMfaStore.MfaRow row = store.find(user.getId()).filter(UserMfaStore.MfaRow::enabled)
-                .orElseThrow(MfaService::notEnrolled);
-        boolean hasTotp = totpCode != null && !totpCode.isBlank();
-        boolean hasRecovery = recoveryCode != null && !recoveryCode.isBlank();
-        if (hasTotp == hasRecovery) {
-            throw MfaException.codeInvalid();
-        }
-        Integer remaining = null;
-        if (hasRecovery) {
-            String hash = RecoveryCodes.hash(keys.recoveryPepper(), user.getId(), recoveryCode);
-            Boolean consumed = hash != null && Boolean.TRUE.equals(tx.execute(s -> store.consumeRecoveryCode(user.getId(), hash)));
-            if (!Boolean.TRUE.equals(consumed)) {
-                throw fail(user, ip);
+        AuthRateLimiterService.MfaAttempt attempt = acquireAttempt(c.userId(), ip);
+        try {
+            User user = loadUser(c.userId());
+            boolean hasTotp = totpCode != null && !totpCode.isBlank();
+            boolean hasRecovery = recoveryCode != null && !recoveryCode.isBlank();
+            if (hasTotp == hasRecovery) {
+                throw MfaException.codeInvalid();
             }
-            remaining = store.remainingRecoveryCodes(user.getId());
-        } else {
-            byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
-            OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
-            if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
-                throw fail(user, ip);
+            String recoveryHash = hasRecovery ? RecoveryCodes.hash(keys.recoveryPepper(), user.getId(), recoveryCode) : null;
+            VerifyOutcome outcome = tx.execute(s -> {
+                // Khoá dòng 2FA: các lượt xác minh song song của cùng người xếp hàng ở đây.
+                UserMfaStore.MfaRow row = store.findForUpdate(user.getId()).filter(UserMfaStore.MfaRow::enabled)
+                        .orElseThrow(MfaService::notEnrolled);
+                Integer remaining = null;
+                if (hasRecovery) {
+                    if (recoveryHash == null || !store.consumeRecoveryCode(user.getId(), recoveryHash)) {
+                        return VerifyOutcome.WRONG;
+                    }
+                    remaining = store.remainingRecoveryCodes(user.getId());
+                } else {
+                    byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
+                    OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
+                    if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
+                        return VerifyOutcome.WRONG;
+                    }
+                }
+                // Đốt token TRONG transaction, SAU khi đã giữ mã: một request song song đã đổi token này ra phiên
+                // thì burn thua → ném → rollback — mã khôi phục / bước TOTP không bị tiêu cho phiên không ai nhận.
+                if (!challengeTokens.burn(c)) {
+                    throw MfaException.tokenInvalid();
+                }
+                return new VerifyOutcome(true, remaining);
+            });
+            if (outcome == null || !outcome.ok()) {
+                throw fail(user, ip, attempt);
             }
-        }
-        if (!challengeTokens.burn(c)) {
-            throw MfaException.tokenInvalid();
-        }
-        AuthResponse session = authService.completeMfaLogin(user, Instant.now());
-        if (remaining != null) {
-            int left = remaining;
-            auditLogService.log("user.mfa.recovery_used", AuditActor.of(user), "USER", String.valueOf(user.getId()),
-                    Map.of("remaining", left));
-            notifySafely(user, NotificationType.MFA_RECOVERY_CODE_USED, Map.of("remaining", left),
-                    CodeMail.SecurityNotice.RECOVERY_CODE_USED, left);
-            if (left < RECOVERY_LOW_THRESHOLD) {
-                notifySafely(user, NotificationType.MFA_RECOVERY_CODES_LOW, Map.of("remaining", left),
-                        CodeMail.SecurityNotice.RECOVERY_CODES_LOW, left);
+            Integer remaining = outcome.recoveryRemaining();
+            AuthResponse session = authService.completeMfaLogin(user, Instant.now());
+            if (remaining != null) {
+                int left = remaining;
+                auditLogService.log("user.mfa.recovery_used", AuditActor.of(user), "USER", String.valueOf(user.getId()),
+                        Map.of("remaining", left));
+                notifySafely(user, NotificationType.MFA_RECOVERY_CODE_USED, Map.of("remaining", left),
+                        CodeMail.SecurityNotice.RECOVERY_CODE_USED, left);
+                if (left < RECOVERY_LOW_THRESHOLD) {
+                    notifySafely(user, NotificationType.MFA_RECOVERY_CODES_LOW, Map.of("remaining", left),
+                            CodeMail.SecurityNotice.RECOVERY_CODES_LOW, left);
+                }
             }
+            return new VerifyResult(session, remaining != null, remaining);
+        } finally {
+            rateLimiter.refundMfaAttempt(attempt);
         }
-        return new VerifyResult(session, remaining != null, remaining);
+    }
+
+    /** Kết quả kiểm mã trong transaction của {@link #verify}. */
+    private record VerifyOutcome(boolean ok, Integer recoveryRemaining) {
+        static final VerifyOutcome WRONG = new VerifyOutcome(false, null);
     }
 
     // ─── Đã có phiên ─────────────────────────────────────────────────────────
@@ -296,22 +326,30 @@ public class MfaService {
     /** Phát bộ mã khôi phục mới (bộ cũ hết hiệu lực) — cần mã TOTP hiện tại. */
     public List<String> regenerateRecoveryCodes(User user, String totpCode, String ip) {
         keys.requireConfigured();
-        guardNotBlocked(user.getId(), ip);
-        UserMfaStore.MfaRow row = store.find(user.getId()).filter(UserMfaStore.MfaRow::enabled)
-                .orElseThrow(MfaService::notEnrolled);
-        byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
-        OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
-        if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
-            throw fail(user, ip);
+        AuthRateLimiterService.MfaAttempt attempt = acquireAttempt(user.getId(), ip);
+        try {
+            List<String> codes = RecoveryCodes.generate();
+            byte[] pepper = keys.recoveryPepper();
+            Boolean ok = tx.execute(s -> {
+                UserMfaStore.MfaRow row = store.findForUpdate(user.getId()).filter(UserMfaStore.MfaRow::enabled)
+                        .orElseThrow(MfaService::notEnrolled);
+                byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
+                OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
+                if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
+                    return false;
+                }
+                store.replaceRecoveryCodes(user.getId(), hashAll(pepper, user.getId(), codes));
+                auditLogService.log("user.mfa.recovery_regenerated", AuditActor.of(user), "USER",
+                        String.valueOf(user.getId()), Map.of("recoveryCodesIssued", codes.size()));
+                return true;
+            });
+            if (!Boolean.TRUE.equals(ok)) {
+                throw fail(user, ip, attempt);
+            }
+            return codes;
+        } finally {
+            rateLimiter.refundMfaAttempt(attempt);
         }
-        List<String> codes = RecoveryCodes.generate();
-        byte[] pepper = keys.recoveryPepper();
-        tx.executeWithoutResult(s -> {
-            store.replaceRecoveryCodes(user.getId(), hashAll(pepper, user.getId(), codes));
-            auditLogService.log("user.mfa.recovery_regenerated", AuditActor.of(user), "USER",
-                    String.valueOf(user.getId()), Map.of("recoveryCodesIssued", codes.size()));
-        });
-        return codes;
     }
 
     /**
@@ -384,16 +422,19 @@ public class MfaService {
         return true;
     }
 
-    private void guardNotBlocked(long userId, String ip) {
-        if (rateLimiter.isMfaBlocked(userId, ip)) {
-            throw new RateLimitExceededException("Quá nhiều lần nhập sai mã. Vui lòng thử lại sau.",
-                    rateLimiter.mfaRetryAfterSeconds());
-        }
+    /**
+     * Giữ chỗ cho một lượt kiểm mã TRƯỚC khi kiểm (nguyên tử — xem {@link AuthRateLimiterService#tryAcquireMfaAttempt}).
+     * Ngân sách đầy → 429, kể cả khi mã gửi lên là đúng. Người gọi PHẢI kết thúc lượt: {@link #fail} khi mã sai,
+     * {@link AuthRateLimiterService#refundMfaAttempt} trong {@code finally} cho mọi trường hợp còn lại.
+     */
+    private AuthRateLimiterService.MfaAttempt acquireAttempt(long userId, String ip) {
+        return rateLimiter.tryAcquireMfaAttempt(userId, ip).orElseThrow(() -> new RateLimitExceededException(
+                "Quá nhiều lần nhập sai mã. Vui lòng thử lại sau.", rateLimiter.mfaRetryAfterSeconds()));
     }
 
-    /** Ghi một lần sai; lần sai làm chạm trần thì để lại vết {@code user.mfa.locked}. Trả lỗi để ném. */
-    private MfaException fail(User user, String ip) {
-        boolean nowLocked = rateLimiter.recordMfaFailure(user.getId(), ip);
+    /** Lượt đang giữ chỗ thành một lần sai; lần sai làm chạm trần thì để lại vết {@code user.mfa.locked}. Trả lỗi để ném. */
+    private MfaException fail(User user, String ip, AuthRateLimiterService.MfaAttempt attempt) {
+        boolean nowLocked = rateLimiter.commitMfaFailure(attempt);
         if (nowLocked) {
             try {
                 Map<String, Object> meta = new LinkedHashMap<>();

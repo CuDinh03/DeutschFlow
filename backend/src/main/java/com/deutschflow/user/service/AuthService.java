@@ -233,6 +233,11 @@ public class AuthService {
         return adminMfaPolicy.enforced() || userMfaStore.isEnabled(user.getId());
     }
 
+    /** Lần qua 2FA lúc {@code verifiedAt} đã quá {@code app.security.admin-mfa.max-session-hours}. */
+    private boolean isMfaStale(Instant verifiedAt) {
+        return verifiedAt.isBefore(Instant.now().minus(adminMfaPolicy.maxSessionAge()));
+    }
+
     /**
      * Phiên sau khi qua bước 2FA (đăng ký xong hoặc nhập mã đúng): thu hồi mọi refresh token cũ — như đăng nhập
      * thường — rồi cấp cặp token mang dấu 2FA ({@code mfa_at = verifiedAt}).
@@ -279,9 +284,7 @@ public class AuthService {
         User user = stored.getUser();
         Instant mfaVerifiedAt = stored.getMfaVerifiedAt();
         if (requiresMfa(user)) {
-            boolean stale = mfaVerifiedAt == null
-                    || mfaVerifiedAt.isBefore(Instant.now().minus(adminMfaPolicy.maxSessionAge()));
-            if (stale) {
+            if (mfaVerifiedAt == null || isMfaStale(mfaVerifiedAt)) {
                 log.info("[AuthService] Refresh ADMIN userId={} bị từ chối: phiên chưa qua 2FA hoặc quá hạn 2FA", user.getId());
                 throw MfaException.required();
             }
@@ -462,9 +465,19 @@ public class AuthService {
             // CHỐT DUY NHẤT (2FA ADMIN, 09/11/2026): mọi đường cấp token đi qua đây. ADMIN phải qua 2FA mà phiên
             // này không mang mốc 2FA → KHÔNG BAO GIỜ phát token, dù người gọi là ai.
             MfaState state = mfa == null ? MfaState.NONE : mfa;
-            if (!state.verified() && requiresMfa(user)) {
-                log.warn("[AuthService] Chặn cấp token cho ADMIN userId={} chưa qua 2FA", user.getId());
-                throw MfaException.required();
+            if (requiresMfa(user)) {
+                if (!state.verified()) {
+                    log.warn("[AuthService] Chặn cấp token cho ADMIN userId={} chưa qua 2FA", user.getId());
+                    throw MfaException.required();
+                }
+                // Trần tuổi của MỘT lần qua 2FA áp ở chốt này cho MỌI đường cấp token (refresh, đổi ngôn ngữ,
+                // đăng xuất phiên khác…), không chỉ ở refresh(): các đường đó chép mfa_at của access token đang
+                // gọi, nên nếu không kiểm ở đây thì gọi lặp lại sẽ kéo dài một lần qua 2FA quá max-session-hours.
+                if (isMfaStale(state.verifiedAt())) {
+                    log.info("[AuthService] Chặn cấp token cho ADMIN userId={}: lần qua 2FA đã quá {} giờ",
+                            user.getId(), adminMfaPolicy.maxSessionAge().toHours());
+                    throw MfaException.required();
+                }
             }
             String accessToken = state.verified()
                     ? jwtService.generateAccessToken(user, orgId, orgRole, state.verifiedAt())

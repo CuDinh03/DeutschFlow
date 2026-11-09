@@ -21,9 +21,12 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +52,15 @@ import java.util.concurrent.TimeUnit;
  * <p><b>2FA bắt buộc cho ADMIN (09/11/2026):</b> khi {@code app.security.admin-mfa.enforced=true} (mặc định),
  * access token của một người dùng có vai trò ADMIN (vai trò đọc từ DB, không từ claim) mà thiếu
  * {@code mfa=true} → 401 problem+json {@code extensions.code=MFA_REQUIRED}, không đi tiếp chain. Hệ quả có
- * chủ ý: mọi phiên admin đang mở trên production bị đăng xuất khi bản này lên.
+ * chủ ý: mọi phiên admin đang mở trên production bị đăng xuất khi bản này lên. Token ADMIN có dấu 2FA nhưng
+ * {@code mfa_at} cũ hơn {@code app.security.admin-mfa.max-session-hours} (hoặc thiếu {@code mfa_at}) cũng bị
+ * 401 {@code MFA_REQUIRED} — cùng trần tuổi mà {@code AuthService} áp khi cấp token.
+ *
+ * <p><b>Đường đăng nhập/2FA/refresh/đăng xuất:</b> web gắn mọi bearer đang lưu vào mọi request, nên một access
+ * token ADMIN cũ (chưa qua 2FA) không được chặn chính bước đăng nhập lại. Trên các đường công khai
+ * {@link #MFA_EXEMPT_PATHS} ({@code /api/auth/login}, {@code /api/auth/refresh}, {@code /api/auth/mfa/**}) token
+ * đó bị BỎ QUA — request đi tiếp như chưa đăng nhập. Riêng {@code POST /api/auth/logout} vẫn xác thực người gọi
+ * để thu hồi được phiên: đăng xuất chỉ làm GIẢM quyền (thu hồi refresh token của chính tài khoản đó).
  *
  * <p><b>SSE ticket bỏ qua kiểm 2FA — vì sao an toàn:</b> ticket chỉ phát từ {@code POST /api/sse/ticket},
  * một request Bearer đã đi qua đúng kiểm 2FA ở trên; ticket dùng một lần, sống 60 s và chỉ mở GET tới
@@ -62,12 +73,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final String GUEST_SUBJECT_PREFIX = "guest:";
 
+    /** Đường mà token ADMIN thiếu/hết hạn 2FA bị BỎ QUA (đi tiếp như chưa đăng nhập) thay vì 401. */
+    static final List<String> MFA_EXEMPT_PATHS = List.of(
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/mfa/**"
+    );
+    /** Đường mà token ADMIN thiếu/hết hạn 2FA vẫn được xác thực (chỉ để thu hồi phiên). */
+    static final String LOGOUT_PATH = "/api/auth/logout";
+    private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+    /** Mặc định của {@code app.security.admin-mfa.max-session-hours}. */
+    static final long DEFAULT_ADMIN_MFA_MAX_SESSION_HOURS = 12;
+
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final SseTicketService sseTicketService;
     private final boolean supportSessionEnabled;
     private final boolean adminMfaEnforced;
     private final SupportSessionValidator supportSessionValidator;
+    private final Duration adminMfaMaxAge;
 
     // Eliminates 1 DB round-trip per authenticated request (S-2/B).
     // 60s TTL keeps staleness well below the JWT lifetime (15 min); stale role is already
@@ -85,14 +109,36 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, true);
     }
 
-    /** Dựng tay (test): không có validator ⇒ token support luôn 401 (fail-closed). */
+    /** Dựng tay (test): không có validator ⇒ token support luôn 401 (fail-closed); trần tuổi 2FA mặc định 12 giờ. */
     public JwtAuthFilter(JwtService jwtService,
                          UserDetailsService userDetailsService,
                          SseTicketService sseTicketService,
                          boolean supportSessionEnabled,
                          boolean adminMfaEnforced) {
         this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, adminMfaEnforced,
-                SupportSessionValidator.REJECT_ALL);
+                DEFAULT_ADMIN_MFA_MAX_SESSION_HOURS, SupportSessionValidator.REJECT_ALL);
+    }
+
+    /** Dựng tay (test): trần tuổi 2FA tuỳ chọn, không validator phiên hỗ trợ. */
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         boolean supportSessionEnabled,
+                         boolean adminMfaEnforced,
+                         long adminMfaMaxSessionHours) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, adminMfaEnforced,
+                adminMfaMaxSessionHours, SupportSessionValidator.REJECT_ALL);
+    }
+
+    /** Dựng tay (test): có validator phiên hỗ trợ, trần tuổi 2FA mặc định 12 giờ. */
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         boolean supportSessionEnabled,
+                         boolean adminMfaEnforced,
+                         SupportSessionValidator supportSessionValidator) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, adminMfaEnforced,
+                DEFAULT_ADMIN_MFA_MAX_SESSION_HOURS, supportSessionValidator);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -101,8 +147,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                          SseTicketService sseTicketService,
                          @Value("${app.security.support-session.enabled:true}") boolean supportSessionEnabled,
                          @Value("${app.security.admin-mfa.enforced:true}") boolean adminMfaEnforced,
+                         @Value("${app.security.admin-mfa.max-session-hours:12}") long adminMfaMaxSessionHours,
                          SupportSessionValidator supportSessionValidator) {
         this.adminMfaEnforced = adminMfaEnforced;
+        // Cùng công thức với AdminMfaPolicy (tối thiểu 1 giờ) để filter và AuthService không lệch nhau.
+        this.adminMfaMaxAge = Duration.ofHours(Math.max(1, adminMfaMaxSessionHours));
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.sseTicketService = sseTicketService;
@@ -254,11 +303,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
                 return;
             }
-            if (adminMfaEnforced && isAdminPrincipal() && !JwtService.hasMfa(claims)) {
-                log.warn("[JwtAuthFilter] Token ADMIN chưa qua 2FA trên {} — 401 MFA_REQUIRED", requestUri);
-                SecurityContextHolder.clearContext();
-                writeMfaRequired(request, response);
-                return;
+            String mfaProblem = isAdminPrincipal() ? adminMfaProblem(claims) : null;
+            if (mfaProblem != null) {
+                if (isLogout(request)) {
+                    // Đăng xuất chỉ thu hồi phiên của chính tài khoản này — cho đi tiếp để web dọn được phiên cũ.
+                    log.info("[JwtAuthFilter] Token ADMIN {} trên {} — vẫn cho đăng xuất", mfaProblem, requestUri);
+                } else if (isMfaExemptPath(request)) {
+                    // Đăng nhập lại / bước 2FA / refresh không dùng bearer: bỏ token cũ, đi tiếp như chưa đăng nhập.
+                    log.info("[JwtAuthFilter] Token ADMIN {} trên {} — bỏ qua token, đi tiếp không xác thực",
+                            mfaProblem, requestUri);
+                    SecurityContextHolder.clearContext();
+                    request.removeAttribute(AuthTokenAttributes.CLAIMS);
+                    request.removeAttribute(AuthTokenAttributes.TOKEN_TYPE);
+                } else {
+                    log.warn("[JwtAuthFilter] Token ADMIN {} trên {} — 401 MFA_REQUIRED", mfaProblem, requestUri);
+                    SecurityContextHolder.clearContext();
+                    writeMfaRequired(request, response);
+                    return;
+                }
             }
         } else {
             log.warn("[JwtAuthFilter] ⚠️ No subject extracted from token for request: {}", requestUri);
@@ -286,6 +348,52 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             case JwtService.TYP_SUPPORT -> supportSessionEnabled;
             default -> false; // mfa, guest (subject không phải guest:), loại lạ
         };
+    }
+
+    /**
+     * Vì sao access token của một ADMIN không được nhận (mô tả cho log), hoặc {@code null} khi nhận được:
+     * <ul>
+     *   <li>cờ bật mà token thiếu {@code mfa=true} → "chưa qua 2FA";</li>
+     *   <li>token có dấu 2FA mà thiếu {@code mfa_at} hoặc {@code mfa_at} cũ hơn trần tuổi → "quá hạn 2FA" — kiểm cả
+     *       khi kill-switch tắt (admin đã đăng ký vẫn qua 2FA, và trần tuổi vẫn áp cho họ).</li>
+     * </ul>
+     */
+    private String adminMfaProblem(Claims claims) {
+        if (!JwtService.hasMfa(claims)) {
+            return adminMfaEnforced ? "chưa qua 2FA" : null;
+        }
+        Instant verifiedAt = JwtService.mfaVerifiedAt(claims);
+        if (verifiedAt == null || verifiedAt.isBefore(Instant.now().minus(adminMfaMaxAge))) {
+            return "quá hạn 2FA";
+        }
+        return null;
+    }
+
+    private static boolean isLogout(HttpServletRequest request) {
+        return "POST".equalsIgnoreCase(request.getMethod()) && PATH_MATCHER.match(LOGOUT_PATH, pathOf(request));
+    }
+
+    private static boolean isMfaExemptPath(HttpServletRequest request) {
+        String path = pathOf(request);
+        for (String pattern : MFA_EXEMPT_PATHS) {
+            if (PATH_MATCHER.match(pattern, path)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Đường dẫn tính từ sau context path (như {@link SseTicketEndpoints}). */
+    private static String pathOf(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri == null) {
+            return "";
+        }
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
+        return uri;
     }
 
     /** Principal vừa đặt là người dùng có vai trò ADMIN (authority từ DB, không từ claim role của token). */

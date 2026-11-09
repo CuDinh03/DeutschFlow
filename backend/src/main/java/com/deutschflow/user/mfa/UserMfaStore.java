@@ -42,6 +42,23 @@ public class UserMfaStore {
         return rows.stream().findFirst();
     }
 
+    /**
+     * Như {@link #find} nhưng KHOÁ dòng ({@code FOR UPDATE}) — gọi TRONG transaction. Mọi lượt kiểm mã 2FA của
+     * cùng một người (xác minh, xác nhận đăng ký, tạo lại mã khôi phục) xếp hàng qua khoá này: kiểm mã, ghi bước
+     * TOTP / đốt mã khôi phục và đốt token thử thách chạy tuần tự, kể cả giữa nhiều node.
+     */
+    public Optional<MfaRow> findForUpdate(long userId) {
+        List<MfaRow> rows = jdbc.query(
+                "SELECT user_id, secret_enc, enabled_at, last_used_step FROM user_mfa WHERE user_id = ? FOR UPDATE",
+                (rs, i) -> new MfaRow(
+                        rs.getLong("user_id"),
+                        rs.getString("secret_enc"),
+                        toInstant(rs.getTimestamp("enabled_at")),
+                        (Long) rs.getObject("last_used_step", Long.class)),
+                userId);
+        return rows.stream().findFirst();
+    }
+
     public boolean isEnabled(long userId) {
         Integer n = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM user_mfa WHERE user_id = ? AND enabled_at IS NOT NULL", Integer.class, userId);
