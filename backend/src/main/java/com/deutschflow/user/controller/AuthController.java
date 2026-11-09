@@ -3,6 +3,8 @@ package com.deutschflow.user.controller;
 import com.deutschflow.common.security.PasswordPolicy;
 import com.deutschflow.user.dto.AuthResponse;
 import com.deutschflow.user.dto.LoginRequest;
+import com.deutschflow.user.dto.LoginResult;
+import com.deutschflow.user.mfa.MfaService;
 import com.deutschflow.user.dto.RefreshRequest;
 import com.deutschflow.user.dto.RegisterRequest;
 import com.deutschflow.user.dto.UpdateLocaleRequest;
@@ -26,12 +28,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -65,6 +71,7 @@ public class AuthController {
     private final RegistrationVerificationConfig registrationVerificationConfig;
     private final MeterRegistry meterRegistry;
     private final RegistrationAbuseGuard registrationAbuseGuard;
+    private final MfaService mfaService;
 
     /** Token widget Cloudflare Turnstile — header thay vì field body để DTO đăng ký không đổi hợp đồng. */
     static final String TURNSTILE_HEADER = "X-Turnstile-Token";
@@ -193,11 +200,19 @@ public class AuthController {
         }
     }
 
-    /** 200 OK — đăng nhập thành công. */
+    /**
+     * 200 OK — mật khẩu đúng. Hai dạng body (cùng HTTP 200):
+     * <ul>
+     *   <li>người dùng thường: {@link AuthResponse} như trước + cookie refresh;</li>
+     *   <li>ADMIN (2FA): {@link com.deutschflow.user.dto.MfaChallengeResponse}
+     *       {@code {mfaRequired:true, mfaToken, enrolled, emailHint}} — KHÔNG token, KHÔNG role, KHÔNG cookie.
+     *       Client đi tiếp ở {@code /api/auth/mfa/*}.</li>
+     * </ul>
+     */
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request,
-                              HttpServletRequest httpRequest,
-                              HttpServletResponse httpResponse) {
+    public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest request,
+                                        HttpServletRequest httpRequest,
+                                        HttpServletResponse httpResponse) {
         String ip = resolveClientIp(httpRequest);
         // Per-IP budget FIRST, and before anything expensive. A login attempt costs a full BCrypt
         // hash even when the email does not exist (DaoAuthenticationProvider's timing-attack
@@ -214,11 +229,97 @@ public class AuthController {
                     "Too many login attempts. Please try again later.",
                     authRateLimiterService.retryAfterSeconds());
         }
-        AuthResponse authResp = withAuthBulkhead(() -> authService.login(request));
+        LoginResult result = withAuthBulkhead(() -> authService.login(request));
+        if (result instanceof LoginResult.MfaChallenge challenge) {
+            return ResponseEntity.ok(challenge.challenge());
+        }
+        AuthResponse authResp = ((LoginResult.Session) result).response();
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
         // Native mobile clients (Capacitor) cannot use HttpOnly cookies cross-origin.
         // They send X-Platform header and receive the refresh token in the body instead.
-        return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
+        return ResponseEntity.ok(isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp));
+    }
+
+    // ─── Xác thực hai lớp cho ADMIN (công khai — xác thực bằng mfaToken trong body) ───────────────────
+
+    public record MfaTokenRequest(
+            @jakarta.validation.constraints.NotBlank String mfaToken
+    ) {}
+
+    public record MfaEnrollStartRequest(
+            @jakarta.validation.constraints.NotBlank String mfaToken,
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Pattern(regexp = "^\\s*\\d{6}\\s*$", message = "Mã gồm 6 chữ số.")
+            String emailCode
+    ) {}
+
+    public record MfaConfirmRequest(
+            @jakarta.validation.constraints.NotBlank String mfaToken,
+            @jakarta.validation.constraints.NotBlank String code
+    ) {}
+
+    /** Đúng MỘT trong {@code code} (TOTP 6 số) và {@code recoveryCode}. */
+    public record MfaVerifyRequest(
+            @jakarta.validation.constraints.NotBlank String mfaToken,
+            String code,
+            String recoveryCode
+    ) {}
+
+    /** 202 — đã gửi mã 6 số tới email của tài khoản (lần bật 2FA đầu tiên). */
+    @PostMapping("/mfa/email-code")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public MfaService.EmailCodeSent mfaEmailCode(@Valid @RequestBody MfaTokenRequest request,
+                                                 HttpServletRequest httpRequest) {
+        guardMfaIp(httpRequest);
+        return mfaService.sendEmailCode(request.mfaToken());
+    }
+
+    /** 200 — {@code {otpauthUri, secretBase32, mfaToken}}: token thử thách MỚI thay token cũ (đã bị đốt). */
+    @PostMapping("/mfa/enroll/start")
+    public MfaService.EnrollmentStart mfaEnrollStart(@Valid @RequestBody MfaEnrollStartRequest request,
+                                                     HttpServletRequest httpRequest) {
+        String ip = guardMfaIp(httpRequest);
+        return mfaService.beginEnrollment(request.mfaToken(), request.emailCode(), ip);
+    }
+
+    /** 200 — {@code {recoveryCodes:[10 mã], session: AuthResponse}} + cookie refresh như đăng nhập. */
+    @PostMapping("/mfa/enroll/confirm")
+    public Map<String, Object> mfaEnrollConfirm(@Valid @RequestBody MfaConfirmRequest request,
+                                                HttpServletRequest httpRequest,
+                                                HttpServletResponse httpResponse) {
+        String ip = guardMfaIp(httpRequest);
+        MfaService.EnrollmentResult result = mfaService.confirmEnrollment(request.mfaToken(), request.code(), ip);
+        AuthResponse session = result.session();
+        setRefreshTokenCookie(session.refreshToken(), httpResponse);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("recoveryCodes", List.copyOf(result.recoveryCodes()));
+        body.put("session", isMobileRequest(httpRequest) ? session : stripRefreshToken(session));
+        return body;
+    }
+
+    /** 200 — {@link AuthResponse} + cookie refresh, y như đăng nhập thường. */
+    @PostMapping("/mfa/verify")
+    public AuthResponse mfaVerify(@Valid @RequestBody MfaVerifyRequest request,
+                                  HttpServletRequest httpRequest,
+                                  HttpServletResponse httpResponse) {
+        String ip = guardMfaIp(httpRequest);
+        AuthResponse session = mfaService.verify(request.mfaToken(), request.code(), request.recoveryCode(), ip).session();
+        setRefreshTokenCookie(session.refreshToken(), httpResponse);
+        return isMobileRequest(httpRequest) ? session : stripRefreshToken(session);
+    }
+
+    /**
+     * Trần thô theo IP dùng chung ngân sách đăng nhập (100/phút) — chặn dội request. Dò mã thì đã có ngân sách
+     * LẦN SAI riêng (5 / 15 phút theo người dùng và theo IP) trong {@link MfaService}.
+     */
+    private String guardMfaIp(HttpServletRequest httpRequest) {
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allowLoginPerIp(ip)) {
+            throw new RateLimitExceededException(
+                    "Too many login attempts. Please try again later.",
+                    authRateLimiterService.loginIpRetryAfterSeconds());
+        }
+        return ip;
     }
 
     /**

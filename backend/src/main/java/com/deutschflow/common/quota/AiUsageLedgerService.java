@@ -37,6 +37,7 @@ public class AiUsageLedgerService {
 
     @Transactional(rollbackFor = Exception.class)
     public void recordStt(Long userId, String feature, String model, double durationSeconds) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("usage-ledger");
         // M-4 (V269): ghi org_id ngay tại event để STT COGS quy được về từng tenant — STT là driver
         // COGS lặp lớn nhất của AI-Speaking. Org resolve qua org_members ACTIVE (M-5, cùng nguồn gate).
         jdbcTemplate.update("""
@@ -72,6 +73,7 @@ public class AiUsageLedgerService {
                        String feature,
                        String requestId,
                        Long sessionId) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("usage-ledger");
         if (usage == null) {
             return;
         }
@@ -93,6 +95,7 @@ public class AiUsageLedgerService {
                        String feature,
                        String requestId,
                        Long sessionId) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("usage-ledger");
         record(userId, provider, model, promptTokens, 0, completionTokens, totalTokens,
                 feature, requestId, sessionId);
     }
@@ -108,6 +111,7 @@ public class AiUsageLedgerService {
                        String feature,
                        String requestId,
                        Long sessionId) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("usage-ledger");
         // Capture org_id at event time via subquery (D-2) — single round-trip, no separate lookup.
         // M-5: org đọc từ org_members ACTIVE (cùng nguồn với gate tryReserve) thay vì users.org_id —
         // hết cảnh charge và gate nhìn hai nguồn tenant khác nhau rồi drift. ORDER BY khớp

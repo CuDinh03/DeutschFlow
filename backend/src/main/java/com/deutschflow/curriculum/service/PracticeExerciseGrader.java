@@ -87,7 +87,7 @@ public final class PracticeExerciseGrader {
      * không đọc được thì {@code grade} trả 0 câu, và bên gọi sẽ rơi về điểm do client tự báo, đúng
      * thứ lớp chấm này sinh ra để chặn.
      */
-    private static List<?> findExercises(Map<?, ?> payload) {
+    static List<?> findExercises(Map<?, ?> payload) {
         if (payload.get("exercises") instanceof List<?> named) {
             return named;
         }
@@ -100,7 +100,7 @@ public final class PracticeExerciseGrader {
     }
 
     /** Mirrors the web client's handleAnswer precedence: correct_index → correct_answer → "spoken". */
-    private static boolean isCorrect(Map<String, Object> exercise, Object submitted) {
+    static boolean isCorrect(Map<String, Object> exercise, Object submitted) {
         Object correctIndex = exercise.get("correct_index");
         if (correctIndex instanceof Number ci && submitted instanceof Number sn) {
             return ci.intValue() == sn.intValue();
@@ -118,6 +118,12 @@ public final class PracticeExerciseGrader {
                     }
                 }
             }
+            return false;
+        }
+        // "spoken" chỉ hợp lệ với mục NÓI (không có khoá đáp án nào). Trước 09/11/2026 câu trắc nghiệm /
+        // điền từ nhận "spoken" (chuỗi, nên lọt nhánh correct_index; không có correct_answer) cũng tính
+        // ĐÚNG — client sửa tay được trọn điểm + XP (review A3, kế hoạch eDeutsch A2).
+        if (correctIndex != null || correctAnswer != null) {
             return false;
         }
         return "spoken".equals(submitted);

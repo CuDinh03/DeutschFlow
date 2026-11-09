@@ -8,8 +8,8 @@ public class PracticeSubmitRequest {
     @NotNull
     private Long practiceId;
 
-    // Client self-report; only honoured for answer-less external exercises and always clamped
-    // server-side. Bounded here so a malformed value returns 400 instead of hitting a DB constraint.
+    // A2 (09/11/2026): IGNORED by the server — score is graded from the stored answer key, external
+    // exercises get a fixed XP. Kept (with its old bounds) only so existing clients don't get a 400.
     @Min(0)
     @Max(100)
     private Integer scorePercent;

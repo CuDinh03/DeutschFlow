@@ -181,6 +181,7 @@ public class QuotaService {
      */
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public QuotaSnapshot assertAllowed(long userId, Instant nowUtc, long estimatedMinTokens) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("quota");
         QuotaSnapshot snap = buildSnapshotReadOnly(userId, nowUtc);
         if (snap.unlimitedInternal()) {
             return snap;
@@ -253,7 +254,11 @@ public class QuotaService {
 
     @Transactional
     public PlanBadge resolvePlanBadge(long userId, Instant nowUtc) {
-        reconcileSubscriptions(userId, nowUtc);
+        // Phiên hỗ trợ chỉ-đọc: chỉ đọc huy hiệu, không chạy đối soát (UPDATE/INSERT) thay người dùng —
+        // connection của request hỗ trợ là READ ONLY nên đối soát sẽ nổ. Job nền vẫn đối soát như thường.
+        if (!com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()) {
+            reconcileSubscriptions(userId, nowUtc);
+        }
         SubscriptionRow row = loadActiveCoveringSubscription(userId, nowUtc);
         if (row == null) {
             return new PlanBadge(PLAN_DEFAULT, publicTier(PLAN_DEFAULT), null, null, false, null, SOURCE_WEB);

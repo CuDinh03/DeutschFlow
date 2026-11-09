@@ -209,6 +209,15 @@ public class OrgInvitationService {
                 .map(existing -> requireOwnership(existing, body))
                 .orElseGet(() -> registerInvitedUser(invitation.getEmail(), body, provenance));
 
+        // 2FA ADMIN (09/11/2026): đường này cấp phiên KHÔNG qua bước 2FA, nên tài khoản quản trị không nhận lời
+        // mời ở đây — báo ngay (403 MFA_REQUIRED_USE_LOGIN) trước khi ghi bất cứ thứ gì; lời mời vẫn PENDING.
+        // AuthService.issueSession cũng chặn ADMIN — đây chỉ là chặn sớm cho rõ ràng.
+        if (user.getRole() == User.Role.ADMIN) {
+            throw new com.deutschflow.user.mfa.MfaException(org.springframework.http.HttpStatus.FORBIDDEN,
+                    com.deutschflow.user.mfa.MfaException.MFA_REQUIRED_USE_LOGIN,
+                    "Tài khoản quản trị không nhận lời mời qua liên kết này. Hãy đăng nhập bình thường (có xác thực hai lớp).");
+        }
+
         // Insert/reactivate membership + sync users.org_id + promote STUDENT→TEACHER when applicable.
         membershipService.upsertMember(invitation.getOrgId(), user.getId(), invitation.getRole());
 

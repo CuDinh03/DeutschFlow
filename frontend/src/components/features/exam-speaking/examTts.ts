@@ -26,9 +26,93 @@ const AUDIO_DURATION_BUFFER_MS = 2000
 
 const textCapMs = (text: string) => Math.min(SPEECH_BASE_MS + text.length * SPEECH_MS_PER_CHAR, SPEECH_MAX_MS)
 
+/**
+ * Kết quả một lần đọc — để UI (nút "Nghe thử") báo được cho học viên thay vì im lặng.
+ * - `played`: đã phát (server TTS hoặc giọng máy)
+ * - `blocked`: trình duyệt CHẶN phát (iOS Safari: play() ngoài cử chỉ chạm → NotAllowedError)
+ * - `failed`: không phát được (server lỗi và không có giọng máy)
+ * - `skipped`: tắt tiếng / câu rỗng / backend chủ ý không trả audio
+ */
+export type ExamSpeakOutcome = 'played' | 'blocked' | 'failed' | 'skipped'
+
+/**
+ * iOS Safari (QA prod 09/11/2026, iPhone: bấm "Nghe thử" không nghe gì, phòng thi giám khảo im lặng):
+ * play() chỉ được phép khi gọi ĐỒNG BỘ trong cử chỉ chạm. speakExamLine chờ API TTS rồi mới play() một
+ * `new Audio()` mới ⇒ cử chỉ đã hết hạn ⇒ NotAllowedError ⇒ trước đây resolve im lặng. Cách chữa chuẩn:
+ * MỘT thẻ <audio> dùng chung, được "mở khoá" bằng một đoạn im lặng ngay trong lần chạm đầu tiên;
+ * thẻ đã mở khoá thì về sau đổi src và play() bằng code vẫn được phép.
+ */
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRuwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YcgAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='
+
+let player: HTMLAudioElement | null = null
+let unlocked = false
 let current: HTMLAudioElement | null = null
 let currentDone: (() => void) | null = null
 let muted = false
+
+function sharedPlayer(): HTMLAudioElement {
+  if (!player) {
+    player = new Audio()
+    player.preload = 'auto'
+  }
+  return player
+}
+
+const UNLOCK_EVENTS = ['touchend', 'click', 'keydown'] as const
+
+/**
+ * Mở khoá phát âm thanh — PHẢI gọi đồng bộ trong handler của cử chỉ người dùng (chạm/bấm/phím).
+ * Idempotent; không cắt lời đang phát. Module tự gắn listener toàn trang nên mọi lần chạm đầu tiên
+ * (nút "Vào phòng", đóng hướng dẫn…) đều mở khoá; gọi tay ở "Nghe thử" cho chắc.
+ */
+export function unlockExamAudio(): void {
+  if (unlocked || typeof window === 'undefined') return
+  const audio = sharedPlayer()
+  if (current === audio) return
+  try {
+    audio.src = SILENT_WAV
+    const p = audio.play()
+    if (p && typeof p.then === 'function') {
+      p.then(
+        () => {
+          unlocked = true
+          detachUnlockListeners()
+        },
+        () => {
+          // Bị chặn (không phải cử chỉ hợp lệ) hoặc bị src mới cắt ngang — thử lại ở lần chạm sau.
+        },
+      )
+    } else {
+      unlocked = true
+      detachUnlockListeners()
+    }
+  } catch {
+    // Trình duyệt lạ — bỏ qua, speakExamLine vẫn tự lo đường lui.
+  }
+  // Giọng máy (Web Speech) trên iOS cũng cần một lần speak trong cử chỉ.
+  try {
+    const synth = window.speechSynthesis
+    if (synth && !synth.speaking) {
+      const u = new SpeechSynthesisUtterance(' ')
+      u.volume = 0
+      synth.speak(u)
+    }
+  } catch {
+    // không có Web Speech — bỏ qua.
+  }
+}
+
+function detachUnlockListeners(): void {
+  for (const ev of UNLOCK_EVENTS) document.removeEventListener(ev, unlockExamAudio, true)
+}
+
+if (typeof document !== 'undefined') {
+  for (const ev of UNLOCK_EVENTS) document.addEventListener(ev, unlockExamAudio, true)
+}
+
+const isNotAllowed = (e: unknown) =>
+  typeof e === 'object' && e !== null && (e as { name?: unknown }).name === 'NotAllowedError'
 
 export function setExamTtsMuted(value: boolean): void {
   muted = value
@@ -50,8 +134,8 @@ export function stopExamTts(): void {
   done?.()
 }
 
-export async function speakExamLine(role: string, text: string): Promise<void> {
-  if (muted || !text?.trim()) return
+export async function speakExamLine(role: string, text: string): Promise<ExamSpeakOutcome> {
+  if (muted || !text?.trim()) return 'skipped'
   stopExamTts()
   const persona = VOICE_BY_ROLE[role] ?? 'DEFAULT'
   try {
@@ -60,10 +144,13 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
     const blob = resp.data as Blob
     // 2xx nhưng body rỗng = backend CHỦ Ý không trả audio (TTS tắt / e2e mock 204) → coi như đã
     // "nói xong" ngay, KHÔNG fallback Web Speech (fallback chỉ dành cho lỗi thật: network/5xx).
-    if (!blob || blob.size === 0) return
+    if (!blob || blob.size === 0) return 'skipped'
     const url = URL.createObjectURL(blob)
-    const audio = new Audio(url)
+    // Thẻ dùng chung (đã mở khoá trong cử chỉ chạm) — xem unlockExamAudio.
+    const audio = sharedPlayer()
+    audio.src = url
     current = audio
+    let outcome: ExamSpeakOutcome = 'played'
     await new Promise<void>((resolve) => {
       let settled = false
       let guard: ReturnType<typeof setTimeout> | null = null
@@ -93,14 +180,28 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
         }
       }
       audio.onended = done
-      audio.onerror = done
-      audio.play().catch(done)
+      audio.onerror = () => {
+        outcome = 'failed'
+        done()
+      }
+      audio.play().then(
+        () => {
+          unlocked = true
+        },
+        (e: unknown) => {
+          // iOS chặn autoplay → báo 'blocked' cho UI thay vì giả vờ "đã nói xong" trong im lặng.
+          outcome = isNotAllowed(e) ? 'blocked' : 'failed'
+          done()
+        },
+      )
     })
+    return outcome
   } catch {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    if (typeof window === 'undefined' || !window.speechSynthesis) return 'failed'
     const synth = window.speechSynthesis
     // Headless/không có giọng đọc → speak() im lặng và không bắn event nào: bỏ qua ngay cho tất định.
-    if (synth.getVoices().length === 0) return
+    if (synth.getVoices().length === 0) return 'failed'
+    let started = false
     await new Promise<void>((resolve) => {
       let settled = false
       let endGuard: ReturnType<typeof setTimeout> | null = null
@@ -117,6 +218,7 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
       u.lang = 'de-DE'
       u.rate = 0.95
       u.onstart = () => {
+        started = true
         clearTimeout(startGuard)
         endGuard = setTimeout(done, textCapMs(text))
       }
@@ -129,5 +231,6 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
       synth.cancel()
       synth.speak(u)
     })
+    return started ? 'played' : 'failed'
   }
 }

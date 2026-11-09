@@ -20,6 +20,8 @@ import { useUserStore } from '@/stores/useUserStore'
 import { GaPageHdr, GaBtn, GaCard, LoadingState, ConfirmDialog } from '@/components/ui-v2'
 import { RoleShell } from '../RoleShell'
 import { AvatarSection } from './AvatarSection'
+import { MfaSection } from './MfaSection'
+import { SecurityActivity } from './SecurityActivity'
 import { timezoneOptionsFor, deviceTimezone, canonicalTimezone } from './timezones'
 import { REMINDER_HOURS } from '@/features/onboarding/starterChecklist'
 
@@ -106,6 +108,11 @@ function ProfileBody() {
     (tab) => tab.id !== 'learning' || !ROLES_WITHOUT_LEARNING.has(storeUser?.roles?.[0] ?? '')
   )
   const [tab, setTab] = useState<Tab>('info')
+  // Liên kết sâu `?tab=security` (thông báo bảo mật — 2FA, phiên hỗ trợ chỉ-đọc V370) mở thẳng tab Bảo mật.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab')
+    if (wanted === 'security') setTab('security')
+  }, [])
   const [loading, setLoading] = useState(true)
 
   // info
@@ -579,6 +586,11 @@ function ProfileBody() {
                   {revoking ? t('revoking') : t('revokeOthers')}
                 </GaBtn>
               </div>
+
+              {/* Xác thực hai lớp — chỉ ADMIN (bắt buộc từ 09/11/2026) */}
+              {storeUser?.roles?.[0] === 'ADMIN' && <MfaSection />}
+              {/* Hoạt động bảo mật — đổi/đặt lại mật khẩu, khoá/mở khoá (đợt 2 admin) */}
+              <SecurityActivity />
 
               {/* Vùng nguy hiểm — xoá vĩnh viễn */}
               <div className="max-w-md rounded-ga border border-ga-red/40 bg-ga-red/5 p-5">

@@ -23,11 +23,13 @@ import {
 import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { defineFilters } from '@/lib/urlFilters'
 import { useFmt } from '@/lib/i18n/useFmt'
+import { useUserStore } from '@/stores/useUserStore'
 import { UserAccessPanel } from '../_components/UserAccessPanel'
 import { UserPlanPanel } from '../_components/UserPlanPanel'
 import { UserQuotaSummary } from '../_components/UserQuotaSummary'
 import { UserUsageTab } from '../_components/UserUsageTab'
 import { UserAuditTab } from '../_components/UserAuditTab'
+import { SupportViewAction } from '../_components/SupportViewAction'
 
 const TABS = defineFilters({
   tab: { kind: 'enum', values: ['overview', 'usage', 'learning', 'audit'] as const, default: 'overview' },
@@ -54,6 +56,8 @@ function AdminUserProfileInner() {
   const params = useParams<{ id: string }>()
   const userId = Number(params?.id)
   const { values, set } = useUrlFilters(TABS)
+  // Id của admin đang đăng nhập — để ẩn "Đặt lại 2FA" trên hồ sơ của chính mình.
+  const currentUserId = useUserStore((s) => s.user?.id ?? null)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [quota, setQuota] = useState<QuotaDetail | null>(null)
@@ -137,7 +141,24 @@ function AdminUserProfileInner() {
 
   return (
     <div className="flex min-h-full flex-col" data-testid="admin-user-profile">
-      <GaPageHdr accent title={profile.displayName || profile.email} subtitle={subtitle} right={back} />
+      <GaPageHdr
+        accent
+        title={profile.displayName || profile.email}
+        subtitle={subtitle}
+        right={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {/* Phiên hỗ trợ chỉ-đọc (V370): ẩn với đích ADMIN và tài khoản đang khoá. */}
+            <SupportViewAction
+              key={`support-${version}`}
+              userId={profile.id}
+              userName={profile.displayName || profile.email}
+              role={profile.role}
+              isActive={profile.isActive}
+            />
+            {back}
+          </div>
+        }
+      />
       <div className="flex-1 space-y-5 px-4 py-5 sm:px-6 lg:px-10">
         {error && <ErrorBanner message={error} onRetry={() => void load()} />}
         <div className="flex flex-wrap items-center gap-2">
@@ -178,6 +199,7 @@ function AdminUserProfileInner() {
                   email={profile.email}
                   role={profile.role}
                   isActive={profile.isActive}
+                  isSelf={String(profile.id) === currentUserId}
                   onChanged={() => void load()}
                 />
               </GaCard>

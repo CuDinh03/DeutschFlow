@@ -60,6 +60,9 @@ public class NotificationAutoAckService {
     // mở tx vật lý mới (giống StudentCompetencyService.applyGradingResult chạy cùng ngữ cảnh afterCommit).
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void ackByContext(Long recipientId, Set<NotificationType> types, Map<String, Object> match) {
+        if (com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()) {
+            return; // phiên hỗ trợ chỉ-đọc: admin xem KHÔNG được đánh dấu đã đọc thay người dùng
+        }
         if (recipientId == null || types == null || types.isEmpty() || match == null || match.isEmpty()) {
             return;
         }
@@ -87,6 +90,9 @@ public class NotificationAutoAckService {
     // phải mở tx vật lý mới, nếu không SSE bị bỏ và UPDATE không được commit.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void ackByType(Long recipientId, Set<NotificationType> types) {
+        if (com.deutschflow.common.security.support.SupportSessionContextHolder.isActive()) {
+            return; // phiên hỗ trợ chỉ-đọc: admin xem KHÔNG được đánh dấu đã đọc thay người dùng
+        }
         if (recipientId == null || types == null || types.isEmpty()) {
             return;
         }

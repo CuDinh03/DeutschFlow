@@ -19,7 +19,14 @@ public final class CodeMail {
 
     private CodeMail() {}
 
-    public enum Purpose { REGISTRATION, PASSWORD_RESET }
+    /**
+     * {@code ADMIN_MFA_ENROLL}: mã email ở lần bật xác thực hai lớp đầu tiên của tài khoản quản trị
+     * (09/11/2026) — chứng minh người đang đăng ký 2FA giữ hộp thư của tài khoản, không chỉ biết mật khẩu.
+     */
+    public enum Purpose { REGISTRATION, PASSWORD_RESET, ADMIN_MFA_ENROLL }
+
+    /** Thư thông báo an ninh 2FA (không có mã): đã bật, đã dùng mã khôi phục, sắp hết mã, bị admin đặt lại. */
+    public enum SecurityNotice { MFA_ENABLED, RECOVERY_CODE_USED, RECOVERY_CODES_LOW, MFA_RESET_BY_ADMIN }
 
     public record Rendered(String subject, String text, String html) {}
 
@@ -39,6 +46,9 @@ public final class CodeMail {
     private static final String SERIF = "'Newsreader',Georgia,'Times New Roman',serif";
 
     public static Rendered code(Purpose purpose, String locale, String code, int ttlMinutes) {
+        if (purpose == Purpose.ADMIN_MFA_ENROLL) {
+            return mfaEnrollCode(locale, code, ttlMinutes);
+        }
         boolean reg = purpose == Purpose.REGISTRATION;
         String lang = lang(locale);
         String subject = reg
@@ -95,6 +105,109 @@ public final class CodeMail {
         return new Rendered(subject, text, page(lang, subject, expiry, body, warnTitle, warnBody));
     }
 
+    private static Rendered mfaEnrollCode(String locale, String code, int ttlMinutes) {
+        String lang = lang(locale);
+        String subject = pick(lang, code + " là mã bật xác thực hai lớp myDeutschFlow",
+                code + " is your myDeutschFlow two-factor setup code",
+                code + " ist dein myDeutschFlow-Code für die Zwei-Faktor-Einrichtung");
+        String cap = pick(lang, "Xác thực hai lớp", "Two-factor authentication", "Zwei-Faktor-Authentifizierung");
+        String heading = pick(lang, "Mã của bạn", "Your code", "Dein Code");
+        String intro = pick(lang,
+                "Nhập mã này trên trang đăng nhập để bắt đầu bật xác thực hai lớp cho tài khoản quản trị.",
+                "Enter this code on the sign-in page to start setting up two-factor authentication for your admin account.",
+                "Gib diesen Code auf der Anmeldeseite ein, um die Zwei-Faktor-Authentifizierung für dein Admin-Konto einzurichten.");
+        String expiry = pick(lang, "Hết hạn sau " + ttlMinutes + " phút · chỉ dùng được một lần",
+                "Expires in " + ttlMinutes + " minutes · single use",
+                "Gültig für " + ttlMinutes + " Minuten · nur einmal verwendbar");
+        String warnTitle = pick(lang, "Không phải bạn?", "Wasn't you?", "Warst du das nicht?");
+        String warnBody = pick(lang,
+                "Ai đó vừa đăng nhập đúng mật khẩu tài khoản quản trị của bạn. Đổi mật khẩu ngay và đừng gửi mã này cho bất kỳ ai.",
+                "Someone just signed in with your admin password. Change your password now and never share this code.",
+                "Jemand hat sich gerade mit deinem Admin-Passwort angemeldet. Ändere sofort dein Passwort und gib diesen Code an niemanden weiter.");
+        String text = cap.toUpperCase(java.util.Locale.ROOT) + "\n\n"
+                + intro + "\n\n"
+                + "    " + code + "\n\n"
+                + expiry + "\n\n"
+                + warnTitle + " " + warnBody + "\n\n"
+                + "-- \n" + footer(lang) + "\n";
+        String body = capHtml(cap)
+                + headingHtml(heading)
+                + paragraphHtml(intro, "0 0 24px")
+                + digitsHtml(code)
+                + "<p style=\"margin:0;font-family:" + SANS + ";font-size:13px;line-height:1.5;color:" + MUTED + ";\">"
+                + esc(expiry) + "</p>";
+        return new Rendered(subject, text, page(lang, subject, expiry, body, warnTitle, warnBody));
+    }
+
+    /**
+     * Thư thông báo an ninh của 2FA. {@code remaining} chỉ dùng cho {@link SecurityNotice#RECOVERY_CODE_USED}
+     * và {@link SecurityNotice#RECOVERY_CODES_LOW}. Không có dữ liệu người dùng nào khác trong thư.
+     */
+    public static Rendered securityNotice(SecurityNotice kind, String locale, int remaining) {
+        String lang = lang(locale);
+        String cap = pick(lang, "Bảo mật tài khoản", "Account security", "Kontosicherheit");
+        String subject;
+        String heading;
+        String intro;
+        switch (kind) {
+            case MFA_ENABLED -> {
+                subject = pick(lang, "Đã bật xác thực hai lớp cho tài khoản myDeutschFlow",
+                        "Two-factor authentication is now on for your myDeutschFlow account",
+                        "Zwei-Faktor-Authentifizierung für dein myDeutschFlow-Konto ist aktiviert");
+                heading = pick(lang, "Đã bật xác thực hai lớp", "Two-factor authentication is on",
+                        "Zwei-Faktor-Authentifizierung ist aktiv");
+                intro = pick(lang,
+                        "Từ giờ mỗi lần đăng nhập cần thêm mã 6 số từ ứng dụng xác thực. Cất 10 mã khôi phục ở nơi an toàn.",
+                        "From now on every sign-in also needs the 6-digit code from your authenticator app. Keep your 10 recovery codes somewhere safe.",
+                        "Ab jetzt braucht jede Anmeldung zusätzlich den 6-stelligen Code aus deiner Authenticator-App. Bewahre deine 10 Wiederherstellungscodes sicher auf.");
+            }
+            case RECOVERY_CODE_USED -> {
+                subject = pick(lang, "Một mã khôi phục 2FA vừa được dùng",
+                        "A two-factor recovery code was just used",
+                        "Ein Zwei-Faktor-Wiederherstellungscode wurde gerade verwendet");
+                heading = pick(lang, "Đã dùng một mã khôi phục", "A recovery code was used",
+                        "Ein Wiederherstellungscode wurde verwendet");
+                intro = pick(lang,
+                        "Tài khoản của bạn vừa đăng nhập bằng một mã khôi phục. Còn " + remaining + " mã chưa dùng.",
+                        "Your account just signed in with a recovery code. " + remaining + " unused codes left.",
+                        "Dein Konto hat sich gerade mit einem Wiederherstellungscode angemeldet. Noch " + remaining + " unbenutzte Codes.");
+            }
+            case RECOVERY_CODES_LOW -> {
+                subject = pick(lang, "Sắp hết mã khôi phục 2FA",
+                        "You are running out of two-factor recovery codes",
+                        "Deine Zwei-Faktor-Wiederherstellungscodes gehen zur Neige");
+                heading = pick(lang, "Sắp hết mã khôi phục", "Running out of recovery codes",
+                        "Wiederherstellungscodes gehen zur Neige");
+                intro = pick(lang,
+                        "Chỉ còn " + remaining + " mã khôi phục. Vào Hồ sơ → Bảo mật để tạo bộ mã mới.",
+                        "Only " + remaining + " recovery codes left. Go to Profile → Security to generate a new set.",
+                        "Nur noch " + remaining + " Wiederherstellungscodes. Erzeuge unter Profil → Sicherheit neue Codes.");
+            }
+            default -> {
+                subject = pick(lang, "Xác thực hai lớp của bạn đã được đặt lại",
+                        "Your two-factor authentication was reset",
+                        "Deine Zwei-Faktor-Authentifizierung wurde zurückgesetzt");
+                heading = pick(lang, "2FA đã được đặt lại", "Two-factor was reset", "Zwei-Faktor zurückgesetzt");
+                intro = pick(lang,
+                        "Một quản trị viên khác đã đặt lại xác thực hai lớp của bạn và mọi phiên đăng nhập đã bị đóng. Lần đăng nhập tới bạn sẽ thiết lập lại 2FA.",
+                        "Another administrator reset your two-factor authentication and all sessions were signed out. You will set up two-factor again at your next sign-in.",
+                        "Ein anderer Administrator hat deine Zwei-Faktor-Authentifizierung zurückgesetzt und alle Sitzungen beendet. Bei der nächsten Anmeldung richtest du sie neu ein.");
+            }
+        }
+        String warnTitle = pick(lang, "Không phải bạn?", "Wasn't you?", "Warst du das nicht?");
+        String warnBody = pick(lang,
+                "Đổi mật khẩu ngay và trả lời thư này để báo cho chúng tôi.",
+                "Change your password now and reply to this email to let us know.",
+                "Ändere sofort dein Passwort und antworte auf diese E-Mail, um uns Bescheid zu geben.");
+        String text = cap.toUpperCase(java.util.Locale.ROOT) + "\n\n"
+                + heading + "\n\n"
+                + intro + "\n\n"
+                + warnTitle + " " + warnBody + "\n\n"
+                + "-- \n" + footer(lang) + "\n";
+        String body = capHtml(cap) + headingHtml(heading) + paragraphHtml(intro, "0");
+        return new Rendered(subject, text, page(lang, subject, intro, body, warnTitle, warnBody));
+    }
+
     public static Rendered alreadyRegistered(String locale, String loginUrl, String forgotUrl) {
         String lang = lang(locale);
         String subject = pick(lang, "Bạn đã có tài khoản myDeutschFlow",
@@ -130,6 +243,50 @@ public final class CodeMail {
                 + ";font-size:15px;font-weight:bold;color:" + INK + ";text-decoration:none;\">" + esc(login) + "</a></td>"
                 + "</tr></table>"
                 + "<p style=\"margin:16px 0 0;font-family:" + SANS + ";font-size:14px;line-height:1.5;\">"
+                + "<a href=\"" + esc(forgotUrl) + "\" style=\"color:" + LINK + ";\">" + esc(forgot) + "</a></p>";
+
+        return new Rendered(subject, text, page(lang, subject, intro, body, warnTitle, warnBody));
+    }
+
+    /**
+     * Thư báo "đội hỗ trợ vừa đặt lại mật khẩu của bạn" (đợt 2 admin, 09/11/2026).
+     *
+     * <p>⛔ Cố ý KHÔNG nhận lý do nội bộ hay danh tính admin làm tham số: thư rời hệ thống, nằm trong
+     * hộp thư (có thể bị chuyển tiếp) — người nhận chỉ cần biết "có người đã đổi, lúc nào" để báo lại
+     * nếu không phải họ yêu cầu.
+     *
+     * @param whenDisplay thời điểm đã render sẵn theo múi giờ của người nhận
+     */
+    public static Rendered passwordResetByAdmin(String locale, String whenDisplay, String forgotUrl) {
+        String lang = lang(locale);
+        String subject = pick(lang, "Mật khẩu myDeutschFlow của bạn vừa được đặt lại",
+                "Your myDeutschFlow password was reset", "Dein myDeutschFlow-Passwort wurde zurückgesetzt");
+        String cap = pick(lang, "Bảo mật tài khoản", "Account security", "Kontosicherheit");
+        String heading = pick(lang, "Mật khẩu đã được đặt lại", "Your password was reset", "Passwort zurückgesetzt");
+        String intro = pick(lang,
+                "Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại lúc " + whenDisplay
+                        + ". Mọi phiên đăng nhập cũ đã bị đăng xuất.",
+                "Your password was just reset by the DeutschFlow support team at " + whenDisplay
+                        + ". All previous sessions have been signed out.",
+                "Dein Passwort wurde soeben vom DeutschFlow-Supportteam zurückgesetzt (" + whenDisplay
+                        + "). Alle bisherigen Sitzungen wurden abgemeldet.");
+        String forgot = pick(lang, "Đặt lại mật khẩu của riêng bạn", "Set your own password", "Eigenes Passwort festlegen");
+        String warnTitle = pick(lang, "Không phải bạn yêu cầu?", "Didn't ask for this?", "Hast du das nicht angefordert?");
+        String warnBody = pick(lang, "Hãy liên hệ hỗ trợ ngay bằng cách trả lời thư này.",
+                "Please contact support right away by replying to this email.",
+                "Bitte wende dich sofort an den Support, indem du auf diese E-Mail antwortest.");
+
+        String text = cap.toUpperCase(java.util.Locale.ROOT) + "\n\n"
+                + heading + "\n\n"
+                + intro + "\n\n"
+                + forgot + ": " + forgotUrl + "\n\n"
+                + warnTitle + " " + warnBody + "\n\n"
+                + "-- \n" + footer(lang) + "\n";
+
+        String body = capHtml(cap)
+                + headingHtml(heading)
+                + paragraphHtml(intro, "0 0 16px")
+                + "<p style=\"margin:0;font-family:" + SANS + ";font-size:14px;line-height:1.5;\">"
                 + "<a href=\"" + esc(forgotUrl) + "\" style=\"color:" + LINK + ";\">" + esc(forgot) + "</a></p>";
 
         return new Rendered(subject, text, page(lang, subject, intro, body, warnTitle, warnBody));

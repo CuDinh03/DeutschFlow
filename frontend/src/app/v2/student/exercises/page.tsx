@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, ExternalLink } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
-import { CEFR_LEVELS, practiceApi, type PracticeExercise } from '@/lib/practiceApi'
+import { CEFR_LEVELS, practiceApi, type PracticeCatalogItem } from '@/lib/practiceApi'
 import { useTracking } from '@/hooks/useTracking'
 import {
   EmptyState,
@@ -21,7 +21,8 @@ import {
 /**
  * /v2/student/exercises — Thư viện bài tập bổ trợ & đề thi mẫu (vỏ Galerie).
  *
- * Port của /student/practice: GIỮ NGUYÊN endpoint GET /practice/exercises (lọc theo `cefrLevel`)
+ * Port của /student/practice. A3: danh sách lấy từ GET /practice/catalog (không kèm đề + đáp án;
+ * trước đây /practice/exercises trả cả `contentJson`). Lọc theo `cefrLevel`
  * và giữ nguyên event PostHog `practice_library` (started/quit).
  *
  * ⚠️ KHÁC v1 một điểm CÓ CHỦ Ý: v1 cho bấm "Làm bài ngay" ngay trên thẻ và POST thẳng
@@ -39,7 +40,7 @@ export default function V2StudentExercisesPage() {
   const t = useTranslations('v2.student.exercises')
   const { trackFeatureAction } = useTracking()
 
-  const [exercises, setExercises] = useState<PracticeExercise[]>([])
+  const [exercises, setExercises] = useState<PracticeCatalogItem[]>([])
   const [level, setLevel] = useState<LevelFilter>(ALL)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

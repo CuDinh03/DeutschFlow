@@ -55,6 +55,7 @@ public class GeminiApiClient {
      */
     @Async("aiExecutor")
     public CompletableFuture<String> generateJsonFromDocument(String systemPrompt, String base64Document, String mimeType) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("gemini");
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("GEMINI_API_KEY is not configured."));
         }

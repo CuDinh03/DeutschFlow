@@ -24,9 +24,10 @@ public class AiChatClientFactory {
             LocalAiChatClient localAiChatClient,
             GroqChatClient groqChatClient) {
         String p = chatProvider == null ? "local" : chatProvider.trim().toLowerCase(Locale.ROOT);
+        // Phiên hỗ trợ chỉ-đọc: mọi đường chat qua bean này bị chặn trên thread hỗ trợ (GuardedOpenAiChatClient).
         if ("groq".equals(p)) {
-            return groqChatClient;
+            return new GuardedOpenAiChatClient(groqChatClient);
         }
-        return localAiChatClient;
+        return new GuardedOpenAiChatClient(localAiChatClient);
     }
 }

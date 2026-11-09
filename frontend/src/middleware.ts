@@ -1,7 +1,7 @@
 // IMPORTANT: this file MUST live at `src/middleware.ts` (this project uses a `src/` dir).
 // At the project root it is silently ignored by Next.js and never compiled — which is exactly
 // why the middleware did nothing in production for a long time. Do not move it back to the root.
-import { jwtVerify, decodeProtectedHeader, importSPKI } from 'jose'
+import { jwtVerify, decodeProtectedHeader, importSPKI, type JWTPayload } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { mediaOrigins } from '../media-origins.mjs'
 import { LOCALE_HEADER, isLocalizedPublicPath, localizedHref, publicHref, slugPageFor, splitLocalePrefix } from '@/lib/publicLocale'
@@ -20,6 +20,8 @@ type VerifiedClaims = { role: Role; orgRole: OrgRole | null }
 
 const AUTH_ACCESS_COOKIE = 'auth_access'
 const AUTH_ROLE_COOKIE = 'auth_role'
+// Tab phiên hỗ trợ chỉ-đọc (admin xem như người dùng, V370) — token typ=support do trang /v2/support-session đặt.
+const AUTH_SUPPORT_COOKIE = 'auth_support'
 // Persistent HttpOnly cookie set by the backend (com.deutschflow ... AuthController#REFRESH_TOKEN_COOKIE).
 // Readable here because middleware runs server-side (HttpOnly only blocks document.cookie, not the
 // request's Cookie header). Used to avoid bouncing a returning user whose access token has not been
@@ -158,7 +160,40 @@ function loadRsaPublicKey(): ReturnType<typeof importSPKI> | null {
   return rsaPublicKeyPromise
 }
 
+// Phân loại token (09/11/2026, khớp JwtService.tokenType bên backend): chỉ access token mới qua cổng biên.
+// Thiếu `typ` (hoặc rỗng) = access — token phát hành trước bản này vẫn chạy tới khi hết hạn. Mọi loại khác
+// (`mfa` của bước 2FA, `guest`, `support`, loại lạ) nằm trong cookie auth_access đều coi như không hợp lệ.
+function isAccessTokenType(typ: unknown): boolean {
+  if (typ === undefined || typ === null) return true
+  if (typeof typ !== 'string') return false
+  const t = typ.trim()
+  return t === '' || t === 'access'
+}
+
+function routingClaims(payload: JWTPayload): VerifiedClaims | null {
+  if (!isAccessTokenType(payload.typ)) return null
+  const role = normalizeRole(payload.role)
+  return role ? { role, orgRole: normalizeOrgRole(payload.orgRole) } : null
+}
+
 async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> {
+  const payload = await verifyJwt(token)
+  return payload ? routingClaims(payload) : null
+}
+
+/**
+ * Cookie `auth_support` (tab phiên hỗ trợ chỉ-đọc, V370): token `typ=support` của NGƯỜI DÙNG đang được admin
+ * xem. Chữ ký + hạn kiểm như access token; vai trò ADMIN không bao giờ hợp lệ ở đây (backend không phát).
+ */
+async function verifySupportToken(token: string): Promise<VerifiedClaims | null> {
+  const payload = await verifyJwt(token)
+  if (!payload || payload.typ !== 'support') return null
+  const role = normalizeRole(payload.role)
+  if (!role || role === 'ADMIN') return null
+  return { role, orgRole: normalizeOrgRole(payload.orgRole) }
+}
+
+async function verifyJwt(token: string): Promise<JWTPayload | null> {
   // Pick the verifier from the token's own algorithm header — supports HS256 (current) and RS256
   // (S18 migration) at the same time, so signing can flip without breaking verification.
   let alg: string | undefined
@@ -176,8 +211,7 @@ async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> 
         return null
       }
       const { payload } = await jwtVerify(token, await keyPromise)
-      const role = normalizeRole(payload.role)
-      return role ? { role, orgRole: normalizeOrgRole(payload.orgRole) } : null
+      return payload
     }
 
     // HS256 (default / transition) — verify with the shared secret.
@@ -190,8 +224,7 @@ async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> 
       return null
     }
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret))
-    const role = normalizeRole(payload.role)
-    return role ? { role, orgRole: normalizeOrgRole(payload.orgRole) } : null
+    return payload
   } catch (err) {
     console.error('Middleware: Token verification failed:', err)
     return null
@@ -429,7 +462,16 @@ export async function middleware(request: NextRequest) {
         return passThrough()
       }
 
-      const v2Claims = v2Access ? await verifyAccessToken(v2Access) : null
+      let v2Claims = v2Access ? await verifyAccessToken(v2Access) : null
+      // Phiên hỗ trợ chỉ-đọc: tab hỗ trợ và tab admin DÙNG CHUNG cookie, nên tab hỗ trợ vẫn mang auth_access của
+      // admin. Ngoài /v2/admin/**, khi auth_access là ADMIN và có auth_support hợp lệ → định tuyến theo vai trò
+      // NGƯỜI DÙNG đang được xem. /v2/admin/** luôn theo auth_access (token support không bao giờ mở khu quản
+      // trị). Trình duyệt của người dùng thường (auth_access không phải ADMIN) không bị ảnh hưởng.
+      const supportCookie = request.cookies.get(AUTH_SUPPORT_COOKIE)?.value
+      if (supportCookie && v2Claims?.role === 'ADMIN' && !isUnder(v2Path, '/admin')) {
+        const supportClaims = await verifySupportToken(supportCookie)
+        if (supportClaims) v2Claims = supportClaims
+      }
       const v2Role = v2Claims?.role ?? null
       if (!v2Role) {
         // Access cookie missing/invalid but a refresh cookie IS present: a returning user whose access
