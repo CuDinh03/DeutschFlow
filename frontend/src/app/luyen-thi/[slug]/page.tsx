@@ -1,10 +1,20 @@
+import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CheckCircle2, Clock, ExternalLink, GraduationCap, Lightbulb, ListChecks, PenLine, Sparkles } from 'lucide-react'
+import { ChevronDown, ExternalLink, PenLine, Sparkles, Square } from 'lucide-react'
 import { GERMAN_EXAMS, getExamBySlug, totalDurationMin, type GermanExam } from '@/data/germanExams'
 import { absoluteUrl } from '@/lib/siteUrl'
+import { GaBtn } from '@/components/ui-v2/GaBtn'
+import { GaGlyph } from '@/components/ui-v2/GaGlyph'
+import { LandingHeader } from '@/components/landing-v2/LandingHeader'
+import { LandingFooter } from '@/components/landing-v2/LandingFooter'
 
+/**
+ * Trang hướng dẫn từng kỳ thi `/luyen-thi/{slug}/` (chỉ tiếng Việt). Icon đợt B (09/11/2026): chuyển sang
+ * Galerie như trang tổng `/luyen-thi` và Cẩm nang — header/footer công khai, token `ga-*`, bỏ icon trang trí
+ * khổng lồ và icon đầu mục. Nội dung, metadata và JSON-LD giữ nguyên.
+ */
 export function generateStaticParams() {
   return GERMAN_EXAMS.map((e) => ({ slug: e.slug }))
 }
@@ -27,94 +37,100 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   }
 }
 
+const YellowSq = () => <span className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
+const H2 = 'mb-5 font-ga-display text-ga-h2 font-medium text-ga-ink sm:text-ga-h1'
+
 export default function ExamPage({ params }: { params: { slug: string } }) {
   const exam = getExamBySlug(params.slug)
   if (!exam) notFound()
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <JsonLd exam={exam} />
+    <div className="ga-scope min-h-screen overflow-x-clip bg-ga-bg font-ga-ui text-ga-ink">
+      <LandingHeader current="exam" showLanguage={false} />
+      <main className="mx-auto max-w-[860px] px-5 pb-16 pt-10 sm:px-8 md:pt-14">
+        <JsonLd exam={exam} />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white">
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-black via-[#DD0000] to-[#FFCE00]" />
-        <div className="absolute right-0 top-0 -mr-16 -mt-10 opacity-10"><GraduationCap size={240} /></div>
-        <div className="relative z-10 mx-auto max-w-4xl px-5 pb-12 pt-12 sm:pt-16">
-          <nav className="mb-5 text-xs font-semibold text-slate-400">
-            <Link href="/luyen-thi" className="hover:text-white">Luyện thi tiếng Đức</Link>
-            <span className="px-1.5">/</span>
-            <span className="text-slate-300">{exam.shortName}</span>
-          </nav>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-indigo-200">
-            {exam.provider} · {exam.level}
-          </span>
-          <h1 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">{exam.name}</h1>
-          <p className="mt-3 max-w-2xl text-lg text-slate-300">{exam.tagline}</p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/free-grade" className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700">
-              <Sparkles size={16} /> Chấm thử bài viết miễn phí
-            </Link>
-            <Link href="/v2/register" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/10">
-              Luyện thi với DeutschFlow
-            </Link>
-          </div>
+        <nav aria-label="Đường dẫn" className="mb-6 text-ga-small text-ga-muted">
+          <Link href="/luyen-thi" className="underline underline-offset-4 hover:text-ga-ink">Luyện thi tiếng Đức</Link>
+          <span aria-hidden> / </span>
+          <span>{exam.shortName}</span>
+        </nav>
+
+        <div className="mb-[18px] inline-flex items-center gap-2 text-ga-eyebrow uppercase text-ga-muted">
+          <YellowSq />{exam.provider} · {exam.level}
         </div>
-      </section>
+        <h1 className="font-ga-display text-ga-h1-m font-medium leading-[1.1] sm:text-ga-h1">{exam.name}</h1>
+        <p className="mt-5 text-ga-body-lg text-ga-muted">{exam.tagline}</p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
+            <Link href="/free-grade"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
+          </GaBtn>
+          <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+            <Link href="/v2/register">Luyện thi với DeutschFlow</Link>
+          </GaBtn>
+        </div>
 
-      <div className="mx-auto max-w-4xl space-y-10 px-5 py-10">
-        {/* Overview */}
-        <section className="space-y-3">
-          <p className="text-base leading-relaxed text-slate-700">{exam.overview}</p>
-          <p className="rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+        {/* Tổng quan */}
+        <section className="mt-12 space-y-4">
+          <p className="text-ga-body-lg text-ga-ink">{exam.overview}</p>
+          <p className="border-l-2 border-ga-yellow pl-4 text-ga-body text-ga-ink">
             <span className="font-semibold">Dành cho:</span> {exam.whoFor}
           </p>
         </section>
 
-        {/* Modules */}
-        <Section icon={<Clock size={18} />} title="Cấu trúc đề thi">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {/* Cấu trúc đề */}
+        <section className="mt-14">
+          <h2 className={H2}>Cấu trúc đề thi</h2>
+          <div className="overflow-x-auto border border-ga-border bg-ga-card">
+            <table className="w-full text-left text-ga-body">
+              <thead className="bg-ga-surface text-ga-eyebrow uppercase text-ga-muted">
                 <tr>
                   <th className="px-5 py-3">Phần thi</th>
-                  <th className="px-5 py-3 hidden sm:table-cell">Nội dung</th>
-                  <th className="px-5 py-3 whitespace-nowrap">Thời lượng</th>
+                  <th className="hidden px-5 py-3 sm:table-cell">Nội dung</th>
+                  <th className="whitespace-nowrap px-5 py-3">Thời lượng</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-ga-border">
                 {exam.modules.map((m) => (
                   <tr key={m.skill}>
-                    <td className="px-5 py-3 font-semibold text-slate-800">{m.name}</td>
-                    <td className="px-5 py-3 text-slate-500 hidden sm:table-cell">{m.description}</td>
-                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">~{m.durationMin} phút</td>
+                    <td className="px-5 py-3 font-semibold text-ga-ink">{m.name}</td>
+                    <td className="hidden px-5 py-3 text-ga-muted sm:table-cell">{m.description}</td>
+                    <td className="whitespace-nowrap px-5 py-3 tabular-nums text-ga-muted">~{m.durationMin} phút</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50/60">
-                  <td className="px-5 py-2.5 text-xs font-bold text-slate-600" colSpan={2}>
+                <tr className="border-t border-ga-border bg-ga-surface">
+                  <td className="px-5 py-2.5 text-ga-small font-semibold text-ga-ink" colSpan={2}>
                     Tổng (tham khảo){exam.modular ? ' · thi/thi lại từng phần' : ''}
                   </td>
-                  <td className="px-5 py-2.5 whitespace-nowrap text-xs font-bold text-slate-600">~{totalDurationMin(exam)} phút</td>
+                  <td className="whitespace-nowrap px-5 py-2.5 text-ga-small font-semibold tabular-nums text-ga-ink">
+                    ~{totalDurationMin(exam)} phút
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
-          <p className="mt-3 text-sm text-slate-600"><span className="font-semibold">Cách tính điểm:</span> {exam.scoring}</p>
-          <p className="text-xs text-slate-400">Thời lượng & cấu trúc mang tính tham khảo — xác nhận tại nguồn chính thức trước khi đăng ký.</p>
-        </Section>
+          <p className="mt-4 text-ga-body text-ga-ink"><span className="font-semibold">Cách tính điểm:</span> {exam.scoring}</p>
+          <p className="mt-2 text-ga-caption text-ga-muted">
+            Thời lượng & cấu trúc mang tính tham khảo — xác nhận tại nguồn chính thức trước khi đăng ký.
+          </p>
+        </section>
 
-        {/* Readiness checklist */}
-        <Section icon={<ListChecks size={18} />} title="Checklist sẵn sàng thi">
-          <p className="mb-4 text-sm text-slate-600">Tự đánh giá theo từng kỹ năng — nếu còn mục chưa chắc, đó là chỗ cần luyện thêm.</p>
+        {/* Checklist sẵn sàng thi */}
+        <section className="mt-14">
+          <h2 className={H2}>Checklist sẵn sàng thi</h2>
+          <p className="mb-5 text-ga-body text-ga-muted">
+            Tự đánh giá theo từng kỹ năng — nếu còn mục chưa chắc, đó là chỗ cần luyện thêm.
+          </p>
           <div className="grid gap-4 sm:grid-cols-2">
             {exam.readiness.map((g) => (
-              <div key={g.skill} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="mb-3 text-sm font-bold text-slate-800">{g.skill}</p>
-                <ul className="space-y-2">
+              <div key={g.skill} className="border border-ga-border bg-ga-card p-5">
+                <h3 className="mb-3 text-ga-h3 text-ga-ink">{g.skill}</h3>
+                <ul className="space-y-2.5">
                   {g.items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600">
-                      <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-500" />
+                    <li key={i} className="flex items-start gap-2.5 text-ga-small text-ga-ink">
+                      <Square size={15} aria-hidden className="mt-[3px] shrink-0 text-ga-muted" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -122,84 +138,85 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
               </div>
             ))}
           </div>
-        </Section>
+        </section>
 
-        {/* CTA mid */}
-        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-white p-6 shadow-sm">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600"><PenLine size={22} /></div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Bài viết {exam.level} của bạn được mấy điểm?</p>
-                <p className="text-sm text-slate-500">Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.</p>
-              </div>
+        {/* CTA giữa trang */}
+        <div className="mt-14 flex flex-col items-start gap-4 border border-ga-border bg-ga-card p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex items-center gap-3">
+            <GaGlyph icon={PenLine} />
+            <div>
+              <p className="text-ga-h3 text-ga-ink">Bài viết {exam.level} của bạn được mấy điểm?</p>
+              <p className="text-ga-small text-ga-muted">Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.</p>
             </div>
-            <Link href="/free-grade" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700">
-              <Sparkles size={16} /> Chấm thử ngay
-            </Link>
           </div>
+          <GaBtn asChild variant="ink" size="lg" className="w-full shrink-0 sm:w-auto">
+            <Link href="/free-grade"><Sparkles size={16} aria-hidden /> Chấm thử ngay</Link>
+          </GaBtn>
         </div>
 
-        {/* Study tips */}
-        <Section icon={<Lightbulb size={18} />} title="Mẹo luyện thi">
-          <ul className="space-y-2.5">
+        {/* Mẹo luyện thi */}
+        <section className="mt-14">
+          <h2 className={H2}>Mẹo luyện thi</h2>
+          <ol className="border-t border-ga-border">
             {exam.studyTips.map((tip, i) => (
-              <li key={i} className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">{i + 1}</span>
+              <li key={i} className="flex items-start gap-4 border-b border-ga-border py-4 text-ga-body text-ga-ink">
+                <span className="w-6 shrink-0 font-ga-display text-ga-numeral tabular-nums text-ga-muted">{i + 1}</span>
                 <span>{tip}</span>
               </li>
             ))}
-          </ul>
-        </Section>
+          </ol>
+        </section>
 
-        {/* FAQ */}
-        <Section icon={<ListChecks size={18} />} title="Câu hỏi thường gặp">
-          <div className="space-y-3">
+        {/* Câu hỏi thường gặp */}
+        <section className="mt-14">
+          <h2 className={H2}>Câu hỏi thường gặp</h2>
+          <div className="border-t border-ga-border">
             {exam.faqs.map((f, i) => (
-              <details key={i} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <summary className="cursor-pointer list-none text-sm font-bold text-slate-800 marker:hidden">{f.q}</summary>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{f.a}</p>
+              <details key={i} className="group border-b border-ga-border py-4">
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-4 text-ga-h3 text-ga-ink [&::-webkit-details-marker]:hidden">
+                  {f.q}
+                  <ChevronDown size={18} aria-hidden className="mt-0.5 shrink-0 text-ga-muted transition-transform group-open:rotate-180" />
+                </summary>
+                <p className="mt-2 text-ga-body text-ga-muted">{f.a}</p>
               </details>
             ))}
           </div>
-          <a href={exam.officialUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700">
-            Lịch thi, lệ phí & đăng ký tại nguồn chính thức <ExternalLink size={14} />
+          <a
+            href={exam.officialUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex items-center gap-1.5 text-ga-small font-semibold text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink"
+          >
+            Lịch thi, lệ phí & đăng ký tại nguồn chính thức <ExternalLink size={14} aria-hidden />
           </a>
-        </Section>
+        </section>
 
-        {/* Related exams */}
         <RelatedExams current={exam} />
-      </div>
-    </main>
-  )
-}
-
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <div className="mb-4 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">{icon}</span>
-        <h2 className="text-lg font-black text-slate-800">{title}</h2>
-      </div>
-      {children}
-    </section>
+      </main>
+      <LandingFooter />
+    </div>
   )
 }
 
 function RelatedExams({ current }: { current: GermanExam }) {
   const related = GERMAN_EXAMS.filter((e) => e.slug !== current.slug).slice(0, 3)
   return (
-    <section>
-      <h2 className="mb-4 text-lg font-black text-slate-800">Các kỳ thi khác</h2>
-      <div className="grid gap-3 sm:grid-cols-3">
+    <section className="mt-14">
+      <h2 className={H2}>Các kỳ thi khác</h2>
+      <ul className="grid gap-4 sm:grid-cols-3">
         {related.map((e) => (
-          <Link key={e.slug} href={`/luyen-thi/${e.slug}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-300 hover:shadow-md">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-500">{e.provider} · {e.level}</span>
-            <p className="mt-1 text-sm font-bold text-slate-800">{e.name}</p>
-            <p className="mt-1 text-xs text-slate-500">{e.tagline}</p>
-          </Link>
+          <li key={e.slug}>
+            <Link
+              href={`/luyen-thi/${e.slug}`}
+              className="flex h-full flex-col border border-ga-border bg-ga-card p-5 transition-colors hover:border-ga-ink"
+            >
+              <span className="text-ga-eyebrow uppercase text-ga-muted">{e.provider} · {e.level}</span>
+              <span className="mt-2 text-ga-h3 text-ga-ink">{e.name}</span>
+              <span className="mt-1 text-ga-small text-ga-muted">{e.tagline}</span>
+            </Link>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   )
 }

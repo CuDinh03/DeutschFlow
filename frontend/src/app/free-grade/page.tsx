@@ -1,5 +1,8 @@
+import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import FreeGradeClientPage from './client-page'
+import { LandingHeader } from '@/components/landing-v2/LandingHeader'
+import { LandingFooter } from '@/components/landing-v2/LandingFooter'
 
 export const metadata: Metadata = {
   title: 'Chấm thử bài Schreiben B1 bằng AI — Miễn phí | myDeutschFlow',
@@ -14,6 +17,13 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
+/** Icon đợt B (09/11/2026): trang chấm thử chuyển sang Galerie — header/footer công khai bọc ngoài phần client. */
 export default function FreeGradePage() {
-  return <FreeGradeClientPage />
+  return (
+    <div className="ga-scope min-h-screen overflow-x-clip bg-ga-bg font-ga-ui text-ga-ink">
+      <LandingHeader current="exam" showLanguage={false} />
+      <FreeGradeClientPage />
+      <LandingFooter />
+    </div>
+  )
 }
