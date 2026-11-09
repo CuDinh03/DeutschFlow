@@ -10,7 +10,7 @@ import { apiMessage, httpStatus } from '@/lib/api'
 import { parseMinorAudioBlocked, type MinorAudioBlocked } from '@/lib/minorAudio'
 import { MAX_TRANSCRIBE_BYTES } from '@/lib/voiceRecorder'
 import type { BlueprintSummary, ExamResultView, ExamSessionView, RoomLine, TurnResponse } from '@/types/exam-speaking'
-import { ConfirmDialog, ErrorBanner, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
+import { ConfirmDialog, ErrorBanner, GaBtn, LoadingState, useImmersiveChrome } from '@/components/ui-v2'
 import { MinorAudioBlockedNotice } from '@/components/ui-v2/MinorAudioBlockedNotice'
 import { GaGlyph, type GaGlyphIcon } from '@/components/ui-v2/GaGlyph'
 import { ExamTimer } from './ExamTimer'
@@ -28,7 +28,7 @@ import { OralResult } from './OralResult'
 import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { cn } from '@/lib/utils'
 import { DrillSummary } from './DrillSummary'
-import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from './examTts'
+import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts, unlockExamAudio } from './examTts'
 
 interface Props {
   sessionId: number
@@ -92,6 +92,9 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
     })
   }
   const speakGenRef = useRef(0)
+  // Lời AI bị trình duyệt chặn phát (outcome 'blocked') → chờ học viên chạm "nghe" hoặc "bỏ qua".
+  const [ttsBlocked, setTtsBlocked] = useState(false)
+  const blockedResolveRef = useRef<((choice: 'play' | 'skip') => void) | null>(null)
   const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
   // Hỏi trước khi kết thúc / sang Teil (thi thử không quay lại được) — luật thoát giữa chừng 07/11.
   const [confirm, setConfirm] = useState<'finish' | 'advance' | 'leave' | null>(null)
@@ -119,7 +122,19 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
     const gen = ++speakGenRef.current
     for (const turn of turns) {
       setAiSpeaking(turn.role === 'PARTNER' ? 'PARTNER' : 'PRUEFER')
-      await speakExamLine(turn.role, turn.text)
+      let outcome = await speakExamLine(turn.role, turn.text)
+      // iOS chặn phát ngoài cú chạm (plan đường âm thanh §2.1): giữ micro khoá, hiện "Chạm để nghe".
+      // KHÔNG tự phát lại ở cú chạm sau — cú chạm đó có thể là nút micro, giọng AI sẽ lọt vào bản ghi.
+      while (outcome === 'blocked' && speakGenRef.current === gen) {
+        const choice = await new Promise<'play' | 'skip'>((resolve) => {
+          blockedResolveRef.current = resolve
+          setTtsBlocked(true)
+        })
+        blockedResolveRef.current = null
+        setTtsBlocked(false)
+        if (speakGenRef.current !== gen || choice === 'skip') break
+        outcome = await speakExamLine(turn.role, turn.text)
+      }
       if (speakGenRef.current !== gen) return
     }
     setAiSpeaking(null)
@@ -129,7 +144,14 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
   const interruptSpeech = useCallback(() => {
     speakGenRef.current += 1
     stopExamTts()
+    blockedResolveRef.current?.('skip')
     setAiSpeaking(null)
+  }, [])
+
+  /** Nút "Chạm để nghe": mở khoá audio ĐỒNG BỘ trong cú chạm rồi mới cho chuỗi phát lại. */
+  const playBlocked = useCallback(() => {
+    unlockExamAudio()
+    blockedResolveRef.current?.('play')
   }, [])
 
   // ── nạp phiên + blueprint (để vẽ stepper có tên Teil) ───────────────────────────────────
@@ -616,6 +638,27 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
               {notices}
               <ExamTranscript lines={lines} mode={session.mode} teilTitles={teilTitles} />
             </div>
+            {ttsBlocked && (
+              <div
+                role="alert"
+                className="ga-ui mx-3 mb-2 flex flex-col gap-2 rounded-ga-lg border border-ga-line bg-ga-card p-3 sm:mx-4 sm:flex-row sm:items-center"
+                data-testid="tts-blocked"
+              >
+                <div className="min-w-0 flex-1 text-ga-small text-ga-muted">
+                  <b className="block text-ga-body font-semibold text-ga-ink">{t('oral.blocked.title')}</b>
+                  {t('oral.blocked.sub')}
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <GaBtn variant="ink" size="lg" onClick={playBlocked} data-testid="tts-blocked-play">
+                    <Volume2 size={16} aria-hidden />
+                    {t('oral.blocked.play')}
+                  </GaBtn>
+                  <GaBtn variant="ghost" size="lg" onClick={() => blockedResolveRef.current?.('skip')} data-testid="tts-blocked-skip">
+                    {t('oral.blocked.skip')}
+                  </GaBtn>
+                </div>
+              </div>
+            )}
             <MicBar
               disabled={busy || aiSpeaking !== null}
               busy={busy}

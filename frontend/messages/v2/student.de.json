@@ -1980,7 +1980,13 @@
             "drillDone": "Übung Teil {n} abgeschlossen"
           },
           "autoStop": "Automatisch stoppen bei Stille",
-          "autoStopHint": "An: Nach dem Sprechen stoppen und senden 2 Sekunden Stille die Aufnahme. Aus: Zum Senden erneut auf das Mikrofon tippen."
+          "autoStopHint": "An: Nach dem Sprechen stoppen und senden 2 Sekunden Stille die Aufnahme. Aus: Zum Senden erneut auf das Mikrofon tippen.",
+          "blocked": {
+            "title": "Der Browser hat die Wiedergabe blockiert",
+            "sub": "Tippen Sie unten, um die Prüferin / den Prüfer zu hören. Der Text steht auch im Gesprächsverlauf.",
+            "play": "Zum Anhören tippen",
+            "skip": "Überspringen, ich lese"
+          }
         }
       },
       "mic": {
@@ -1998,7 +2004,8 @@
           "busy": "Das Mikrofon wird von einer anderen App benutzt.",
           "insecure": "Das Mikrofon braucht HTTPS.",
           "unsupported": "Dieser Browser kann keine Audioaufnahme.",
-          "unknown": "Aufnahme fehlgeschlagen. Bitte erneut versuchen."
+          "unknown": "Aufnahme fehlgeschlagen. Bitte erneut versuchen.",
+          "tooShort": "Die Aufnahme war zu kurz. Tippen Sie auf das Mikrofon, sprechen Sie Ihre Antwort und tippen Sie dann auf Stopp."
         },
         "retry": "Mikrofon erneut versuchen",
         "deniedSteps": {
