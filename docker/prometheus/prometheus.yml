@@ -5,7 +5,7 @@ global:
 rule_files:
   - "alert.rules.yml"
 
-# Send firing alerts to Alertmanager (which fans them out to Telegram/Slack/email).
+# Send firing alerts to Alertmanager (which fans them out to Telegram).
 # Without this block, the rules in alert.rules.yml fire but go nowhere — which is why
 # the DB-pool exhaustion incident produced no notification.
 alerting:
@@ -18,22 +18,22 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Target là TÊN CONTAINER thật (docker run --name deutschflow-backend trong deploy-backend.sh).
-  # Alias `backend` cũ chỉ tồn tại cho service backend của docker-compose — container prod KHÔNG do
-  # compose tạo, nên scrape này chết im lặng từ đầu (dashboard/alert không có dữ liệu backend).
-  # deploy-backend.sh giờ tự gắn container vào network của prometheus ở bước promote; áp config
-  # mới bằng: sudo docker restart deutschflow-prometheus (thư mục này được bind-mount).
+  # Backend chạy blue-green trên VM tự host (deploy/self-host/deploy-backend-vm.sh): màu blue là
+  # container deutschflow-backend, màu green là deutschflow-backend-green. Lúc nào cũng chỉ MỘT màu
+  # sống (màu kia bị gỡ sau khi đổi traffic) ⇒ scrape cả hai tên; target của màu đã gỡ báo down là
+  # BÌNH THƯỜNG — rule BackendScrapeDown xét max() trên cả job nên chỉ kêu khi CẢ HAI cùng chết.
+  # deploy-backend-vm.sh gắn container mới vào mạng deutschflow-net và SIGHUP Prometheus.
   - job_name: 'deutschflow-backend'
     metrics_path: '/actuator/prometheus'
     # /actuator/prometheus được bảo vệ bằng bearer token tĩnh ở tầng app (401 nếu thiếu/sai).
-    # Tạo file token MỘT LẦN trên EC2 (gitignored, cùng giá trị với PROMETHEUS_SCRAPE_TOKEN
-    # trong .env.production):  printf '%s' "<token>" > docker/prometheus/scrape-token
-    # File thiếu → target down với lỗi đọc file (alert BackendScrapeDown sẽ kêu), prometheus vẫn chạy.
+    # Token nằm ngoài repo: /home/deploy/secrets/prometheus_scrape_token trên VM, mount vào
+    # /etc/prometheus-secrets/scrape-token (deploy/self-host/monitoring.compose.yml), cùng giá trị
+    # PROMETHEUS_SCRAPE_TOKEN trong /srv/deutschflow/env/backend.env.
     authorization:
       type: Bearer
-      credentials_file: /etc/prometheus/scrape-token
+      credentials_file: /etc/prometheus-secrets/scrape-token
     static_configs:
-      - targets: ['deutschflow-backend:8080']
+      - targets: ['deutschflow-backend:8080', 'deutschflow-backend-green:8080']
 
   # H3 audit lag 02/09: số đo HOST (CPU/RAM/disk/swap/network của cả EC2 — nginx, redis, dockerd
   # đều nằm ngoài tầm /actuator). Service node-exporter trong docker-compose.prod.yml, scrape qua

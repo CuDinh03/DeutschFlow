@@ -1,0 +1,11 @@
+[Unit]
+Description=DeutschFlow — ghi số đo backup/token AI cho node-exporter (textfile)
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/srv/deutschflow/repo/deploy/self-host/metrics-textfile.sh
+Nice=10

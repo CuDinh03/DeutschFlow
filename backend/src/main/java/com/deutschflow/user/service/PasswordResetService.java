@@ -1,5 +1,7 @@
 package com.deutschflow.user.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.mail.TransactionalMail;
 import com.deutschflow.user.registration.RegistrationCodes;
@@ -55,6 +57,7 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final Executor mailExecutor;
+    private final AuditLogService auditLogService;
     private final byte[] pepper;
     private final int maxAttemptsPerCode;
 
@@ -70,12 +73,14 @@ public class PasswordResetService {
                                 PasswordEncoder passwordEncoder,
                                 RefreshTokenRepository refreshTokenRepository,
                                 @Qualifier("taskExecutor") Executor mailExecutor,
-                                RegistrationVerificationConfig codeConfig) {
+                                RegistrationVerificationConfig codeConfig,
+                                AuditLogService auditLogService) {
         this.jdbc = jdbc;
         this.mail = mail;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenRepository = refreshTokenRepository;
         this.mailExecutor = mailExecutor;
+        this.auditLogService = auditLogService;
         byte[] configured = codeConfig.pepper();
         if (configured.length == 0) {
             log.error("[PasswordReset] REGISTRATION_CODE_PEPPER chưa đặt — mã quên mật khẩu băm bằng pepper dự phòng công khai (chỉ chấp nhận ở máy dev/test)");
@@ -201,6 +206,15 @@ public class PasswordResetService {
         // The stolen device also holds this account's push token — null it so class-message previews,
         // grades, etc. stop landing on it. A legitimate device re-registers its token on next login.
         jdbc.update("UPDATE users SET push_token = NULL, push_platform = NULL WHERE id = ?", userId);
+
+        // Đợt 2 admin (09/11/2026): vết cho "Hoạt động bảo mật" của chính người dùng
+        // (GET /api/profile/me/security-events). Actor = chính chủ (đã chứng minh sở hữu hộp thư bằng
+        // mã). Cùng transaction: lần đặt lại không thành thì không có vết.
+        String role = jdbc.query("SELECT role FROM users WHERE id = ?",
+                rs -> rs.next() ? rs.getString(1) : null, userId);
+        auditLogService.log("user.password.reset",
+                new AuditActor(userId, email.trim().toLowerCase(java.util.Locale.ROOT), role),
+                "USER", String.valueOf(userId), null, null);
 
         log.info("[PasswordReset] password updated + sessions revoked for email={}***",
                 email.substring(0, Math.min(3, email.length())));

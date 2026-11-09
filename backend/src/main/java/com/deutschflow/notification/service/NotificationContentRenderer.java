@@ -202,6 +202,13 @@ public class NotificationContentRenderer {
             case MFA_RESET_BY_ADMIN -> new RenderedContent(
                     "Xác thực hai lớp đã được đặt lại",
                     "Một quản trị viên khác đã đặt lại 2FA của bạn. Lần đăng nhập tới bạn sẽ thiết lập lại.");
+
+            // ── Đội hỗ trợ đặt lại mật khẩu — KHÔNG lý do nội bộ, KHÔNG danh tính admin ──
+            case PASSWORD_RESET_BY_ADMIN -> new RenderedContent(
+                    "Mật khẩu đã được đặt lại",
+                    "Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại"
+                            + (str(p, "resetAtDisplay").isBlank() ? "" : " lúc " + str(p, "resetAtDisplay"))
+                            + ". Nếu bạn không yêu cầu, hãy liên hệ hỗ trợ.");
         };
     }
 

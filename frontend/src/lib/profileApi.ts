@@ -152,6 +152,31 @@ export async function revokeOtherSessions(): Promise<AuthResponseLite & { access
   }
 }
 
+/** Một mục "Hoạt động bảo mật" — chỉ loại sự kiện + thời điểm, không actor, không lý do. */
+export interface SecurityEventItem {
+  /** Tên vết audit, vd `user.password.changed`, `admin.user.password.reset`, `admin.user.deactivated`. */
+  event: string;
+  /** ISO-8601 */
+  occurredAt: string;
+}
+
+export interface SecurityEventsPage {
+  items: SecurityEventItem[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+/** GET /profile/me/security-events — hoạt động bảo mật của chính mình, mới nhất trước (đợt 2 admin). */
+export async function getSecurityEvents(page = 0, size = 20): Promise<SecurityEventsPage> {
+  try {
+    const res = await api.get<SecurityEventsPage>("/profile/me/security-events", { params: { page, size } });
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
 /**
  * Xoá vĩnh viễn tài khoản của chính mình. Backend chặn 409 kèm hướng dẫn nếu người dùng còn là
  * thành viên ACTIVE của một trung tâm (AccountDeletionGuard — D6).

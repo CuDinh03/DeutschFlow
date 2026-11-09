@@ -50,6 +50,8 @@ export const TYPE_ICON: Record<string, string> = {
   MFA_RECOVERY_CODE_USED: 'lock_open',
   MFA_RECOVERY_CODES_LOW: 'warning',
   MFA_RESET_BY_ADMIN: 'lock_open',
+  // Đội hỗ trợ đặt lại mật khẩu (đợt 2 admin, 09/11/2026) — người nhận là CHÍNH người bị đổi.
+  PASSWORD_RESET_BY_ADMIN: 'key',
 }
 
 /**
@@ -59,7 +61,7 @@ export const TYPE_ICON: Record<string, string> = {
  */
 export type NotifTone = 'navy' | 'red' | 'green' | 'plain'
 
-const RED: string[] = ['CLASS_SESSION_CANCELLED', 'ACCOUNT_DELETED', 'ADMIN_SYSTEM_ALERT', 'SCHEDULE_CHANGE_REJECTED', 'MFA_RECOVERY_CODE_USED', 'MFA_RECOVERY_CODES_LOW', 'MFA_RESET_BY_ADMIN']
+const RED: string[] = ['CLASS_SESSION_CANCELLED', 'ACCOUNT_DELETED', 'ADMIN_SYSTEM_ALERT', 'SCHEDULE_CHANGE_REJECTED', 'MFA_RECOVERY_CODE_USED', 'MFA_RECOVERY_CODES_LOW', 'MFA_RESET_BY_ADMIN', 'PASSWORD_RESET_BY_ADMIN']
 const GREEN: string[] = ['ASSIGNMENT_GRADED', 'JOIN_REQUEST_APPROVED', 'ADMIN_LEARNER_SUBSCRIBED', 'ADMIN_ORG_INVOICE_PAID', 'TIMESHEET_PERIOD_APPROVED', 'CERTIFICATE_ISSUED', 'MFA_ENABLED']
 const PLAIN: string[] = ['CLASS_STUDENT_REMOVED', 'JOIN_REQUEST_REJECTED', 'USER_REGISTERED']
 
@@ -114,6 +116,7 @@ export const TYPE_LABEL: Record<string, string> = {
   MFA_RECOVERY_CODE_USED: 'Đã dùng mã khôi phục',
   MFA_RECOVERY_CODES_LOW: 'Sắp hết mã khôi phục',
   MFA_RESET_BY_ADMIN: 'Xác thực hai lớp đã được đặt lại',
+  PASSWORD_RESET_BY_ADMIN: 'Mật khẩu đã được đặt lại',
 }
 
 
@@ -216,6 +219,8 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
     case 'MFA_RECOVERY_CODES_LOW':
     case 'MFA_RESET_BY_ADMIN':
       // 2FA: trạng thái + "Tạo mã khôi phục mới" nằm ở Hồ sơ → Bảo mật.
+    case 'PASSWORD_RESET_BY_ADMIN':
+      // Hồ sơ → tab Bảo mật có "Hoạt động bảo mật" và nút đổi mật khẩu.
       return '/v2/profile'
     case 'CERTIFICATE_ISSUED':
       return '/v2/student/certificates'

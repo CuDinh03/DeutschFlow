@@ -164,6 +164,23 @@ class AdminManagementControllerRoleGuardTest {
     }
 
     @Test
+    @DisplayName("đặt lại mật khẩu của ADMIN bị service chặn → ném lại 403 và ghi vết admin.user.password.reset.blocked")
+    void passwordReset_adminTarget_blockedIsAudited() {
+        when(adminManagementService.setUserPassword(4L, "NewPass#2026")).thenThrow(
+                new com.deutschflow.common.exception.ForbiddenException("blocked",
+                        AdminManagementService.ADMIN_PASSWORD_RESET_FORBIDDEN));
+
+        assertThatThrownBy(() -> controller.setUserPassword(4L,
+                new AdminManagementController.SetPasswordRequest("NewPass#2026", REASON), null))
+                .isInstanceOf(com.deutschflow.common.exception.ForbiddenException.class);
+
+        Map<String, Object> meta = loggedMetadata("admin.user.password.reset.blocked");
+        assertThat(meta).containsEntry("reason", REASON);
+        verify(auditLogService, org.mockito.Mockito.never()).log(eq("admin.user.password.reset"),
+                any(AuditActor.class), anyString(), anyString(), any(), any());
+    }
+
+    @Test
     @DisplayName("đổi gói thiếu lý do → 400; có lý do thì vết mang gói cũ + số dư ví cũ")
     void planChange_requiresReason_andLogsPreviousState() {
         assertThatThrownBy(() -> controller.updatePlan(9L,

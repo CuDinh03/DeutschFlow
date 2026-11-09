@@ -290,7 +290,8 @@
       "MFA_ENABLED": "Đã bật xác thực hai lớp",
       "MFA_RECOVERY_CODE_USED": "Đã dùng mã khôi phục",
       "MFA_RECOVERY_CODES_LOW": "Sắp hết mã khôi phục",
-      "MFA_RESET_BY_ADMIN": "Xác thực hai lớp đã được đặt lại"
+      "MFA_RESET_BY_ADMIN": "Xác thực hai lớp đã được đặt lại",
+      "PASSWORD_RESET_BY_ADMIN": "Mật khẩu đã được đặt lại"
     }
   },
   "inbox": {

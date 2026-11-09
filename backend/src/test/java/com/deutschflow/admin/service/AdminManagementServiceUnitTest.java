@@ -51,6 +51,7 @@ class AdminManagementServiceUnitTest {
     @Mock com.deutschflow.organization.service.OrgMembershipService orgMembershipService;
     @Mock com.deutschflow.organization.repository.OrganizationRepository organizationRepository;
     @Mock com.deutschflow.user.repository.RefreshTokenRepository refreshTokenRepository;
+    @Mock AdminPasswordResetNotifier adminPasswordResetNotifier;
 
     @InjectMocks
     AdminManagementService service;
@@ -359,6 +360,56 @@ class AdminManagementServiceUnitTest {
 
     @Test
     void setUserPassword_tooShort_throwsBadRequest() {
+        User u = User.builder().id(5L).email("u@x.com").displayName("U")
+                .role(User.Role.STUDENT).passwordHash("OLD").build();
+        when(userRepository.findById(5L)).thenReturn(Optional.of(u));
         assertThrows(BadRequestException.class, () -> service.setUserPassword(5L, "short")); // < 8 ký tự
+        verify(adminPasswordResetNotifier, never()).notifyReset(any(), any());
+    }
+
+    // ── Đợt 2 admin (09/11/2026): chặn đặt lại mật khẩu ADMIN + báo người bị đổi ──
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("mục tiêu là ADMIN → 403 ADMIN_PASSWORD_RESET_FORBIDDEN, không đổi gì, không báo")
+    void setUserPassword_adminTarget_forbidden() {
+        User admin = User.builder().id(7L).email("ad@x.com").displayName("Ad")
+                .role(User.Role.ADMIN).passwordHash("OLD").build();
+        when(userRepository.findById(7L)).thenReturn(Optional.of(admin));
+
+        var ex = assertThrows(com.deutschflow.common.exception.ForbiddenException.class,
+                () -> service.setUserPassword(7L, "newsecret123"));
+
+        assertEquals(AdminManagementService.ADMIN_PASSWORD_RESET_FORBIDDEN, ex.getCode());
+        assertEquals("OLD", admin.getPasswordHash());
+        verify(userRepository, never()).save(any(User.class));
+        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
+        verify(userRepository, never()).clearPushToken(anyLong());
+        org.mockito.Mockito.verifyNoInteractions(adminPasswordResetNotifier, passwordEncoder);
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("mục tiêu là ADMIN với mật khẩu yếu vẫn là 403 (chặn trước kiểm tra mật khẩu)")
+    void setUserPassword_adminTarget_forbiddenBeforePolicy() {
+        User admin = User.builder().id(8L).email("ad2@x.com").displayName("Ad2")
+                .role(User.Role.ADMIN).build();
+        when(userRepository.findById(8L)).thenReturn(Optional.of(admin));
+
+        assertThrows(com.deutschflow.common.exception.ForbiddenException.class,
+                () -> service.setUserPassword(8L, "short"));
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("đặt lại thành công: xoá push token + báo đúng người bị đổi")
+    void setUserPassword_success_clearsPushTokenAndNotifies() {
+        User u = User.builder().id(13L).email("s@x.com").displayName("S")
+                .role(User.Role.STUDENT).active(true).build();
+        when(userRepository.findById(13L)).thenReturn(Optional.of(u));
+        when(passwordEncoder.encode("newsecret123")).thenReturn("H");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.setUserPassword(13L, "newsecret123");
+
+        verify(userRepository).clearPushToken(13L);
+        verify(adminPasswordResetNotifier).notifyReset(org.mockito.ArgumentMatchers.same(u), any(java.time.Instant.class));
     }
 }

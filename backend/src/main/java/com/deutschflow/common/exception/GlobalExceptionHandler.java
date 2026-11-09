@@ -217,8 +217,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ProblemDetail> handleForbidden(ForbiddenException ex,
                                                          HttpServletRequest request) {
+        // Nơi ném gắn mã (ví dụ ADMIN_PASSWORD_RESET_FORBIDDEN) thì phát ở extensions.code;
+        // không mã ⇒ extensions null, hợp đồng 403 cũ không đổi.
+        Map<String, Object> ext = ex.getCode() == null ? null : Map.of("code", ex.getCode());
         return problem(HttpStatus.FORBIDDEN, "forbidden", "Forbidden",
-                ex.getMessage(), request.getRequestURI(), null, null);
+                ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
     /**

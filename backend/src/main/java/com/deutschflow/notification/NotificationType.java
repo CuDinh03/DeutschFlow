@@ -174,5 +174,16 @@ public enum NotificationType {
     /** Còn ít hơn 3 mã khôi phục. Payload: {@code remaining}. */
     MFA_RECOVERY_CODES_LOW,
     /** Một ADMIN khác đặt lại 2FA của người nhận (mọi phiên bị đóng). Payload: {@code actorEmail}. */
-    MFA_RESET_BY_ADMIN
+    MFA_RESET_BY_ADMIN,
+
+    // ── Bảo mật tài khoản (đợt 2 admin, 09/11/2026) ─────────────────────
+
+    /**
+     * Đội hỗ trợ (admin nền tảng) vừa đặt lại mật khẩu của người nhận. Recipient: chính người đó.
+     * Payload: {@code resetAt} (ISO-8601 UTC), {@code resetAtDisplay} (giờ theo múi của người nhận,
+     * render sẵn). ⛔ KHÔNG mang lý do nội bộ, KHÔNG mang danh tính admin — người nhận chỉ cần biết
+     * "có người đã đổi" để báo lại nếu không phải họ yêu cầu. Ghi qua notification_outbox trong giao
+     * dịch đặt lại (G2), worker gửi sau commit.
+     */
+    PASSWORD_RESET_BY_ADMIN
 }

@@ -118,7 +118,25 @@
       "mfaCodesSaved": "Ich habe diese Codes sicher gespeichert",
       "mfaCodesDone": "Fertig",
       "mfaCodesFileHeader": "myDeutschFlow-Wiederherstellungscodes für die Zwei-Faktor-Authentifizierung. Jeder Code funktioniert nur einmal.",
-      "mfaCodesReplaced": "Wiederherstellungscodes ersetzt."
+      "mfaCodesReplaced": "Wiederherstellungscodes ersetzt.",
+      "securityActivityTitle": "Sicherheitsaktivität",
+      "securityActivityDesc": "Wann sich dein Passwort oder dein Kontostatus geändert hat.",
+      "securityActivityEmpty": "Noch keine Sicherheitsaktivität.",
+      "securityActivityError": "Sicherheitsaktivität konnte nicht geladen werden.",
+      "securityActivityMore": "Mehr anzeigen",
+      "securityEvents": {
+        "passwordChanged": "Du hast dein Passwort geändert",
+        "passwordReset": "Du hast dein Passwort über „Passwort vergessen“ zurückgesetzt",
+        "passwordResetBySupport": "Das Support-Team hat dein Passwort zurückgesetzt",
+        "accountLocked": "Konto gesperrt",
+        "accountUnlocked": "Konto entsperrt",
+        "supportSessionStarted": "Das Support-Team hat eine Support-Sitzung gestartet",
+        "supportSessionEnded": "Support-Sitzung beendet",
+        "mfaEnabled": "Zwei-Faktor-Authentifizierung aktiviert",
+        "mfaRecoveryUsed": "Ein Wiederherstellungscode wurde verwendet",
+        "mfaResetBySupport": "Das Support-Team hat die Zwei-Faktor-Authentifizierung zurückgesetzt",
+        "other": "Sicherheitsänderung"
+      }
     },
     "payment": {
       "title": "Tarif upgraden",

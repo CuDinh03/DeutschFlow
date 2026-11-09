@@ -78,6 +78,16 @@ describe('notificationDisplay — i18n', () => {
     expect(notifTone('MFA_RECOVERY_CODE_USED')).toBe('red')
   })
 
+  // Đợt 2 admin (09/11/2026): đội hỗ trợ đặt lại mật khẩu — người nhận là chính người bị đổi.
+  it('nhãn + tông + lối đi của thông báo đặt lại mật khẩu bởi đội hỗ trợ', () => {
+    expect(notifTitle(item('PASSWORD_RESET_BY_ADMIN'), tVi)).toBe('Mật khẩu đã được đặt lại')
+    expect(notifTitle(item('PASSWORD_RESET_BY_ADMIN'), tDe)).toBe('Passwort wurde zurückgesetzt')
+    expect(notifTitle(item('PASSWORD_RESET_BY_ADMIN'))).toBe('Mật khẩu đã được đặt lại')
+    expect(TYPE_ICON.PASSWORD_RESET_BY_ADMIN).toBe('key')
+    expect(notifTone('PASSWORD_RESET_BY_ADMIN')).toBe('red')
+    expect(resolveNotificationHref(item('PASSWORD_RESET_BY_ADMIN'), 'student')).toBe('/v2/profile')
+  })
+
   it('không có translator thì giữ hành vi tiếng Việt cũ', () => {
     expect(notifTitle(item('LEVEL_UP'))).toBe('Lên cấp độ')
     expect(dayBucket(new Date().toISOString())).toBe('Hôm nay')
