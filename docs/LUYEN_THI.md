@@ -64,6 +64,9 @@ Route cũ `/v2/student/mock-exam` và `/v2/student/mock-exam/run` chuyển về 
   nói thì không cắt; mức âm phẳng (Safari/iOS chặn AudioContext) thì không tự dừng. Công tắc dưới dòng trạng thái, mặc
   định bật, nhớ theo máy (`localStorage df.oral.autoStop`). Recorder và màn kiểm tra micro gọi `AudioContext.resume()`
   khi context khởi ở `suspended` (iOS) để thanh mức âm và tự dừng có tín hiệu.
+- Nhận diện giọng nói lượt nói (`GroqWhisperClient`, 10/11/2026): STT chạy Fireworks. Host audio `audio-turbo` và
+  `audio-prod` là dự phòng của nhau (cùng key): primary trả 5xx/lỗi kết nối thì tự thử host kia một lần. 400/413/415/422
+  = audio không đọc được → `STT_FAILED` "ghi lại", không chuyển host. 09/11 `audio-turbo` trả 503 cả buổi.
 - Phát giọng giám khảo trên iOS (`examTts.ts`, 09/11/2026): Safari chỉ cho `play()` trong cú chạm, còn `speakExamLine`
   phải chờ API TTS trước khi phát. Vì vậy mọi câu dùng MỘT thẻ `<audio>` chung, được mở khoá bằng đoạn im lặng ở lần
   chạm đầu tiên (`unlockExamAudio`: listener toàn trang + gọi tay ở "Nghe thử" và "Vào phòng"). `speakExamLine` trả
