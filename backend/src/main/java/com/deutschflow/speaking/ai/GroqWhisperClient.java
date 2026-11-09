@@ -17,9 +17,8 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Client for the OpenAI-compatible Whisper STT API (mặc định: Groq).
- * Endpoint mặc định: POST https://api.groq.com/openai/v1/audio/transcriptions
- * Model mặc định: whisper-large-v3
+ * Client for the OpenAI-compatible Whisper STT API. Tên lớp còn "Groq" vì lịch sử; owner chốt 09/11/2026
+ * chuyển STT sang Fireworks — bật bằng {@code STT_API_KEY} (xem constructor Spring).
  *
  * <p><b>Đổi nhà cung cấp qua env, không sửa code</b> (bảo hiểm vendor — cùng lý do
  * {@code GROQ_BASE_URL} bên {@link GroqChatClient}): {@code GROQ_WHISPER_BASE_URL} +
@@ -41,6 +40,12 @@ public class GroqWhisperClient {
 
     static final String WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 
+    /** Mặc định từ 09/11/2026: Fireworks whisper-v3-turbo — audio đi host RIÊNG theo model (xem javadoc lớp). */
+    static final String GROQ_MODEL = "whisper-large-v3";
+    static final String FIREWORKS_TURBO_MODEL = "whisper-v3-turbo";
+    static final String FIREWORKS_TURBO_URL =
+            "https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions";
+
     /** Per-request cap. The JDK HttpClient only had a connect timeout; without this a stalled
      *  Groq response would hold the STT thread (and its Whisper semaphore permit) indefinitely. */
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
@@ -61,17 +66,47 @@ public class GroqWhisperClient {
     private final GroqConcurrencyLimiter concurrencyLimiter;
     private final com.deutschflow.common.resilience.CircuitBreakers circuitBreakers;
 
-    /** Constructor đầy đủ, {@code @Autowired} — cũng là cửa cho tests chỉnh endpoint + cờ prompt
-     *  (xem {@code GroqWhisperClientVerboseParseTest}); production bind giá trị từ yml/env. */
+    /**
+     * Constructor Spring. Owner chốt 09/11/2026: bỏ Groq, nhận diện giọng nói chạy Fireworks — bật bằng
+     * key RIÊNG {@code STT_API_KEY}. Key chat ({@code GROQ_API_KEY}) và key STT trước đây dùng chung một
+     * biến, nên đổi host mà không đổi key là 401 (UI: "Dịch vụ nhận diện giọng nói tạm thời không khả dụng").
+     * <ul>
+     *   <li>Có {@code STT_API_KEY} → Fireworks whisper-v3-turbo, prompt TẮT.</li>
+     *   <li>Chưa có → giữ nguyên Groq như trước (deploy không cần sửa {@code backend.env} cũng không hỏng).</li>
+     *   <li>{@code GROQ_WHISPER_BASE_URL / _MODEL / _PROMPT_ENABLED} đặt tường minh thì luôn thắng.</li>
+     * </ul>
+     */
     @org.springframework.beans.factory.annotation.Autowired
     public GroqWhisperClient(
-            @Value("${app.ai.groq.api-key:}") String apiKey,
-            @Value("${app.ai.groq.whisper-model:whisper-large-v3}") String whisperModel,
+            @Value("${app.ai.groq.api-key:}") String chatApiKey,
+            @Value("${app.ai.groq.whisper-api-key:}") String sttApiKey,
+            @Value("${app.ai.groq.whisper-model:}") String whisperModel,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
-            @Value("${app.ai.groq.whisper-base-url:" + WHISPER_URL + "}") String endpointUrl,
-            @Value("${app.ai.groq.whisper-prompt-enabled:true}") boolean promptEnabled) {
+            @Value("${app.ai.groq.whisper-base-url:}") String endpointUrl,
+            @Value("${app.ai.groq.whisper-prompt-enabled:}") String promptEnabled) {
+        this(isSet(sttApiKey) ? sttApiKey : chatApiKey,
+                isSet(whisperModel) ? whisperModel : (isSet(sttApiKey) ? FIREWORKS_TURBO_MODEL : GROQ_MODEL),
+                objectMapper, concurrencyLimiter, circuitBreakers,
+                isSet(endpointUrl) ? endpointUrl : (isSet(sttApiKey) ? FIREWORKS_TURBO_URL : WHISPER_URL),
+                isSet(promptEnabled) ? Boolean.parseBoolean(promptEnabled.trim()) : !isSet(sttApiKey));
+    }
+
+    private static boolean isSet(String v) {
+        return v != null && !v.isBlank();
+    }
+
+    /** Constructor đầy đủ — cửa cho tests chỉnh endpoint + cờ prompt
+     *  (xem {@code GroqWhisperClientVerboseParseTest}). */
+    public GroqWhisperClient(
+            String apiKey,
+            String whisperModel,
+            ObjectMapper objectMapper,
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            String endpointUrl,
+            boolean promptEnabled) {
         this.apiKey = apiKey;
         this.endpointUrl = endpointUrl;
         this.whisperModel = whisperModel;
