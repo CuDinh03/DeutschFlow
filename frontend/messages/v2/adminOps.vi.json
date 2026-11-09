@@ -114,7 +114,7 @@
         "aiActivity": "Hoạt động AI",
         "aiActivitySub": "dùng AI 30 ngày",
         "netRemaining": "Còn lại sau phí & AI",
-        "netRemainingSub": "kỳ gần nhất · {period}"
+        "netRemainingSplit": "{period} · cá nhân {b2c} · trung tâm {b2b}"
       },
       "recentPeriods": "{count} kỳ gần nhất",
       "noPeriodData": "Chưa có dữ liệu kỳ.",
@@ -131,7 +131,7 @@
     },
     "revenue": {
       "title": "Doanh thu & Thuê bao",
-      "subtitle": "Theo dõi MRR, tăng trưởng và giao dịch gần đây",
+      "subtitle": "Doanh thu cá nhân và trung tâm, phí thanh toán, chi phí AI và giao dịch gần đây",
       "loadError": "Không thể tải dữ liệu doanh thu.",
       "loading": "Đang tải doanh thu…",
       "stats": {
@@ -158,15 +158,17 @@
       "prev": "Trước",
       "next": "Tiếp",
       "rowGross": "Doanh thu gộp",
-      "rowStoreFee": "Phí cổng/cửa hàng (giả định 15%)",
+      "rowStoreFee": "Phí thanh toán (Apple 15%, nhà khác theo cấu hình)",
       "rowAiCost": "Chi phí AI (ước tính)",
       "rowNet": "Còn lại",
-      "breakdownNote": "Phí cửa hàng đang giả định 15%; chi phí AI là ước tính từ token ledger. Đây không phải lợi nhuận kế toán đầy đủ.",
+      "breakdownNote": "Phí thanh toán tính theo từng nhà cung cấp; chi phí AI là ước tính từ token ledger; đã loại tài khoản và trung tâm demo. Đây không phải lợi nhuận kế toán đầy đủ.",
       "statusSuccess": "THÀNH CÔNG",
       "statusFailed": "THẤT BẠI",
       "statusPending": "ĐANG CHỜ",
       "statusCancelled": "ĐÃ HUỶ",
-      "statusUnknown": "KHÔNG XÁC ĐỊNH"
+      "statusUnknown": "KHÔNG XÁC ĐỊNH",
+      "rowB2c": "· Cá nhân (giao dịch thành công)",
+      "rowB2b": "· Trung tâm (hoá đơn đã thu)"
     },
     "tokens": {
       "title": "Phân tích chi phí AI",
@@ -467,15 +469,6 @@
         }
       }
     },
-    "freeTeachers": {
-      "title": "Giáo viên tự do",
-      "subtitle": "Giáo viên chưa thuộc trung tâm nào — để mời hoặc điều phối",
-      "loadError": "Không tải được danh sách giáo viên tự do",
-      "colTeacher": "Giáo viên",
-      "colUserId": "ID người dùng",
-      "itemNoun": "giáo viên",
-      "empty": "Không có giáo viên tự do nào."
-    },
     "users": {
       "title": "Quản lý người dùng",
       "subtitle": "Phân quyền, gói cước và hạn mức của từng tài khoản",
@@ -496,20 +489,16 @@
         "role": "Vai trò",
         "plan": "Gói",
         "quota": "Hạn mức AI",
-        "status": "Trạng thái"
+        "status": "Trạng thái",
+        "usage30d": "Token 30 ngày"
       },
       "unlimited": "Không giới hạn",
       "quotaUsed": "{pct}% dùng",
       "statusActive": "Hoạt động",
       "statusPaused": "Tạm dừng",
-      "manage": "Quản lý",
       "itemNoun": "người dùng",
       "empty": "Không tìm thấy người dùng.",
       "detail": {
-        "close": "Đóng",
-        "saveChanges": "Lưu thay đổi",
-        "learningProfile": "Hồ sơ học tập",
-        "loadingQuotaUsage": "Đang tải quota & usage…",
         "quotaCap": "Chi tiết quota",
         "unlimited": "Không giới hạn",
         "noQuotaSnapshot": "Chưa có snapshot quota.",
@@ -569,7 +558,8 @@
           "detailSessions": "Mọi phiên đăng nhập hiện tại của người này bị chấm dứt.",
           "detailAudit": "Thao tác được ghi vào nhật ký audit.",
           "confirm": "Đổi vai trò",
-          "cancel": "Hủy"
+          "cancel": "Hủy",
+          "phraseLabel": "Gõ email {email} để xác nhận"
         },
         "confirmLock": {
           "title": "Khóa tài khoản này?",
@@ -579,6 +569,51 @@
           "detailReversible": "Mở khóa lại được bất cứ lúc nào.",
           "confirm": "Khóa tài khoản",
           "cancel": "Hủy"
+        },
+        "back": "Về danh sách",
+        "loadingProfile": "Đang tải hồ sơ…",
+        "loadError": "Không tải được hồ sơ người dùng.",
+        "notFoundTitle": "Không tìm thấy người dùng",
+        "notFound": "Không có người dùng #{id}, hoặc tài khoản đã bị xoá.",
+        "orgOf": "Trung tâm: {name}",
+        "noOrg": "Không thuộc trung tâm",
+        "createdAt": "Tạo ngày {date}",
+        "learningIntro": "Hồ sơ học, XP, luyện nói, từ vựng và các phiên phỏng vấn. Mỗi lần xem được ghi vào nhật ký mà giám đốc trung tâm đọc được.",
+        "tabs": {
+          "label": "Các phần của hồ sơ người dùng",
+          "overview": "Tổng quan & gói",
+          "usage": "Sử dụng AI",
+          "learning": "Học tập & phỏng vấn",
+          "audit": "Nhật ký"
+        },
+        "audit": {
+          "colTime": "Thời điểm",
+          "colEvent": "Thao tác",
+          "colActor": "Người thực hiện",
+          "colReason": "Lý do",
+          "empty": "Chưa có thao tác nào với người dùng này."
+        },
+        "confirmPw": {
+          "title": "Đặt lại mật khẩu?",
+          "description": "{name} sẽ phải dùng mật khẩu mới để đăng nhập.",
+          "detailSessions": "Mọi phiên đăng nhập hiện tại của người này bị chấm dứt.",
+          "detailNoNotice": "Người dùng KHÔNG nhận thông báo tự động — hãy báo họ qua kênh hỗ trợ.",
+          "detailAudit": "Thao tác và lý do được ghi vào nhật ký.",
+          "confirm": "Đặt lại mật khẩu",
+          "cancel": "Hủy"
+        },
+        "confirmPlan": {
+          "open": "Đổi gói…",
+          "title": "Đổi gói cho {name}?",
+          "description": "Gói {from} → {to}. Thao tác này không hoàn tác được.",
+          "detailEndActive": "Mọi gói đang hoạt động của người này kết thúc ngay.",
+          "detailWalletReset": "Ví hiện có {balance} token sẽ được đặt lại về mức cấp ban đầu của gói {to}.",
+          "detailWalletCleared": "Ví hiện có {balance} token sẽ bị xoá.",
+          "detailSnapshot": "Số liệu ví lấy lúc mở trang.",
+          "detailAudit": "Gói cũ, số dư ví cũ và lý do được ghi vào nhật ký.",
+          "confirm": "Đổi gói",
+          "cancel": "Hủy",
+          "done": "Đã đổi sang gói {plan}."
         }
       },
       "create": {
@@ -619,6 +654,25 @@
           "detailAudit": "Thao tác được ghi vào nhật ký audit.",
           "confirm": "Tạo tài khoản admin",
           "cancel": "Hủy"
+        }
+      },
+      "openProfile": "Mở hồ sơ {name}",
+      "view": {
+        "label": "Chế độ xem người dùng",
+        "all": "Tất cả người dùng",
+        "freeTeachers": "Giáo viên tự do",
+        "freeTeachersCount": "Giáo viên tự do · {count}",
+        "freeTeachersHint": "Giáo viên đang hoạt động và chưa thuộc trung tâm nào — nguồn tuyển cho các trung tâm B2B."
+      },
+      "filters": {
+        "roleLabel": "Lọc theo vai trò",
+        "statusLabel": "Lọc theo trạng thái",
+        "planLabel": "Lọc theo gói",
+        "planAll": "Mọi gói",
+        "status": {
+          "all": "Mọi trạng thái",
+          "active": "Hoạt động",
+          "locked": "Đã khoá"
         }
       }
     },

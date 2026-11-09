@@ -172,7 +172,6 @@ export const adminNav: RoleNav = {
       labelKey: 'adminPeople',
       items: [
         { id: 'admin-users', label: 'Người dùng', href: '/v2/admin/users', icon: 'group' },
-        { id: 'admin-free-teachers', label: 'Giáo viên tự do', href: '/v2/admin/free-teachers', icon: 'person_search' },
         { id: 'admin-classes', label: 'Lớp học', href: '/v2/admin/classes', icon: 'school_building' },
         // 04/11/2026: chọn học viên được dùng luyện đề telc (practice.telc.access / allowlist).
         { id: 'admin-practice-access', label: 'Quyền luyện đề', href: '/v2/admin/practice-access', icon: 'key' },

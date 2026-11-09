@@ -114,7 +114,7 @@
         "aiActivity": "AI activity",
         "aiActivitySub": "used AI in 30 days",
         "netRemaining": "Left after fees & AI",
-        "netRemainingSub": "latest period · {period}"
+        "netRemainingSplit": "{period} · individuals {b2c} · centers {b2b}"
       },
       "recentPeriods": "last {count} periods",
       "noPeriodData": "No period data yet.",
@@ -131,7 +131,7 @@
     },
     "revenue": {
       "title": "Revenue & Subscriptions",
-      "subtitle": "Track MRR, growth and recent transactions",
+      "subtitle": "Individual and center revenue, payment fees, AI cost and recent transactions",
       "loadError": "Could not load revenue data.",
       "loading": "Loading revenue…",
       "stats": {
@@ -158,15 +158,17 @@
       "prev": "Prev",
       "next": "Next",
       "rowGross": "Gross revenue",
-      "rowStoreFee": "Gateway/store fee (assumed 15%)",
+      "rowStoreFee": "Payment fees (Apple 15%, others as configured)",
       "rowAiCost": "AI cost (estimate)",
       "rowNet": "Remaining",
-      "breakdownNote": "Store fee is assumed at 15%; AI cost is estimated from the token ledger. This is not full accounting profit.",
+      "breakdownNote": "Payment fees are applied per provider; AI cost is estimated from the token ledger; demo accounts and centers are excluded. This is not full accounting profit.",
       "statusSuccess": "SUCCESS",
       "statusFailed": "FAILED",
       "statusPending": "PENDING",
       "statusCancelled": "CANCELLED",
-      "statusUnknown": "UNKNOWN"
+      "statusUnknown": "UNKNOWN",
+      "rowB2c": "· Individuals (successful transactions)",
+      "rowB2b": "· Centers (paid invoices)"
     },
     "tokens": {
       "title": "AI cost analytics",
@@ -467,15 +469,6 @@
         }
       }
     },
-    "freeTeachers": {
-      "title": "Free teachers",
-      "subtitle": "Teachers not yet in any center — to invite or coordinate",
-      "loadError": "Could not load free teacher list",
-      "colTeacher": "Teacher",
-      "colUserId": "User ID",
-      "itemNoun": "teachers",
-      "empty": "No free teachers."
-    },
     "users": {
       "title": "User management",
       "subtitle": "Roles, plans and quota for each account",
@@ -496,20 +489,16 @@
         "role": "Role",
         "plan": "Plan",
         "quota": "AI quota",
-        "status": "Status"
+        "status": "Status",
+        "usage30d": "Tokens (30 days)"
       },
       "unlimited": "Unlimited",
       "quotaUsed": "{pct}% used",
       "statusActive": "Active",
       "statusPaused": "Paused",
-      "manage": "Manage",
       "itemNoun": "users",
       "empty": "No users found.",
       "detail": {
-        "close": "Close",
-        "saveChanges": "Save changes",
-        "learningProfile": "Learning profile",
-        "loadingQuotaUsage": "Loading quota & usage…",
         "quotaCap": "Quota detail",
         "unlimited": "Unlimited",
         "noQuotaSnapshot": "No quota snapshot yet.",
@@ -569,7 +558,8 @@
           "detailSessions": "Every current session of this person is terminated.",
           "detailAudit": "The action is written to the audit log.",
           "confirm": "Change role",
-          "cancel": "Cancel"
+          "cancel": "Cancel",
+          "phraseLabel": "Type the email {email} to confirm"
         },
         "confirmLock": {
           "title": "Lock this account?",
@@ -579,6 +569,51 @@
           "detailReversible": "You can unlock the account at any time.",
           "confirm": "Lock account",
           "cancel": "Cancel"
+        },
+        "back": "Back to list",
+        "loadingProfile": "Loading profile…",
+        "loadError": "Could not load the user profile.",
+        "notFoundTitle": "User not found",
+        "notFound": "There is no user #{id}, or the account was deleted.",
+        "orgOf": "Center: {name}",
+        "noOrg": "No center",
+        "createdAt": "Created {date}",
+        "learningIntro": "Learning profile, XP, speaking, vocabulary and interview sessions. Every view is logged where the center director can read it.",
+        "tabs": {
+          "label": "User profile sections",
+          "overview": "Overview & plan",
+          "usage": "AI usage",
+          "learning": "Learning & interviews",
+          "audit": "Activity log"
+        },
+        "audit": {
+          "colTime": "Time",
+          "colEvent": "Action",
+          "colActor": "Performed by",
+          "colReason": "Reason",
+          "empty": "No actions on this user yet."
+        },
+        "confirmPw": {
+          "title": "Reset password?",
+          "description": "{name} will have to sign in with the new password.",
+          "detailSessions": "All of this person's current sessions are ended.",
+          "detailNoNotice": "The user is NOT notified automatically — tell them through support.",
+          "detailAudit": "The action and reason are recorded in the audit log.",
+          "confirm": "Reset password",
+          "cancel": "Cancel"
+        },
+        "confirmPlan": {
+          "open": "Change plan…",
+          "title": "Change the plan for {name}?",
+          "description": "Plan {from} → {to}. This cannot be undone.",
+          "detailEndActive": "All of this person's active plans end immediately.",
+          "detailWalletReset": "The wallet's current {balance} tokens will be reset to the starting grant of {to}.",
+          "detailWalletCleared": "The wallet's current {balance} tokens will be deleted.",
+          "detailSnapshot": "Wallet figures as of when this page was opened.",
+          "detailAudit": "The old plan, old wallet balance and reason are recorded in the audit log.",
+          "confirm": "Change plan",
+          "cancel": "Cancel",
+          "done": "Switched to plan {plan}."
         }
       },
       "create": {
@@ -619,6 +654,25 @@
           "detailAudit": "The action is written to the audit log.",
           "confirm": "Create admin account",
           "cancel": "Cancel"
+        }
+      },
+      "openProfile": "Open profile of {name}",
+      "view": {
+        "label": "User view",
+        "all": "All users",
+        "freeTeachers": "Free teachers",
+        "freeTeachersCount": "Free teachers · {count}",
+        "freeTeachersHint": "Active teachers not yet in any center — the recruiting pool for B2B centers."
+      },
+      "filters": {
+        "roleLabel": "Filter by role",
+        "statusLabel": "Filter by status",
+        "planLabel": "Filter by plan",
+        "planAll": "All plans",
+        "status": {
+          "all": "Any status",
+          "active": "Active",
+          "locked": "Locked"
         }
       }
     },

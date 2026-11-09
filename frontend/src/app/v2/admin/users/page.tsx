@@ -1,39 +1,34 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { UserPlus } from 'lucide-react'
-import api from '@/lib/api'
-import useAdminData from '@/hooks/useAdminData'
-import LearningDetailModal from '@/components/admin/LearningDetailModal'
+import { apiMessage } from '@/lib/api'
+import {
+  ADMIN_ROLES,
+  adminUsersApi,
+  type AdminRole,
+  type AdminUserRow,
+  type PlanRow,
+  type UserSearchPage,
+  type UserStats,
+} from '@/lib/adminUsersApi'
 import {
   GaPageHdr,
   GaBtn,
   TkSearch,
+  TkSeg,
   DataTable,
   GaStatStrip,
+  FilterChips,
+  LoadingState,
   type DataTableColumn,
 } from '@/components/ui-v2'
-import { cn } from '@/lib/utils'
-import { UserDetailModal } from './UserDetailModal'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
+import { defineFilters } from '@/lib/urlFilters'
+import { useFmt } from '@/lib/i18n/useFmt'
 import { AdminCreateUserModal } from './AdminCreateUserModal'
-
-// ── Normalized row (Prototype A shape) ───────────────────────────────────────
-type AdminUser = {
-  id: number
-  email: string
-  displayName: string
-  role: 'ADMIN' | 'OWNER' | 'MANAGER' | 'TEACHER' | 'STUDENT'
-  isActive: boolean
-  planCode?: string
-  /** True for INTERNAL_UNLIMITED — no meter, render "Không giới hạn". */
-  unlimited: boolean
-  /** False when there is no quota cap (quotaKind NONE / limit 0) — render "—". */
-  hasQuota: boolean
-  /** 0-100 AI-quota utilization = used / cap (current VN window), only when hasQuota. */
-  quotaPercent: number
-}
-export type PlanRow = { code: string; name: string }
 
 /**
  * Role tints (Prototype A — avatar bg + RoleBadge bg/text).
@@ -47,44 +42,31 @@ const ROLE_TINT = {
   ADMIN:   { c: '#DA291C', s: 'rgba(218,41,28,0.10)' },
 } as const
 
-/**
- * GET /admin/users: SQL-projected columns fold lower-case (displayname, isactive,
- * createdat); the quota fields are Java-map keys → exact camelCase. Normalize once
- * so the UI reads one canonical shape. Same endpoint/hook — just reads more fields.
- *
- * Quota meter = AI-quota *utilization* against the effective cap (QuotaSnapshot:
- * monthlyTokenLimit = walletCap for paid tiers, else dailyTokenGrant). used =
- * limit − remainingThisMonth. usageLast30Days is a raw token COUNT, not a %, so it
- * is NOT the bar value.
- */
-function normalizeUser(r: Record<string, unknown>): AdminUser {
-  const pick = (...keys: string[]) => {
-    for (const k of keys) if (r[k] !== undefined && r[k] !== null) return r[k]
-    return undefined
-  }
-  const num = (v: unknown) => {
-    const n = Number(v)
-    return Number.isFinite(n) ? n : 0
-  }
-  const unlimited = pick('unlimitedInternal') === true || pick('quotaKind') === 'INTERNAL_UNLIMITED'
-  const limit = num(pick('monthlyTokenLimit'))
-  const remaining = num(pick('remainingThisMonth'))
-  const used = Math.max(0, limit - remaining)
-  const hasQuota = !unlimited && limit > 0
-  return {
-    id: Number(pick('id')),
-    email: String(pick('email') ?? ''),
-    role: (pick('role') as AdminUser['role']) ?? 'STUDENT',
-    displayName: String(pick('displayName', 'displayname') ?? ''),
-    isActive: pick('isActive', 'isactive') !== false,
-    planCode: pick('planCode', 'plancode') as string | undefined,
-    unlimited,
-    hasQuota,
-    quotaPercent: hasQuota ? Math.min(100, Math.round((used / limit) * 100)) : 0,
-  }
-}
+const PAGE_SIZE = 20
 
-type RoleFilter = 'all' | 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
+/**
+ * Bộ lọc trên URL (đợt 1 "Nền móng + Người dùng", 09/11/2026): reload, Back hay gửi link đều giữ
+ * nguyên "vai MANAGER · trang 2". `view=free-teachers` thay cho trang /v2/admin/free-teachers cũ
+ * (route đó chuyển hướng về đây) — cùng định nghĩa với backend: TEACHER, không thuộc trung tâm, đang hoạt động.
+ */
+const FILTERS = defineFilters({
+  q: { kind: 'string', default: '' },
+  role: { kind: 'enum', values: ['all', ...ADMIN_ROLES] as const, default: 'all' },
+  status: { kind: 'enum', values: ['all', 'active', 'locked'] as const, default: 'all' },
+  plan: { kind: 'string', default: '' },
+  sort: {
+    kind: 'enum',
+    values: [
+      'createdAt,desc', 'createdAt,asc',
+      'displayName,asc', 'displayName,desc',
+      'email,asc', 'email,desc',
+      'usage30d,desc', 'usage30d,asc',
+    ] as const,
+    default: 'createdAt,desc',
+  },
+  page: { kind: 'int', min: 1, max: 100000, default: 1 },
+  view: { kind: 'enum', values: ['all', 'free-teachers'] as const, default: 'all' },
+})
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -98,77 +80,94 @@ function quotaColor(pct: number): string {
   return 'var(--ga-green)'
 }
 
-export default function V2AdminUsersPage() {
-  const t = useTranslations('v2.adminOps.users')
-  const [query, setQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
-  const [plans, setPlans] = useState<PlanRow[]>([])
-  const [detailUser, setDetailUser] = useState<AdminUser | null>(null)
-  const [learningUser, setLearningUser] = useState<AdminUser | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
+/** % hạn mức AI đã dùng trong cửa sổ hiện tại (used = limit − remaining). */
+function quotaPercent(u: AdminUserRow): number | null {
+  const q = u.quota
+  if (!q || q.unlimited || q.monthlyTokenLimit <= 0) return null
+  const used = Math.max(0, q.monthlyTokenLimit - q.remainingThisMonth)
+  return Math.min(100, Math.round((used / q.monthlyTokenLimit) * 100))
+}
 
-  const { data, loading, error, reload } = useAdminData<AdminUser[]>({
-    initialData: [],
-    errorMessage: t('loadError'),
-    fetchData: async () => {
-      const res = await api.get('/admin/users')
-      return ((res.data ?? []) as Record<string, unknown>[]).map(normalizeUser)
-    },
-  })
+export default function V2AdminUsersPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <V2AdminUsersPageInner />
+    </Suspense>
+  )
+}
+
+function V2AdminUsersPageInner() {
+  const t = useTranslations('v2.adminOps.users')
+  const fmt = useFmt()
+  const router = useRouter()
+  const { values, set } = useUrlFilters(FILTERS)
+  const freeView = values.view === 'free-teachers'
+
+  // Chữ đang gõ giữ cục bộ, đẩy lên URL sau 300ms — không bắn một truy vấn mỗi phím.
+  const [qInput, setQInput] = useState(values.q)
+  useEffect(() => setQInput(values.q), [values.q])
+  useEffect(() => {
+    if (qInput === values.q) return
+    const h = setTimeout(() => set({ q: qInput }), 300)
+    return () => clearTimeout(h)
+  }, [qInput, values.q, set])
+
+  const [page, setPage] = useState<UserSearchPage | null>(null)
+  const [stats, setStats] = useState<UserStats | null>(null)
+  const [plans, setPlans] = useState<PlanRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [nonce, setNonce] = useState(0)
+  const [showCreate, setShowCreate] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    api
-      .get('/admin/plans')
-      .then((res) => !cancelled && setPlans((res.data ?? []) as PlanRow[]))
+    setLoading(true)
+    setError(null)
+    adminUsersApi
+      .search({
+        q: values.q,
+        role: freeView ? 'TEACHER' : values.role === 'all' ? '' : values.role,
+        status: freeView ? 'active' : values.status === 'all' ? '' : (values.status as 'active' | 'locked'),
+        plan: values.plan,
+        org: freeView ? 'none' : '',
+        sort: values.sort,
+        page: values.page,
+        size: PAGE_SIZE,
+      })
+      .then((r) => !cancelled && setPage(r.data))
+      .catch((e) => !cancelled && setError(apiMessage(e) || t('loadError')))
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [values.q, values.role, values.status, values.plan, values.sort, values.page, freeView, nonce, t])
+
+  useEffect(() => {
+    let cancelled = false
+    adminUsersApi
+      .stats()
+      .then((r) => !cancelled && setStats(r.data))
       .catch(() => {})
-    return () => { cancelled = true }
-  }, [])
+    adminUsersApi
+      .plans()
+      .then((r) => !cancelled && setPlans(r.data ?? []))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [nonce])
 
-  const counts = useMemo(
-    () => ({
-      total: data.length,
-      student: data.filter((u) => u.role === 'STUDENT').length,
-      teacher: data.filter((u) => u.role === 'TEACHER').length,
-      manager: data.filter((u) => u.role === 'MANAGER').length,
-      owner: data.filter((u) => u.role === 'OWNER').length,
-      admin: data.filter((u) => u.role === 'ADMIN').length,
-      paused: data.filter((u) => !u.isActive).length,
-    }),
-    [data],
-  )
+  const [sortKey, sortDir] = values.sort.split(',') as [string, 'asc' | 'desc']
+  const byRole = stats?.byRole
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return data.filter((u) => {
-      const matchQ =
-        !q ||
-        u.displayName.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        String(u.id).includes(q)
-      const matchRole = roleFilter === 'all' || u.role === roleFilter
-      return matchQ && matchRole
-    })
-  }, [data, query, roleFilter])
-
-  // Role-filter chips: 'all' uses a translated label; role values render their raw enum (data label).
-  const ROLE_FILTERS: { value: RoleFilter; label: string; count?: number }[] = [
-    { value: 'all', label: t('filterAll') },
-    { value: 'STUDENT', label: 'STUDENT', count: counts.student },
-    { value: 'TEACHER', label: 'TEACHER', count: counts.teacher },
-    { value: 'MANAGER', label: 'MANAGER', count: counts.manager },
-    { value: 'OWNER', label: 'OWNER', count: counts.owner },
-    { value: 'ADMIN', label: 'ADMIN', count: counts.admin },
-  ]
-
-  const columns: DataTableColumn<AdminUser>[] = [
+  const columns: DataTableColumn<AdminUserRow>[] = [
     {
-      key: 'user',
+      key: 'displayName',
       header: t('col.account'),
       sortable: true,
-      sortValue: (u) => u.displayName.toLowerCase(),
       render: (u) => {
-        const tint = ROLE_TINT[u.role]
+        const tint = ROLE_TINT[u.role] ?? ROLE_TINT.STUDENT
         return (
           <div className="flex items-center gap-3">
             <span
@@ -189,7 +188,7 @@ export default function V2AdminUsersPage() {
       key: 'role',
       header: t('col.role'),
       render: (u) => {
-        const tint = ROLE_TINT[u.role]
+        const tint = ROLE_TINT[u.role] ?? ROLE_TINT.STUDENT
         return (
           <span
             className="inline-block rounded-ga px-[9px] py-1 text-[10px] font-bold tracking-[0.06em]"
@@ -209,20 +208,28 @@ export default function V2AdminUsersPage() {
       key: 'quota',
       header: t('col.quota'),
       render: (u) => {
-        if (u.unlimited) return <span className="text-[12px] text-ga-subtle">{t('unlimited')}</span>
-        if (!u.hasQuota) return <span className="text-[12px] text-ga-subtle">—</span>
+        if (u.quota?.unlimited) return <span className="text-[12px] text-ga-subtle">{t('unlimited')}</span>
+        const pct = quotaPercent(u)
+        if (pct == null) return <span className="text-[12px] text-ga-subtle">—</span>
         return (
           <div className="pr-[18px]">
             <div className="h-[5px] overflow-hidden rounded-[3px] bg-ga-border">
               <div
                 className="h-full rounded-[3px] transition-[width]"
-                style={{ width: `${u.quotaPercent}%`, background: quotaColor(u.quotaPercent) }}
+                style={{ width: `${pct}%`, background: quotaColor(pct) }}
               />
             </div>
-            <p className="mt-1 text-[11px] text-ga-muted">{t('quotaUsed', { pct: u.quotaPercent })}</p>
+            <p className="mt-1 text-[11px] text-ga-muted">{t('quotaUsed', { pct })}</p>
           </div>
         )
       },
+    },
+    {
+      key: 'usage30d',
+      header: t('col.usage30d'),
+      align: 'right',
+      sortable: true,
+      render: (u) => <span className="ga-ui tabular-nums text-ga-small">{fmt.num(u.usageLast30Days)}</span>,
     },
     {
       key: 'status',
@@ -240,23 +247,6 @@ export default function V2AdminUsersPage() {
         </span>
       ),
     },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      render: (u) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            setDetailUser(u)
-          }}
-          className="ga-ui min-h-[40px] rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
-        >
-          {t('manage')}
-        </button>
-      ),
-    },
   ]
 
   return (
@@ -268,9 +258,10 @@ export default function V2AdminUsersPage() {
         right={
           <>
             <TkSearch
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={qInput}
+              onChange={(e) => setQInput(e.target.value)}
               placeholder={t('searchPlaceholder')}
+              aria-label={t('searchPlaceholder')}
               containerClassName="w-full sm:w-[230px]"
             />
             <GaBtn variant="yellow" onClick={() => setShowCreate(true)}>
@@ -282,57 +273,107 @@ export default function V2AdminUsersPage() {
       />
 
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-        {/* Dải KPI — luôn hiện (0 khi đang tải). Từ B-08 dùng chung GaStatStrip với mọi màn
-            khác; bản chép tay ở đây từng lệch cả nhãn (10px/0.08em thay vì 11px/0.16em) lẫn nền
-            tint — nó truyền `var(--ga-navy)` vào chuỗi `${color}0e` nên nền là CSS vô nghĩa. */}
+        {/* KPI đếm trên CẢ bảng (GET /admin/users/stats), không trên trang đang xem. */}
         <GaStatStrip
           className="mb-[22px]"
           items={[
-            { label: t('stats.totalUsers'), value: counts.total, tone: 'navy' },
-            { label: t('stats.students'), value: counts.student, tone: 'blue' },
-            { label: t('stats.teachers'), value: counts.teacher, tone: 'violet' },
+            { label: t('stats.totalUsers'), value: stats?.total ?? '—', tone: 'navy' },
+            { label: t('stats.students'), value: byRole?.STUDENT ?? '—', tone: 'blue' },
+            { label: t('stats.teachers'), value: byRole?.TEACHER ?? '—', tone: 'violet' },
             {
               label: t('stats.paused'),
-              value: counts.paused,
+              value: stats?.locked ?? '—',
               tone: 'orange',
-              sub: counts.paused > 0 ? t('stats.pausedReview') : t('stats.pausedNone'),
-              alert: counts.paused > 0,
+              sub: (stats?.locked ?? 0) > 0 ? t('stats.pausedReview') : t('stats.pausedNone'),
+              alert: (stats?.locked ?? 0) > 0,
             },
           ]}
         />
 
-        {/* Role filter */}
-        <div className="mb-[18px] flex flex-wrap gap-2">
-          {ROLE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setRoleFilter(f.value)}
-              className={cn(
-                'ga-ui min-h-[40px] cursor-pointer rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0',
-                roleFilter === f.value
-                  ? 'border-ga-ink bg-ga-ink text-ga-card'
-                  : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink',
-              )}
-            >
-              {f.label}
-              {f.count != null && <span className="ml-1.5 opacity-70">{f.count}</span>}
-            </button>
-          ))}
+        <div className="mb-4">
+          <TkSeg
+            aria-label={t('view.label')}
+            value={values.view}
+            onValueChange={(v) => set({ view: v })}
+            options={[
+              { value: 'all', label: t('view.all') },
+              {
+                value: 'free-teachers',
+                label: stats ? t('view.freeTeachersCount', { count: stats.freeTeachers }) : t('view.freeTeachers'),
+              },
+            ]}
+          />
         </div>
+
+        {freeView ? (
+          <p className="ga-ui mb-[18px] text-ga-small text-ga-muted">{t('view.freeTeachersHint')}</p>
+        ) : (
+          <div className="mb-[18px] flex flex-col gap-3">
+            <FilterChips
+              ariaLabel={t('filters.roleLabel')}
+              testIdPrefix="role-filter"
+              value={values.role}
+              onChange={(v) => set({ role: v })}
+              options={[
+                { value: 'all', label: t('filterAll'), count: stats?.total },
+                ...ADMIN_ROLES.map((r: AdminRole) => ({ value: r, label: r, count: byRole?.[r] })),
+              ]}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <FilterChips
+                ariaLabel={t('filters.statusLabel')}
+                testIdPrefix="status-filter"
+                value={values.status}
+                onChange={(v) => set({ status: v })}
+                options={[
+                  { value: 'all', label: t('filters.status.all') },
+                  { value: 'active', label: t('filters.status.active'), count: stats?.active },
+                  { value: 'locked', label: t('filters.status.locked'), count: stats?.locked },
+                ]}
+              />
+              <select
+                value={values.plan}
+                onChange={(e) => set({ plan: e.target.value })}
+                aria-label={t('filters.planLabel')}
+                data-testid="plan-filter"
+                className="ga-ui min-h-[40px] rounded-ga border border-ga-border bg-ga-card px-3 text-ga-caption font-semibold text-ga-ink lg:min-h-0 lg:py-2"
+              >
+                <option value="">{t('filters.planAll')}</option>
+                <option value="DEFAULT">DEFAULT</option>
+                {plans
+                  .filter((p) => p.code !== 'DEFAULT')
+                  .map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.code}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         <DataTable
           columns={columns}
-          data={filtered}
+          data={page?.items ?? []}
           rowKey={(u) => u.id}
           loading={loading}
-          error={error || null}
-          onRetry={() => reload({ silent: false })}
-          errorEndpoint="GET /api/admin/users"
+          keepPreviousRows
+          error={error}
+          onRetry={() => setNonce((n) => n + 1)}
+          errorEndpoint="GET /api/admin/users/search"
           itemNoun={t('itemNoun')}
-          pageSize={0}
           rowClassName={(u) => (!u.isActive ? 'opacity-60' : undefined)}
-          onRowClick={(u) => setDetailUser(u)}
+          onRowClick={(u) => router.push(`/v2/admin/users/${u.id}`)}
+          rowActionLabel={(u) => t('openProfile', { name: u.displayName || u.email })}
+          server={{
+            total: page?.total ?? 0,
+            page: values.page,
+            pageSize: PAGE_SIZE,
+            sortKey,
+            sortDir,
+            onPageChange: (p) => set({ page: p }),
+            onSortChange: (key, dir) => set({ sort: `${key},${dir}` }),
+          }}
           empty={
             <div className="px-4 py-5 text-center sm:px-6 lg:px-10 lg:py-7">
               <p className="ga-ui text-[14.5px] text-ga-muted">{t('empty')}</p>
@@ -341,36 +382,10 @@ export default function V2AdminUsersPage() {
         />
       </div>
 
-      {detailUser && (
-        <UserDetailModal
-          userId={detailUser.id}
-          userName={detailUser.displayName}
-          email={detailUser.email}
-          role={detailUser.role}
-          isActive={detailUser.isActive}
-          planCode={detailUser.planCode}
-          plans={plans}
-          onClose={() => setDetailUser(null)}
-          onSaved={() => reload({ silent: true })}
-          onShowLearning={() => {
-            setLearningUser(detailUser)
-            setDetailUser(null)
-          }}
-        />
-      )}
-
-      {learningUser && (
-        <LearningDetailModal
-          userId={learningUser.id}
-          userName={learningUser.displayName}
-          onClose={() => setLearningUser(null)}
-        />
-      )}
-
       {showCreate && (
         <AdminCreateUserModal
           onClose={() => setShowCreate(false)}
-          onCreated={() => reload({ silent: true })}
+          onCreated={() => setNonce((n) => n + 1)}
         />
       )}
     </div>

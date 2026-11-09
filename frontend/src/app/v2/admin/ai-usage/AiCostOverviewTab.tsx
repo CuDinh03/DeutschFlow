@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
+import { adminUsersApi, type UserStats } from '@/lib/adminUsersApi'
 import type { AiUsageByFeatureDto } from '@/lib/adminTokenPie'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, TkBadge } from '@/components/ui-v2'
 import { GaSection, GaDonut, GaLegend, GaArea, GA_CHART } from '../../analyticsShared'
@@ -11,16 +12,8 @@ import { useFmt } from '@/lib/i18n/useFmt'
 type DailyCostRow = { day: string; tokens: number; costUsd: number; model: string; feature: string }
 type DailyCostDto = { days: number; data: DailyCostRow[] }
 
-export type TopUsageUser = {
-  id: number
-  email: string
-  displayName: string
-  role?: string
-  usageLast30Days?: number
-}
-
 type OverviewState = {
-  users: TopUsageUser[]
+  stats: UserStats | null
   ledger: AiUsageByFeatureDto | null
   daily: DailyCostDto | null
 }
@@ -34,13 +27,13 @@ const FEATURE_KEYS = ['SPEAKING', 'INTERVIEW', 'GRAMMAR', 'GRADING', 'MATERIALS'
  * chuyển hướng về đây qua admin-redirects.mjs). Token 30 ngày theo tính năng, chi phí 14 ngày, top
  * người dùng.
  *
- * Top người dùng tạm vẫn đọc GET /admin/users (trả cả bảng); đợt 1 GĐ3 đổi sang endpoint có phân
- * trang + sort theo usage, không tải toàn bộ người dùng nữa.
+ * Số người dùng AI và top người dùng lấy từ GET /admin/users/stats (đếm ở server, đã loại tài
+ * khoản demo) — không tải toàn bộ danh sách người dùng như trang tokens cũ.
  */
 export function AiCostOverviewTab() {
   const t = useTranslations('v2.adminOps.tokens')
   const fmt = useFmt()
-  const [state, setState] = useState<OverviewState>({ users: [], ledger: null, daily: null })
+  const [state, setState] = useState<OverviewState>({ stats: null, ledger: null, daily: null })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,13 +47,13 @@ export function AiCostOverviewTab() {
     setLoading(true)
     setError(null)
     Promise.allSettled([
-      api.get<TopUsageUser[]>('/admin/users'),
+      adminUsersApi.stats(),
       api.get<AiUsageByFeatureDto>('/admin/reports/ai-usage-by-feature', { params: { days: 30 } }),
       api.get<DailyCostDto>('/admin/reports/ai-cost-daily', { params: { days: 14 } }),
     ])
       .then(([u, l, d]) => {
         setState({
-          users: u.status === 'fulfilled' ? (u.value.data ?? []) : [],
+          stats: u.status === 'fulfilled' ? (u.value.data ?? null) : null,
           ledger: l.status === 'fulfilled' ? (l.value.data ?? null) : null,
           daily: d.status === 'fulfilled' ? (d.value.data ?? null) : null,
         })
@@ -73,7 +66,7 @@ export function AiCostOverviewTab() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [])
 
-  const { users, ledger, daily } = state
+  const { stats, ledger, daily } = state
 
   const featureSegs = (ledger?.byFeature ?? [])
     .map((r) => ({ label: featureLabel(r.feature), value: Number(r.totalTokens) || 0 }))
@@ -92,10 +85,8 @@ export function AiCostOverviewTab() {
 
   const totalTokens = ledger?.totalTokens ?? featureSegs.reduce((s, x) => s + x.value, 0)
   const totalCost = dailyByDay.reduce((s, x) => s + x.value, 0)
-  const activeUsers = users.filter((u) => (Number(u.usageLast30Days) || 0) > 0).length
-  const topUsers = [...users]
-    .sort((a, b) => (Number(b.usageLast30Days) || 0) - (Number(a.usageLast30Days) || 0))
-    .slice(0, 8)
+  const activeUsers = stats?.aiActive30d ?? 0
+  const topUsers = stats?.topUsage30d ?? []
 
   const cells: GaStatItem[] = [
     { label: t('stats.totalTokens'), value: fmt.num(totalTokens), tone: 'orange' },

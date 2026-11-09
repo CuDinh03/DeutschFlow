@@ -18,6 +18,8 @@ const toTemporary = ([source, destination]) => ({ source, destination, permanent
 export const ADMIN_MERGED_PAGES = [
   // "AI Token" gộp thành tab "Tổng quan" của Chi phí AI.
   ['/v2/admin/tokens', '/v2/admin/ai-usage?tab=overview'],
+  // "Giáo viên tự do" thành chế độ xem của trang Người dùng (TEACHER · không thuộc trung tâm · đang hoạt động).
+  ['/v2/admin/free-teachers', '/v2/admin/users?view=free-teachers'],
 ]
 
 export const adminMergeRedirects = ADMIN_MERGED_PAGES.map(toTemporary)

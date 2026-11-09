@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 import api from '@/lib/api'
+import { adminUsersApi, type UserStats } from '@/lib/adminUsersApi'
 import { GaStatStrip, type GaStatItem, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
 import { GaSection, GaBars, GaDonut, GaLegend, GA_CHART } from '../analyticsShared'
 import { useFmt } from '@/lib/i18n/useFmt'
 
-type OverviewUser = { id: number; role?: string; isActive?: boolean; isactive?: boolean; usageLast30Days?: number }
-type ChartRow = { period: string; netVnd: number; subscribers: number }
+type ChartRow = { period: string; netVnd: number; subscribers: number; b2cGrossVnd?: number; b2bGrossVnd?: number }
 type RevenueResponse = { totals?: { netVnd: number }; chartData?: ChartRow[] }
 type DailyCostRow = { costUsd: number }
 type DailyCostDto = { data?: DailyCostRow[] }
@@ -25,7 +25,8 @@ const ROLE_ORDER = ['STUDENT', 'TEACHER', 'MANAGER', 'OWNER', 'ADMIN'] as const
 export default function V2AdminOverviewPage() {
   const t = useTranslations('v2.adminOps.overview')
   const fmt = useFmt()
-  const [users, setUsers] = useState<OverviewUser[]>([])
+  // KPI người dùng đếm trên cả bảng ở server (GET /admin/users/stats) — không tải cả danh sách nữa.
+  const [stats, setStats] = useState<UserStats | null>(null)
   const [revenue, setRevenue] = useState<RevenueResponse | null>(null)
   const [daily, setDaily] = useState<DailyCostDto | null>(null)
   const [loading, setLoading] = useState(true)
@@ -35,12 +36,12 @@ export default function V2AdminOverviewPage() {
     setLoading(true)
     setError(null)
     Promise.allSettled([
-      api.get<OverviewUser[]>('/admin/users'),
+      adminUsersApi.stats(),
       api.get<RevenueResponse>('/admin/analytics/revenue', { params: { page: 0, size: 1 } }),
       api.get<DailyCostDto>('/admin/reports/ai-cost-daily', { params: { days: 30 } }),
     ])
       .then(([u, r, d]) => {
-        if (u.status === 'fulfilled') setUsers(u.value.data ?? [])
+        if (u.status === 'fulfilled') setStats(u.value.data ?? null)
         else setError(t('loadError'))
         if (r.status === 'fulfilled') setRevenue(r.value.data ?? null)
         if (d.status === 'fulfilled') setDaily(d.value.data ?? null)
@@ -49,11 +50,7 @@ export default function V2AdminOverviewPage() {
   }
   useEffect(load, [])
 
-  const roleCounts = users.reduce<Record<string, number>>((acc, u) => {
-    const r = (u.role ?? 'STUDENT').toUpperCase()
-    acc[r] = (acc[r] ?? 0) + 1
-    return acc
-  }, {})
+  const roleCounts: Record<string, number> = stats?.byRole ?? {}
   const roleSegs = ROLE_ORDER
     .filter((r) => (roleCounts[r] ?? 0) > 0)
     .map((r) => ({ label: t(`roles.${r}`), value: roleCounts[r], color: ROLE_COLOR[r] ?? '#76716A' }))
@@ -64,23 +61,32 @@ export default function V2AdminOverviewPage() {
   // của kỳ gần nhất. Âm = kỳ lỗ → tô cam như trang Doanh thu.
   const netRemaining = latest?.netVnd ?? revenue?.totals?.netVnd ?? 0
   const aiCost = (daily?.data ?? []).reduce((s, r) => s + (Number(r.costUsd) || 0), 0)
-  const activeUsers = users.filter((u) => (Number(u.usageLast30Days) || 0) > 0).length
-  const pausedUsers = users.filter((u) => u.isActive === false || u.isactive === false).length
+  const activeUsers = stats?.aiActive30d ?? 0
+  const pausedUsers = stats?.locked ?? 0
 
   const cells: GaStatItem[] = [
-    { label: t('stats.totalUsers'), value: fmt.num(users.length), tone: 'navy' },
+    { label: t('stats.totalUsers'), value: fmt.num(stats?.total ?? 0), tone: 'navy' },
     {
       label: t('stats.netRemaining'),
       value: fmt.vndCompact(netRemaining),
       tone: netRemaining < 0 ? 'orange' : 'green',
-      sub: latest?.period ? t('stats.netRemainingSub', { period: latest.period }) : undefined,
+      // Từ GĐ2 backend: gross = B2C + B2B (hoá đơn trung tâm đã thu), phí theo nhà cung cấp.
+      sub: latest?.period
+        ? t('stats.netRemainingSplit', {
+            period: latest.period,
+            b2c: fmt.vndCompact(latest.b2cGrossVnd ?? 0),
+            b2b: fmt.vndCompact(latest.b2bGrossVnd ?? 0),
+          })
+        : undefined,
     },
     { label: t('stats.aiCost'), value: `$${aiCost.toFixed(2)}`, tone: 'orange', sub: t('stats.aiCostSub') },
     { label: t('stats.aiActivity'), value: fmt.num(activeUsers), tone: 'violet', sub: t('stats.aiActivitySub') },
   ]
 
   const todo: { text: string; href: string }[] = [
-    ...(pausedUsers > 0 ? [{ text: t('todo.pausedAccounts', { count: pausedUsers }), href: '/v2/admin/users' }] : []),
+    ...(pausedUsers > 0
+      ? [{ text: t('todo.pausedAccounts', { count: pausedUsers }), href: '/v2/admin/users?status=locked' }]
+      : []),
     { text: t('todo.reviewVocabImages'), href: '/v2/admin/vocabulary' },
     { text: t('todo.checkPendingOrgs'), href: '/v2/admin/organizations' },
     { text: t('todo.trackAiBudget'), href: '/v2/admin/ai-usage' },

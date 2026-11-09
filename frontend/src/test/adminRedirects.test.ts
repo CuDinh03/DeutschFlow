@@ -11,6 +11,11 @@ describe('Chuyển hướng trang admin đã gộp', () => {
     expect(r?.destination).toBe('/v2/admin/ai-usage?tab=overview')
   })
 
+  it('/v2/admin/free-teachers → chế độ xem Giáo viên tự do của trang Người dùng', () => {
+    const r = (adminMergeRedirects as Redirect[]).find((x) => x.source === '/v2/admin/free-teachers')
+    expect(r?.destination).toBe('/v2/admin/users?view=free-teachers')
+  })
+
   it('mọi entry đều 307 (permanent:false) — 308 bị trình duyệt cache vĩnh viễn', () => {
     expect((adminMergeRedirects as Redirect[]).length).toBe((ADMIN_MERGED_PAGES as unknown[]).length)
     for (const r of adminMergeRedirects as Redirect[]) expect(r.permanent).toBe(false)

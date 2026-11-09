@@ -23,6 +23,10 @@ interface ChartRow {
   apiCostVnd: number
   marginPct: number
   subscribers: number
+  /** Từ 09/11/2026 (đợt 1 admin, backend GĐ2) — client cũ / backend cũ có thể thiếu. */
+  b2cGrossVnd?: number
+  b2bGrossVnd?: number
+  b2bInvoices?: number
 }
 interface Transaction {
   id: number
@@ -137,6 +141,9 @@ export default function V2AdminRevenuePage() {
   const breakdownRows = latest
     ? [
         { key: 'rowGross', value: latest.grossVnd, strong: false },
+        // 09/11/2026: gross tách nguồn — giao dịch cá nhân (B2C) và hoá đơn trung tâm đã thu (B2B).
+        ...(latest.b2cGrossVnd != null ? [{ key: 'rowB2c', value: latest.b2cGrossVnd, strong: false }] : []),
+        ...(latest.b2bGrossVnd != null ? [{ key: 'rowB2b', value: latest.b2bGrossVnd, strong: false }] : []),
         { key: 'rowStoreFee', value: -latest.storeFeeVnd, strong: false },
         { key: 'rowAiCost', value: -latest.apiCostVnd, strong: false },
         { key: 'rowNet', value: latest.netVnd, strong: true },
