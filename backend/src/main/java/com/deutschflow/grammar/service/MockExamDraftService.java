@@ -80,7 +80,7 @@ public class MockExamDraftService {
     }
 
     /**
-     * @param flags câu "đánh dấu xem lại" (B3, V373); {@code null} = giữ nguyên giá trị đang lưu (client cũ).
+     * @param flags câu "đánh dấu xem lại" (B3, V374); {@code null} = giữ nguyên giá trị đang lưu (client cũ).
      */
     public SaveResult save(long uid, long attemptId, String answersJson,
                            Integer sectionIndex, Integer questionIndex,

@@ -11,7 +11,7 @@
 export interface DraftPayload {
   answers: Record<string, string>
   sectionIndex: number
-  /** Câu "đánh dấu xem lại" (B3, V373). Không có ⇒ server giữ giá trị cũ. */
+  /** Câu "đánh dấu xem lại" (B3, V374). Không có ⇒ server giữ giá trị cũ. */
   flags?: string[]
 }
 

@@ -152,7 +152,7 @@ nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoả
    Chỉ chuyển Teil trong chặng hiện tại; "Sang Hören" mở màn tối đếm 10s (`HoerenRitual.tsx`), "Sang Schreiben" có hộp
    xác nhận; chặng lưu theo lượt ở `df.fullExam.stage.{attemptId}`. Nháp lưu lên server (`PATCH /attempts/{id}/draft`,
    có phiên bản chống ghi đè, rời trang thì `fetch keepalive`). Hết giờ ⇒ tự nộp, màn "Hết giờ. Bài đã tự nộp." + các bước chấm.
-   **Đánh dấu xem lại** (B3): cờ ở từng câu (mọi dạng, phím F) lưu cùng nháp (`flags`, cột `draft_flags_json`, V373) — tải
+   **Đánh dấu xem lại** (B3): cờ ở từng câu (mọi dạng, phím F) lưu cùng nháp (`flags`, cột `draft_flags_json`, V374) — tải
    lại/đổi máy vẫn còn; nút "Câu đánh dấu (N)" ở thanh dưới (`components/exam/mock/FlaggedNav.tsx`) liệt kê câu của chặng
    đang thi, bấm để sang Teil đó và tới câu đó. Thi thử không có ô "vì sao tôi chọn".
 3. **Nộp**: `POST /attempts/{id}/finish` → job chấm nền (Viết bằng AI) → client chờ `/async-jobs` → mở kết quả.
@@ -303,7 +303,7 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 2. Ngữ cảnh gửi AI: đoạn văn / Lückentext quanh ô / lời nghe (cắt ~2 400 ký tự quanh dấu hiệu), câu hỏi, lựa chọn
    (Lesen 3 chỉ mẩu đã chọn + mẩu đúng), đáp án đã chọn, đáp án đúng, giải thích sẵn (`PracticeAnalysis`). Ghi chú
    "vì sao tôi chọn" KHÔNG gửi AI.
-3. Bộ nhớ đệm `exam_item_ai_explanations` (V373), khoá (đề, Teil, câu, đáp án đã chọn, ngôn ngữ `vi|en|de`,
+3. Bộ nhớ đệm `exam_item_ai_explanations` (V374), khoá (đề, Teil, câu, đáp án đã chọn, ngôn ngữ `vi|en|de`,
    SHA-256 của ngữ cảnh). Dùng chung mọi người. Có sẵn ⇒ trả `cached: true`: không gọi AI, không giới hạn lượt, không
    trừ quota. Sửa đề/giải thích ⇒ hash mới ⇒ hỏi lại AI.
 4. Chưa có: giới hạn lượt (`AiRateLimiterService` bucket `TEXT`, 429) → `QuotaService.assertAllowed` (ví, 429) →
@@ -320,10 +320,10 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | **V363** | `exam_plan_state.day_order_json` (JSONB, mặc định `{}`) |
 | **V364** | `user_ui_tours (user_id, tour_key, seen_at)` |
 | **V365** | `exam_diagnostics (user_id PK, exam_id, result_json, started_at, finished_at)` |
-| **V373** | B3: `mock_exam_practice_progress.notes_json` (JSONB `{}`), `mock_exam_attempts.draft_flags_json` (JSONB), bảng `exam_item_ai_explanations` (bộ đệm "Hỏi AI", `UNIQUE (exam_id, teil_key, item_id, chosen, locale, content_hash)`) |
+| **V374** | B3: `mock_exam_practice_progress.notes_json` (JSONB `{}`), `mock_exam_attempts.draft_flags_json` (JSONB), bảng `exam_item_ai_explanations` (bộ đệm "Hỏi AI", `UNIQUE (exam_id, teil_key, item_id, chosen, locale, content_hash)`) |
 
-V363–V365, V373 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
-V373 cần V368–V372 lên trước (`out-of-order: false`).
+V363–V365, V374 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
+V374 cần V368–V372 lên trước (`out-of-order: false`).
 
 ---
 

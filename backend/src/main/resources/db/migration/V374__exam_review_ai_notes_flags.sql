@@ -1,5 +1,5 @@
 -- B3 "Nâng phòng thi" (09/11/2026). Chỉ thêm cột/bảng — tương thích ngược khi blue-green, mobile không đổi.
--- Số V373: V368–V370 đang giữ cho PR #803/#804/#805, V371/V372 để dành — các số nhỏ hơn phải lên prod trước
+-- Số V374: V368–V370 đang giữ cho PR #803/#804/#805, V371/V372 để dành — các số nhỏ hơn phải lên prod trước
 -- (out-of-order: false, docs/QUY_TRINH_PHAT_HANH.md §6.2).
 --
 -- 1) mock_exam_practice_progress.notes_json — "Vì sao tôi chọn": ghi chú ngắn (không bắt buộc) của học viên

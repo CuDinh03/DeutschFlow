@@ -49,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * B3 "Nâng phòng thi" trên PostgreSQL thật (V373): ghi chú "vì sao tôi chọn" lưu cùng nháp/nộp, câu đánh
+ * B3 "Nâng phòng thi" trên PostgreSQL thật (V374): ghi chú "vì sao tôi chọn" lưu cùng nháp/nộp, câu đánh
  * dấu lưu cùng nháp thi thử, và "Hỏi AI về câu này" — bộ nhớ đệm trong {@code exam_item_ai_explanations}
  * (hỏi lần hai không gọi AI, không trừ quota), endpoint POST với quyền chủ lượt (404) và chỉ sau khi nộp (409).
  *
@@ -59,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@DisplayName("Hỏi AI về câu này + ghi chú + đánh dấu (V373) trên Postgres")
+@DisplayName("Hỏi AI về câu này + ghi chú + đánh dấu (V374) trên Postgres")
 class ExamItemAiIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private static final long OWNER = 990_373L;
@@ -121,7 +121,7 @@ class ExamItemAiIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("Migration V373: cột ghi chú, cột câu đánh dấu, bảng bộ nhớ đệm có khoá duy nhất")
+    @DisplayName("Migration V374: cột ghi chú, cột câu đánh dấu, bảng bộ nhớ đệm có khoá duy nhất")
     void migrationShape() {
         assertThat(column("mock_exam_practice_progress", "notes_json")).isEqualTo("jsonb");
         assertThat(column("mock_exam_attempts", "draft_flags_json")).isEqualTo("jsonb");

@@ -171,7 +171,7 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [phase, setPhase] = React.useState<'taking' | 'grading'>('taking')
   const [ticks, setTicks] = React.useState<Record<string, boolean>>({})
-  // B3: câu "đánh dấu xem lại" — lưu cùng nháp trên server (V373), tải lại trang vẫn còn.
+  // B3: câu "đánh dấu xem lại" — lưu cùng nháp trên server (V374), tải lại trang vẫn còn.
   const [flags, setFlags] = React.useState<string[]>([])
   const [jump, setJump] = React.useState<{ id: string; n: number; teilIdx: number } | null>(null)
   // Chặng đang làm: 0 Lesen + Sprachbausteine · 1 Hören · 2 Schreiben. Sang chặng sau thì khoá chặng trước.

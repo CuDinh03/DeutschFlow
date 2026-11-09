@@ -22,7 +22,7 @@ public record ExamDraftDto(
         @JsonProperty("question_index") Integer questionIndex,
         long version,
         @JsonProperty("saved_at") Date savedAt,
-        /* B3 (V373): câu đã "đánh dấu xem lại" — null thì bỏ khỏi JSON (NON_NULL). */
+        /* B3 (V374): câu đã "đánh dấu xem lại" — null thì bỏ khỏi JSON (NON_NULL). */
         List<String> flags) {
     public ExamDraftDto(String answersJson, Integer sectionIndex, Integer questionIndex, long version, Date savedAt) {
         this(answersJson, sectionIndex, questionIndex, version, savedAt, null);

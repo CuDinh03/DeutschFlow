@@ -15,7 +15,7 @@ public record ExamDraftSaveRequest(
         Integer sectionIndex,
         Integer questionIndex,
         Long baseVersion,
-        // B3 (09/11/2026, V373): câu "đánh dấu xem lại". null (mobile/client cũ) = giữ giá trị đang lưu.
+        // B3 (09/11/2026, V374): câu "đánh dấu xem lại". null (mobile/client cũ) = giữ giá trị đang lưu.
         List<String> flags) {
     public ExamDraftSaveRequest(Map<String, Object> answers, Integer sectionIndex, Integer questionIndex,
                                 Long baseVersion) {

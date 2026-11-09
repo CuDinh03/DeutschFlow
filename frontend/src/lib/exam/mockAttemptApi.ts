@@ -23,7 +23,7 @@ export interface StartedAttempt {
   answers: Record<string, string>
   sectionIndex: number
   draftVersion: number
-  /** Câu "đánh dấu xem lại" đã lưu cùng nháp (B3, V373). */
+  /** Câu "đánh dấu xem lại" đã lưu cùng nháp (B3, V374). */
   flags: string[]
   /** Lượt trước của đề này vừa được server chốt "Dừng giữa chừng" vì quá giờ khi vắng mặt. */
   closedAttemptId: number | null
