@@ -398,6 +398,8 @@ body[data-immersive-mode='on'] [data-ga-chrome] {
 .ga-marks-hidden .ga-mark-p { background-color: transparent; }
 .ga-marks-hidden .ga-mark-ul { text-decoration-line: none; }
 .ga-marks-hidden .ga-mark-tag { display: none; }
+/* Màn hẹp / cảm ứng, thanh công cụ đánh dấu đang mở: nhường chỗ cho bài đọc — ẩn thanh dưới của khung làm bài. */
+html[data-ga-marking] [data-practice-foot] { display: none; }
 /* Nhãn số câu / ghi chú: neo rộng 0px ở cuối đoạn tô, nổi lên trên dòng ⇒ không làm tràn dòng tác giả ngắt. */
 .ga-mark-anchor { position: relative; display: inline-block; width: 0; height: 1em; vertical-align: -0.1em; user-select: none; -webkit-user-select: none; }
 .ga-mark-anchor > span { position: absolute; left: -3px; bottom: 0.8em; display: flex; gap: 2px; white-space: nowrap; z-index: 1; }
