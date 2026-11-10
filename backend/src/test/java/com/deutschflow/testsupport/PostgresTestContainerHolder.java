@@ -34,7 +34,11 @@ public final class PostgresTestContainerHolder {
                 local = instance;
                 if (local == null) {
                     try {
-                        PostgreSQLContainer<?> c = new PostgreSQLContainer<>(PG_IMAGE);
+                        // max_connections: mỗi Spring context được cache giữ một Hikari pool (tối đa 30 kết nối);
+                        // bộ test có nhiều cấu hình context khác nhau ⇒ vượt mặc định 100 của Postgres và các
+                        // lớp chạy sau đỏ "FATAL: sorry, too many clients already" (CI 09–10/11/2026).
+                        PostgreSQLContainer<?> c = new PostgreSQLContainer<>(PG_IMAGE)
+                                .withCommand("postgres", "-c", "max_connections=500");
                         c.start();
                         instance = c;
                         local = c;
