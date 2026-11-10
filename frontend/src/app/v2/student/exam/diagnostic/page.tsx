@@ -14,6 +14,8 @@ import { ConfirmDialog, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { PracticeShell } from '@/components/exam/practice/PracticeShell'
 import { usePracticeDraft } from '@/components/exam/practice/usePracticeDraft'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
+import { usePassageMarks, type MarksSource } from '@/components/exam/marks/usePassageMarks'
+import { MARK_SECTIONS, marksSupported, marksTexts } from '@/components/exam/marks/marksBlocks'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
@@ -322,6 +324,22 @@ function DiagnosticRun({
     }
   }
 
+  // Bút đánh dấu (đợt 3, 10/11/2026) — như thi thử: chỉ màu, gạch chân, gạch bỏ (owner chốt 09/11/2026).
+  // Bài chẩn đoán chấm qua đường luyện đề ⇒ đánh dấu lưu cùng chỗ với luyện Teil của đề đó.
+  const markData = React.useMemo(
+    () => (teilKey && teilKey !== WRITING_KEY ? findTeil(overview.sectionsJson, teilKey) : null),
+    [overview.sectionsJson, teilKey],
+  )
+  const markSource = React.useMemo<MarksSource | null>(
+    () =>
+      teilKey && markData && MARK_SECTIONS.includes(sectionOf(teilKey)) && marksSupported(markData, kindOf(markData, teilKey))
+        ? { kind: 'practice', examId: overview.examId, teilKey }
+        : null,
+    [teilKey, markData, overview.examId],
+  )
+  const markTexts = React.useMemo(() => (markData ? marksTexts(markData) : {}), [markData])
+  const marks = usePassageMarks({ source: markSource, texts: markTexts })
+
   const section = part ? sectionOf(part) : 'LESEN'
   let body: React.ReactNode
   if (!part) {
@@ -351,7 +369,20 @@ function DiagnosticRun({
     } else if (section === 'HOEREN') {
       body = <HoerenTeilView key={part} teil={data} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
     } else {
-      body = <ObjectiveTeilView key={part} teil={data} kind={kind} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+      body = (
+        <ObjectiveTeilView
+          key={part}
+          teil={data}
+          kind={kind}
+          answers={answers}
+          onAnswer={onAnswer}
+          result={null}
+          wide={wide}
+          tips={null}
+          marks={markSource ? marks : null}
+          marksMode="exam"
+        />
+      )
     }
   }
 

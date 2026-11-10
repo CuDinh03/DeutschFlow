@@ -19,7 +19,9 @@ import java.util.Set;
  *   "marks": [ { "id", "g", "b", "s", "e", "k": "hl"|"ul", "c": "y"|"g"|"p"|null, "q": idCâu|null, "n": ghiChú } ],
  *   "struck": { idCâu: ["a", "c"] } }
  * </pre>
- * Khối {@code b}: {@code ctx} = bài đọc ({@code teil.context}), {@code q:<id>} = đề câu ({@code item.question}).
+ * Khối {@code b}: {@code ctx} = bài đọc ({@code teil.context}), {@code q:<id>} = đề câu ({@code item.question});
+ * đợt 3: {@code t:<id>} = đoạn văn của câu Lesen 1 ({@code item.text}), {@code ad:<k>} = mẩu rao vặt Lesen 3
+ * ({@code teil.ads}), {@code gap} = bức thư có chỗ trống Sprachbausteine ({@code teil.gapped_text}).
  * Server tự ghi {@code blocks{khối: hash}} theo chữ HIỆN TẠI của đề — client so hash lúc tải để bỏ đánh
  * dấu của khối đã bị sửa chữ (owner chốt: bỏ + báo một dòng, không cố gắn lại).
  *
@@ -48,12 +50,19 @@ public final class PassageMarksValidator {
     public static Map<String, String> blocksOf(Map<String, Object> teil) {
         Map<String, String> out = new LinkedHashMap<>();
         if (teil.get("context") instanceof String ctx && !ctx.isBlank()) out.put("ctx", normalize(ctx));
+        // đợt 3 (10/11/2026): Sprachbausteine — bức thư có chỗ trống; Lesen 3 — từng mẩu rao vặt
+        if (teil.get("gapped_text") instanceof String gap && !gap.isBlank()) out.put("gap", normalize(gap));
+        if (teil.get("ads") instanceof Map<?, ?> ads) {
+            for (Map.Entry<?, ?> e : ads.entrySet()) {
+                if (e.getValue() instanceof String ad && !ad.isBlank()) out.put("ad:" + e.getKey(), normalize(ad));
+            }
+        }
         if (teil.get("items") instanceof List<?> items) {
             for (Object o : items) {
-                if (o instanceof Map<?, ?> item && item.get("id") != null
-                        && item.get("question") instanceof String q && !q.isBlank()) {
-                    out.put("q:" + item.get("id"), normalize(q));
-                }
+                if (!(o instanceof Map<?, ?> item) || item.get("id") == null) continue;
+                if (item.get("question") instanceof String q && !q.isBlank()) out.put("q:" + item.get("id"), normalize(q));
+                // Lesen 1: đoạn văn ngắn của từng câu
+                if (item.get("text") instanceof String t && !t.isBlank()) out.put("t:" + item.get("id"), normalize(t));
             }
         }
         return out;

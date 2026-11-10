@@ -56,6 +56,25 @@ class PassageMarksValidatorTest {
     }
 
     @Test
+    void khoiDot3Lesen1Lesen3Sprachbausteine() {
+        Map<String, Object> lesen1 = Map.of("items", List.of(
+                Map.of("id", "LV1-1", "question", "Ü", "text", "Ab Mai\r\nentstehen neue Strecken.")));
+        assertThat(PassageMarksValidator.blocksOf(lesen1)).containsOnlyKeys("q:LV1-1", "t:LV1-1")
+                .containsEntry("t:LV1-1", "Ab Mai\nentstehen neue Strecken.");
+        Map<String, Object> lesen3 = Map.of("ads", new LinkedHashMap<>(Map.of("a", "Nachhilfe Mathe", "b", Map.of("x", "y"))),
+                "items", List.of(Map.of("id", "LV3-11", "question", "Sie suchen …")));
+        assertThat(PassageMarksValidator.blocksOf(lesen3)).containsOnlyKeys("ad:a", "q:LV3-11");
+        Map<String, Object> sb = Map.of("gapped_text", "Sehr geehrte ___21___ Herren,", "items", List.of(Map.of("id", "SB1-21")));
+        Map<String, String> blocks = PassageMarksValidator.blocksOf(sb);
+        assertThat(blocks).containsOnlyKeys("gap");
+        // đánh dấu trong khối mới qua được kiểm tra như bài đọc
+        Map<String, Object> out = PassageMarksValidator.clean(pack(List.of(mark("b", "gap", "s", 0, "e", 5)), null),
+                blocks, Set.of("SB1-21"), Map.of(), Mode.EXAM);
+        assertThat((List<?>) out.get("marks")).hasSize(1);
+        assertThat(out.get("blocks")).isEqualTo(Map.of("gap", PassageMarksValidator.hash("Sehr geehrte ___21___ Herren,")));
+    }
+
+    @Test
     void hashFnv1aKhopClient() {
         // cùng bộ giá trị với frontend/src/components/exam/marks/marksModel.test.ts
         assertThat(PassageMarksValidator.hash("")).isEqualTo("811c9dc5");
