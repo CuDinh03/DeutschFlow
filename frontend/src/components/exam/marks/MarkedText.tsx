@@ -19,6 +19,12 @@ export interface MarkLayer {
   noteLabel: (note: string) => string
 }
 
+/**
+ * Lớp đánh dấu của Teil cho khối chữ vẽ ở thành phần con không nhận prop trực tiếp (lời bài trong
+ * `HoerenPlayer`, đợt 3b). `ObjectiveTeilView` cấp khi bút đánh dấu bật.
+ */
+export const MarkLayerContext = React.createContext<MarkLayer | null>(null)
+
 export interface EvidenceRange extends Piece {
   /** Nhãn cuối đoạn, ví dụ "Đ/A 7". */
   label?: string

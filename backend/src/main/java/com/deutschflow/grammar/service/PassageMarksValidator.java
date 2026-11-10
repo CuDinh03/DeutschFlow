@@ -65,7 +65,49 @@ public final class PassageMarksValidator {
                 if (item.get("text") instanceof String t && !t.isBlank()) out.put("t:" + item.get("id"), normalize(t));
             }
         }
+        // đợt 3b: lời bài Hören theo dòng — cấp Teil (Teil 2) rồi từng câu (câu dẫn là dòng đầu)
+        hoerenLines(out, "h:teil:", teil.get("audio_script"), null);
+        if (teil.get("items") instanceof List<?> items) {
+            for (Object o : items) {
+                if (o instanceof Map<?, ?> item && item.get("id") != null) {
+                    hoerenLines(out, "h:" + item.get("id") + ":", item.get("audio_script"), item.get("lead_in_de"));
+                }
+            }
+        }
         return out;
+    }
+
+    /**
+     * Dòng lời bài như trình phát web hiện ở "Lời thoại" ({@code normalizeTurns} của {@code audioScript.ts}):
+     * câu dẫn (nếu có) rồi từng lượt thoại, cắt khoảng trắng hai đầu kiểu {@code String.prototype.trim},
+     * bỏ dòng rỗng. Kịch bản là chuỗi ⇒ một dòng.
+     */
+    private static void hoerenLines(Map<String, String> out, String prefix, Object script, Object leadIn) {
+        List<String> lines = new ArrayList<>();
+        if (leadIn instanceof String lead && !jsTrim(lead).isEmpty()) lines.add(jsTrim(lead));
+        if (script instanceof List<?> turns) {
+            for (Object turn : turns) {
+                if (turn instanceof Map<?, ?> m && m.get("text") instanceof String text && !jsTrim(text).isEmpty()) {
+                    lines.add(jsTrim(text));
+                }
+            }
+        } else if (script instanceof String s && !jsTrim(s).isEmpty()) {
+            lines.add(jsTrim(s));
+        }
+        for (int i = 0; i < lines.size(); i++) out.put(prefix + i, normalize(lines.get(i)));
+    }
+
+    /** Cắt như JavaScript {@code trim()}: mọi khoảng trắng Unicode (kể cả U+00A0, U+FEFF) và xuống dòng. */
+    static String jsTrim(String s) {
+        int a = 0;
+        int b = s.length();
+        while (a < b && isJsSpace(s.charAt(a))) a++;
+        while (b > a && isJsSpace(s.charAt(b - 1))) b--;
+        return s.substring(a, b);
+    }
+
+    private static boolean isJsSpace(char c) {
+        return Character.isWhitespace(c) || Character.isSpaceChar(c) || c == '﻿';
     }
 
     /** Phương án từng câu (để kiểm {@code struck}): {@code options} riêng của câu, nếu có. */

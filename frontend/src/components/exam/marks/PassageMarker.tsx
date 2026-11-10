@@ -44,6 +44,11 @@ interface Props {
   full: boolean
   /** Mô tả vị trí cho tiêu đề ghi chú ("dòng 6–7"). */
   describe: (p: Piece) => string
+  /**
+   * Màn hẹp / cảm ứng (đợt 2b): thanh công cụ neo đáy màn (không đè menu chọn chữ của hệ thống, nằm trên
+   * vùng chọn), ô ghi chú ở đầu màn (không bị bàn phím ảo che); chờ người dùng kéo xong hai đầu vùng chọn.
+   */
+  docked?: boolean
 }
 
 type Bar =
@@ -59,7 +64,7 @@ export const SWATCH: Record<MarkColor, string> = { y: 'bg-ga-mark-y', g: 'bg-ga-
  * chọn; bấm vào đoạn đã tô ⇒ thanh sửa của nhóm đó. Nút bấm chặn `mousedown` để vùng chọn không mất.
  * Đợt 1 chỉ cho chuột + bàn phím (màn ≥ 760px); cảm ứng / thanh neo dưới là đợt 2b.
  */
-export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, full, describe }: Props) {
+export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, full, describe, docked = false }: Props) {
   const t = useTranslations('v2.student.practice.marks')
   const [bar, setBar] = React.useState<Bar | null>(null)
   const [tagsOpen, setTagsOpen] = React.useState(false)
@@ -74,8 +79,8 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
   const textareaId = React.useId()
 
   const { pack, texts, apply } = marks
-  const live = React.useRef({ bar, noteFor, canEdit, pack })
-  live.current = { bar, noteFor, canEdit, pack }
+  const live = React.useRef({ bar, noteFor, canEdit, pack, docked })
+  live.current = { bar, noteFor, canEdit, pack, docked }
 
   const close = React.useCallback(() => {
     setBar(null)
@@ -143,7 +148,8 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
     const onSelection = () => {
       if (down && downType === 'mouse') return // chuột: đợi thả tay
       window.clearTimeout(timer)
-      timer = window.setTimeout(evaluate, 150) // bàn phím (Shift + mũi tên)
+      // bàn phím (Shift + mũi tên) · cảm ứng: nhấn giữ rồi kéo hai đầu — đợi tay dừng lâu hơn
+      timer = window.setTimeout(evaluate, live.current.docked ? 400 : 150)
     }
     const onClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null
@@ -357,6 +363,11 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
       setPos(null)
       return
     }
+    if (docked) {
+      // Neo đáy màn: vị trí do CSS (`left/right/bottom`), luôn hiện.
+      setPos((p) => (p && p.left === 0 && p.top === 0 && !p.hidden ? p : { left: 0, top: 0, hidden: false }))
+      return
+    }
     const w = barRef.current.offsetWidth
     const h = barRef.current.offsetHeight
     let top = a.top - h - 10
@@ -401,10 +412,15 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
       aria-label={t('toolbar')}
       onMouseDown={keep}
       onPointerDown={keep}
-      style={{ left: pos?.left ?? -9999, top: pos?.top ?? -9999, visibility: pos && !pos.hidden ? 'visible' : 'hidden' }}
+      data-docked={docked || undefined}
+      style={
+        docked
+          ? { left: 8, right: 8, bottom: 'calc(12px + env(safe-area-inset-bottom))', visibility: pos ? 'visible' : 'hidden' }
+          : { left: pos?.left ?? -9999, top: pos?.top ?? -9999, visibility: pos && !pos.hidden ? 'visible' : 'hidden' }
+      }
       className="ga-ui fixed z-50 select-none rounded-ga-touch border border-ga-line bg-ga-card p-1 text-ga-ink shadow-ga-panel"
     >
-      <div className="flex items-center gap-0.5">
+      <div className={cn('flex items-center gap-0.5', docked && 'flex-wrap justify-center')}>
         {MARK_COLORS.map((c, i) => (
           <button
             key={c}
@@ -495,8 +511,8 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
       ref={noteRef}
       role="dialog"
       aria-label={t('noteTitle', { where: describe(notePiece) })}
-      style={{ left: Math.min(Math.max(8, barBox?.left ?? 8), window.innerWidth - 316), top: noteTop }}
-      className="ga-ui fixed z-50 w-[300px] rounded-ga-touch border border-ga-line bg-ga-card p-3 text-ga-ink shadow-ga-panel"
+      style={docked ? { left: 8, right: 8, top: 'calc(8px + env(safe-area-inset-top))' } : { left: Math.min(Math.max(8, barBox?.left ?? 8), window.innerWidth - 316), top: noteTop }}
+      className={cn('ga-ui fixed z-50 rounded-ga-touch border border-ga-line bg-ga-card p-3 text-ga-ink shadow-ga-panel', !docked && 'w-[300px]')}
     >
       <label htmlFor={textareaId} className="mb-1.5 block text-ga-caption font-semibold text-ga-muted">
         {t('noteTitle', { where: describe(notePiece) })}
