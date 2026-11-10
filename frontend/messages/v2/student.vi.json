@@ -2554,6 +2554,7 @@
           "legend": "Ý nghĩa màu",
           "hint": "Bôi đen chữ trong bài hoặc trong câu hỏi để tô màu, gạch chân, gắn vào số câu hay ghi chú. Bấm vào đoạn đã tô để sửa. Nút ⊘ cạnh đáp án để gạch bỏ phương án đã loại.",
           "hintNarrow": "Mở màn hình rộng hơn (từ 760px) để tạo đánh dấu; đánh dấu đã có vẫn hiện ở đây.",
+          "hintExam": "Bôi đen chữ để tô màu hoặc gạch chân như bút trên đề giấy. Trong giờ thi không gắn số câu hay ghi chú; nộp bài xong, phần xem lại có đủ công cụ. Nút ⊘ cạnh đáp án để gạch bỏ phương án đã loại.",
           "undo": "Hoàn tác đánh dấu (Ctrl+Z)",
           "hide": "Ẩn đánh dấu để đọc bài sạch",
           "show": "Hiện lại đánh dấu",

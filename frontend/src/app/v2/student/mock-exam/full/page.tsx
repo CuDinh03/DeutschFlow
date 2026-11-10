@@ -34,7 +34,8 @@ import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { useTracking } from '@/hooks/useTracking'
 import { ConfirmDialog, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { PracticeShell, type PracticeSaveState } from '@/components/exam/practice/PracticeShell'
-import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
+import { ObjectiveTeilView, marksTexts } from '@/components/exam/practice/ObjectiveTeilView'
+import { usePassageMarks, type MarksSource } from '@/components/exam/marks/usePassageMarks'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
@@ -43,6 +44,7 @@ import { ItemAssist, useCachedAsk, type ItemAssistValue } from '@/components/exa
 import { FlaggedNav, type FlaggedEntry } from '@/components/exam/mock/FlaggedNav'
 import {
   fullTeile,
+  markableTeil,
   resumeIndex,
   teilProgress,
   unansweredCount,
@@ -382,6 +384,16 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   }, [idx])
   const assist = React.useMemo<ItemAssistValue>(() => ({ flags: flagSet, onToggleFlag: toggleFlag, jump }), [flagSet, toggleFlag, jump])
 
+  // ── đánh dấu bài đọc (đợt 2, 10/11/2026): chế độ thi — chỉ màu, gạch chân, gạch bỏ đáp án. Lưu theo
+  // lượt, riêng với nháp đáp án (không đụng khoá phiên bản của nháp). ──
+  const curTeil = teile[idx] ?? null
+  const marksSource = React.useMemo<MarksSource | null>(
+    () => (attemptId && curTeil && markableTeil(curTeil) ? { kind: 'attempt', attemptId, teilKey: curTeil.key } : null),
+    [attemptId, curTeil],
+  )
+  const marksTextMap = React.useMemo(() => (curTeil ? marksTexts(curTeil.data) : {}), [curTeil])
+  const marks = usePassageMarks({ source: marksSource, texts: marksTextMap })
+
   // ── dừng giữa chừng ─────────────────────────────────────────────────────────
   // Bấm dừng: chặn autosave + keepalive, gửi /stop (server chấm theo Teil, dừng đồng hồ tại finished_at),
   // rồi tắt hẳn autosaver. Lỗi mạng ⇒ mở lại lượt như cũ, hộp báo chưa dừng được.
@@ -525,7 +537,18 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   } else if (kind !== 'unknown' && kind !== 'writing') {
     body = (
       <ItemAssist.Provider value={assist}>
-        <ObjectiveTeilView key={cur.key} teil={cur.data} kind={kind} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
+        <ObjectiveTeilView
+          key={cur.key}
+          teil={cur.data}
+          kind={kind}
+          answers={answers}
+          onAnswer={onAnswer}
+          result={null}
+          wide={wide}
+          tips={null}
+          marks={marksSource ? marks : null}
+          marksMode="exam"
+        />
       </ItemAssist.Provider>
     )
   } else {
@@ -695,6 +718,16 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
   const askAi = useCachedAsk(open && !open.startsWith('SCHREIBEN') ? askRaw : null, `${attemptId}|${open ?? ''}`)
   const reviewAssist = React.useMemo<ItemAssistValue>(() => ({ askAi }), [askAi])
 
+  // Đánh dấu của lượt khi xem lại một Teil (đợt 2): thấy lại đánh dấu lúc thi + bằng chứng + chẩn đoán,
+  // sửa được đủ công cụ (gắn câu, ghi chú) — owner chốt 09/11/2026.
+  const reviewTeil = React.useMemo(() => (open ? teile.find((x) => x.key === open) ?? null : null), [open, teile])
+  const reviewSource = React.useMemo<MarksSource | null>(
+    () => (reviewTeil && markableTeil(reviewTeil) ? { kind: 'attempt', attemptId, teilKey: reviewTeil.key } : null),
+    [reviewTeil, attemptId],
+  )
+  const reviewTexts = React.useMemo(() => (reviewTeil ? marksTexts(reviewTeil.data) : {}), [reviewTeil])
+  const reviewMarks = usePassageMarks({ source: reviewSource, texts: reviewTexts })
+
   if (error) {
     return (
       <PracticeShell backHref={HUB} backLabel={t('backToHub')} subtitle={t('resultCap')} title={t('resultTitle')}>
@@ -761,7 +794,17 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
         </ItemAssist.Provider>
       ) : kind !== 'unknown' && kind !== 'writing' ? (
         <ItemAssist.Provider value={reviewAssist}>
-          <ObjectiveTeilView key={openTeil.key} teil={openTeil.data} kind={kind} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
+          <ObjectiveTeilView
+            key={openTeil.key}
+            teil={openTeil.data}
+            kind={kind}
+            answers={given}
+            onAnswer={() => undefined}
+            result={r}
+            wide={split}
+            tips={null}
+            marks={reviewSource ? reviewMarks : null}
+          />
         </ItemAssist.Provider>
       ) : (
         <div className="p-6"><ErrorBanner message={tp('teilMissing')} /></div>

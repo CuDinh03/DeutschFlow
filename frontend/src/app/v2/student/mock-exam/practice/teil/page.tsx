@@ -24,7 +24,7 @@ import { ConfirmDialog, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { PracticeShell, TipsCard } from '@/components/exam/practice/PracticeShell'
 import { usePracticeDraft } from '@/components/exam/practice/usePracticeDraft'
 import { ObjectiveTeilView, marksTexts } from '@/components/exam/practice/ObjectiveTeilView'
-import { hasContent, usePassageMarks } from '@/components/exam/marks/usePassageMarks'
+import { hasContent, usePassageMarks, type MarksSource } from '@/components/exam/marks/usePassageMarks'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
@@ -214,7 +214,11 @@ function PracticeTeilPage() {
   // ── đánh dấu bài đọc (09/11/2026, đợt 1: Lesen có bài đọc, dạng a/b/c) — lưu riêng với nháp đáp án ──
   const marksEnabled = !!overview && meta?.section === 'LESEN' && kind === 'mc' && !!teil?.context
   const marksTextMap = React.useMemo(() => (teil ? marksTexts(teil) : {}), [teil])
-  const marks = usePassageMarks({ examId, teilKey: marksEnabled ? teilKey : null, texts: marksTextMap, enabled: marksEnabled })
+  const marksSource = React.useMemo<MarksSource | null>(
+    () => (marksEnabled && teilKey ? { kind: 'practice', examId, teilKey } : null),
+    [marksEnabled, examId, teilKey],
+  )
+  const marks = usePassageMarks({ source: marksSource, texts: marksTextMap })
   const [redoOpen, setRedoOpen] = React.useState(false)
   const [keepMarks, setKeepMarks] = React.useState(true)
 

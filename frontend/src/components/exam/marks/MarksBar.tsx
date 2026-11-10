@@ -10,9 +10,10 @@ import type { PassageMarks } from './usePassageMarks'
 /**
  * Dải "Bút đánh dấu" trên bài đọc: chú thích ba màu (owner chốt 09/11/2026: ý nghĩa màu phải có
  * trong hướng dẫn), gợi ý thao tác, Hoàn tác, Ẩn/hiện đánh dấu, và báo lưu lỗi / đề vừa sửa.
+ * `full = false` (đang thi thử): gợi ý không nhắc gắn số câu / ghi chú.
  * `data-tour="marks"` cho bước hướng dẫn lần đầu.
  */
-export function MarksBar({ marks, canEdit }: { marks: PassageMarks; canEdit: boolean }) {
+export function MarksBar({ marks, canEdit, full = true }: { marks: PassageMarks; canEdit: boolean; full?: boolean }) {
   const t = useTranslations('v2.student.practice.marks')
   const icon = 'inline-flex h-9 w-9 items-center justify-center rounded-ga-touch text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-35 disabled:hover:bg-transparent'
   return (
@@ -52,7 +53,7 @@ export function MarksBar({ marks, canEdit }: { marks: PassageMarks; canEdit: boo
           </button>
         </span>
       </div>
-      <p className="mt-1 text-ga-caption text-ga-muted">{canEdit ? t('bar.hint') : t('bar.hintNarrow')}</p>
+      <p className="mt-1 text-ga-caption text-ga-muted">{canEdit ? t(full ? 'bar.hint' : 'bar.hintExam') : t('bar.hintNarrow')}</p>
       {marks.staleDropped && <p className="mt-1 text-ga-caption font-semibold text-ga-warning">{t('bar.stale')}</p>}
       {marks.saveState === 'error' && (
         <p role="status" className="mt-1 text-ga-caption font-semibold text-ga-red">

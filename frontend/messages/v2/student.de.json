@@ -2554,6 +2554,7 @@
           "legend": "Bedeutung der Farben",
           "hint": "Text im Lesetext oder in einer Aufgabe markieren: farbig hervorheben, unterstreichen, einer Aufgabe zuordnen oder notieren. Markierung anklicken zum Bearbeiten. ⊘ neben einer Option streicht sie durch.",
           "hintNarrow": "Markierungen auf einem breiteren Bildschirm (ab 760 px) anlegen; vorhandene bleiben sichtbar.",
+          "hintExam": "Text markieren, um ihn farbig hervorzuheben oder zu unterstreichen – wie mit dem Stift auf dem Papier. In der Prüfung keine Zuordnung zu Aufgaben und keine Notizen; in der Nachbesprechung nach der Abgabe gibt es alle Werkzeuge. ⊘ neben einer Option streicht sie durch.",
           "undo": "Markierung rückgängig (Strg+Z)",
           "hide": "Markierungen ausblenden",
           "show": "Markierungen einblenden",

@@ -52,10 +52,15 @@ interface Props {
   /** Khối đặt trên cùng cột trả lời (Hören màn hẹp: trình phát của đoạn đang nghe). */
   answersTop?: React.ReactNode
   /**
-   * Đánh dấu bài đọc (09/11/2026, đợt 1: Lesen 2 ở luyện Teil). Trang tạo bằng `usePassageMarks`;
-   * không truyền ⇒ không có công cụ đánh dấu (thi thử, bài chẩn đoán — đợt 2).
+   * Đánh dấu bài đọc (09/11/2026; Lesen 2 — luyện Teil, thi thử, xem lại lượt thi). Trang tạo bằng
+   * `usePassageMarks`; không truyền ⇒ không có công cụ đánh dấu.
    */
   marks?: PassageMarks | null
+  /**
+   * `full` (mặc định): đủ công cụ — luyện Teil, xem lại sau khi nộp. `exam`: đang thi thử — chỉ màu, gạch
+   * chân, tẩy, gạch bỏ đáp án; không gắn số câu, không ghi chú (owner chốt 09/11/2026; server cũng bỏ).
+   */
+  marksMode?: 'full' | 'exam'
 }
 
 /** Chữ các khối đánh dấu được của một Teil trắc nghiệm có bài đọc: `ctx` + đề từng câu. */
@@ -84,7 +89,7 @@ type Req<T> = { n: number } & T
  * dạng nối/chỗ trống/rao vặt cạnh câu đang chọn, phím F) + hàng "Câu đã đánh dấu" để nhảy tới; trang cấp
  * `flags` thì cờ do trang giữ (thi thử lưu cùng nháp). Ô "Vì sao tôi chọn" khi trang cấp `onNote` (luyện Teil).
  */
-export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks }: Props) {
+export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks, marksMode = 'full' }: Props) {
   const t = useTranslations('v2.student.practice')
   const tf = useTranslations('v2.student.practice.frame')
   const items = React.useMemo(() => teil.items ?? [], [teil.items])
@@ -252,6 +257,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
   const tm = useTranslations('v2.student.practice.marks')
   const marksOn = !!marks && isMc && !!teil.context && marks.ready
   const canMark = marksOn && wide && !marks!.hidden
+  const marksFull = marksMode === 'full'
   const marksRoot = React.useRef<HTMLDivElement>(null)
   const ctxText = React.useMemo(() => passageText(teil.context ?? ''), [teil.context])
   const ctxLines = React.useMemo(() => passageLineMap(ctxText), [ctxText])
@@ -430,7 +436,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       struck={marksOn ? (opt) => struck(item.id, opt) : undefined}
       onStrike={marksOn && !checked ? (opt) => toggleStrike(item.id, opt) : undefined}
       marksChip={
-        markedItems.has(item.id) ? (
+        marksFull && markedItems.has(item.id) ? (
           <button
             type="button"
             onClick={() => showMarksOf(item.id)}
@@ -454,7 +460,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       {intro}
       {result && <ScoreLine result={result} />}
       {teil.examples && teil.examples.length > 0 && <Examples examples={teil.examples} />}
-      {marksOn && <MarksBar marks={marks!} canEdit={wide} />}
+      {marksOn && <MarksBar marks={marks!} canEdit={wide} full={marksFull} />}
       {isMc && teil.context && (
         <ReadingPassage
           teil={teil}
@@ -621,7 +627,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
           canEdit={canMark}
           items={items.map((it) => ({ id: it.id, label: itemLabel(it) }))}
           currentItemId={current}
-          full
+          full={marksFull}
           describe={describe}
         />
       )}
