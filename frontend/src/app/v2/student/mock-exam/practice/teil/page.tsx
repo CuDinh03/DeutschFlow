@@ -532,7 +532,7 @@ function PracticeTeilPage() {
     >
       <ItemAssist.Provider value={assist}>
         {meta.section === 'HOEREN' ? (
-          <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} />
+          <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} marks={marksEnabled ? marks : null} />
         ) : (
           <ObjectiveTeilView
             teil={teil}

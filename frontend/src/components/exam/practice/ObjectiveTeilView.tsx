@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import type { PracticeItemResult, PracticeTeilResult } from '@/lib/telcPracticeApi'
 import { evidenceRanges } from '@/lib/exam/evidenceRanges'
 import { ReadingPassage, lineNumberAt, passageLineMap, passageText } from '@/components/exam/telc/ReadingPassage'
-import { MarkedText, type MarkLayer } from '@/components/exam/marks/MarkedText'
+import { MarkLayerContext, MarkedText, type MarkLayer } from '@/components/exam/marks/MarkedText'
 import { MarkDiagnosis } from '@/components/exam/marks/MarkDiagnosis'
 import { MarksBar } from '@/components/exam/marks/MarksBar'
 import { PassageMarker } from '@/components/exam/marks/PassageMarker'
@@ -20,6 +20,7 @@ import { ItemAnalysis, LetterBadge } from './ItemAnalysis'
 import { FlagToggle, FlaggedList, ItemAssist, NoteField } from './itemAssist'
 import { PracticeFootSlot } from './PracticeShell'
 import { SplitPanes, type SheetSnap } from './SplitPanes'
+import { useCoarsePointer } from './useWide'
 import {
   NONE_OF_THEM,
   itemLabel,
@@ -251,7 +252,10 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
   // ── đánh dấu bài đọc (09/11/2026; đợt 3 thêm Lesen 1, Lesen 3, Sprachbausteine — màn ≥ 760px) ──
   const tm = useTranslations('v2.student.practice.marks')
   const marksOn = !!marks && marksSupported(teil, kind) && marks.ready
-  const canMark = marksOn && wide && !marks!.hidden
+  // Đợt 2b (10/11/2026): màn hẹp / cảm ứng cũng tạo đánh dấu được — thanh công cụ neo đáy màn.
+  const coarse = useCoarsePointer()
+  const docked = !wide || coarse
+  const canMark = marksOn && !marks!.hidden
   const marksFull = marksMode === 'full'
   const marksRoot = React.useRef<HTMLDivElement>(null)
   const ctxText = React.useMemo(() => passageText(teil.context ?? ''), [teil.context])
@@ -267,6 +271,8 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       if (p.b.startsWith('t:')) return tm('inText', { n: labelOfId(p.b.slice(2)) })
       if (p.b.startsWith('ad:')) return tm('inAd', { k: p.b.slice(3) })
       if (p.b === 'gap') return tm('inLetter')
+      if (p.b.startsWith('h:teil:')) return tm('inTranscriptTeil')
+      if (p.b.startsWith('h:')) return tm('inTranscript', { n: labelOfId(p.b.split(':')[1]) })
       const a = lineNumberAt(ctxLines, p.s)
       const b = lineNumberAt(ctxLines, Math.max(p.s, p.e - 1))
       return a === b ? tm('line', { n: a }) : tm('lines', { a, b })
@@ -466,7 +472,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
       {intro}
       {result && <ScoreLine result={result} />}
       {teil.examples && teil.examples.length > 0 && <Examples examples={teil.examples} />}
-      {marksOn && <MarksBar marks={marks!} canEdit={wide} full={marksFull} />}
+      {marksOn && <MarksBar marks={marks!} touch={docked} full={marksFull} />}
       {isMc && teil.context && (
         <ReadingPassage
           teil={teil}
@@ -634,7 +640,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
         // `contents`: không thêm hộp vào bố cục, chỉ làm gốc cho vùng chọn + lớp ẩn đánh dấu.
         // Có ngay từ đầu (không chờ tải) để SplitPanes không bị dựng lại khi đánh dấu về.
         <div ref={marksRoot} className={cn('contents', marks.hidden && 'ga-marks-hidden')}>
-          {panes}
+          <MarkLayerContext.Provider value={layer}>{panes}</MarkLayerContext.Provider>
         </div>
       ) : (
         panes
@@ -644,6 +650,7 @@ export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide,
           marks={marks!}
           rootRef={marksRoot}
           canEdit={canMark}
+          docked={docked}
           items={items.map((it) => ({ id: it.id, label: itemLabel(it) }))}
           currentItemId={current}
           full={marksFull}

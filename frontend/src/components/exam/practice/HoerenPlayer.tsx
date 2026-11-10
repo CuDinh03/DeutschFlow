@@ -6,6 +6,8 @@ import { Captions, Lock, Play, Repeat1, Repeat2, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { speakExamLine, stopExamTts } from '@/components/features/exam-speaking/examTts'
 import { canPlayAgain, normalizeTurns, playsLeft, type AudioTurn } from '@/components/exam/audioScript'
+import { MarkLayerContext, MarkedText } from '@/components/exam/marks/MarkedText'
+import { blockText } from '@/components/exam/marks/marksBlocks'
 
 interface Props {
   turns: AudioTurn[]
@@ -23,6 +25,11 @@ interface Props {
   onPlayStart?: () => void
   /** Phát xong một lượt (không tính lượt bị dừng): số lượt đã dùng. */
   onEnded?: (playsUsed: number) => void
+  /**
+   * Phạm vi khối đánh dấu của lời thoại (đợt 3b): `teil` hoặc id câu ⇒ dòng i là khối `h:<phạm vi>:<i>`.
+   * Chỉ có tác dụng khi Teil cấp lớp đánh dấu (`MarkLayerContext`, sau khi kiểm tra).
+   */
+  markScope?: string
 }
 
 /**
@@ -30,7 +37,8 @@ interface Props {
  * (`speakExamLine`: server TTS, hỏng thì giọng máy). Mỗi lượt bấm là một lượt nghe; hết lượt thì nút
  * tắt và nói rõ "đã hết lượt". Màn hình luôn cho biết AI đang nói — kể cả khi chỉ còn một giọng máy.
  */
-export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcript = false, allowStop = true, compact = false, onPlayStart, onEnded }: Props) {
+export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcript = false, allowStop = true, compact = false, onPlayStart, onEnded, markScope }: Props) {
+  const layer = React.useContext(MarkLayerContext)
   const t = useTranslations('v2.student.practice.hoeren')
   const ta = useTranslations('v2.student.examResult.audioPlayer')
   const lines = normalizeTurns(turns)
@@ -146,7 +154,13 @@ export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcrip
             <li key={idx} className={cn('flex min-w-0 gap-2 rounded-ga px-2 py-1 text-ga-small transition-colors', active === idx && 'bg-ga-navy-soft')}>
               <span className={cn('shrink-0 font-semibold', turns[idx]?.kind === 'LEAD_IN' ? 'text-ga-muted' : 'text-ga-navy')}>{nameOf(idx)}</span>
               {transcript && showText ? (
-                <span lang="de" className="min-w-0 break-words font-ga-display text-ga-body text-ga-ink">{line.text}</span>
+                <span lang="de" className="min-w-0 break-words font-ga-display text-ga-body text-ga-ink">
+                  {layer && markScope ? (
+                    <MarkedText block={`h:${markScope}:${idx}`} text={blockText(line.text)} layer={layer} />
+                  ) : (
+                    line.text
+                  )}
+                </span>
               ) : (
                 <span aria-hidden className="text-ga-subtle">{active === idx ? '▶' : '·'}</span>
               )}

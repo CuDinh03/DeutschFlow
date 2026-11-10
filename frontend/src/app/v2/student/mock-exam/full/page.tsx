@@ -790,7 +790,16 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
       const kind = kindOf(openTeil.data, openTeil.key)
       body = openTeil.section === 'HOEREN' ? (
         <ItemAssist.Provider value={reviewAssist}>
-          <HoerenTeilView key={openTeil.key} teil={openTeil.data} answers={given} onAnswer={() => undefined} result={r} wide={split} tips={null} />
+          <HoerenTeilView
+            key={openTeil.key}
+            teil={openTeil.data}
+            answers={given}
+            onAnswer={() => undefined}
+            result={r}
+            wide={split}
+            tips={null}
+            marks={reviewSource ? reviewMarks : null}
+          />
         </ItemAssist.Provider>
       ) : kind !== 'unknown' && kind !== 'writing' ? (
         <ItemAssist.Provider value={reviewAssist}>

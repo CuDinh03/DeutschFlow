@@ -64,6 +64,22 @@ describe('marksBlocks (đợt 3)', () => {
     expect(o1('q:LV1-1')).toBeLessThan(o1('t:LV1-2'))
   })
 
+  it('lời bài Hören theo dòng, khớp server (PassageMarksValidatorTest)', () => {
+    const teil2: PracticeTeilData = {
+      audio_script: [{ speaker: 'PRUEFER', text: '  Guten Tag!\r\n ' }, { text: '   ' }, { name: 'Anna', text: 'Hallo\u00A0' }],
+    }
+    expect(marksTexts(teil2)).toEqual({ 'h:teil:0': 'Guten Tag!', 'h:teil:1': 'Hallo' })
+    const teil1: PracticeTeilData = {
+      items: [
+        { id: 'HV1-41', lead_in_de: ' Im Radio hören Sie: ', audio_script: 'Achtung, Gleis 3.' },
+        { id: 'HV1-42', audio_script: '' },
+      ],
+    }
+    expect(marksTexts(teil1)).toEqual({ 'h:HV1-41:0': 'Im Radio hören Sie:', 'h:HV1-41:1': 'Achtung, Gleis 3.' })
+    expect(marksSupported(teil1, 'mc')).toBe(true)
+    expect(evidenceBlocks(teil1, 'mc', 'HV1-41')).toEqual(['h:HV1-41:0', 'h:HV1-41:1'])
+  })
+
   it('thư có chỗ trống: các đoạn chữ giữ vị trí trên chữ đã chuẩn hoá', () => {
     const text = marksTexts(SB).gap
     const pieces = gapPieces(text)
