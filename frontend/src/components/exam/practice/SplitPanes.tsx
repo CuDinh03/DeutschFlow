@@ -33,6 +33,11 @@ interface Props {
   revealRequest?: { selector: string; n: number }
   sourceLabel?: string
   answersLabel?: string
+  /**
+   * Màn hẹp: tạm ẩn ngăn trả lời (đang mở thanh công cụ đánh dấu ở cột nguồn) để bài đọc chiếm cả màn.
+   * Không đổi mốc đã chọn — bỏ cờ là ngăn trở lại đúng chỗ cũ.
+   */
+  sheetHidden?: boolean
 }
 
 /**
@@ -41,7 +46,7 @@ interface Props {
  * Màn hẹp: ngăn trả lời kéo lên xuống, thả ra dừng ở 28 · 55 · 88%; nút mở rộng/thu nhỏ và ↑/↓ làm
  * cùng việc cho người không kéo được. Thanh cuộn chỉ hiện khi đang lướt.
  */
-export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, revealRequest, sourceLabel, answersLabel }: Props) {
+export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, revealRequest, sourceLabel, answersLabel, sheetHidden = false }: Props) {
   const t = useTranslations('v2.student.practice.frame')
   const rootRef = React.useRef<HTMLDivElement>(null)
   const sourceRef = React.useRef<HTMLDivElement>(null)
@@ -104,7 +109,7 @@ export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, rev
   React.useEffect(() => {
     if (snapRequest) setSnap(snapRequest.snap)
   }, [snapRequest])
-  const sheetH = dragH ?? Math.round(bodyH * SHEET_SNAPS[snap])
+  const sheetH = sheetHidden ? 0 : dragH ?? Math.round(bodyH * SHEET_SNAPS[snap])
   const onHandleDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button')) return
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -214,7 +219,7 @@ export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, rev
         data-tour="source"
         aria-label={sourceLabel}
         className="ga-autoscroll absolute inset-0 overflow-y-auto px-3 pt-4"
-        style={{ paddingBottom: sheetH + 24 }}
+        style={{ paddingBottom: sheetHidden ? 148 : sheetH + 24 }}
       >
         {source}
       </section>
@@ -224,8 +229,10 @@ export function SplitPanes({ source, answers, wide, sheetLabel, snapRequest, rev
         className={cn(
           'ga-autoscroll absolute inset-x-0 bottom-0 overflow-y-auto rounded-t-[14px] border-t border-ga-line bg-ga-card px-3 pb-6 shadow-ga-drawer',
           dragH == null && 'transition-[height] duration-[240ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
+          sheetHidden && 'invisible', // cao 0 vẫn còn lề + viền ló ra dưới thanh công cụ
         )}
         style={{ height: sheetH }}
+        aria-hidden={sheetHidden || undefined}
       >
         <div
           role="separator"
