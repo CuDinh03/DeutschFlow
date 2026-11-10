@@ -2554,6 +2554,7 @@
           "legend": "Colour meaning",
           "hint": "Select text in the passage or a question to highlight, underline, link it to a question or add a note. Click a highlight to edit it. Use ⊘ next to an option to cross it out.",
           "hintNarrow": "Use a wider screen (760px or more) to create marks; existing marks still show here.",
+          "hintExam": "Select text to highlight or underline it, like a pen on a paper exam. During the exam you can't link marks to questions or add notes; the review after you submit has all tools. Use ⊘ next to an option to cross it out.",
           "undo": "Undo mark (Ctrl+Z)",
           "hide": "Hide marks to read the clean text",
           "show": "Show marks again",

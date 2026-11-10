@@ -1,7 +1,7 @@
 /**
  * Phép thuần của thi thử trọn đề trong giao diện luyện đề mới (06/11/2026). Không gọi API.
  */
-import { parseStructure, wordCount, type PracticeTeilData } from './practiceModel'
+import { kindOf, parseStructure, wordCount, type PracticeTeilData } from './practiceModel'
 
 /** Phần thi chạy trong giao diện mới, theo thứ tự đề telc. Sprechen thi ở phòng thi nói AI riêng. */
 export const FULL_SECTIONS = ['LESEN', 'SPRACHBAUSTEINE', 'HOEREN', 'SCHREIBEN'] as const
@@ -55,4 +55,12 @@ export function unansweredCount(teile: FullTeil[], answers: Record<string, strin
 export function resumeIndex(teile: FullTeil[], sectionIndex: number): number {
   const at = teile.findIndex((t) => t.sectionIndex === sectionIndex)
   return at >= 0 ? at : 0
+}
+
+/**
+ * Teil có bút đánh dấu bài đọc (đợt 2, 10/11/2026): Lesen dạng a/b/c có bài đọc — cùng luật với luyện Teil.
+ * Lesen 1/3, Sprachbausteine, Hören mở ở đợt 3.
+ */
+export function markableTeil(teil: FullTeil): boolean {
+  return teil.section === 'LESEN' && kindOf(teil.data, teil.key) === 'mc' && !!teil.data.context
 }

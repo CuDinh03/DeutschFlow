@@ -213,6 +213,24 @@ export async function savePracticeMarks(examId: number, teilKey: string, marks: 
   return data
 }
 
+/**
+ * Đánh dấu theo lượt thi thử (đợt 2, 10/11/2026). Lượt đang thi: server bỏ gắn câu + ghi chú; lượt đã
+ * nộp / dừng giữa chừng: xem lại sửa được đủ.
+ */
+export function attemptMarksPath(attemptId: number, teilKey: string): string {
+  return `/mock-exams/attempts/${attemptId}/teile/${teilKey}/marks`
+}
+
+export async function getAttemptMarks(attemptId: number, teilKey: string): Promise<PracticeMarks> {
+  const { data } = await api.get<PracticeMarks>(attemptMarksPath(attemptId, teilKey))
+  return data
+}
+
+export async function saveAttemptMarks(attemptId: number, teilKey: string, marks: unknown): Promise<PracticeMarks> {
+  const { data } = await api.put<PracticeMarks>(attemptMarksPath(attemptId, teilKey), { marks })
+  return data
+}
+
 /** Gửi bài Viết rồi chờ AI chấm xong (poll job nền). */
 export async function gradePracticeWriting(
   examId: number,
