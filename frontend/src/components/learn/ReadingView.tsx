@@ -3,7 +3,7 @@
 import { NodeContent, VocabItem, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useMemo } from "react";
 import { BookOpenText, FileQuestion, Lightbulb, Save, X, Check, CircleCheck } from "lucide-react";
-import { GaGlyph } from "@/components/ui-v2";
+import { GaChoiceGroup, GaGlyph } from "@/components/ui-v2";
 import { GenderBadge, AudioButton } from "./LearnComponents";
 import { reviewApi } from "@/lib/reviewApi";
 import { apiMessage } from "@/lib/api";
@@ -210,7 +210,7 @@ export default function ReadingView({ content, isLocked = false }: { content: No
 
                   return (
                     <div key={i} className="space-y-3">
-                      <p className="text-sm font-bold text-ga-ink">{i + 1}. {questionTextOf(item) ?? ""}</p>
+                      <p id={`reading-quiz-${i}`} className="text-sm font-bold text-ga-ink">{i + 1}. {questionTextOf(item) ?? ""}</p>
                       {item.type !== MULTIPLE_CHOICE ? (
                         <input
                           type="text"
@@ -222,29 +222,15 @@ export default function ReadingView({ content, isLocked = false }: { content: No
                           className="w-full rounded-ga border-2 border-ga-line px-3 py-2 text-xs focus:border-ga-yellow focus:outline-none disabled:opacity-60"
                         />
                       ) : (
-                      <div className="space-y-2">
-                        {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
-                          const isSelected = answers[i] === j;
-                          const isCorrect = correctIndexOf(item) === j;
-                          const showResult = quizSubmitted;
-                          
-                          let btnClass = "border-ga-line hover:border-ga-line text-ga-muted";
-                          if (isSelected && !showResult) btnClass = "border-ga-yellow bg-ga-yellow/10 text-ga-ink";
-                          if (showResult && isCorrect) btnClass = "border-ga-green bg-ga-green-soft text-ga-green";
-                          if (showResult && isSelected && !isCorrect) btnClass = "border-ga-red bg-ga-red-soft text-ga-red";
-
-                          return (
-                            <button
-                              key={j}
-                              onClick={() => !quizSubmitted && setAnswers((prev: AnswerMap) => ({ ...prev, [i]: j }))}
-                              disabled={quizSubmitted}
-                              className={`w-full text-left px-3 py-2 rounded-ga border-2 text-xs font-medium transition-[background-color,border-color,color,box-shadow,transform] ${btnClass}`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <GaChoiceGroup
+                        aria-labelledby={`reading-quiz-${i}`}
+                        letters={false}
+                        options={(Array.isArray(item.options) ? (item.options as string[]) : []).map((opt, j) => ({ value: j, label: opt }))}
+                        value={typeof answers[i] === "number" ? (answers[i] as number) : null}
+                        onChange={(j) => setAnswers((prev: AnswerMap) => ({ ...prev, [i]: j }))}
+                        locked={quizSubmitted}
+                        correctValue={quizSubmitted ? (correctIndexOf(item) ?? null) : null}
+                      />
                       )}
                     </div>
                   );

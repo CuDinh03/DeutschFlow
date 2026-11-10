@@ -150,7 +150,7 @@ public class MockExamController {
         var existing = jdbcTemplate.queryForList("""
             SELECT id, exam_id, started_at, status,
                    draft_json::text AS draft_json, draft_section_index, draft_question_index,
-                   draft_version, draft_saved_at
+                   draft_version, draft_saved_at, draft_flags_json::text AS draft_flags_json
             FROM mock_exam_attempts
             WHERE user_id = ? AND exam_id = ? AND status = 'IN_PROGRESS'
             """, uid, examId);
@@ -184,7 +184,8 @@ public class MockExamController {
                     (Integer) attemptRow.get("draft_section_index"),
                     (Integer) attemptRow.get("draft_question_index"),
                     ((Number) attemptRow.get("draft_version")).longValue(),
-                    (java.util.Date) attemptRow.get("draft_saved_at"));
+                    (java.util.Date) attemptRow.get("draft_saved_at"),
+                    draftService.parseFlags((String) attemptRow.get("draft_flags_json")));
         }
 
         // Strip the answer key before sending to the client: an in-progress exam must not
@@ -221,7 +222,7 @@ public class MockExamController {
         Instant now = Instant.now();
 
         MockExamDraftService.SaveResult result = draftService.save(
-                uid, attemptId, answersJson, body.sectionIndex(), body.questionIndex(), baseVersion, now);
+                uid, attemptId, answersJson, body.sectionIndex(), body.questionIndex(), baseVersion, now, body.flags());
 
         return switch (result.outcome()) {
             case SAVED -> ResponseEntity.ok(new ExamDraftSaveDto(
@@ -251,6 +252,8 @@ public class MockExamController {
                 draft.put("question_index", server.questionIndex());
                 draft.put("version", server.version());
                 draft.put("saved_at", server.savedAt());
+                java.util.List<String> flags = draftService.parseFlags(server.flagsJson());
+                if (flags != null) draft.put("flags", flags);
                 body.put("draft", draft);
             }
         }

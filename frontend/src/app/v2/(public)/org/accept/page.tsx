@@ -13,8 +13,8 @@ import ClientPage from './client-page'
  * trong đường dẫn → URL vẫn đúng là /v2/org/accept, nhưng layout áp dụng chỉ còn app/layout.tsx +
  * v2/layout.tsx (`.ga-scope`), KHÔNG có v2/org/layout.tsx.
  *
- * <Suspense> là BẮT BUỘC: client component bên dưới đọc `useSearchParams()` để lấy `?token=`.
- * Thiếu nó thì bước prerender của `next build` gãy.
+ * <Suspense>: trước đây BẮT BUỘC vì client component đọc `useSearchParams()`; từ QLT-20 (09/11/2026)
+ * token đọc thẳng từ `window.location` lúc mount rồi xoá khỏi URL, nhưng giữ ranh giới cho fallback nền.
  *
  * Fallback chỉ là một khối nền trống (không phải GaAuthShell): vỏ Galerie chỉ được dựng ở MỘT nơi
  * — client-page.tsx — nên fallback chỉ cần giữ đúng màu nền để không chớp trắng trước khi hydrate.

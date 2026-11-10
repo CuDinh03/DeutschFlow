@@ -1,7 +1,7 @@
 'use client'
 
 import { refreshAccessToken } from '@/lib/api'
-import { getAccessToken } from '@/lib/authSession'
+import { getAccessToken, isSupportMode } from '@/lib/authSession'
 
 // SSE fetch must go directly to Spring Boot, not to the Next.js origin — a relative
 // `/api/...` resolves against window.location.origin and hits Next.js → 404 retry loop.
@@ -98,6 +98,11 @@ export function subscribeNotificationUnread(
   },
 ): AbortController {
   const ctrl = new AbortController()
+  // Tab phiên hỗ trợ chỉ-đọc: KHÔNG mở luồng SSE (backend cũng chặn) — trả controller đã huỷ, không vòng lặp.
+  if (isSupportMode()) {
+    ctrl.abort()
+    return ctrl
+  }
   const reconnectDelay = options?.reconnectAfterMs ?? 4_000
   const retry429Ms = options?.reconnectAfterRateLimitMs ?? 30_000
   const maxReconnectMs = options?.maxReconnectMs ?? 60_000

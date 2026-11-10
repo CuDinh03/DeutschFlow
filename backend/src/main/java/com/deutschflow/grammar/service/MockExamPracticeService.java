@@ -1,6 +1,7 @@
 package com.deutschflow.grammar.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.grammar.dto.PracticeDtos;
@@ -47,6 +48,8 @@ public class MockExamPracticeService {
             "HOEREN-1", 8, "HOEREN-2", 12, "HOEREN-3", 10, WRITING_KEY, 30);
 
     private static final int MAX_ELAPSED = 6 * 3600;
+    /** "Vì sao tôi chọn" (B3): một hai câu là đủ — dài hơn thì cắt. */
+    static final int MAX_NOTE_CHARS = 300;
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
 
     private final JdbcTemplate jdbc;
@@ -111,8 +114,16 @@ public class MockExamPracticeService {
 
     public PracticeDtos.Progress saveDraft(User user, long examId, String teilKey, Map<String, String> answers,
                                           Integer elapsed) {
+        return saveDraft(user, examId, teilKey, answers, elapsed, null);
+    }
+
+    /**
+     * @param notes "vì sao tôi chọn" theo câu (B3); {@code null} = giữ ghi chú đã lưu (client cũ, bài chẩn đoán).
+     */
+    public PracticeDtos.Progress saveDraft(User user, long examId, String teilKey, Map<String, String> answers,
+                                          Integer elapsed, Map<String, String> notes) {
         Exam exam = loadExam(user, examId);
-        requireTeil(exam, teilKey);
+        Map<String, Object> teil = requireTeil(exam, teilKey);
         Map<String, Map<String, Object>> rows = progressRows(user.getId(), examId);
         Map<String, Object> row = rows.get(teilKey);
         if (row != null && WRITING_KEY.equals(teilKey)) {
@@ -128,27 +139,95 @@ public class MockExamPracticeService {
             // Teil đã kiểm tra: đáp án đã chấm là nguồn sự thật, nháp đến muộn không được đè lên.
             return toProgress(row);
         }
-        upsert(user.getId(), examId, teilKey, json(clean(answers)), false, null, null, clampElapsed(elapsed), null);
+        upsert(user.getId(), examId, teilKey, json(clean(answers)), false, null, null, clampElapsed(elapsed), null,
+                notesJson(teil, notes));
         return toProgress(progressRows(user.getId(), examId).get(teilKey));
     }
 
     public PracticeDtos.Progress check(User user, long examId, String teilKey, Map<String, String> answers,
                                        Integer elapsed) {
+        return check(user, examId, teilKey, answers, elapsed, null);
+    }
+
+    public PracticeDtos.Progress check(User user, long examId, String teilKey, Map<String, String> answers,
+                                       Integer elapsed, Map<String, String> notes) {
         Exam exam = loadExam(user, examId);
         Map<String, Object> teil = requireTeil(exam, teilKey);
         if (WRITING_KEY.equals(teilKey)) throw new BadRequestException("Teil Viết chấm bằng AI, không kiểm tra theo đáp án.");
         Map<String, String> clean = clean(answers);
         PracticeAnalysis.TeilResult result = PracticeAnalysis.analyse(teilKey, teil, notes(examId, teilKey), clean);
         upsert(user.getId(), examId, teilKey, json(clean), true, result.score(), result.max(),
-                clampElapsed(elapsed), json(result));
+                clampElapsed(elapsed), json(result), notesJson(teil, notes));
         return toProgress(progressRows(user.getId(), examId).get(teilKey));
     }
 
     public void reset(User user, long examId, String teilKey) {
+        reset(user, examId, teilKey, true);
+    }
+
+    /**
+     * "Làm lại": xoá đáp án + kết quả. Đánh dấu bài đọc ở bảng riêng — giữ hay xoá do người học chọn
+     * trong hộp xác nhận (owner chốt 09/11/2026: hỏi mỗi lần, mặc định giữ).
+     */
+    public void reset(User user, long examId, String teilKey, boolean keepMarks) {
         Exam exam = loadExam(user, examId);
         requireTeil(exam, teilKey);
         jdbc.update("DELETE FROM mock_exam_practice_progress WHERE user_id = ? AND exam_id = ? AND teil_key = ?",
                 user.getId(), examId, teilKey);
+        if (!keepMarks) {
+            jdbc.update("""
+                    DELETE FROM exam_passage_marks
+                    WHERE user_id = ? AND exam_id = ? AND teil_key = ? AND attempt_id IS NULL
+                    """, user.getId(), examId, teilKey);
+        }
+    }
+
+    // ─── đánh dấu bài đọc (09/11/2026) ──────────────────────────────────────
+
+    public PracticeDtos.Marks marks(User user, long examId, String teilKey) {
+        Exam exam = loadExam(user, examId);
+        requireTeil(exam, teilKey);
+        return marksRow(user.getId(), examId, teilKey);
+    }
+
+    /** Ghi đè cả gói (lần lưu sau thắng). Kiểm + làm sạch ở {@link PassageMarksValidator}. */
+    public PracticeDtos.Marks saveMarks(User user, long examId, String teilKey, Map<String, Object> raw) {
+        Exam exam = loadExam(user, examId);
+        Map<String, Object> teil = requireTeil(exam, teilKey);
+        Map<String, Object> clean = PassageMarksValidator.clean(raw, PassageMarksValidator.blocksOf(teil),
+                itemIds(teil), PassageMarksValidator.optionsOf(teil), PassageMarksValidator.Mode.FULL);
+        String body = json(clean);
+        if (body.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > PassageMarksValidator.MAX_JSON_BYTES) {
+            throw new BadRequestException("Gói đánh dấu quá lớn.");
+        }
+        jdbc.update("""
+                INSERT INTO exam_passage_marks (user_id, exam_id, teil_key, marks_json, updated_at)
+                VALUES (?, ?, ?, ?::jsonb, NOW())
+                ON CONFLICT (user_id, exam_id, teil_key) WHERE attempt_id IS NULL
+                DO UPDATE SET marks_json = EXCLUDED.marks_json, updated_at = NOW()
+                """, user.getId(), examId, teilKey, body);
+        return marksRow(user.getId(), examId, teilKey);
+    }
+
+    private PracticeDtos.Marks marksRow(long userId, long examId, String teilKey) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT marks_json::text AS marks_json, updated_at FROM exam_passage_marks
+                WHERE user_id = ? AND exam_id = ? AND teil_key = ? AND attempt_id IS NULL
+                """, userId, examId, teilKey);
+        if (rows.isEmpty()) return new PracticeDtos.Marks(Map.of(), null);
+        Map<String, Object> row = rows.get(0);
+        return new PracticeDtos.Marks(read((String) row.get("marks_json")),
+                row.get("updated_at") instanceof Timestamp ts ? ts.toInstant() : null);
+    }
+
+    private static java.util.Set<String> itemIds(Map<String, Object> teil) {
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        if (teil.get("items") instanceof List<?> items) {
+            for (Object o : items) {
+                if (o instanceof Map<?, ?> item && item.get("id") != null) ids.add(String.valueOf(item.get("id")));
+            }
+        }
+        return ids;
     }
 
     /** Bối cảnh để chấm Viết: đề bài gửi AI + trình độ. Gọi TRƯỚC khi trừ quota để lỗi đề báo sớm. */
@@ -166,10 +245,76 @@ public class MockExamPracticeService {
         Double score = scored && eval.get("total") instanceof Number n ? n.doubleValue() : null;
         Double max = scored && eval.get("max") instanceof Number m ? m.doubleValue() : null;
         upsert(userId, examId, WRITING_KEY, json(Map.of("text", text == null ? "" : text)), scored, score, max,
-                clampElapsed(elapsed), json(eval));
+                clampElapsed(elapsed), json(eval), null);
+    }
+
+    // ─── ngữ cảnh xem lại cho "Hỏi AI về câu này" (B3) ─────────────────────────
+
+    /** Một Teil khách quan ĐÃ NỘP của chính người hỏi: cấu trúc Teil (còn đáp án), giải thích, đáp án đã nộp. */
+    public record ReviewContext(long examId, String teilKey, Map<String, Object> teil, Map<String, Object> notes,
+                                Map<String, String> answers) {}
+
+    /**
+     * Teil luyện của chính người dùng. Chưa kiểm tra (hoặc chưa làm) ⇒ 409 — AI chỉ giải thích sau khi nộp,
+     * không thành "đáp án hộ". Teil Viết ⇒ 400 (đã có phiếu chấm AI riêng).
+     */
+    public ReviewContext practiceReview(User user, long examId, String teilKey) {
+        Exam exam = loadExam(user, examId);
+        Map<String, Object> teil = requireTeil(exam, teilKey);
+        if (WRITING_KEY.equals(teilKey)) throw new BadRequestException("Teil Viết đã có phiếu chấm AI riêng.");
+        Map<String, Object> row = progressRows(user.getId(), examId).get(teilKey);
+        if (row == null || !Boolean.TRUE.equals(row.get("checked"))) {
+            throw new ConflictException("Nộp Teil này trước rồi mới hỏi AI về từng câu.");
+        }
+        return new ReviewContext(examId, teilKey, teil, notes(examId, teilKey), stringMap((String) row.get("answers_json")));
+    }
+
+    /**
+     * Teil khách quan của một lượt thi thử. Lượt của người khác hoặc không có ⇒ 404 (không lộ là có);
+     * lượt đang làm ⇒ 409; đã nộp ({@code COMPLETED}) hoặc dừng giữa chừng ({@code PARTIAL}) mới hỏi được.
+     */
+    public ReviewContext attemptReview(User user, long attemptId, String teilKey) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT a.exam_id, a.status, a.answers_submitted_json::text AS answers, e.sections_json::text AS sections_json
+                FROM mock_exam_attempts a JOIN mock_exams e ON e.id = a.exam_id
+                WHERE a.id = ? AND a.user_id = ?
+                """, attemptId, user.getId());
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy lượt thi.");
+        Map<String, Object> row = rows.get(0);
+        String status = str(row.get("status"));
+        if ("IN_PROGRESS".equals(status)) throw new ConflictException("Nộp bài trước rồi mới hỏi AI về từng câu.");
+        if (!"COMPLETED".equals(status) && !"PARTIAL".equals(status)) throw new NotFoundException("Không tìm thấy lượt thi.");
+        long examId = ((Number) row.get("exam_id")).longValue();
+        Map<String, Object> teil = teilKey == null || teilKey.startsWith("SCHREIBEN") ? null
+                : practiceTeile(read((String) row.get("sections_json"))).get(teilKey);
+        if (teil == null) throw new NotFoundException("Đề không có Teil " + teilKey + ".");
+        return new ReviewContext(examId, teilKey, teil, notes(examId, teilKey), stringMap((String) row.get("answers")));
     }
 
     // ─── nội bộ ──────────────────────────────────────────────────────────────
+
+    private Map<String, String> stringMap(String json) {
+        Map<String, String> out = new LinkedHashMap<>();
+        read(json).forEach((k, v) -> out.put(k, v == null ? null : String.valueOf(v)));
+        return out;
+    }
+
+    /** Ghi chú hợp lệ: chỉ câu có trong Teil, chữ khác rỗng, cắt ở {@link #MAX_NOTE_CHARS}. {@code null} = không đổi. */
+    private String notesJson(Map<String, Object> teil, Map<String, String> notes) {
+        if (notes == null) return null;
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        if (teil.get("items") instanceof List<?> items) {
+            for (Object o : items) if (o instanceof Map<?, ?> m && m.get("id") != null) ids.add(String.valueOf(m.get("id")));
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        notes.forEach((k, v) -> {
+            if (k == null || v == null || !ids.contains(k)) return;
+            String t = v.strip();
+            if (t.isEmpty()) return;
+            out.put(k, t.length() > MAX_NOTE_CHARS ? t.substring(0, MAX_NOTE_CHARS) : t);
+        });
+        return json(out);
+    }
 
     /**
      * Phân tích lượt thi thử trọn đề đã nộp (06/11/2026): chạy {@link PracticeAnalysis} cho từng Teil
@@ -307,25 +452,30 @@ public class MockExamPracticeService {
         Map<String, Map<String, Object>> out = new HashMap<>();
         jdbc.queryForList("""
                 SELECT teil_key, answers_json::text AS answers_json, checked, score, max_score,
-                       elapsed_seconds, updated_at, checked_at, result_json::text AS result_json
+                       elapsed_seconds, updated_at, checked_at, result_json::text AS result_json,
+                       notes_json::text AS notes_json
                 FROM mock_exam_practice_progress WHERE user_id = ? AND exam_id = ?
                 """, userId, examId).forEach(r -> out.put((String) r.get("teil_key"), r));
         return out;
     }
 
+    /** @param notesJson ghi chú "vì sao tôi chọn"; {@code null} = giữ nguyên ghi chú đang lưu. */
     private void upsert(long userId, long examId, String teilKey, String answersJson, boolean checked,
-                        Double score, Double max, int elapsed, String resultJson) {
+                        Double score, Double max, int elapsed, String resultJson, String notesJson) {
         jdbc.update("""
                 INSERT INTO mock_exam_practice_progress
                     (user_id, exam_id, teil_key, answers_json, checked, score, max_score, elapsed_seconds,
-                     result_json, updated_at, checked_at)
-                VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, NOW(), CASE WHEN ? THEN NOW() END)
+                     result_json, updated_at, checked_at, notes_json)
+                VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, NOW(), CASE WHEN ? THEN NOW() END,
+                        COALESCE(?::jsonb, '{}'::jsonb))
                 ON CONFLICT (user_id, exam_id, teil_key) DO UPDATE SET
                     answers_json = EXCLUDED.answers_json, checked = EXCLUDED.checked, score = EXCLUDED.score,
                     max_score = EXCLUDED.max_score,
                     elapsed_seconds = GREATEST(mock_exam_practice_progress.elapsed_seconds, EXCLUDED.elapsed_seconds),
-                    result_json = EXCLUDED.result_json, updated_at = NOW(), checked_at = EXCLUDED.checked_at
-                """, userId, examId, teilKey, answersJson, checked, score, max, elapsed, resultJson, checked);
+                    result_json = EXCLUDED.result_json, updated_at = NOW(), checked_at = EXCLUDED.checked_at,
+                    notes_json = CASE WHEN ? THEN EXCLUDED.notes_json ELSE mock_exam_practice_progress.notes_json END
+                """, userId, examId, teilKey, answersJson, checked, score, max, elapsed, resultJson, checked,
+                notesJson, notesJson != null);
     }
 
     private PracticeDtos.Progress toProgress(Map<String, Object> row) {
@@ -338,7 +488,8 @@ public class MockExamPracticeService {
                 number(row.get("score")), number(row.get("max_score")),
                 row.get("elapsed_seconds") instanceof Number n ? n.intValue() : 0,
                 row.get("updated_at") instanceof Timestamp ts ? ts.toInstant() : null, result,
-                row.get("checked_at") instanceof Timestamp ct ? ct.toInstant() : null);
+                row.get("checked_at") instanceof Timestamp ct ? ct.toInstant() : null,
+                stringMap((String) row.get("notes_json")));
     }
 
     private static Map<String, String> clean(Map<String, String> answers) {

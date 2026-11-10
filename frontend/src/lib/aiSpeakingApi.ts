@@ -1,6 +1,6 @@
 import axios from 'axios'
 import api from './api'
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './authSession'
+import { getAccessToken, getRefreshToken, setTokens, clearTokens, isSupportMode, markSupportSessionEnded } from './authSession'
 import type { PcmAudioFrame } from './pcmAudioQueue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -319,6 +319,16 @@ export function chatStream(
         })
 
       let res = await doFetch(getAccessToken())
+
+      // Tab phiên hỗ trợ chỉ-đọc: không refresh (cookie là của admin), không xoá token/đưa về /v2/login.
+      if (isSupportMode() && (res.status === 401 || res.status === 403)) {
+        if (res.status === 401) markSupportSessionEnded()
+        if (!settled) {
+          settled = true
+          onError(AI_SPEAKING_UNAUTHORIZED)
+        }
+        return
+      }
 
       if (res.status === 401) {
         const rt = getRefreshToken()

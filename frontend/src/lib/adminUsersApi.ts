@@ -131,6 +131,22 @@ export type AuditPage = { items: AuditItem[]; total: number; page: number; size:
 
 export type PlanRow = { code: string; name: string }
 
+/** Phiên hỗ trợ chỉ-đọc (V370) — admin xem như người dùng. */
+export type SupportSessionStart = { sessionId: number; handoffCode: string; expiresAt: string }
+
+export type SupportSessionRow = {
+  id: number
+  adminUserId: number
+  adminEmail: string | null
+  reason: string
+  startedAt: string
+  expiresAt: string
+  endedAt: string | null
+  endReason: string | null
+  requestCount: number
+  active: boolean
+}
+
 function clean<T extends Record<string, unknown>>(o: T): Partial<T> {
   const out: Partial<T> = {}
   for (const [k, v] of Object.entries(o)) {
@@ -183,5 +199,15 @@ export const adminUsersApi = {
     },
   ) {
     return api.patch(`/admin/users/${id}/plan`, body)
+  },
+  /** Mở phiên hỗ trợ chỉ-đọc (lý do ≥ 15 ký tự). Trả mã bàn giao dùng một lần, sống 60 giây. */
+  startSupportSession(id: number, reason: string) {
+    return api.post<SupportSessionStart>(`/admin/users/${id}/support-session`, { reason })
+  },
+  supportSessions(id: number) {
+    return api.get<{ items: SupportSessionRow[] }>(`/admin/users/${id}/support-sessions`)
+  },
+  endSupportSession(sessionId: number) {
+    return api.post<{ ended: boolean }>(`/admin/support-sessions/${sessionId}/end`)
   },
 }

@@ -1619,6 +1619,7 @@
       "correct": "Chính xác!",
       "incorrect": "Chưa đúng",
       "answerIs": "Đáp án:",
+      "checkError": "Chưa chấm được câu này — thử trả lời lại.",
       "submit": "Nộp bài · {correct}/{total} đúng",
       "resultLine": "{correct} / {total} câu đúng",
       "generateNext": "Làm thêm bài mới",
@@ -1979,7 +1980,13 @@
             "drillDone": "Luyện xong Teil {n}"
           },
           "autoStop": "Tự dừng khi im",
-          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi."
+          "autoStopHint": "Bật: đã nói rồi im 2 giây thì tự dừng và gửi. Tắt: bấm lại nút micro để gửi.",
+          "blocked": {
+            "title": "Trình duyệt chưa cho phát tiếng",
+            "sub": "Chạm nút bên dưới để nghe giám khảo. Lời của giám khảo vẫn hiện trong hội thoại.",
+            "play": "Chạm để nghe",
+            "skip": "Bỏ qua, tôi đọc chữ"
+          }
         }
       },
       "mic": {
@@ -1997,7 +2004,8 @@
           "busy": "Micro đang bị ứng dụng khác dùng.",
           "insecure": "Micro cần HTTPS.",
           "unsupported": "Trình duyệt không hỗ trợ thu âm.",
-          "unknown": "Không thu âm được. Hãy thử lại."
+          "unknown": "Không thu âm được. Hãy thử lại.",
+          "tooShort": "Bản ghi quá ngắn. Bấm micro, nói hết câu rồi mới bấm dừng."
         },
         "retry": "Thử lại với micro",
         "deniedSteps": {
@@ -2135,6 +2143,8 @@
         "speakNow": "Nói thử đi",
         "speakerTitle": "Loa",
         "speakerSub": "Nghe giọng giám khảo",
+        "speakerBlocked": "Trình duyệt chưa cho phát âm thanh. Tắt chế độ im lặng của điện thoại, tăng âm lượng rồi bấm Nghe thử lần nữa.",
+        "speakerFailed": "Không phát được giọng giám khảo. Kiểm tra kết nối mạng rồi thử lại.",
         "speakerPlay": "Nghe thử",
         "quietTitle": "Chỗ yên tĩnh",
         "quietSub": "Tiếng ồn làm sai điểm phát âm",
@@ -2503,6 +2513,70 @@
       }
     },
     "practice": {
+      "marks": {
+        "toolbar": "Công cụ đánh dấu",
+        "colorY": "Vàng · từ khoá",
+        "colorG": "Xanh · bằng chứng",
+        "colorP": "Hồng · chưa chắc",
+        "underline": "Gạch chân",
+        "quick": "Câu {n}",
+        "quickHint": "Tô xanh và gắn vào câu đang làm (Q)",
+        "tag": "Gắn vào câu",
+        "tagTo": "Gắn vào câu",
+        "untag": "Bỏ gắn",
+        "currentItem": "Câu đang làm",
+        "note": "Ghi chú",
+        "erase": "Tẩy đánh dấu trong vùng chọn",
+        "remove": "Xoá đánh dấu này",
+        "noteTitle": "Ghi chú · {where}",
+        "notePlaceholder": "Vd: ý chính đoạn này / bẫy: „meistens“ khác „immer“",
+        "noteSave": "Lưu",
+        "noteCancel": "Huỷ",
+        "noteDelete": "Xoá ghi chú",
+        "noteHint": "Ctrl+Enter để lưu · Esc để đóng",
+        "line": "dòng {n}",
+        "lines": "dòng {a}–{b}",
+        "inQuestion": "đề câu {n}",
+        "tagBadge": "Đã gắn vào câu {n}, bấm để mở câu",
+        "noteBadge": "Ghi chú: {note}",
+        "evidenceTag": "Đ/A {n}",
+        "seeMarks": "Đã đánh dấu {count} chỗ · Xem trong bài",
+        "strike": "Gạch bỏ phương án {k}",
+        "unstrike": "Bỏ gạch phương án {k}",
+        "announceTag": "Đã gắn vào câu {n}",
+        "announceUntag": "Đã bỏ gắn câu",
+        "announceNote": "Đã lưu ghi chú",
+        "announceNoteDeleted": "Đã xoá ghi chú",
+        "announceErase": "Đã tẩy đánh dấu trong vùng chọn",
+        "announceDelete": "Đã xoá đánh dấu",
+        "bar": {
+          "title": "Bút đánh dấu",
+          "legend": "Ý nghĩa màu",
+          "hint": "Bôi đen chữ trong bài hoặc trong câu hỏi để tô màu, gạch chân, gắn vào số câu hay ghi chú. Bấm vào đoạn đã tô để sửa. Nút ⊘ cạnh đáp án để gạch bỏ phương án đã loại.",
+          "hintNarrow": "Mở màn hình rộng hơn (từ 760px) để tạo đánh dấu; đánh dấu đã có vẫn hiện ở đây.",
+          "undo": "Hoàn tác đánh dấu (Ctrl+Z)",
+          "hide": "Ẩn đánh dấu để đọc bài sạch",
+          "show": "Hiện lại đánh dấu",
+          "stale": "Đề vừa được sửa chữ, đánh dấu cũ của bài này đã được bỏ.",
+          "saveError": "Chưa lưu được đánh dấu, sẽ thử lại ở lần đánh dấu sau."
+        },
+        "diag": {
+          "title": "Bạn tìm bằng chứng thế nào",
+          "found": "Bạn đã đánh dấu đúng chỗ chứa đáp án ({where}).",
+          "offTarget": "Bạn gắn câu này ở {mine}, nhưng đáp án nằm ở {where}.",
+          "untagged": "Bạn đã tô đúng đoạn ({where}) nhưng chưa gắn vào câu này.",
+          "none": "Bạn chưa đánh dấu chỗ chứa đáp án. Đáp án nằm ở {where}.",
+          "tipFound": "Đã tìm đúng đoạn mà vẫn chọn sai: đọc kỹ lại câu có gạch xanh đứt, so từng chữ với phương án.",
+          "tipMiss": "Chưa tìm ra đoạn chứa đáp án: luyện dò từ khoá của đề trong bài trước khi chọn."
+        },
+        "redo": {
+          "title": "Làm lại Teil này?",
+          "body": "Đáp án và kết quả lần này sẽ bị xoá.",
+          "keep": "Giữ đánh dấu trong bài",
+          "confirm": "Làm lại",
+          "cancel": "Thôi"
+        }
+      },
       "saveSaving": "Đang lưu…",
       "saveSaved": "Đã lưu",
       "saveError": "Chưa lưu được — sẽ thử lại",
@@ -2826,6 +2900,26 @@
         "passed": "Đỗ",
         "failed": "Chưa đỗ",
         "borderline": "Sát ngưỡng"
+      },
+      "assist": {
+        "ask": "Hỏi AI về câu này",
+        "title": "AI giải thích",
+        "loading": "AI đang đọc câu này…",
+        "cached": "Đã có sẵn, không tính lượt AI",
+        "disclaimer": "AI có thể nhầm, hãy đối chiếu với bài.",
+        "error": "Chưa hỏi được AI. Bạn thử lại sau nhé.",
+        "retry": "Thử lại",
+        "noteOpen": "Ghi vì sao tôi chọn",
+        "noteLabel": "Vì sao tôi chọn câu {n} (không bắt buộc)",
+        "notePlaceholder": "Ví dụ: thấy bài nhắc đúng ngày đó nên chọn…",
+        "noteYours": "Bạn đã ghi lúc làm bài",
+        "flaggedTitle": "Câu đã đánh dấu",
+        "flaggedJump": "Tới câu {n}",
+        "flaggedNav": "Câu đánh dấu ({count})",
+        "flaggedNavTitle": "Câu đánh dấu trong phần đang thi",
+        "flaggedNavEmpty": "Chưa đánh dấu câu nào. Bấm hình lá cờ ở một câu (hoặc phím F) để đánh dấu xem lại.",
+        "flaggedNavItem": "{teil} · câu {n}",
+        "flaggedNavClose": "Đóng danh sách"
       }
     },
     "examHub": {
@@ -3118,6 +3212,10 @@
         }
       },
       "teil": {
+        "marks": {
+          "t": "Bút đánh dấu",
+          "p": "Bôi đen chữ để đánh dấu như trên giấy. Vàng = từ khoá, Xanh = bằng chứng, Hồng = chưa chắc. Gắn đoạn vào số câu để bấm là tìm lại được."
+        },
         "source": {
           "t": "Bài đọc",
           "p": "Đọc ở đây. Cột này cuộn riêng với câu hỏi."

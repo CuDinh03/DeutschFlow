@@ -66,6 +66,8 @@ public class MaintenanceModeFilter extends OncePerRequestFilter {
                 || uri.startsWith("/api/public/")
                 || uri.startsWith("/api/admin/")
                 || uri.equals("/api/auth/login")
+                // Bước 2FA của đăng nhập admin: thiếu dòng này thì đang bảo trì admin không vào được để tắt bảo trì.
+                || uri.startsWith("/api/auth/mfa/")
                 || uri.equals("/api/auth/refresh");
     }
 

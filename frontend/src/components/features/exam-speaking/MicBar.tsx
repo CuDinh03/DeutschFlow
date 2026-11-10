@@ -44,13 +44,16 @@ function mmss(ms: number): string {
  * nền đỏ + vòng đỏ, bấm lại để dừng và gửi; trái là ô trạng thái, phải là đếm lượt. Drill có thêm
  * nút bàn phím để gõ thay nói.
  */
+/** Bản ghi ngắn hơn mức này (bấm dừng tay) chắc chắn không có câu nói — không gửi STT. */
+export const MIN_TURN_MS = 600
+
 export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourTurn = false, status, meta, onRecordingChange, autoStop = false }: Props) {
   const t = useTranslations('v2.student.examSpeaking.mic')
   const [recording, setRecording] = useState(false)
   const [remainingMs, setRemainingMs] = useState(DEFAULT_MAX_RECORDING_MS)
   const [textMode, setTextMode] = useState(false)
   const [text, setText] = useState('')
-  const [error, setError] = useState<{ kind: MicErrorKind; message: string } | null>(null)
+  const [error, setError] = useState<{ kind: MicErrorKind | 'tooShort'; message: string } | null>(null)
   const recorderRef = useRef<RecorderHandle | null>(null)
   const micPermission = useMicPermission()
 
@@ -116,12 +119,18 @@ export function MicBar({ disabled, busy, allowText, onAudio, onText, hint, yourT
     setRemainingMs(DEFAULT_MAX_RECORDING_MS)
     try {
       const handle = await startRecorder(
-        (blob) => {
+        (blob, result) => {
           recorderRef.current = null
           setRecording(false)
           setRemainingMs(DEFAULT_MAX_RECORDING_MS)
           // Recorder bảo đảm callback này chạy tối đa MỘT lần cho mỗi lần thu, nên dù hết giờ
           // và người dùng bấm dừng cùng lúc thì lượt vẫn chỉ nộp một lần.
+          // Chạm nhầm (bật rồi tắt ngay) → báo ngay ở máy, không tốn một lượt STT cho bản ghi
+          // không có câu nào (plan đường âm thanh §2.2).
+          if (blob.size > 0 && result.reason === 'manual' && result.durationMs < MIN_TURN_MS) {
+            setError({ kind: 'tooShort', message: t('errors.tooShort') })
+            return
+          }
           if (blob.size > 0) {
             void onAudioRef.current(blob)
             return

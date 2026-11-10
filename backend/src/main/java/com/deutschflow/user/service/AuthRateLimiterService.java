@@ -10,9 +10,12 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -88,9 +91,25 @@ public class AuthRateLimiterService {
     @Value("${app.auth.rate-limit.guest-session-create-window-seconds:3600}")
     private long guestSessionCreateWindow = 3600;
 
+    // Xác thực hai lớp (09/11/2026). Đếm LẦN SAI (lần đúng được trả chỗ): 5 lần sai / 15 phút theo người dùng
+    // VÀ theo IP — chạm một trong hai là 429 tới hết cửa sổ. Mỗi lượt GIỮ CHỖ trước khi kiểm mã
+    // (tryAcquireMfaAttempt) nên lượt đang kiểm dở cũng chiếm ngân sách. Gửi mã email 2FA: 5 thư / giờ / người dùng.
+    private final ConcurrentHashMap<String, Deque<Instant>> mfaFailureAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<Instant>> mfaEmailSendAttempts = new ConcurrentHashMap<>();
+    @Value("${app.auth.rate-limit.mfa-failure-max-per-window:5}")
+    private int  mfaFailureMax = 5;
+    @Value("${app.auth.rate-limit.mfa-failure-window-seconds:900}")
+    private long mfaFailureWindow = 900;
+    @Value("${app.auth.rate-limit.mfa-email-send-max-per-window:5}")
+    private int  mfaEmailSendMax = 5;
+    @Value("${app.auth.rate-limit.mfa-email-send-window-seconds:3600}")
+    private long mfaEmailSendWindow = 3600;
+
     // Redis sliding window (primary). May be null if no Redis is configured.
     private final StringRedisTemplate redis;
     private final DefaultRedisScript<Long> slidingWindowScript;
+    private final DefaultRedisScript<Long> countScript;
+    private final DefaultRedisScript<Long> reserveScript;
     private final AtomicLong nonce = new AtomicLong();
     private volatile boolean redisDownWarned = false;
 
@@ -109,6 +128,29 @@ public class AuthRateLimiterService {
             redis.call('ZADD', KEYS[1], ARGV[1], ARGV[4])
             redis.call('PEXPIRE', KEYS[1], ARGV[2])
             return 1
+            """;
+
+    /**
+     * Giữ chỗ (2FA): như {@link #SLIDING_WINDOW_LUA} nhưng trả SỐ LƯỢT sau khi ghi (≥ 1), hoặc 0 khi đã đầy.
+     * KEYS[1]=zset key; ARGV[1]=now(ms); ARGV[2]=window(ms); ARGV[3]=max; ARGV[4]=unique member.
+     */
+    private static final String RESERVE_LUA = """
+            local clearBefore = tonumber(ARGV[1]) - tonumber(ARGV[2])
+            redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, clearBefore)
+            local count = redis.call('ZCARD', KEYS[1])
+            if count >= tonumber(ARGV[3]) then
+              return 0
+            end
+            redis.call('ZADD', KEYS[1], ARGV[1], ARGV[4])
+            redis.call('PEXPIRE', KEYS[1], ARGV[2])
+            return count + 1
+            """;
+
+    /** Đếm không ghi: KEYS[1]=zset key; ARGV[1]=now(ms); ARGV[2]=window(ms). */
+    private static final String COUNT_LUA = """
+            local clearBefore = tonumber(ARGV[1]) - tonumber(ARGV[2])
+            redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, clearBefore)
+            return redis.call('ZCARD', KEYS[1])
             """;
 
     public AuthRateLimiterService(
@@ -136,6 +178,8 @@ public class AuthRateLimiterService {
 
         this.redis = redis;
         this.slidingWindowScript = new DefaultRedisScript<>(SLIDING_WINDOW_LUA, Long.class);
+        this.countScript = new DefaultRedisScript<>(COUNT_LUA, Long.class);
+        this.reserveScript = new DefaultRedisScript<>(RESERVE_LUA, Long.class);
         log.info("[RateLimiter] storage = {}", this.redis != null ? "Redis (shared) + in-memory fallback" : "in-memory only");
     }
 
@@ -193,6 +237,166 @@ public class AuthRateLimiterService {
                 Math.max(1, guestSessionCreateMax), Math.max(1L, guestSessionCreateWindow));
     }
 
+    // ─── 2FA ───────────────────────────────────────────────────────────────────
+
+    /**
+     * Đã đủ số lượt 2FA (lần sai + lượt đang kiểm dở) trong cửa sổ — theo người dùng HOẶC theo IP? Chỉ ĐỌC.
+     * Chỉ để quan sát/kiểm thử: đường kiểm mã phải dùng {@link #tryAcquireMfaAttempt} (đọc-rồi-ghi tách rời thì
+     * N request song song cùng lọt qua bước đọc).
+     */
+    public boolean isMfaBlocked(long userId, String ip) {
+        long window = Math.max(1L, mfaFailureWindow);
+        int max = Math.max(1, mfaFailureMax);
+        return countInWindow(mfaFailureAttempts, mfaUserKey(userId), window) >= max
+                || countInWindow(mfaFailureAttempts, mfaIpKey(ip), window) >= max;
+    }
+
+    /**
+     * Một lượt nhập mã 2FA đã GIỮ CHỖ trong cả hai ngân sách (người dùng + IP). Kết thúc bằng đúng MỘT trong hai:
+     * {@link #commitMfaFailure} (mã sai — chỗ giữ thành một lần sai) hoặc {@link #refundMfaAttempt} (mã đúng,
+     * hoặc request hỏng vì lý do không phải đoán mã — trả lại chỗ). Gọi lần hai là no-op.
+     */
+    public static final class MfaAttempt {
+        private final List<MfaSlot> slots;
+        private final boolean reachesLimit;
+        private final AtomicBoolean settled = new AtomicBoolean();
+
+        private MfaAttempt(List<MfaSlot> slots, boolean reachesLimit) {
+            this.slots = slots;
+            this.reachesLimit = reachesLimit;
+        }
+
+        /** Nếu lượt này thành lần sai thì một ngân sách chạm trần. */
+        public boolean reachesLimit() {
+            return reachesLimit;
+        }
+    }
+
+    /** Một chỗ giữ trong một khoá: Redis (member của ZSET) hoặc bộ nhớ của node (phần tử Instant, so bằng ==). */
+    private record MfaSlot(String key, boolean redis, String member, Instant at, long countAfter) {}
+
+    /**
+     * GIỮ CHỖ NGUYÊN TỬ cho một lượt nhập mã 2FA, TRƯỚC khi kiểm mã: mỗi ngân sách đếm lần sai + lượt đang kiểm dở;
+     * đã đủ {@code mfa-failure-max-per-window} thì từ chối (kể cả khi mã đúng). Đếm-và-ghi chạy trong một bước
+     * (Lua trên Redis; khoá trên hàng đợi khi rơi về bộ nhớ) nên N request song song không cùng lọt qua được
+     * — trước đây kiểm chỉ-đọc rồi mới ghi lần sai, 20 lượt đoán song song đều qua bước kiểm.
+     *
+     * @return rỗng khi một trong hai ngân sách đã đầy (người gọi trả 429)
+     */
+    public Optional<MfaAttempt> tryAcquireMfaAttempt(long userId, String ip) {
+        long window = Math.max(1L, mfaFailureWindow);
+        int max = Math.max(1, mfaFailureMax);
+        MfaSlot userSlot = reserveMfaSlot(mfaUserKey(userId), max, window);
+        if (userSlot == null) {
+            return Optional.empty();
+        }
+        MfaSlot ipSlot = reserveMfaSlot(mfaIpKey(ip), max, window);
+        if (ipSlot == null) {
+            releaseMfaSlot(userSlot);
+            return Optional.empty();
+        }
+        return Optional.of(new MfaAttempt(List.of(userSlot, ipSlot),
+                userSlot.countAfter() >= max || ipSlot.countAfter() >= max));
+    }
+
+    /**
+     * Lượt đã giữ chỗ là một lần SAI: giữ nguyên chỗ (thành lần sai trong cửa sổ).
+     *
+     * @return {@code true} khi lần sai này làm một ngân sách CHẠM trần (để ghi vết khoá đúng một lần)
+     */
+    public boolean commitMfaFailure(MfaAttempt attempt) {
+        if (attempt == null || !attempt.settled.compareAndSet(false, true)) {
+            return false;
+        }
+        return attempt.reachesLimit();
+    }
+
+    /** Trả chỗ của một lượt KHÔNG phải lần sai (mã đúng, request hỏng). No-op khi lượt đã kết thúc. */
+    public void refundMfaAttempt(MfaAttempt attempt) {
+        if (attempt == null || !attempt.settled.compareAndSet(false, true)) {
+            return;
+        }
+        for (MfaSlot slot : attempt.slots) {
+            releaseMfaSlot(slot);
+        }
+    }
+
+    /** Giữ một chỗ trong khoá {@code key}; {@code null} khi khoá đã có {@code max} lượt trong cửa sổ. */
+    private MfaSlot reserveMfaSlot(String key, int max, long windowSeconds) {
+        if (redis != null) {
+            try {
+                long now = System.currentTimeMillis();
+                String member = now + "-" + nonce.incrementAndGet();
+                Long count = redis.execute(reserveScript, List.of("rl:" + key),
+                        Long.toString(now), Long.toString(windowSeconds * 1000L), Integer.toString(max), member);
+                redisDownWarned = false;
+                if (count == null || count <= 0L) {
+                    return null;
+                }
+                return new MfaSlot(key, true, member, null, count);
+            } catch (Exception e) {
+                if (!redisDownWarned) {
+                    redisDownWarned = true;
+                    log.warn("[RateLimiter] Redis unavailable — falling back to in-memory per-node limiting: {}",
+                            e.getMessage());
+                }
+            }
+        }
+        Instant now = Instant.now();
+        Instant windowStart = now.minusSeconds(windowSeconds);
+        Deque<Instant> deque = mfaFailureAttempts.computeIfAbsent(key, k -> new ArrayDeque<>());
+        synchronized (deque) {
+            while (!deque.isEmpty() && deque.peekFirst().isBefore(windowStart)) {
+                deque.pollFirst();
+            }
+            if (deque.size() >= max) {
+                return null;
+            }
+            // new Instant riêng (không dùng chung tham chiếu) để trả chỗ đúng phần tử này bằng ==.
+            Instant at = Instant.ofEpochSecond(now.getEpochSecond(), now.getNano());
+            deque.addLast(at);
+            return new MfaSlot(key, false, null, at, deque.size());
+        }
+    }
+
+    private void releaseMfaSlot(MfaSlot slot) {
+        if (slot.redis()) {
+            try {
+                redis.opsForZSet().remove("rl:" + slot.key(), slot.member());
+            } catch (Exception e) {
+                // Không trả được chỗ: lượt này bị tính như một lần sai tới hết cửa sổ — nghiêng về an toàn.
+                log.warn("[RateLimiter] Không trả được chỗ 2FA trên Redis ({}): {}", slot.key(), e.getMessage());
+            }
+            return;
+        }
+        Deque<Instant> deque = mfaFailureAttempts.get(slot.key());
+        if (deque == null) {
+            return;
+        }
+        synchronized (deque) {
+            Iterator<Instant> it = deque.iterator();
+            while (it.hasNext()) {
+                if (it.next() == slot.at()) {
+                    it.remove();
+                    return;
+                }
+            }
+        }
+    }
+
+    public int mfaRetryAfterSeconds() { return (int) Math.max(1L, mfaFailureWindow); }
+
+    /** Trần gửi mã email đăng ký 2FA theo người dùng. */
+    public boolean allowMfaEmailSend(long userId) {
+        return check(mfaEmailSendAttempts, "mfa-email|" + userId,
+                Math.max(1, mfaEmailSendMax), Math.max(1L, mfaEmailSendWindow));
+    }
+
+    public int mfaEmailSendRetryAfterSeconds() { return (int) Math.max(1L, mfaEmailSendWindow); }
+
+    private static String mfaUserKey(long userId) { return "mfa-fail-user|" + userId; }
+    private static String mfaIpKey(String ip)     { return "mfa-fail-ip|" + safe(ip); }
+
     public int guestSessionCreateRetryAfterSeconds()   { return (int) guestSessionCreateWindow; }
     public int registrationSendRetryAfterSeconds()     { return (int) registrationSendWindow; }
     public int registrationVerifyIpRetryAfterSeconds() { return (int) registrationVerifyIpWindow; }
@@ -242,6 +446,39 @@ public class AuthRateLimiterService {
             }
         }
         return checkInMemory(fallbackStore, key, max, windowSeconds);
+    }
+
+    /**
+     * Số lượt còn trong cửa sổ, KHÔNG ghi thêm. Redis: dọn phần quá hạn rồi ZCARD (cùng khoá {@code rl:} với
+     * {@link #check}); Redis hỏng → bộ nhớ của node.
+     */
+    private long countInWindow(ConcurrentHashMap<String, Deque<Instant>> fallbackStore, String key, long windowSeconds) {
+        if (redis != null) {
+            try {
+                long now = System.currentTimeMillis();
+                Long count = redis.execute(countScript, List.of("rl:" + key),
+                        Long.toString(now), Long.toString(windowSeconds * 1000L));
+                redisDownWarned = false;
+                return count == null ? 0L : count;
+            } catch (Exception e) {
+                if (!redisDownWarned) {
+                    redisDownWarned = true;
+                    log.warn("[RateLimiter] Redis unavailable — falling back to in-memory per-node limiting: {}",
+                            e.getMessage());
+                }
+            }
+        }
+        Deque<Instant> deque = fallbackStore.get(key);
+        if (deque == null) {
+            return 0L;
+        }
+        Instant windowStart = Instant.now().minusSeconds(windowSeconds);
+        synchronized (deque) {
+            while (!deque.isEmpty() && deque.peekFirst().isBefore(windowStart)) {
+                deque.pollFirst();
+            }
+            return deque.size();
+        }
     }
 
     private boolean checkInMemory(ConcurrentHashMap<String, Deque<Instant>> store,

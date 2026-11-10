@@ -35,6 +35,7 @@ public class OrgPoolGuard {
      * double-count; cửa sổ race thu về khoảng thời gian controller (ms) thay vì cả vòng đời job.
      */
     public void assertOrgPoolAvailable(Long userId, long estimatedTokens) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("org-pool");
         if (userId == null) {
             return;
         }

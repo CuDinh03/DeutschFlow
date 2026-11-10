@@ -4,6 +4,7 @@ import com.deutschflow.user.entity.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * JWT ký và verify token.
@@ -34,10 +36,44 @@ import java.util.Set;
  *
  * <p>Token mới gắn claim {@code iss}/{@code aud}; bật {@code app.jwt.require-iss-aud=true} sau khi token
  * cũ (không có iss/aud) đã hết hạn.
+ *
+ * <p><b>Phân loại token (claim {@code typ}, 09/11/2026):</b> mọi token phát hành từ đây mang {@code typ}
+ * ({@value #TYP_ACCESS} / {@value #TYP_GUEST} / {@value #TYP_MFA}; {@value #TYP_SUPPORT} cho phiên hỗ
+ * trợ chỉ-đọc) và một {@code jti} ngẫu nhiên. {@link JwtAuthFilter} chỉ nhận loại được phép làm
+ * access token. Token cũ đã phát hành trên production KHÔNG có {@code typ} — {@link #tokenType(Claims)}
+ * coi thiếu {@code typ} là {@value #TYP_ACCESS} nên chúng vẫn chạy tới khi hết hạn.
  */
 @Slf4j
 @Service
 public class JwtService {
+
+    /** Tên claim phân loại token. Thiếu claim = {@link #TYP_ACCESS} (token phát hành trước 09/11/2026). */
+    public static final String CLAIM_TYP = "typ";
+    /** Access token của người dùng đã đăng ký. */
+    public static final String TYP_ACCESS = "access";
+    /** Token khách cho quiz ({@code sub = "guest:<nickname>"}). */
+    public static final String TYP_GUEST = "guest";
+    /** Token thử thách 2FA giữa bước mật khẩu và bước mã — KHÔNG BAO GIỜ là access token. */
+    public static final String TYP_MFA = "mfa";
+    /**
+     * Phiên hỗ trợ chỉ-đọc: ADMIN xem ứng dụng dưới danh tính người dùng đích ({@code sub}). Nhận khi bật
+     * {@code app.security.support-session.enabled} và phiên còn mở trong DB — xem {@link #generateSupportToken}.
+     */
+    public static final String TYP_SUPPORT = "support";
+    /** Claim của token support: id dòng {@code admin_support_sessions}. */
+    public static final String CLAIM_SUPPORT_SESSION = "sup";
+    /** Claim của token support: id ADMIN thực hiện (actor). */
+    public static final String CLAIM_ACTOR = "act";
+    /** Trần tuổi một token support (30 phút) — không có refresh token. */
+    public static final long SUPPORT_TOKEN_MAX_TTL_MS = 30L * 60_000L;
+    /** Tiền tố subject của token thử thách 2FA: {@code "mfa:" + userId}. */
+    public static final String MFA_SUBJECT_PREFIX = "mfa:";
+    /** Claim boolean trên access token: phiên đã qua bước 2FA. */
+    public static final String CLAIM_MFA = "mfa";
+    /** Claim giây epoch: thời điểm qua bước 2FA (giữ nguyên qua refresh, không phải lúc phát token). */
+    public static final String CLAIM_MFA_AT = "mfa_at";
+    /** TTL mặc định của token thử thách 2FA ({@code app.jwt.mfa-token-expiry-ms}). */
+    static final long DEFAULT_MFA_TOKEN_EXPIRY_MS = 300_000L;
 
     /** Khóa dùng để ký token mới — SecretKey (HS256) hoặc RSA PrivateKey (RS256). */
     private final Key signingKey;
@@ -47,10 +83,21 @@ public class JwtService {
     private final List<Key> verifyKeys;
 
     private final long accessTokenExpiryMs;
+    private final long mfaTokenExpiryMs;
     private final String issuer;
     private final String audience;
     private final boolean requireIssAud;
 
+    /** Giữ chữ ký cũ cho test/caller dựng tay — TTL token 2FA lấy mặc định 5 phút. */
+    public JwtService(String primary, String previous, long accessTokenExpiryMs,
+                      String issuer, String audience, boolean requireIssAud,
+                      String algorithm, String rsaPrivateKeyPem, String rsaPublicKeyPem,
+                      String rsaPublicKeyPreviousPem) {
+        this(primary, previous, accessTokenExpiryMs, issuer, audience, requireIssAud, algorithm,
+                rsaPrivateKeyPem, rsaPublicKeyPem, rsaPublicKeyPreviousPem, DEFAULT_MFA_TOKEN_EXPIRY_MS);
+    }
+
+    @Autowired
     public JwtService(
             @Value("${app.jwt.secret}") String primary,
             @Value("${app.jwt.secret-previous:}") String previous,
@@ -61,7 +108,8 @@ public class JwtService {
             @Value("${app.jwt.algorithm:HS256}") String algorithm,
             @Value("${app.jwt.rsa-private-key:}") String rsaPrivateKeyPem,
             @Value("${app.jwt.rsa-public-key:}") String rsaPublicKeyPem,
-            @Value("${app.jwt.rsa-public-key-previous:}") String rsaPublicKeyPreviousPem) {
+            @Value("${app.jwt.rsa-public-key-previous:}") String rsaPublicKeyPreviousPem,
+            @Value("${app.jwt.mfa-token-expiry-ms:300000}") long mfaTokenExpiryMs) {
 
         // Algorithm decides whether the HS256 secret is required. Default HS256 (non-breaking).
         String alg = (algorithm == null ? "HS256" : algorithm.trim().toUpperCase());
@@ -132,6 +180,7 @@ public class JwtService {
         }
 
         this.accessTokenExpiryMs = accessTokenExpiryMs;
+        this.mfaTokenExpiryMs = mfaTokenExpiryMs;
         this.issuer        = issuer;
         this.audience      = audience;
         this.requireIssAud = requireIssAud;
@@ -150,10 +199,21 @@ public class JwtService {
      * Backend authz vẫn verify {@code org_members} trong DB (xem OrgGuard), KHÔNG tin claim này.
      */
     public String generateAccessToken(User user, Long orgId, String orgRole) {
+        return generateAccessToken(user, orgId, orgRole, null);
+    }
+
+    /**
+     * Như {@link #generateAccessToken(User, Long, String)}, thêm dấu 2FA khi {@code mfaVerifiedAt} khác null:
+     * {@code mfa=true} và {@code mfa_at} (giây epoch của lần qua 2FA). {@link JwtAuthFilter} đòi
+     * {@code mfa=true} trên mọi access token của ADMIN khi {@code app.security.admin-mfa.enforced=true}.
+     */
+    public String generateAccessToken(User user, Long orgId, String orgRole, java.time.Instant mfaVerifiedAt) {
         long now = System.currentTimeMillis();
         long expiryTime = now + accessTokenExpiryMs;
         JwtBuilder builder = Jwts.builder()
+                .id(newJti())
                 .subject(user.getEmail())
+                .claim(CLAIM_TYP, TYP_ACCESS)
                 .claim("role", user.getRole().name())
                 .claim("userId", user.getId())
                 .issuer(issuer)
@@ -169,6 +229,10 @@ public class JwtService {
             // This is accepted behaviour (C): OrgGuard always re-verifies against org_members in DB.
             builder.claim("orgRole", orgRole); // OWNER | MANAGER | TEACHER | STUDENT
         }
+        if (mfaVerifiedAt != null) {
+            builder.claim(CLAIM_MFA, true);
+            builder.claim(CLAIM_MFA_AT, mfaVerifiedAt.getEpochSecond());
+        }
         String token = builder.signWith(signingKey).compact();
         // DEBUG + no PII (email) — token issuance is high-volume; avoid emails in logs.
         log.debug("[JwtService.generateAccessToken] Generated for userId={}, role={}, orgId={}, orgRole={}, ttl={}ms",
@@ -179,7 +243,9 @@ public class JwtService {
     /** Guest token cho quiz — TTL tính bằng ms. */
     public String generateGuestToken(String nickname, String pinCode, long ttlMs) {
         return Jwts.builder()
+                .id(newJti())
                 .subject("guest:" + nickname)
+                .claim(CLAIM_TYP, TYP_GUEST)
                 .claim("role", "GUEST")
                 .claim("pinCode", pinCode)
                 .issuer(issuer)
@@ -188,6 +254,125 @@ public class JwtService {
                 .expiration(new Date(System.currentTimeMillis() + ttlMs))
                 .signWith(signingKey)
                 .compact();
+    }
+
+    /**
+     * Token phiên hỗ trợ chỉ-đọc: claim y như access token của người dùng đích ({@code sub}, {@code userId},
+     * {@code role}, {@code orgId}/{@code orgRole}) để web định tuyến đúng khu vực, cộng {@code typ=support},
+     * {@code sup} (id phiên), {@code act} (id ADMIN) và {@code jti}. {@code exp = min(now + 30 phút,
+     * sessionExpiresAt)}. KHÔNG có refresh token và KHÔNG có dấu 2FA ({@code mfa}).
+     */
+    public String generateSupportToken(User target, Long orgId, String orgRole,
+                                       long adminUserId, long sessionId, java.time.Instant sessionExpiresAt) {
+        long now = System.currentTimeMillis();
+        long exp = now + SUPPORT_TOKEN_MAX_TTL_MS;
+        if (sessionExpiresAt != null) {
+            exp = Math.min(exp, sessionExpiresAt.toEpochMilli());
+        }
+        JwtBuilder builder = Jwts.builder()
+                .id(newJti())
+                .subject(target.getEmail())
+                .claim(CLAIM_TYP, TYP_SUPPORT)
+                .claim("role", target.getRole().name())
+                .claim("userId", target.getId())
+                .claim(CLAIM_SUPPORT_SESSION, sessionId)
+                .claim(CLAIM_ACTOR, adminUserId)
+                .issuer(issuer)
+                .audience().add(audience).and()
+                .issuedAt(new Date(now))
+                .expiration(new Date(exp));
+        if (orgId != null) {
+            builder.claim("orgId", orgId);
+        }
+        if (orgRole != null) {
+            builder.claim("orgRole", orgRole);
+        }
+        log.debug("[JwtService.generateSupportToken] session={} admin={} target={}", sessionId, adminUserId, target.getId());
+        return builder.signWith(signingKey).compact();
+    }
+
+    /** Đọc một claim số (Long/Integer/chuỗi số) — {@code null} khi thiếu hoặc sai kiểu. */
+    public static Long longClaim(Claims claims, String name) {
+        Object raw = claims == null ? null : claims.get(name);
+        if (raw instanceof Number n) {
+            return n.longValue();
+        }
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Token thử thách 2FA: chứng minh người dùng đã qua bước mật khẩu, CHƯA qua bước mã.
+     * {@code typ=mfa}, {@code sub="mfa:"+userId}, KHÔNG có {@code role}/{@code userId}, TTL
+     * {@code app.jwt.mfa-token-expiry-ms} (mặc định 5 phút). {@link JwtAuthFilter} từ chối nó (401) nếu
+     * bị trình như access token; endpoint xác minh mã 2FA (PR sau) sẽ đọc nó qua {@link #extractClaims}.
+     */
+    public String generateMfaChallengeToken(long userId) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .id(newJti())
+                .subject(MFA_SUBJECT_PREFIX + userId)
+                .claim(CLAIM_TYP, TYP_MFA)
+                .issuer(issuer)
+                .audience().add(audience).and()
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + mfaTokenExpiryMs))
+                .signWith(signingKey)
+                .compact();
+    }
+
+    /**
+     * Loại token đã verify. Thiếu claim {@code typ} (hoặc rỗng) → {@value #TYP_ACCESS}: token phát
+     * hành trước khi có claim này vẫn là access/guest token hợp lệ tới khi hết hạn.
+     */
+    public static String tokenType(Claims claims) {
+        Object raw = claims == null ? null : claims.get(CLAIM_TYP);
+        if (raw == null) {
+            return TYP_ACCESS;
+        }
+        String typ = String.valueOf(raw).trim();
+        return typ.isEmpty() ? TYP_ACCESS : typ;
+    }
+
+    /** {@code true} khi access token mang dấu đã qua 2FA ({@code mfa=true}). */
+    public static boolean hasMfa(Claims claims) {
+        if (claims == null) {
+            return false;
+        }
+        Object raw = claims.get(CLAIM_MFA);
+        return raw instanceof Boolean b ? b : "true".equalsIgnoreCase(String.valueOf(raw));
+    }
+
+    /** Thời điểm qua 2FA ghi trong token ({@code mfa_at}); {@code null} khi token không có dấu 2FA. */
+    public static java.time.Instant mfaVerifiedAt(Claims claims) {
+        if (!hasMfa(claims)) {
+            return null;
+        }
+        Object raw = claims.get(CLAIM_MFA_AT);
+        if (raw instanceof Number n) {
+            return java.time.Instant.ofEpochSecond(n.longValue());
+        }
+        try {
+            return raw == null ? null : java.time.Instant.ofEpochSecond(Long.parseLong(String.valueOf(raw)));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** {@code true} khi token không mang claim {@code typ} (phát hành trước 09/11/2026). */
+    public static boolean isLegacyUntyped(Claims claims) {
+        Object raw = claims == null ? null : claims.get(CLAIM_TYP);
+        return raw == null || String.valueOf(raw).isBlank();
+    }
+
+    private static String newJti() {
+        return UUID.randomUUID().toString();
     }
 
     /**

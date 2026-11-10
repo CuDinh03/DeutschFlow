@@ -92,9 +92,97 @@ export const tokenCacheReady: Promise<void> = Promise.resolve()
 
 // ─── Public token API ─────────────────────────────────────────────────────────
 
+// ─── Phiên hỗ trợ chỉ-đọc (admin xem như người dùng, V370) ─────────────────────
+//
+// Tab hỗ trợ là một tab RIÊNG mở bằng window.open(..., 'noopener') từ trang quản trị: sessionStorage
+// của nó trống (không chép của tab admin). Token support (typ=support, ≤30 phút, KHÔNG có refresh)
+// nằm ở sessionStorage của tab này + cookie `auth_support` (middleware định tuyến theo vai trò người
+// dùng). Hai tab DÙNG CHUNG cookie — nên ở chế độ hỗ trợ, mọi đường dọn phiên KHÔNG được đụng các
+// cookie auth_* của admin, và không bao giờ refresh (refresh sẽ biến tab hỗ trợ thành tab admin).
+
+const SUPPORT_TOKEN_KEY = 'supportAccessToken'
+const SUPPORT_SESSION_KEY = 'supportSession'
+const AUTH_SUPPORT_COOKIE = 'auth_support'
+/** Sự kiện window khi phiên hỗ trợ kết thúc/hết hạn (banner chuyển sang trạng thái "đã kết thúc"). */
+export const SUPPORT_SESSION_ENDED_EVENT = 'df:support-session-ended'
+
+export type SupportSessionInfo = {
+  id: number
+  /** ISO-8601 — mốc hết hạn của phiên (server). */
+  expiresAt: string
+  role: string
+  orgRole: string
+  targetName: string
+  targetEmail: string
+  /** true khi phiên đã kết thúc trên tab này (token đã bỏ). */
+  ended?: boolean
+}
+
+function readSupportSession(): SupportSessionInfo | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(SUPPORT_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as SupportSessionInfo
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+/** Tab này đang (hoặc đã từng) là tab phiên hỗ trợ chỉ-đọc. */
+export function isSupportMode(): boolean {
+  return readSupportSession() !== null
+}
+
+/** Thông tin phiên hỗ trợ của tab này, hoặc null. */
+export function getSupportSession(): SupportSessionInfo | null {
+  return readSupportSession()
+}
+
+/**
+ * Bắt đầu chế độ hỗ trợ trên tab hiện tại (trang /v2/support-session sau khi đổi mã). Bỏ access token
+ * kế thừa (nếu có) KHÔNG qua clearTokens() — clearTokens xoá cookie phiên của admin.
+ */
+export function startSupportSession(token: string, info: SupportSessionInfo): void {
+  if (typeof window === 'undefined') return
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+  sessionStorage.setItem(SUPPORT_TOKEN_KEY, token)
+  sessionStorage.setItem(SUPPORT_SESSION_KEY, JSON.stringify({ ...info, ended: false }))
+  const remaining = Math.max(0, Math.floor((Date.parse(info.expiresAt) - Date.now()) / 1000))
+  setSupportCookie(token, remaining)
+}
+
+/**
+ * Kết thúc chế độ hỗ trợ trên tab này (đã kết thúc ở server, hết hạn, hoặc 401): bỏ token support + cookie
+ * `auth_support`, GIỮ thông tin phiên (đánh dấu ended) để tab hiện trạng thái "phiên đã kết thúc" thay vì rơi
+ * về phiên của admin. Không đụng cookie auth_* của admin.
+ */
+export function markSupportSessionEnded(): void {
+  if (typeof window === 'undefined') return
+  const info = readSupportSession()
+  if (!info) return
+  sessionStorage.removeItem(SUPPORT_TOKEN_KEY)
+  setSupportCookie('', 0)
+  if (!info.ended) {
+    sessionStorage.setItem(SUPPORT_SESSION_KEY, JSON.stringify({ ...info, ended: true }))
+    window.dispatchEvent(new CustomEvent(SUPPORT_SESSION_ENDED_EVENT))
+  }
+}
+
+function setSupportCookie(value: string, maxAgeSeconds: number): void {
+  if (typeof window === 'undefined') return
+  const isSecure = window.location.protocol === 'https:'
+  let cookieStr = `${AUTH_SUPPORT_COOKIE}=${encodeURIComponent(value)};path=/;SameSite=Strict;max-age=${maxAgeSeconds}`
+  if (isSecure) cookieStr += ';Secure'
+  document.cookie = cookieStr
+}
+
 /** Read the stored access token. Returns null if not signed in. */
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null
+  // Chế độ hỗ trợ: CHỈ token support (null sau khi phiên kết thúc) — không bao giờ rơi về token khác.
+  if (isSupportMode()) return sessionStorage.getItem(SUPPORT_TOKEN_KEY)
   return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY)
 }
 
@@ -111,6 +199,9 @@ export function getRefreshToken(): string | null {
  * admin đang chờ interceptor 401-refresh khôi phục token.
  */
 export function getKnownAuthRole(): string | null {
+  // Chế độ hỗ trợ: vai trò của NGƯỜI DÙNG đang được xem — cookie auth_role là của admin (dùng chung).
+  const support = readSupportSession()
+  if (support) return normalizeRole(support.role) || 'STUDENT'
   const fromCookie = normalizeRole(readCookie(AUTH_ROLE_COOKIE))
   if (fromCookie) return fromCookie
   const token = getAccessToken()
@@ -128,6 +219,8 @@ export function getAuthRole(): string {
  * Separate from getAuthRole(): an org owner is global TEACHER but OWNER inside the org.
  */
 export function getOrgRole(): string {
+  const support = readSupportSession()
+  if (support) return normalizeRole(support.orgRole)
   const fromCookie = normalizeRole(readCookie(AUTH_ORG_ROLE_COOKIE))
   if (fromCookie) return fromCookie
   const token = getAccessToken()
@@ -156,6 +249,10 @@ type AuthLikeResponse = {
  * Access token → sessionStorage + mirror cookie; refresh token → HttpOnly cookie (backend-set).
  */
 export function setTokens(response: AuthLikeResponse): void {
+  if (isSupportMode()) {
+    // Tab hỗ trợ không bao giờ nhận phiên thật (đăng nhập/refresh) — ghi đè sẽ trộn hai danh tính.
+    throw new Error('Support session tab cannot store login tokens.')
+  }
   const { accessToken, role, orgRole } = response
   if (!accessToken) {
     throw new Error('No access token in auth response. Login failed. Please try again.')
@@ -180,6 +277,13 @@ export function setTokens(response: AuthLikeResponse): void {
 export function clearTokens(): void {
   if (typeof window === 'undefined') return
 
+  if (isSupportMode()) {
+    // Tab hỗ trợ: chỉ bỏ token support. TUYỆT ĐỐI không đụng cookie auth_* — đó là phiên của tab admin
+    // (cookie dùng chung). Thông tin phiên giữ lại để tab hiện "phiên đã kết thúc".
+    sessionStorage.removeItem(SUPPORT_TOKEN_KEY)
+    return
+  }
+
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   sessionStorage.removeItem(REFRESH_TOKEN_KEY)
@@ -200,6 +304,10 @@ export function clearTokens(): void {
 
 /** Full logout: revoke server-side, clear local state, redirect to the v2 login. */
 export async function logout(): Promise<void> {
+  if (isSupportMode()) {
+    await endSupportSessionFromTab()
+    return
+  }
   try {
     const token = getAccessToken()
     if (token) {
@@ -236,6 +344,38 @@ export async function logout(): Promise<void> {
   clearGuestSessionCache()
   // Full cutover: land on the v2 login (the legacy /login is being retired).
   window.location.href = '/v2/login'
+}
+
+/** Trang tab hỗ trợ rơi về khi không tự đóng được (trình duyệt chặn window.close). */
+export const SUPPORT_SESSION_ENDED_ROUTE = '/v2/support-session?ended=1'
+
+/**
+ * "Đăng xuất" trong tab hỗ trợ = kết thúc phiên hỗ trợ: POST /api/support-session/end bằng token support (đường
+ * ghi duy nhất được phép), bỏ token + cookie auth_support, rồi đóng tab. Không gọi /auth/logout (sẽ đăng xuất
+ * admin), không đụng cookie phiên admin.
+ */
+export async function endSupportSessionFromTab(): Promise<void> {
+  const token = typeof window === 'undefined' ? null : sessionStorage.getItem(SUPPORT_TOKEN_KEY)
+  try {
+    if (token) {
+      const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
+        .replace(/\/+$/, '').replace(/\/api$/, '')
+      await fetch(`${backendUrl}/api/support-session/end`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(3000),
+      })
+    }
+  } catch {
+    // mạng lỗi — phiên vẫn tự hết hạn ở server; dọn phía client như thường
+  }
+  markSupportSessionEnded()
+  if (typeof window === 'undefined') return
+  window.close()
+  // window.close() bị chặn khi tab không do script mở (người dùng tự mở lại URL) → về trang "đã kết thúc".
+  window.setTimeout(() => {
+    if (!window.closed) window.location.assign(SUPPORT_SESSION_ENDED_ROUTE)
+  }, 150)
 }
 
 // ─── Session keep-alive ───────────────────────────────────────────────────────

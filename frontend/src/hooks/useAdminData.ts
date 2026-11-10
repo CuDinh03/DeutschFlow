@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage, httpStatus } from '@/lib/api'
-import { clearTokens } from '@/lib/authSession'
+import { clearTokens, isSupportMode } from '@/lib/authSession'
 import { homeFor } from '@/lib/roleRouting'
 
 type UseAdminDataOptions<T> = {
@@ -60,7 +60,7 @@ export default function useAdminData<T>({
       setLastSyncedAt(new Date())
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'redirected') return
-      if (httpStatus(e) === 401) {
+      if (httpStatus(e) === 401 && !isSupportMode()) {
         clearTokens()
         router.push('/v2/login')
         return

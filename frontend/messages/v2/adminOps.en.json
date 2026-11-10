@@ -534,6 +534,7 @@
         "pwPlaceholder": "New password (≥ 8 characters)",
         "pwReset": "Reset",
         "pwNote": "An admin sets a new password directly (no old password needed) — for clearing default credentials or a forgotten password. Audited.",
+        "pwAdminNote": "Admin accounts cannot have their password reset here. Admins reset their own via \"Forgot password\".",
         "pwTooShort": "New password must be at least 8 characters.",
         "pwDone": "Password reset.",
         "planCap": "Change subscription",
@@ -597,7 +598,7 @@
           "title": "Reset password?",
           "description": "{name} will have to sign in with the new password.",
           "detailSessions": "All of this person's current sessions are ended.",
-          "detailNoNotice": "The user is NOT notified automatically — tell them through support.",
+          "detailNotice": "The user gets a notification and an email saying the support team reset their password (no reason or admin name included).",
           "detailAudit": "The action and reason are recorded in the audit log.",
           "confirm": "Reset password",
           "cancel": "Cancel"
@@ -614,6 +615,36 @@
           "confirm": "Change plan",
           "cancel": "Cancel",
           "done": "Switched to plan {plan}."
+        },
+        "mfaCap": "Two-factor authentication",
+        "mfaReset": "Reset 2FA",
+        "mfaNote": "Use this when this admin lost their phone and has no recovery codes left. They will set up 2FA again at their next sign-in.",
+        "mfaResetDone": "Two-factor authentication was reset",
+        "confirmMfa": {
+          "title": "Reset two-factor authentication?",
+          "description": "{name} will be signed out on every device and must set up 2FA again (email code + authenticator app) at their next sign-in.",
+          "detailSessions": "All of this person’s sessions are ended; an open session may keep working for up to 15 minutes.",
+          "detailNotice": "This person gets a notification and an email that their 2FA was reset.",
+          "detailAudit": "The action is recorded in the audit log with your reason.",
+          "confirm": "Reset 2FA",
+          "cancel": "Cancel"
+        },
+        "supportView": {
+          "button": "View as user",
+          "started": "Opened the view-as-user tab",
+          "ended": "Support view ended",
+          "activeUntil": "Read-only view in progress (until {time})",
+          "end": "End",
+          "confirm": {
+            "title": "Open view-as-user mode?",
+            "description": "You will see the app as {name} sees it, in a new tab.",
+            "detailLimits": "30 minutes · read-only · the user will be notified",
+            "detailBlocked": "All write actions, payments and AI features are blocked",
+            "detailAudit": "The session is logged with your reason and every page opened",
+            "reasonLabel": "Reason (at least 15 characters)",
+            "confirm": "Open view tab",
+            "cancel": "Cancel"
+          }
         }
       },
       "create": {

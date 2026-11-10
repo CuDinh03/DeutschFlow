@@ -1619,6 +1619,7 @@
       "correct": "Correct!",
       "incorrect": "Not quite",
       "answerIs": "Answer:",
+      "checkError": "Couldn't check this answer — please answer again.",
       "submit": "Submit · {correct}/{total} correct",
       "resultLine": "{correct} / {total} correct",
       "generateNext": "Practise a new set",
@@ -1979,7 +1980,13 @@
             "drillDone": "Teil {n} practice done"
           },
           "autoStop": "Auto-stop on silence",
-          "autoStopHint": "On: after you have spoken, 2 seconds of silence stops and sends. Off: tap the microphone again to send."
+          "autoStopHint": "On: after you have spoken, 2 seconds of silence stops and sends. Off: tap the microphone again to send.",
+          "blocked": {
+            "title": "Your browser blocked the audio",
+            "sub": "Tap the button below to hear the examiner. The examiner's words are also shown in the conversation.",
+            "play": "Tap to listen",
+            "skip": "Skip, I'll read it"
+          }
         }
       },
       "mic": {
@@ -1997,7 +2004,8 @@
           "busy": "The microphone is used by another app.",
           "insecure": "Microphone needs HTTPS.",
           "unsupported": "This browser cannot record audio.",
-          "unknown": "Could not record. Please retry."
+          "unknown": "Could not record. Please retry.",
+          "tooShort": "That recording was too short. Tap the mic, say your full answer, then tap stop."
         },
         "retry": "Try microphone again",
         "deniedSteps": {
@@ -2135,6 +2143,8 @@
         "speakNow": "Say something",
         "speakerTitle": "Speaker",
         "speakerSub": "Hear the examiner's voice",
+        "speakerBlocked": "Your browser blocked the audio. Turn off silent mode, raise the volume and tap Play again.",
+        "speakerFailed": "Couldn't play the examiner's voice. Check your connection and try again.",
         "speakerPlay": "Play test",
         "quietTitle": "Quiet place",
         "quietSub": "Noise lowers your pronunciation score",
@@ -2503,6 +2513,70 @@
       }
     },
     "practice": {
+      "marks": {
+        "toolbar": "Marking tools",
+        "colorY": "Yellow · keyword",
+        "colorG": "Green · evidence",
+        "colorP": "Pink · not sure",
+        "underline": "Underline",
+        "quick": "Q {n}",
+        "quickHint": "Highlight green and link to the current question (Q)",
+        "tag": "Link to question",
+        "tagTo": "Link to question",
+        "untag": "Unlink",
+        "currentItem": "Current question",
+        "note": "Note",
+        "erase": "Erase marks in the selection",
+        "remove": "Delete this mark",
+        "noteTitle": "Note · {where}",
+        "notePlaceholder": "E.g. main idea of this paragraph / trap: „meistens“ is not „immer“",
+        "noteSave": "Save",
+        "noteCancel": "Cancel",
+        "noteDelete": "Delete note",
+        "noteHint": "Ctrl+Enter to save · Esc to close",
+        "line": "line {n}",
+        "lines": "lines {a}–{b}",
+        "inQuestion": "question {n}",
+        "tagBadge": "Linked to question {n}, click to open it",
+        "noteBadge": "Note: {note}",
+        "evidenceTag": "Key {n}",
+        "seeMarks": "{count, plural, one {# mark} other {# marks}} · Show in text",
+        "strike": "Cross out option {k}",
+        "unstrike": "Restore option {k}",
+        "announceTag": "Linked to question {n}",
+        "announceUntag": "Unlinked",
+        "announceNote": "Note saved",
+        "announceNoteDeleted": "Note deleted",
+        "announceErase": "Marks in the selection erased",
+        "announceDelete": "Mark deleted",
+        "bar": {
+          "title": "Highlighter",
+          "legend": "Colour meaning",
+          "hint": "Select text in the passage or a question to highlight, underline, link it to a question or add a note. Click a highlight to edit it. Use ⊘ next to an option to cross it out.",
+          "hintNarrow": "Use a wider screen (760px or more) to create marks; existing marks still show here.",
+          "undo": "Undo mark (Ctrl+Z)",
+          "hide": "Hide marks to read the clean text",
+          "show": "Show marks again",
+          "stale": "This text was corrected, so your old marks on it were removed.",
+          "saveError": "Marks not saved yet; will retry with your next mark."
+        },
+        "diag": {
+          "title": "How you found the evidence",
+          "found": "You marked the passage that holds the answer ({where}).",
+          "offTarget": "You linked this question to {mine}, but the answer is in {where}.",
+          "untagged": "You highlighted the right passage ({where}) but did not link it to this question.",
+          "none": "You did not mark where the answer is. It is in {where}.",
+          "tipFound": "You found the right passage but chose wrong: reread the sentence with the dashed green line and compare it word by word with the options.",
+          "tipMiss": "You did not find the passage: practise scanning the text for the question’s keywords before choosing."
+        },
+        "redo": {
+          "title": "Redo this Teil?",
+          "body": "Your answers and result for this attempt will be deleted.",
+          "keep": "Keep marks in the text",
+          "confirm": "Redo",
+          "cancel": "Cancel"
+        }
+      },
       "saveSaving": "Saving…",
       "saveSaved": "Saved",
       "saveError": "Not saved yet — retrying",
@@ -2826,6 +2900,26 @@
         "passed": "Passed",
         "failed": "Not passed",
         "borderline": "Borderline"
+      },
+      "assist": {
+        "ask": "Ask AI about this question",
+        "title": "AI explanation",
+        "loading": "AI is reading this question…",
+        "cached": "Saved answer, no AI credit used",
+        "disclaimer": "AI can be wrong, check it against the text.",
+        "error": "Could not ask the AI. Please try again later.",
+        "retry": "Try again",
+        "noteOpen": "Note why I chose this",
+        "noteLabel": "Why I chose question {n} (optional)",
+        "notePlaceholder": "For example: the text mentions that exact day, so…",
+        "noteYours": "Your note while answering",
+        "flaggedTitle": "Marked questions",
+        "flaggedJump": "Go to question {n}",
+        "flaggedNav": "Marked ({count})",
+        "flaggedNavTitle": "Marked questions in this part",
+        "flaggedNavEmpty": "No questions marked yet. Tap the flag on a question (or press F) to mark it for review.",
+        "flaggedNavItem": "{teil} · question {n}",
+        "flaggedNavClose": "Close list"
       }
     },
     "examHub": {
@@ -3118,6 +3212,10 @@
         }
       },
       "teil": {
+        "marks": {
+          "t": "Highlighter",
+          "p": "Select text to mark it like on paper. Yellow = keyword, Green = evidence, Pink = not sure. Link a passage to a question to find it again with one click."
+        },
         "source": {
           "t": "Reading text",
           "p": "Read here. This column scrolls on its own."

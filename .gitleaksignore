@@ -47,3 +47,8 @@ b78e5515ae2e91ae9bfa837707d48800293c3f3c:.gitleaksignore:generic-api-key:38
 # Source đã sửa ở commit kế tiếp (đổi sang khoá Teil ngắn), nhưng commit dưới còn trong dải quét của PR.
 # Không dán nguyên văn dòng đó vào đây (file này sẽ tự bị bắt).
 ba11faba710c2a1bb23ade9111ab958544d39b5b:frontend/src/test/components/todayModel.test.ts:generic-api-key:40
+
+# KHOÁ GIẢ trong IT 2FA admin (09/11/2026): property app.security.mfa.encryption-key của
+# AdminMfaFlowIntegrationTest là base64 của 32 byte 0x01..0x20 — chỉ dùng trong test, không phải khoá
+# máy chủ (khoá thật chỉ nằm trong /srv/deutschflow/env/backend.env). Đã mở đúng dòng 57 để xác nhận.
+326167f6c00c83654975c045a0258739f4dbbfd9:backend/src/test/java/com/deutschflow/user/mfa/AdminMfaFlowIntegrationTest.java:generic-api-key:57

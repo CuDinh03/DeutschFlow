@@ -17,9 +17,8 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Client for the OpenAI-compatible Whisper STT API (mặc định: Groq).
- * Endpoint mặc định: POST https://api.groq.com/openai/v1/audio/transcriptions
- * Model mặc định: whisper-large-v3
+ * Client for the OpenAI-compatible Whisper STT API. Tên lớp còn "Groq" vì lịch sử; owner chốt 09/11/2026
+ * chuyển STT sang Fireworks — bật bằng {@code STT_API_KEY} (xem constructor Spring).
  *
  * <p><b>Đổi nhà cung cấp qua env, không sửa code</b> (bảo hiểm vendor — cùng lý do
  * {@code GROQ_BASE_URL} bên {@link GroqChatClient}): {@code GROQ_WHISPER_BASE_URL} +
@@ -41,6 +40,12 @@ public class GroqWhisperClient {
 
     static final String WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 
+    /** Mặc định từ 09/11/2026: Fireworks whisper-v3-turbo — audio đi host RIÊNG theo model (xem javadoc lớp). */
+    static final String GROQ_MODEL = "whisper-large-v3";
+    static final String FIREWORKS_TURBO_MODEL = "whisper-v3-turbo";
+    static final String FIREWORKS_TURBO_URL =
+            "https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions";
+
     /** Per-request cap. The JDK HttpClient only had a connect timeout; without this a stalled
      *  Groq response would hold the STT thread (and its Whisper semaphore permit) indefinitely. */
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
@@ -54,6 +59,14 @@ public class GroqWhisperClient {
     private final String apiKey;
     private final String endpointUrl;
     private final String whisperModel;
+    /**
+     * Máy chủ STT dự phòng (10/11/2026): Fireworks chạy mỗi model trên một host riêng và host
+     * {@code audio-turbo} từng trả 503 "no healthy upstream" (09/11) — mọi lượt nói hỏng cho tới khi
+     * sửa env bằng tay. Primary là host audio Fireworks thì dự phòng là host còn lại (turbo ↔ prod,
+     * cùng key). Primary khác (Groq, stub test) → không có dự phòng.
+     */
+    private final String fallbackEndpointUrl;
+    private final String fallbackModel;
     /** Gửi {@code prompt} (expectedText) định hướng STT — tắt khi provider nuốt phần trùng (Fireworks). */
     private final boolean promptEnabled;
     private final ObjectMapper objectMapper;
@@ -61,20 +74,66 @@ public class GroqWhisperClient {
     private final GroqConcurrencyLimiter concurrencyLimiter;
     private final com.deutschflow.common.resilience.CircuitBreakers circuitBreakers;
 
-    /** Constructor đầy đủ, {@code @Autowired} — cũng là cửa cho tests chỉnh endpoint + cờ prompt
-     *  (xem {@code GroqWhisperClientVerboseParseTest}); production bind giá trị từ yml/env. */
+    /**
+     * Constructor Spring. Owner chốt 09/11/2026: bỏ Groq, nhận diện giọng nói chạy Fireworks — bật bằng
+     * key RIÊNG {@code STT_API_KEY}. Key chat ({@code GROQ_API_KEY}) và key STT trước đây dùng chung một
+     * biến, nên đổi host mà không đổi key là 401 (UI: "Dịch vụ nhận diện giọng nói tạm thời không khả dụng").
+     * <ul>
+     *   <li>Có {@code STT_API_KEY} → Fireworks whisper-v3-turbo, prompt TẮT.</li>
+     *   <li>Chưa có → giữ nguyên Groq như trước (deploy không cần sửa {@code backend.env} cũng không hỏng).</li>
+     *   <li>{@code GROQ_WHISPER_BASE_URL / _MODEL / _PROMPT_ENABLED} đặt tường minh thì luôn thắng.</li>
+     * </ul>
+     */
     @org.springframework.beans.factory.annotation.Autowired
     public GroqWhisperClient(
-            @Value("${app.ai.groq.api-key:}") String apiKey,
-            @Value("${app.ai.groq.whisper-model:whisper-large-v3}") String whisperModel,
+            @Value("${app.ai.groq.api-key:}") String chatApiKey,
+            @Value("${app.ai.groq.whisper-api-key:}") String sttApiKey,
+            @Value("${app.ai.groq.whisper-model:}") String whisperModel,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
-            @Value("${app.ai.groq.whisper-base-url:" + WHISPER_URL + "}") String endpointUrl,
-            @Value("${app.ai.groq.whisper-prompt-enabled:true}") boolean promptEnabled) {
+            @Value("${app.ai.groq.whisper-base-url:}") String endpointUrl,
+            @Value("${app.ai.groq.whisper-prompt-enabled:}") String promptEnabled) {
+        this(isSet(sttApiKey) ? sttApiKey : chatApiKey,
+                isSet(whisperModel) ? whisperModel : (isSet(sttApiKey) ? FIREWORKS_TURBO_MODEL : GROQ_MODEL),
+                objectMapper, concurrencyLimiter, circuitBreakers,
+                isSet(endpointUrl) ? endpointUrl : (isSet(sttApiKey) ? FIREWORKS_TURBO_URL : WHISPER_URL),
+                isSet(promptEnabled) ? Boolean.parseBoolean(promptEnabled.trim()) : !isSet(sttApiKey));
+    }
+
+    private static boolean isSet(String v) {
+        return v != null && !v.isBlank();
+    }
+
+    /** Constructor đầy đủ — cửa cho tests chỉnh endpoint + cờ prompt
+     *  (xem {@code GroqWhisperClientVerboseParseTest}). */
+    public GroqWhisperClient(
+            String apiKey,
+            String whisperModel,
+            ObjectMapper objectMapper,
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            String endpointUrl,
+            boolean promptEnabled) {
+        this(apiKey, whisperModel, objectMapper, concurrencyLimiter, circuitBreakers, endpointUrl, promptEnabled,
+                fireworksSibling(endpointUrl));
+    }
+
+    /** Cửa cho test: chỉ định tường minh host dự phòng {@code {url, model}} (null = không có). */
+    GroqWhisperClient(
+            String apiKey,
+            String whisperModel,
+            ObjectMapper objectMapper,
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            String endpointUrl,
+            boolean promptEnabled,
+            String[] fallback) {
         this.apiKey = apiKey;
         this.endpointUrl = endpointUrl;
         this.whisperModel = whisperModel;
+        this.fallbackEndpointUrl = fallback == null ? null : fallback[0];
+        this.fallbackModel = fallback == null ? null : fallback[1];
         this.promptEnabled = promptEnabled;
         this.objectMapper = objectMapper;
         this.concurrencyLimiter = concurrencyLimiter;
@@ -82,8 +141,48 @@ public class GroqWhisperClient {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-        log.info("GroqWhisperClient initialized — model: {}, endpoint: {}, prompt: {}",
-                whisperModel, endpointUrl, promptEnabled ? "on" : "off");
+        log.info("GroqWhisperClient initialized — model: {}, endpoint: {}, prompt: {}, fallback: {}",
+                whisperModel, endpointUrl, promptEnabled ? "on" : "off",
+                fallbackEndpointUrl == null ? "none" : fallbackModel + " @ " + fallbackEndpointUrl);
+    }
+
+    private static final String FW_TURBO_HOST = "//audio-turbo.";
+    private static final String FW_PROD_HOST = "//audio-prod.";
+
+    /** Host audio Fireworks còn lại cho {@code url} (turbo ↔ prod) kèm model; null nếu không phải host audio Fireworks. */
+    static String[] fireworksSibling(String url) {
+        if (url == null || !url.contains(".direct.fireworks.ai/")) return null;
+        if (url.contains(FW_TURBO_HOST)) return new String[]{url.replace(FW_TURBO_HOST, FW_PROD_HOST), "whisper-v3"};
+        if (url.contains(FW_PROD_HOST)) return new String[]{url.replace(FW_PROD_HOST, FW_TURBO_HOST), "whisper-v3-turbo"};
+        return null;
+    }
+
+    private HttpRequest buildRequest(String url, String model, byte[] audioBytes, String filename,
+                                     String language, String prompt) {
+        String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
+        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt, true, model);
+        return HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .timeout(REQUEST_TIMEOUT)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                .build();
+    }
+
+    /**
+     * Gọi primary; upstream hỏng (5xx, lỗi kết nối, timeout) thì thử MỘT lần ở host dự phòng.
+     * Audio hỏng (STT_FAILED) và hết hạn mức (RATE_LIMITED) không chuyển — host kia cũng trả y vậy.
+     */
+    private <T> T withFallback(java.util.function.Function<HttpRequest, T> send,
+                               byte[] audioBytes, String filename, String language, String prompt) {
+        try {
+            return send.apply(buildRequest(endpointUrl, whisperModel, audioBytes, filename, language, prompt));
+        } catch (AiServiceException e) {
+            if (fallbackEndpointUrl == null || e.getCode() != AiErrorCode.AI_UPSTREAM_UNAVAILABLE) throw e;
+            log.warn("[Whisper] primary {} hỏng — thử dự phòng {} @ {}", whisperModel, fallbackModel, fallbackEndpointUrl);
+            return send.apply(buildRequest(fallbackEndpointUrl, fallbackModel, audioBytes, filename, language, prompt));
+        }
     }
 
     /** Endpoint-overridable — tests cũ trỏ stub HTTP cục bộ (xem {@code GroqWhisperClientErrorTest}),
@@ -109,6 +208,19 @@ public class GroqWhisperClient {
         log.error("[Whisper] {} failed: HTTP {}", phase, statusCode);
         return new AiServiceException(AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
                 "Dịch vụ nhận diện giọng nói tạm thời không khả dụng, vui lòng thử lại sau.", null);
+    }
+
+    /** 400/413/415/422 = provider không đọc được file (container lạ, rỗng, quá lớn) — lỗi của bản ghi, không phải dịch vụ sập. */
+    private static boolean isUnreadableAudio(int status) {
+        return status == 400 || status == 413 || status == 415 || status == 422;
+    }
+
+    private AiServiceException unreadableAudio(String phase, HttpResponse<String> response) {
+        String body = response.body() == null ? "" : response.body();
+        log.warn("[Whisper] {} audio không đọc được: HTTP {} {}", phase, response.statusCode(),
+                body.length() > 300 ? body.substring(0, 300) : body);
+        return new AiServiceException(AiErrorCode.STT_FAILED,
+                "Không đọc được bản ghi âm — bạn thử ghi lại nhé.", null);
     }
 
     private AiServiceException transportFailure(String phase, Exception e) {
@@ -154,21 +266,11 @@ public class GroqWhisperClient {
      * Transcribes with verbose_json + word timestamps for pronunciation scoring.
      */
     public VerboseTranscript transcribeVerbose(byte[] audioBytes, String filename, String language, String prompt) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("stt");
         if (apiKey == null || apiKey.isBlank()) {
             throw new AiServiceException(AiErrorCode.AI_NOT_CONFIGURED,
                     "Tính năng nhận diện giọng nói chưa được bật trên hệ thống.", null);
         }
-
-        String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
-        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt, true);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(endpointUrl))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-                .timeout(REQUEST_TIMEOUT)
-                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                .build();
 
         boolean acquired = false;
         try {
@@ -178,7 +280,7 @@ public class GroqWhisperClient {
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
             return circuitBreakers.call(
                     "groqWhisper",
-                    () -> sendAndParseVerbose(request),
+                    () -> withFallback(this::sendAndParseVerbose, audioBytes, filename, language, prompt),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
                     AiServiceException::isRateLimited);
@@ -198,6 +300,9 @@ public class GroqWhisperClient {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() == 429) {
                 throw rateLimited("verbose", response);
+            }
+            if (isUnreadableAudio(response.statusCode())) {
+                throw unreadableAudio("verbose", response);
             }
             if (response.statusCode() != 200) {
                 throw upstreamFailure("verbose", response.statusCode());
@@ -264,22 +369,11 @@ public class GroqWhisperClient {
      * @return transcribed text and audio duration in seconds
      */
     public TranscribeResult transcribe(byte[] audioBytes, String filename, String language, String prompt) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("stt");
         if (apiKey == null || apiKey.isBlank()) {
             throw new AiServiceException(AiErrorCode.AI_NOT_CONFIGURED,
                     "Tính năng nhận diện giọng nói chưa được bật trên hệ thống.", null);
         }
-
-        String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
-        // verbose_json gives us the duration field without requesting word timestamps
-        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt, true);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(endpointUrl))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-                .timeout(REQUEST_TIMEOUT)
-                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                .build();
 
         boolean acquired = false;
         try {
@@ -292,7 +386,7 @@ public class GroqWhisperClient {
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
             return circuitBreakers.call(
                     "groqWhisper",
-                    () -> sendAndParseTranscribe(request, prompt, audioBytes.length),
+                    () -> withFallback(r -> sendAndParseTranscribe(r, prompt, audioBytes.length), audioBytes, filename, language, prompt),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
                     AiServiceException::isRateLimited);
@@ -314,6 +408,9 @@ public class GroqWhisperClient {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() == 429) {
                 throw rateLimited("transcribe", response);
+            }
+            if (isUnreadableAudio(response.statusCode())) {
+                throw unreadableAudio("transcribe", response);
             }
             if (response.statusCode() != 200) {
                 log.error("[Whisper] HTTP {}: {}", response.statusCode(), response.body());
@@ -347,11 +444,12 @@ public class GroqWhisperClient {
 
     private byte[] buildMultipartBody(String boundary, byte[] audioBytes,
                                       String filename, String language, String prompt) {
-        return buildMultipartBody(boundary, audioBytes, filename, language, prompt, false);
+        return buildMultipartBody(boundary, audioBytes, filename, language, prompt, false, whisperModel);
     }
 
     private byte[] buildMultipartBody(String boundary, byte[] audioBytes,
-                                      String filename, String language, String prompt, boolean verbose) {
+                                      String filename, String language, String prompt, boolean verbose,
+                                      String model) {
         try {
             String safeFilename = (filename != null && !filename.isBlank()) ? filename : "audio.webm";
             StringBuilder sb = new StringBuilder();
@@ -360,7 +458,7 @@ public class GroqWhisperClient {
             sb.append("--").append(boundary).append("\r\n");
             sb.append("Content-Disposition: form-data; name=\"model\"\r\n");
             sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
-            sb.append(whisperModel).append("\r\n");
+            sb.append(model).append("\r\n");
 
             // --- language field ---
             sb.append("--").append(boundary).append("\r\n");

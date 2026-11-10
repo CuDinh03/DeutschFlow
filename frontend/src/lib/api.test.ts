@@ -11,6 +11,9 @@ const h = vi.hoisted(() => ({
   clearTokens: vi.fn(),
   setNeedsReauth: vi.fn(),
   maintenanceSignal: vi.fn(),
+  isSupportMode: vi.fn<() => boolean>(() => false),
+  markSupportSessionEnded: vi.fn(),
+  toastError: vi.fn(),
 }))
 
 vi.mock('@/lib/authSession', () => ({
@@ -20,8 +23,12 @@ vi.mock('@/lib/authSession', () => ({
   recordTokenRefresh: h.recordTokenRefresh,
   clearTokens: h.clearTokens,
   isNative: () => false,
+  isSupportMode: h.isSupportMode,
+  markSupportSessionEnded: h.markSupportSessionEnded,
   getPlatform: () => 'web',
 }))
+
+vi.mock('sonner', () => ({ toast: { error: h.toastError, success: vi.fn() } }))
 
 vi.mock('@/stores/useAuthRecoveryStore', () => ({
   useAuthRecoveryStore: { getState: () => ({ setNeedsReauth: h.setNeedsReauth }) },
@@ -249,4 +256,53 @@ describe('api interceptor — maintenance mode', () => {
     expect(calls).toBe(2)
     expect(h.maintenanceSignal).not.toHaveBeenCalled()
   }, 10_000)
+})
+
+describe('api interceptor — phiên hỗ trợ chỉ-đọc (V370)', () => {
+  beforeEach(() => {
+    h.isSupportMode.mockReset()
+    h.isSupportMode.mockReturnValue(false)
+    h.markSupportSessionEnded.mockClear()
+    h.toastError.mockClear()
+    h.clearTokens.mockClear()
+  })
+
+  it('401 trong tab hỗ trợ: KHÔNG POST /auth/refresh, không xoá phiên admin — chuyển sang "phiên đã kết thúc"', async () => {
+    const { api, plan } = await bootstrap(() => ({ status: 401, data: { extensions: { code: 'SUPPORT_SESSION_ENDED' } } }))
+    h.isSupportMode.mockReturnValue(true)
+
+    await expect(api.get('/student/dashboard')).rejects.toMatchObject({ response: { status: 401 } })
+
+    expect(plan.refreshCount).toBe(0)
+    expect(h.markSupportSessionEnded).toHaveBeenCalled()
+    expect(h.clearTokens).not.toHaveBeenCalled()
+    expect(h.setNeedsReauth).not.toHaveBeenCalled()
+  })
+
+  it('refreshAccessToken() trong tab hỗ trợ trả null ngay, không gọi mạng', async () => {
+    const { plan } = await bootstrap(() => ({ status: 200, data: { accessToken: 'admin-token' } }))
+    h.isSupportMode.mockReturnValue(true)
+    const { refreshAccessToken } = await import('./api')
+
+    await expect(refreshAccessToken()).resolves.toBeNull()
+    expect(plan.refreshCount).toBe(0)
+    expect(h.setTokens).not.toHaveBeenCalled()
+  })
+
+  it('403 SUPPORT_SESSION_READ_ONLY → toast chỉ-đọc, không refresh, không đăng xuất', async () => {
+    const { api, plan } = await bootstrap(() => ({
+      status: 403,
+      data: { status: 403, extensions: { code: 'SUPPORT_SESSION_READ_ONLY' } },
+    }))
+    h.isSupportMode.mockReturnValue(true)
+
+    await expect(api.post('/notifications/read-all')).rejects.toMatchObject({ response: { status: 403 } })
+
+    expect(h.toastError).toHaveBeenCalledTimes(1)
+    expect(String(h.toastError.mock.calls[0][0])).toContain('chỉ đọc')
+    expect(h.toastError.mock.calls[0][1]).toMatchObject({ id: 'support-session-read-only' })
+    expect(plan.refreshCount).toBe(0)
+    expect(h.clearTokens).not.toHaveBeenCalled()
+    expect(h.markSupportSessionEnded).not.toHaveBeenCalled()
+  })
 })

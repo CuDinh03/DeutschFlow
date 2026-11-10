@@ -7,7 +7,7 @@ import { ArrowLeft, CheckCircle2, ChevronRight, XCircle } from 'lucide-react'
 import api from '@/lib/api'
 import { useTracking } from '@/hooks/useTracking'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
-import { GaCap, GaCard, GaPageHdr, LoadingState, TkSeg } from '@/components/ui-v2'
+import { GaCap, GaCard, GaChoiceGroup, GaPageHdr, LoadingState, TkSeg } from '@/components/ui-v2'
 
 /**
  * /v2/student/grammar/practice — the grammar-syllabus RUNNER (Galerie shell).
@@ -293,43 +293,21 @@ function GrammarPractice() {
 
                   <GaCard className="p-4 lg:p-6">
                     <GaCap className="mb-3 block">{prompt.options ? t('typeChoice') : t('typeOpen')}</GaCap>
-                    <p className="break-words font-ga-display text-[18px] font-medium leading-snug text-ga-ink sm:text-[20px] lg:text-[22px]">{prompt.prompt}</p>
+                    <p id="grammar-practice-prompt" className="break-words font-ga-display text-[18px] font-medium leading-snug text-ga-ink sm:text-[20px] lg:text-[22px]">{prompt.prompt}</p>
 
                     {prompt.options?.length ? (
-                      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {prompt.options.map((option) => {
-                          const isSelected = answer === option
-                          const isCorrect = result && option === result.correctAnswer
-                          const isWrong = result && isSelected && !result.correct
-                          return (
-                            <button
-                              key={option}
-                              type="button"
-                              onClick={() => !result && setAnswer(option)}
-                              disabled={!!result}
-                              className="ga-ui rounded-ga border-2 px-4 py-3 text-left text-[14px] font-medium transition-colors"
-                              style={{
-                                borderColor: isCorrect
-                                  ? 'var(--ga-green)'
-                                  : isWrong
-                                    ? 'var(--ga-red)'
-                                    : isSelected
-                                      ? 'var(--ga-accent)'
-                                      : 'var(--ga-line)',
-                                color: isCorrect
-                                  ? 'var(--ga-green)'
-                                  : isWrong
-                                    ? 'var(--ga-red)'
-                                    : isSelected
-                                      ? 'var(--ga-accent)'
-                                      : 'var(--ga-ink)',
-                              }}
-                            >
-                              {option}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      <GaChoiceGroup
+                        aria-labelledby="grammar-practice-prompt"
+                        layout="grid"
+                        letters={false}
+                        className="mt-5"
+                        options={prompt.options.map((option) => ({ value: option, label: option }))}
+                        value={answer || null}
+                        onChange={setAnswer}
+                        locked={!!result}
+                        correctValue={result?.correctAnswer ?? null}
+                        verdict={result ? result.correct : null}
+                      />
                     ) : (
                       <input
                         value={answer}

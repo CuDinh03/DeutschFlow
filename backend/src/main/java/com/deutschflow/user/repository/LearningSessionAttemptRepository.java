@@ -14,6 +14,10 @@ public interface LearningSessionAttemptRepository extends JpaRepository<Learning
     @Query("SELECT COALESCE(MAX(a.attemptNo), 0) FROM LearningSessionAttempt a WHERE a.user.id = :userId AND a.weekNumber = :week AND a.sessionIndex = :sessionIndex")
     int maxAttemptNo(Long userId, int week, int sessionIndex);
 
+    /** Điểm tốt nhất server chấm cho một buổi; {@code null} khi chưa nộp lần nào (A2). */
+    @Query("SELECT MAX(a.scorePercent) FROM LearningSessionAttempt a WHERE a.user.id = :userId AND a.weekNumber = :week AND a.sessionIndex = :sessionIndex")
+    Integer maxScorePercent(Long userId, int week, int sessionIndex);
+
     List<LearningSessionAttempt> findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
             Long userId, LocalDateTime weekStartInclusive, LocalDateTime weekEndExclusive);
 

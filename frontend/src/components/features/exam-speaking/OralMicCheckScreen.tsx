@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight, CircleCheck, Mic, MicOff, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import { useMicLevelCheck } from './MicCheck'
 import { GaGlyph } from '@/components/ui-v2/GaGlyph'
-import { speakExamLine } from './examTts'
+import { speakExamLine, unlockExamAudio } from './examTts'
 
 interface Props {
   /** Teil đầu có giờ chuẩn bị → nút "Vào phòng chuẩn bị"; không có (A1/A2) → "Vào thi". */
@@ -28,14 +28,24 @@ export function OralMicCheckScreen({ hasPrep, busy, onGo }: Props) {
   const [passed, setPassed] = useState(false)
   const { checking, level, heard, errorKind, start } = useMicLevelCheck(() => setPassed(true))
   const [playing, setPlaying] = useState(false)
+  const [speakerProblem, setSpeakerProblem] = useState<'blocked' | 'failed' | null>(null)
 
   const playTest = async () => {
+    // Đồng bộ trong cú chạm — iOS chỉ cho phát khi thẻ audio được mở khoá ngay tại đây.
+    unlockExamAudio()
     setPlaying(true)
+    setSpeakerProblem(null)
     try {
-      await speakExamLine('PRUEFER', SPEAKER_TEST)
+      const outcome = await speakExamLine('PRUEFER', SPEAKER_TEST)
+      if (outcome === 'blocked' || outcome === 'failed') setSpeakerProblem(outcome)
     } finally {
       setPlaying(false)
     }
+  }
+
+  const go = () => {
+    unlockExamAudio()
+    onGo()
   }
 
   if (errorKind === 'denied') {
@@ -89,6 +99,11 @@ export function OralMicCheckScreen({ hasPrep, busy, onGo }: Props) {
           <CircleCheck size={20} className="text-ga-green" aria-hidden />
         </Row>
       </ul>
+      {speakerProblem && (
+        <p className="ga-ui text-ga-small text-ga-red" role="alert" data-testid="oral-speaker-error">
+          {speakerProblem === 'blocked' ? t('speakerBlocked') : t('speakerFailed')}
+        </p>
+      )}
       {errorKind && errorKind !== 'denied' && (
         <p className="ga-ui text-ga-small text-ga-red" role="alert" data-testid="oral-mic-error">
           {t('micFailed')}
@@ -97,7 +112,7 @@ export function OralMicCheckScreen({ hasPrep, busy, onGo }: Props) {
       <div className="flex flex-col gap-1.5">
         <button
           type="button"
-          onClick={onGo}
+          onClick={go}
           disabled={!passed || busy}
           className="ga-ui inline-flex min-h-12 items-center justify-center gap-2 rounded-ga-touch bg-ga-ink px-5 text-ga-body font-semibold text-ga-bg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 disabled:opacity-40"
           data-testid="oral-entry-go"

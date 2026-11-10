@@ -1,35 +1,29 @@
 import api from '@/lib/api'
 
 /**
- * practiceApi — thư viện bài tập bổ trợ (`/api/practice`).
+ * practiceApi — thư viện bài tập bổ trợ (`/api/practice/catalog`).
  *
- * Giữ nguyên contract của backend `PracticeController`:
- *   - GET  /practice/exercises        ?exerciseType&cefrLevel&skillType&page&size  → Page<PracticeExerciseDto>
- *   - GET  /practice/exercises/{id}                                                → PracticeExerciseDto
- *   - POST /practice/submit           { practiceId, scorePercent, answerDataJson } → 204
+ * A3 (09/11/2026): web KHÔNG còn nhận đáp án trước khi nộp.
+ *   - GET  /practice/catalog          ?exerciseType&cefrLevel&skillType&page&size → Page<PracticeCatalogItem>
+ *   - GET  /practice/catalog/{id}                                               → PracticeQuiz (không đáp án)
+ *   - POST /practice/catalog/{id}/grade { answers, scorePercent? }              → PracticeGradeResult
  *
- * ⚠️ Vì sao có `gradePractice` ở đây: trang v1 (`/student/practice`) KHÔNG hề render đề. Nó chỉ
- * liệt kê thẻ bài tập rồi POST thẳng `scorePercent: 100` khi bấm "Làm bài ngay"
- * (PracticePageClient.tsx:63) — tức ai bấm cũng "đạt 100%" và ăn trọn XP mà không làm câu nào.
- * Trong khi đó DTO đã trả sẵn `contentJson` chứa đủ `questions[].correctAnswer` — v1 chỉ là bỏ
- * quên. Bản port v2 vì vậy chấm điểm THẬT trên đáp án API trả về, thay vì bê nguyên bug.
- *
- * Lưu ý bảo mật (không thuộc phạm vi đợt này): backend TIN scorePercent do client gửi và
- * `contentJson` lộ luôn `correctAnswer` xuống client. Muốn chống gian lận thì phải chấm ở server
- * (nhận answers, tự so đáp án) — cần đổi backend, xem báo cáo.
+ * Trước A3, web gọi `GET /practice/exercises[/{id}]` — DTO trả `contentJson` nguyên văn, gồm
+ * `questions[].correctAnswer` + `explanation`, và trình duyệt tự chấm. Mở DevTools là thấy đáp án.
+ * Giờ server chấm (`PracticeQuizService`) và chỉ trả đáp án + giải thích SAU khi nộp. API cũ vẫn
+ * còn ở backend cho client đã phát hành; web không gọi nữa.
  */
 
 export const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 export type CefrLevel = (typeof CEFR_LEVELS)[number]
 
-export interface PracticeExercise {
+/** Một thẻ trong thư viện — không có đề, không có đáp án. */
+export interface PracticeCatalogItem {
   id: number
   exerciseType: string
   cefrLevel: string
   skillType: string
   examName: string | null
-  /** JSON thô của đề (chuỗi jsonb). Có thể rỗng với bài "tài nguyên ngoài". */
-  contentJson?: string | null
   sourceName: string
   sourceUrl?: string | null
   xpReward: number
@@ -42,106 +36,47 @@ export interface SpringPage<T> {
   number: number
 }
 
-export interface PracticeQuestion {
+/** Câu hỏi KHÔNG kèm đáp án. `gradable`: câu có đáp án trong DB (được chấm). */
+export interface PracticeQuizQuestion {
   id: string
-  type?: string
+  type?: string | null
   question: string
-  options?: string[]
-  correctAnswer?: string
-  explanation?: string
+  options?: string[] | null
+  gradable: boolean
 }
 
-export interface PracticeContent {
-  title?: string
-  instructions?: string
-  readingText?: string
-  questions: PracticeQuestion[]
+/** Đề bài tập (đã ẩn đáp án). `questions` rỗng ⇒ tài nguyên ngoài, chỉ tự xác nhận hoàn thành. */
+export interface PracticeQuiz extends PracticeCatalogItem {
+  title?: string | null
+  instructions?: string | null
+  readingText?: string | null
+  questions: PracticeQuizQuestion[]
+  gradableCount: number
 }
 
-/** Map câu hỏi → đáp án người dùng chọn/gõ. */
+/** Map id câu → đáp án người dùng chọn/gõ. */
 export type PracticeAnswers = Record<string, string>
 
-/** So đáp án "mềm": bỏ hoa/thường, dấu câu thừa, khoảng trắng lặp. */
-function normalizeAnswer(raw: string): string {
-  return String(raw ?? '')
-    .toLowerCase()
-    .replace(/[.,!?;:"'`()[\]{}]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+/** Kết quả từng câu SAU khi nộp. `correct = null`: câu không chấm được. */
+export interface PracticeQuestionResult {
+  id: string
+  correct: boolean | null
+  correctAnswer: string | null
+  explanation: string | null
 }
 
-/**
- * Parse `contentJson` → đề bài. Backend lưu jsonb nhưng field Java là String nên Jackson trả về
- * CHUỖI JSON; vẫn phòng trường hợp trả object.
- */
-export function parsePracticeContent(raw: unknown): PracticeContent | null {
-  if (!raw) return null
-  let obj: unknown = raw
-  if (typeof raw === 'string') {
-    try {
-      obj = JSON.parse(raw)
-    } catch {
-      return null
-    }
-  }
-  if (!obj || typeof obj !== 'object') return null
-
-  const o = obj as Record<string, unknown>
-  const rawQs = Array.isArray(o.questions) ? o.questions : []
-
-  const questions: PracticeQuestion[] = rawQs
-    .filter((q): q is Record<string, unknown> => !!q && typeof q === 'object')
-    .map((q, i) => ({
-      id: typeof q.id === 'string' && q.id ? q.id : `q${i + 1}`,
-      type: typeof q.type === 'string' ? q.type : undefined,
-      question: typeof q.question === 'string' ? q.question : '',
-      options: Array.isArray(q.options)
-        ? q.options.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-        : undefined,
-      correctAnswer: typeof q.correctAnswer === 'string' ? q.correctAnswer : undefined,
-      explanation: typeof q.explanation === 'string' ? q.explanation : undefined,
-    }))
-    .filter((q) => q.question.length > 0)
-
-  return {
-    title: typeof o.title === 'string' ? o.title : undefined,
-    instructions: typeof o.instructions === 'string' ? o.instructions : undefined,
-    readingText: typeof o.readingText === 'string' ? o.readingText : undefined,
-    questions,
-  }
-}
-
-/** Chỉ những câu API có trả `correctAnswer` mới chấm được. */
-export function gradableQuestions(questions: PracticeQuestion[]): PracticeQuestion[] {
-  return questions.filter((q) => !!q.correctAnswer && q.correctAnswer.trim().length > 0)
-}
-
-export interface PracticeGrade {
-  correct: number
+export interface PracticeGradeResult {
+  graded: boolean
+  correctCount: number
   total: number
+  /** Điểm server ghi nhận (đọc lại từ lịch sử vừa ghi). */
   scorePercent: number
-  /** Đúng/sai theo từng câu (chỉ gồm câu chấm được). */
-  perQuestion: Record<string, boolean>
-}
-
-/**
- * Chấm điểm THẬT: so đáp án người dùng với `correctAnswer` do API trả về.
- * Câu không có `correctAnswer` bị loại khỏi mẫu số (không thể chấm ⇒ không bịa).
- */
-export function gradePractice(questions: PracticeQuestion[], answers: PracticeAnswers): PracticeGrade {
-  const gradable = gradableQuestions(questions)
-  const perQuestion: Record<string, boolean> = {}
-  let correct = 0
-
-  for (const q of gradable) {
-    const ok = normalizeAnswer(answers[q.id] ?? '') === normalizeAnswer(q.correctAnswer ?? '')
-    perQuestion[q.id] = ok
-    if (ok) correct += 1
-  }
-
-  const total = gradable.length
-  const scorePercent = total > 0 ? Math.round((correct / total) * 100) : 0
-  return { correct, total, scorePercent, perQuestion }
+  /**
+   * XP server THẬT SỰ trao (đọc lại từ lịch sử vừa ghi — gồm luật riêng như XP cố định cho bài
+   * nguồn ngoài). `null`/thiếu: backend cũ không báo → client tự ước lượng `score% × xpReward`.
+   */
+  xpEarned?: number | null
+  questions: PracticeQuestionResult[]
 }
 
 export const practiceApi = {
@@ -151,15 +86,20 @@ export const practiceApi = {
     if (params.exerciseType) query.exerciseType = params.exerciseType
     if (params.skillType) query.skillType = params.skillType
     return api
-      .get<SpringPage<PracticeExercise>>('/practice/exercises', { params: query })
+      .get<SpringPage<PracticeCatalogItem>>('/practice/catalog', { params: query })
       .then((r) => r.data)
   },
 
-  get(id: number) {
-    return api.get<PracticeExercise>(`/practice/exercises/${id}`).then((r) => r.data)
+  /** Đề không kèm đáp án. */
+  quiz(id: number) {
+    return api.get<PracticeQuiz>(`/practice/catalog/${id}`).then((r) => r.data)
   },
 
-  submit(body: { practiceId: number; scorePercent: number; answerDataJson?: string }) {
-    return api.post('/practice/submit', body).then((r) => r.data)
+  /**
+   * Nộp bài: server chấm, ghi lượt làm + XP, rồi trả đúng/sai + đáp án + giải thích.
+   * `scorePercent` chỉ có nghĩa với bài tài nguyên ngoài (không có đáp án) — tự xác nhận hoàn thành.
+   */
+  grade(id: number, body: { answers: PracticeAnswers; scorePercent?: number }) {
+    return api.post<PracticeGradeResult>(`/practice/catalog/${id}/grade`, body).then((r) => r.data)
   },
 }

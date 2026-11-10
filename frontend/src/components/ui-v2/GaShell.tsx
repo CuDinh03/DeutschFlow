@@ -7,6 +7,7 @@ import { GaRoleProvider } from './gaScope'
 import { GaLocalNav } from './GaLocalNav'
 import { GaBottomNav } from './GaBottomNav'
 import { MaintenanceBanner } from '@/components/system/MaintenanceBanner'
+import { SupportSessionBanner } from './SupportSessionBanner'
 import { ROLE_NAV, type RoleId } from './nav'
 
 /**
@@ -44,6 +45,8 @@ export function GaShell({ role, children, className }: GaShellProps) {
           {/* Banner đếm ngược bảo trì — flex sibling (KHÔNG fixed: shell là flex
               h-[100dvh], phần tử fixed sẽ che content thay vì đẩy layout). */}
           <MaintenanceBanner />
+          {/* Tab phiên hỗ trợ chỉ-đọc (admin xem như người dùng, V370) — tự ẩn ngoài chế độ hỗ trợ. */}
+          <SupportSessionBanner />
           <GaTopBar role={role} />
           {/* Điều hướng cấp 2 của area (Wave 1 / S-01) — chrome của shell nên mọi màn đều có
               đường vào đầy đủ mà không phải sửa page. Tự ẩn khi area không có local nav. */}

@@ -1,5 +1,7 @@
 package com.deutschflow.user.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.common.security.JwtService;
@@ -8,6 +10,14 @@ import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.user.dto.AuthResponse;
 import com.deutschflow.user.dto.ChangePasswordRequest;
 import com.deutschflow.user.dto.LoginRequest;
+import com.deutschflow.user.dto.LoginResult;
+import com.deutschflow.user.dto.MfaChallengeResponse;
+import com.deutschflow.user.mfa.AdminMfaPolicy;
+import com.deutschflow.user.mfa.MfaException;
+import com.deutschflow.user.mfa.MfaKeyMaterial;
+import com.deutschflow.user.mfa.MfaService;
+import com.deutschflow.user.mfa.MfaState;
+import com.deutschflow.user.mfa.UserMfaStore;
 import com.deutschflow.user.dto.RegisterRequest;
 import com.deutschflow.user.dto.UpdateProfileRequest;
 import com.deutschflow.user.entity.RefreshToken;
@@ -21,6 +31,7 @@ import com.deutschflow.notification.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -58,6 +69,20 @@ public class AuthService {
     private final RunAfterCommitService runAfterCommitService;
     private final UserNotificationService userNotificationService;
     private final OrgMemberRepository orgMemberRepository;
+    /** 2FA ADMIN (09/11/2026) — chỉ chạm tới khi người dùng là ADMIN, nên test cũ không cần mock. */
+    private final AdminMfaPolicy adminMfaPolicy;
+    private final UserMfaStore userMfaStore;
+    private final MfaKeyMaterial mfaKeyMaterial;
+    /** Phiên hỗ trợ chỉ-đọc (V370): đóng phiên đang mở khi quyền của admin/đích thay đổi. Null trong test dựng tay. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.context.ApplicationEventPublisher supportSessionEvents;
+
+    private void revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent event) {
+        if (supportSessionEvents != null) {
+            supportSessionEvents.publishEvent(event);
+        }
+    }
+    private final AuditLogService auditLogService;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
@@ -143,8 +168,13 @@ public class AuthService {
         return createdAt.isAfter(LocalDateTime.now().minusDays(TRIAL_BACKFILL_MAX_AGE_DAYS));
     }
 
+    /**
+     * Bước mật khẩu. Người dùng thường → {@link LoginResult.Session} (y như trước). ADMIN (2FA bắt buộc, hoặc đã
+     * tự bật 2FA khi kill-switch tắt) → {@link LoginResult.MfaChallenge}: KHÔNG token, KHÔNG thu hồi phiên cũ —
+     * mật khẩu đúng một mình chưa đủ để đá các phiên đang chạy; việc đó làm ở {@link #completeMfaLogin}.
+     */
     @Transactional
-    public AuthResponse login(LoginRequest request) {
+    public LoginResult login(LoginRequest request) {
         // Trim the submitted email; the actual match is case-insensitive (UserDetailsServiceConfig +
         // findByEmailIgnoreCase). Without this, a stray space or a single capital letter made login
         // fail as "wrong password" even when the password was correct (the lookup just missed the row).
@@ -180,8 +210,45 @@ public class AuthService {
             }
         }
 
+        if (requiresMfa(user)) {
+            // Thiếu khoá mã hoá thì báo NGAY ở bước mật khẩu (503) thay vì để admin đi tiếp vào ngõ cụt.
+            if (mfaKeyMaterial == null || !mfaKeyMaterial.isConfigured()) {
+                throw MfaException.notConfigured();
+            }
+            boolean enrolled = userMfaStore.isEnabled(user.getId());
+            String mfaToken = jwtService.generateMfaChallengeToken(user.getId());
+            return new LoginResult.MfaChallenge(
+                    new MfaChallengeResponse(true, mfaToken, enrolled, MfaService.emailHint(user.getEmail())));
+        }
+
         refreshTokenRepository.revokeAllByUserId(user.getId());
-        return buildAuthResponse(user);
+        return new LoginResult.Session(buildAuthResponse(user));
+    }
+
+    /**
+     * Người dùng này có phải qua 2FA để có phiên không: ADMIN và (2FA đang bắt buộc HOẶC chính họ đã bật 2FA).
+     * Kill-switch {@code app.security.admin-mfa.enforced=false} chỉ mở cửa cho admin CHƯA đăng ký.
+     */
+    public boolean requiresMfa(User user) {
+        if (user == null || user.getRole() != User.Role.ADMIN) {
+            return false;
+        }
+        return adminMfaPolicy.enforced() || userMfaStore.isEnabled(user.getId());
+    }
+
+    /** Lần qua 2FA lúc {@code verifiedAt} đã quá {@code app.security.admin-mfa.max-session-hours}. */
+    private boolean isMfaStale(Instant verifiedAt) {
+        return verifiedAt.isBefore(Instant.now().minus(adminMfaPolicy.maxSessionAge()));
+    }
+
+    /**
+     * Phiên sau khi qua bước 2FA (đăng ký xong hoặc nhập mã đúng): thu hồi mọi refresh token cũ — như đăng nhập
+     * thường — rồi cấp cặp token mang dấu 2FA ({@code mfa_at = verifiedAt}).
+     */
+    @Transactional
+    public AuthResponse completeMfaLogin(User user, Instant verifiedAt) {
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+        return buildAuthResponse(user, MfaState.verifiedAt(verifiedAt));
     }
 
     @Transactional
@@ -214,15 +281,29 @@ public class AuthService {
             throw new BadRequestException("Tài khoản đã bị khóa.");
         }
 
+        // 2FA ADMIN: phiên phải mang mốc qua 2FA, và mốc đó chưa quá max-session-hours. Mốc được CHÉP sang dòng
+        // mới (không đặt lại "bây giờ") nên refresh liên tục không kéo dài được một lần qua 2FA. Refresh token do
+        // bản trước phát (mfa_verified_at NULL) rơi vào đây ⇒ admin phải đăng nhập lại sau khi deploy — chủ ý.
+        User user = stored.getUser();
+        Instant mfaVerifiedAt = stored.getMfaVerifiedAt();
+        if (requiresMfa(user)) {
+            if (mfaVerifiedAt == null || isMfaStale(mfaVerifiedAt)) {
+                log.info("[AuthService] Refresh ADMIN userId={} bị từ chối: phiên chưa qua 2FA hoặc quá hạn 2FA", user.getId());
+                throw MfaException.required();
+            }
+        }
+
         stored.setRevoked(true);
         refreshTokenRepository.save(stored);
 
-        return buildAuthResponse(stored.getUser());
+        return buildAuthResponse(user, MfaState.verifiedAt(mfaVerifiedAt));
     }
 
     @Transactional
     public void logout(Long userId) {
         refreshTokenRepository.revokeAllByUserId(userId);
+        // Admin đăng xuất ⇒ phiên hỗ trợ (xem như người dùng) admin đó đang mở cũng đóng theo.
+        revokeSupportSessions(com.deutschflow.common.security.support.SupportSessionRevocationEvent.forAdmin(userId, com.deutschflow.admin.support.SupportSessionService.END_ADMIN_LOGOUT));
         // Logout revokes EVERY session for this account, so its device push token must go too —
         // otherwise the phone keeps receiving this account's notifications after logout (worst
         // case: shown to whoever logs in next on that device).
@@ -259,7 +340,8 @@ public class AuthService {
         User.Locale loc = User.Locale.valueOf(locale.trim().toLowerCase());
         user.setLocale(loc);
         userRepository.save(user);
-        return buildAuthResponse(user);
+        // Giữ dấu 2FA của phiên đang gọi: cặp token mới của admin vẫn phải mang mfa_at gốc.
+        return buildAuthResponse(user, MfaState.fromCurrentRequest());
     }
 
     /**
@@ -302,7 +384,7 @@ public class AuthService {
             user.setReminderHourLocal(req.reminderHourLocal() < 0 ? null : req.reminderHourLocal());
         }
         userRepository.save(user);
-        return buildAuthResponse(user, null, null, false);
+        return buildAuthResponse(user, null, null, false, MfaState.NONE);
     }
 
     /**
@@ -322,7 +404,8 @@ public class AuthService {
         refreshTokenRepository.revokeAllByUserId(user.getId());
         // KHÔNG đụng push_token: nó trỏ tới MỘT thiết bị (thiết bị đăng nhập gần nhất) chứ không
         // phải phiên của người gọi — xoá ở đây sẽ tắt thông báo của chính thiết bị đang dùng.
-        return buildAuthResponse(user);
+        // Dấu 2FA lấy từ access token đang gọi (mfa_at gốc) — admin không mất 2FA, cũng không được "làm mới" nó.
+        return buildAuthResponse(user, MfaState.fromCurrentRequest());
     }
 
     /**
@@ -340,6 +423,9 @@ public class AuthService {
         // …and drop the device push token so no already-logged-out session keeps getting this
         // account's notifications; the device re-registers on the forced re-login.
         userRepository.clearPushToken(user.getId());
+        // Đợt 2 admin (09/11/2026): vết cho "Hoạt động bảo mật" của chính người dùng. Cùng transaction.
+        auditLogService.log("user.password.changed", AuditActor.of(user),
+                "USER", String.valueOf(user.getId()), null, null);
     }
 
     @Transactional(readOnly = true)
@@ -360,13 +446,17 @@ public class AuthService {
                 industry = (String) row.get("industry");
             }
         }
-        return buildAuthResponse(user, learningTargetLevel, industry, false);
+        return buildAuthResponse(user, learningTargetLevel, industry, false, MfaState.NONE);
     }
 
     // --- private ---
 
-    /** @param attachTokens tokens on login/register/refresh — {@code false} for {@link #me} */
-    private AuthResponse buildAuthResponse(User user, String learningTargetLevel, String industry, boolean attachTokens) {
+    /**
+     * @param attachTokens tokens on login/register/refresh — {@code false} for {@link #me}
+     * @param mfa          trạng thái 2FA của phiên sắp cấp (chỉ dùng khi {@code attachTokens})
+     */
+    private AuthResponse buildAuthResponse(User user, String learningTargetLevel, String industry, boolean attachTokens,
+                                           MfaState mfa) {
         // Org context: orgId từ principal (fast-path), orgRole từ membership ACTIVE.
         // Non-org user → cả hai null ⇒ token & response y như B2C cũ.
         Long orgId = user.getOrgId();
@@ -378,8 +468,27 @@ public class AuthService {
                     .orElse(null);
         }
         if (attachTokens) {
-            String accessToken = jwtService.generateAccessToken(user, orgId, orgRole);
-            String refreshToken = createRefreshToken(user);
+            // CHỐT DUY NHẤT (2FA ADMIN, 09/11/2026): mọi đường cấp token đi qua đây. ADMIN phải qua 2FA mà phiên
+            // này không mang mốc 2FA → KHÔNG BAO GIỜ phát token, dù người gọi là ai.
+            MfaState state = mfa == null ? MfaState.NONE : mfa;
+            if (requiresMfa(user)) {
+                if (!state.verified()) {
+                    log.warn("[AuthService] Chặn cấp token cho ADMIN userId={} chưa qua 2FA", user.getId());
+                    throw MfaException.required();
+                }
+                // Trần tuổi của MỘT lần qua 2FA áp ở chốt này cho MỌI đường cấp token (refresh, đổi ngôn ngữ,
+                // đăng xuất phiên khác…), không chỉ ở refresh(): các đường đó chép mfa_at của access token đang
+                // gọi, nên nếu không kiểm ở đây thì gọi lặp lại sẽ kéo dài một lần qua 2FA quá max-session-hours.
+                if (isMfaStale(state.verifiedAt())) {
+                    log.info("[AuthService] Chặn cấp token cho ADMIN userId={}: lần qua 2FA đã quá {} giờ",
+                            user.getId(), adminMfaPolicy.maxSessionAge().toHours());
+                    throw MfaException.required();
+                }
+            }
+            String accessToken = state.verified()
+                    ? jwtService.generateAccessToken(user, orgId, orgRole, state.verifiedAt())
+                    : jwtService.generateAccessToken(user, orgId, orgRole);
+            String refreshToken = createRefreshToken(user, state.verifiedAt());
             return new AuthResponse(
                     accessToken,
                     refreshToken,
@@ -412,20 +521,34 @@ public class AuthService {
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        return buildAuthResponse(user, null, null, true);
+        return buildAuthResponse(user, MfaState.NONE);
     }
 
-    /** Issue a fresh login session (tokens + org claims) — used by org invite-accept flow. */
+    private AuthResponse buildAuthResponse(User user, MfaState mfa) {
+        return buildAuthResponse(user, null, null, true, mfa);
+    }
+
+    /**
+     * Issue a fresh login session (tokens + org claims) — used by org invite-accept flow and PIN registration.
+     *
+     * <p>Không có bước 2FA trên các đường này, nên ADMIN bị từ chối thẳng (403 {@code MFA_REQUIRED_USE_LOGIN}):
+     * admin phải đăng nhập bình thường ở {@code /api/auth/login} để qua 2FA.
+     */
     public AuthResponse issueSession(User user) {
+        if (user != null && user.getRole() == User.Role.ADMIN) {
+            throw new MfaException(HttpStatus.FORBIDDEN, MfaException.MFA_REQUIRED_USE_LOGIN,
+                    "Tài khoản quản trị phải đăng nhập bình thường (có xác thực hai lớp).");
+        }
         return buildAuthResponse(user);
     }
 
-    private String createRefreshToken(User user) {
+    private String createRefreshToken(User user, Instant mfaVerifiedAt) {
         String token = UUID.randomUUID().toString();
         var rt = RefreshToken.builder()
                 .user(user)
                 .token(token)
                 .expiresAt(LocalDateTime.now().plusSeconds(refreshTokenExpiryMs / 1000))
+                .mfaVerifiedAt(mfaVerifiedAt)
                 .build();
         refreshTokenRepository.save(rt);
         return token;

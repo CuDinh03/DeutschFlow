@@ -369,8 +369,8 @@ export const studentNav: RoleNav = {
         { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
         { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck' },
         { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat' },
-        // Thư viện bài tập bổ trợ (GET /practice/exercises · POST /practice/submit) — chấm điểm THẬT
-        // ở v2 (trang v1 nộp cứng scorePercent 100%). KHÁC 'review-queue' (SRS đến hạn).
+        // Thư viện bài tập bổ trợ (GET /practice/catalog · POST /practice/catalog/{id}/grade) — server chấm,
+        // đáp án chỉ trả sau khi nộp (A3). KHÁC 'review-queue' (SRS đến hạn).
         { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment' },
         // Sổ lỗi ngữ pháp đầy đủ (GET /error-skills/me · /me/resolved) + drill sửa lỗi.
         // KHÁC 'review-queue': trang đó chỉ có flashcard SRS + task ngữ pháp ĐẾN HẠN (nút "Xong"),
