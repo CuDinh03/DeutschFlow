@@ -20,9 +20,10 @@ public class StudentTrialSubscriptionProvisioner {
     /**
      * Đánh dấu quyền lợi này do provisioner cấp, không phải do trả tiền.
      *
-     * <p>Q2/Q3 (quyết định owner 28/08) rẽ nhánh theo đúng cột này: ví cạn giữa trial
-     * thì KHÔNG hạ gói, còn ngày 8 thì kết thúc hẳn + xoá ví — trong khi gói TRẢ PHÍ
-     * vẫn được grace-drain. Không ghi cột này thì hai luật đó áp nhầm lên nhau.
+     * <p>Q3 (quyết định owner 28/08) rẽ nhánh theo đúng cột này: trial sang ngày 8 thì kết thúc
+     * hẳn + xoá ví — trong khi gói TRẢ PHÍ hết hạn vẫn được grace-drain. Không ghi cột này thì hai
+     * luật đó áp nhầm lên nhau. (Q2 — ví cạn giữa kỳ thì KHÔNG hạ gói — từ 10/11/2026 áp cho mọi
+     * gói ví, không còn phụ thuộc cột này.)
      */
     public static final String SOURCE_TRIAL = "TRIAL";
 

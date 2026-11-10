@@ -893,7 +893,7 @@ Xác thực người dùng và áp quyền theo role cho route FE và API BE.
 |-------------|-----------------|
 | `DEFAULT` | Không hạn mức AI (0 grant) khi user không còn gói khác — user mới được reconcile sang subscription hoạt động. |
 | `FREE` | Hạn mức **theo ngày lịch VN** (`daily_token_grant`); trial FREE có thể có `ends_at` (+7 ngày, xem migration). |
-| `PRO` | Grant hằng ngày + **ví lăn** tối đa `wallet_cap_days` × daily (ví dụ 30 ngày). |
+| `PRO` | Grant hằng ngày + **ví lăn** tối đa `wallet_cap_days` × daily (PRO từ V378: 200.000 × 7 ngày). |
 | `ULTRA` | Tương tự PRO với grant/ví cao hơn. |
 | `INTERNAL` | Không trừ quota (vô hạn hiệu dụng) — dùng nội bộ. |
 
@@ -901,7 +901,7 @@ Xác thực người dùng và áp quyền theo role cho route FE và API BE.
 
 - “Ngày” usage và accrual ví dùng **Asia/Ho_Chi_Minh** (`QuotaVnCalendar`).
 - Trước khi gọi AI: `assertAllowed` so sánh hạn mức còn lại với ước lượng tối thiểu; vượt → **HTTP 429** (`QuotaExceededException`, Problem Details).
-- Sau khi gọi AI: `AiUsageLedgerService` ghi event; với gói ví, `applyUsageDebit` trừ `user_ai_token_wallets.balance`; hết ví → kết thúc gói trả phí và quay về DEFAULT (theo implement).
+- Sau khi gọi AI: `AiUsageLedgerService` ghi event; với gói ví, `applyUsageDebit` trừ `user_ai_token_wallets.balance`; hết ví giữa kỳ → GIỮ gói (PRO/ULTRA/trial), chỉ các chức năng AI bị chặn `QUOTA_EXCEEDED` tới lần cộng ví ngày hôm sau; gói chỉ kết thúc khi `ends_at` đã qua (quyết định owner 10/11/2026). PRO: 200.000 token/ngày, cộng dồn tối đa 7 ngày (V378).
 
 **API**
 

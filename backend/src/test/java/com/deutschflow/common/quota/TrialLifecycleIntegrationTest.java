@@ -107,8 +107,8 @@ class TrialLifecycleIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("Q2 đối chứng: gói TRẢ PHÍ cạn ví vẫn hạ về DEFAULT như cũ")
-    void paidStillDowngradesOnEmptyWallet() {
+    @DisplayName("Q2 mở rộng (owner 10/11/2026): gói TRẢ PHÍ cạn ví giữa kỳ cũng GIỮ NGUYÊN, ví không bị xoá")
+    void paidSurvivesEmptyWalletToo() {
         Instant now = Instant.now();
         User u = newUser("q2paid");
         insertSub(u.getId(), "PRO", "IAP", now.minus(2, ChronoUnit.DAYS), now.plus(20, ChronoUnit.DAYS));
@@ -116,9 +116,12 @@ class TrialLifecycleIntegrationTest extends AbstractPostgresIntegrationTest {
 
         quotaService.applyUsageDebit(u.getId(), 100L, now);
 
-        // Hành vi có sẵn, không được đổi kèm theo bản vá trial.
-        assertThat(statusOf(u.getId(), "PRO")).isEqualTo("ENDED");
-        assertThat(statusOf(u.getId(), "DEFAULT")).isEqualTo("ACTIVE");
+        assertThat(statusOf(u.getId(), "PRO"))
+                .as("gói còn 20 ngày — cạn ví hôm nay chỉ tạm dừng AI, không kết thúc gói")
+                .isEqualTo("ACTIVE");
+        assertThat(walletRows(u.getId()))
+                .as("ví phải còn để grant ngày mai nạp vào")
+                .isEqualTo(1);
     }
 
     // ─── Q3 — trial hết hạn ────────────────────────────────────────────────────
