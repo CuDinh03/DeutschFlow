@@ -2,6 +2,7 @@ package com.deutschflow.grammar.service;
 
 import org.springframework.stereotype.Service;
 
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -210,6 +211,11 @@ public class ExamScoringService {
 
         double formPool = forms.isEmpty() ? 0 : (writings.isEmpty() ? max : max * FORM_SHARE);
         double writePool = max - formPool;
+        // telc A2 (Xưởng đề, 10/11/2026): Teil tự khai điểm (Schreiben T1 = 5, T2 = 10) ⇒ chia đúng theo khai báo
+        // thay cho tỉ lệ FORM_SHARE. Đề cũ không khai max_points ⇒ y như trước.
+        boolean declared = !(forms.isEmpty() && writings.isEmpty())
+                && java.util.stream.Stream.concat(forms.stream(), writings.stream())
+                        .allMatch(t -> positiveNumber(t.get("max_points")) != null);
 
         List<Map<String, Object>> tasks = new ArrayList<>();
         Map<String, Object> firstAiEval = null;
@@ -217,7 +223,7 @@ public class ExamScoringService {
         double scorable = 0;
 
         for (Map<String, Object> teil : forms) {
-            double weight = formPool / forms.size();
+            double weight = declared ? positiveNumber(teil.get("max_points")) : formPool / forms.size();
             double ratio = formRatio(answers, teil);
             earned += weight * ratio;
             scorable += weight;
@@ -225,7 +231,7 @@ public class ExamScoringService {
         }
 
         for (Map<String, Object> teil : writings) {
-            double weight = writePool / writings.size();
+            double weight = declared ? positiveNumber(teil.get("max_points")) : writePool / writings.size();
             String text = writingAnswer(answers, teil);
             if (text.isBlank()) {
                 scorable += weight;
@@ -234,7 +240,11 @@ public class ExamScoringService {
             }
             // telc (06/11/2026): thi thử chạy trong giao diện luyện đề mới, màn kết quả chỉ lỗi ngay trong
             // bài — dùng phiếu có annotations + bài đã sửa. Cùng bảng 3 Kriterien, cùng total/max.
-            Map<String, Object> ai = "TELC".equalsIgnoreCase(examFormat)
+            String level = examLevel(section, cefrLevel);
+            boolean telc = "TELC".equalsIgnoreCase(examFormat);
+            Map<String, Object> ai = telc && "A2".equalsIgnoreCase(level)
+                    ? aiEvaluator.evaluateSchreibenTelcA2(userId, text, taskPrompt(teil))
+                    : telc
                     ? aiEvaluator.evaluateSchreibenPractice(userId, text, taskPrompt(teil), examLevel(section, cefrLevel))
                     : aiEvaluator.evaluateSchreibenEmail(
                             userId, text, taskPrompt(teil), examLevel(section, cefrLevel), examFormat);
@@ -260,15 +270,70 @@ public class ExamScoringService {
         return out;
     }
 
-    /** Tỉ lệ ô đã điền của một Teil dạng form; khoá câu trả lời là {@code form_<chỉ số ô>}. */
+    /**
+     * Tỉ lệ điểm của một Teil dạng form; khoá câu trả lời là {@code form_<chỉ số ô>}. Ô có {@code answer} (telc A2
+     * Schreiben Teil 1: điền thông tin lấy từ đoạn văn) chấm đúng/sai theo {@link #formAnswerMatches}; ô không có
+     * đáp án (Goethe: tự khai thông tin của mình) chấm theo đã điền hay chưa như trước.
+     */
     private double formRatio(Map<String, Object> answers, Map<String, Object> teil) {
         if (!(teil.get("form_fields") instanceof List<?> fields) || fields.isEmpty()) return 0;
-        int filled = 0;
+        int ok = 0;
         for (int i = 0; i < fields.size(); i++) {
             Object value = answers.get("form_" + i);
-            if (value != null && !value.toString().isBlank()) filled++;
+            String given = value == null ? "" : value.toString();
+            if (fields.get(i) instanceof Map<?, ?> f && f.get("answer") != null) {
+                List<String> accepted = new ArrayList<>();
+                accepted.add(f.get("answer").toString());
+                if (f.get("accept") instanceof List<?> acc) acc.forEach(a -> accepted.add(String.valueOf(a)));
+                if (formAnswerMatches(given, accepted)) ok++;
+            } else if (!given.isBlank()) {
+                ok++;
+            }
         }
-        return (double) filled / fields.size();
+        return (double) ok / fields.size();
+    }
+
+    /**
+     * Luật chấm ô form của telc A1/A2 ("Bewertungskriterien Schreiben, Teil 1"): lỗi chính tả thường không làm mất
+     * điểm ("Donerstach" vẫn đúng cho "Donnerstag"), nhưng ô có SỐ thì chữ số phải đúng tuyệt đối. Ở đây: có chữ số
+     * ⇒ dãy chữ số phải trùng; không có ⇒ khoảng cách Levenshtein (không phân biệt hoa thường, bỏ dấu câu) tối đa
+     * một phần ba độ dài đáp án, ít nhất 1 ("Donerstach" cho "Donnerstag" là ví dụ chính thức của telc).
+     */
+    public static boolean formAnswerMatches(String given, List<String> accepted) {
+        String g = normForm(given);
+        if (g.isEmpty()) return false;
+        for (String a : accepted) {
+            String e = normForm(a);
+            if (e.isEmpty()) continue;
+            String eDigits = e.replaceAll("\\D", "");
+            if (!eDigits.isEmpty()) {
+                if (eDigits.equals(g.replaceAll("\\D", ""))) return true;
+                continue;
+            }
+            if (levenshtein(g, e) <= Math.max(1, e.length() / 3)) return true;
+        }
+        return false;
+    }
+
+    private static String normForm(String s) {
+        return s == null ? "" : s.toLowerCase(Locale.GERMAN).replaceAll("[^\\p{L}\\p{N}]+", "");
+    }
+
+    private static int levenshtein(String a, String b) {
+        int[] prev = new int[b.length() + 1];
+        int[] cur = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) prev[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            cur[0] = i;
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                cur[j] = Math.min(Math.min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+            }
+            int[] t = prev;
+            prev = cur;
+            cur = t;
+        }
+        return prev[b.length()];
     }
 
     /**

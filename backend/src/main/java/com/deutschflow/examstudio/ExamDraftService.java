@@ -215,7 +215,8 @@ public class ExamDraftService {
     public Draft create(CreateDraftRequest req, long userId) {
         TeilSpec spec = TeilSpec.find(req.examFormat(), req.cefrLevel(), req.section(), req.teil())
                 .orElseThrow(() -> new BadRequestException(
-                        "Xưởng đề hiện làm telc · B1: Lesen 1–3, Sprachbausteine 1–2, Schreiben. Hören làm ở đợt sau."));
+                        "Xưởng đề hiện làm telc B1 (Lesen 1–3, Sprachbausteine 1–2, Schreiben) và telc A2 / Start Deutsch 2 "
+                                + "(Lesen 1–3, Schreiben 1–2). Hören làm ở đợt sau."));
         String mode = normalizeMode(req.mode());
         Map<String, Integer> plan = validatePlan(req.difficultyPlan(), mode, spec);
         Long id = jdbc.queryForObject("""
@@ -706,12 +707,12 @@ public class ExamDraftService {
                 sev = Math.max(sev, 1);
             }
             String s = strong.get(it.id());
-            if (s != null && !s.equals(it.correct())) {
+            if (s != null && !sameAnswer(spec, it, s)) {
                 flags.add("AI giỏi chọn " + s + " thay vì " + it.correct() + ": câu có thể mơ hồ hoặc đáp án sai.");
                 sev = 2;
             }
             String b = blind.get(it.id());
-            if (b != null && b.equals(it.correct())) {
+            if (b != null && sameAnswer(spec, it, b)) {
                 flags.add("Trả lời đúng được khi KHÔNG đọc bài: câu đoán mò được.");
                 sev = 2;
             }
@@ -731,7 +732,7 @@ public class ExamDraftService {
                 }
             }
             String w = weak.get(it.id());
-            if (w != null && w.equals(it.correct())
+            if (w != null && sameAnswer(spec, it, w)
                     && ("HARD".equals(it.difficultyTarget()) || "EXPERT".equals(it.difficultyTarget()))) {
                 flags.add("AI đóng vai học viên A2 vẫn làm đúng: có lẽ dễ hơn nhãn " + ItemRules.label(it.difficultyTarget()) + ".");
                 sev = Math.max(sev, 1);
@@ -761,7 +762,8 @@ public class ExamDraftService {
                 boolean fmt = items.size() == expected && items.stream().allMatch(i -> situ.formatOk(spec, text, i));
                 out.add(0, new Check("FORMAT", "Đúng khuôn Teil", fmt ? "GREEN" : "RED",
                         fmt ? null : "Cần " + expected + " câu đúng khuôn " + spec.teilType() + "."));
-                boolean solverOk = !strong.isEmpty() && items.stream().allMatch(i -> i.correct().equals(strong.get(i.id())));
+                boolean solverOk = !strong.isEmpty() && items.stream().allMatch(i -> strong.get(i.id()) != null
+                        && sameAnswer(spec, i, strong.get(i.id())));
                 out.add(new Check("SOLVER", "AI giỏi giải đúng mọi câu", solverOk ? "GREEN" : "RED",
                         solverOk ? null : "Có câu AI giỏi chọn khác đáp án — xem đèn từng câu."));
                 out.add(matrixCheck(r, items));
@@ -1231,6 +1233,15 @@ public class ExamDraftService {
         return letters.size() == n && texts.size() == n;
     }
 
+    /** Đáp án AI trả có khớp câu không: ô form so theo luật chấm form telc, còn lại so chữ. */
+    static boolean sameAnswer(TeilSpec spec, Item it, String given) {
+        if ("FILL_FORM".equals(spec.teilType())) {
+            return com.deutschflow.grammar.service.ExamScoringService.formAnswerMatches(given,
+                    SituationalTeile.acceptedAnswers(it));
+        }
+        return given != null && given.equalsIgnoreCase(it.correct());
+    }
+
     static boolean lettersBalanced(List<String> letters) {
         Map<String, Integer> c = new HashMap<>();
         for (String l : letters) c.merge(l, 1, Integer::sum);
@@ -1262,8 +1273,14 @@ public class ExamDraftService {
         node.path("answers").forEach(a -> {
             String v = a.path("answer").isNull() ? null : a.path("answer").asText(null);
             if (v != null) {
-                v = v.trim().toLowerCase(Locale.ROOT);
-                if (v.length() > 1) v = v.substring(0, 1);
+                v = v.trim();
+                // Ô form (A2 Schreiben 1): câu trả lời là chữ tự do, so bằng luật chấm form.
+                if ("FILL_FORM".equals(spec.teilType())) {
+                    if (!v.isBlank()) out.put(a.path("id").asText(), v);
+                    return;
+                }
+                v = v.toLowerCase(Locale.ROOT);
+                if (!spec.answerLetters().contains(v) && v.length() > 1) v = v.substring(0, 1);
                 if (spec.answerLetters().contains(v)) out.put(a.path("id").asText(), v);
             }
         });

@@ -58,6 +58,126 @@ public class ExamAssemblyService {
     public record Assembled(long id, String title, String cefrLevel, String examFormat, boolean reviewed,
                             boolean active, Long baseExamId, List<Map<String, Object>> teile, Instant createdAt) {}
 
+    // ── Ghép từ khung (Xưởng đề đợt 4): cấp chưa có đề viết tay làm nền, mọi Teil đều lấy từ kho ──────────
+
+    /** Một khung đề: phần thi, Teil, điểm, giờ — lấy theo tài liệu chính thức của kỳ thi. */
+    public record Blueprint(String examFormat, String cefrLevel, String title, String descriptionVi, int timeLimitMinutes,
+                            int totalPoints, int passPoints, List<BlueprintSection> sections, List<Map<String, Object>> blocks) {}
+
+    public record BlueprintSection(String name, String labelVi, int timeMinutes, int maxPoints, List<Slot> slots) {}
+
+    /**
+     * telc Deutsch A2 / Start Deutsch 2 (Übungstest 1, telc 2024): Lesen 3 Teil × 5 câu = 15, Schreiben Teil 1
+     * form 5 + Teil 2 = 10 ⇒ 15; Lesen và Schreiben chung 50 phút. Hören (15 điểm, ~20 phút) và Sprechen (15) chưa
+     * có trong Xưởng đề ⇒ đề ghép là đề luyện Đọc–Viết 30 điểm; ngưỡng 60 % như luật telc (18/30).
+     */
+    static final Blueprint TELC_A2 = new Blueprint("TELC", "A2", "telc Deutsch A2 (Start Deutsch 2) — Đọc và Viết",
+            "Đề luyện định dạng telc Deutsch A2 / Start Deutsch 2, soạn gốc, không liên kết với telc: Đọc (3 Teil) và "
+                    + "Viết (form + E-Mail ngắn). Phần Nghe và Nói chưa có trong đề này.",
+            50, 30, 18,
+            List.of(new BlueprintSection("LESEN", "Đọc", 50, 15, List.of(
+                            new Slot("LESEN", 1, "MULTIPLE_CHOICE"), new Slot("LESEN", 2, "TRUE_FALSE"),
+                            new Slot("LESEN", 3, "MATCH_AD_X"))),
+                    new BlueprintSection("SCHREIBEN", "Viết", 0, 15, List.of(
+                            new Slot("SCHREIBEN", 1, "FILL_FORM"), new Slot("SCHREIBEN", 2, "WRITE_NOTE")))),
+            List.of(Map.of("id", "LS", "minutes", 50, "sections", List.of("LESEN", "SCHREIBEN"))));
+
+    static final List<Blueprint> BLUEPRINTS = List.of(TELC_A2);
+
+    public List<Blueprint> blueprints() {
+        return BLUEPRINTS;
+    }
+
+    public record BlueprintAssembleRequest(String examFormat, String cefrLevel, String title,
+                                           List<Replacement> replacements, Boolean allowReuse) {}
+
+    /** Ghép đủ mọi Teil của khung từ kho; thiếu ô nào là lỗi (không có đề nền để lấp). */
+    @Transactional
+    public Assembled assembleFromBlueprint(BlueprintAssembleRequest req) {
+        Blueprint bp = BLUEPRINTS.stream()
+                .filter(b -> b.examFormat().equalsIgnoreCase(String.valueOf(req.examFormat()))
+                        && b.cefrLevel().equalsIgnoreCase(String.valueOf(req.cefrLevel())))
+                .findFirst().orElseThrow(() -> new BadRequestException("Chưa có khung đề cho " + req.examFormat() + " "
+                        + req.cefrLevel() + "."));
+        if (req.title() == null || req.title().isBlank()) throw new BadRequestException("Đặt tên cho bộ đề.");
+        Map<String, Long> chosen = new HashMap<>();
+        for (Replacement r : req.replacements() == null ? List.<Replacement>of() : req.replacements()) {
+            if (r != null && r.blockId() != null) chosen.put(r.section() + ":" + r.teil(), r.blockId());
+        }
+        List<String> missing = new ArrayList<>();
+        for (BlueprintSection sec : bp.sections()) for (Slot sl : sec.slots()) {
+            if (!chosen.containsKey(sl.section() + ":" + sl.teil())) missing.add(sl.section() + " Teil " + sl.teil());
+        }
+        if (!missing.isEmpty()) throw new BadRequestException("Khung " + bp.cefrLevel() + " cần đủ Teil — còn thiếu: "
+                + String.join(", ", missing) + ".");
+        if (chosen.values().stream().distinct().count() != chosen.size()) {
+            throw new BadRequestException("Một Teil kho không dùng hai chỗ.");
+        }
+        if (!Boolean.TRUE.equals(req.allowReuse())) {
+            List<String> clashes = new ArrayList<>();
+            for (Long id : chosen.values()) {
+                for (Map<String, Object> u : usedIn(id)) clashes.add("Teil kho #" + id + " đang nằm trong \"" + u.get("title") + "\"");
+            }
+            if (!clashes.isEmpty()) throw new ConflictException(String.join("; ", clashes)
+                    + ". Chọn Teil khác, hoặc bật \"Cho dùng lại Teil đã có trong bộ khác\" nếu cố ý.");
+        }
+        Set<String> wanted = new TreeSet<>();
+        chosen.forEach((k, v) -> wanted.add(k + ":" + v));
+        for (Assembled other : list()) {
+            if (!other.active() || other.baseExamId() != null) continue;
+            Set<String> theirs = new TreeSet<>();
+            for (Map<String, Object> t : other.teile()) theirs.add(t.get("section") + ":" + t.get("teil") + ":" + t.get("blockId"));
+            if (theirs.equals(wanted)) throw new ConflictException("Bộ đề này đã có: \"" + other.title() + "\" (#" + other.id() + ").");
+        }
+
+        com.fasterxml.jackson.databind.node.ObjectNode root = mapper.createObjectNode();
+        root.put("format", bp.examFormat());
+        root.set("blocks", mapper.valueToTree(bp.blocks()));
+        ArrayNode sections = root.putArray("sections");
+        List<Map<String, Object>> trace = new ArrayList<>();
+        for (BlueprintSection sec : bp.sections()) {
+            ObjectNode sn = sections.addObject();
+            sn.put("name", sec.name());
+            sn.put("label_vi", sec.labelVi());
+            sn.put("time_minutes", sec.timeMinutes());
+            sn.put("max_points", sec.maxPoints());
+            ArrayNode teile = sn.putArray("teile");
+            for (Slot sl : sec.slots()) {
+                long blockId = chosen.get(sl.section() + ":" + sl.teil());
+                List<Map<String, Object>> blk = jdbc.queryForList("""
+                        SELECT exam_format, cefr_level, section, teil, status, content_json::text AS content
+                        FROM exam_teil_blocks WHERE id = ?
+                        """, blockId);
+                if (blk.isEmpty()) throw new NotFoundException("Không có Teil kho " + blockId + ".");
+                Map<String, Object> k = blk.get(0);
+                if (!"APPROVED".equals(k.get("status"))) throw new BadRequestException("Teil kho " + blockId + " đã gỡ.");
+                if (!bp.examFormat().equalsIgnoreCase((String) k.get("exam_format")) || !bp.cefrLevel().equals(k.get("cefr_level"))
+                        || !sl.section().equals(k.get("section")) || ((Number) k.get("teil")).intValue() != sl.teil()) {
+                    throw new BadRequestException("Teil kho " + blockId + " không khớp ô " + sl.section() + " Teil " + sl.teil() + ".");
+                }
+                ObjectNode content = (ObjectNode) parse((String) k.get("content"));
+                content.put("teil", sl.teil());
+                teile.add(content);
+                Map<String, Object> t = new LinkedHashMap<>();
+                t.put("section", sl.section());
+                t.put("teil", sl.teil());
+                t.put("blockId", blockId);
+                trace.add(t);
+            }
+        }
+        Map<String, Object> blockIds = new LinkedHashMap<>();
+        blockIds.put("blueprint", bp.examFormat() + ":" + bp.cefrLevel());
+        blockIds.put("teile", trace);
+        Long id = jdbc.queryForObject("""
+                INSERT INTO mock_exams (cefr_level, exam_format, title, description_vi, sections_json, total_points,
+                                        pass_points, time_limit_minutes, is_active, reviewed, origin, block_ids)
+                VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, TRUE, FALSE, 'STUDIO', ?::jsonb) RETURNING id
+                """, Long.class, bp.cefrLevel(), bp.examFormat(), req.title().trim(), bp.descriptionVi(), json(root),
+                bp.totalPoints(), bp.passPoints(), bp.timeLimitMinutes(), json(blockIds));
+        for (Long b : chosen.values()) jdbc.update("UPDATE exam_teil_blocks SET exposure_count = exposure_count + 1 WHERE id = ?", b);
+        return get(id);
+    }
+
     /** Đề viết tay đang chạy của kỳ thi + cấp, kèm danh sách Teil để biết thay được ô nào. */
     public List<BaseExam> bases(String format, String level) {
         List<Map<String, Object>> rows = jdbc.queryForList("""

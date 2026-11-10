@@ -93,6 +93,37 @@ public record TeilSpec(
             "Viết một E-Mail xưng „du“ trả lời bạn: đủ bốn ý dưới đây, tự sắp thứ tự cho hợp lý, có lời chào đầu và "
                     + "cuối. Bốn ý in không theo thứ tự — như tờ đề thật. Gợi ý độ dài: 120–180 từ.");
 
+    // ── Đợt 4: telc Deutsch A2 / Start Deutsch 2 (cấu trúc theo Übungstest 1 chính thức của telc, 2024) ──
+    // Lesen 3 Teil × 5 câu (1 điểm), Schreiben Teil 1 = form 5 ô (1 điểm), Teil 2 = 3 trong 4 ý, ~40 từ (10 điểm).
+    // Hören (3 Teil × 5) làm cùng đợt audio.
+
+    static final TeilSpec TELC_A2_LESEN_1 = new TeilSpec(
+            "TELC", "A2", "LESEN", 1, "MC_INFO", 5, 1, "LV1-", 1, 1, 40, 140, 0.08,
+            "Lesen Sie die Aufgaben 1–5 und die Information. Welche Lösung passt? Kreuzen Sie an: a, b oder c.",
+            "Đọc bảng thông tin (vd. bảng chỉ dẫn trong toà nhà, trang web) và 5 tình huống; chọn a, b hoặc c.");
+
+    static final TeilSpec TELC_A2_LESEN_2 = new TeilSpec(
+            "TELC", "A2", "LESEN", 2, "TRUE_FALSE", 5, 6, "LV2-", 1, 1, 100, 190, 0.08,
+            "Lesen Sie den Text und die Aufgaben 6–10. Sind die Aussagen richtig oder falsch? Kreuzen Sie an.",
+            "Đọc bài (E-Mail, bài báo ngắn) và quyết định 5 câu 6–10 đúng hay sai.");
+
+    static final TeilSpec TELC_A2_LESEN_3 = new TeilSpec(
+            "TELC", "A2", "LESEN", 3, "MATCH_AD_X", 5, 11, "LV3-", 1, 8, 10, 35, 0.08,
+            "Lesen Sie die Anzeigen a–h und die Aufgaben 11–15. Welche Anzeige passt zu welcher Situation? Für eine "
+                    + "Aufgabe gibt es keine Lösung. Schreiben Sie dann x.",
+            "Đọc 8 mẩu rao vặt a–h và 5 tình huống 11–15; chọn mẩu hợp. Có một tình huống không mẩu nào hợp — chọn x.");
+
+    static final TeilSpec TELC_A2_SCHREIBEN_1 = new TeilSpec(
+            "TELC", "A2", "SCHREIBEN", 1, "FILL_FORM", 5, 1, "SA1-", 1, 1, 60, 140, 0.08,
+            "Lesen Sie den Text. Schreiben Sie die fünf fehlenden Informationen in das Formular.",
+            "Đọc đoạn văn rồi điền 5 thông tin còn thiếu vào form. Sai chính tả nhẹ vẫn tính, nhưng số phải đúng.");
+
+    static final TeilSpec TELC_A2_SCHREIBEN_2 = new TeilSpec(
+            "TELC", "A2", "SCHREIBEN", 2, "WRITE_NOTE", 0, 0, "SA2-", 0, 1, 20, 70, 0.08,
+            "Hier finden Sie vier Punkte. Wählen Sie drei aus. Schreiben Sie zu jedem dieser drei Punkte ein bis zwei "
+                    + "Sätze. Schreiben Sie ca. 40 Wörter. Vergessen Sie nicht Anrede und Gruß.",
+            "Có 4 ý, chọn 3; mỗi ý viết 1–2 câu, khoảng 40 từ, có lời chào đầu và cuối.");
+
     /** Chữ của 12 mẩu rao vặt Lesen Teil 3. */
     public static final List<String> AD_LETTERS = List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l");
     /** Chữ của 15 từ trong hộp Sprachbausteine Teil 2. */
@@ -100,16 +131,40 @@ public record TeilSpec(
             List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o");
 
     private static final List<TeilSpec> ALL = List.of(TELC_B1_LESEN_1, TELC_B1_LESEN_2, TELC_B1_LESEN_3,
-            TELC_B1_SB_1, TELC_B1_SB_2, TELC_B1_SCHREIBEN);
+            TELC_B1_SB_1, TELC_B1_SB_2, TELC_B1_SCHREIBEN, TELC_A2_LESEN_1, TELC_A2_LESEN_2, TELC_A2_LESEN_3,
+            TELC_A2_SCHREIBEN_1, TELC_A2_SCHREIBEN_2);
 
     /** Teil soạn theo tình huống: không có bước nguồn báo, dùng ô "Tình huống". */
     public boolean situational() {
         return !headlines() && !"MULTIPLE_CHOICE".equals(teilType);
     }
 
+    /** Số câu "không mẩu nào hợp" (x) của Teil rao vặt: B1 = 2, A2 = 1. */
+    public int xCount() {
+        return "A2".equals(cefrLevel) ? 1 : 2;
+    }
+
+    /** Số ví dụ in trước câu hỏi của Teil rao vặt: B1 = 2 (01 ghép được, 02 = x), A2 = 1. */
+    public int exampleCount() {
+        return "A2".equals(cefrLevel) ? 1 : 2;
+    }
+
+    /** Chữ các mẩu rao vặt của Teil này (B1 a–l, A2 a–h). */
+    public List<String> adLetters() {
+        return AD_LETTERS.subList(0, Math.min(textCount, AD_LETTERS.size()));
+    }
+
+    /** Kiểu {@code type} ghi vào {@code sections_json} (khác kiểu nội bộ ở vài Teil A2). */
+    public String outputType() {
+        return switch (teilType) {
+            case "MC_INFO" -> "MULTIPLE_CHOICE";
+            default -> teilType;
+        };
+    }
+
     /** Phần Viết: không có câu hỏi trắc nghiệm, không có ma trận độ khó. */
     public boolean writing() {
-        return "WRITE_EMAIL".equals(teilType);
+        return "WRITE_EMAIL".equals(teilType) || "WRITE_NOTE".equals(teilType);
     }
 
     /** Điểm mỗi câu đúng khuôn seed: 5 thay vì 5.0, 2.5 giữ nguyên. */
@@ -125,7 +180,9 @@ public record TeilSpec(
     public List<String> answerLetters() {
         return switch (teilType) {
             case "MATCH_HEADLINE" -> HEADLINE_LETTERS;
-            case "MATCH_AD_X" -> java.util.stream.Stream.concat(AD_LETTERS.stream(), java.util.stream.Stream.of("x")).toList();
+            case "MATCH_AD_X" -> java.util.stream.Stream.concat(adLetters().stream(), java.util.stream.Stream.of("x")).toList();
+            case "TRUE_FALSE" -> List.of("richtig", "falsch");
+            case "FILL_FORM" -> List.of();
             case "GAP_WORDBANK" -> BANK_LETTERS;
             default -> ItemRules.LETTERS;
         };

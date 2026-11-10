@@ -118,6 +118,40 @@ class ExamScoringServiceTest {
         assertThat(result.get("total")).isEqualTo(25);
     }
 
+    @Test
+    @DisplayName("telc A2: form có đáp án chấm đúng/sai (sai chính tả nhẹ vẫn đúng, số phải đúng), Teil khai 5 + 10 điểm, bài viết đi phiếu A2")
+    void scoreSchreibenSection_telcA2_formKeyAndDeclaredMax() {
+        Map<String, Object> ai = new HashMap<>(Map.of("status", "AI_EVALUATED", "total", 7.5, "max", 10));
+        when(aiEvaluator.evaluateSchreibenTelcA2(anyLong(), anyString(), anyString())).thenReturn(ai);
+        Map<String, Object> form = new HashMap<>();
+        form.put("teil", 1);
+        form.put("type", "FILL_FORM");
+        form.put("max_points", 5);
+        form.put("form_fields", List.of(
+                Map.of("field", "Kurstag", "answer", "Donnerstag", "accept", List.of("Do")),
+                Map.of("field", "Telefon", "answer", "0421 55 66 77", "accept", List.of()),
+                Map.of("field", "Ort", "answer", "Bremen", "accept", List.of()),
+                Map.of("field", "Zahlung", "answer", "Überweisung", "accept", List.of()),
+                Map.of("field", "Beginn", "answer", "3. Mai", "accept", List.of())));
+        Map<String, Object> note = new HashMap<>();
+        note.put("teil", 2);
+        note.put("max_points", 10);
+        note.put("prompt", "Sie können nicht zur Party kommen.");
+        note.put("writing_points", List.of("Grund", "Geschenk", "Termin", "Gruß"));
+        Map<String, Object> section = new HashMap<>(Map.of("name", "SCHREIBEN", "max_points", 15,
+                "teile", List.of(form, note)));
+        Map<String, Object> answers = new HashMap<>(Map.of(
+                "form_0", "Donerstach", "form_1", "0421 55 66 78", "form_2", "bremen", "form_3", "", "form_4", "3 Mai",
+                "email_2", "Liebe Anna, leider kann ich nicht kommen ..."));
+
+        Map<String, Object> result = service.scoreSchreibenSection(7L, answers, section, "A2", "TELC");
+
+        // form: 3/5 đúng (Donerstach, bremen, 3 Mai) × 5 = 3 · bài viết 10 × 7,5/10 = 7,5 ⇒ 10,5 → 11 (làm tròn) / 15
+        assertThat(result.get("max")).isEqualTo(15);
+        assertThat(result.get("total")).isEqualTo(11);
+        verify(aiEvaluator, never()).evaluateSchreibenPractice(anyLong(), anyString(), anyString(), anyString());
+    }
+
     // ─── Viết ────────────────────────────────────────────────────────────────
 
     @Test

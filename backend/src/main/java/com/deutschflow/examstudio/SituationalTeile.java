@@ -29,14 +29,13 @@ public class SituationalTeile {
     // ── Bài / tình huống ────────────────────────────────────────────────────────────────────
 
     static final String ADS_SYSTEM = """
-            Du schreibst Material für telc Deutsch %s, Leseverstehen Teil 3 (Anzeigen). Schreibe ZWÖLF kurze,
+            Du schreibst Material für telc Deutsch %s, Leseverstehen (Anzeigen). Schreibe GENAU %d kurze,
             realistische Kleinanzeigen (je %d–%d Wörter) aus EINER deutschen oder österreichischen Stadt: Angebote
             und Gesuche aus dem Alltag (Wohnen, Kurse, Dienstleistungen, Verkauf, Freizeit, Arbeit). Einige Anzeigen
             sollen sich ähneln und nur in EINER Bedingung unterscheiden (kaufen/mieten, mit/ohne Haustier, Erfahrung
             nötig, Uhrzeit, Angebot/Gesuch), damit später feine Fallen möglich sind. Keine echten Firmennamen,
             Telefonnummern im Format 0xxx-xx xx xx, E-Mails auf example.de.
-            Schreibe außerdem ZWEI Beispiel-Situationen: die erste passt zu genau einer Anzeige (adIndex 0–11),
-            die zweite passt zu keiner (adIndex null).
+            Schreibe außerdem %s
             Antworte NUR mit JSON: {"city": "...", "ads": ["...", "..."],
               "examples": [{"situation": "...", "adIndex": 3}, {"situation": "...", "adIndex": null}]}
             """;
@@ -69,6 +68,38 @@ public class SituationalTeile {
             Antworte NUR mit JSON: {"from": "Vorname", "subject": "...", "body": "...", "points": ["...", "...", "...", "..."]}
             """;
 
+    // ── A2 (Start Deutsch 2) ──
+    static final String INFO_SYSTEM = """
+            Du schreibst für telc Deutsch %s (Start Deutsch 2), Lesen Teil 1, eine kurze ÖFFENTLICHE INFORMATION:
+            z. B. Wegweiser eines Kaufhauses/Rathauses/Krankenhauses, Programm eines Volkshochschulkurses, Seite
+            einer Website mit Rubriken. Insgesamt %d–%d Wörter, als 8–14 kurze Zeilen ("2. Stock: Damenmode, Kinder-
+            abteilung"). Einfache Wörter, viele konkrete Orte/Zeiten, damit fünf Alltagsaufgaben möglich sind.
+            Antworte NUR mit JSON: {"title": "...", "lines": ["...", "..."]}
+            """;
+
+    static final String RF_TEXT_SYSTEM = """
+            Du schreibst für telc Deutsch %s (Start Deutsch 2), Lesen Teil 2, einen NEUEN Text: eine persönliche
+            E-Mail oder einen kurzen Zeitungs-/Zeitschriftenartikel über ein Alltagsthema, %d–%d Wörter, einfache
+            Hauptsätze, Perfekt erlaubt. Der Text muss genug konkrete Aussagen für fünf richtig/falsch-Aufgaben haben.
+            Antworte NUR mit JSON: {"title": "...", "text": "..."}
+            """;
+
+    static final String FORM_TEXT_SYSTEM = """
+            Du schreibst für telc Deutsch %s (Start Deutsch 2), Schreiben Teil 1, einen kurzen Text (%d–%d Wörter):
+            Eine Person (Freund/Bekannte/Kollege) möchte sich für etwas anmelden (Kurs, Verein, Bibliothek, Reise)
+            und erzählt dabei Informationen über sich (Adresse, Telefonnummer, Geburtsdatum, Kurstag, Zahlungsart …).
+            Mindestens SIEBEN konkrete Informationen, davon zwei mit Zahlen. Gib auch den Titel des Formulars.
+            Antworte NUR mit JSON: {"formTitle": "Anmeldung …", "text": "..."}
+            """;
+
+    static final String NOTE_SYSTEM = """
+            Du schreibst für telc Deutsch %s (Start Deutsch 2), Schreiben Teil 2, eine Schreibaufgabe: eine kurze
+            Situation in Sie-Form (%d–%d Wörter, z. B. "Sie haben am Samstag eine Einladung zu einer Party bekommen,
+            können aber nicht kommen. Schreiben Sie eine E-Mail an Ihre Freundin.") und GENAU VIER kurze Punkte, von
+            denen die Kandidaten drei auswählen (z. B. "Grund", "Geschenk", "neuer Termin", "Gruß an die Familie").
+            Antworte NUR mit JSON: {"title": "...", "situation": "...", "points": ["...", "...", "...", "..."]}
+            """;
+
     Text writeText(long userId, TeilSpec spec, String theme, String situation, String note, List<String> avoid) {
         String user = "Themenfeld: " + (theme == null ? "frei (Alltag)" : theme)
                 + "\nSituation der Redaktion: " + (situation == null || situation.isBlank() ? "frei wählen" : situation)
@@ -77,25 +108,32 @@ public class SituationalTeile {
         String lv = spec.cefrLevel();
         return switch (spec.teilType()) {
             case "MATCH_AD_X" -> {
+                int n = spec.textCount();
+                String exInstr = spec.exampleCount() >= 2
+                        ? "ZWEI Beispiel-Situationen: die erste passt zu genau einer Anzeige (adIndex 0–" + (n - 1)
+                        + "), die zweite passt zu keiner (adIndex null)."
+                        : "EINE Beispiel-Situation, die zu genau einer Anzeige passt (adIndex 0–" + (n - 1) + ").";
                 JsonNode out = ai.call(userId, "TEXT", LlmTier.CONTENT,
-                        ADS_SYSTEM.formatted(lv, spec.minWords(), spec.maxWords()), user, 0.7, 3_000);
+                        ADS_SYSTEM.formatted(lv, n, spec.minWords(), spec.maxWords(), exInstr), user, 0.7, 3_000);
                 List<String> ads = new ArrayList<>();
                 out.path("ads").forEach(a -> {
                     String t = a.isTextual() ? a.asText() : a.path("text").asText("");
                     if (!t.isBlank()) ads.add(t.replaceAll("\\s+", " ").trim());
                 });
-                if (ads.size() < 12) throw new IllegalStateException("AI chỉ trả " + ads.size() + "/12 mẩu rao vặt, hãy thử lại.");
+                if (ads.size() < n) throw new IllegalStateException("AI chỉ trả " + ads.size() + "/" + n + " mẩu rao vặt, hãy thử lại.");
                 Map<String, String> adMap = new LinkedHashMap<>();
-                for (int i = 0; i < 12; i++) adMap.put(TeilSpec.AD_LETTERS.get(i), ads.get(i));
+                for (int i = 0; i < n; i++) adMap.put(TeilSpec.AD_LETTERS.get(i), ads.get(i));
                 List<Example> examples = new ArrayList<>();
                 JsonNode ex = out.path("examples");
-                if (ex.size() >= 2) {
+                if (ex.size() >= 1) {
                     JsonNode e1 = ex.get(0);
                     int idx = e1.path("adIndex").asInt(-1);
-                    if (idx >= 0 && idx < 12) examples.add(new Example("01", e1.path("situation").asText(""), TeilSpec.AD_LETTERS.get(idx)));
-                    examples.add(new Example("02", ex.get(1).path("situation").asText(""), "x"));
+                    if (idx >= 0 && idx < n) examples.add(new Example("01", e1.path("situation").asText(""), TeilSpec.AD_LETTERS.get(idx)));
+                    if (spec.exampleCount() >= 2 && ex.size() >= 2) {
+                        examples.add(new Example("02", ex.get(1).path("situation").asText(""), "x"));
+                    }
                 }
-                yield new Text("", "", String.join("\n\n", ads.subList(0, 12)), List.of(), adMap, examples,
+                yield new Text("", "", String.join("\n\n", ads.subList(0, n)), List.of(), adMap, examples,
                         null, null, null, null);
             }
             case "GAP_MC" -> {
@@ -112,6 +150,38 @@ public class SituationalTeile {
                 String ad = out.path("stimulusAd").asText("").trim();
                 if (letter.isBlank() || ad.isBlank()) throw new IllegalStateException("AI không trả đủ mẩu tin và bức thư.");
                 yield new Text("", "", letter, List.of(), null, null, ad, null, null, null);
+            }
+            case "MC_INFO" -> {
+                JsonNode out = ai.call(userId, "TEXT", LlmTier.CONTENT, INFO_SYSTEM.formatted(lv, spec.minWords(),
+                        spec.maxWords()), user, 0.7, 1_500);
+                List<String> lines = new ArrayList<>();
+                out.path("lines").forEach(l -> { if (!l.asText("").isBlank()) lines.add(l.asText().trim()); });
+                if (lines.size() < 6) throw new IllegalStateException("AI trả bảng thông tin quá ngắn, hãy thử lại.");
+                yield new Text(firstNonBlank(out.path("title").asText(null), "Information"), "", String.join("\n", lines), List.of());
+            }
+            case "TRUE_FALSE" -> {
+                JsonNode out = ai.call(userId, "TEXT", LlmTier.CONTENT, RF_TEXT_SYSTEM.formatted(lv, spec.minWords(),
+                        spec.maxWords()), user, 0.7, 1_500);
+                String body = out.path("text").asText("").trim();
+                if (body.isBlank()) throw new IllegalStateException("AI không trả bài đọc.");
+                yield new Text(firstNonBlank(out.path("title").asText(null), ""), "", body, List.of());
+            }
+            case "FILL_FORM" -> {
+                JsonNode out = ai.call(userId, "TEXT", LlmTier.CONTENT, FORM_TEXT_SYSTEM.formatted(lv, spec.minWords(),
+                        spec.maxWords()), user, 0.7, 1_500);
+                String body = out.path("text").asText("").trim();
+                if (body.isBlank()) throw new IllegalStateException("AI không trả đoạn văn.");
+                yield new Text(firstNonBlank(out.path("formTitle").asText(null), "Anmeldung"), "", body, List.of());
+            }
+            case "WRITE_NOTE" -> {
+                JsonNode out = ai.call(userId, "TEXT", LlmTier.CONTENT, NOTE_SYSTEM.formatted(lv, spec.minWords(),
+                        spec.maxWords()), user, 0.7, 1_200);
+                String body = out.path("situation").asText("").trim();
+                List<String> points = new ArrayList<>();
+                out.path("points").forEach(pt -> { if (!pt.asText("").isBlank()) points.add(pt.asText().trim()); });
+                if (body.isBlank() || points.size() != 4) throw new IllegalStateException("AI không trả đủ tình huống và 4 ý.");
+                Stimulus st = new Stimulus("SITUATION", null, firstNonBlank(out.path("title").asText(null), ""), body);
+                yield new Text("", "", body, List.of(), null, null, null, null, st, points);
             }
             case "WRITE_EMAIL" -> {
                 JsonNode out = ai.call(userId, "TEXT", LlmTier.CONTENT,
@@ -131,7 +201,7 @@ public class SituationalTeile {
     // ── Câu hỏi ─────────────────────────────────────────────────────────────────────────────
 
     static final String SITUATIONS_SYSTEM = """
-            Du erstellst Situationen für telc Deutsch %s, Leseverstehen Teil 3. Gegeben sind zwölf Anzeigen (a–l).
+            Du erstellst Situationen für telc Deutsch %s, Leseverstehen (Anzeigen). Gegeben sind die Anzeigen.
             Schreibe für jeden angegebenen slot EINE Situation (1–2 Sätze, Sie-Form, "Sie suchen …", "Ihre Tochter
             möchte …") und nenne "answer": den Buchstaben der passenden Anzeige ODER "x", wenn keine passt.
             Regeln: jede Anzeige ist höchstens EINMAL Lösung; die gesperrten Buchstaben nicht verwenden; genau so
@@ -189,6 +259,7 @@ public class SituationalTeile {
             case "MATCH_AD_X" -> situations(userId, spec, text, current, slots, levels, avoid);
             case "GAP_MC" -> gaps(userId, spec, text, current, slots, levels, rnd);
             case "GAP_WORDBANK" -> bankGaps(userId, spec, text, current, slots, levels);
+            case "MC_INFO", "TRUE_FALSE", "FILL_FORM" -> simpleItems(userId, spec, text, current, slots, levels, avoid, rnd);
             default -> throw new IllegalStateException("Phần Viết không có câu hỏi trắc nghiệm.");
         };
     }
@@ -205,7 +276,7 @@ public class SituationalTeile {
             else locked.add(it.correct());
         }
         if (text.examples() != null) text.examples().stream().filter(e -> !"x".equals(e.answer())).forEach(e -> locked.add(e.answer()));
-        int needX = Math.max(0, 2 - keptX);
+        int needX = Math.max(0, spec.xCount() - keptX);
         StringBuilder u = new StringBuilder("ANZEIGEN\n");
         text.ads().forEach((l, a) -> u.append(l).append(") ").append(a).append("\n"));
         u.append("\nGesperrte Buchstaben (schon Lösung oder Beispiel): ").append(locked.isEmpty() ? "keine" : String.join(", ", locked));
@@ -413,6 +484,120 @@ public class SituationalTeile {
         return new ItemsResult(result, text.withWordBank(bank), problems);
     }
 
+    static final String SIMPLE_ITEMS_SYSTEM = """
+            Du erstellst Aufgaben für telc Deutsch %s (Start Deutsch 2). Aufgabentyp: %s
+            Schwierigkeit pro slot (Niveau bleibt %s), je 0–2: phrasing (Lösung steht wörtlich da / umschrieben /
+            muss erschlossen werden), evidence (eine Stelle / zwei Stellen / kombinieren), distractors, language.
+            Summe 0–1 EASY, 2–4 MEDIUM, 5–6 HARD, 7–8 EXPERT. Niemals schwerer durch Wörter über dem Niveau.
+            Für jeden slot: "evidence" = wörtliches Zitat aus dem Text, "explanationVi" = VIETNAMESISCHE Erklärung,
+            "selfScore" = {"phrasing","evidence","distractors","language"}.
+            Antworte NUR mit JSON: {"items": [{"slot": 0, ...}]}
+            """;
+
+    static final String MC_INFO_TASK = """
+            Lesen Teil 1: zu jedem slot eine Alltagssituation ("Sie möchten einen Regenschirm kaufen.") mit drei
+            kurzen Optionen aus der Information (Stockwerk, Raum, Rubrik, Uhrzeit); genau eine passt laut Information.
+            Felder: "question", "options": [{"text","correct"}] ×3, "explanationVi" mit {1}/{2}/{3} statt a/b/c.
+            """;
+
+    static final String RF_TASK = """
+            Lesen Teil 2: zu jedem slot eine Aussage über den Text; "answer": "richtig" oder "falsch". Insgesamt
+            etwa gleich viele richtig und falsch (2–3 jeweils). Falsche Aussagen ändern genau ein Detail (Zeit, Person,
+            Ort, Grund). Felder: "statement", "answer".
+            """;
+
+    static final String FORM_TASK = """
+            Schreiben Teil 1: wähle für jeden slot EINE Information aus dem Text als Formularfeld. Felder: "label"
+            (Formularfeld, z. B. "Telefonnummer", "Kurstag"), "answer" (kürzeste richtige Eintragung, so wie sie im
+            Text steht oder daraus folgt), "accept" (weitere richtige Schreibweisen, z. B. ["Do.", "Donnerstag"]).
+            Schwierige Felder: Information muss umgeformt/kombiniert werden (z. B. Datum aus "nächsten Montag, dem 3.").
+            """;
+
+    private ItemsResult simpleItems(long userId, TeilSpec spec, Text text, List<Item> current, List<Integer> slots,
+                                    List<String> levels, List<String> avoid, Random rnd) {
+        String task = switch (spec.teilType()) {
+            case "MC_INFO" -> MC_INFO_TASK;
+            case "TRUE_FALSE" -> RF_TASK;
+            default -> FORM_TASK;
+        };
+        Set<Integer> todo = new HashSet<>(slots);
+        StringBuilder u = new StringBuilder("TEXT\n");
+        if (text.titleDe() != null && !text.titleDe().isBlank()) u.append(text.titleDe()).append("\n");
+        u.append(text.context()).append("\n\nSlots:\n");
+        for (int i = 0; i < slots.size(); i++) u.append("slot ").append(slots.get(i)).append(" → ").append(levels.get(i)).append("\n");
+        List<String> keptQ = new ArrayList<>();
+        for (int k = 0; k < current.size(); k++) if (current.get(k) != null && !todo.contains(k)) keptQ.add(current.get(k).question());
+        if (!keptQ.isEmpty()) u.append("\nSchon vorhanden (nicht wiederholen):\n- ").append(String.join("\n- ", keptQ));
+        u.append(avoidBlock(avoid));
+        JsonNode out = ai.call(userId, "ITEMS", LlmTier.CONTENT,
+                SIMPLE_ITEMS_SYSTEM.formatted(spec.cefrLevel(), task, spec.cefrLevel()), u.toString(), 0.6, 2_500);
+        Map<Integer, JsonNode> bySlot = bySlot(out, slots);
+        List<Item> result = new ArrayList<>(current);
+        while (result.size() < spec.itemCount()) result.add(null);
+        List<String> letters = new ArrayList<>();
+        for (Item c : result) letters.add(c == null ? null : c.correct());
+        List<String> problems = new ArrayList<>();
+        for (int i = 0; i < slots.size(); i++) {
+            int sl = slots.get(i);
+            JsonNode n = bySlot.get(sl);
+            String level = levels.get(i);
+            String evidence = n == null ? "" : firstNonBlank(textOf(n, "evidence"), "");
+            boolean wasLocked = result.get(sl) != null && result.get(sl).locked();
+            Item made = null;
+            if (n != null) switch (spec.teilType()) {
+                case "MC_INFO" -> {
+                    List<ItemRules.RawOption> raw = new ArrayList<>();
+                    n.path("options").forEach(o -> raw.add(new ItemRules.RawOption(
+                            firstNonBlank(textOf(o, "text"), ""), o.path("correct").asBoolean(false), null)));
+                    String q = textOf(n, "question");
+                    if (q != null && raw.size() == 3 && raw.stream().filter(ItemRules.RawOption::correct).count() == 1) {
+                        letters.set(sl, null);
+                        String l = ItemRules.chooseLetter(letters, sl, rnd);
+                        letters.set(sl, l);
+                        ItemRules.Lettered le = ItemRules.letter(raw, l, textOf(n, "explanationVi"));
+                        made = new Item(spec.itemId(sl), q, le.options(), le.correct(), le.explanation(), evidence,
+                                List.of(), level, null, wasLocked, null, List.of());
+                    }
+                }
+                case "TRUE_FALSE" -> {
+                    String st = textOf(n, "statement");
+                    String ans = textOf(n, "answer");
+                    ans = ans == null ? null : ans.trim().toLowerCase(Locale.ROOT);
+                    if (st != null && ("richtig".equals(ans) || "falsch".equals(ans))) {
+                        made = new Item(spec.itemId(sl), st, Map.of("richtig", "richtig", "falsch", "falsch"), ans,
+                                firstNonBlank(textOf(n, "explanationVi"), ""), evidence, List.of(), level, null,
+                                wasLocked, null, List.of());
+                    }
+                }
+                default -> {
+                    String label = textOf(n, "label");
+                    String ans = textOf(n, "answer");
+                    if (label != null && ans != null) {
+                        List<String> acc = new ArrayList<>();
+                        n.path("accept").forEach(a -> { if (!a.asText("").isBlank()) acc.add(a.asText().trim()); });
+                        Map<String, String> m = new LinkedHashMap<>();
+                        m.put("accept", String.join("|", acc));
+                        made = new Item(spec.itemId(sl), label, Map.of(), ans.trim(),
+                                firstNonBlank(textOf(n, "explanationVi"), ""), evidence, List.of(), level, null,
+                                wasLocked, null, List.of(), m);
+                    }
+                }
+            }
+            if (made == null) problems.add(spec.itemId(sl));
+            else result.set(sl, made);
+        }
+        return new ItemsResult(result, text, problems);
+    }
+
+    /** Ô form (A2 Schreiben 1): các cách viết được chấp nhận, gồm đáp án chính. */
+    static List<String> acceptedAnswers(Item it) {
+        List<String> out = new ArrayList<>();
+        out.add(it.correct());
+        String acc = meta(it, "accept");
+        if (!acc.isBlank()) out.addAll(Arrays.asList(acc.split("\\|")));
+        return out;
+    }
+
     // ── Giải thử / chấm thang ───────────────────────────────────────────────────────────────
 
     /** Đề đưa AI giải (không đáp án) hoặc chấm thang (kèm đáp án). */
@@ -447,6 +632,30 @@ public class SituationalTeile {
                     if (withKey) sb.append("  Lösung: ").append(it.correct()).append("\n");
                 }
             }
+            case "MC_INFO" -> {
+                sb.append("INFORMATION: ").append(nz(text.titleDe())).append("\n").append(text.context()).append("\n\nAUFGABEN (a, b oder c)\n");
+                for (Item it : items) {
+                    sb.append(it.id()).append(": ").append(it.question()).append("\n");
+                    ItemRules.LETTERS.forEach(l -> sb.append("  ").append(l).append(") ").append(it.options().get(l)).append("\n"));
+                    if (withKey) sb.append("  Lösung: ").append(it.correct()).append("\n");
+                }
+            }
+            case "TRUE_FALSE" -> {
+                sb.append("TEXT: ").append(nz(text.titleDe())).append("\n").append(text.context())
+                        .append("\n\nAUSSAGEN (Antwort: \"richtig\" oder \"falsch\")\n");
+                for (Item it : items) {
+                    sb.append(it.id()).append(": ").append(it.question()).append("\n");
+                    if (withKey) sb.append("  Lösung: ").append(it.correct()).append("\n");
+                }
+            }
+            case "FILL_FORM" -> {
+                sb.append("TEXT\n").append(text.context()).append("\n\nFORMULAR: ").append(nz(text.titleDe()))
+                        .append(" (Antwort: kurze Eintragung als Text)\n");
+                for (Item it : items) {
+                    sb.append(it.id()).append(": ").append(it.question()).append("\n");
+                    if (withKey) sb.append("  Lösung: ").append(it.correct()).append("\n");
+                }
+            }
             default -> { }
         }
         return sb.toString();
@@ -461,7 +670,21 @@ public class SituationalTeile {
               "neutral": true, "issuesVi": ["..."]}
             """;
 
+    static final String NOTE_REVIEW_SYSTEM = """
+            Du prüfst eine Schreibaufgabe für telc Deutsch %s / Start Deutsch 2 (Situation + vier Punkte, drei davon
+            werden gewählt, ca. 40 Wörter). Prüfe: (1) ist die Situation klar und alltagsnah, (2) sind die vier Punkte
+            verschieden und je in 1–2 Sätzen auf Niveau %s machbar, (3) neutrales Thema ohne Politik/Religion/Migration.
+            Antworte NUR mit JSON: {"points": [{"ok": true, "issueVi": null}, …4×], "levelOk": true, "neutral": true,
+              "issuesVi": ["..."]}
+            """;
+
     JsonNode reviewWriting(long userId, TeilSpec spec, Text text) {
+        if ("WRITE_NOTE".equals(spec.teilType())) {
+            StringBuilder u = new StringBuilder("SITUATION\n").append(text.stimulus().body()).append("\n\nPUNKTE\n");
+            for (int i = 0; i < text.writingPoints().size(); i++) u.append(i + 1).append(". ").append(text.writingPoints().get(i)).append("\n");
+            return ai.call(userId, "VERIFY", LlmTier.GRADING_EXAM, NOTE_REVIEW_SYSTEM.formatted(spec.cefrLevel(), spec.cefrLevel()),
+                    u.toString(), 0.0, 700);
+        }
         StringBuilder u = new StringBuilder("E-MAIL von ").append(text.stimulus().from()).append(", Betreff: ")
                 .append(text.stimulus().subject()).append("\n").append(text.stimulus().body()).append("\n\nLEITPUNKTE\n");
         for (int i = 0; i < text.writingPoints().size(); i++) u.append(i + 1).append(". ").append(text.writingPoints().get(i)).append("\n");
@@ -480,6 +703,10 @@ public class SituationalTeile {
                     && Objects.equals(i.options().get(i.correct()), meta(i, "target"));
             case "GAP_WORDBANK" -> text.wordBank() != null && text.wordBank().containsKey(i.correct())
                     && upper(meta(i, "target")).equals(text.wordBank().get(i.correct()));
+            case "MC_INFO" -> i.options() != null && i.options().size() == 3 && ItemRules.LETTERS.contains(i.correct())
+                    && i.options().values().stream().allMatch(o -> o != null && !o.isBlank());
+            case "TRUE_FALSE" -> "richtig".equals(i.correct()) || "falsch".equals(i.correct());
+            case "FILL_FORM" -> i.correct() != null && !i.correct().isBlank();
             default -> true;
         };
     }
@@ -491,23 +718,28 @@ public class SituationalTeile {
                 long x = items.stream().filter(i -> "x".equals(i.correct())).count();
                 List<String> answers = items.stream().map(Item::correct).filter(c -> !"x".equals(c)).toList();
                 boolean unique = answers.size() == new HashSet<>(answers).size();
-                out.add(new Check("X_COUNT", "Đúng 2 tình huống không có mẩu hợp (x)", x == 2 ? "GREEN" : "RED",
-                        x == 2 ? null : "Đang có " + x + " câu x."));
+                int wantX = spec.xCount();
+                out.add(new Check("X_COUNT", "Đúng " + wantX + " tình huống không có mẩu hợp (x)", x == wantX ? "GREEN" : "RED",
+                        x == wantX ? null : "Đang có " + x + " câu x."));
                 out.add(new Check("ADS_UNIQUE", "Mỗi mẩu rao vặt là đáp án tối đa một lần", unique ? "GREEN" : "RED",
                         unique ? null : "Có mẩu được dùng làm đáp án hai lần."));
-                boolean exOk = text.examples() != null && text.examples().size() == 2
-                        && !"x".equals(text.examples().get(0).answer()) && "x".equals(text.examples().get(1).answer())
+                int wantEx = spec.exampleCount();
+                boolean exOk = text.examples() != null && text.examples().size() == wantEx
+                        && !"x".equals(text.examples().get(0).answer())
+                        && (wantEx < 2 || "x".equals(text.examples().get(1).answer()))
                         && !answers.contains(text.examples().get(0).answer());
-                out.add(new Check("EXAMPLES", "Hai ví dụ (01 ghép được, 02 là x)", exOk ? "GREEN" : "YELLOW",
+                out.add(new Check("EXAMPLES", wantEx >= 2 ? "Hai ví dụ (01 ghép được, 02 là x)" : "Một ví dụ ghép được",
+                        exOk ? "GREEN" : "YELLOW",
                         exOk ? null : "Ví dụ thiếu, sai dạng, hoặc mẩu của ví dụ 01 trùng đáp án một câu."));
                 List<String> bad = new ArrayList<>();
                 if (text.ads() != null) text.ads().forEach((l, a) -> {
                     int wc = TextChecks.wordCount(a);
                     if (wc < spec.minWords() || wc > spec.maxWords()) bad.add(l + ": " + wc + " từ");
                 });
-                boolean twelve = text.ads() != null && text.ads().size() == 12;
-                out.add(new Check("LENGTH", "12 mẩu, mỗi mẩu " + spec.minWords() + "–" + spec.maxWords() + " từ",
-                        twelve && bad.isEmpty() ? "GREEN" : "YELLOW", (twelve ? "" : "Không đủ 12 mẩu. ") + String.join("; ", bad)));
+                int wantAds = spec.textCount();
+                boolean full = text.ads() != null && text.ads().size() == wantAds;
+                out.add(new Check("LENGTH", wantAds + " mẩu, mỗi mẩu " + spec.minWords() + "–" + spec.maxWords() + " từ",
+                        full && bad.isEmpty() ? "GREEN" : "YELLOW", (full ? "" : "Không đủ " + wantAds + " mẩu. ") + String.join("; ", bad)));
             }
             case "GAP_MC", "GAP_WORDBANK" -> {
                 boolean located = items.stream().allMatch(i -> locate(text.context(), meta(i, "before"), meta(i, "target")) >= 0);
@@ -531,12 +763,37 @@ public class SituationalTeile {
                             pair ? null : "Không có cặp dễ lẫn nào — đề thật luôn có."));
                 }
             }
-            case "WRITE_EMAIL" -> {
+            case "MC_INFO", "TRUE_FALSE", "FILL_FORM" -> {
+                int wc = TextChecks.wordCount(text.context());
+                boolean lenOk = wc >= spec.minWords() && wc <= spec.maxWords();
+                out.add(new Check("LENGTH", "Độ dài văn bản", lenOk ? "GREEN" : "YELLOW",
+                        wc + " từ (khuôn " + spec.minWords() + "–" + spec.maxWords() + ")."));
+                if ("MC_INFO".equals(spec.teilType())) {
+                    boolean letterOk = ExamDraftService.lettersBalanced(items.stream().map(Item::correct).toList());
+                    out.add(new Check("ANSWERS", "Phân bố đáp án a/b/c", letterOk ? "GREEN" : "YELLOW",
+                            letterOk ? null : "Đáp án dồn vào một chữ hoặc 3 câu liền cùng chữ."));
+                } else if ("TRUE_FALSE".equals(spec.teilType())) {
+                    long rich = items.stream().filter(i -> "richtig".equals(i.correct())).count();
+                    boolean bal = rich >= 2 && rich <= 3;
+                    out.add(new Check("ANSWERS", "Cân richtig/falsch (2–3 mỗi loại)", bal ? "GREEN" : "YELLOW",
+                            bal ? null : rich + " câu richtig / " + (items.size() - rich) + " câu falsch."));
+                } else {
+                    Set<String> labels = new HashSet<>();
+                    boolean uniq = items.stream().allMatch(i -> labels.add(i.question().trim().toLowerCase(Locale.ROOT)));
+                    out.add(new Check("FIELDS", "5 ô form khác nhau", uniq ? "GREEN" : "RED", uniq ? null : "Có hai ô trùng tên."));
+                    boolean digits = items.stream().anyMatch(i -> i.correct().matches(".*\\d.*"));
+                    out.add(new Check("NUMBERS", "Có ít nhất một ô là số (như đề thật)", digits ? "GREEN" : "YELLOW",
+                            digits ? null : "Không ô nào là số (điện thoại, ngày, mã…)."));
+                }
+            }
+            case "WRITE_NOTE", "WRITE_EMAIL" -> {
                 boolean four = text.writingPoints() != null && text.writingPoints().size() == 4;
                 out.add(new Check("POINTS", "Đủ 4 Leitpunkte", four ? "GREEN" : "RED", four ? null : "Cần đúng 4 ý."));
                 String body = text.stimulus() == null ? "" : text.stimulus().body();
-                boolean du = Pattern.compile("(?i)\\b(du|dir|dich|dein\\w*)\\b").matcher(body).find();
-                out.add(new Check("DU", "E-Mail xưng du", du ? "GREEN" : "YELLOW", du ? null : "Không thấy du/dir/dich trong thư."));
+                if ("WRITE_EMAIL".equals(spec.teilType())) {
+                    boolean du = Pattern.compile("(?i)\\b(du|dir|dich|dein\\w*)\\b").matcher(body).find();
+                    out.add(new Check("DU", "E-Mail xưng du", du ? "GREEN" : "YELLOW", du ? null : "Không thấy du/dir/dich trong thư."));
+                }
                 int wc = TextChecks.wordCount(body);
                 boolean lenOk = wc >= spec.minWords() && wc <= spec.maxWords();
                 out.add(new Check("LENGTH", "Độ dài E-Mail kích thích", lenOk ? "GREEN" : "YELLOW",
@@ -581,7 +838,7 @@ public class SituationalTeile {
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("teil", spec.teil());
         if (!spec.writing()) {
-            c.put("type", spec.teilType());
+            c.put("type", spec.outputType());
             c.put("point_per_item", spec.points());
         }
         switch (spec.teilType()) {
@@ -612,6 +869,45 @@ public class SituationalTeile {
                 c.put("word_bank", text.wordBank());
                 c.put("gapped_text", gappedText(text.context(), items));
             }
+            case "MC_INFO", "TRUE_FALSE" -> {
+                c.put("instruction_de", spec.instructionDe());
+                c.put("instruction_vi", spec.instructionVi());
+                if (text.titleDe() != null && !text.titleDe().isBlank()) c.put("title_de", text.titleDe());
+                c.put("context", text.context());
+            }
+            case "FILL_FORM" -> {
+                c.put("instruction_de", spec.instructionDe());
+                c.put("instruction_vi", spec.instructionVi());
+                c.put("context", text.context());
+                c.put("form_title", text.titleDe());
+                c.put("max_points", spec.itemCount());
+                c.put("form_fields", items.stream().map(it -> {
+                    Map<String, Object> f = new LinkedHashMap<>();
+                    f.put("field", it.question());
+                    f.put("answer", it.correct());
+                    List<String> acc = acceptedAnswers(it).subList(1, acceptedAnswers(it).size());
+                    f.put("accept", acc);
+                    f.put("explanation_vi", it.explanationVi());
+                    f.put("evidence", it.evidence());
+                    f.put("difficulty_target", it.difficultyTarget());
+                    return f;
+                }).toList());
+                c.remove("type");
+                c.put("type", "FILL_FORM");
+                c.remove("point_per_item");
+                return c;
+            }
+            case "WRITE_NOTE" -> {
+                c.put("type", "WRITE_NOTE");
+                c.put("instruction_de", spec.instructionDe());
+                c.put("instruction_vi", spec.instructionVi());
+                c.put("prompt", text.stimulus() == null ? text.context() : text.stimulus().body());
+                c.put("writing_points", text.writingPoints());
+                c.put("choose_points", 3);
+                c.put("word_target", 40);
+                c.put("max_points", 10);
+                return c;
+            }
             case "WRITE_EMAIL" -> {
                 Stimulus st = text.stimulus();
                 String from = st == null ? "Ihr Freund" : st.from();
@@ -637,7 +933,7 @@ public class SituationalTeile {
             m.put("id", it.id());
             if (spec.teilType().startsWith("GAP_")) m.put("gap", Integer.parseInt(meta(it, "gap")));
             else m.put("question", it.question());
-            if ("GAP_MC".equals(spec.teilType())) m.put("options", it.options());
+            if ("GAP_MC".equals(spec.teilType()) || "MC_INFO".equals(spec.teilType())) m.put("options", it.options());
             m.put("correct", it.correct());
             m.put("explanation_vi", it.explanationVi());
             m.put("evidence", it.evidence());
@@ -655,7 +951,7 @@ public class SituationalTeile {
         return switch (spec.teilType()) {
             case "MATCH_AD_X" -> t.ads() == null ? t.context() : String.join("\n\n", t.ads().values());
             case "GAP_WORDBANK" -> (t.stimulusAd() == null ? "" : t.stimulusAd() + "\n\n") + t.context();
-            case "WRITE_EMAIL" -> t.stimulus() == null ? t.context() : t.stimulus().body();
+            case "WRITE_EMAIL", "WRITE_NOTE" -> t.stimulus() == null ? t.context() : t.stimulus().body();
             default -> t.context();
         };
     }
@@ -736,6 +1032,10 @@ public class SituationalTeile {
         if (avoid == null || avoid.isEmpty()) return "";
         return "\n\nBereits in der Aufgabendatenbank (Thema, Situation und Inhalt NICHT wiederholen, etwas anderes wählen):\n- "
                 + String.join("\n- ", avoid);
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     static String meta(Item i, String key) {

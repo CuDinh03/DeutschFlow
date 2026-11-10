@@ -129,6 +129,21 @@ public class ExamStudioController {
         return assembly.slots(examFormat, cefrLevel);
     }
 
+    @GetMapping("/assembly/blueprints")
+    public List<ExamAssemblyService.Blueprint> blueprints() {
+        return assembly.blueprints();
+    }
+
+    /** Ghép từ khung (cấp chưa có đề viết tay làm nền, vd. telc A2): mọi Teil lấy từ kho. */
+    @PostMapping("/assemblies/blueprint")
+    public ExamAssemblyService.Assembled assembleFromBlueprint(@RequestBody ExamAssemblyService.BlueprintAssembleRequest req,
+                                                               @AuthenticationPrincipal User actor) {
+        ExamAssemblyService.Assembled a = assembly.assembleFromBlueprint(req);
+        audit.log("admin.exam_studio.exam_assembled", AuditActor.of(actor), "MOCK_EXAM", String.valueOf(a.id()),
+                Map.of("blueprint", req.examFormat() + ":" + req.cefrLevel(), "teile", a.teile().size()));
+        return a;
+    }
+
     @GetMapping("/assemblies")
     public List<ExamAssemblyService.Assembled> assemblies() {
         return assembly.list();
