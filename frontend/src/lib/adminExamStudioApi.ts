@@ -100,7 +100,8 @@ export interface StudioItem {
   question: string
   /** 3 khoá a/b/c (Teil 2) hoặc 2 khoá trong a–j (Teil 1). */
   options: Partial<Record<OptionKey, string>>
-  correct: OptionKey
+  /** Chữ đáp án; Lesen A2 T2 'richtig' | 'falsch'; ô form A2 là chữ tự do (đáp án chuẩn). */
+  correct: OptionKey | 'richtig' | 'falsch' | (string & {})
   explanationVi: string
   /** Câu bằng chứng trích từ BÀI MỚI. */
   evidence: string
@@ -368,4 +369,34 @@ export async function publishAssembledExam(examId: number): Promise<AssembledExa
 }
 export async function retireAssembledExam(examId: number): Promise<AssembledExam> {
   return (await api.post<AssembledExam>(`${BASE}/assemblies/${examId}/retire`, {})).data
+}
+
+// ── Ghép từ khung (đợt 4) ─────────────────────────────────────────────────────────────────
+// Cấp chưa có đề viết tay làm nền (telc A2 / Start Deutsch 2): MỌI ô Teil của khung phải chọn từ kho.
+
+export interface BlueprintSlot { section: string; teil: number; type: string }
+export interface Blueprint {
+  examFormat: string
+  cefrLevel: string
+  title: string
+  descriptionVi: string
+  timeLimitMinutes: number
+  totalPoints: number
+  passPoints: number
+  sections: { name: string; labelVi: string; timeMinutes: number; maxPoints: number; slots: BlueprintSlot[] }[]
+}
+export interface BlueprintAssembleBody {
+  examFormat: string
+  cefrLevel: string
+  title: string
+  /** Đủ mọi ô của khung (backend trả 400 kèm danh sách ô còn thiếu). */
+  replacements: { section: string; teil: number; blockId: number }[]
+  allowReuse?: boolean
+}
+
+export async function listBlueprints(): Promise<Blueprint[]> {
+  return (await api.get<Blueprint[]>(`${BASE}/assembly/blueprints`)).data
+}
+export async function assembleFromBlueprint(body: BlueprintAssembleBody): Promise<AssembledExam> {
+  return (await api.post<AssembledExam>(`${BASE}/assemblies/blueprint`, body)).data
 }

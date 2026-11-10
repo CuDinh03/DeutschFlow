@@ -21,6 +21,7 @@ import {
   ConfirmDialog, EmptyState, ErrorBanner, GaBtn, GaCap, GaCard, LoadingState, TkBadge,
 } from '@/components/ui-v2'
 import { BlockPreviewModal } from './BlockPreviewModal'
+import { BlueprintAssembleForm } from './BlueprintAssembleForm'
 import { Note, studioField, studioMiniBtn } from './ui'
 
 function fmtDate(iso: string | null | undefined): string {
@@ -37,11 +38,11 @@ const TELC_SECTION_SHORT: Record<string, string> = {
   LESEN: 'Lesen', SPRACHBAUSTEINE: 'Sprachbausteine', HOEREN: 'Hören', SCHREIBEN: 'Schreiben',
 }
 
-function slotLabel(section: string, teil: number): string {
+export function slotLabel(section: string, teil: number): string {
   return `${TELC_SECTION_SHORT[section.toUpperCase()] ?? section} T${teil}`
 }
 
-function LevelBadges({ counts }: { counts: AssemblyBlockOption['difficultyCounts'] }) {
+export function LevelBadges({ counts }: { counts: AssemblyBlockOption['difficultyCounts'] }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
       {DIFFICULTY_ORDER.map((lv) => (
@@ -103,6 +104,7 @@ export function AssembliesTab({ active }: { active: boolean }) {
   return (
     <div className="flex flex-col gap-6">
       <AssembleForm bases={bases} slots={slots} exams={exams} onAssembled={load} />
+      <BlueprintAssembleForm exams={exams} onAssembled={load} />
 
       <section aria-labelledby="assembled-h" className="flex flex-col gap-2">
         <h2 id="assembled-h"><GaCap>{t('assembly.listTitle')}</GaCap></h2>
@@ -117,9 +119,9 @@ export function AssembliesTab({ active }: { active: boolean }) {
                   <div className="min-w-0 flex-1 basis-64">
                     <p className="ga-ui truncate text-ga-body font-semibold text-ga-ink">{e.title}</p>
                     <p className="ga-ui text-ga-caption text-ga-muted">
-                      {t('assembly.base', {
-                        title: e.baseExamId != null ? (baseTitle.get(e.baseExamId) ?? `#${e.baseExamId}`) : '—',
-                      })}
+                      {e.baseExamId != null
+                        ? t('assembly.base', { title: baseTitle.get(e.baseExamId) ?? `#${e.baseExamId}` })
+                        : t('assembly.fromBlueprint', { level: e.cefrLevel })}
                       {e.createdAt ? ` · ${fmtDate(e.createdAt)}` : ''}
                     </p>
                     {e.teile.length > 0 && (

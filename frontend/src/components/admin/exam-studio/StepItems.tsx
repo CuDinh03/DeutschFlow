@@ -10,12 +10,12 @@ import {
 } from '@/lib/adminExamStudioApi'
 import {
   DIFFICULTY_ORDER, countByLevel, hasHeadlineIssues, headlineIssues, headlineTable, isGapKind, itemNumber,
-  matchTextIndex, normalizeHeadline, optionKeys, splitMatchTexts, teilKind, type TeilKind,
+  hasDigits, joinAccept, matchTextIndex, normalizeHeadline, optionKeys, splitAccept, splitMatchTexts, teilKind, type TeilKind,
 } from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import { LightDot, Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
-import { AdRoleTable, GapLetterPanel, WordBankTable } from './ItemsSituational'
+import { AdRoleTable, FormItemsPanel, GapLetterPanel, TrueFalseSummary, WordBankTable } from './ItemsSituational'
 
 /** Phương án dạng bản đồ chuỗi: T2 có a/b/c, T1 có 2 chữ trong a–j (type cũ chỉ khai a|b|c). */
 const optsOf = (it: Pick<StudioItem, 'options'>) => it.options as Record<string, string>
@@ -82,6 +82,8 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
 
       {match && draft.items.length > 0 && <HeadlineTable items={draft.items} />}
       {kind === 'MATCH_AD_X' && draft.items.length > 0 && <AdRoleTable draft={draft} />}
+      {kind === 'TRUE_FALSE' && draft.items.length > 0 && <TrueFalseSummary draft={draft} />}
+      {kind === 'FILL_FORM' && draft.items.length > 0 && <FormItemsPanel draft={draft} />}
       {gap && draft.items.length > 0 && <GapLetterPanel draft={draft} />}
       {kind === 'GAP_WORDBANK' && draft.items.length > 0 && <WordBankTable draft={draft} />}
 
@@ -135,7 +137,12 @@ function ItemCard({
   const gap = isGapKind(kind)
   const adX = kind === 'MATCH_AD_X'
   // SB2: phương án là từ trong hộp (máy dựng) — không sửa chữ ở đây, chỉ sửa giải thích/bằng chứng.
-  const optionsEditable = kind !== 'GAP_WORDBANK'
+  // A2: richtig/falsch cố định (chỉ đổi đáp án); form không có phương án (đáp án + cách viết khác ở `meta.accept`).
+  const trueFalse = kind === 'TRUE_FALSE'
+  const fillForm = kind === 'FILL_FORM'
+  // `correct` khai OptionKey (a–o, x) nhưng A2 dùng cả "richtig"/"falsch" và chữ tự do của ô form.
+  const correctStr = item.correct as string
+  const optionsEditable = kind !== 'GAP_WORDBANK' && !trueFalse
   /** Lựa chọn đáp án khi sửa tay: khoá của câu, LV3 thêm `x`. */
   const answerKeys = (o: Record<string, string>) => (adX ? Array.from(new Set([...optionKeys(o), 'x'])) : optionKeys(o))
   const number = kind === 'ARTICLE' || match ? index + 1 : Number(item.meta?.gap ?? itemNumber(item.id, index + 1))
@@ -183,17 +190,31 @@ function ItemCard({
       {editing ? (
         <div className="flex flex-col gap-2.5">
           {!match && (
-            <Field id={`${item.id}-q`} label={t('items.question')}>
+            <Field id={`${item.id}-q`} label={fillForm ? t('items.formField') : t('items.question')}>
               <textarea id={`${item.id}-q`} lang="de" rows={2} className={studioField} value={form.question}
                 onChange={(e) => setForm({ ...form, question: e.target.value })} />
             </Field>
           )}
+          {fillForm ? (
+            <>
+              <Field id={`${item.id}-ans`} label={t('items.formAnswer')}>
+                <input id={`${item.id}-ans`} lang="de" className={studioField} value={form.correct ?? ''}
+                  onChange={(e) => setForm({ ...form, correct: e.target.value as OptionKey })} />
+              </Field>
+              <Field id={`${item.id}-acc`} label={t('items.formAccept')}>
+                <input id={`${item.id}-acc`} lang="de" className={studioField} value={splitAccept(form.meta?.accept).join(', ')}
+                  aria-describedby={`${item.id}-acc-hint`}
+                  onChange={(e) => setForm({ ...form, meta: { ...(form.meta ?? {}), accept: joinAccept(e.target.value.split(',')) } })} />
+                <p id={`${item.id}-acc-hint`} className="ga-ui mt-1 text-ga-caption text-ga-muted">{t('items.formAcceptHint')}</p>
+              </Field>
+            </>
+          ) : (
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1"><GaCap>{match ? t('items.headlinesLegend') : t('items.options')}</GaCap></legend>
-            {!optionsEditable && <p className="ga-ui text-ga-caption text-ga-muted">{t('items.bankReadOnly')}</p>}
+            {!optionsEditable && !trueFalse && <p className="ga-ui text-ga-caption text-ga-muted">{t('items.bankReadOnly')}</p>}
             {answerKeys(optsOf(form)).map((k) => (
               <div key={k} className="flex items-center gap-2">
-                <input type="radio" name={`${item.id}-correct`} checked={form.correct === k} disabled={!optionsEditable}
+                <input type="radio" name={`${item.id}-correct`} checked={form.correct === k} disabled={!optionsEditable && !trueFalse}
                   aria-label={t('items.markCorrect', { k })} onChange={() => setForm({ ...form, correct: k as OptionKey })}
                   style={{ accentColor: 'var(--ga-green)' }} />
                 <span className="w-4 font-semibold text-ga-muted">{k}</span>
@@ -207,6 +228,7 @@ function ItemCard({
               </div>
             ))}
           </fieldset>
+          )}
           <Field id={`${item.id}-ev`} label={t('items.evidence')}>
             <textarea id={`${item.id}-ev`} lang="de" rows={2} className={studioField} value={form.evidence}
               onChange={(e) => setForm({ ...form, evidence: e.target.value })} />
@@ -231,6 +253,28 @@ function ItemCard({
               {excerptText || t('preview.noText')}
             </p>
           )}
+          {fillForm && (
+            <div className="ga-ui flex flex-col gap-1 rounded-ga bg-ga-green-soft px-2.5 py-1.5 text-ga-small">
+              <span className="font-semibold text-ga-green">{t('items.formAnswerIs', { answer: item.correct || '—' })}</span>
+              {splitAccept(item.meta?.accept).length > 0 && (
+                <span className="text-ga-muted">{t('items.formAcceptIs', { list: splitAccept(item.meta?.accept).join(', ') })}</span>
+              )}
+              {hasDigits(item.correct) && <span className="text-ga-gold">{t('items.formDigits')}</span>}
+            </div>
+          )}
+          {trueFalse && (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('items.tfPick')}>
+              {(['richtig', 'falsch'] as const).map((v) => (
+                <button key={v} type="button" aria-pressed={correctStr === v} disabled={locked || item.locked}
+                  onClick={() => { if (correctStr !== v) void onSave({ ...item, correct: v as unknown as OptionKey }) }}
+                  className={cn('ga-ui min-h-9 rounded-ga border px-3 text-ga-small font-semibold disabled:opacity-60',
+                    correctStr === v ? 'border-ga-green bg-ga-green-soft text-ga-green' : 'border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface')}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
+          {!fillForm && !trueFalse && (
           <ul className="flex flex-col gap-1" lang="de">
             {optionKeys(optsOf(item)).map((k) => {
               const trap = item.traps.find((tr) => tr.option === k)
@@ -252,6 +296,7 @@ function ItemCard({
               )
             })}
           </ul>
+          )}
           {item.evidence && (
             <blockquote className="border-l-2 border-ga-accent bg-ga-surface px-3 py-2 text-ga-small text-ga-ink" lang="de">
               <span className="ga-ui mb-0.5 block text-ga-caption font-semibold text-ga-muted" lang="vi">{t('items.evidence')}</span>

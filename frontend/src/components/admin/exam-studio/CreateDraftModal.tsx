@@ -5,21 +5,16 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { createDraft, DIFFICULTY_PRESETS, type DifficultyPlan, type StudioDraft } from '@/lib/adminExamStudioApi'
-import { catalogEntry, checkMatrix, scalePlan, teilKind } from '@/lib/examStudioLogic'
+import { LEVEL_SECTION_TEILS, STUDIO_LEVELS, catalogEntry, checkMatrix, scalePlan, teilKind } from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, TkModal } from '@/components/ui-v2'
 import { DifficultyMatrix } from './DifficultyMatrix'
 import { ModeSelect, ThemeSelect } from './FrameFields'
 import { studioField } from './ui'
 
-/** Số Teil của từng phần thi telc B1; Teil có trong STUDIO_TEIL_CATALOG mới chọn được, còn lại "Đợt sau". */
-const SECTION_TEILS: Record<string, number[]> = {
-  LESEN: [1, 2, 3],
-  SPRACHBAUSTEINE: [1, 2],
-  HOEREN: [1, 2, 3],
-  SCHREIBEN: [1],
-}
-const SECTIONS = Object.keys(SECTION_TEILS)
-const sectionEnabled = (sec: string) => SECTION_TEILS[sec].some((n) => catalogEntry(sec, n) != null)
+/** Teil của từng phần thi theo cấp (LEVEL_SECTION_TEILS); Teil có trong STUDIO_TEIL_CATALOG mới chọn được, còn lại "Đợt sau". */
+const teilsOf = (level: string, sec: string) => LEVEL_SECTION_TEILS[level]?.[sec] ?? []
+const sectionsOf = (level: string) => Object.keys(LEVEL_SECTION_TEILS[level] ?? {})
+const sectionEnabled = (level: string, sec: string) => teilsOf(level, sec).some((n) => catalogEntry(sec, n, level) != null)
 const realPlan = (itemCount: number) => scalePlan(DIFFICULTY_PRESETS[0].plan, itemCount)
 
 interface Props {
@@ -33,22 +28,30 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
   const tc = useTranslations('v2.common')
   const [theme, setTheme] = useState<string>('')
   const [mode, setMode] = useState<'EXAM' | 'PRACTICE'>('EXAM')
+  const [level, setLevel] = useState<string>('B1')
   const [section, setSection] = useState('LESEN')
   const [teil, setTeil] = useState(2)
   const [plan, setPlan] = useState<DifficultyPlan>(() => realPlan(5))
   const [situation, setSituation] = useState('')
   const [saving, setSaving] = useState(false)
-  const entry = catalogEntry(section, teil)
+  const entry = catalogEntry(section, teil, level)
   const itemCount = entry?.itemCount ?? 0
   const kind = teilKind(entry?.teilType)
   const check = checkMatrix(plan, mode, itemCount)
 
   /** Đổi phần/Teil: nhảy về Teil đầu tiên mở được và đặt lại ma trận theo số câu của Teil mới. */
-  const pick = (sec: string, n?: number) => {
-    const teilNo = n ?? SECTION_TEILS[sec].find((x) => catalogEntry(sec, x) != null) ?? 1
+  const pick = (sec: string, n?: number, lv: string = level) => {
+    const teilNo = n ?? teilsOf(lv, sec).find((x) => catalogEntry(sec, x, lv) != null) ?? 1
     setSection(sec)
     setTeil(teilNo)
-    setPlan(realPlan(catalogEntry(sec, teilNo)?.itemCount ?? 0))
+    setPlan(realPlan(catalogEntry(sec, teilNo, lv)?.itemCount ?? 0))
+  }
+  /** Đổi cấp: giữ phần đang chọn nếu cấp mới có, không thì về Lesen. */
+  const pickLevel = (lv: string) => {
+    setLevel(lv)
+    const sec = sectionEnabled(lv, section) ? section : 'LESEN'
+    const keepTeil = catalogEntry(sec, teil, lv) != null ? teil : undefined
+    pick(sec, keepTeil, lv)
   }
 
   const submit = async () => {
@@ -56,7 +59,7 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
     setSaving(true)
     try {
       const d = await createDraft({
-        examFormat: 'TELC', cefrLevel: 'B1', section, teil,
+        examFormat: 'TELC', cefrLevel: level, section, teil,
         theme: theme || null, mode,
         // Schreiben không có ma trận độ khó: gửi toàn 0.
         difficultyPlan: itemCount === 0 ? { EASY: 0, MEDIUM: 0, HARD: 0, EXPERT: 0 } : plan,
@@ -96,17 +99,17 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
             </select>
           </div>
           <div>
-            <GaCap className="mb-1.5 block">{t('frame.level')}</GaCap>
-            <select className={studioField} value="B1" disabled aria-label={t('frame.level')}>
-              <option value="B1">B1</option>
+            <label htmlFor="create-level" className="mb-1.5 block"><GaCap>{t('frame.level')}</GaCap></label>
+            <select id="create-level" className={studioField} value={level} onChange={(e) => pickLevel(e.target.value)}>
+              {STUDIO_LEVELS.map((lv) => <option key={lv} value={lv}>{t(`levelName.${lv}`)}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="create-section" className="mb-1.5 block"><GaCap>{t('frame.section')}</GaCap></label>
             <select id="create-section" className={studioField} value={section} onChange={(e) => pick(e.target.value)}>
-              {SECTIONS.map((sec) => (
-                <option key={sec} value={sec} disabled={!sectionEnabled(sec)}>
-                  {t(`section.${sec}`)}{sectionEnabled(sec) ? '' : ` — ${t('later')}`}
+              {sectionsOf(level).map((sec) => (
+                <option key={sec} value={sec} disabled={!sectionEnabled(level, sec)}>
+                  {t(`section.${sec}`)}{sectionEnabled(level, sec) ? '' : ` — ${t('later')}`}
                 </option>
               ))}
             </select>
@@ -115,8 +118,8 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
             <label htmlFor="create-teil" className="mb-1.5 block"><GaCap>{t('frame.teil')}</GaCap></label>
             <select id="create-teil" className={studioField} value={String(teil)}
               onChange={(e) => pick(section, Number(e.target.value))}>
-              {SECTION_TEILS[section].map((n) => {
-                const ok = catalogEntry(section, n) != null
+              {teilsOf(level, section).map((n) => {
+                const ok = catalogEntry(section, n, level) != null
                 return (
                   <option key={n} value={String(n)} disabled={!ok}>
                     Teil {n}{ok ? '' : ` — ${t('later')}`}
@@ -126,7 +129,7 @@ export function CreateDraftModal({ open, onOpenChange, onCreated }: Props) {
             </select>
           </div>
         </div>
-        <p className="ga-ui text-ga-caption text-ga-muted">{t(`frame.blueprintKind.${kind}`, { itemCount })}</p>
+        <p className="ga-ui text-ga-caption text-ga-muted">{t(`frame.blueprintKind.${kind === 'MATCH_AD_X' && level === 'A2' ? 'MATCH_AD_X_A2' : kind}`, { itemCount })}</p>
 
         <ThemeSelect id="create-theme" value={theme} onChange={setTheme} />
         {entry && !entry.needsSources && (

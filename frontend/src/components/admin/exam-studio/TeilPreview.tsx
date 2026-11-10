@@ -6,7 +6,7 @@ import type { StudioText } from '@/lib/adminExamStudioApi'
 import {
   headlineTable, markSnippets, matchTextIndex, optionKeys, splitMatchTexts, splitParagraphs, type TeilKind,
 } from '@/lib/examStudioLogic'
-import { EmailPreview, GapPreview, MatchAdPreview } from './TeilPreviewSituational'
+import { EmailPreview, FormPreview, GapPreview, MatchAdPreview } from './TeilPreviewSituational'
 import { cn } from '@/lib/utils'
 
 export interface PreviewItem {
@@ -64,7 +64,10 @@ export function TeilPreview(props: Props) {
     case 'MATCH_AD_X': return <MatchAdPreview {...props} />
     case 'GAP_MC':
     case 'GAP_WORDBANK': return <GapPreview {...props} wordBankMode={props.layout === 'GAP_WORDBANK'} />
-    case 'WRITE_EMAIL': return <EmailPreview {...props} />
+    case 'WRITE_EMAIL':
+    case 'WRITE_NOTE': return <EmailPreview {...props} />
+    case 'FILL_FORM': return <FormPreview {...props} />
+    // MC_INFO (bảng thông tin a/b/c), TRUE_FALSE (richtig/falsch): tiêu đề + bài + câu, như bài đọc.
     default: return <ArticlePreview {...props} />
   }
 }

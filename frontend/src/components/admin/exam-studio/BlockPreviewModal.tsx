@@ -92,7 +92,11 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
   const isMatch = isMatchHeadline(str(content.type)) || (Number(content.teil) === 1 && content.headlines != null)
   // Schreiben không ghi `type` trong content — nhận ra qua `stimulus` + `writing_points`.
   const kind = content.writing_points != null && content.stimulus != null ? 'WRITE_EMAIL' : teilKind(str(content.type))
-  if (kind !== 'ARTICLE' && kind !== 'MATCH_HEADLINE') return situationalPreview(kind, content)
+  if (kind === 'FILL_FORM') return formBlockPreview(content)
+  if (kind === 'WRITE_NOTE') return noteBlockPreview(content)
+  // TRUE_FALSE (telc A2 Lesen 2) dựng như bài đọc, câu không khai options ⇒ gắn richtig/falsch.
+  if (kind !== 'ARTICLE' && kind !== 'MATCH_HEADLINE' && kind !== 'TRUE_FALSE') return situationalPreview(kind, content)
+  const trueFalse = kind === 'TRUE_FALSE'
 
   if (isMatch) {
     const headlinesRaw = rec(content.headlines)
@@ -124,8 +128,8 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
   const textNode = rec(content.text ?? content)
   const glossaryRaw = Array.isArray(textNode.glossary) ? textNode.glossary : []
   const text: StudioText = {
-    titleDe: str(textNode.titleDe ?? textNode.title),
-    vorspannDe: str(textNode.vorspannDe ?? textNode.vorspann),
+    titleDe: str(textNode.titleDe ?? textNode.title_de ?? textNode.title),
+    vorspannDe: str(textNode.vorspannDe ?? textNode.vorspann_de ?? textNode.vorspann),
     context: str(textNode.context ?? textNode.body),
     glossary: glossaryRaw.map((g) => {
       const r = rec(g)
@@ -137,6 +141,7 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
     const opts = rec(r.options)
     const options: Record<string, string> = {}
     for (const k of Object.keys(opts).sort()) options[k] = str(opts[k])
+    if (trueFalse && Object.keys(options).length === 0) Object.assign(options, { richtig: 'richtig', falsch: 'falsch' })
     const correct = str(r.correct ?? r.answer)
     return {
       id: str(r.id) || String(i),
@@ -148,8 +153,42 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
   })
   const quelle = str(content.quelle ?? textNode.quelle ?? source.quelle) || null
   return {
-    layout: 'ARTICLE', text, items, quelle, headlines: null, gappedText: null,
+    layout: trueFalse ? 'TRUE_FALSE' : 'ARTICLE', text, items, quelle, headlines: null, gappedText: null,
     startNumber: Number(content.teil) === 2 || content.teil == null ? 6 : 1,
+  }
+}
+
+/** telc A2 Schreiben 1 (content kho): `context`, `form_title`, `form_fields[{field, answer, accept, explanation_vi}]`. */
+function formBlockPreview(content: Record<string, unknown>): BlockPreview {
+  const fields = Array.isArray(content.form_fields) ? content.form_fields : []
+  const items: PreviewItem[] = fields.map((raw, i) => {
+    const r = rec(raw)
+    const accept = Array.isArray(r.accept) ? r.accept.map(str).filter(Boolean) : []
+    return {
+      id: `SA1-${i + 1}`,
+      question: str(r.field),
+      options: {},
+      correct: str(r.answer) || null,
+      explanationVi: str(r.explanation_vi ?? r.explanationVi) || null,
+      meta: accept.length ? { accept: accept.join('|') } : null,
+    }
+  })
+  return {
+    layout: 'FILL_FORM', items, headlines: null, gappedText: null, startNumber: 1,
+    text: { titleDe: str(content.form_title), vorspannDe: '', context: str(content.context), glossary: [] },
+    quelle: null,
+  }
+}
+
+/** telc A2 Schreiben 2 (content kho): `prompt` (tình huống), `writing_points`, `choose_points`, `word_target`. */
+function noteBlockPreview(content: Record<string, unknown>): BlockPreview {
+  return {
+    layout: 'WRITE_NOTE', items: [], headlines: null, gappedText: null, startNumber: 1, quelle: null,
+    text: {
+      titleDe: '', vorspannDe: '', context: '', glossary: [],
+      stimulus: { type: 'SITUATION', from: '', subject: '', body: str(content.prompt) },
+      writingPoints: Array.isArray(content.writing_points) ? content.writing_points.map(str) : [],
+    },
   }
 }
 

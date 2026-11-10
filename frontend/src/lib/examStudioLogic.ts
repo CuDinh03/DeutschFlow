@@ -392,8 +392,13 @@ export function pruneChoices(
 
 // ── Đợt 3: dạng Teil soạn theo tình huống ────────────────────────────────────
 
-export type TeilKind = 'ARTICLE' | 'MATCH_HEADLINE' | 'MATCH_AD_X' | 'GAP_MC' | 'GAP_WORDBANK' | 'WRITE_EMAIL'
-const KINDS: TeilKind[] = ['MATCH_HEADLINE', 'MATCH_AD_X', 'GAP_MC', 'GAP_WORDBANK', 'WRITE_EMAIL']
+export type TeilKind =
+  | 'ARTICLE' | 'MATCH_HEADLINE' | 'MATCH_AD_X' | 'GAP_MC' | 'GAP_WORDBANK' | 'WRITE_EMAIL'
+  // Đợt 4 — telc A2: bảng thông tin a/b/c, richtig/falsch, form 5 ô, tin nhắn ngắn.
+  | 'MC_INFO' | 'TRUE_FALSE' | 'FILL_FORM' | 'WRITE_NOTE'
+const KINDS: TeilKind[] = [
+  'MATCH_HEADLINE', 'MATCH_AD_X', 'GAP_MC', 'GAP_WORDBANK', 'WRITE_EMAIL', 'MC_INFO', 'TRUE_FALSE', 'FILL_FORM', 'WRITE_NOTE',
+]
 
 /** Dạng hiển thị theo `teilType`; lạ hoặc MULTIPLE_CHOICE (Lesen T2) → ARTICLE. */
 export function teilKind(teilType: string | null | undefined): TeilKind {
@@ -405,7 +410,25 @@ export function isGapKind(kind: TeilKind): boolean {
   return kind === 'GAP_MC' || kind === 'GAP_WORDBANK'
 }
 
+/** Teil viết tự do (không có câu hỏi, không ma trận): Schreiben B1 E-Mail, A2 tin nhắn ngắn. */
+export function isWritingKind(kind: TeilKind): boolean {
+  return kind === 'WRITE_EMAIL' || kind === 'WRITE_NOTE'
+}
+
+/** Số câu đầu tiên theo đề thật của từng dạng (Lesen B1 T2: 6–10; A2 T2: 6–10; rao vặt 11–; SB 21– / 31–). */
+export function firstItemNumber(kind: TeilKind, teil: number): number {
+  switch (kind) {
+    case 'ARTICLE': return teil === 2 ? 6 : 1
+    case 'TRUE_FALSE': return 6
+    case 'MATCH_AD_X': return 11
+    case 'GAP_MC': return 21
+    case 'GAP_WORDBANK': return 31
+    default: return 1
+  }
+}
+
 export interface TeilCatalogEntry {
+  cefrLevel: 'B1' | 'A2'
   section: string
   teil: number
   teilType: string
@@ -415,16 +438,30 @@ export interface TeilCatalogEntry {
 
 /** Teil telc B1 Xưởng đề đã nhận (khớp backend TeilSpec). Ngoài danh sách = "Đợt sau". */
 export const STUDIO_TEIL_CATALOG: TeilCatalogEntry[] = [
-  { section: 'LESEN', teil: 1, teilType: 'MATCH_HEADLINE', itemCount: 5, needsSources: true },
-  { section: 'LESEN', teil: 2, teilType: 'MULTIPLE_CHOICE', itemCount: 5, needsSources: true },
-  { section: 'LESEN', teil: 3, teilType: 'MATCH_AD_X', itemCount: 10, needsSources: false },
-  { section: 'SPRACHBAUSTEINE', teil: 1, teilType: 'GAP_MC', itemCount: 10, needsSources: false },
-  { section: 'SPRACHBAUSTEINE', teil: 2, teilType: 'GAP_WORDBANK', itemCount: 10, needsSources: false },
-  { section: 'SCHREIBEN', teil: 1, teilType: 'WRITE_EMAIL', itemCount: 0, needsSources: false },
+  { cefrLevel: 'B1', section: 'LESEN', teil: 1, teilType: 'MATCH_HEADLINE', itemCount: 5, needsSources: true },
+  { cefrLevel: 'B1', section: 'LESEN', teil: 2, teilType: 'MULTIPLE_CHOICE', itemCount: 5, needsSources: true },
+  { cefrLevel: 'B1', section: 'LESEN', teil: 3, teilType: 'MATCH_AD_X', itemCount: 10, needsSources: false },
+  { cefrLevel: 'B1', section: 'SPRACHBAUSTEINE', teil: 1, teilType: 'GAP_MC', itemCount: 10, needsSources: false },
+  { cefrLevel: 'B1', section: 'SPRACHBAUSTEINE', teil: 2, teilType: 'GAP_WORDBANK', itemCount: 10, needsSources: false },
+  { cefrLevel: 'B1', section: 'SCHREIBEN', teil: 1, teilType: 'WRITE_EMAIL', itemCount: 0, needsSources: false },
+  // Đợt 4 — telc Deutsch A2 / Start Deutsch 2 (Übungstest 1 chính thức). Hören làm cùng đợt audio.
+  { cefrLevel: 'A2', section: 'LESEN', teil: 1, teilType: 'MC_INFO', itemCount: 5, needsSources: false },
+  { cefrLevel: 'A2', section: 'LESEN', teil: 2, teilType: 'TRUE_FALSE', itemCount: 5, needsSources: false },
+  { cefrLevel: 'A2', section: 'LESEN', teil: 3, teilType: 'MATCH_AD_X', itemCount: 5, needsSources: false },
+  { cefrLevel: 'A2', section: 'SCHREIBEN', teil: 1, teilType: 'FILL_FORM', itemCount: 5, needsSources: false },
+  { cefrLevel: 'A2', section: 'SCHREIBEN', teil: 2, teilType: 'WRITE_NOTE', itemCount: 0, needsSources: false },
 ]
 
-export function catalogEntry(section: string, teil: number): TeilCatalogEntry | null {
-  return STUDIO_TEIL_CATALOG.find((e) => e.section === section && e.teil === teil) ?? null
+export const STUDIO_LEVELS = ['B1', 'A2'] as const
+
+/** Số Teil của từng phần thi theo cấp (telc); Teil không có trong danh mục là "Đợt sau". */
+export const LEVEL_SECTION_TEILS: Record<string, Record<string, number[]>> = {
+  B1: { LESEN: [1, 2, 3], SPRACHBAUSTEINE: [1, 2], HOEREN: [1, 2, 3], SCHREIBEN: [1] },
+  A2: { LESEN: [1, 2, 3], HOEREN: [1, 2, 3], SCHREIBEN: [1, 2] },
+}
+
+export function catalogEntry(section: string, teil: number, cefrLevel = 'B1'): TeilCatalogEntry | null {
+  return STUDIO_TEIL_CATALOG.find((e) => e.cefrLevel === cefrLevel && e.section === section && e.teil === teil) ?? null
 }
 
 /**
@@ -440,10 +477,31 @@ export function scalePlan(plan: DifficultyPlan, itemCount: number, base = 5): Di
   return out
 }
 
-/** Số từ cho mỗi mẩu rao vặt Lesen T3 và thân E-Mail Schreiben. */
+/** Số từ cho mỗi mẩu rao vặt Lesen T3 (B1; A2 xem `adWordRange`) và thân E-Mail Schreiben. */
 export const AD_WORD_RANGE: [number, number] = [15, 45]
+export const AD_WORD_RANGE_A2: [number, number] = [10, 35]
+/** telc A2 Schreiben Teil 2: tình huống ngắn (backend TeilSpec 20–70 từ); bài viết của học viên ~40 từ. */
+export const NOTE_WORD_RANGE: [number, number] = [20, 70]
+/** Số từ của bài theo dạng A2 (bảng thông tin, bài richtig/falsch, đoạn văn của form) — khớp TeilSpec. */
+export const A2_TEXT_WORD_RANGE: Partial<Record<TeilKind, [number, number]>> = {
+  MC_INFO: [40, 140], TRUE_FALSE: [100, 190], FILL_FORM: [60, 140],
+}
+
+export function adWordRange(cefrLevel: string | null | undefined): [number, number] {
+  return cefrLevel === 'A2' ? AD_WORD_RANGE_A2 : AD_WORD_RANGE
+}
 export const EMAIL_WORD_RANGE: [number, number] = [70, 130]
 export const AD_LETTERS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'] as const
+
+/** Chữ các mẩu rao vặt theo cấp: B1 a–l (12), A2 a–h (8). */
+export function adLettersFor(cefrLevel: string | null | undefined): string[] {
+  return AD_LETTERS.slice(0, cefrLevel === 'A2' ? 8 : 12)
+}
+
+/** Số câu x (không mẩu nào hợp) theo cấp: B1 2, A2 1. */
+export function adXExpected(cefrLevel: string | null | undefined): number {
+  return cefrLevel === 'A2' ? 1 : 2
+}
 export const BANK_LETTERS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o'] as const
 export const WRITING_POINT_COUNT = 4
 
@@ -478,8 +536,9 @@ export function adRoles(
   ads: Partial<Record<string, string>> | null | undefined,
   items: AdItem[],
   examples: { label: string; answer: string }[] | null | undefined,
+  letters: readonly string[] = AD_LETTERS,
 ): AdRoleRow[] {
-  return AD_LETTERS.map((letter) => {
+  return letters.map((letter) => {
     const answerFor: number[] = []
     const distractorFor: number[] = []
     items.forEach((it, i) => {
@@ -639,4 +698,69 @@ export function blockIdFromDetail(detail: string | null | undefined): number | n
   if (!detail) return null
   const m = /Teil kho\s*#\s*(\d+)/i.exec(detail) ?? /#(\d+)/.exec(detail)
   return m ? Number(m[1]) : null
+}
+
+// ── Đợt 4: telc A2 ──
+
+/** Lesen A2 Teil 2: đếm richtig/falsch. Đề thật có 2–3 mỗi loại; lệch thì cảnh báo vàng. */
+export function trueFalseBalance(items: { correct?: string | null }[]): { richtig: number; falsch: number; balanced: boolean } {
+  const richtig = items.filter((i) => i.correct === 'richtig').length
+  const falsch = items.filter((i) => i.correct === 'falsch').length
+  const ok = (n: number) => n >= 2 && n <= 3
+  return { richtig, falsch, balanced: items.length === 0 || (ok(richtig) && ok(falsch)) }
+}
+
+/** `meta.accept` ("Mo|Montag") ⇄ danh sách cách viết chấp nhận. */
+export function splitAccept(raw: string | null | undefined): string[] {
+  return (raw ?? '').split('|').map((x) => x.trim()).filter(Boolean)
+}
+export function joinAccept(list: string[]): string {
+  return list.map((x) => x.trim()).filter(Boolean).join('|')
+}
+
+/** Ô có chữ số chấm tuyệt đối (luật telc A1/A2): cảnh báo admin khi đáp án có số. */
+export function hasDigits(answer: string | null | undefined): boolean {
+  return /\d/.test(answer ?? '')
+}
+
+// ── Ghép từ khung (cấp chưa có đề nền) ──
+
+export interface BlueprintRow {
+  section: string
+  teil: number
+  type: string
+  blocks: AssemblyBlockOption[]
+}
+
+/** Mỗi ô Teil của khung kèm Teil kho cùng ô (so section + teil, không phân biệt hoa thường). */
+export function blueprintRows(
+  bp: { sections: { slots: { section: string; teil: number; type: string }[] }[] } | null | undefined,
+  slots: AssemblySlotBlocks[],
+): BlueprintRow[] {
+  if (!bp) return []
+  const bank = new Map(slots.map((s) => [slotKey(s.section, s.teil), s.blocks]))
+  return bp.sections.flatMap((sec) => sec.slots.map((sl) => ({
+    section: sl.section, teil: sl.teil, type: sl.type, blocks: bank.get(slotKey(sl.section, sl.teil)) ?? [],
+  })))
+}
+
+/**
+ * Khung bắt buộc đủ MỌI ô. Trả danh sách thay (đủ ô) và các ô còn thiếu — lựa chọn đã nằm trong bộ khác mà chưa
+ * bật "Cho dùng lại" tính là thiếu.
+ */
+export function blueprintSelection(
+  rows: BlueprintRow[],
+  choices: Record<string, number | null | undefined>,
+  allowReuse: boolean,
+): { replacements: { section: string; teil: number; blockId: number }[]; missing: string[] } {
+  const replacements: { section: string; teil: number; blockId: number }[] = []
+  const missing: string[] = []
+  for (const r of rows) {
+    const key = slotKey(r.section, r.teil)
+    const id = choices[key]
+    const b = id == null ? null : r.blocks.find((x) => x.id === id)
+    if (b && blockSelectable(b, allowReuse)) replacements.push({ section: r.section, teil: r.teil, blockId: b.id })
+    else missing.push(key)
+  }
+  return { replacements, missing }
 }

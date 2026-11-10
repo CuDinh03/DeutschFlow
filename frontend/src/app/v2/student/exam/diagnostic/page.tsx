@@ -16,6 +16,7 @@ import { usePracticeDraft } from '@/components/exam/practice/usePracticeDraft'
 import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
+import { FormTeilView } from '@/components/exam/practice/FormTeilView'
 import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { Bar, Glyph, STATUS_TEXT_CLASS } from '@/components/exam/today/visual'
@@ -348,6 +349,8 @@ function DiagnosticRun({
           textareaRef={textareaRef}
         />
       )
+    } else if (kind === 'form') {
+      body = <FormTeilView key={part} teil={data} answers={answers} onAnswer={onAnswer} wide={wide} />
     } else if (section === 'HOEREN') {
       body = <HoerenTeilView key={part} teil={data} answers={answers} onAnswer={onAnswer} result={null} wide={wide} tips={null} />
     } else {

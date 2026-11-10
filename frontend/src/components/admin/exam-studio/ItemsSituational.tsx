@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import type { StudioDraft } from '@/lib/adminExamStudioApi'
 import {
-  AD_X_EXPECTED, adIssues, adRoles, buildGappedText, wordBankIssues, wordBankRows,
+  adIssues, adLettersFor, adRoles, adXExpected, buildGappedText, trueFalseBalance, wordBankIssues, wordBankRows,
 } from '@/lib/examStudioLogic'
 import { GaCap, GaCard } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
@@ -23,18 +23,21 @@ export function jumpToItem(itemId: string) {
 /** Lesen T3: 12 mẩu a–l với vai trò (đáp án của câu nào, ví dụ, thừa) + lỗi số câu x / mẩu dùng hai lần. */
 export function AdRoleTable({ draft }: { draft: StudioDraft }) {
   const t = useTranslations('v2.adminContent.examStudio')
-  const rows = adRoles(draft.text?.ads, draft.items, draft.text?.examples)
+  // B1: 12 mẩu a–l, đúng 2 câu x · A2: 8 mẩu a–h, đúng 1 câu x.
+  const letters = adLettersFor(draft.cefrLevel)
+  const expectedX = adXExpected(draft.cefrLevel)
+  const rows = adRoles(draft.text?.ads, draft.items, draft.text?.examples, letters)
   const issues = adIssues(draft.items)
   const dup = new Set(issues.duplicateAnswers)
 
   return (
     <GaCard className="flex flex-col gap-2 p-4 sm:p-5">
-      <h3><GaCap>{t('items.adTable')}</GaCap></h3>
-      {issues.xCount !== AD_X_EXPECTED && <Note tone="red">{t('items.xCount', { n: issues.xCount, expected: AD_X_EXPECTED })}</Note>}
+      <h3><GaCap>{t('items.adTableN', { n: letters.length, last: letters[letters.length - 1] })}</GaCap></h3>
+      {issues.xCount !== expectedX && <Note tone="red">{t('items.xCount', { n: issues.xCount, expected: expectedX })}</Note>}
       {issues.duplicateAnswers.length > 0 && <Note tone="red">{t('items.adDuplicate', { list: issues.duplicateAnswers.join(', ') })}</Note>}
       <div className="overflow-x-auto">
         <table className="ga-ui w-full min-w-[480px] text-ga-small">
-          <caption className="sr-only">{t('items.adTable')}</caption>
+          <caption className="sr-only">{t('items.adTableN', { n: letters.length, last: letters[letters.length - 1] })}</caption>
           <thead>
             <tr className="text-left text-ga-caption text-ga-muted">
               <th scope="col" className="w-8 py-1 pr-2 font-semibold">{t('items.colLetter')}</th>
@@ -113,5 +116,33 @@ export function WordBankTable({ draft }: { draft: StudioDraft }) {
         </ul>
       )}
     </GaCard>
+  )
+}
+
+/** telc A2 Lesen Teil 2: đếm richtig/falsch — đề thật 2–3 mỗi loại, lệch thì vàng. */
+export function TrueFalseSummary({ draft }: { draft: StudioDraft }) {
+  const t = useTranslations('v2.adminContent.examStudio')
+  const b = trueFalseBalance(draft.items)
+  return (
+    <GaCard className="flex flex-col gap-2 p-4 sm:p-5">
+      <h3><GaCap>{t('items.tfTitle')}</GaCap></h3>
+      <p className={cn('ga-ui text-ga-small font-semibold', b.balanced ? 'text-ga-green' : 'text-ga-gold')}>
+        {t('items.tfCount', { richtig: b.richtig, falsch: b.falsch })}
+      </p>
+      {!b.balanced && <Note tone="yellow">{t('items.tfUnbalanced')}</Note>}
+    </GaCard>
+  )
+}
+
+/** telc A2 Schreiben Teil 1: form 5 ô như học viên thấy, kèm đáp án và cách viết chấp nhận (sửa trong thẻ ô). */
+export function FormItemsPanel({ draft }: { draft: StudioDraft }) {
+  const t = useTranslations('v2.adminContent.examStudio')
+  if (!draft.text) return null
+  return (
+    <section aria-labelledby="form-items-h" className="flex flex-col gap-2">
+      <h3 id="form-items-h"><GaCap>{t('items.formPreview')}</GaCap></h3>
+      <Note tone="yellow">{t('items.formRule')}</Note>
+      <TeilPreview layout="FILL_FORM" text={draft.text} items={draft.items} showAnswers />
+    </section>
   )
 }

@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { Check } from 'lucide-react'
 import {
-  AD_LETTERS, buildGappedText, itemNumber, optionKeys, parseGappedText, splitParagraphs, type GapSegment,
+  AD_LETTERS, buildGappedText, itemNumber, optionKeys, parseGappedText, splitAccept, splitParagraphs, type GapSegment,
 } from '@/lib/examStudioLogic'
 import { cn } from '@/lib/utils'
 import { CorrectMark, Explanation, type PreviewItem, type TeilPreviewProps } from './TeilPreview'
@@ -17,6 +17,9 @@ const shell = 'flex flex-col gap-5 rounded-ga border border-ga-line bg-ga-card p
 export function MatchAdPreview({ text, items, quelle, showAnswers = true, startNumber = 11 }: TeilPreviewProps) {
   const t = useTranslations('v2.adminContent.examStudio')
   const ads = text.ads ?? {}
+  // B1 có 12 mẩu a–l, A2 8 mẩu a–h: lấy theo mẩu thực có (đủ dải chữ liên tục từ a).
+  const present = Object.keys(ads).filter((k) => k !== 'x' && ads[k as keyof typeof ads])
+  const letters = present.length > 0 ? AD_LETTERS.slice(0, Math.max(...present.map((k) => AD_LETTERS.indexOf(k as typeof AD_LETTERS[number]))) + 1) : AD_LETTERS
   const answerOf = new Map<string, number[]>()
   items.forEach((it, i) => {
     if (it.correct && it.correct !== 'x') {
@@ -61,8 +64,8 @@ export function MatchAdPreview({ text, items, quelle, showAnswers = true, startN
         })}
       </ol>
 
-      <section className="grid grid-cols-1 gap-2 border-t border-ga-line pt-4 sm:grid-cols-2 lg:grid-cols-3" aria-label={t('preview.ads')}>
-        {AD_LETTERS.map((k) => {
+      <section className="grid grid-cols-1 gap-2 border-t border-ga-line pt-4 sm:grid-cols-2 lg:grid-cols-3" aria-label={t('preview.adsN', { n: letters.length })}>
+        {letters.map((k) => {
           const used = showAnswers ? answerOf.get(k) : undefined
           return (
             <div key={k} className={cn('flex flex-col gap-1 rounded-ga border px-3 py-2', used ? 'border-ga-green bg-ga-green-soft' : 'border-ga-line')}>
@@ -183,6 +186,24 @@ export function GapPreview({
 export function EmailPreview({ text }: TeilPreviewProps) {
   const t = useTranslations('v2.adminContent.examStudio')
   const st = text.stimulus
+  // telc A2 Schreiben Teil 2: tình huống (không phải thư) — chọn 3 trong 4 ý, khoảng 40 từ.
+  if (st?.type === 'SITUATION') {
+    return (
+      <article className={shell} lang="de">
+        <div className="flex flex-col gap-2 rounded-ga border border-ga-line bg-ga-surface px-4 py-3 text-ga-body-lg text-ga-ink">
+          {st.body
+            ? splitParagraphs(st.body).map((p, i) => <p key={i} className="whitespace-pre-line">{p}</p>)
+            : <p className="text-ga-muted" lang="vi">{t('preview.noText')}</p>}
+        </div>
+        <section className="flex flex-col gap-1.5">
+          <h4 className="ga-ui text-ga-small font-semibold text-ga-muted" lang="vi">{t('preview.notePoints')}</h4>
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-ga-body text-ga-ink">
+            {(text.writingPoints ?? []).map((p, i) => <li key={i}>{p}</li>)}
+          </ul>
+        </section>
+      </article>
+    )
+  }
   return (
     <article className={shell} lang="de">
       <section className="flex flex-col overflow-hidden rounded-ga border border-ga-line">
@@ -203,6 +224,53 @@ export function EmailPreview({ text }: TeilPreviewProps) {
             {(text.writingPoints ?? []).map((p, i) => <li key={i}>{p}</li>)}
           </ul>
         </section>
+      )}
+    </article>
+  )
+}
+
+/** telc A2 Schreiben Teil 1: đoạn văn về một người + form 5 ô; chế độ admin hiện đáp án và cách viết khác. */
+export function FormPreview({ text, items, showAnswers = true }: TeilPreviewProps) {
+  const t = useTranslations('v2.adminContent.examStudio')
+  return (
+    <article className={shell} lang="de">
+      <div className="flex flex-col gap-2 text-ga-body-lg text-ga-ink">
+        {splitParagraphs(text.context ?? '').map((p, i) => <p key={i} className="whitespace-pre-line">{p}</p>)}
+      </div>
+      <section className="overflow-hidden rounded-ga border border-ga-line">
+        <p className="border-b border-ga-line bg-ga-surface px-4 py-2 text-ga-body font-semibold text-ga-ink">
+          {text.titleDe || 'Formular'}
+        </p>
+        <ol className="flex flex-col divide-y divide-ga-line">
+          {items.map((it, i) => {
+            const accept = splitAccept(it.meta?.accept)
+            return (
+              <li key={it.id} className="flex flex-col gap-1 px-4 py-2.5 sm:flex-row sm:items-baseline sm:gap-3">
+                <span className="w-40 shrink-0 font-semibold text-ga-ink"><span className="mr-1.5 text-ga-muted">{i + 1}</span>{it.question}</span>
+                {showAnswers ? (
+                  <span className="min-w-0 flex-1 text-ga-body">
+                    <span className="rounded-ga bg-ga-green-soft px-1.5 font-semibold text-ga-green">{it.correct || '—'}</span>
+                    {accept.length > 0 && (
+                      <span className="ga-ui ml-2 text-ga-caption text-ga-muted" lang="vi">{t('preview.formAccept', { list: accept.join(', ') })}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="min-w-0 flex-1 border-b border-dashed border-ga-line-strong" aria-hidden>&nbsp;</span>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      </section>
+      {showAnswers && items.some((it) => it.explanationVi) && (
+        <ol className="flex flex-col gap-1.5 border-t border-ga-line pt-3">
+          {items.map((it, i) => it.explanationVi && (
+            <li key={it.id} className="flex items-start gap-2 text-ga-small">
+              <span className="w-6 shrink-0 font-semibold text-ga-muted">{i + 1}</span>
+              <span className="min-w-0 flex-1 text-ga-muted" lang="vi">{it.explanationVi}</span>
+            </li>
+          ))}
+        </ol>
       )}
     </article>
   )

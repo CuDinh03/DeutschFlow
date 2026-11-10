@@ -28,7 +28,8 @@ import { hasContent, usePassageMarks } from '@/components/exam/marks/usePassageM
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
-import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
+import { displayedPoints, findTeil, formProgress, formResults, kindOf, pointsMissing, wordCount } from '@/components/exam/practice/practiceModel'
+import { FormTeilView } from '@/components/exam/practice/FormTeilView'
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { REWRITE_KEY } from '@/components/exam/mock/mockModel'
 import { useScreenTour, type TourStep } from '@/components/exam/tour/ScreenTour'
@@ -99,7 +100,8 @@ function PracticeTeilPage() {
         const p = o.teile.find((x) => x.key === teilKey)?.progress
         setSeconds(p?.elapsedSeconds ?? 0)
         setTipsOpen(!p)
-        if (teilKey === WRITING_KEY) {
+        // Bài viết tự do (thư B1, tin nhắn A2) giữ nháp ở `text`; form A2 (Schreiben Teil 1) giữ theo ô như Teil khách quan.
+        if (kindOf(findTeil(o.sectionsJson, teilKey), teilKey) === 'writing') {
           // "Viết lại bài này" từ kết quả thi thử: mở bài của lượt thi để sửa rồi chấm lại (đợt (d)).
           let carried: string | null = null
           if (rewrite) {
@@ -311,7 +313,7 @@ function PracticeTeilPage() {
   }
 
   const grade = async (force = false) => {
-    if (!force && points.some((p) => !ticks[p.label])) {
+    if (!force && pointsMissing(points, ticks, teil?.choose_points)) {
       setWarn(true)
       return
     }
@@ -481,8 +483,10 @@ function PracticeTeilPage() {
     )
   }
 
-  const total = teil.items?.length ?? 0
-  const answered = Object.keys(answers).filter((k) => teil.items?.some((it) => it.id === k)).length
+  // telc A2 Schreiben Teil 1 (form): đếm theo ô `form_<i>` thay vì theo câu.
+  const formCount = kind === 'form' ? formProgress(teil, answers) : null
+  const total = formCount ? formCount.total : teil.items?.length ?? 0
+  const answered = formCount ? formCount.done : Object.keys(answers).filter((k) => teil.items?.some((it) => it.id === k)).length
   const footer = result ? (
     <>
       <span className="ga-ui min-w-0 flex-1 basis-full text-ga-small text-ga-muted lg:basis-auto">
@@ -526,7 +530,17 @@ function PracticeTeilPage() {
       footer={footer}
     >
       <ItemAssist.Provider value={assist}>
-        {meta.section === 'HOEREN' ? (
+        {kind === 'form' ? (
+          <FormTeilView
+            teil={teil}
+            answers={answers}
+            onAnswer={onAnswer}
+            wide={wide}
+            tips={tips}
+            readOnly={!!result}
+            results={result ? formResults(teil, result) : null}
+          />
+        ) : meta.section === 'HOEREN' ? (
           <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} />
         ) : (
           <ObjectiveTeilView

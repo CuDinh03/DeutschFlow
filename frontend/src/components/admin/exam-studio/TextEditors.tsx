@@ -31,7 +31,13 @@ export function WordCount({ id, text, range }: { id: string; text: string; range
 }
 
 /** Lesen T3: 12 mẩu rao vặt a–l (15–45 từ mỗi mẩu) + 2 ví dụ (01 ghép được một mẩu, 02 = x). */
-export function AdsEditor({ text, locked, edit, onSelect }: { text: StudioText; locked: boolean; edit: Edit; onSelect: OnSelect }) {
+export function AdsEditor({
+  text, locked, edit, onSelect, letters = AD_LETTERS, range = AD_WORD_RANGE,
+}: {
+  text: StudioText; locked: boolean; edit: Edit; onSelect: OnSelect
+  /** B1 a–l (12 mẩu, 15–45 từ); A2 a–h (8 mẩu, 10–35 từ). */
+  letters?: readonly string[]; range?: [number, number]
+}) {
   const t = useTranslations('v2.adminContent.examStudio')
   const ads = text.ads ?? {}
   const examples = text.examples ?? []
@@ -41,16 +47,16 @@ export function AdsEditor({ text, locked, edit, onSelect }: { text: StudioText; 
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="ga-ui text-ga-caption text-ga-muted">{t('text.adsHint', { lo: AD_WORD_RANGE[0], hi: AD_WORD_RANGE[1] })}</p>
+      <p className="ga-ui text-ga-caption text-ga-muted">{t('text.adsHint', { n: letters.length, last: letters[letters.length - 1], lo: range[0], hi: range[1] })}</p>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {AD_LETTERS.map((k) => {
+        {letters.map((k) => {
           const id = `ad-${k}`
           const value = ads[k as OptionKey] ?? ''
           return (
             <div key={k}>
               <div className="mb-1 flex items-baseline justify-between gap-2">
                 <label htmlFor={id}><GaCap>{t('text.adN', { k })}</GaCap></label>
-                <WordCount id={`${id}-count`} text={value} range={AD_WORD_RANGE} />
+                <WordCount id={`${id}-count`} text={value} range={range} />
               </div>
               <textarea id={id} lang="de" rows={3} className={areaCls} value={value} disabled={locked}
                 aria-describedby={`${id}-count`} onChange={(e) => setAd(k, e.target.value)}
@@ -60,7 +66,7 @@ export function AdsEditor({ text, locked, edit, onSelect }: { text: StudioText; 
         })}
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1"><GaCap>{t('text.examples')}</GaCap></legend>
+        <legend className="mb-1"><GaCap>{examples.length === 1 ? t('text.examplesOne') : t('text.examples')}</GaCap></legend>
         {examples.length === 0 && <p className="ga-ui text-ga-small text-ga-muted">{t('text.noExamples')}</p>}
         {examples.map((e, i) => (
           <div key={e.label || i} className="grid grid-cols-1 gap-2 sm:grid-cols-[48px_minmax(0,1fr)_96px] sm:items-center">
@@ -71,7 +77,7 @@ export function AdsEditor({ text, locked, edit, onSelect }: { text: StudioText; 
             <select className={studioField} value={e.answer} disabled={locked}
               aria-label={t('text.exampleAnswer', { label: e.label })}
               onChange={(ev) => setEx(i, { answer: ev.target.value })}>
-              {[...AD_LETTERS, 'x'].map((k) => <option key={k} value={k}>{k}</option>)}
+              {[...letters, 'x'].map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
           </div>
         ))}
@@ -143,6 +149,68 @@ export function EmailEditor({ text, locked, edit, onSelect }: { text: StudioText
       </div>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1"><GaCap>{t('text.writingPoints')}</GaCap></legend>
+        {points.map((p, i) => (
+          <input key={i} lang="de" className={studioField} value={p} disabled={locked}
+            aria-label={t('text.writingPointN', { n: i + 1 })}
+            onChange={(e) => edit({ writingPoints: points.map((x, j) => (j === i ? e.target.value : x)) })} />
+        ))}
+      </fieldset>
+    </div>
+  )
+}
+
+/**
+ * telc A2: một tiêu đề + một văn bản — bảng thông tin (Lesen 1, mỗi dòng một mục), bài richtig/falsch (Lesen 2),
+ * đoạn văn của form (Schreiben 1, `titleDe` là tên form).
+ */
+export function TitledTextEditor({
+  kind, text, locked, edit, onSelect, range,
+}: {
+  kind: 'MC_INFO' | 'TRUE_FALSE' | 'FILL_FORM'
+  text: StudioText; locked: boolean; edit: Edit; onSelect: OnSelect; range?: [number, number]
+}) {
+  const t = useTranslations('v2.adminContent.examStudio')
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <label htmlFor="a2-title" className="mb-1.5 block"><GaCap>{t(`text.a2Title.${kind}`)}</GaCap></label>
+        <input id="a2-title" lang="de" className={studioField} value={text.titleDe} disabled={locked}
+          onChange={(e) => edit({ titleDe: e.target.value })} />
+      </div>
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <label htmlFor="a2-context"><GaCap>{t(`text.a2Body.${kind}`)}</GaCap></label>
+          {range && <WordCount id="a2-context-count" text={text.context} range={range} />}
+        </div>
+        <textarea id="a2-context" lang="de" rows={kind === 'MC_INFO' ? 14 : 12} className={areaCls} value={text.context}
+          disabled={locked} aria-describedby="a2-context-hint" onChange={(e) => edit({ context: e.target.value })}
+          onSelect={onSelect} onKeyUp={onSelect} onMouseUp={onSelect} />
+        <p id="a2-context-hint" className="ga-ui mt-1 text-ga-caption text-ga-muted">{t(`text.a2Hint.${kind}`)}</p>
+      </div>
+    </div>
+  )
+}
+
+/** telc A2 Schreiben Teil 2: tình huống (stimulus SITUATION) + 4 ý (học viên chọn 3, ~40 từ). */
+export function NoteEditor({ text, locked, edit, onSelect, range }: {
+  text: StudioText; locked: boolean; edit: Edit; onSelect: OnSelect; range: [number, number]
+}) {
+  const t = useTranslations('v2.adminContent.examStudio')
+  const st = text.stimulus ?? { type: 'SITUATION', from: '', subject: '', body: '' }
+  const points = Array.from({ length: WRITING_POINT_COUNT }, (_, i) => text.writingPoints?.[i] ?? '')
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <label htmlFor="note-situation"><GaCap>{t('text.noteSituation')}</GaCap></label>
+          <WordCount id="note-situation-count" text={st.body} range={range} />
+        </div>
+        <textarea id="note-situation" lang="de" rows={5} className={areaCls} value={st.body} disabled={locked}
+          aria-describedby="note-situation-count" onChange={(e) => edit({ stimulus: { ...st, body: e.target.value } })}
+          onSelect={onSelect} onKeyUp={onSelect} onMouseUp={onSelect} />
+      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1"><GaCap>{t('text.notePoints')}</GaCap></legend>
         {points.map((p, i) => (
           <input key={i} lang="de" className={studioField} value={p} disabled={locked}
             aria-label={t('text.writingPointN', { n: i + 1 })}

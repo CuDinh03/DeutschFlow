@@ -8,7 +8,7 @@ import {
   approveDraft, patchDraft, verifyDraft,
   type ChecklistKey,
 } from '@/lib/adminExamStudioApi'
-import { CHECKLIST_KEYS, approveBlockers, blockIdFromDetail, teilKind } from '@/lib/examStudioLogic'
+import { CHECKLIST_KEYS, approveBlockers, blockIdFromDetail, firstItemNumber, teilKind } from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, GaCard, GaGlyph, TkBadge } from '@/components/ui-v2'
 import { BlockPreviewModal } from './BlockPreviewModal'
 import { TeilPreview } from './TeilPreview'
@@ -21,7 +21,7 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
   const [previewBlock, setPreviewBlock] = useState<number | null>(null)
   const kind = teilKind(draft.teilType)
   const writing = draft.itemCount === 0
-  const firstNumber = { ARTICLE: draft.teil === 2 ? 6 : 1, MATCH_HEADLINE: 1, MATCH_AD_X: 11, GAP_MC: 21, GAP_WORDBANK: 31, WRITE_EMAIL: 1 }[kind]
+  const firstNumber = firstItemNumber(kind, draft.teil)
   const checklist = draft.reviewChecklist ?? {}
   const blockers = approveBlockers(draft, checklist)
   const approved = draft.status === 'APPROVED'

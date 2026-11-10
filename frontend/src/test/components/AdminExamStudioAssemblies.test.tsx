@@ -19,6 +19,8 @@ const m = vi.hoisted(() => ({
   publishAssembledExam: vi.fn(),
   retireAssembledExam: vi.fn(),
   getBlock: vi.fn(),
+  listBlueprints: vi.fn(),
+  assembleFromBlueprint: vi.fn(),
 }))
 vi.mock('@/lib/adminExamStudioApi', async (orig) => ({ ...(await orig<object>()), ...m }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -27,6 +29,7 @@ const counts = { EASY: 2, MEDIUM: 2, HARD: 1, EXPERT: 0 }
 
 beforeEach(() => {
   Object.values(m).forEach((f) => f.mockReset())
+  m.listBlueprints.mockResolvedValue([])
   m.listAssemblyBases.mockResolvedValue([
     { id: 7, title: 'telc B1 Modelltest 1', reviewed: true, slots: [{ section: 'LESEN', teil: 2, type: 'ARTICLE_MC' }] },
   ])

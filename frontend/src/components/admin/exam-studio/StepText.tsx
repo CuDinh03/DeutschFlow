@@ -7,10 +7,10 @@ import { patchDraft, writeText, type StudioDraft, type StudioText } from '@/lib/
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import {
-  MATCH_TEXT_WORD_RANGE, countWords, isGapKind, joinMatchTexts, matchTextInRange, splitMatchTexts, teilKind,
+  A2_TEXT_WORD_RANGE, MATCH_TEXT_WORD_RANGE, NOTE_WORD_RANGE, adLettersFor, adWordRange, countWords, isGapKind, joinMatchTexts, matchTextInRange, splitMatchTexts, teilKind,
 } from '@/lib/examStudioLogic'
 import { TeilPreview } from './TeilPreview'
-import { AdsEditor, EmailEditor, LetterEditor } from './TextEditors'
+import { AdsEditor, EmailEditor, LetterEditor, NoteEditor, TitledTextEditor } from './TextEditors'
 import { Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
 
 const EMPTY_TEXT: StudioText = { titleDe: '', vorspannDe: '', context: '', glossary: [] }
@@ -101,12 +101,18 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
               {match ? (
                 <MatchTextsEditor texts={texts} locked={locked} onChange={editMatch} onSelectText={readSelection} />
               ) : kind === 'MATCH_AD_X' ? (
-                <AdsEditor text={text} locked={locked} edit={edit} onSelect={readSelection} />
+                <AdsEditor text={text} locked={locked} edit={edit} onSelect={readSelection}
+                  letters={adLettersFor(draft.cefrLevel)} range={adWordRange(draft.cefrLevel)} />
               ) : kind === 'GAP_MC' || kind === 'GAP_WORDBANK' ? (
                 <LetterEditor text={text} locked={locked} edit={edit} onSelect={readSelection}
                   withAd={kind === 'GAP_WORDBANK'} hasItems={draft.items.length > 0} />
               ) : kind === 'WRITE_EMAIL' ? (
                 <EmailEditor text={text} locked={locked} edit={edit} onSelect={readSelection} />
+              ) : kind === 'WRITE_NOTE' ? (
+                <NoteEditor text={text} locked={locked} edit={edit} onSelect={readSelection} range={NOTE_WORD_RANGE} />
+              ) : kind === 'MC_INFO' || kind === 'TRUE_FALSE' || kind === 'FILL_FORM' ? (
+                <TitledTextEditor kind={kind} text={text} locked={locked} edit={edit} onSelect={readSelection}
+                  range={A2_TEXT_WORD_RANGE[kind]} />
               ) : (
               <div>
                 <label htmlFor="text-context" className="mb-1.5 block"><GaCap>{t('text.context')}</GaCap></label>

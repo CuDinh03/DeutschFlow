@@ -557,7 +557,7 @@
     "examStudio": {
       "title": "Xưởng đề",
       "subtitle": "Tạo Teil đề thi từ nguồn báo Đức: AI viết bài, ra câu theo ma trận độ khó, owner duyệt vào kho.",
-      "hint": "Đang mở: telc B1 — phần đọc (Lesen) Teil 1–3, Sprachbausteine Teil 1–2, phần viết (Schreiben)",
+      "hint": "Đang mở: telc B1 (Lesen 1–3, Sprachbausteine 1–2, Schreiben) và telc A2 / Start Deutsch 2 (Lesen 1–3, Schreiben 1–2)",
       "createTeil": "Tạo Teil mới",
       "loading": "Đang tải…",
       "next": "Bước tiếp",
@@ -647,7 +647,12 @@
           "MATCH_AD_X": "Lesen Teil 3 B1: {itemCount} tình huống (11–20) và 12 mẩu rao vặt a–l (15–45 từ mỗi mẩu); đúng 2 tình huống không mẩu nào hợp (x).",
           "GAP_MC": "Sprachbausteine Teil 1 B1: một bức thư có {itemCount} ô (21–30), mỗi ô chọn a/b/c.",
           "GAP_WORDBANK": "Sprachbausteine Teil 2 B1: mẩu tin + bức thư có {itemCount} ô (31–40), hộp 15 từ a–o (5 từ thừa).",
-          "WRITE_EMAIL": "Schreiben B1: một E-Mail xưng du (70–130 từ) và 4 Leitpunkte; không có câu hỏi."
+          "WRITE_EMAIL": "Schreiben B1: một E-Mail xưng du (70–130 từ) và 4 Leitpunkte; không có câu hỏi.",
+          "MC_INFO": "Lesen Teil 1 A2: một bảng thông tin (8–14 dòng) và {itemCount} tình huống, mỗi câu a/b/c.",
+          "TRUE_FALSE": "Lesen Teil 2 A2: một E-Mail hoặc bài ngắn và {itemCount} mệnh đề richtig/falsch (6–10).",
+          "MATCH_AD_X_A2": "Lesen Teil 3 A2: {itemCount} tình huống (11–15) và 8 mẩu rao vặt a–h (10–35 từ mỗi mẩu); đúng 1 tình huống x, 1 ví dụ.",
+          "FILL_FORM": "Schreiben Teil 1 A2: đoạn văn về một người và form {itemCount} ô, 1 điểm mỗi ô.",
+          "WRITE_NOTE": "Schreiben Teil 2 A2: tình huống + 4 ý, học viên chọn 3 ý, khoảng 40 từ, 10 điểm; không có câu hỏi."
         }
       },
       "matrix": {
@@ -725,7 +730,7 @@
         "matchText": "Text {n}",
         "matchWords": "{n} từ / {lo}–{hi}",
         "emptySituation": "Chưa có bài. Bấm \"AI viết bài\": AI dựng theo tình huống ở bước 2 (để trống thì tự chọn).",
-        "adsHint": "12 mẩu rao vặt a–l, mỗi mẩu {lo}–{hi} từ.",
+        "adsHint": "{n} mẩu rao vặt a–{last}, mỗi mẩu {lo}–{hi} từ.",
         "adN": "Mẩu {k}",
         "examples": "Ví dụ (01 ghép được một mẩu, 02 là x)",
         "noExamples": "Chưa có ví dụ.",
@@ -739,7 +744,25 @@
         "mailSubject": "Tiêu đề thư",
         "mailBody": "Nội dung E-Mail",
         "writingPoints": "4 Leitpunkte",
-        "writingPointN": "Leitpunkt {n}"
+        "writingPointN": "Leitpunkt {n}",
+        "examplesOne": "Ví dụ (01)",
+        "a2Title": {
+          "MC_INFO": "Tên bảng",
+          "TRUE_FALSE": "Tiêu đề",
+          "FILL_FORM": "Tên form"
+        },
+        "a2Body": {
+          "MC_INFO": "Bảng thông tin",
+          "TRUE_FALSE": "Bài đọc (E-Mail hoặc bài ngắn)",
+          "FILL_FORM": "Đoạn văn về một người"
+        },
+        "a2Hint": {
+          "MC_INFO": "Mỗi dòng một mục, vd. \"2. Stock: Damenmode\".",
+          "TRUE_FALSE": "Đoạn cách nhau bằng một dòng trống.",
+          "FILL_FORM": "Đoạn văn phải chứa đủ thông tin cho 5 ô của form."
+        },
+        "noteSituation": "Tình huống",
+        "notePoints": "4 ý (học viên chọn 3)"
       },
       "metrics": {
         "none": "Bảng đo hiện sau khi có bài.",
@@ -819,7 +842,21 @@
         "bankDuplicate": "Từ làm đáp án cho hai ô: {list}",
         "bankFor": "ô {list}",
         "bankSpare": "thừa",
-        "bankReadOnly": "Từ trong hộp do máy dựng — đổi bằng \"Sinh lại\"."
+        "bankReadOnly": "Từ trong hộp do máy dựng — đổi bằng \"Sinh lại\".",
+        "adTableN": "{n} mẩu rao vặt a–{last}",
+        "formField": "Tên ô",
+        "formAnswer": "Đáp án",
+        "formAccept": "Cách viết khác được chấp nhận",
+        "formAcceptHint": "Ngăn bằng dấu phẩy, vd. Mo, Montag.",
+        "formAnswerIs": "Đáp án: {answer}",
+        "formAcceptIs": "Cũng được: {list}",
+        "formDigits": "Ô có số: phải đúng tuyệt đối.",
+        "tfPick": "Đáp án richtig/falsch",
+        "tfTitle": "richtig / falsch",
+        "tfCount": "richtig {richtig} · falsch {falsch}",
+        "tfUnbalanced": "Đề thật có 2–3 câu mỗi loại — đổi đáp án hoặc sinh lại cho cân.",
+        "formPreview": "Form như học viên thấy (kèm đáp án)",
+        "formRule": "Sai chính tả nhẹ vẫn được tính, ô có số phải đúng tuyệt đối. Sửa đáp án và cách viết khác trong thẻ từng ô."
       },
       "score": {
         "phrasing": "Diễn đạt đáp án",
@@ -882,7 +919,10 @@
         "adFor": "Đáp án của {list}",
         "wordBank": "Hộp từ a–o",
         "gapJump": "Tới câu của ô {n}",
-        "writingPoints": "Bốn ý cần viết"
+        "writingPoints": "Bốn ý cần viết",
+        "adsN": "{n} mẩu rao vặt",
+        "notePoints": "Chọn 3 trong 4 ý, khoảng 40 từ",
+        "formAccept": "cũng được: {list}"
       },
       "wizard": {
         "back": "Về danh sách Xưởng đề",
@@ -955,7 +995,20 @@
         "retired": "Đã gỡ bộ đề",
         "allowReuse": "Cho dùng lại Teil đã có trong bộ khác (cố ý)",
         "allowReuseHint": "Mặc định mỗi Teil kho chỉ nằm trong một bộ đề đang chạy, để học viên không gặp lại.",
-        "usedIn": "Đã trong: {list}"
+        "usedIn": "Đã trong: {list}",
+        "fromBlueprint": "Từ khung telc {level}",
+        "blueprintTitle": "Ghép từ khung",
+        "blueprintHint": "Cho cấp chưa có đề viết tay làm nền: mỗi ô Teil của khung phải chọn một Teil trong kho.",
+        "noBlueprints": "Chưa có khung nào.",
+        "blueprintField": "Khung",
+        "blueprintTitleSuggestion": "{title} — Bộ đề ghép {n}",
+        "blueprintStats": "{points} điểm, đỗ từ {pass}, {minutes} phút.",
+        "blueprintSlots": "Các ô Teil (bắt buộc chọn đủ)",
+        "pickBlock": "Chọn Teil trong kho",
+        "noBlockForSlot": "Kho chưa có Teil cho ô này",
+        "slotEmpty": "Kho chưa có Teil đã duyệt cho ô này — tạo và duyệt ở Xưởng đề trước.",
+        "blueprintMissing": "Còn thiếu {n}/{total} ô",
+        "blueprintReady": "Đủ {n} ô"
       },
       "situation": {
         "label": "Tình huống",
@@ -967,8 +1020,16 @@
           "MATCH_AD_X": "Rao vặt ở Salzburg: nhà ở, khoá học, dịch vụ",
           "GAP_MC": "Thư khiếu nại: máy giặt mới hỏng sau một tuần",
           "GAP_WORDBANK": "Thư hỏi thông tin về một khoá học tiếng ở Wien",
-          "WRITE_EMAIL": "Bạn rủ đi xem hoà nhạc cuối tuần nhưng bạn bận"
+          "WRITE_EMAIL": "Bạn rủ đi xem hoà nhạc cuối tuần nhưng bạn bận",
+          "MC_INFO": "Bảng chỉ dẫn tầng ở một trung tâm thương mại",
+          "TRUE_FALSE": "E-Mail của bạn kể về chuyến đi cuối tuần",
+          "FILL_FORM": "Đăng ký khoá học bơi ở trung tâm thể thao",
+          "WRITE_NOTE": "Nhắn cô giáo: hôm nay bạn không đến lớp được"
         }
+      },
+      "levelName": {
+        "B1": "B1",
+        "A2": "A2 (Start Deutsch 2)"
       }
     }
   }
