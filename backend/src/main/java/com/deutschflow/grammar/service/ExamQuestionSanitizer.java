@@ -28,7 +28,7 @@ public class ExamQuestionSanitizer {
     private static final ObjectMapper om = new ObjectMapper();
 
     /**
-     * Answer-revealing fields removed from every question item before serving. Từ Xưởng đề (V371): câu bằng
+     * Answer-revealing fields removed from every question item before serving. Từ Xưởng đề (V376): câu bằng
      * chứng, bẫy theo phương án và nhãn độ khó cũng lộ đáp án nên bỏ cùng.
      */
     private static final List<String> ANSWER_FIELDS =
