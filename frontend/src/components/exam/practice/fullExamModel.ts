@@ -1,7 +1,8 @@
 /**
  * Phép thuần của thi thử trọn đề trong giao diện luyện đề mới (06/11/2026). Không gọi API.
  */
-import { formProgress, parseStructure, wordCount, type PracticeTeilData } from './practiceModel'
+import { formProgress, kindOf, parseStructure, wordCount, type PracticeTeilData } from './practiceModel'
+import { MARK_SECTIONS, marksSupported } from '@/components/exam/marks/marksBlocks'
 
 /** Phần thi chạy trong giao diện mới, theo thứ tự đề telc. Sprechen thi ở phòng thi nói AI riêng. */
 export const FULL_SECTIONS = ['LESEN', 'SPRACHBAUSTEINE', 'HOEREN', 'SCHREIBEN'] as const
@@ -57,4 +58,9 @@ export function unansweredCount(teile: FullTeil[], answers: Record<string, strin
 export function resumeIndex(teile: FullTeil[], sectionIndex: number): number {
   const at = teile.findIndex((t) => t.sectionIndex === sectionIndex)
   return at >= 0 ? at : 0
+}
+
+/** Teil có bút đánh dấu bài đọc — cùng luật với luyện Teil (đợt 2: Lesen 2; đợt 3: Lesen 1–3, Sprachbausteine). */
+export function markableTeil(teil: FullTeil): boolean {
+  return MARK_SECTIONS.includes(teil.section) && marksSupported(teil.data, kindOf(teil.data, teil.key))
 }

@@ -18,6 +18,7 @@ import {
 } from '@/components/exam/audioScript'
 import { HoerenPlayer } from './HoerenPlayer'
 import { ObjectiveTeilView } from './ObjectiveTeilView'
+import type { PassageMarks } from '@/components/exam/marks/usePassageMarks'
 import { useHoerenRitual, type RitualPhase } from './useHoerenRitual'
 import { itemLabel, withTrueFalse, type PracticeItem, type PracticeTeilData } from './practiceModel'
 
@@ -35,6 +36,8 @@ interface Props {
   allowRelaxed?: boolean
   /** Báo trang khi đổi sang / ra khỏi luyện thoải mái (trang ẩn đồng hồ). */
   onRelaxedChange?: (relaxed: boolean) => void
+  /** Bút đánh dấu lời bài (đợt 3b) — chỉ dùng SAU khi kiểm tra (lời thoại lúc làm bài là lộ đáp án). */
+  marks?: PassageMarks | null
 }
 
 type Mode = 'exam' | 'relaxed'
@@ -61,7 +64,7 @@ function asTurns(script: AudioScript): AudioTurn[] {
  *
  * Luyện thoải mái (chỉ luyện Teil) và sau khi kiểm tra: không nghi thức, nghe không giới hạn, có lời thoại.
  */
-export function HoerenTeilView({ teil, answers, onAnswer, result, wide, tips, allowRelaxed = false, onRelaxedChange }: Props) {
+export function HoerenTeilView({ teil, answers, onAnswer, result, wide, tips, allowRelaxed = false, onRelaxedChange, marks }: Props) {
   const t = useTranslations('v2.student.practice.hoeren')
   const data = React.useMemo(() => withTrueFalse(teil), [teil])
   const gate = React.useMemo(() => parseHoerenGate(teil), [teil])
@@ -138,7 +141,7 @@ export function HoerenTeilView({ teil, answers, onAnswer, result, wide, tips, al
           </div>
         )}
         {checked && <p className="ga-ui text-ga-small text-ga-muted">{t('replayHint')}</p>}
-        {teil.audio_script && <HoerenPlayer turns={asTurns(teil.audio_script)} label={t('teilAudio', { n: teilNo })} transcript />}
+        {teil.audio_script && <HoerenPlayer turns={asTurns(teil.audio_script)} label={t('teilAudio', { n: teilNo })} transcript markScope="teil" />}
       </div>
     )
   } else if (ritual.phase === 'prep') {
@@ -283,7 +286,7 @@ export function HoerenTeilView({ teil, answers, onAnswer, result, wide, tips, al
     if (strict) return null
     const turns = itemTurns(item) ?? (item.audio_script ? asTurns(item.audio_script) : null)
     if (!turns) return null
-    return <HoerenPlayer turns={turns} compact transcript label={t('itemAudio', { n: itemLabel(item) })} />
+    return <HoerenPlayer turns={turns} compact transcript markScope={item.id} label={t('itemAudio', { n: itemLabel(item) })} />
   }
 
   const lockedPane = locked ? (
@@ -308,6 +311,7 @@ export function HoerenTeilView({ teil, answers, onAnswer, result, wide, tips, al
       answersOverride={lockedPane}
       answersTop={!wide && listenBox ? <div className="sticky top-[60px] z-[5] -mx-3 mb-4 border-b border-ga-line bg-ga-card px-3 pb-3">{listenBox}</div> : undefined}
       focusId={focusId}
+      marks={checked ? marks : null}
     />
   )
 }

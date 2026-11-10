@@ -20,3 +20,20 @@ export function useWide(minWidth = 1024): boolean {
   }, [minWidth])
   return wide
 }
+
+/**
+ * `true` khi thiết bị chính là cảm ứng (`pointer: coarse` — điện thoại, máy tính bảng). Bút đánh dấu
+ * (đợt 2b) neo thanh công cụ ở đáy màn thay vì nổi cạnh vùng chọn, để không đè menu chọn chữ của hệ thống.
+ */
+export function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = React.useState(false)
+  React.useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return // môi trường không có media query (test)
+    const mq = window.matchMedia('(pointer: coarse)')
+    const update = () => setCoarse(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  return coarse
+}

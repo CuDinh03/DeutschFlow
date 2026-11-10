@@ -311,7 +311,7 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                 .hasMessageContaining("đúng 5 câu");
         assertThatThrownBy(() -> service.create(new CreateDraftRequest("TELC", "B1", "LESEN", 3, null, "EXAM",
                 Map.of("EASY", 5)), admin))
-                .hasMessageContaining("Lesen Teil 1 và Teil 2");
+                .hasMessageContaining("đúng 10 câu"); // Lesen Teil 3 có từ đợt 3: 10 tình huống
     }
 
     @Test

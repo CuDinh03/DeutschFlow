@@ -1,7 +1,14 @@
 'use client'
 
 import * as React from 'react'
-import { getPracticeMarks, practiceMarksPath, savePracticeMarks } from '@/lib/telcPracticeApi'
+import {
+  attemptMarksPath,
+  getAttemptMarks,
+  getPracticeMarks,
+  practiceMarksPath,
+  saveAttemptMarks,
+  savePracticeMarks,
+} from '@/lib/telcPracticeApi'
 import { sendKeepalive } from '@/lib/exam/keepalive'
 import { dropStale, emptyPack, hasContent, parsePack, type MarksPack } from './marksModel'
 
@@ -30,19 +37,38 @@ export interface PassageMarks {
   clearLocal: () => void
 }
 
+/** Nơi lưu: luyện Teil (một gói / người × đề × Teil) hoặc một lượt thi thử (một gói / lượt × Teil). */
+export type MarksSource =
+  | { kind: 'practice'; examId: number; teilKey: string }
+  | { kind: 'attempt'; attemptId: number; teilKey: string }
+
+function pathOf(s: MarksSource): string {
+  return s.kind === 'practice' ? practiceMarksPath(s.examId, s.teilKey) : attemptMarksPath(s.attemptId, s.teilKey)
+}
+
+function load(s: MarksSource) {
+  return s.kind === 'practice' ? getPracticeMarks(s.examId, s.teilKey) : getAttemptMarks(s.attemptId, s.teilKey)
+}
+
+function save(s: MarksSource, pack: MarksPack) {
+  return s.kind === 'practice' ? savePracticeMarks(s.examId, s.teilKey, pack) : saveAttemptMarks(s.attemptId, s.teilKey, pack)
+}
+
 interface Options {
-  examId: number
-  teilKey: string | null
+  /** `null` ⇒ không có đánh dấu (Teil không hỗ trợ). */
+  source: MarksSource | null
   texts: Record<string, string>
-  enabled: boolean
 }
 
 /**
- * Đánh dấu bài đọc của một Teil luyện (`GET/PUT /mock-exams/practice/{examId}/teile/{key}/marks`).
+ * Đánh dấu bài đọc của một Teil — luyện (`/mock-exams/practice/{examId}/teile/{key}/marks`) hoặc lượt thi
+ * thử (`/mock-exams/attempts/{attemptId}/teile/{key}/marks`, đợt 2).
  * Lưu kiểu như `usePracticeDraft`: hẹn 1,5 s sau lần đổi cuối, lưu ngay khi ẩn tab / đóng trang bằng
  * `keepalive`. Lưu lỗi ⇒ giữ bản trên máy, `saveState = 'error'`, lần đổi sau thử lại.
  */
-export function usePassageMarks({ examId, teilKey, texts, enabled }: Options): PassageMarks {
+export function usePassageMarks({ source, texts }: Options): PassageMarks {
+  const enabled = source != null
+  const sourceKey = source ? pathOf(source) : ''
   const [pack, setPack] = React.useState<MarksPack>(emptyPack)
   const [ready, setReady] = React.useState(!enabled)
   const [saveState, setSaveState] = React.useState<MarksSaveState>('idle')
@@ -52,8 +78,8 @@ export function usePassageMarks({ examId, teilKey, texts, enabled }: Options): P
   const undoStack = React.useRef<MarksPack[]>([])
   const dirty = React.useRef(false)
   const timer = React.useRef<number | null>(null)
-  const live = React.useRef({ examId, teilKey, pack, enabled })
-  live.current = { examId, teilKey, pack, enabled }
+  const live = React.useRef({ source, pack })
+  live.current = { source, pack }
   const textsRef = React.useRef(texts)
   textsRef.current = texts
 
@@ -64,13 +90,14 @@ export function usePassageMarks({ examId, teilKey, texts, enabled }: Options): P
     dirty.current = false
     setPack(emptyPack())
     setStaleDropped(false)
-    if (!enabled || !teilKey) {
+    const src = live.current.source
+    if (!src) {
       setReady(true)
       return
     }
     setReady(false)
     let cancelled = false
-    getPracticeMarks(examId, teilKey)
+    load(src)
       .then((res) => {
         if (cancelled) return
         const { pack: clean, dropped } = dropStale(parsePack(res.marks), textsRef.current)
@@ -87,18 +114,28 @@ export function usePassageMarks({ examId, teilKey, texts, enabled }: Options): P
       .finally(() => !cancelled && setReady(true))
     return () => {
       cancelled = true
+      // Đổi Teil trong cùng trang (thi thử) khi còn thay đổi chưa lưu ⇒ lưu ngay vào Teil cũ. Lúc này
+      // `live.current.pack` vẫn là gói của Teil cũ (gói mới chỉ đặt trong thân effect sau).
+      if (dirty.current) {
+        dirty.current = false
+        if (timer.current != null) {
+          window.clearTimeout(timer.current)
+          timer.current = null
+        }
+        void save(src, live.current.pack).catch(() => undefined)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [examId, teilKey, enabled])
+  }, [sourceKey])
 
   // ── lưu ──────────────────────────────────────────────────────────────────
   const flush = React.useCallback(async () => {
     const l = live.current
-    if (!l.enabled || !l.teilKey || !dirty.current) return
+    if (!l.source || !dirty.current) return
     dirty.current = false
     setSaveState('saving')
     try {
-      await savePracticeMarks(l.examId, l.teilKey, l.pack)
+      await save(l.source, l.pack)
       setSaveState(dirty.current ? 'saving' : 'saved')
     } catch {
       dirty.current = true
@@ -118,9 +155,9 @@ export function usePassageMarks({ examId, teilKey, texts, enabled }: Options): P
   React.useEffect(() => {
     const leave = () => {
       const l = live.current
-      if (!dirty.current || !l.enabled || !l.teilKey) return
+      if (!dirty.current || !l.source) return
       dirty.current = false
-      sendKeepalive('PUT', practiceMarksPath(l.examId, l.teilKey), { marks: l.pack })
+      sendKeepalive('PUT', pathOf(l.source), { marks: l.pack })
     }
     const onVisibility = () => document.visibilityState === 'hidden' && leave()
     window.addEventListener('pagehide', leave)

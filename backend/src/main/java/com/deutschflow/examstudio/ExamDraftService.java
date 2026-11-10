@@ -1151,21 +1151,34 @@ public class ExamDraftService {
     }
 
     Map<String, Boolean> suggestions(Row r, List<SourceRow> srcs, TextMetrics m) {
+        // Mọi nhánh trả Boolean (đối tượng): trộn `null` với boolean nguyên thuỷ trong toán tử ba ngôi làm Java
+        // mở hộp null ⇒ NullPointerException ngay khi tạo bản nháp (lỗi CI 10/11/2026).
         Map<String, Boolean> s = new LinkedHashMap<>();
         Map<String, String> light = new HashMap<>();
         for (Check c : r.checks()) light.put(c.key(), c.light());
         boolean verified = !r.checks().isEmpty();
-        s.put("LEVEL", m == null || !verified ? null : "GREEN".equals(light.get("LEXICAL")) && "GREEN".equals(light.get("LENGTH")));
-        s.put("FORMAT", verified ? "GREEN".equals(light.get("FORMAT"))
-                && !"YELLOW".equals(light.get("ANSWERS")) : null);
-        s.put("SINGLE_ANSWER", verified ? "GREEN".equals(light.get("SOLVER")) : null);
+        Boolean level = null;
+        if (m != null && verified) level = "GREEN".equals(light.get("LEXICAL")) && "GREEN".equals(light.get("LENGTH"));
+        s.put("LEVEL", level);
+        Boolean format = null;
+        if (verified) format = "GREEN".equals(light.get("FORMAT")) && !"YELLOW".equals(light.get("ANSWERS"));
+        s.put("FORMAT", format);
+        Boolean single = null;
+        if (verified) single = "GREEN".equals(light.get("SOLVER"));
+        s.put("SINGLE_ANSWER", single);
         List<SourceRow> used = usedSources(srcs);
-        s.put("NEUTRAL", light.containsKey("NEUTRAL") && r.spec().situational() ? "GREEN".equals(light.get("NEUTRAL"))
-                : used.isEmpty() ? null : used.stream().noneMatch(x -> "FLAGGED".equals(x.source().neutrality())));
+        Boolean neutral = null;
+        if (light.containsKey("NEUTRAL") && r.spec().situational()) neutral = "GREEN".equals(light.get("NEUTRAL"));
+        else if (!used.isEmpty()) neutral = used.stream().noneMatch(x -> "FLAGGED".equals(x.source().neutrality()));
+        s.put("NEUTRAL", neutral);
         s.put("FACTS_MATCH", null);
-        s.put("NO_COPY", m == null ? null : m.overlapMaxRun() < m.overlapLimit());
-        s.put("QUELLE", used.isEmpty() ? (r.spec().situational() ? Boolean.TRUE : null)
-                : used.stream().allMatch(x -> x.source().usageModeConfirmed()));
+        Boolean noCopy = null;
+        if (m != null) noCopy = m.overlapMaxRun() < m.overlapLimit();
+        s.put("NO_COPY", noCopy);
+        Boolean quelle = null;
+        if (!used.isEmpty()) quelle = used.stream().allMatch(x -> x.source().usageModeConfirmed());
+        else if (r.spec().situational()) quelle = Boolean.TRUE;
+        s.put("QUELLE", quelle);
         s.put("EXPLANATION", null);
         return s;
     }
