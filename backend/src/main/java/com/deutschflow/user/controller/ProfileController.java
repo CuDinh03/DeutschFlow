@@ -12,6 +12,7 @@ import com.deutschflow.user.service.AuthService;
 import com.deutschflow.user.service.UserAvatarService;
 import com.deutschflow.user.service.UserBirthDateService;
 import com.deutschflow.user.service.UserLearningProfileService;
+import com.deutschflow.user.service.UserSecurityEventsService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -43,6 +44,7 @@ public class ProfileController {
     private final UserAvatarService userAvatarService;
     private final UserBirthDateService userBirthDateService;
     private final UserRepository userRepository;
+    private final UserSecurityEventsService userSecurityEventsService;
 
     /**
      * GET /api/profile/me
@@ -145,6 +147,20 @@ public class ProfileController {
     @PostMapping("/me/sessions/revoke-others")
     public AuthResponse revokeOtherSessions(@AuthenticationPrincipal User user) {
         return authService.revokeOtherSessions(user);
+    }
+
+    /**
+     * GET /api/profile/me/security-events?page=0&size=20
+     * "Hoạt động bảo mật" của chính mình (đợt 2 admin): đổi/đặt lại mật khẩu, bị khoá/mở khoá…
+     * Chỉ {@code {event, occurredAt}} — không actor, không lý do, không metadata
+     * (xem {@link UserSecurityEventsService}).
+     */
+    @GetMapping("/me/security-events")
+    public java.util.Map<String, Object> securityEvents(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return userSecurityEventsService.list(user.getId(), page, size);
     }
 
     record AvatarResponse(String avatarUrl) {}

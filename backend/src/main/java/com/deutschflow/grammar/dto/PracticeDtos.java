@@ -26,16 +26,41 @@ public final class PracticeDtos {
      * nháp (Viết giữ điểm cũ khi lưu nháp). "Bốn kỹ năng" so mốc này với lượt thi thử.
      */
     public record Progress(Map<String, String> answers, boolean checked, Double score, Double max,
-                           int elapsedSeconds, Instant updatedAt, Object result, Instant checkedAt) {
+                           int elapsedSeconds, Instant updatedAt, Object result, Instant checkedAt,
+                           Map<String, String> notes) {
         public Progress(Map<String, String> answers, boolean checked, Double score, Double max,
                         int elapsedSeconds, Instant updatedAt, Object result) {
-            this(answers, checked, score, max, elapsedSeconds, updatedAt, result, null);
+            this(answers, checked, score, max, elapsedSeconds, updatedAt, result, null, Map.of());
         }
     }
 
-    public record SaveRequest(Map<String, String> answers, Integer elapsedSeconds) {}
+    /**
+     * {@code notes} (B3, 09/11/2026, tuỳ chọn): "vì sao tôi chọn" — ghi chú ngắn theo câu, {@code {itemId: chữ}}.
+     * Không gửi ({@code null}) thì giữ ghi chú đã lưu — client cũ / bài chẩn đoán không xoá mất ghi chú.
+     */
+    public record SaveRequest(Map<String, String> answers, Integer elapsedSeconds, Map<String, String> notes) {
+        public SaveRequest(Map<String, String> answers, Integer elapsedSeconds) {
+            this(answers, elapsedSeconds, null);
+        }
+    }
+
+    /** Thân {@code POST .../ask-ai}: ngôn ngữ giao diện của người học ({@code vi} mặc định, {@code en}, {@code de}). */
+    public record AskAiRequest(String locale) {}
+
+    /**
+     * Lời giải thích AI cho MỘT câu đã nộp. {@code cached = true}: lấy từ bộ nhớ đệm, không gọi AI, không trừ quota.
+     */
+    public record ItemAiAnswer(String itemId, String locale, String answer, boolean cached) {}
 
     public record WritingRequest(String text, Integer elapsedSeconds) {}
+
+    /**
+     * Gói đánh dấu bài đọc của một Teil (09/11/2026) — xem {@code PassageMarksValidator}. Chưa có ⇒
+     * {@code marks} rỗng, {@code updatedAt} null.
+     */
+    public record Marks(Map<String, Object> marks, Instant updatedAt) {}
+
+    public record MarksRequest(Map<String, Object> marks) {}
 
     public record Access(boolean enabled) {}
 

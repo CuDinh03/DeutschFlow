@@ -534,6 +534,7 @@
         "pwPlaceholder": "Mật khẩu mới (≥ 8 ký tự)",
         "pwReset": "Đặt lại",
         "pwNote": "Admin đặt mật khẩu mới trực tiếp (không cần mật khẩu cũ) — dùng khi gỡ tài khoản mật khẩu mặc định / user quên pass. Có ghi audit.",
+        "pwAdminNote": "Tài khoản quản trị không đặt lại mật khẩu ở đây. Admin tự đặt lại qua \"Quên mật khẩu\".",
         "pwTooShort": "Mật khẩu mới tối thiểu 8 ký tự.",
         "pwDone": "Đã đặt lại mật khẩu.",
         "planCap": "Đổi gói đăng ký",
@@ -597,7 +598,7 @@
           "title": "Đặt lại mật khẩu?",
           "description": "{name} sẽ phải dùng mật khẩu mới để đăng nhập.",
           "detailSessions": "Mọi phiên đăng nhập hiện tại của người này bị chấm dứt.",
-          "detailNoNotice": "Người dùng KHÔNG nhận thông báo tự động — hãy báo họ qua kênh hỗ trợ.",
+          "detailNotice": "Người dùng nhận thông báo và email rằng đội hỗ trợ đã đặt lại mật khẩu (không kèm lý do hay tên admin).",
           "detailAudit": "Thao tác và lý do được ghi vào nhật ký.",
           "confirm": "Đặt lại mật khẩu",
           "cancel": "Hủy"
@@ -614,6 +615,36 @@
           "confirm": "Đổi gói",
           "cancel": "Hủy",
           "done": "Đã đổi sang gói {plan}."
+        },
+        "mfaCap": "Xác thực hai lớp",
+        "mfaReset": "Đặt lại 2FA",
+        "mfaNote": "Dùng khi quản trị viên này mất điện thoại và hết mã khôi phục. Họ sẽ phải thiết lập lại 2FA ở lần đăng nhập tới.",
+        "mfaResetDone": "Đã đặt lại xác thực hai lớp",
+        "confirmMfa": {
+          "title": "Đặt lại xác thực hai lớp?",
+          "description": "{name} sẽ bị đăng xuất khỏi mọi thiết bị và phải thiết lập lại 2FA (mã email + ứng dụng xác thực) ở lần đăng nhập tới.",
+          "detailSessions": "Mọi phiên đăng nhập của người này bị chấm dứt; phiên đang mở có thể còn chạy tối đa 15 phút.",
+          "detailNotice": "Người này nhận thông báo và email rằng 2FA đã bị đặt lại.",
+          "detailAudit": "Thao tác được ghi vào nhật ký kèm lý do.",
+          "confirm": "Đặt lại 2FA",
+          "cancel": "Hủy"
+        },
+        "supportView": {
+          "button": "Xem như người dùng",
+          "started": "Đã mở tab xem như người dùng",
+          "ended": "Đã kết thúc phiên xem",
+          "activeUntil": "Đang có phiên xem chỉ đọc (đến {time})",
+          "end": "Kết thúc",
+          "confirm": {
+            "title": "Mở chế độ xem như người dùng?",
+            "description": "Bạn sẽ thấy ứng dụng như {name} thấy, trong một tab mới.",
+            "detailLimits": "30 phút · chỉ đọc · người dùng sẽ được thông báo",
+            "detailBlocked": "Mọi thao tác ghi, thanh toán và tính năng AI đều bị chặn",
+            "detailAudit": "Phiên được ghi nhật ký kèm lý do và mọi trang đã mở",
+            "reasonLabel": "Lý do (tối thiểu 15 ký tự)",
+            "confirm": "Mở tab xem",
+            "cancel": "Huỷ"
+          }
         }
       },
       "create": {

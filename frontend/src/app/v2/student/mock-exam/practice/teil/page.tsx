@@ -5,10 +5,11 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { BookOpen, ChevronRight, ClipboardList, GripHorizontal, Headphones, Lightbulb, ListChecks, MoveHorizontal, PenLine, Send, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronRight, ClipboardList, GripHorizontal, Headphones, Highlighter, Lightbulb, ListChecks, MoveHorizontal, PenLine, Send, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
 import {
   WRITING_KEY,
+  askPracticeItemAi,
   checkPracticeTeil,
   getPracticeOverview,
   gradePracticeWriting,
@@ -22,7 +23,8 @@ import { StrategyDrawer } from '@/components/exam/strategy/StrategyDrawer'
 import { ConfirmDialog, LoadingState, ErrorBanner } from '@/components/ui-v2'
 import { PracticeShell, TipsCard } from '@/components/exam/practice/PracticeShell'
 import { usePracticeDraft } from '@/components/exam/practice/usePracticeDraft'
-import { ObjectiveTeilView } from '@/components/exam/practice/ObjectiveTeilView'
+import { ObjectiveTeilView, marksTexts } from '@/components/exam/practice/ObjectiveTeilView'
+import { hasContent, usePassageMarks } from '@/components/exam/marks/usePassageMarks'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
@@ -30,6 +32,7 @@ import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { REWRITE_KEY } from '@/components/exam/mock/mockModel'
 import { useScreenTour, type TourStep } from '@/components/exam/tour/ScreenTour'
+import { ItemAssist, useCachedAsk, type ItemAssistValue } from '@/components/exam/practice/itemAssist'
 
 export default function PracticeTeilRoute() {
   return (
@@ -48,6 +51,7 @@ function PracticeTeilPage() {
   const teilKey = params.get('teil') ?? ''
   const rewrite = params.get('rewrite') === '1'
   const tf = useTranslations('v2.student.practice.frame')
+  const tm = useTranslations('v2.student.practice.marks')
   // Khung làm bài chia hai cột từ 760px; màn kết quả Viết giữ mốc 1024px như cũ.
   const wide = useWide(SPLIT_MIN_WIDTH)
   const wideResult = useWide()
@@ -58,6 +62,8 @@ function PracticeTeilPage() {
   const [overview, setOverview] = React.useState<PracticeOverview | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [answers, setAnswers] = React.useState<Record<string, string>>({})
+  // "Vì sao tôi chọn" (B3): lưu cùng nháp và lúc nộp, hiện cạnh giải thích sau khi nộp.
+  const [notes, setNotes] = React.useState<Record<string, string>>({})
   const [result, setResult] = React.useState<PracticeTeilResult | null>(null)
   const [seconds, setSeconds] = React.useState(0)
   const [tipsOpen, setTipsOpen] = React.useState(false)
@@ -117,6 +123,7 @@ function PracticeTeilPage() {
           }
         } else {
           setAnswers(p?.answers ?? {})
+          setNotes(p?.notes ?? {})
           if (p?.checked && p.result) setResult(p.result as PracticeTeilResult)
         }
       })
@@ -161,6 +168,8 @@ function PracticeTeilPage() {
           ]
         : [
             { target: 'source', icon: BookOpen, title: tt('teil.source.t'), body: tt('teil.source.p') },
+            // chỉ hiện khi có dải "Bút đánh dấu" (bước không có vùng thì tự bỏ) — chú thích ba màu
+            { target: 'marks', icon: Highlighter, title: tt('teil.marks.t'), body: tt('teil.marks.p') },
             { target: 'divider', icon: MoveHorizontal, title: tt('teil.divider.t'), body: tt('teil.divider.p') },
             { target: 'handle', icon: GripHorizontal, title: tt('teil.handle.t'), body: tt('teil.handle.p') },
             { target: 'dots', icon: ListChecks, title: tt('teil.dots.t'), body: tt('teil.dots.p') },
@@ -193,6 +202,7 @@ function PracticeTeilPage() {
     examId,
     teilKey: overview ? teilKey : null,
     payload: draftPayload,
+    notes: isWriting ? undefined : notes,
     elapsed: () => secondsRef.current,
     enabled: draftOpen,
     hasWork: touched || meta?.progress != null,
@@ -200,6 +210,13 @@ function PracticeTeilPage() {
   const saveState = draft.saveState
   const markDirtyRef = React.useRef(draft.markDirty)
   markDirtyRef.current = draft.markDirty
+
+  // ── đánh dấu bài đọc (09/11/2026, đợt 1: Lesen có bài đọc, dạng a/b/c) — lưu riêng với nháp đáp án ──
+  const marksEnabled = !!overview && meta?.section === 'LESEN' && kind === 'mc' && !!teil?.context
+  const marksTextMap = React.useMemo(() => (teil ? marksTexts(teil) : {}), [teil])
+  const marks = usePassageMarks({ examId, teilKey: marksEnabled ? teilKey : null, texts: marksTextMap, enabled: marksEnabled })
+  const [redoOpen, setRedoOpen] = React.useState(false)
+  const [keepMarks, setKeepMarks] = React.useState(true)
 
   const onAnswer = React.useCallback((id: string, value: string | null) => {
     markDirtyRef.current()
@@ -210,6 +227,27 @@ function PracticeTeilPage() {
       return next
     })
   }, [])
+
+  const onNote = React.useCallback((id: string, text: string) => {
+    markDirtyRef.current()
+    setNotes((prev) => {
+      const next = { ...prev }
+      if (text.trim() === '') delete next[id]
+      else next[id] = text
+      return next
+    })
+  }, [])
+
+  // Sau khi nộp: hỏi AI về từng câu (server giữ bộ nhớ đệm; trang nhớ thêm để mở lại câu không gọi lại).
+  const askRaw = React.useCallback(
+    (itemId: string) => askPracticeItemAi(examId, teilKey, itemId, locale),
+    [examId, teilKey, locale],
+  )
+  const askAi = useCachedAsk(result ? askRaw : null, `${examId}|${teilKey}|${result ? 'checked' : ''}`)
+  const assist = React.useMemo<ItemAssistValue>(
+    () => (result ? { askAi, notes } : { notes, onNote }),
+    [result, askAi, notes, onNote],
+  )
 
   const onText = (v: string) => {
     markDirtyRef.current()
@@ -234,7 +272,8 @@ function PracticeTeilPage() {
     setConfirmOpen(false)
     setBusy(true)
     try {
-      const p = await checkPracticeTeil(examId, teilKey, answers, seconds)
+      const p = await checkPracticeTeil(examId, teilKey, answers, seconds, notes)
+      if (p.notes) setNotes(p.notes)
       setResult(p.result as PracticeTeilResult)
       setTipsOpen(false)
       draft.reset()
@@ -245,12 +284,23 @@ function PracticeTeilPage() {
     }
   }
 
-  const redo = async () => {
+  // "Làm lại": Teil có đánh dấu thì hỏi có giữ không (owner chốt 09/11/2026: hỏi mỗi lần, mặc định giữ).
+  const askRedo = () => {
+    if (marksEnabled && hasContent(marks.pack)) {
+      setKeepMarks(true)
+      setRedoOpen(true)
+    } else void redo(true)
+  }
+
+  const redo = async (keep: boolean) => {
+    setRedoOpen(false)
     setBusy(true)
     try {
-      await resetPracticeTeil(examId, teilKey)
+      await resetPracticeTeil(examId, teilKey, keep)
+      if (!keep) marks.clearLocal()
       setResult(null)
       setAnswers({})
+      setNotes({})
       setSeconds(0)
       draft.reset()
     } catch (e) {
@@ -443,7 +493,7 @@ function PracticeTeilPage() {
           <Lightbulb size={15} aria-hidden /> {tf('suggestStrategy')}
         </FootBtn>
       )}
-      <FootBtn disabled={busy} onClick={redo}>{t('redo')}</FootBtn>
+      <FootBtn disabled={busy} onClick={askRedo}>{t('redo')}</FootBtn>
       <FootBtn primary onClick={goNext}>
         {nextKey ? t('nextTeil') : t('backToMap')} <ChevronRight size={16} aria-hidden />
       </FootBtn>
@@ -475,22 +525,45 @@ function PracticeTeilPage() {
       saveState={result ? 'idle' : saveState}
       footer={footer}
     >
-      {meta.section === 'HOEREN' ? (
-        <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} />
-      ) : (
-        <ObjectiveTeilView
-          teil={teil}
-          kind={kind as 'match' | 'mc' | 'gap-mc' | 'gap-bank'}
-          answers={answers}
-          onAnswer={onAnswer}
-          result={result}
-          wide={wide}
-          tips={tips}
-        />
-      )}
+      <ItemAssist.Provider value={assist}>
+        {meta.section === 'HOEREN' ? (
+          <HoerenTeilView teil={teil} answers={answers} onAnswer={onAnswer} result={result} wide={wide} tips={tips} allowRelaxed onRelaxedChange={setRelaxed} />
+        ) : (
+          <ObjectiveTeilView
+            teil={teil}
+            kind={kind as 'match' | 'mc' | 'gap-mc' | 'gap-bank'}
+            answers={answers}
+            onAnswer={onAnswer}
+            result={result}
+            wide={wide}
+            tips={tips}
+            marks={marksEnabled ? marks : null}
+          />
+        )}
+      </ItemAssist.Provider>
     </PracticeShell>
     {drawer}
     {tour.overlay}
+    <ConfirmDialog
+      open={redoOpen}
+      onOpenChange={setRedoOpen}
+      title={tm('redo.title')}
+      description={tm('redo.body')}
+      confirmLabel={tm('redo.confirm')}
+      cancelLabel={tm('redo.cancel')}
+      destructive={false}
+      onConfirm={() => void redo(keepMarks)}
+    >
+      <label className="ga-ui mt-1 flex cursor-pointer items-center gap-2.5 text-ga-body text-ga-ink">
+        <input
+          type="checkbox"
+          checked={keepMarks}
+          onChange={(e) => setKeepMarks(e.target.checked)}
+          className="h-4 w-4 accent-ga-navy"
+        />
+        {tm('redo.keep')}
+      </label>
+    </ConfirmDialog>
     <ConfirmDialog
       open={confirmOpen}
       onOpenChange={setConfirmOpen}

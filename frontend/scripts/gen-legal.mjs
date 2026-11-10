@@ -24,7 +24,7 @@ const LEGAL_NAME_EN = 'Cu Dinh'
 const LEGAL_NAME_VI = 'Cự Đinh'
 const EFFECTIVE_DATE = '2026-07-03'
 // Each document keeps its own "Last updated": bumping one must not re-date the other.
-const LAST_UPDATED = { 'PRIVACY_POLICY.md': '2026-11-03', 'TERMS_OF_USE.md': '2026-09-13' }
+const LAST_UPDATED = { 'PRIVACY_POLICY.md': '2026-11-09', 'TERMS_OF_USE.md': '2026-09-13' }
 const DOMAIN = 'https://mydeutschflow.com'
 const SUPPORT_EMAIL = 'support@mydeutschflow.com'
 // ────────────────────────────────────────────────────────────────────────────

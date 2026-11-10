@@ -13,6 +13,8 @@ interface Options {
   teilKey: string | null
   /** Đáp án (trắc nghiệm) hoặc `{ text }` (Viết). Người gọi giữ nguyên tham chiếu khi không đổi. */
   payload: Record<string, string>
+  /** "Vì sao tôi chọn" theo câu (B3). Không truyền ⇒ không gửi, server giữ ghi chú cũ (bài chẩn đoán). */
+  notes?: Record<string, string>
   /** Thời gian làm Teil (giây) lúc lưu. */
   elapsed: () => number
   /** Tắt khi Teil đã kiểm tra/chấm: không còn gì là nháp. */
@@ -42,15 +44,15 @@ export interface PracticeDraft {
  * `flush` và lần lưu lúc ẩn tab gửi cả thời gian; (3) đóng tab không lưu — giờ nghe `pagehide` và
  * `visibilitychange`. Server bỏ qua nháp đến muộn của Teil đã kiểm tra, nên lần gửi trễ không đè kết quả.
  */
-export function usePracticeDraft({ examId, teilKey, payload, elapsed, enabled, hasWork }: Options): PracticeDraft {
+export function usePracticeDraft({ examId, teilKey, payload, notes, elapsed, enabled, hasWork }: Options): PracticeDraft {
   const [saveState, setSaveState] = React.useState<PracticeSaveState>('idle')
   const dirty = React.useRef(false)
   const pending = React.useRef(false)
   const seq = React.useRef(0)
   const savedSeconds = React.useRef<number | null>(null)
 
-  const live = React.useRef({ examId, teilKey, payload, elapsed, enabled, hasWork })
-  live.current = { examId, teilKey, payload, elapsed, enabled, hasWork }
+  const live = React.useRef({ examId, teilKey, payload, notes, elapsed, enabled, hasWork })
+  live.current = { examId, teilKey, payload, notes, elapsed, enabled, hasWork }
 
   const needsSave = React.useCallback(() => {
     const l = live.current
@@ -66,7 +68,8 @@ export function usePracticeDraft({ examId, teilKey, payload, elapsed, enabled, h
     const secs = l.elapsed()
     setSaveState('saving')
     try {
-      await savePracticeDraft(l.examId, l.teilKey, l.payload, secs)
+      if (l.notes) await savePracticeDraft(l.examId, l.teilKey, l.payload, secs, l.notes)
+      else await savePracticeDraft(l.examId, l.teilKey, l.payload, secs)
       if (mine === seq.current) {
         pending.current = false
         savedSeconds.current = secs
@@ -104,7 +107,7 @@ export function usePracticeDraft({ examId, teilKey, payload, elapsed, enabled, h
     setSaveState('saving')
     const id = window.setTimeout(() => void save(), PRACTICE_AUTOSAVE_MS)
     return () => window.clearTimeout(id)
-  }, [payload, enabled, teilKey, save])
+  }, [payload, notes, enabled, teilKey, save])
 
   const flush = React.useCallback(async () => (needsSave() ? save() : true), [needsSave, save])
 
@@ -116,6 +119,7 @@ export function usePracticeDraft({ examId, teilKey, payload, elapsed, enabled, h
       sendKeepalive('PUT', `/mock-exams/practice/${l.examId}/teile/${l.teilKey}/draft`, {
         answers: l.payload,
         elapsedSeconds: l.elapsed(),
+        ...(l.notes ? { notes: l.notes } : {}),
       })
       pending.current = false
       savedSeconds.current = l.elapsed()

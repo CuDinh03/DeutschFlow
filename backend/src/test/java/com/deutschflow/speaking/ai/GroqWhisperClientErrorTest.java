@@ -192,6 +192,112 @@ class GroqWhisperClientErrorTest {
         server.start();
     }
 
+    @Test
+    @DisplayName("STT_API_KEY riêng được ưu tiên hơn key chat; rỗng thì lùi về key chat (09/11/2026)")
+    void sttKeyTakesPrecedenceOverChatKey() {
+        java.util.List<String> auth = new java.util.concurrent.CopyOnWriteArrayList<>();
+        server.createContext("/stt", exchange -> {
+            auth.add(exchange.getRequestHeaders().getFirst("Authorization"));
+            byte[] body = "{\"text\":\"Hallo\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) { os.write(body); }
+        });
+        server.start();
+        CircuitBreakers breakers = new CircuitBreakers(CircuitBreakerRegistry.ofDefaults());
+
+        new GroqWhisperClient("chat-key", "fw-key", STT_MODEL, new ObjectMapper(),
+                new GroqConcurrencyLimiter(new GroqProperties()), breakers, endpointUrl, "false")
+                .transcribe(AUDIO, "a.webm", "de", null);
+        new GroqWhisperClient("chat-key", " ", STT_MODEL, new ObjectMapper(),
+                new GroqConcurrencyLimiter(new GroqProperties()), breakers, endpointUrl, "false")
+                .transcribe(AUDIO, "a.webm", "de", null);
+
+        assertThat(auth).containsExactly("Bearer fw-key", "Bearer chat-key");
+    }
+
+    @Test
+    @DisplayName("Có STT_API_KEY → mặc định Fireworks turbo; chưa có → giữ Groq (deploy không cần sửa env)")
+    void providerDefaultsFollowSttKey() {
+        CircuitBreakers breakers = new CircuitBreakers(CircuitBreakerRegistry.ofDefaults());
+        GroqConcurrencyLimiter limiter = new GroqConcurrencyLimiter(new GroqProperties());
+        assertThat(new GroqWhisperClient("chat-key", "fw-key", "", new ObjectMapper(), limiter, breakers, "", "")
+                .getWhisperModel()).isEqualTo("whisper-v3-turbo");
+        assertThat(new GroqWhisperClient("chat-key", "", "", new ObjectMapper(), limiter, breakers, "", "")
+                .getWhisperModel()).isEqualTo("whisper-large-v3");
+        assertThat(new GroqWhisperClient("chat-key", "fw-key", "whisper-v3", new ObjectMapper(), limiter, breakers, "", "")
+                .getWhisperModel()).isEqualTo("whisper-v3");
+    }
+
+    @Test
+    @DisplayName("Fireworks: host audio-turbo ↔ audio-prod là dự phòng của nhau; host khác không có dự phòng")
+    void fireworksSiblingMapping() {
+        assertThat(GroqWhisperClient.fireworksSibling(
+                "https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions"))
+                .containsExactly("https://audio-prod.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions", "whisper-v3");
+        assertThat(GroqWhisperClient.fireworksSibling(
+                "https://audio-prod.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions"))
+                .containsExactly("https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions", "whisper-v3-turbo");
+        assertThat(GroqWhisperClient.fireworksSibling("https://api.groq.com/openai/v1/audio/transcriptions")).isNull();
+    }
+
+    @Test
+    @DisplayName("primary 503 (Fireworks 'no healthy upstream') → tự thử host dự phòng với model của nó")
+    void primary503FallsBackToSibling() {
+        java.util.List<String> bodies = new java.util.concurrent.CopyOnWriteArrayList<>();
+        server.createContext("/primary", ex -> {
+            ex.getRequestBody().readAllBytes();
+            byte[] b = "no healthy upstream".getBytes(StandardCharsets.UTF_8);
+            ex.sendResponseHeaders(503, b.length);
+            try (OutputStream os = ex.getResponseBody()) { os.write(b); }
+        });
+        server.createContext("/fallback", ex -> {
+            bodies.add(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] b = "{\"text\":\"Ich heiße Anna\",\"duration\":1.2}".getBytes(StandardCharsets.UTF_8);
+            ex.getResponseHeaders().add("Content-Type", "application/json");
+            ex.sendResponseHeaders(200, b.length);
+            try (OutputStream os = ex.getResponseBody()) { os.write(b); }
+        });
+        server.start();
+        String base = endpointUrl.replace("/stt", "");
+        GroqWhisperClient c = new GroqWhisperClient("k", "whisper-v3-turbo", new ObjectMapper(),
+                new GroqConcurrencyLimiter(new GroqProperties()), new CircuitBreakers(CircuitBreakerRegistry.ofDefaults()),
+                base + "/primary", false, new String[]{base + "/fallback", "whisper-v3"});
+
+        assertThat(c.transcribe(AUDIO, "a.webm", "de", null).text()).isEqualTo("Ich heiße Anna");
+        assertThat(c.transcribeVerbose(AUDIO, "a.webm", "de", null).text()).isEqualTo("Ich heiße Anna");
+        assertThat(bodies).hasSize(2).allSatisfy(b -> assertThat(b).contains("whisper-v3\r\n").doesNotContain("turbo"));
+    }
+
+    @Test
+    @DisplayName("400 (audio không đọc được) → STT_FAILED 'ghi lại', KHÔNG chuyển host dự phòng")
+    void unreadableAudioIsSttFailedWithoutFallback() {
+        java.util.concurrent.atomic.AtomicInteger fallbackHits = new java.util.concurrent.atomic.AtomicInteger();
+        server.createContext("/primary", ex -> {
+            ex.getRequestBody().readAllBytes();
+            byte[] b = "{\"error\":\"invalid file\"}".getBytes(StandardCharsets.UTF_8);
+            ex.sendResponseHeaders(400, b.length);
+            try (OutputStream os = ex.getResponseBody()) { os.write(b); }
+        });
+        server.createContext("/fallback", ex -> {
+            fallbackHits.incrementAndGet();
+            ex.sendResponseHeaders(500, -1);
+            ex.close();
+        });
+        server.start();
+        String base = endpointUrl.replace("/stt", "");
+        GroqWhisperClient c = new GroqWhisperClient("k", "whisper-v3-turbo", new ObjectMapper(),
+                new GroqConcurrencyLimiter(new GroqProperties()), new CircuitBreakers(CircuitBreakerRegistry.ofDefaults()),
+                base + "/primary", false, new String[]{base + "/fallback", "whisper-v3"});
+
+        assertThatThrownBy(() -> c.transcribe(AUDIO, "a.webm", "de", null))
+                .isInstanceOfSatisfying(AiServiceException.class, ex -> {
+                    assertThat(ex.getCode()).isEqualTo(AiErrorCode.STT_FAILED);
+                    assertThat(ex.getMessage()).contains("ghi lại");
+                });
+        assertThat(fallbackHits).hasValue(0);
+    }
+
     /** Breaker ngưỡng thấp nhất — hành vi cũ sẽ OPEN từ lượt 3 và trả AI_BUSY thay vì RATE_LIMITED. */
     private GroqWhisperClient clientWithBreakerOpeningAfter(int minimumCalls) {
         CircuitBreakers breakers = new CircuitBreakers(CircuitBreakerRegistry.of(

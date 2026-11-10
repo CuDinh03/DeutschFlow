@@ -102,8 +102,10 @@ public class LearningPlanService {
     }
 
     @Transactional
-    public void markSessionCompleted(User user, int week, int sessionIndex, Double abilityScore, Double timeSeconds) {
-        learningSessionProgressService.markSessionCompleted(user, week, sessionIndex, abilityScore, timeSeconds);
+    public com.deutschflow.user.dto.SessionCompleteResponse markSessionCompleted(
+            User user, int week, int sessionIndex, Double abilityScore, Double timeSeconds) {
+        // A2: abilityScore client gửi bị bỏ qua (server lấy điểm nộp tốt nhất); timeSeconds bị chặn.
+        return learningSessionProgressService.completeFromClient(user, week, sessionIndex, abilityScore, timeSeconds);
     }
 
     @Transactional
@@ -272,7 +274,7 @@ public class LearningPlanService {
             st.setReinforcementJson(null);
             st.setLastSeenAt(java.time.LocalDateTime.now());
             sessionStateRepository.save(st);
-            markSessionCompleted(user, week, sessionIndex, null, null);
+            learningSessionProgressService.markCompletedByServer(user, week, sessionIndex, scorePercent);
             int[] n = computeNextSessionPointer(planObj, plan, week, sessionIndex);
             if (n != null) {
                 nextWeek = n[0];

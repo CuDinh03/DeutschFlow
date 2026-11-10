@@ -2,6 +2,7 @@ package com.deutschflow.practice.controller;
 
 import com.deutschflow.practice.dto.PracticeExerciseDto;
 import com.deutschflow.practice.dto.PracticeSubmitRequest;
+import com.deutschflow.practice.dto.PracticeSubmitResponse;
 import com.deutschflow.practice.service.PracticeService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -34,11 +35,14 @@ public class PracticeController {
         return ResponseEntity.ok(practiceService.getExerciseById(id));
     }
 
+    /**
+     * Ghi lần làm bài. A2 (09/11/2026): vẫn 200 như cũ, giờ có thêm thân {@link PracticeSubmitResponse}
+     * (điểm và XP server tính) — client cũ bỏ qua thân vẫn chạy. {@code scorePercent} client gửi bị bỏ qua.
+     */
     @PostMapping("/submit")
-    public ResponseEntity<Void> submitPracticeResult(
+    public ResponseEntity<PracticeSubmitResponse> submitPracticeResult(
             @AuthenticationPrincipal User user,
             @jakarta.validation.Valid @RequestBody PracticeSubmitRequest request) {
-        practiceService.submitPracticeResult(user.getId(), request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(practiceService.submitPracticeResult(user.getId(), request));
     }
 }

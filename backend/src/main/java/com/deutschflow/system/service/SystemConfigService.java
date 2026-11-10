@@ -48,6 +48,23 @@ public class SystemConfigService {
 
     @CacheEvict(value = "systemConfig", key = "#key")
     public void setString(String key, String value, String description) {
+        write(key, value, description, null);
+    }
+
+    /**
+     * Như {@link #setString(String, String, String)} nhưng ghi thêm {@code system_config.updated_by}
+     * (email người sửa) — đợt 2 admin, để cột này thôi luôn NULL.
+     *
+     * <p>🪤 {@code @CacheEvict} ở đây chạy NGAY khi gọi, tức TRƯỚC commit nếu người gọi đang mở
+     * transaction: một lượt đọc chen vào giữa có thể nạp lại giá trị CŨ vào cache (TTL 1 giờ). Người
+     * gọi trong transaction nên evict lần nữa sau commit ({@code AiConfigHistoryService} làm vậy).
+     */
+    @CacheEvict(value = "systemConfig", key = "#key")
+    public void setString(String key, String value, String description, String updatedBy) {
+        write(key, value, description, updatedBy);
+    }
+
+    private void write(String key, String value, String description, String updatedBy) {
         SystemConfig config = repository.findById(key).orElseGet(() -> {
             SystemConfig newConfig = new SystemConfig();
             newConfig.setConfigKey(key);
@@ -56,6 +73,9 @@ public class SystemConfigService {
         config.setConfigValue(value);
         if (description != null) {
             config.setDescription(description);
+        }
+        if (updatedBy != null) {
+            config.setUpdatedBy(updatedBy.length() > 100 ? updatedBy.substring(0, 100) : updatedBy);
         }
         repository.save(config);
     }

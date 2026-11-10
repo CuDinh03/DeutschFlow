@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type AxiosResponse } from 'axios'
-import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform, clearTokens } from '@/lib/authSession'
+import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform, clearTokens, isSupportMode, markSupportSessionEnded } from '@/lib/authSession'
+import { toast } from 'sonner'
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 import { isMaintenanceError, maintenanceInfoFromProblem } from '@/lib/systemStatus'
@@ -15,6 +16,38 @@ export function isAxiosErr(e: unknown): e is AxiosError {
 /** HTTP status from an Axios error, 0 for non-Axios errors. */
 export function httpStatus(e: unknown): number {
   return isAxiosErr(e) ? (e.response?.status ?? 0) : 0
+}
+
+/**
+ * Mã máy-đọc-được của lỗi problem+json (`extensions.code`, ví dụ `MFA_CODE_INVALID`, `RATE_LIMITED`);
+ * `null` khi lỗi không mang mã.
+ */
+export function problemCode(e: unknown): string | null {
+  if (!isAxiosErr(e)) return null
+  const d = e.response?.data as { extensions?: { code?: unknown } } | undefined
+  const code = d?.extensions?.code
+  return typeof code === 'string' ? code : null
+}
+
+/**
+ * 401 `MFA_REQUIRED` (2FA ADMIN, 09/11/2026): access token của tài khoản quản trị chưa qua bước 2FA, hoặc
+ * lần qua 2FA đã quá hạn (refresh từ chối). Refresh KHÔNG cứu được — phải đăng nhập lại từ đầu.
+ */
+export function isMfaRequired(e: unknown): boolean {
+  return httpStatus(e) === 401 && problemCode(e) === 'MFA_REQUIRED'
+}
+
+/** Mã 403 của phiên hỗ trợ chỉ-đọc (admin xem như người dùng) — thao tác bị chặn, KHÔNG phải mất phiên. */
+export const SUPPORT_SESSION_READ_ONLY = 'SUPPORT_SESSION_READ_ONLY'
+
+/** 403 vì phiên hỗ trợ chỉ đọc — hiện toast, không coi là lỗi xác thực. */
+export function isSupportReadOnly(e: unknown): boolean {
+  return httpStatus(e) === 403 && problemCode(e) === SUPPORT_SESSION_READ_ONLY
+}
+
+/** Toast "chế độ hỗ trợ chỉ đọc" — gộp một toast (id cố định) dù nhiều request bị chặn cùng lúc. */
+export function notifySupportReadOnly(): void {
+  toast.error(FALLBACK[currentUiLocale()].supportReadOnly, { id: 'support-session-read-only' })
 }
 
 /**
@@ -50,7 +83,7 @@ export function apiMessage(e: unknown): string {
  * 06/09/2026). Module này chạy ngoài React nên không dùng useTranslations; bảng nhỏ giữ tại chỗ.
  * (Thông điệp backend vẫn tiếng Việt — F-I18N-03, chờ quyết định owner.)
  */
-const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; failed: string; unknown: string; reauth: string }> = {
+const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; failed: string; unknown: string; reauth: string; supportReadOnly: string }> = {
   vi: {
     slow: 'Kết nối chậm — máy chủ có thể vẫn đang xử lý. Thử lại sau ít giây.',
     offline: 'Mất kết nối mạng. Kiểm tra đường truyền rồi thử lại.',
@@ -58,6 +91,7 @@ const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; 
     failed: 'Yêu cầu không thực hiện được, vui lòng thử lại.',
     unknown: 'Lỗi không xác định',
     reauth: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    supportReadOnly: 'Chế độ hỗ trợ chỉ đọc — không thực hiện được thao tác này',
   },
   en: {
     slow: 'Slow connection — the server may still be processing. Try again in a few seconds.',
@@ -66,6 +100,7 @@ const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; 
     failed: 'The request could not be completed, please try again.',
     unknown: 'Unknown error',
     reauth: 'Your session has expired. Please sign in again.',
+    supportReadOnly: 'Read-only support mode — this action is not available',
   },
   de: {
     slow: 'Langsame Verbindung — der Server verarbeitet die Anfrage möglicherweise noch. Versuchen Sie es in ein paar Sekunden erneut.',
@@ -74,6 +109,7 @@ const FALLBACK: Record<UiLocale, { slow: string; offline: string; busy: string; 
     failed: 'Die Anfrage konnte nicht ausgeführt werden, bitte erneut versuchen.',
     unknown: 'Unbekannter Fehler',
     reauth: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
+    supportReadOnly: 'Schreibgeschützter Support-Modus — diese Aktion ist nicht möglich',
   },
 }
 
@@ -264,6 +300,12 @@ let refreshPromise: Promise<AxiosResponse<RefreshResponseData>> | null = null
  *    nguyên, latch tự nhả ở request có token kế tiếp) → caller tự quyết backoff.
  */
 export async function refreshAccessToken(): Promise<string | null> {
+  if (isSupportMode()) {
+    // Tab hỗ trợ KHÔNG BAO GIỜ refresh: cookie refresh_token là của admin (dùng chung) — refresh sẽ biến tab
+    // này thành một phiên admin. Token support hết/hỏng = phiên hỗ trợ đã kết thúc.
+    markSupportSessionEnded()
+    return null
+  }
   if (sessionInvalid) {
     notifyAuthRecovery()
     return null
@@ -300,6 +342,11 @@ export async function refreshAccessToken(): Promise<string | null> {
     // an anonymous request. Transient failures (429 rate-limit, 5xx, network) leave tokens intact
     // so recovery is still possible once the latch releases; we just stopped the immediate storm.
     const refreshStatus = httpStatus(refreshError)
+    if (isMfaRequired(refreshError)) {
+      // Phiên admin quá hạn 2FA (max-session-hours) hoặc phát trước khi có 2FA: đăng nhập lại, không banner.
+      forceMfaRelogin()
+      return null
+    }
     notifyAuthRecovery()
     if (refreshStatus === 400 || refreshStatus === 401 || refreshStatus === 403) {
       clearTokens()
@@ -309,10 +356,42 @@ export async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+/**
+ * Phiên quản trị thiếu 2FA: xoá token phía client và về trang đăng nhập (kèm `?next=` để quay lại đúng
+ * trang). Bật latch để mọi request song song không lao vào refresh — refresh cũng sẽ bị từ chối.
+ */
+function forceMfaRelogin(): void {
+  if (isSupportMode()) {
+    markSupportSessionEnded()
+    return
+  }
+  sessionInvalid = true
+  clearTokens()
+  if (typeof window === 'undefined') return
+  const path = window.location.pathname
+  if (path.startsWith('/v2/login')) return
+  const next = encodeURIComponent(path + window.location.search)
+  window.location.assign(`/v2/login?reason=mfa&next=${next}`)
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
+    if (isSupportReadOnly(error)) {
+      notifySupportReadOnly()
+      return Promise.reject(error)
+    }
+    if (isSupportMode() && error.response?.status === 401) {
+      // Phiên hỗ trợ đã kết thúc/hết hạn/bị thu hồi: hiện trạng thái "đã kết thúc", không refresh, không
+      // đưa về /v2/login (cookie admin vẫn còn ở đó).
+      markSupportSessionEnded()
+      return Promise.reject(error)
+    }
+    if (isMfaRequired(error)) {
+      forceMfaRelogin()
+      return Promise.reject(error)
+    }
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true
 

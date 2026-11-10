@@ -7,6 +7,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.beans.factory.annotation.Value;
 
+import com.deutschflow.common.security.support.SupportSessionTaskDecorator;
+
 import java.util.concurrent.Executor;
 
 /**
@@ -31,6 +33,7 @@ public class AsyncConfig {
         exec.setMaxPoolSize(2);
         exec.setQueueCapacity(10);
         exec.setThreadNamePrefix("vocab-import-");
+        exec.setTaskDecorator(SupportSessionTaskDecorator::wrap);
         exec.setWaitForTasksToCompleteOnShutdown(false); // imports are best-effort
         exec.initialize();
         return exec;
@@ -44,6 +47,8 @@ public class AsyncConfig {
         exec.setMaxPoolSize(10);
         exec.setQueueCapacity(30);
         exec.setThreadNamePrefix("ai-call-");
+        // Phiên hỗ trợ chỉ-đọc theo sang thread AI: guard AI + READ ONLY vẫn có hiệu lực (review #805).
+        exec.setTaskDecorator(SupportSessionTaskDecorator::wrap);
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(15);
         exec.initialize();
@@ -75,7 +80,14 @@ public class AsyncConfig {
         exec.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         
         // Propagate MDC (e.g. jobId) from parent thread to async thread
-        exec.setTaskDecorator(runnable -> {
+        // + mang ngữ cảnh phiên hỗ trợ chỉ-đọc (review #805).
+        exec.setTaskDecorator(runnable -> SupportSessionTaskDecorator.wrap(mdcPropagating(runnable)));
+
+        exec.initialize();
+        return exec;
+    }
+
+    private static Runnable mdcPropagating(Runnable runnable) {
             var contextMap = org.slf4j.MDC.getCopyOfContextMap();
             return () -> {
                 try {
@@ -87,9 +99,5 @@ public class AsyncConfig {
                     org.slf4j.MDC.clear();
                 }
             };
-        });
-        
-        exec.initialize();
-        return exec;
     }
 }

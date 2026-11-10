@@ -1,13 +1,18 @@
 package com.deutschflow.common.security;
 
+import com.deutschflow.common.security.support.SupportSessionContext;
+import com.deutschflow.common.security.support.SupportSessionContextHolder;
+import com.deutschflow.common.security.support.SupportSessionValidator;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,21 +21,77 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Xác thực request từ JWT (header {@code Authorization: Bearer}) hoặc one-time SSE ticket.
+ *
+ * <p><b>Phân loại token (09/11/2026):</b> chỉ nhận làm access token các {@code typ}:
+ * <ul>
+ *   <li>{@code access} — hoặc thiếu {@code typ} (token phát hành trước bản này, vẫn hợp lệ tới khi hết hạn);</li>
+ *   <li>{@code guest} — chỉ khi {@code sub} bắt đầu bằng {@code "guest:"};</li>
+ *   <li>{@code support} — chỉ khi {@code app.security.support-session.enabled=true} (mặc định BẬT từ khi có
+ *       {@code SupportSessionReadOnlyFilter}; đặt false là kill-switch) VÀ {@link SupportSessionValidator} xác
+ *       nhận phiên trong DB còn mở. Khi đó request được xác thực như người dùng đích, kèm
+ *       {@link SupportSessionContext} ở request attribute + {@link SupportSessionContextHolder} (dọn trong
+ *       {@code finally}); phiên không hợp lệ → 401 {@code SUPPORT_SESSION_ENDED}.</li>
+ * </ul>
+ * {@code mfa} và mọi loại lạ → 401 ngay, không đi tiếp filter chain (cùng cách đường tài khoản bị khoá).
+ * Ngược lại, subject {@code "guest:"} phải đi cùng {@code typ=guest} hoặc không có {@code typ}.
+ *
+ * <p>Claims đã verify được đặt vào {@link AuthTokenAttributes#CLAIMS} để filter sau đọc mà không parse lại.
+ *
+ * <p><b>2FA bắt buộc cho ADMIN (09/11/2026):</b> khi {@code app.security.admin-mfa.enforced=true} (mặc định),
+ * access token của một người dùng có vai trò ADMIN (vai trò đọc từ DB, không từ claim) mà thiếu
+ * {@code mfa=true} → 401 problem+json {@code extensions.code=MFA_REQUIRED}, không đi tiếp chain. Hệ quả có
+ * chủ ý: mọi phiên admin đang mở trên production bị đăng xuất khi bản này lên. Token ADMIN có dấu 2FA nhưng
+ * {@code mfa_at} cũ hơn {@code app.security.admin-mfa.max-session-hours} (hoặc thiếu {@code mfa_at}) cũng bị
+ * 401 {@code MFA_REQUIRED} — cùng trần tuổi mà {@code AuthService} áp khi cấp token.
+ *
+ * <p><b>Đường đăng nhập/2FA/refresh/đăng xuất:</b> web gắn mọi bearer đang lưu vào mọi request, nên một access
+ * token ADMIN cũ (chưa qua 2FA) không được chặn chính bước đăng nhập lại. Trên các đường công khai
+ * {@link #MFA_EXEMPT_PATHS} ({@code /api/auth/login}, {@code /api/auth/refresh}, {@code /api/auth/mfa/**}) token
+ * đó bị BỎ QUA — request đi tiếp như chưa đăng nhập. Riêng {@code POST /api/auth/logout} vẫn xác thực người gọi
+ * để thu hồi được phiên: đăng xuất chỉ làm GIẢM quyền (thu hồi refresh token của chính tài khoản đó).
+ *
+ * <p><b>SSE ticket bỏ qua kiểm 2FA — vì sao an toàn:</b> ticket chỉ phát từ {@code POST /api/sse/ticket},
+ * một request Bearer đã đi qua đúng kiểm 2FA ở trên; ticket dùng một lần, sống 60 s và chỉ mở GET tới
+ * endpoint SSE trong {@link SseTicketEndpoints}. Một ticket của ADMIN vì vậy luôn sinh từ một phiên đã qua
+ * 2FA (khi cờ bật); kiểm lại ở đây cần lưu thêm trạng thái vào ticket mà không thêm bảo vệ nào.
+ */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private static final String GUEST_SUBJECT_PREFIX = "guest:";
+
+    /** Đường mà token ADMIN thiếu/hết hạn 2FA bị BỎ QUA (đi tiếp như chưa đăng nhập) thay vì 401. */
+    static final List<String> MFA_EXEMPT_PATHS = List.of(
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/mfa/**"
+    );
+    /** Đường mà token ADMIN thiếu/hết hạn 2FA vẫn được xác thực (chỉ để thu hồi phiên). */
+    static final String LOGOUT_PATH = "/api/auth/logout";
+    private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+    /** Mặc định của {@code app.security.admin-mfa.max-session-hours}. */
+    static final long DEFAULT_ADMIN_MFA_MAX_SESSION_HOURS = 12;
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final SseTicketService sseTicketService;
+    private final boolean supportSessionEnabled;
+    private final boolean adminMfaEnforced;
+    private final SupportSessionValidator supportSessionValidator;
+    private final Duration adminMfaMaxAge;
 
     // Eliminates 1 DB round-trip per authenticated request (S-2/B).
     // 60s TTL keeps staleness well below the JWT lifetime (15 min); stale role is already
@@ -39,6 +100,68 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             .expireAfterWrite(60, TimeUnit.SECONDS)
             .maximumSize(10_000)
             .build();
+
+    /** Dựng tay (test): 2FA ADMIN bật như mặc định production; token support luôn bị từ chối (không có validator). */
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         boolean supportSessionEnabled) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, true);
+    }
+
+    /** Dựng tay (test): không có validator ⇒ token support luôn 401 (fail-closed); trần tuổi 2FA mặc định 12 giờ. */
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         boolean supportSessionEnabled,
+                         boolean adminMfaEnforced) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, adminMfaEnforced,
+                DEFAULT_ADMIN_MFA_MAX_SESSION_HOURS, SupportSessionValidator.REJECT_ALL);
+    }
+
+    /** Dựng tay (test): trần tuổi 2FA tuỳ chọn, không validator phiên hỗ trợ. */
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         boolean supportSessionEnabled,
+                         boolean adminMfaEnforced,
+                         long adminMfaMaxSessionHours) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, adminMfaEnforced,
+                adminMfaMaxSessionHours, SupportSessionValidator.REJECT_ALL);
+    }
+
+    /** Dựng tay (test): có validator phiên hỗ trợ, trần tuổi 2FA mặc định 12 giờ. */
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         boolean supportSessionEnabled,
+                         boolean adminMfaEnforced,
+                         SupportSessionValidator supportSessionValidator) {
+        this(jwtService, userDetailsService, sseTicketService, supportSessionEnabled, adminMfaEnforced,
+                DEFAULT_ADMIN_MFA_MAX_SESSION_HOURS, supportSessionValidator);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public JwtAuthFilter(JwtService jwtService,
+                         UserDetailsService userDetailsService,
+                         SseTicketService sseTicketService,
+                         @Value("${app.security.support-session.enabled:true}") boolean supportSessionEnabled,
+                         @Value("${app.security.admin-mfa.enforced:true}") boolean adminMfaEnforced,
+                         @Value("${app.security.admin-mfa.max-session-hours:12}") long adminMfaMaxSessionHours,
+                         SupportSessionValidator supportSessionValidator) {
+        this.adminMfaEnforced = adminMfaEnforced;
+        // Cùng công thức với AdminMfaPolicy (tối thiểu 1 giờ) để filter và AuthService không lệch nhau.
+        this.adminMfaMaxAge = Duration.ofHours(Math.max(1, adminMfaMaxSessionHours));
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+        this.sseTicketService = sseTicketService;
+        this.supportSessionEnabled = supportSessionEnabled;
+        this.supportSessionValidator = supportSessionValidator == null
+                ? SupportSessionValidator.REJECT_ALL : supportSessionValidator;
+        if (!supportSessionEnabled) {
+            log.warn("[JwtAuthFilter] app.security.support-session.enabled=false — KILL-SWITCH: mọi token typ=support bị 401.");
+        }
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -54,13 +177,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } else {
             // SSE / EventSource auth — the browser API can't set custom headers.
             // Preferred: one-time ?ticket= (S15) — opaque, single-use, ~60s TTL; safe even if logged.
-            String ticket = request.getParameter("ticket");
+            // Chỉ đọc ticket trên GET tới endpoint SSE trong SseTicketEndpoints; method/đường dẫn khác mang
+            // ?ticket= → bỏ qua (không xác thực, không tiêu thụ) và đi tiếp như request không có credential.
+            // Kiểm đường dẫn TRƯỚC getParameter để không parse body form/multipart của request ghi.
+            String ticket = SseTicketEndpoints.accepts(request) ? request.getParameter("ticket") : null;
             if (ticket != null && !ticket.isBlank()) {
                 Optional<String> subject = sseTicketService.consume(ticket);
                 if (subject.isPresent()
                         && SecurityContextHolder.getContext().getAuthentication() == null
                         && !authenticateRegisteredUser(subject.get(), request, response)) {
-                    return; // user no longer exists — 401 already sent
+                    return; // user no longer exists / disabled — 401 already sent
                 }
                 log.debug("[JwtAuthFilter] SSE ticket {} for {}",
                         subject.isPresent() ? "accepted" : "rejected", requestUri);
@@ -91,22 +217,35 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        boolean isTokenValid = jwtService.isTokenValid(token);
-        log.debug("[JwtAuthFilter] Token valid: {} for {}", isTokenValid, requestUri);
-
-        if (!isTokenValid) {
-            log.warn("[JwtAuthFilter] ⚠️ INVALID TOKEN detected for {} - Token will NOT be used for authentication", requestUri);
+        // Parse + verify MỘT lần; mọi quyết định bên dưới đọc từ claims này.
+        final Claims claims;
+        try {
+            claims = jwtService.extractClaims(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            // Hết hạn / sai chữ ký / malformed: như trước — không xác thực, đi tiếp (route bảo vệ tự 401).
+            log.warn("[JwtAuthFilter] ⚠️ INVALID TOKEN detected for {} ({}) - Token will NOT be used for authentication",
+                    requestUri, e.getClass().getSimpleName());
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String subject = jwtService.extractEmail(token);
-        log.debug("[JwtAuthFilter] Extracted email/subject from token: {} for request: {}", subject, requestUri);
+        final String subject = claims.getSubject();
+        final String typ = JwtService.tokenType(claims);
+        final boolean guestSubject = subject != null && subject.startsWith(GUEST_SUBJECT_PREFIX);
+        log.debug("[JwtAuthFilter] Token typ={} subject={} for {}", typ, subject, requestUri);
+
+        if (!isAcceptedTokenType(typ, guestSubject, claims)) {
+            log.warn("[JwtAuthFilter] Từ chối token typ={} (guestSubject={}) trên {}", typ, guestSubject, requestUri);
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token type not accepted");
+            return;
+        }
+
+        request.setAttribute(AuthTokenAttributes.CLAIMS, claims);
+        request.setAttribute(AuthTokenAttributes.TOKEN_TYPE, typ);
 
         // Guest token (subject = "guest:nickname") — không load từ DB; pin trong claim phục vụ quiz submit.
-        if (subject != null && subject.startsWith("guest:")) {
+        if (guestSubject) {
             log.debug("[JwtAuthFilter] Setting up GUEST authentication for: {} on {}", subject, requestUri);
-            var claims  = jwtService.extractClaims(token);
             var pinCode = claims.get("pinCode", String.class);
             var auth = new UsernamePasswordAuthenticationToken(
                     subject,
@@ -121,16 +260,189 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Phiên hỗ trợ chỉ-đọc: xác minh fail-closed với DB (phiên còn mở, admin còn là ADMIN hoạt động, người dùng
+        // đích khớp claim và không phải ADMIN) TRƯỚC khi xác thực như người dùng đích.
+        SupportSessionContext supportContext = null;
+        if (JwtService.TYP_SUPPORT.equals(typ)) {
+            Optional<SupportSessionContext> verified;
+            try {
+                verified = supportSessionValidator.validate(claims);
+            } catch (RuntimeException e) {
+                log.warn("[JwtAuthFilter] Lỗi khi xác minh phiên hỗ trợ trên {} — từ chối: {}", requestUri, e.getMessage());
+                verified = Optional.empty();
+            }
+            if (verified.isEmpty()) {
+                log.info("[JwtAuthFilter] Token support không còn hợp lệ trên {} (sup={})", requestUri,
+                        claims.get(JwtService.CLAIM_SUPPORT_SESSION));
+                writeSupportSessionEnded(request, response);
+                return;
+            }
+            supportContext = verified.get();
+        }
+
         // Registered user — load từ DB
         if (subject != null) {
             if (!authenticateRegisteredUser(subject, request, response)) {
                 return; // user no longer exists — 401 already sent
+            }
+            if (supportContext != null) {
+                if (!isPrincipalId(supportContext.targetUserId())) {
+                    log.warn("[JwtAuthFilter] Token support: sub không khớp người dùng đích của phiên {} trên {}",
+                            supportContext.sessionId(), requestUri);
+                    SecurityContextHolder.clearContext();
+                    writeSupportSessionEnded(request, response);
+                    return;
+                }
+                // Ngữ cảnh phiên: request attribute + ThreadLocal — KHÔNG gắn lên entity User (cache dùng chung).
+                request.setAttribute(SupportSessionContext.REQUEST_ATTRIBUTE, supportContext);
+                SupportSessionContextHolder.set(supportContext);
+                try {
+                    filterChain.doFilter(request, response);
+                } finally {
+                    SupportSessionContextHolder.clear();
+                }
+                return;
+            }
+            String mfaProblem = isAdminPrincipal() ? adminMfaProblem(claims) : null;
+            if (mfaProblem != null) {
+                if (isLogout(request)) {
+                    // Đăng xuất chỉ thu hồi phiên của chính tài khoản này — cho đi tiếp để web dọn được phiên cũ.
+                    log.info("[JwtAuthFilter] Token ADMIN {} trên {} — vẫn cho đăng xuất", mfaProblem, requestUri);
+                } else if (isMfaExemptPath(request)) {
+                    // Đăng nhập lại / bước 2FA / refresh không dùng bearer: bỏ token cũ, đi tiếp như chưa đăng nhập.
+                    log.info("[JwtAuthFilter] Token ADMIN {} trên {} — bỏ qua token, đi tiếp không xác thực",
+                            mfaProblem, requestUri);
+                    SecurityContextHolder.clearContext();
+                    request.removeAttribute(AuthTokenAttributes.CLAIMS);
+                    request.removeAttribute(AuthTokenAttributes.TOKEN_TYPE);
+                } else {
+                    log.warn("[JwtAuthFilter] Token ADMIN {} trên {} — 401 MFA_REQUIRED", mfaProblem, requestUri);
+                    SecurityContextHolder.clearContext();
+                    writeMfaRequired(request, response);
+                    return;
+                }
             }
         } else {
             log.warn("[JwtAuthFilter] ⚠️ No subject extracted from token for request: {}", requestUri);
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Loại token được nhận làm credential cho request API.
+     * <ul>
+     *   <li>subject {@code guest:} ↔ chỉ {@code typ=guest} hoặc không có {@code typ} (token khách cũ);</li>
+     *   <li>{@code typ=guest} mà subject không phải {@code guest:} → từ chối;</li>
+     *   <li>{@code access} (gồm token thiếu {@code typ}) → nhận;</li>
+     *   <li>{@code support} → chỉ khi bật cờ;</li>
+     *   <li>{@code mfa} và loại lạ → từ chối.</li>
+     * </ul>
+     */
+    private boolean isAcceptedTokenType(String typ, boolean guestSubject, Claims claims) {
+        if (guestSubject) {
+            return JwtService.TYP_GUEST.equals(typ) || JwtService.isLegacyUntyped(claims);
+        }
+        return switch (typ) {
+            case JwtService.TYP_ACCESS -> true;
+            case JwtService.TYP_SUPPORT -> supportSessionEnabled;
+            default -> false; // mfa, guest (subject không phải guest:), loại lạ
+        };
+    }
+
+    /**
+     * Vì sao access token của một ADMIN không được nhận (mô tả cho log), hoặc {@code null} khi nhận được:
+     * <ul>
+     *   <li>cờ bật mà token thiếu {@code mfa=true} → "chưa qua 2FA";</li>
+     *   <li>token có dấu 2FA mà thiếu {@code mfa_at} hoặc {@code mfa_at} cũ hơn trần tuổi → "quá hạn 2FA" — kiểm cả
+     *       khi kill-switch tắt (admin đã đăng ký vẫn qua 2FA, và trần tuổi vẫn áp cho họ).</li>
+     * </ul>
+     */
+    private String adminMfaProblem(Claims claims) {
+        if (!JwtService.hasMfa(claims)) {
+            return adminMfaEnforced ? "chưa qua 2FA" : null;
+        }
+        Instant verifiedAt = JwtService.mfaVerifiedAt(claims);
+        if (verifiedAt == null || verifiedAt.isBefore(Instant.now().minus(adminMfaMaxAge))) {
+            return "quá hạn 2FA";
+        }
+        return null;
+    }
+
+    private static boolean isLogout(HttpServletRequest request) {
+        return "POST".equalsIgnoreCase(request.getMethod()) && PATH_MATCHER.match(LOGOUT_PATH, pathOf(request));
+    }
+
+    private static boolean isMfaExemptPath(HttpServletRequest request) {
+        String path = pathOf(request);
+        for (String pattern : MFA_EXEMPT_PATHS) {
+            if (PATH_MATCHER.match(pattern, path)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Đường dẫn tính từ sau context path (như {@link SseTicketEndpoints}). */
+    private static String pathOf(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri == null) {
+            return "";
+        }
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
+        return uri;
+    }
+
+    /** Principal vừa đặt là người dùng có vai trò ADMIN (authority từ DB, không từ claim role của token). */
+    private static boolean isAdminPrincipal() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+        if (auth.getPrincipal() instanceof com.deutschflow.user.entity.User u) {
+            return u.getRole() == com.deutschflow.user.entity.User.Role.ADMIN;
+        }
+        return auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+    }
+
+    /** Principal vừa đặt là entity {@code User} có đúng id này. */
+    private static boolean isPrincipalId(long userId) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getPrincipal() instanceof com.deutschflow.user.entity.User u
+                && u.getId() != null && u.getId() == userId;
+    }
+
+    /**
+     * 401 problem+json {@code extensions.code=SUPPORT_SESSION_ENDED}: phiên hỗ trợ đã kết thúc/hết hạn/bị thu hồi.
+     * Web (tab hỗ trợ) hiện trạng thái "phiên đã kết thúc" — KHÔNG thử refresh, KHÔNG xoá phiên của tab admin.
+     */
+    private static void writeSupportSessionEnded(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/problem+json");
+        String instance = request.getRequestURI() == null ? "" : request.getRequestURI()
+                .replace("\\", "\\\\").replace("\"", "\\\"");
+        response.getWriter().write("{\"type\":\"https://deutschflow.com/errors/support-session\",\"title\":\"Unauthorized\","
+                + "\"status\":401,\"detail\":\"Phiên hỗ trợ đã kết thúc.\","
+                + "\"instance\":\"" + instance + "\",\"extensions\":{\"code\":\"SUPPORT_SESSION_ENDED\"}}");
+    }
+
+    /**
+     * 401 problem+json cùng khuôn {@code GlobalExceptionHandler} (filter đứng ngoài advice nên tự ghi body):
+     * web đọc {@code extensions.code=MFA_REQUIRED} để xoá token và về trang đăng nhập thay vì thử refresh.
+     */
+    private static void writeMfaRequired(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/problem+json");
+        String instance = request.getRequestURI() == null ? "" : request.getRequestURI()
+                .replace("\\", "\\\\").replace("\"", "\\\"");
+        response.getWriter().write("{\"type\":\"https://deutschflow.com/errors/mfa\",\"title\":\"Unauthorized\","
+                + "\"status\":401,\"detail\":\"Phiên quản trị cần xác thực hai lớp. Vui lòng đăng nhập lại.\","
+                + "\"instance\":\"" + instance + "\",\"extensions\":{\"code\":\"MFA_REQUIRED\"}}");
     }
 
     /**

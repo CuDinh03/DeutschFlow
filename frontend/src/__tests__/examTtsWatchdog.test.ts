@@ -50,7 +50,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-async function settled(p: Promise<void>): Promise<boolean> {
+async function settled(p: Promise<unknown>): Promise<boolean> {
   let done = false
   void p.then(() => {
     done = true
@@ -88,5 +88,29 @@ describe('examTts watchdog', () => {
     stopExamTts()
     expect(await settled(p)).toBe(true)
     expect(lastAudio!.paused).toBe(true)
+  })
+
+  it('iOS chặn autoplay (NotAllowedError) → resolve "blocked" ngay, không im lặng giả vờ đã phát', async () => {
+    const p = speakExamLine('PRUEFER', 'Hallo! Können Sie mich gut hören?')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(await settled(p)).toBe(false)
+    stopExamTts()
+    await p
+    const audio = lastAudio!
+    audio.play = () => Promise.reject(Object.assign(new Error('blocked'), { name: 'NotAllowedError' }))
+    await expect(speakExamLine('PRUEFER', 'Hallo!')).resolves.toBe('blocked')
+  })
+
+  it('dùng MỘT thẻ audio chung cho mọi câu (thẻ đã mở khoá trên iOS mới phát được)', async () => {
+    const first = speakExamLine('PRUEFER', 'Eins')
+    await vi.advanceTimersByTimeAsync(0)
+    const a = lastAudio
+    stopExamTts()
+    await first
+    const second = speakExamLine('PARTNER', 'Zwei')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(lastAudio).toBe(a)
+    stopExamTts()
+    await second
   })
 })

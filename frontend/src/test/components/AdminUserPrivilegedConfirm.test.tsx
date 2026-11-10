@@ -150,12 +150,21 @@ describe('UserAccessPanel — xác nhận trước thao tác đặc quyền', ()
     await user.click(screen.getByRole('button', { name: 'Đặt lại' }))
     const dialog = await screen.findByRole('dialog')
     expect(mocks.patch).not.toHaveBeenCalled()
-    expect(within(dialog).getByText(/KHÔNG nhận thông báo tự động/)).toBeTruthy()
+    // Đợt 2 admin (09/11/2026): người bị đổi nay được báo (thông báo + email, không lý do/tên admin).
+    expect(within(dialog).getByText(/nhận thông báo và email/)).toBeTruthy()
 
     await user.type(within(dialog).getByTestId('confirm-reason'), REASON)
     await user.click(within(dialog).getByRole('button', { name: 'Đặt lại mật khẩu' }))
     await waitFor(() =>
       expect(mocks.patch).toHaveBeenCalledWith('/admin/users/42/password', { password: 'NewPass#2026', reason: REASON }),
     )
+  })
+
+  it('tài khoản ADMIN: ẩn ô đặt lại mật khẩu, chỉ hiện ghi chú "Quên mật khẩu" (backend chặn 403)', () => {
+    renderPanel({ role: 'ADMIN' })
+
+    expect(screen.queryByPlaceholderText(/Mật khẩu mới/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Đặt lại' })).toBeNull()
+    expect(screen.getByTestId('pw-admin-note').textContent).toMatch(/Quên mật khẩu/)
   })
 })

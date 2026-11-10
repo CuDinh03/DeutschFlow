@@ -150,6 +150,22 @@ describe('MicBar — trần 180 giây', () => {
   })
 })
 
+describe('MicBar — bản ghi quá ngắn', () => {
+  it('bật rồi dừng ngay (< 0,6s) → không gửi STT, báo "quá ngắn" để ghi lại', async () => {
+    const onAudio = vi.fn<(blob: Blob) => Promise<void>>(async () => {})
+    renderBar(onAudio)
+    await click('mic-start')
+    await act(async () => {
+      vi.advanceTimersByTime(200)
+    })
+    await click('mic-stop')
+
+    expect(onAudio).not.toHaveBeenCalled()
+    expect(screen.getByTestId('mic-error').textContent).toContain('quá ngắn')
+    expect(screen.getByTestId('mic-start')).toBeInTheDocument()
+  })
+})
+
 describe('MicBar — chống đua và dọn tài nguyên', () => {
   it('chạm kép lúc đang xin quyền → chỉ một MediaRecorder, không có bản thu mồ côi', async () => {
     stubMedia({ deferPermission: true })
