@@ -124,6 +124,13 @@ describe('Đánh dấu bài đọc — màn hẹp / cảm ứng (đợt 2b)', ()
     const dialog = await screen.findByRole('dialog')
     expect(dialog.style.top).toContain('8px')
     await act(async () => undefined)
+
+    // đóng ghi chú + thanh công cụ ⇒ thanh dưới và ngăn câu hỏi trở lại
+    await user.click(within(dialog).getByRole('button', { name: 'Huỷ' }))
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('toolbar')).toBeNull())
+    await waitFor(() => expect(document.documentElement).not.toHaveAttribute('data-ga-marking'))
+    expect(document.querySelector('section[aria-hidden="true"]')).toBeNull()
   }, 10_000)
 
   it('gợi ý dài chỉ tự mở lần đầu; lần sau nằm sau nút "?"', async () => {
