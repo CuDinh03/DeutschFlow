@@ -124,7 +124,7 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void walletAccrual_neverExceedsWalletCap_evenAfterLongElapsedPeriod() {
+    void walletAccrual_neverExceedsThirtyDailyGrants_evenAfterLongElapsedPeriod() {
         User u = userRepository.save(User.builder()
                 .email("quota-it-cap@test.com")
                 .passwordHash("$2a$10$h")
@@ -143,8 +143,8 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
                         """, u.getId(), 0L);
 
         QuotaSnapshot snap = quotaService.getSnapshot(u.getId(), now);
-        // V378: PRO cấp 200.000 token/ngày, cộng dồn tối đa 7 ngày.
-        long cap = 200_000L * 7;
+        // V378: PRO cấp 200.000 token/ngày; trần cộng dồn vẫn 30 ngày (theo kỳ gói).
+        long cap = 200_000L * 30;
         assertThat(snap.walletCap()).isEqualTo(cap);
         assertThat(snap.walletBalance()).isEqualTo(cap);
     }
