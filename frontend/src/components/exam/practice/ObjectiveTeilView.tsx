@@ -259,6 +259,15 @@ export function ObjectiveTeilView({ teil: rawTeil, kind, answers, onAnswer, resu
   const coarse = useCoarsePointer()
   const docked = !wide || coarse
   const canMark = marksOn && !marks!.hidden
+  // Thanh công cụ neo đáy đang mở trên khối nào (null = đóng). Mở ⇒ ẩn thanh dưới của khung; khối ở cột
+  // nguồn ⇒ ẩn luôn ngăn câu hỏi để bài đọc chiếm cả màn (đề câu trắc nghiệm nằm TRONG ngăn thì giữ ngăn).
+  const [dockedOn, setDockedOn] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    if (dockedOn == null) return
+    document.documentElement.setAttribute('data-ga-marking', '')
+    return () => document.documentElement.removeAttribute('data-ga-marking')
+  }, [dockedOn])
+  const sheetHidden = dockedOn != null && !(isMc && dockedOn.startsWith('q:'))
   const marksFull = marksMode === 'full'
   const marksRoot = React.useRef<HTMLDivElement>(null)
   const ctxText = React.useMemo(() => passageText(teil.context ?? ''), [teil.context])
@@ -631,6 +640,7 @@ export function ObjectiveTeilView({ teil: rawTeil, kind, answers, onAnswer, resu
       answers={answersOverride ?? (answersTop ? <>{answersTop}{answersPane}</> : answersPane)}
       sheetLabel={sheetLabel}
       snapRequest={snapReq}
+      sheetHidden={sheetHidden}
       revealRequest={revealReq}
       sourceLabel={tf('sourceLabel')}
       answersLabel={tf('answersLabel')}
@@ -654,6 +664,7 @@ export function ObjectiveTeilView({ teil: rawTeil, kind, answers, onAnswer, resu
           rootRef={marksRoot}
           canEdit={canMark}
           docked={docked}
+          onDockedOpen={setDockedOn}
           items={items.map((it) => ({ id: it.id, label: itemLabel(it) }))}
           currentItemId={current}
           full={marksFull}

@@ -49,6 +49,8 @@ interface Props {
    * vùng chọn), ô ghi chú ở đầu màn (không bị bàn phím ảo che); chờ người dùng kéo xong hai đầu vùng chọn.
    */
   docked?: boolean
+  /** Thanh neo đáy mở trên khối nào / đóng (`null`) — khung làm bài nhường chỗ cho bài đọc. */
+  onDockedOpen?: (block: string | null) => void
 }
 
 type Bar =
@@ -64,7 +66,7 @@ export const SWATCH: Record<MarkColor, string> = { y: 'bg-ga-mark-y', g: 'bg-ga-
  * chọn; bấm vào đoạn đã tô ⇒ thanh sửa của nhóm đó. Nút bấm chặn `mousedown` để vùng chọn không mất.
  * Đợt 1 chỉ cho chuột + bàn phím (màn ≥ 760px); cảm ứng / thanh neo dưới là đợt 2b.
  */
-export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, full, describe, docked = false }: Props) {
+export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, full, describe, docked = false, onDockedOpen }: Props) {
   const t = useTranslations('v2.student.practice.marks')
   const [bar, setBar] = React.useState<Bar | null>(null)
   const [tagsOpen, setTagsOpen] = React.useState(false)
@@ -92,6 +94,14 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
     setBar({ mode: 'edit', gid })
     setTagsOpen(false)
   }, [])
+
+  const openBlock = !docked || !bar ? null : bar.mode === 'select' ? bar.piece.b : groupPieces(pack, bar.gid)[0]?.b ?? null
+  const dockedCb = React.useRef(onDockedOpen)
+  dockedCb.current = onDockedOpen
+  React.useEffect(() => {
+    dockedCb.current?.(openBlock)
+  }, [openBlock])
+  React.useEffect(() => () => dockedCb.current?.(null), [])
 
   // Không còn sửa được (thu màn, ẩn đánh dấu) ⇒ đóng.
   React.useEffect(() => {
@@ -402,6 +412,9 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
   const btn =
     'relative inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-ga-touch px-2 text-ga-small font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus aria-pressed:bg-ga-navy-soft aria-expanded:bg-ga-navy-soft'
   const sep = <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-ga-line" />
+  // Neo đáy (cảm ứng): nút đủ 44px, màu có tên ngắn bên dưới, nhóm gắn câu / ghi chú xuống hàng riêng.
+  const tap = docked ? 'h-11 min-w-11' : ''
+  const colorShort = (c: MarkColor) => t(c === 'y' ? 'shortY' : c === 'g' ? 'shortG' : 'shortP')
   const keep = (e: React.MouseEvent | React.PointerEvent) => e.preventDefault() // giữ vùng chọn
   const colorName = (c: MarkColor) => t(c === 'y' ? 'colorY' : c === 'g' ? 'colorG' : 'colorP')
 
@@ -425,38 +438,39 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
           <button
             key={c}
             type="button"
-            className={btn}
+            className={cn(btn, docked && 'h-14 min-w-0 flex-1 flex-col gap-0.5 px-1')}
             aria-pressed={curColor === c}
             onClick={() => onColor(c)}
             aria-label={colorName(c)}
             title={`${colorName(c)} (${i + 1})`}
           >
-            <span aria-hidden className={cn('h-5 w-5 rounded-ga-pill border-[1.5px] border-ga-line-strong', SWATCH[c])} />
+            <span aria-hidden className={cn('rounded-ga-pill border-[1.5px] border-ga-line-strong', docked ? 'h-6 w-6' : 'h-5 w-5', SWATCH[c])} />
+            {docked && <span aria-hidden className="max-w-full truncate text-ga-caption font-normal text-ga-muted">{colorShort(c)}</span>}
           </button>
         ))}
-        <button type="button" className={btn} aria-pressed={hasUl} onClick={onUnderline} aria-label={t('underline')} title={`${t('underline')} (U)`}>
-          <Underline size={17} aria-hidden />
+        <button type="button" className={cn(btn, docked && 'h-14 min-w-11')} aria-pressed={hasUl} onClick={onUnderline} aria-label={t('underline')} title={`${t('underline')} (U)`}>
+          <Underline size={docked ? 20 : 17} aria-hidden />
         </button>
         {full && (
           <>
-            {sep}
+            {docked ? <span aria-hidden className="h-px basis-full bg-ga-line" /> : sep}
             {bar.mode === 'select' && currentItemId && (
               <button
                 type="button"
                 onClick={onQuick}
                 title={t('quickHint')}
                 aria-label={t('quickHint')}
-                className={cn(btn, 'bg-ga-yellow hover:bg-ga-yellow hover:brightness-95')}
+                className={cn(btn, tap, 'bg-ga-yellow hover:bg-ga-yellow hover:brightness-95')}
               >
                 <MapPin size={15} aria-hidden />
                 {t('quick', { n: labelOf(currentItemId) })}
               </button>
             )}
-            <button type="button" className={btn} aria-expanded={tagsOpen} onClick={() => setTagsOpen((v) => !v)} aria-label={t('tag')} title={`${t('tag')} (T)`}>
+            <button type="button" className={cn(btn, tap)} aria-expanded={tagsOpen} onClick={() => setTagsOpen((v) => !v)} aria-label={t('tag')} title={`${t('tag')} (T)`}>
               <Hash size={17} aria-hidden />
               {curQ && <span className="rounded-ga bg-ga-yellow px-1 text-ga-caption tabular-nums">{labelOf(curQ)}</span>}
             </button>
-            <button type="button" className={btn} onClick={onNote} aria-label={t('note')} title={`${t('note')} (N)`}>
+            <button type="button" className={cn(btn, tap)} onClick={onNote} aria-label={t('note')} title={`${t('note')} (N)`}>
               <MessageSquareText size={17} aria-hidden />
               {hasNote && <span aria-hidden className="absolute right-1.5 top-1.5 h-2 w-2 rounded-ga-pill bg-ga-orange" />}
             </button>
@@ -464,12 +478,12 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
         )}
         {(overlap || bar.mode === 'edit') && sep}
         {overlap && (
-          <button type="button" className={btn} onClick={onErase} aria-label={t('erase')} title={`${t('erase')} (Del)`}>
+          <button type="button" className={cn(btn, tap)} onClick={onErase} aria-label={t('erase')} title={`${t('erase')} (Del)`}>
             <Eraser size={17} aria-hidden />
           </button>
         )}
         {bar.mode === 'edit' && (
-          <button type="button" className={btn} onClick={onDelete} aria-label={t('remove')} title={`${t('remove')} (Del)`}>
+          <button type="button" className={cn(btn, tap)} onClick={onDelete} aria-label={t('remove')} title={`${t('remove')} (Del)`}>
             <Trash2 size={17} aria-hidden />
           </button>
         )}
