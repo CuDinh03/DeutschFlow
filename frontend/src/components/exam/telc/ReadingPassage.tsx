@@ -14,7 +14,7 @@ export interface RichPassageTeil {
   context_lines?: boolean
   glossary?: Array<{ term: string; explanation_de: string }>
   /**
-   * Nguồn của bài đọc (Xưởng đề, V371): `quelle` là dòng ghi nguồn bắt buộc theo giấy phép (CC BY:
+   * Nguồn của bài đọc (Xưởng đề, V376): `quelle` là dòng ghi nguồn bắt buộc theo giấy phép (CC BY:
    * tác giả + giấy phép + "bearbeitet"; báo: "Daten: …"), hiện nhỏ dưới bài. Đề viết tay không khai.
    */
   source?: { quelle?: string | null }
