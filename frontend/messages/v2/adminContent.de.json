@@ -898,7 +898,8 @@
         "machine": {
           "PASS": "Maschine: erfüllt",
           "FAIL": "Maschine: nicht erfüllt",
-          "UNKNOWN": "Maschine: nicht prüfbar"
+          "UNKNOWN": "Maschine: nicht prüfbar",
+          "toRead": "Maschine: {count, plural, one {# Satz} other {# Sätze}} zu prüfen"
         },
         "quelle": "Quellenzeile",
         "quelleNone": "Noch keine Quellenzeile.",

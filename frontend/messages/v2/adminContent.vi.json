@@ -898,7 +898,8 @@
         "machine": {
           "PASS": "Máy: đạt",
           "FAIL": "Máy: chưa đạt",
-          "UNKNOWN": "Máy: không tự kiểm được"
+          "UNKNOWN": "Máy: không tự kiểm được",
+          "toRead": "Máy: {count} câu cần xem"
         },
         "quelle": "Dòng Quelle",
         "quelleNone": "Chưa có dòng Quelle.",

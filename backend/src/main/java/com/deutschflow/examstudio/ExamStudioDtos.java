@@ -103,7 +103,16 @@ public final class ExamStudioDtos {
         }
     }
 
-    public record Check(String key, String label, String light, String detail) {}
+    /** {@code count}: số chỗ owner cần đọc — chỉ mục kiểm nào đếm được mới có, còn lại {@code null}. */
+    public record Check(String key, String label, String light, String detail, Integer count) {
+        @com.fasterxml.jackson.annotation.JsonCreator
+        public Check {
+        }
+
+        public Check(String key, String label, String light, String detail) {
+            this(key, label, light, detail, null);
+        }
+    }
 
     public record Draft(long id, String examFormat, String cefrLevel, String section, int teil, String teilType,
                         String theme, String mode, int itemCount, Map<String, Integer> difficultyPlan, String step,
