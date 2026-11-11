@@ -1,7 +1,5 @@
 package com.deutschflow.ai.queue;
 
-import com.deutschflow.common.quota.QuotaService;
-import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.testsupport.AbstractPostgresIntegrationTest;
@@ -13,17 +11,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -32,18 +24,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * {@code POST /api/jobs/interview-report} chỉ xếp job cho phiên luyện nói của CHÍNH người gọi.
  *
- * <p>Quota và pool org được thay bằng bản giả để ca này chỉ kiểm bước sở hữu (và kiểm được rằng
- * quota không bị đụng khi yêu cầu bị từ chối). Phiên seed KHÔNG có tin nhắn nào: nếu worker nền
- * kịp claim job được chấp nhận thì nó trả báo cáo rỗng mà không gọi AI.
+ * <p>Dùng QuotaService thật và KHÔNG khai {@code @MockBean}: lớp này phải dùng chung Spring context
+ * với các IT {@code @SpringBootTest + @AutoConfigureMockMvc} khác — mỗi context riêng mở thêm một
+ * pool kết nối và làm bộ IT chạm trần {@code max_connections} của Postgres trên CI. Chủ phiên được
+ * cấp gói INTERNAL (không giới hạn) để qua cổng quota; người gọi còn lại KHÔNG có gói nào, nên nếu
+ * cổng quota chạy trước bước kiểm sở hữu thì họ nhận 429 chứ không phải 404 — ca 404 vì vậy cũng
+ * khẳng định thứ tự kiểm. Phiên seed KHÔNG có tin nhắn nào: nếu worker nền kịp claim job được chấp
+ * nhận thì nó trả báo cáo rỗng mà không gọi AI.
  * Self-skips khi không có Postgres — xem {@link AbstractPostgresIntegrationTest}.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @DisplayName("interview-report: kiểm quyền sở hữu phiên trước khi xếp job")
 class AiJobInterviewReportOwnershipIntegrationTest extends AbstractPostgresIntegrationTest {
-
-    @MockBean private QuotaService quotaService;
-    @MockBean private OrgPoolGuard orgPoolGuard;
 
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
@@ -58,6 +51,12 @@ class AiJobInterviewReportOwnershipIntegrationTest extends AbstractPostgresInteg
     void seed() {
         owner = upsert("aijob-report-owner@local.test");
         other = upsert("aijob-report-other@local.test");
+        jdbcTemplate.update("""
+                INSERT INTO user_subscriptions (user_id, plan_code, status, starts_at, ends_at)
+                SELECT ?, 'INTERNAL', 'ACTIVE', NOW() - INTERVAL '1 hour', NULL
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM user_subscriptions WHERE user_id = ? AND status = 'ACTIVE')
+                """, owner.getId(), owner.getId());
         sessionId = sessionRepository.save(AiSpeakingSession.builder()
                 .userId(owner.getId()).topic("IT interview report").sessionMode("INTERVIEW").build()).getId();
     }
@@ -97,7 +96,7 @@ class AiJobInterviewReportOwnershipIntegrationTest extends AbstractPostgresInteg
     }
 
     @Test
-    @DisplayName("người không sở hữu phiên → 404, không có job mới, quota không bị đụng")
+    @DisplayName("người không sở hữu phiên → 404 (trước cổng quota), không có job mới")
     void nonOwnerGets404AndNoJob() throws Exception {
         int before = interviewJobsOf(other);
 
@@ -106,8 +105,6 @@ class AiJobInterviewReportOwnershipIntegrationTest extends AbstractPostgresInteg
                 .andExpect(status().isNotFound());
 
         assertThat(interviewJobsOf(other)).isEqualTo(before);
-        verify(quotaService, never()).assertAllowed(eq(other.getId()), any(), anyLong());
-        verify(orgPoolGuard, never()).assertOrgPoolAvailable(eq(other.getId()), anyLong());
     }
 
     @Test
