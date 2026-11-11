@@ -504,10 +504,45 @@ public class ExamDraftService {
         }
         List<String> used = new ArrayList<>();
         for (JsonNode u : out.path("usedFactIds")) used.add(u.asText());
-        Text t = new Text(firstNonBlank(text(out, "titleDe"), "Ohne Titel"), firstNonBlank(text(out, "vorspannDe"), ""),
-                String.join("\n\n", paras), glossary);
+        paras = paras.stream().map(ExamDraftService::plainText).toList();
+        Text t = new Text(plainText(firstNonBlank(text(out, "titleDe"), "Ohne Titel")),
+                plainText(firstNonBlank(text(out, "vorspannDe"), "")), String.join("\n\n", paras), glossary);
         saveText(draftId, new StoredText(t, used));
         advanceStep(draftId, "TEXT");
+    }
+
+    /**
+     * Bỏ ký hiệu markdown model hay chèn (bài chạy thật 11/11/2026 hiện nguyên "**…**" ở sapo và "*präventiv*"
+     * trong bài): chữ đậm thành chữ thường; từ có chú thích theo lối in của đề thật — dấu sao đứng SAU từ.
+     */
+    static String plainText(String s) {
+        if (s == null) return null;
+        String t = s.replace("**", "").replace("__", "");
+        t = t.replaceAll("(?<![\\p{L}*])\\*([\\p{L}][\\p{L}\\-‑ ]{0,40}?)\\*(?![\\p{L}*])", "$1*");
+        return t.replaceAll("(?m)^#+\\s*", "").trim();
+    }
+
+    /** Từ trên cấp trong {@code text}, bỏ qua các từ đã có trong {@code allowed} (chữ thường). */
+    private List<String> aboveLevelWords(String text, String cefrLevel, Set<String> allowed) {
+        int target = LEVEL_ORDER.indexOf(cefrLevel);
+        Set<String> types = new LinkedHashSet<>();
+        for (String w : TextChecks.words(text == null ? "" : text)) types.add(w.toLowerCase(Locale.ROOT));
+        List<String> above = new ArrayList<>();
+        for (String w : types) {
+            if (allowed.contains(w)) continue;
+            int lv = wordlist.levelOf(w).map(LEVEL_ORDER::indexOf).orElse(-1);
+            if (lv > target) {
+                for (String lemma : StrongVerbForms.lemmas(w)) {
+                    int byLemma = wordlist.levelOf(lemma).map(LEVEL_ORDER::indexOf).orElse(-1);
+                    if (byLemma >= 0 && byLemma <= target) {
+                        lv = byLemma;
+                        break;
+                    }
+                }
+            }
+            if (lv > target) above.add(w);
+        }
+        return above;
     }
 
     /** Bài báo Lesen Teil 2 của telc in thành vài đoạn liền mạch, không phải mỗi ý một dòng. */
@@ -1006,6 +1041,36 @@ public class ExamDraftService {
                         ItemRules.clamp(rn.path("distractors").asInt()), ItemRules.clamp(rn.path("language").asInt()));
                 boolean multi = rn.path("multiParagraph").asBoolean(false);
                 boolean half = rn.path("halfTrue").asBoolean(false);
+                if (mcNews(spec)) {
+                    // Câu dẫn + đáp án phải là điều bài nói, số liệu trong câu dẫn phải khớp bài (đề chạy thật
+                    // 11/11/2026: câu dẫn viết "Ein Viertel" trong khi bài nói 20 %, không phép kiểm nào bắt).
+                    if (!rn.path("supported").asBoolean(true)) {
+                        flags.add("Câu dẫn + đáp án không khớp bài: "
+                                + firstNonBlank(text(rn, "issueVi"), "kiểm lại số liệu và nhóm đối tượng trong câu dẫn."));
+                        sev = 2;
+                    }
+                    int absurd = rn.path("absurd").asInt(0);
+                    if (absurd > 0) {
+                        // Nhiễu loại được bằng suy luận thường thì không còn là bẫy: không tính điểm bẫy tinh.
+                        sc = new Scores(sc.phrasing(), sc.evidence(), Math.min(sc.distractors(), absurd >= 2 ? 0 : 1),
+                                sc.language());
+                        half = half && absurd < 2;
+                        flags.add(absurd + " phương án nhiễu loại được mà không cần đọc bài (quá vô lý hoặc phóng đại).");
+                        sev = Math.max(sev, 1);
+                    }
+                    // Độ khó không được đến từ từ vựng: từ trên cấp trong câu hỏi mà bài không có là sai cách ra đề.
+                    Set<String> inText = new HashSet<>();
+                    for (String w : TextChecks.words(nz(text.titleDe()) + " " + nz(text.vorspannDe()) + " " + text.context())) {
+                        inText.add(w.toLowerCase(Locale.ROOT));
+                    }
+                    List<String> hardWords = aboveLevelWords(it.question() + " " + String.join(" ", it.options().values()),
+                            spec.cefrLevel(), inText);
+                    if (!hardWords.isEmpty()) {
+                        flags.add("Từ trên cấp " + spec.cefrLevel() + " trong câu hỏi mà bài không có: "
+                                + String.join(", ", hardWords.subList(0, Math.min(6, hardWords.size()))) + ".");
+                        sev = Math.max(sev, hardWords.size() >= 3 ? 2 : 1);
+                    }
+                }
                 ItemMetrics.Measured im = metricsById.get(it.id());
                 if (im != null) {
                     // Điểm đếm được lấy theo code; AI chỉ còn quyết ngôn ngữ câu hỏi và độ tinh của bẫy.
@@ -1016,7 +1081,7 @@ public class ExamDraftService {
                         evidence = Math.min(evidence, 1);
                         flags.add("Chỉ đọc một đoạn đã giải được: câu này chưa phải câu gộp hai đoạn.");
                     }
-                    int distractors = im.distractorsInText() ? Math.max(1, sc.distractors()) : 0;
+                    int distractors = im.distractorsInText() ? sc.distractors() : 0;
                     sc = new Scores(im.phrasing(), evidence, distractors, sc.language());
                     multi = im.evidenceFound() ? im.multiParagraph() && !solvedInOne : multi && !solvedInOne;
                 }

@@ -144,4 +144,24 @@ class ItemMetricsGoldenTest {
         List<String> five = ten.subList(0, 5);
         assertThat(ExamDraftService.mergeShortParagraphs(five, 6)).isEqualTo(five);
     }
+
+    @Test
+    @DisplayName("bỏ markdown của model: chữ đậm thành thường, dấu sao chú thích đứng sau từ")
+    void plainText() {
+        assertThat(ExamDraftService.plainText("**Wie verbreitet Stress ist, zeigt die Analyse.**"))
+                .isEqualTo("Wie verbreitet Stress ist, zeigt die Analyse.");
+        assertThat(ExamDraftService.plainText("Förderung kann *präventiv* wirken."))
+                .isEqualTo("Förderung kann präventiv* wirken.");
+        assertThat(ExamDraftService.plainText("Das wirkt vorbeugend* und hilft.")).isEqualTo("Das wirkt vorbeugend* und hilft.");
+    }
+
+    @Test
+    @DisplayName("các prompt có tham số vẫn format được (không có dấu % lạc)")
+    void promptsFormat() {
+        assertThat(ExamStudioAi.ITEMS_SYSTEM.formatted("B1", "B1")).contains("BAUPLAN").contains("QUALITÄT");
+        assertThat(ExamStudioAi.TEXT_SYSTEM.formatted("B1", 300, 450, "B1")).contains("MINDESTENS 300");
+        assertThat(ExamStudioAi.RUBRIC_SYSTEM.formatted("B1")).contains("supported");
+        assertThat(ExamStudioAi.ITEMS_T1_SYSTEM.formatted("B1", "B1")).isNotBlank();
+        assertThat(ExamStudioAi.TEXT_T1_SYSTEM.formatted("B1", 55, 110, "B1")).isNotBlank();
+    }
 }

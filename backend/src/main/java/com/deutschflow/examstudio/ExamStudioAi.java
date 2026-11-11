@@ -171,6 +171,9 @@ public class ExamStudioAi {
             1. Extrahiere bis zu 15 überprüfbare FAKTEN, die sich für einen Lesetext auf dem angegebenen
                Niveau eignen. Formuliere jeden Fakt mit EIGENEN Worten neu (max. 25 Wörter), übernimm keine
                Sätze aus dem Artikel. Zahlen immer mit Jahr bzw. Zeitraum.
+               Schreibe in Alltagssprache des angegebenen Niveaus: ersetze Fachbegriffe und Fremdwörter durch
+               eine einfache Umschreibung (z. B. statt "Coping-Strategie": "Art, mit Stress umzugehen"; statt
+               "Verdrängung": "Probleme nicht wahrhaben wollen"; statt "erwerbsfähiges Alter": "Arbeitsalter").
                Verändere die AUSSAGEKRAFT nicht: Ein Zusammenhang ("hängt zusammen mit", "ist verbunden mit",
                "assoziiert") bleibt ein Zusammenhang und wird NIE zu Ursache und Wirkung ("führt zu",
                "erhöht", "senkt"). Ordne jede Aussage genau der Gruppe zu, für die der Artikel sie macht.
@@ -220,8 +223,16 @@ public class ExamStudioAi {
               Aussage bleibt bei der Gruppe, für die der Fakt sie macht. Pronomen und "diese/dieser" müssen
               sich eindeutig auf den richtigen Satz beziehen.
             - Zahlen immer mit Jahr. Neutraler Ton, keine Werbung, keine Politik.
-            - Überschrift (titleDe) und Vorspann (vorspannDe, 1–2 Sätze, fett im Druck).
-            - Höchstens 2 schwierige Wörter mit * markieren und im Glossar einfach auf Deutsch erklären.
+            - Stil: Zeitungsartikel für ein breites Publikum (wie in einer Tageszeitung), KEIN Forschungsbericht.
+              Beginne mit etwas aus dem Alltag der Leser; nenne die Studie nur kurz als Quelle der Zahlen.
+            - Keine Fachbegriffe und keine englischen Fremdwörter ("Coping", "Public Health", "proaktiv" …):
+              umschreibe sie mit einfachen Wörtern des Niveaus. Stehen solche Wörter in den Fakten, übersetze
+              sie in Alltagssprache.
+            - Überschrift (titleDe) und Vorspann (vorspannDe, 1–2 Sätze). Reiner Text, KEIN Markdown: keine
+              Sternchen für Fettdruck, keine Rauten.
+            - Ein Wort, das über dem Niveau liegt und sich nicht vermeiden lässt, bekommt direkt DAHINTER ein
+              Sternchen (Beispiel: "vorbeugend*") und eine einfache Erklärung im Glossar. Höchstens 4 solche
+              Wörter; jedes Wort, um das sich eine Aufgabe drehen könnte, muss verständlich sein.
             - Der Text muss genug Informationen für 5 Aufgaben bieten (verschiedene Absätze, Zahlen, Meinungen).
             Antworte NUR mit JSON:
             {"titleDe": "...", "vorspannDe": "...", "paragraphs": ["...", "..."],
@@ -296,6 +307,17 @@ public class ExamStudioAi {
               "halb richtig": die erste Hälfte stimmt mit dem Text, die zweite nicht.
             Niemals Schwierigkeit durch Wörter über dem Niveau oder durch unwichtige Details erzeugen. Gibt der
             Text eine verlangte Stufe nicht her, komme ihr so nah wie möglich.
+
+            QUALITÄT (gilt für jede Stufe):
+            - Satzanfang und Satzenden benutzen nur Wörter des Niveaus oder Wörter, die im Text stehen. Keine
+              Prüfungs- oder Fachsprache ("interpretieren", "ableiten", "Stichprobe", "im Kontext von").
+            - Jede Zahl, Menge oder Gruppe im Satzanfang muss genau dem Text entsprechen (steht im Text
+              "20 Prozent", dann nicht "ein Viertel").
+            - Der vollständige Satz aus Satzanfang + richtiger Lösung muss eine Aussage sein, die der Text belegt.
+            - Jedes falsche Ende muss für jemanden, der den Text NICHT gelesen hat, genauso glaubwürdig klingen
+              wie die Lösung. Keine Übertreibungen ("alle", "nur", "allein", "niemand"), die man ohne Text als
+              falsch erkennt, außer die Stufe verlangt genau diese Falle und der Text nennt die Gruppe.
+            - Die drei Enden sind etwa gleich lang und gleich gebaut.
 
             ARBEITSWEISE: Plane jede Aufgabe ZUERST im Feld "plan", dann schreibe sie:
             - "plan": {"paragraphs": [Nummern der Absätze, in denen der Beleg steht],
@@ -391,8 +413,15 @@ public class ExamStudioAi {
             1 Textdetail falsch zugeordnet / 2 feine Falle), language (0 Grundwortschatz / 1 ein Randwort /
             2 schwierige Struktur). Außerdem: multiParagraph (Lösung braucht ≥ 2 Absätze) und halfTrue
             (ein Distraktor ist halb richtig). Sei streng und unabhängig von früheren Einschätzungen.
+            Prüfe zusätzlich jede Aufgabe:
+            - supported: Ist der vollständige Satz aus Aufgabentext + angegebener Lösung eine Aussage, die der
+              Text belegt, UND stimmt jede Zahl, Menge oder Gruppe im Aufgabentext mit dem Text überein? Wenn
+              nicht: false und in "issueVi" in EINEM vietnamesischen Satz sagen, was nicht stimmt.
+            - absurd: Wie viele der falschen Optionen (0, 1 oder 2) erkennt man OHNE den Text als falsch, weil
+              sie übertrieben oder unlogisch sind?
             Antworte NUR mit JSON: {"items": [{"id": "...", "phrasing": 0, "evidence": 0, "distractors": 0,
-              "language": 0, "multiParagraph": false, "halfTrue": false}]}
+              "language": 0, "multiParagraph": false, "halfTrue": false, "supported": true, "issueVi": null,
+              "absurd": 0}]}
             """;
 
     JsonNode rubric(long userId, TeilSpec spec, Text text, List<Item> items) {
