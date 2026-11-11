@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
-import { evaluatePhoneme, type PhonemeEvalResult } from "@/lib/phonemeApi";
+import type { PhonemeEvalResult } from "@/lib/phonemeApi";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
 import { httpStatus } from "@/lib/api";
 import { classifyMicError, type MicErrorKind } from "@/lib/micErrors";
@@ -10,12 +10,24 @@ import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio
 
 type TFn = (key: string) => string;
 
+/**
+ * Khoá i18n cho lỗi 429 của lượt transcribe. Mặc định `errorQuota` (câu cũ, có gợi ý nâng gói);
+ * màn gọi truyền hàm riêng để người có gói còn hạn thấy "ngày mai có lượt mới" (10/11/2026).
+ * Hook KHÔNG tự đọc gói — giữ nó không phụ thuộc PlanContext.
+ */
+export type QuotaErrorKeyResolver = (err: unknown) => string;
+
+const defaultQuotaErrorKey: QuotaErrorKeyResolver = () => "errorQuota";
+
 export function useSpeakingRecorderMic(
   t: TFn,
-  onPhonemeScored?: (score: number) => void,
+  /** Giữ chỗ tham số cho các màn đang truyền; không còn được gọi (hội thoại tự do không chấm phát âm). */
+  _onPhonemeScored?: (score: number) => void,
+  resolveQuotaErrorKey: QuotaErrorKeyResolver = defaultQuotaErrorKey,
 ) {
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  // Luôn false / null từ 11/11/2026 — giữ trong kết quả trả về để các màn dùng hook không phải đổi.
   const [isEvaluatingPhoneme, setIsEvaluatingPhoneme] = useState(false);
   const [phonemeResult, setPhonemeResult] = useState<PhonemeEvalResult | null>(null);
   const [micError, setMicErrorRaw] = useState<string | null>(null);
@@ -27,6 +39,9 @@ export function useSpeakingRecorderMic(
   // dạng chuỗi) để UI hiện đúng màn giải thích + lối liên hệ trung tâm thay vì dòng đỏ chung.
   const [minorAudioBlocked, setMinorAudioBlocked] = useState<MinorAudioBlocked | null>(null);
   const clearMinorAudioBlocked = useCallback(() => setMinorAudioBlocked(null), []);
+  // Qua ref: callback transcribe chạy sau khi thả mic, phải dùng hàm mới nhất mà không đổi deps.
+  const quotaKeyRef = useRef(resolveQuotaErrorKey);
+  quotaKeyRef.current = resolveQuotaErrorKey;
 
   // Public setter: clearing or showing a generic message resets the kind.
   const setMicError = useCallback((msg: string | null) => {
@@ -79,20 +94,11 @@ export function useSpeakingRecorderMic(
             // Chốt sau MỖI lượt await: transcript về muộn không được đè ô nhập của lượt khác.
             if (txt && isCurrent()) {
               onTranscript(txt);
-              setIsEvaluatingPhoneme(true);
-              try {
-                const evalRes = await evaluatePhoneme(blob, txt);
-                if (!isCurrent()) return;
-                setPhonemeResult(evalRes);
-                onPhonemeScored?.(evalRes.score);
-              } catch (err: unknown) {
-                if (!isCurrent()) return;
-                const blocked = parseMinorAudioBlocked(err);
-                if (blocked) setMinorAudioBlocked(blocked);
-                else setMicError(t("phonemeEvalFailed"));
-              } finally {
-                if (isCurrent()) setIsEvaluatingPhoneme(false);
-              }
+              // 11/11/2026: KHÔNG chấm phát âm ở hội thoại tự do nữa. Lượt chấm cũ gửi lại đúng đoạn
+              // âm thanh này với target = chính transcript vừa nhận, tức so máy nhận diện với chính
+              // nó: điểm gần như luôn 100, không đo phát âm, mà tốn gấp đôi lượt nhận diện giọng nói
+              // (hạn mức request/phút của nhà cung cấp và ví của người học). Chấm phát âm vẫn có ở
+              // nơi có câu đích thật (PhonemeCoach, kiểm phát âm theo bài).
             }
           } catch (err: unknown) {
             if (!isCurrent()) return;
@@ -101,7 +107,7 @@ export function useSpeakingRecorderMic(
               setMinorAudioBlocked(blocked);
             } else {
               const st = httpStatus(err);
-              setMicError(st === 429 ? t("errorQuota") : t("transcriptionFailed"));
+              setMicError(st === 429 ? t(quotaKeyRef.current(err)) : t("transcriptionFailed"));
             }
           } finally {
             if (isCurrent()) setIsTranscribing(false);
@@ -121,7 +127,7 @@ export function useSpeakingRecorderMic(
         setMicErrorKind(info.kind);
       }
     },
-    [isListening, isTranscribing, isEvaluatingPhoneme, t, onPhonemeScored, setMicError],
+    [isListening, isTranscribing, isEvaluatingPhoneme, t, setMicError],
   );
 
   const toggleMic = useCallback(

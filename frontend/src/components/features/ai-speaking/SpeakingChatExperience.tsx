@@ -25,6 +25,7 @@ import { chatMessageToBubble } from "@/lib/chatMessageMapper";
 import { CircleCheck } from "lucide-react";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useSpeakingRecorderMic } from "@/hooks/useSpeakingRecorderMic";
+import { suggestionStep } from "@/lib/speaking/suggestionVisibility";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import type { AiChatResponse } from "@/lib/aiSpeakingApi";
 import type { RepairGateState } from "@/types/speaking-session";
@@ -33,8 +34,9 @@ import { SpeakingMobileCopilotSheet } from "@/components/features/ai-speaking/Sp
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useTracking } from "@/hooks/useTracking";
-import api from "@/lib/api";
+import api, { problemCode } from "@/lib/api";
 import { useStatusBarStyle } from "@/lib/statusBar";
+import { showsRenewingQuotaCopy, usePlan } from "@/contexts/PlanContext";
 
 // The live conversation engine (SSE stream + mic + TTS). It used to live inside the legacy
 // page `app/speaking/chat/page.tsx`; it is a component now so the /v2 (Galerie) surface can
@@ -95,6 +97,9 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const router = useRouter();
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
+  // Hết ví mà gói còn hạn (trả tiền / dùng thử) → "ngày mai có lượt mới", không mời nâng cấp
+  // (quyết định 10/11/2026).
+  const { plan } = usePlan();
 
   const {
     selectedCompanion,
@@ -125,6 +130,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionTurnKeyRef = useRef("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reviewImportRef = useRef(false);
   const onInterviewEndedRef = useRef<(() => void) | undefined>(undefined);
@@ -200,7 +206,9 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     clearPhoneme,
     toggleMic,
     cleanup: cleanupMic,
-  } = useSpeakingRecorderMic(t, trackPhonemeEvaluated);
+  } = useSpeakingRecorderMic(t, trackPhonemeEvaluated, (err) =>
+    showsRenewingQuotaCopy(plan, problemCode(err)) ? "errorQuotaRenewing" : "errorQuota",
+  );
 
   // ─── Timer ──────────────────────────────────────────────────
   useEffect(() => {
@@ -277,23 +285,23 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       suggestionTimerRef.current = null;
     }
 
-    // `!isListening`: bộ đếm này không hề nhìn ô gõ — nó chỉ đếm từ lúc AI nói xong — nên bản cũ
-    // bật gợi ý ngay giữa lúc người học đang thu âm, tức mời họ đọc một câu viết sẵn đúng vào lúc
-    // họ đang tự nói. Đó là chính cái thứ bậc gõ-trước-nói mà lô 2 vừa đảo ngược. Đồng hồ nay tạm
-    // dừng khi mic đang mở và chạy lại từ đầu khi người học dừng nói.
-    if (
-      streamStatus === "idle" &&
-      !isListening &&
-      messages.length > 0 &&
-      messages[messages.length - 1].role === "ai" &&
-      !messages[messages.length - 1].isStreaming
-    ) {
-      setShowSuggestions(false);
+    // Đồng hồ không nhìn ô gõ — nó chỉ đếm từ lúc AI nói xong — nên phải tạm dừng khi mic đang mở,
+    // nếu không gợi ý sẽ tự bật lên giữa lúc người học đang tự nói. Nhưng mở mic KHÔNG được ẩn gợi ý
+    // đang hiện: người học bấm ghi âm để nói theo câu đó (xem `suggestionStep`).
+    const last = messages[messages.length - 1];
+    const turnKey = `${messages.length}:${last?.role ?? ""}:${last?.isStreaming ? 1 : 0}:${streamStatus}`;
+    const step = suggestionStep({
+      awaitingLearner: streamStatus === "idle" && !!last && last.role === "ai" && !last.isStreaming,
+      turnKey,
+      previousTurnKey: suggestionTurnKeyRef.current,
+      isListening,
+    });
+    suggestionTurnKeyRef.current = turnKey;
+    if (step.hide) setShowSuggestions(false);
+    if (step.startTimer) {
       suggestionTimerRef.current = setTimeout(() => {
         setShowSuggestions(true);
       }, suggestionDelayMs);
-    } else {
-      setShowSuggestions(false);
     }
 
     return () => {
@@ -313,11 +321,15 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     }
   }, [messages, sessionMode, showEndPopup]);
 
+  // Số liệu là ngân sách trung tâm (orgBudget) thì giữ thông điệp cũ.
+  const quotaRenewing = !quota?.orgBudget && showsRenewingQuotaCopy(plan);
+  const quotaErrorKey = quotaRenewing ? "errorQuotaRenewing" : "errorQuota";
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
     if (quotaBlocked) {
-      setMicError(t("errorQuota"));
+      setMicError(t(quotaErrorKey));
       return;
     }
     if (repairGate?.blocking) {
@@ -394,13 +406,13 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
   const handleToggleMic = useCallback(() => {
     if (quotaBlocked) {
-      setMicError(t("errorQuota"));
+      setMicError(t(quotaErrorKey));
       return;
     }
     // R-W8: transcript về SAU khi người dùng đã gõ tiếp thì không được ghi đè — ghép vào cuối.
     // Dùng dạng hàm để đọc giá trị mới nhất, tránh closure cũ của lượt bấm mic.
     toggleMic((text) => setInputText((prev) => mergeTranscriptIntoDraft(prev, text)));
-  }, [toggleMic, quotaBlocked, setMicError, t]);
+  }, [toggleMic, quotaBlocked, setMicError, t, quotaErrorKey]);
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
   /**
@@ -608,7 +620,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
       {quotaBlocked && (
         <div className="px-4 pt-3">
-          <SpeakingQuotaBlockedBanner compact upgradeHref={routes.pricing} />
+          <SpeakingQuotaBlockedBanner compact upgradeHref={routes.pricing} renewing={quotaRenewing} />
         </div>
       )}
 

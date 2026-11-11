@@ -319,18 +319,15 @@ public class QuotaService {
                 "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
         long remaining = balance == null ? 0L : balance;
         if (remaining <= 0L) {
-            // Q2 (quyết định owner 28/08): ví cạn GIỮA trial thì KHÔNG hạ gói. Ví được cấp
-            // theo ngày, nên cạn hôm nay là chuyện bình thường — grant hôm sau sẽ nạp lại.
-            // Hạ về DEFAULT ở đây là kết thúc trial sớm vì một lý do tạm thời, và người dùng
-            // mất phần còn lại của 7 ngày mà không hiểu vì sao. Client hiện thông điệp
-            // "token hồi lại ngày mai", không phải paywall.
-            if (row.isTrial() && row.endsAtExclusive() != null && row.endsAtExclusive().isAfter(now)) {
-                log.info("[Quota][TRIAL_WALLET_EMPTY] userId={} ví cạn nhưng trial còn hạn tới {} — giữ nguyên gói",
-                        userId, row.endsAtExclusive());
-                return;
-            }
-            downgradePaidPlansToDefault(userId, now);
-            jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ?", userId);
+            // Quyết định owner 10/11/2026 (mở rộng Q2 28/08 từ trial sang MỌI gói ví): ví cạn giữa kỳ
+            // thì KHÔNG hạ gói. Ví được cấp theo ngày, nên cạn hôm nay là chuyện bình thường — lần cộng
+            // ví hôm sau sẽ nạp lại. Người dùng giữ PRO/ULTRA tới hết kỳ; chỉ các chức năng dùng AI
+            // tạm dừng (gate assertAllowed chặn khi remainingSpendable <= 0). Trước đây nhánh này hạ
+            // về DEFAULT và xoá ví: người trả tiền dùng hết hạn mức ngày đầu mất luôn phần còn lại
+            // của kỳ. Gói chỉ kết thúc khi ends_at đã qua (reconcileExpiredPaidWithWallet).
+            // Giữ dòng ví ở balance = 0 để accrueWalletThroughToday có mốc last_accrual mà cộng tiếp.
+            log.info("[Quota][WALLET_EMPTY] userId={} plan={} ví cạn, gói còn hạn tới {} — giữ nguyên gói, AI tạm dừng tới lần cộng ví kế tiếp",
+                    userId, row.planCode(), row.endsAtExclusive());
         }
     }
 
@@ -718,22 +715,6 @@ public class QuotaService {
         }
         // Clean up wallet
         jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ? AND balance <= 0", userId);
-    }
-
-    private void downgradePaidPlansToDefault(long userId, Instant now) {
-        endSubscriptionsPaid(userId, now);
-        provisionDefaultSubscription(userId, now);
-    }
-
-    private void endSubscriptionsPaid(long userId, Instant now) {
-        jdbcTemplate.update("""
-                        UPDATE user_subscriptions
-                        SET status = 'ENDED', ends_at = COALESCE(ends_at, ?), updated_at = CURRENT_TIMESTAMP
-                        WHERE user_id = ?
-                          AND status = 'ACTIVE'
-                          AND plan_code IN ('PRO', 'ULTRA')
-                        """,
-                Timestamp.from(now), userId);
     }
 
     private void provisionDefaultSubscription(long userId, Instant now) {

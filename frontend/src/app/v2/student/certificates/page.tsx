@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import { Award, BadgeCheck, Copy, Download, ExternalLink, Lock, ShieldCheck } from 'lucide-react'
 import api, { isAxiosErr } from '@/lib/api'
 import { certificateVerifyUrl, listMyCertificates, type StudentCertificate } from '@/lib/certificateApi'
-import { getAccessToken } from '@/lib/authSession'
+import { authFetch } from '@/lib/authFetch'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { ErrorBanner, GaBtn, GaCap, GaGlyph, GaPageHdr, LoadingState, GaStatStrip, TkBadge } from '@/components/ui-v2'
 
@@ -94,10 +94,8 @@ export default function V2StudentCertificatesPage() {
 
   const downloadPdf = async (id: number) => {
     try {
-      const token = getAccessToken() ?? ''
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? ''}/api/certificates/${id}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      // authFetch: gắn Bearer + tự làm mới token một lần khi 401.
+      const res = await authFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? ''}/api/certificates/${id}/pdf`)
       if (!res.ok) throw new Error(t('downloadError'))
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)

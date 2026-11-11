@@ -144,7 +144,7 @@ public class AiSessionController {
                 "de",
                 ""  // No context prompt for generic transcribe endpoint
         );
-        ledgerService.recordStt(user.getId(), "STT_TRANSCRIBE", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
+        ledgerService.recordStt(user.getId(), "STT_TRANSCRIBE", stt.modelOr(groqWhisperClient.getWhisperModel()), stt.durationSeconds());
         return new TranscribeDto(stt.text());
     }
 

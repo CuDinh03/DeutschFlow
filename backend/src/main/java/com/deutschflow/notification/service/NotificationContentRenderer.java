@@ -41,18 +41,18 @@ public class NotificationContentRenderer {
                     "Học viên " + str(p, "learnerEmail") + " vừa đăng ký thành công gói "
                             + str(p, "planCode") + "!");
             case ACHIEVEMENT_UNLOCKED -> new RenderedContent(
-                    "🏆 Thành tích mới",
+                    "Thành tích mới",
                     "Bạn đã mở khóa huy hiệu \"" + str(p, "achievementName") + "\"! +"
                             + intStr(p, "xpReward") + " XP");
             case LEVEL_UP -> new RenderedContent(
-                    "⬆️ Lên cấp",
+                    "Lên cấp",
                     "Chúc mừng! Bạn đã lên Level " + str(p, "newLevel") + "!");
             case REVIEW_DUE -> new RenderedContent(
-                    "📚 Ôn tập hôm nay",
+                    "Ôn tập hôm nay",
                     nonBlankOr(str(p, "message"),
                             "Có " + intStr(p, "dueCount") + " thẻ cần ôn tập hôm nay"));
             case STREAK_REMINDER -> new RenderedContent(
-                    "🔥 Chuỗi học tập",
+                    "Chuỗi học tập",
                     nonBlankOr(str(p, "message"), "Đừng quên học hôm nay!"));
             // Đợt 6 lifecycle: thân tin nằm trong payload.message (service viết theo mốc), tiêu đề cố định.
             case ONBOARDING_D0_WELCOME -> new RenderedContent(
@@ -74,19 +74,19 @@ public class NotificationContentRenderer {
                     "Thời gian dùng thử đã kết thúc",
                     nonBlankOr(str(p, "message"), "Tài khoản về gói mặc định. Nâng cấp khi bạn sẵn sàng."));
             case NEW_ASSIGNMENT -> new RenderedContent(
-                    "📝 Bài tập mới",
+                    "Bài tập mới",
                     "Thầy/Cô " + nonBlankOr(str(p, "teacherName"), "giáo viên") + " vừa giao bài tập "
                             + str(p, "quizTitle") + " cho lớp " + str(p, "classroomName") + ".");
             case JOIN_REQUEST_APPROVED -> new RenderedContent(
-                    "✅ Được duyệt vào lớp",
+                    "Được duyệt vào lớp",
                     "Yêu cầu vào lớp " + str(p, "className") + " đã được chấp thuận! Chào mừng bạn.");
             case JOIN_REQUEST_REJECTED -> new RenderedContent(
-                    "❌ Yêu cầu vào lớp",
+                    "Yêu cầu vào lớp",
                     "Yêu cầu vào lớp " + str(p, "className") + " đã bị từ chối.");
             case ADDED_TO_CLASS -> renderAddedToClass(p);
             case ASSIGNMENT_GRADED -> renderAssignmentGraded(p);
             case NEW_CLASS_ASSIGNMENT -> new RenderedContent(
-                    "📋 Bài tập mới",
+                    "Bài tập mới",
                     "Lớp " + str(p, "className") + " có bài tập mới: " + str(p, "topic"));
             case CLASS_STUDENT_ADDED -> new RenderedContent(
                     "Thêm học sinh vào lớp",
@@ -103,27 +103,27 @@ public class NotificationContentRenderer {
                     nonBlankOr(str(p, "title"), "Thông báo từ hệ thống"),
                     str(p, "body"));
             case TEACHER_ANNOUNCEMENT -> new RenderedContent(
-                    "📢 Thông báo từ giáo viên",
+                    "Thông báo từ giáo viên",
                     firstNonBlank(str(p, "message"), str(p, "body"), str(p, "title"),
                             "Bạn có thông báo mới từ giáo viên."));
             case NEW_MESSAGE -> new RenderedContent(
-                    "💬 Tin nhắn mới",
+                    "Tin nhắn mới",
                     nonBlankOr(str(p, "senderName"), "Ai đó") + ": " + str(p, "preview"));
             case CLASS_CHANNEL_MESSAGE -> new RenderedContent(
-                    "💬 " + nonBlankOr(str(p, "className"), "Chat lớp"),
+                    nonBlankOr(str(p, "className"), "Chat lớp"),
                     nonBlankOr(str(p, "senderName"), "Thành viên") + ": " + str(p, "preview"));
 
             // ── Class schedule changes ───────────────────────────────────────
             case CLASS_SESSION_SCHEDULED -> new RenderedContent(
-                    "🗓️ Lịch học mới",
+                    "Lịch học mới",
                     nonBlankOr(str(p, "message"),
                             "Lớp " + nonBlankOr(str(p, "className"), "của bạn") + " có buổi học mới."));
             case CLASS_SESSION_CANCELLED -> new RenderedContent(
-                    "🚫 Buổi học bị huỷ",
+                    "Buổi học bị huỷ",
                     nonBlankOr(str(p, "message"),
                             "Một buổi học của lớp " + nonBlankOr(str(p, "className"), "bạn") + " đã bị huỷ."));
             case CLASS_SESSION_RESCHEDULED -> new RenderedContent(
-                    "🔄 Đổi lịch học",
+                    "Đổi lịch học",
                     nonBlankOr(str(p, "message"),
                             "Buổi học của lớp " + nonBlankOr(str(p, "className"), "bạn") + " đã thay đổi."));
 
@@ -131,7 +131,7 @@ public class NotificationContentRenderer {
             // Chỉ id (10/09/2026, quyết định 8): payload không còn email/tên, và cố ý KHÔNG rơi về
             // who(p) cho dòng cũ — V321 đã bóc hai khoá đó, còn sót ở đâu thì cũng không hiển thị.
             case ACCOUNT_DELETED -> new RenderedContent(
-                    "🗑️ Xoá tài khoản",
+                    "Xoá tài khoản",
                     str(p, "deletedUserId").isBlank() ? "Một người dùng đã xoá tài khoản."
                             : "Người dùng #" + str(p, "deletedUserId") + " đã xoá tài khoản.");
             case ADMIN_LEARNER_SUBSCRIPTION_ENDED -> new RenderedContent(
@@ -140,13 +140,13 @@ public class NotificationContentRenderer {
                             + nonBlankOr(str(p, "learnerEmail"), "học viên") + " đã kết thúc ("
                             + endReasonLabel(str(p, "reason")) + ").");
             case ADMIN_SYSTEM_ALERT -> new RenderedContent(
-                    "⚠️ " + nonBlankOr(str(p, "title"), "Cảnh báo hệ thống"),
+                    nonBlankOr(str(p, "title"), "Cảnh báo hệ thống"),
                     nonBlankOr(str(p, "message"), "Có sự cố hệ thống cần kiểm tra."));
             case ADMIN_ORG_CREATED -> new RenderedContent(
-                    "🏢 Tổ chức mới",
+                    "Tổ chức mới",
                     "Đã tạo tổ chức \"" + nonBlankOr(str(p, "orgName"), "(không tên)") + "\".");
             case ADMIN_ORG_INVOICE_PAID -> new RenderedContent(
-                    "💰 Hoá đơn đã thanh toán",
+                    "Hoá đơn đã thanh toán",
                     "Hoá đơn " + nonBlankOr(str(p, "paymentCode"), "") + " của tổ chức \""
                             + nonBlankOr(str(p, "orgName"), "(không tên)") + "\" đã được thanh toán"
                             + amountSuffix(p) + ".");
@@ -257,12 +257,12 @@ public class NotificationContentRenderer {
         String teacherName = str(p, "teacherName");
         if ("ORG".equalsIgnoreCase(str(p, "addedBy"))) {
             return new RenderedContent(
-                    "🎓 Thêm vào lớp",
+                    "Thêm vào lớp",
                     "Trung tâm đã xếp bạn vào lớp " + className
                             + (teacherName.isBlank() ? "" : " (giáo viên: " + teacherName + ")") + ".");
         }
         return new RenderedContent(
-                "🎓 Thêm vào lớp",
+                "Thêm vào lớp",
                 "Giáo viên " + nonBlankOr(teacherName, "của bạn") + " đã thêm bạn vào lớp " + className + ".");
     }
 
@@ -322,30 +322,30 @@ public class NotificationContentRenderer {
         String noteSuffix = note.isBlank() ? "" : " " + note;
         return switch (str(p, "kind")) {
             case "SCHEDULED" -> new RenderedContent(
-                    "🔧 Lịch bảo trì hệ thống",
+                    "Lịch bảo trì hệ thống",
                     "Hệ thống sẽ bảo trì từ " + starts
                             + (ends.isBlank() ? "" : " đến " + ends) + "." + noteSuffix);
             case "UPDATED" -> new RenderedContent(
-                    "🔧 Cập nhật lịch bảo trì",
+                    "Cập nhật lịch bảo trì",
                     "Lịch bảo trì đổi thành: từ " + starts
                             + (ends.isBlank() ? "" : " đến " + ends) + "." + noteSuffix);
             case "REMINDER" -> new RenderedContent(
-                    "⏰ Sắp bảo trì hệ thống",
+                    "Sắp bảo trì hệ thống",
                     "Hệ thống sẽ bảo trì lúc " + starts + ". Hãy lưu bài đang làm dở trước giờ đó.");
             case "STARTED" -> new RenderedContent(
-                    "🔧 Đang bảo trì hệ thống",
+                    "Đang bảo trì hệ thống",
                     ends.isBlank()
                             ? "Hệ thống tạm dừng để bảo trì, sẽ thông báo khi hoạt động trở lại."
                             : "Hệ thống tạm dừng để bảo trì, dự kiến xong lúc " + ends + ".");
             case "COMPLETED" -> new RenderedContent(
-                    "✅ Hệ thống đã hoạt động trở lại",
+                    "Hệ thống đã hoạt động trở lại",
                     "Bảo trì đã hoàn tất. Cảm ơn bạn đã chờ — chúc bạn học vui!");
             case "CANCELLED" -> new RenderedContent(
-                    "❎ Huỷ lịch bảo trì",
+                    "Huỷ lịch bảo trì",
                     "Lịch bảo trì " + (starts.isBlank() ? "" : "(" + starts + ") ")
                             + "đã được huỷ. Hệ thống hoạt động bình thường.");
             default -> new RenderedContent(
-                    "🔧 Bảo trì hệ thống",
+                    "Bảo trì hệ thống",
                     nonBlankOr(note, "Có cập nhật về bảo trì hệ thống."));
         };
     }
@@ -406,11 +406,11 @@ public class NotificationContentRenderer {
         // says the grade CHANGED and carries only the CURRENT score (no old→new fluctuation trail).
         if (Boolean.TRUE.equals(p.get("updated")) || "true".equals(str(p, "updated"))) {
             return new RenderedContent(
-                    "🔄 Điểm đã được cập nhật",
+                    "Điểm đã được cập nhật",
                     "Điểm bài " + typeLabel + " của bạn đã được cập nhật" + scorePart + " Xem phản hồi.");
         }
         return new RenderedContent(
-                "✅ Bài đã chấm",
+                "Bài đã chấm",
                 "Bài " + typeLabel + " của bạn đã được chấm" + scorePart + " Xem phản hồi.");
     }
 
@@ -418,7 +418,7 @@ public class NotificationContentRenderer {
         String student = nonBlankOr(str(p, "studentName"), "học sinh");
         String className = str(p, "className");
         String body = "Có bài cần xem từ " + student + (className.isBlank() ? "" : " · " + className);
-        return new RenderedContent("📥 Bài cần xem", body);
+        return new RenderedContent("Bài cần xem", body);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

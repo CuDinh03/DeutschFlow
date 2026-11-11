@@ -33,6 +33,51 @@ export function isTrialActive(plan: MyPlanDto | null | undefined, now: number = 
   return ends > now;
 }
 
+/** Gói có ví token AI được cộng mỗi ngày (backend `QuotaService.isWalletPlan`). */
+const WALLET_PLAN_CODES = new Set(["PRO", "ULTRA"]);
+
+/**
+ * Người dùng có LƯỢT AI TỰ HỒI ngày mai hay không — quyết định owner 10/11/2026: gói trả tiền mà
+ * ví về 0 giữa kỳ thì VẪN giữ gói, chỉ chức năng AI tạm dừng tới lần cộng ví hôm sau. Khi `true`,
+ * thông điệp hết hạn mức nói "ngày mai bạn có lượt mới" và KHÔNG mời nâng cấp (họ đã mua rồi).
+ *
+ *   - đang dùng thử còn hạn ({@link isTrialActive}) → true;
+ *   - `isTrial` mà hạn dùng thử đã qua/thiếu/hỏng → false (plan trên máy có thể trễ so với backend);
+ *   - gói ví (planCode/tier PRO|ULTRA) và `endsAtUtc` còn ở tương lai hoặc null (không kỳ hạn) → true;
+ *   - FREE/DEFAULT, gói đã quá `endsAtUtc`, plan null → false (giữ lời mời nâng cấp như cũ).
+ *
+ * Giả định: `/auth/me/plan` không có cờ "đã trả tiền" riêng — `planCode` PRO/ULTRA không phải trial
+ * được coi là gói trả tiền/được cấp (kể cả `source` ORG: ví cá nhân của họ cũng được cộng mỗi ngày).
+ * Hàm thuần; `now` truyền vào để test bảng.
+ */
+export function hasRenewingAiAllowance(plan: MyPlanDto | null | undefined, now: number = Date.now()): boolean {
+  if (!plan) return false;
+  if (plan.isTrial === true) return isTrialActive(plan, now);
+  const code = (plan.planCode ?? "").trim().toUpperCase();
+  const tier = (plan.tier ?? "").trim().toUpperCase();
+  if (!WALLET_PLAN_CODES.has(code) && !WALLET_PLAN_CODES.has(tier)) return false;
+  if (plan.endsAtUtc == null) return true;
+  const ends = Date.parse(plan.endsAtUtc);
+  return !Number.isNaN(ends) && ends > now;
+}
+
+/**
+ * Có nên dùng câu "ngày mai có lượt mới" cho MỘT lỗi hết hạn mức cụ thể không. Ngoài
+ * {@link hasRenewingAiAllowance}, loại các mã KHÔNG phải ví cá nhân: `ORG_BUDGET_*` (ngân sách
+ * trung tâm — chờ tới mai không giải quyết được gì) và `RATE_LIMITED` (thao tác quá nhanh).
+ * `errorCode` là `extensions.code` của problem+json; thiếu mã → coi như hết ví cá nhân.
+ */
+export function showsRenewingQuotaCopy(
+  plan: MyPlanDto | null | undefined,
+  errorCode?: string | null,
+  now: number = Date.now(),
+): boolean {
+  if (errorCode === "ORG_BUDGET_EXHAUSTED" || errorCode === "ORG_BUDGET_NOT_CONFIGURED" || errorCode === "RATE_LIMITED") {
+    return false;
+  }
+  return hasRenewingAiAllowance(plan, now);
+}
+
 interface PlanContextType {
   plan: MyPlanDto | null;
   loading: boolean;
@@ -95,5 +140,7 @@ export function usePlanHelpers() {
   const trialActive = isTrialActive(plan);
   /** Ẩn mọi lời mời nâng cấp chủ động: đã trả tiền HOẶC đang dùng thử (Q1 28/08). */
   const hideUpsell = isPro || trialActive;
-  return { isPro, isUltra, isFree, trialActive, hideUpsell, loading };
+  /** Hết lượt AI thì nói "ngày mai có lượt mới" thay cho lời mời nâng cấp (10/11/2026). */
+  const renewingAiAllowance = hasRenewingAiAllowance(plan);
+  return { isPro, isUltra, isFree, trialActive, hideUpsell, renewingAiAllowance, loading };
 }

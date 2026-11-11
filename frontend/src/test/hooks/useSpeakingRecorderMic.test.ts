@@ -1,8 +1,8 @@
 /**
  * useSpeakingRecorderMic × 403 MINOR_AUDIO_BLOCKED (DEC-22, D8 10/09).
  *
- * Đường mic thật của /v2/student/speaking/live: startRecorder → onStop(blob) → transcribe →
- * evaluatePhoneme. Khi backend chặn vì chưa có đồng ý của người giám hộ, hook phải đưa lỗi ra
+ * Đường mic thật của /v2/student/speaking/live: startRecorder → onStop(blob) → transcribe
+ * (từ 11/11/2026 không còn lượt evaluatePhoneme thứ hai). Khi backend chặn vì chưa có đồng ý của người giám hộ, hook phải đưa lỗi ra
  * `minorAudioBlocked` (màn giải thích + lối liên hệ trung tâm) chứ KHÔNG rơi vào `micError`
  * "transcriptionFailed"/"errorQuota"; lỗi khác giữ nguyên luồng cũ.
  */
@@ -86,17 +86,18 @@ describe("useSpeakingRecorderMic — 403 MINOR_AUDIO_BLOCKED", () => {
     expect(evaluatePhoneme).not.toHaveBeenCalled();
   });
 
-  it("chấm phát âm bị chặn (transcript đã về) → vẫn giao transcript, minorAudioBlocked thay vì phonemeEvalFailed", async () => {
+  it("transcript về → giao transcript, KHÔNG gửi lại âm thanh để chấm phát âm (một lượt nhận diện cho mỗi lượt nói)", async () => {
     vi.mocked(aiSpeakingApi.transcribe).mockResolvedValueOnce({ data: { transcript: "Hallo" } } as never);
-    vi.mocked(evaluatePhoneme).mockRejectedValueOnce(minor403("GUARDIAN_CONSENT_REVOKED"));
     const onTranscript = vi.fn();
 
     const { result } = await recordOnce(onTranscript);
 
     expect(onTranscript).toHaveBeenCalledWith("Hallo");
-    expect(result.current.minorAudioBlocked?.reason).toBe("GUARDIAN_CONSENT_REVOKED");
-    expect(result.current.micError).toBeNull();
+    expect(aiSpeakingApi.transcribe).toHaveBeenCalledTimes(1);
+    expect(evaluatePhoneme).not.toHaveBeenCalled();
+    expect(result.current.phonemeResult).toBeNull();
     expect(result.current.isEvaluatingPhoneme).toBe(false);
+    expect(result.current.micError).toBeNull();
   });
 
   it("lỗi khác (500) → micError transcriptionFailed, minorAudioBlocked null (luồng cũ giữ nguyên)", async () => {
@@ -117,6 +118,24 @@ describe("useSpeakingRecorderMic — 403 MINOR_AUDIO_BLOCKED", () => {
 
     expect(result.current.minorAudioBlocked).toBeNull();
     expect(result.current.micError).toBe("errorQuota");
+  });
+
+  it("429 + màn gọi truyền resolveQuotaErrorKey → dùng khoá hàm đó trả về, nhận đúng lỗi gốc", async () => {
+    const err = { response: { status: 429, data: { extensions: { code: "QUOTA_EXCEEDED" } } } };
+    vi.mocked(aiSpeakingApi.transcribe).mockRejectedValueOnce(err);
+    const resolve = vi.fn(() => "errorQuotaRenewing");
+
+    const hook = renderHook(() => useSpeakingRecorderMic(t, undefined, resolve));
+    await act(async () => {
+      hook.result.current.toggleMic(() => {});
+    });
+    await waitFor(() => expect(onStop).not.toBeNull());
+    await act(async () => {
+      await onStop!(new Blob(["x"], { type: "audio/webm" }), { reason: "manual", durationMs: 1200 });
+    });
+
+    expect(resolve).toHaveBeenCalledWith(err);
+    expect(hook.result.current.micError).toBe("errorQuotaRenewing");
   });
 
   it("clearMinorAudioBlocked xoá thông báo; lượt thu mới cũng xoá trước khi gọi mạng", async () => {

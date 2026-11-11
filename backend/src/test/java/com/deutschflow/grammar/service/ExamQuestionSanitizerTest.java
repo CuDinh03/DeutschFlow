@@ -159,4 +159,17 @@ class ExamQuestionSanitizerTest {
         assertNull(sanitizer.stripAnswerKey(malformed),
                 "must fail safe to null, never echo the answer-bearing input back");
     }
+
+    @Test
+    void stripsFormFieldAnswersButKeepsLabels() {
+        String json = "{\"sections\":[{\"name\":\"SCHREIBEN\",\"teile\":[{\"teil\":1,\"type\":\"FILL_FORM\","
+                + "\"context\":\"Miguel wohnt in Bremen.\",\"form_fields\":[{\"field\":\"Wohnort\",\"answer\":\"Bremen\","
+                + "\"accept\":[\"bremen\"],\"explanation_vi\":\"x\",\"evidence\":\"wohnt in Bremen\"}]}]}]}";
+        String out = sanitizer.stripAnswerKey(json);
+        assertTrue(out.contains("\"field\":\"Wohnort\""));
+        assertTrue(out.contains("Miguel wohnt in Bremen."));
+        assertFalse(out.contains("\"answer\""));
+        assertFalse(out.contains("\"accept\""));
+        assertFalse(out.contains("\"evidence\""));
+    }
 }

@@ -15,12 +15,18 @@ interface Props {
    * Default is the v1 pricing page: the old target `/student/my-plan` does not exist (404).
    */
   upgradeHref?: string;
+  /**
+   * Người dùng có lượt AI tự hồi ngày mai (gói trả tiền còn hạn / đang dùng thử — quyết định
+   * 10/11/2026): nói "ngày mai có lượt mới" và KHÔNG hiện lời mời nâng cấp.
+   */
+  renewing?: boolean;
 }
 
 export function SpeakingQuotaBlockedBanner({
   className,
   compact,
   upgradeHref = "/student/pricing",
+  renewing = false,
 }: Props) {
   const t = useTranslations("speaking");
 
@@ -39,14 +45,21 @@ export function SpeakingQuotaBlockedBanner({
           size={compact ? 20 : 28}
         />
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm font-semibold text-ga-ink">{t("quotaBlockedTitle")}</p>
-          <p className="text-xs text-ga-muted leading-relaxed">{t("quotaBlockedDesc")}</p>
-          <Link
-            href={upgradeHref}
-            className="inline-block mt-2 text-xs font-semibold text-ga-gold hover:text-ga-ink underline-offset-2 hover:underline"
-          >
-            {t("quotaBlockedCta")}
-          </Link>
+          <p className="text-sm font-semibold text-ga-ink">
+            {t(renewing ? "quotaBlockedRenewingTitle" : "quotaBlockedTitle")}
+          </p>
+          <p className="text-xs text-ga-muted leading-relaxed">
+            {t(renewing ? "quotaBlockedRenewingDesc" : "quotaBlockedDesc")}
+          </p>
+          {!renewing && (
+            <Link
+              href={upgradeHref}
+              data-testid="quota-blocked-upgrade-link"
+              className="inline-block mt-2 text-xs font-semibold text-ga-gold hover:text-ga-ink underline-offset-2 hover:underline"
+            >
+              {t("quotaBlockedCta")}
+            </Link>
+          )}
         </div>
       </div>
     </div>

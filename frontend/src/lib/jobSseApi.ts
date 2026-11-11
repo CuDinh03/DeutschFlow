@@ -1,4 +1,4 @@
-import { getAccessToken } from './authSession';
+import { authFetch } from './authFetch';
 import { uiText } from '@/lib/i18n/clientLocale';
 
 // Mirror the same baseURL logic as api.ts so the SSE fetch goes directly to Spring Boot,
@@ -21,14 +21,13 @@ export function subscribeToJobSse<T>(
 
   void (async () => {
     try {
-      const token = getAccessToken();
       const headers: Record<string, string> = {
         Accept: 'text/event-stream',
         'Cache-Control': 'no-cache',
       };
-      if (token) headers.Authorization = `Bearer ${token}`;
 
-      const res = await fetch(url, {
+      // authFetch: gắn Bearer + tự làm mới token một lần khi 401 (đường single-flight của api.ts).
+      const res = await authFetch(url, {
         method: 'GET',
         headers,
         signal: ctrl.signal,

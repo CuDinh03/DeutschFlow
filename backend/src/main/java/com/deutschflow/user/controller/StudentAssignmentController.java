@@ -110,7 +110,7 @@ public class StudentAssignmentController {
                 .map(a -> StudentAssignmentDto.forStudent(
                         a,
                         classAssignmentRepository.findById(a.getAssignmentId()).orElse(null),
-                        submissionFileUrlResolver.resolve(a.getSubmissionFileUrl())))
+                        submissionFileUrlResolver.resolve(a)))
                 .toList();
         return ResponseEntity.ok(assignments);
     }
@@ -145,7 +145,7 @@ public class StudentAssignmentController {
             extension = filename.substring(filename.lastIndexOf("."));
         }
 
-        String objectKey = String.format("assignments/%d/%d_%d%s",
+        String objectKey = com.deutschflow.teacher.service.SubmissionFileUrlResolver.newSubmissionKey(
                 assignmentId, user.getId(), System.currentTimeMillis(), extension);
 
         String url = s3StorageService.generatePresignedUrl(objectKey, contentType);
@@ -178,6 +178,16 @@ public class StudentAssignmentController {
                     "Bài đã được giáo viên chấm nên không nộp lại được. Nếu cần nộp bản khác, hãy liên hệ giáo viên hoặc trung tâm.");
         }
 
+        // File bài nộp chỉ được nhận khi nằm trong bucket của hệ thống và đúng vùng khoá mà
+        // /presigned-url đã cấp cho chính bài tập này và chính học viên này. Kiểm TRƯỚC mọi thay đổi
+        // trên dòng bài nộp để yêu cầu bị từ chối không làm đổi trạng thái bài.
+        String submittedFileUrl = request.getSubmissionFileUrl() == null || request.getSubmissionFileUrl().isBlank()
+                ? null : request.getSubmissionFileUrl().trim();
+        if (submittedFileUrl != null
+                && !submissionFileUrlResolver.isSubmissionFileOf(submittedFileUrl, assignmentId, user.getId())) {
+            throw new BadRequestException("File bài nộp không hợp lệ. Hãy tải file lên lại rồi nộp.");
+        }
+
         assignment.setStatus(AssignmentStatus.SUBMITTED);
         assignment.setSubmittedAt(java.time.LocalDateTime.now());
 
@@ -196,8 +206,8 @@ public class StudentAssignmentController {
             assignment.setSubmissionContent(request.getSubmissionContent());
         }
         
-        if (request.getSubmissionFileUrl() != null && !request.getSubmissionFileUrl().isBlank()) {
-            assignment.setSubmissionFileUrl(request.getSubmissionFileUrl());
+        if (submittedFileUrl != null) {
+            assignment.setSubmissionFileUrl(submittedFileUrl);
         }
         
         assignment = studentAssignmentRepository.save(assignment);
@@ -220,7 +230,7 @@ public class StudentAssignmentController {
                 Map.<String, Object>of("assignmentId", ackAssignmentId)));
 
         return ResponseEntity.ok(StudentAssignmentDto.forStudent(
-                assignment, ca, submissionFileUrlResolver.resolve(assignment.getSubmissionFileUrl())));
+                assignment, ca, submissionFileUrlResolver.resolve(assignment)));
     }
 
     @GetMapping("/{assignmentId}/scenario")

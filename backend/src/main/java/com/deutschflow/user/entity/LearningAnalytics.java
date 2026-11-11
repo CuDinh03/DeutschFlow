@@ -119,8 +119,9 @@ public class LearningAnalytics {
             a.sessionsCompleted = sessionsCompleted;
             a.avgAccuracy = avgAccuracy;
             a.avgConfidence = avgConfidence;
-            a.errorsByType = errorsByType;
-            a.focusAreas = focusAreas;
+            // Cột NOT NULL DEFAULT ở DB, nhưng Hibernate chèn null tường minh nên DEFAULT không cứu được.
+            a.errorsByType = errorsByType != null ? errorsByType : new java.util.HashMap<>();
+            a.focusAreas = focusAreas != null ? focusAreas : new java.util.ArrayList<>();
             a.createdAt = java.time.LocalDateTime.now();
             a.updatedAt = java.time.LocalDateTime.now();
             return a;

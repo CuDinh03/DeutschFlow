@@ -29,6 +29,15 @@ import java.util.Map;
  *
  * <p>Only runs if the user has ≥50 FSRS-mode reviews (algorithm_version = 'FSRS').
  * Runs nightly at 03:00 UTC to avoid production load spikes.
+ *
+ * <h3>ĐANG VÔ HIỆU (từ bản sửa FSRS-4.5)</h3>
+ * Thuật toán dưới đây được viết cho mô hình cũ: đường cong quên của FSRS v4
+ * ({@code (1 + t/(9·S))^-1}) và vector 20 phần tử với {@code w17} là "hệ số nhân độ ổn định".
+ * FSRS-4.5 chỉ có 17 tham số (w0–w16) và đường cong quên khác, nên kết quả của job này không còn
+ * áp dụng được: {@link #APPLY_ENABLED} = {@code false} làm job ban đêm bỏ qua, và
+ * {@link FsrsWeightProvider} bỏ qua mọi vector không đúng 17 phần tử đã lưu trước đây.
+ * Mã được giữ lại để tham khảo; muốn bật lại phải viết lại bộ tối ưu trên mô hình 4.5
+ * (cần nhật ký từng lượt ôn — hiện chỉ có trạng thái mới nhất của mỗi thẻ).
  */
 @Service
 @RequiredArgsConstructor
@@ -36,7 +45,10 @@ import java.util.Map;
 public class FsrsWeightOptimizerService {
 
     private static final int MIN_REVIEWS_FOR_OPTIMIZATION = 50;
-    private static final int W17 = 17; // stability multiplier on a successful review
+    private static final int W17 = 17; // stability multiplier on a successful review (mô hình cũ, 20 tham số)
+
+    /** Xem Javadoc của lớp: bộ tối ưu này thuộc mô hình cũ nên không được áp dụng kết quả. */
+    static final boolean APPLY_ENABLED = false;
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
@@ -48,6 +60,10 @@ public class FsrsWeightOptimizerService {
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Ho_Chi_Minh")
     @SchedulerLock(name = "fsrsNightlyOptimization", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     public void runNightlyOptimization() {
+        if (!APPLY_ENABLED) {
+            log.info("[FSRS-OPT] Bỏ qua: bộ tối ưu trọng số thuộc mô hình cũ (20 tham số), không áp dụng cho FSRS-4.5");
+            return;
+        }
         List<Long> eligibleUsers = findEligibleUsers();
         log.info("[FSRS-OPT] Starting nightly optimization for {} users", eligibleUsers.size());
 
@@ -79,6 +95,7 @@ public class FsrsWeightOptimizerService {
 
     @Transactional
     boolean optimizeForUser(Long userId) {
+        if (!APPLY_ENABLED) return false; // không ghi vector 20 phần tử của mô hình cũ
         // Fetch (stability_days, interval_days, passed) tuples for all FSRS reviews
         List<Map<String, Object>> rows = jdbc.queryForList(
             """

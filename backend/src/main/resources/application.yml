@@ -249,6 +249,11 @@ server:
     min-response-size: 1024
 
 app:
+  features:
+    # Buổi học 1:1 (giáo viên – học viên đặt buổi riêng, /api/teacher-sessions/**): TẠM TẮT từ
+    # 11/2026 theo quyết định chủ dự án. Khi tắt, mọi endpoint của tính năng trả 404. Chỉ mở lại
+    # khi buổi học được gắn với giao dịch thanh toán. Không liên quan buổi dạy của lớp / bảng công.
+    teacher-sessions-enabled: ${TEACHER_SESSIONS_ENABLED:false}
   # A2 (09/11/2026): bài tập bổ trợ "external" (chỉ có source_url, không có đáp án để server chấm)
   # → học viên tự xác nhận hoàn thành được XP CỐ ĐỊNH này, mỗi bài tối đa 1 lần/ngày (giờ VN).
   # Không tính theo phần trăm client gửi. Không vượt xp_reward của bài.
@@ -724,20 +729,28 @@ app:
       # ~500 tok/s, hỗ trợ json_schema strict; mọi luồng chấm đọc qua GradingModelConfig.
       # Đo bằng /api/admin/grading-eval rồi tinh chỉnh.
       grading-model: ${GROQ_GRADING_MODEL:openai/gpt-oss-120b}
-      # STT → Fireworks (owner chốt 09/11/2026): đặt STT_API_KEY (key Fireworks) là tự chuyển sang
-      # whisper-v3-turbo, prompt tắt. Chưa đặt → giữ Groq. Ba biến GROQ_WHISPER_* dưới đây để TRỐNG = tự chọn
-      # theo nhà cung cấp; đặt tường minh thì luôn thắng (xem constructor GroqWhisperClient).
+      # STT (nhận diện giọng nói) — API kiểu OpenAI /audio/transcriptions; NHÀ CUNG CẤP CHỌN QUA ENV,
+      # không sửa code (xem javadoc GroqWhisperClient). STT_API_KEY = khoá riêng cho STT; trống thì dùng
+      # GROQ_API_KEY. Ba biến GROQ_WHISPER_* dưới đây đặt tường minh thì luôn thắng; để TRỐNG = mặc định
+      # theo khoá (có STT_API_KEY → mặc định di sản Fireworks whisper-v3-turbo; không có → Groq whisper-large-v3).
       whisper-api-key: ${STT_API_KEY:}
       whisper-model: ${GROQ_WHISPER_MODEL:}
-      # STT đổi nhà cung cấp qua env — cùng "bảo hiểm vendor" với base-url chat ở trên. Bench
-      # Fireworks 08/08/2026 (xem javadoc GroqWhisperClient): audio đi host RIÊNG theo model,
-      # whisper-v3-turbo = https://audio-turbo.us-virginia-1.direct.fireworks.ai/v1/audio/transcriptions
-      # (nhầm host → 401 giả dạng lỗi key). Bearer dùng chung được.
+      # URL đầy đủ của endpoint transcriptions, vd Groq: https://api.groq.com/openai/v1/audio/transcriptions
+      # (sai host/model thường ra 401 trông như lỗi khoá).
       whisper-base-url: ${GROQ_WHISPER_BASE_URL:}
-      # Gửi expectedText làm prompt định hướng STT. Groq: vô hại. Fireworks: prompt trùng audio bị
-      # NUỐT khỏi transcript (semantics "văn bản đứng trước audio") → chấm phát âm sập điểm với
-      # người đọc ĐÚNG. Trỏ Fireworks thì BẮT BUỘC đặt false.
+      # Gửi expectedText làm prompt định hướng STT. Groq: vô hại. Nhà cung cấp decode prompt theo
+      # semantics "văn bản đứng trước audio" (đã gặp ở Fireworks) sẽ NUỐT phần transcript trùng prompt
+      # → chấm phát âm sập điểm với người đọc ĐÚNG; khi đó BẮT BUỘC đặt false.
       whisper-prompt-enabled: ${GROQ_WHISPER_PROMPT_ENABLED:}
+      # Model dự phòng CÙNG nhà cung cấp, dùng khi model chính lỗi tạm thời (429, 5xx, timeout).
+      # Trống = tự suy theo host: api.groq.com → whisper-large-v3-turbo ↔ whisper-large-v3 (mỗi model
+      # một hạn mức request/phút riêng); host khác = không có dự phòng.
+      whisper-fallback-model: ${GROQ_WHISPER_FALLBACK_MODEL:}
+      # URL của model dự phòng; trống = cùng URL với model chính.
+      whisper-fallback-base-url: ${GROQ_WHISPER_FALLBACK_BASE_URL:}
+      # Khi mọi model đều 429: nếu retry-after của model chính ≤ ngưỡng này (ms) thì chờ rồi thử lại
+      # MỘT lần; lớn hơn thì trả lỗi ngay, không giữ thread. 0 = tắt bước chờ.
+      whisper-retry-max-wait-ms: ${GROQ_WHISPER_RETRY_MAX_WAIT_MS:1500}
       # Concurrency caps (fair semaphores). Free tier ~30 RPM: chat 3–4; paid/Dev ~10–20 CCU: chat 6–8, whisper 4–6.
       max-concurrent-chat-requests: ${GROQ_MAX_CONCURRENT_CHAT:5}
       max-concurrent-whisper-requests: ${GROQ_MAX_CONCURRENT_WHISPER:4}

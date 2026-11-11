@@ -104,8 +104,12 @@ const nextConfig = {
     CSP_ENFORCE: process.env.CSP_ENFORCE ?? '',
   },
 
-  // Image optimization stays ON for the Amplify web/SSR build so <Image> is actually optimized. (P1-5)
+  // TẠM THỜI tắt tối ưu ảnh phía server (chủ dự án chốt 11/11/2026): giảm bề mặt xử lý ảnh phía
+  // server trong lúc chờ nâng phiên bản Next. <Image> vẫn chạy, ảnh được phục vụ nguyên bản từ
+  // `/_next/static/media`. Gỡ `unoptimized` (và khối chặn `/_next/image` trong
+  // deploy/self-host/deutschflow.nginx.conf) khi đã lên Next >= 15.5.28.
   images: {
+    unoptimized: true,
     // Kho media R2 (NEXT_PUBLIC_MEDIA_ORIGINS) — cùng nguồn với CSP trong middleware.ts.
     remotePatterns: mediaRemotePatterns(),
   },
