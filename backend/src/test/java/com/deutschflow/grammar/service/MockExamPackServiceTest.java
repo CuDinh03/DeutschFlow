@@ -110,7 +110,7 @@ class MockExamPackServiceTest {
         planIs("ULTRA");
         when(packRepository.findById(1L)).thenReturn(Optional.of(pack(1L, true)));
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any())).thenReturn(
-                List.of(new MockExamPackDetailDto.PackExamDto(10L, "Đề số 1", 100, 60, 165, false)));
+                List.of(new MockExamPackDetailDto.PackExamDto(10L, "Đề số 1", 100, 60, 165, false, true)));
 
         MockExamPackDetailDto detail = service.getPack(7L, 1L);
 

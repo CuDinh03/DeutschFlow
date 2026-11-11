@@ -20,6 +20,8 @@ export interface PackExam {
   timeLimitMinutes: number | null
   /** Đề nháp chờ duyệt (V342): hiện "Sắp có", không có nút làm bài. Backend cũ không gửi ⇒ coi như false. */
   comingSoon?: boolean
+  /** Đề phát hành trong 14 ngày gần đây (V379): hiện nhãn "Mới". Backend cũ không gửi ⇒ coi như false. */
+  isNew?: boolean
 }
 
 export interface MockExamPackDetail {
