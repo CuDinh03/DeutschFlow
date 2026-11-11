@@ -34,6 +34,9 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
     return run(() => approveDraft(draft.id, full), t('review.approvedToast'))
   }
 
+  // Mục "Dữ kiện khớp nguồn": máy không phán đạt / chưa đạt mà nêu số câu owner cần đọc.
+  const toRead = draft.checks.find((c) => c.key === 'FAITHFUL')?.count ?? null
+
   const suggestion = (k: ChecklistKey) => {
     const s = draft.checklistSuggestions?.[k]
     return s === true ? 'PASS' : s === false ? 'FAIL' : 'UNKNOWN'
@@ -108,9 +111,13 @@ export function StepReview({ draft, locked, run }: StudioStepProps) {
                     <span className="block text-ga-caption font-normal text-ga-muted">{t('review.notApplicableWriting')}</span>
                   )}
                 </span>
-                <TkBadge tone={s === 'PASS' ? 'green' : s === 'FAIL' ? 'red' : 'neutral'}>
-                  {t(`review.machine.${s}`)}
-                </TkBadge>
+                {k === 'FACTS_MATCH' && toRead != null ? (
+                  <TkBadge tone={toRead === 0 ? 'green' : 'yellow'}>{t('review.machine.toRead', { count: toRead })}</TkBadge>
+                ) : (
+                  <TkBadge tone={s === 'PASS' ? 'green' : s === 'FAIL' ? 'red' : 'neutral'}>
+                    {t(`review.machine.${s}`)}
+                  </TkBadge>
+                )}
               </label>
             )
           })}

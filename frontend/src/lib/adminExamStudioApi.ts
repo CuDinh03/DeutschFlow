@@ -125,6 +125,8 @@ export interface StudioCheck {
   label: string
   light: Light
   detail: string | null
+  /** Số chỗ owner cần đọc; chỉ mục kiểm đếm được mới có (hiện là FAITHFUL). */
+  count?: number | null
 }
 
 export type ChecklistKey =

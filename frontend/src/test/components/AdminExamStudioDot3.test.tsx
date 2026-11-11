@@ -85,6 +85,21 @@ describe('StepReview — chống trùng + Schreiben', () => {
     await userEvent.click(screen.getByRole('button', { name: /Xem Teil kho/ }))
     await waitFor(() => expect(m.getBlock).toHaveBeenCalledWith(123))
   })
+  it('Dữ kiện khớp nguồn: máy nêu số câu cần xem thay cho đạt / chưa đạt', () => {
+    const { unmount } = wrap(<StepReview locked={false} run={vi.fn()} draft={draft({
+      teil: 2, teilType: 'MULTIPLE_CHOICE', checklistSuggestions: { FACTS_MATCH: false },
+      checks: [{ key: 'FAITHFUL', label: 'Bài khớp dữ kiện của nguồn', light: 'YELLOW', detail: 'Máy: 2 câu cần xem', count: 2 }],
+    })} />)
+    expect(screen.getByText('Máy: 2 câu cần xem', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.queryByText('Máy: chưa đạt')).not.toBeInTheDocument()
+    unmount()
+    // Bản nháp tự kiểm trước khi có số đếm: giữ nhãn cũ.
+    wrap(<StepReview locked={false} run={vi.fn()} draft={draft({
+      checklistSuggestions: { FACTS_MATCH: false },
+      checks: [{ key: 'FAITHFUL', label: 'Bài khớp dữ kiện đã tích', light: 'YELLOW', detail: 'x' }],
+    })} />)
+    expect(screen.getByText('Máy: chưa đạt')).toBeInTheDocument()
+  })
   it('Schreiben: ghi chú mục "Mỗi câu một đáp án đúng"', () => {
     wrap(<StepReview locked={false} run={vi.fn()} draft={draft({ section: 'SCHREIBEN', teil: 1, teilType: 'WRITE_EMAIL', itemCount: 0 })} />)
     expect(screen.getByText(/Không áp dụng cho Teil viết/)).toBeInTheDocument()

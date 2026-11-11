@@ -1259,28 +1259,55 @@ public class ExamDraftService {
         }
     }
 
+    static final String FAITHFUL_LABEL = "Bài khớp dữ kiện của nguồn";
+    private static final int FAITHFUL_MAX_SERIOUS = 8;
+    private static final int FAITHFUL_MAX_MINOR = 3;
+
     /**
-     * Bài có nói đúng những gì dữ kiện đã tích nói không (đổi "liên quan" thành "gây ra", gắn nhầm nhóm, thêm số
-     * liệu). Đèn VÀNG chứ không đỏ: đây là phán đoán của AI, owner đọc từng câu bị nêu rồi tự tích mục
-     * "Dữ kiện khớp nguồn" trong danh sách duyệt.
+     * Bài có nói đúng những gì nguồn nói không (đổi "liên quan" thành "gây ra", gắn nhầm nhóm, thêm số liệu).
+     * Máy chấm được đưa tên nguồn, ngày và MỌI dữ kiện đã rút từ các nguồn đang dùng — cả dữ kiện chưa tích —
+     * nên một chi tiết đúng nhưng chưa tích không bị báo nhầm. Đèn VÀNG chứ không đỏ: đây là phán đoán của AI,
+     * owner đọc các câu bị nêu rồi tự tích mục "Dữ kiện khớp nguồn".
      */
     private Check faithfulCheck(long userId, TeilSpec spec, Text text, List<SourceRow> srcs) {
-        String label = "Bài khớp dữ kiện đã tích";
-        List<Fact> facts = selectedFacts(srcs);
-        if (facts.isEmpty()) return new Check("FAITHFUL", label, "YELLOW", "Không có dữ kiện nào được tích để đối chiếu.");
-        List<String> issues = new ArrayList<>();
-        try {
-            for (JsonNode n : ai.faithfulness(userId, spec, text, facts).path("issues")) {
-                String sentence = text(n, "sentence");
-                String problem = text(n, "problemVi");
-                if (sentence != null && problem != null) issues.add("„" + cut(sentence, 160) + "“ — " + problem);
-                if (issues.size() >= 5) break;
-            }
-        } catch (RuntimeException e) {
-            return new Check("FAITHFUL", label, "YELLOW", "Không chạy được lượt đối chiếu (" + e.getMessage() + ").");
+        List<Source> used = usedSources(srcs).stream().map(SourceRow::source).toList();
+        if (used.isEmpty()) {
+            return new Check("FAITHFUL", FAITHFUL_LABEL, "YELLOW", "Không có dữ kiện nào được tích để đối chiếu.");
         }
-        return new Check("FAITHFUL", label, issues.isEmpty() ? "GREEN" : "YELLOW",
-                issues.isEmpty() ? null : String.join(" · ", issues));
+        try {
+            return faithfulResult(ai.faithfulness(userId, spec, text, used).path("issues"));
+        } catch (RuntimeException e) {
+            return new Check("FAITHFUL", FAITHFUL_LABEL, "YELLOW",
+                    "Không chạy được lượt đối chiếu (" + e.getMessage() + ").");
+        }
+    }
+
+    /**
+     * Chỉ lỗi NẶNG (sai số liệu, thêm dữ kiện, đổi tương quan thành nhân quả, gắn nhầm nhóm) mới tính vào
+     * "N câu cần xem" và làm đèn vàng. Lỗi nhẹ (làm tròn, nói gọn) chỉ ghi chú, đèn vẫn xanh. Mức không ghi
+     * hoặc ghi lạ ⇒ coi là nặng, để không lọt lỗi vì máy chấm trả thiếu trường.
+     */
+    static Check faithfulResult(JsonNode issues) {
+        List<String> serious = new ArrayList<>();
+        List<String> minor = new ArrayList<>();
+        for (JsonNode n : issues) {
+            String sentence = text(n, "sentence");
+            String problem = text(n, "problemVi");
+            if (sentence == null || problem == null) continue;
+            String line = "• „" + cut(sentence, 160) + "“ — " + problem;
+            if ("MINOR".equalsIgnoreCase(text(n, "severity"))) minor.add(line);
+            else serious.add(line);
+        }
+        StringBuilder d = new StringBuilder("Máy: ").append(serious.size()).append(" câu cần xem");
+        serious.stream().limit(FAITHFUL_MAX_SERIOUS).forEach(l -> d.append('\n').append(l));
+        if (serious.size() > FAITHFUL_MAX_SERIOUS) {
+            d.append("\n… và ").append(serious.size() - FAITHFUL_MAX_SERIOUS).append(" câu nữa");
+        }
+        if (!minor.isEmpty()) {
+            d.append("\nGhi chú nhỏ, không tính (").append(minor.size()).append("):");
+            minor.stream().limit(FAITHFUL_MAX_MINOR).forEach(l -> d.append('\n').append(l));
+        }
+        return new Check("FAITHFUL", FAITHFUL_LABEL, serious.isEmpty() ? "GREEN" : "YELLOW", d.toString(), serious.size());
     }
 
     List<Check> teilChecks(Row r, List<SourceRow> srcs, TextMetrics m, List<Item> items, Map<String, String> strong,

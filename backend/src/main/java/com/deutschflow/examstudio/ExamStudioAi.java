@@ -6,6 +6,7 @@ import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.examspeaking.scoring.LlmJson;
 import com.deutschflow.examstudio.ExamStudioDtos.Fact;
 import com.deutschflow.examstudio.ExamStudioDtos.Item;
+import com.deutschflow.examstudio.ExamStudioDtos.Source;
 import com.deutschflow.examstudio.ExamStudioDtos.Text;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
@@ -696,25 +697,56 @@ public class ExamStudioAi {
     // ── 4b. Kiểm bài khớp dữ kiện; giải khi chỉ thấy một đoạn ─────────────────────────────────
 
     static final String FAITHFUL_SYSTEM = """
-            Du prüfst einen Lesetext für eine Deutschprüfung gegen die FAKTEN, aus denen er geschrieben wurde.
-            Melde jeden Satz des Textes, der
-            - UNSUPPORTED: eine Zahl, einen Namen, ein Ergebnis oder einen Vergleich enthält, der in keinem Fakt steht;
-            - CAUSAL: einen Zusammenhang als Ursache und Wirkung darstellt, obwohl der Fakt nur einen
-              Zusammenhang nennt (oder umgekehrt);
-            - WRONG_LINK: eine Aussage der falschen Gruppe, Zeit oder Sache zuordnet (auch durch ein Pronomen
+            Du prüfst einen Lesetext für eine Deutschprüfung gegen die FAKTEN seiner Quellen. Zu jeder Quelle
+            siehst du Herausgeber, Titel und Datum, die VERWENDETEN Fakten und WEITERE Fakten derselben Quelle.
+            Alles, was in einer der beiden Listen oder in den Angaben zur Quelle steht, gilt als belegt.
+
+            Melde NUR Sätze mit einem inhaltlichen Fehler und stufe jeden ein.
+            SERIOUS — ein Lernender würde etwas Falsches lernen oder eine Aufgabe falsch lösen:
+            - UNSUPPORTED: eine konkrete Zahl, ein Jahr, ein Name oder ein Ergebnis, das in keinem Fakt steht
+              oder einem Fakt widerspricht;
+            - CAUSAL: Ursache und Wirkung behauptet, obwohl der Fakt nur einen Zusammenhang nennt (oder umgekehrt);
+            - WRONG_LINK: eine Aussage der falschen Gruppe, Zeit oder Sache zugeordnet (auch durch ein Pronomen
               oder "diese", das sich auf den falschen Satz bezieht).
-            Allgemeine Erklärungen ohne neue Zahlen oder Ergebnisse sind erlaubt und werden NICHT gemeldet.
-            Sei genau; melde nichts, was die Fakten decken. "problemVi" auf VIETNAMESISCH, ein Satz.
+            MINOR — ungenau, aber nicht falsch: sinnvoll gerundete Zahl ("fast die Hälfte" für 48 Prozent),
+            vereinfachte oder leicht verallgemeinerte Formulierung, weggelassene Einschränkung.
+
+            NICHT melden: andere Wortwahl oder Satzstellung, Zusammenfassung mehrerer Fakten in einem Satz,
+            allgemeine Erklärungen, Überleitungen und Alltagswissen ohne neue Zahlen oder Ergebnisse, die Nennung
+            von Herausgeber, Titel oder Datum der Quelle, Worterklärungen.
+            Im Zweifel MINOR oder gar nicht melden. "problemVi" auf VIETNAMESISCH, ein Satz.
             Antworte NUR mit JSON: {"issues": [{"sentence": "wörtlicher Satz aus dem Text",
-              "type": "UNSUPPORTED|CAUSAL|WRONG_LINK", "problemVi": "..."}]}
+              "type": "UNSUPPORTED|CAUSAL|WRONG_LINK", "severity": "SERIOUS|MINOR", "problemVi": "..."}]}
             """;
 
-    JsonNode faithfulness(long userId, TeilSpec spec, Text text, List<Fact> facts) {
-        String factsTxt = facts.stream().map(f -> "- " + f.text()
+    /** Khối nguồn đưa cho máy chấm: tên nguồn, ngày, dữ kiện đã tích VÀ dữ kiện cùng nguồn chưa tích. */
+    static String sourcesBlock(List<Source> sources) {
+        StringBuilder sb = new StringBuilder();
+        int n = 0;
+        for (Source s : sources) {
+            sb.append("QUELLE ").append(++n).append(": ")
+                    .append(s.publisher() == null || s.publisher().isBlank() ? "(Herausgeber unbekannt)" : s.publisher());
+            if (s.title() != null && !s.title().isBlank()) sb.append(" — „").append(s.title()).append("“");
+            if (s.author() != null && !s.author().isBlank()) sb.append(", ").append(s.author());
+            if (s.publishedAt() != null && !s.publishedAt().isBlank()) sb.append(" (").append(s.publishedAt()).append(")");
+            sb.append("\nVERWENDETE FAKTEN:\n").append(factLines(s.facts().stream().filter(Fact::selected).toList()));
+            List<Fact> rest = s.facts().stream().filter(f -> !f.selected()).toList();
+            if (!rest.isEmpty()) sb.append("WEITERE FAKTEN DERSELBEN QUELLE:\n").append(factLines(rest));
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    private static String factLines(List<Fact> facts) {
+        if (facts.isEmpty()) return "(keine)\n";
+        return facts.stream().map(f -> "- " + f.text()
                 + (f.figure() == null ? "" : " [Zahl: " + f.figure() + "]")
-                + (f.year() == null ? "" : " [Jahr: " + f.year() + "]")).collect(Collectors.joining("\n"));
+                + (f.year() == null ? "" : " [Jahr: " + f.year() + "]") + "\n").collect(Collectors.joining());
+    }
+
+    JsonNode faithfulness(long userId, TeilSpec spec, Text text, List<Source> sources) {
         return callAs(Role.JUDGE, userId, "VERIFY", FAITHFUL_SYSTEM,
-                "FAKTEN:\n" + factsTxt + "\n\n" + textBlock(spec, text), 0.0, 1_500);
+                sourcesBlock(sources) + "\n" + textBlock(spec, text), 0.0, 1_500);
     }
 
     static final String ONE_PARAGRAPH_SYSTEM = """

@@ -906,7 +906,8 @@
         "machine": {
           "PASS": "Machine: pass",
           "FAIL": "Machine: fail",
-          "UNKNOWN": "Machine: cannot check"
+          "UNKNOWN": "Machine: cannot check",
+          "toRead": "Machine: {count, plural, one {# sentence} other {# sentences}} to read"
         },
         "quelle": "Quelle line",
         "quelleNone": "No Quelle line yet.",
