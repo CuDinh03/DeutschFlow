@@ -43,6 +43,16 @@ public class ExamStudioController {
         return d;
     }
 
+    /** Nhập một Teil soạn ngoài hệ thống (tệp JSON theo prompt mẫu). Bản nháp vẫn phải qua tự kiểm và duyệt. */
+    @PostMapping(value = "/drafts/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Draft importDraft(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal User actor)
+            throws IOException {
+        if (file.getSize() > ExamDraftService.IMPORT_MAX_BYTES) throw new BadRequestException("Tệp lớn hơn 512 KB.");
+        Draft d = service.importTeil(file.getBytes(), actor.getId());
+        log("admin.exam_studio.draft_imported", actor, d.id());
+        return d;
+    }
+
     @GetMapping("/drafts/{id}")
     public Draft get(@PathVariable long id) {
         return service.get(id);

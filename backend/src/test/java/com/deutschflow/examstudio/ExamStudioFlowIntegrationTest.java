@@ -358,6 +358,59 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("Nhập Teil từ tệp JSON: bản nháp vào bước Câu hỏi, có nguồn chưa xác nhận, vẫn phải tự kiểm")
+    void importedTeilBecomesADraftThatStillNeedsVerification() throws Exception {
+        StringBuilder paragraphs = new StringBuilder();
+        for (int i = 0; i < PARAS.length; i++) {
+            paragraphs.append(i == 0 ? "" : ",").append('"').append(PARAS[i]).append(' ').append(FILLER).append('"');
+        }
+        StringBuilder items = new StringBuilder();
+        String[] levels = {"EASY", "EASY", "MEDIUM", "MEDIUM", "HARD"};
+        for (int i = 0; i < 5; i++) {
+            items.append(i == 0 ? "" : ",").append("""
+                    {"difficulty": "%s", "question": "Frage %d …",
+                     "options": [{"text": "falsch A %d", "correct": false, "trap": "Zukunft statt Gegenwart"},
+                                 {"text": "RICHTIG Ende %d", "correct": true, "trap": null},
+                                 {"text": "falsch B %d", "correct": false}],
+                     "evidence": "%s", "explanationVi": "{2} đúng; {1} sai; {3} sai."}"""
+                    .formatted(levels[i], i, i, i, i, PARAS[i + 1].split("\\.")[0] + "."));
+        }
+        String json = """
+                {"format": "deutschflow-teil-v1", "exam": "TELC", "level": "B1", "section": "LESEN", "teil": 2,
+                 "theme": "Gesundheit",
+                 "source": {"title": "Schlaf in Deutschland", "publisher": "Journal of Health Monitoring",
+                            "url": "https://doi.org/10.25646/00000", "license": "CC BY 4.0"},
+                 "facts": ["Vier von zehn Erwachsenen schlafen werktags zu kurz."],
+                 "text": {"titleDe": "**Zu wenig Schlaf**", "vorspannDe": "Eine Umfrage zeigt es.",
+                          "paragraphs": [%s], "glossary": []},
+                 "items": [%s]}""".formatted(paragraphs, items);
+
+        Draft d = service.importTeil(json.getBytes(java.nio.charset.StandardCharsets.UTF_8), admin);
+
+        assertThat(d.step()).isEqualTo("ITEMS");
+        assertThat(d.text().titleDe()).isEqualTo("Zu wenig Schlaf");
+        assertThat(d.items()).hasSize(5).extracting(Item::difficultyTarget)
+                .containsExactly("EASY", "EASY", "MEDIUM", "MEDIUM", "HARD");
+        assertThat(d.items()).allSatisfy(i -> {
+            assertThat(i.options().get(i.correct())).startsWith("RICHTIG");
+            assertThat(i.explanationVi()).startsWith(i.correct() + " đúng");
+        });
+        assertThat(d.sources()).singleElement().satisfies(s -> {
+            assertThat(s.usageMode()).isEqualTo("ADAPT");
+            assertThat(s.usageModeConfirmed()).isFalse();
+            assertThat(s.url()).isEqualTo("https://doi.org/10.25646/00000");
+        });
+        // Tệp nhập không bỏ qua phép kiểm: chưa tự kiểm thì không duyệt được.
+        Map<String, Boolean> all = new java.util.HashMap<>();
+        TeilSpec.CHECKLIST_KEYS.forEach(k -> all.put(k, true));
+        long id = d.id();
+        assertThatThrownBy(() -> service.approve(id, all, admin)).isInstanceOf(ConflictException.class);
+
+        assertThatThrownBy(() -> service.importTeil("{\"format\": \"khac\"}".getBytes(), admin))
+                .hasMessageContaining("deutschflow-teil-v1");
+    }
+
+    @Test
     void examModeNeedsExactlyFiveItems() {
         assertThatThrownBy(() -> service.create(new CreateDraftRequest("TELC", "B1", "LESEN", 2, null, "EXAM",
                 Map.of("EASY", 3, "HARD", 1)), admin))

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Eye, FolderOpen, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Eye, FolderOpen, Loader2, Plus, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
@@ -18,6 +18,7 @@ import {
   TkBadge, TkTabs, TkTabsContent, TkTabsList, TkTabsTrigger,
 } from '@/components/ui-v2'
 import { CreateDraftModal } from '@/components/admin/exam-studio/CreateDraftModal'
+import { ImportTeilModal } from '@/components/admin/exam-studio/ImportTeilModal'
 import { BlockPreviewModal } from '@/components/admin/exam-studio/BlockPreviewModal'
 import { AssembliesTab } from '@/components/admin/exam-studio/AssembliesTab'
 import { studioMiniBtn } from '@/components/admin/exam-studio/ui'
@@ -41,6 +42,7 @@ export default function AdminExamStudioPage() {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('drafts')
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   // ?tab=blocks (từ màn duyệt xong) / ?tab=assemblies. Đọc tay để khỏi cần Suspense cho useSearchParams.
   useEffect(() => {
@@ -55,9 +57,14 @@ export default function AdminExamStudioPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <GaBtn variant="yellow" size="sm" onClick={() => setCreating(true)}>
-            <Plus size={15} aria-hidden /> {t('createTeil')}
-          </GaBtn>
+          <div className="flex flex-wrap gap-2">
+            <GaBtn variant="ghost" size="sm" onClick={() => setImporting(true)}>
+              <Upload size={15} aria-hidden /> {t('import.open')}
+            </GaBtn>
+            <GaBtn variant="yellow" size="sm" onClick={() => setCreating(true)}>
+              <Plus size={15} aria-hidden /> {t('createTeil')}
+            </GaBtn>
+          </div>
         }
       />
 
@@ -75,6 +82,11 @@ export default function AdminExamStudioPage() {
         </TkTabs>
       </div>
 
+      <ImportTeilModal
+        open={importing}
+        onOpenChange={setImporting}
+        onImported={(d) => { setImporting(false); router.push(`/v2/admin/exam-studio/${d.id}`) }}
+      />
       <CreateDraftModal
         open={creating}
         onOpenChange={setCreating}
