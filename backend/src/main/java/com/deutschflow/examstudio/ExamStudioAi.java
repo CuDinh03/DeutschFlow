@@ -72,6 +72,44 @@ public class ExamStudioAi {
                 .orElseThrow(() -> new AiServiceException("AI trả JSON hỏng, hãy thử lại."));
     }
 
+    /**
+     * Lời gọi cho đầu ra DÀI (bài đọc, bộ câu hỏi) trên model lớn. Đường gọi thường của client có trần đọc 15 giây
+     * cho cả câu trả lời — model lớn viết 300+ từ vượt trần đó (sự cố ngay sau deploy 11/11/2026: "Read timed
+     * out"). Đường stream chỉ đặt trần cho khoảng lặng GIỮA các mẩu, nên dùng nó và gom lại thành một chuỗi.
+     */
+    JsonNode callLong(long userId, String op, LlmTier tier, String system, String user, double temperature,
+                      int maxTokens) {
+        java.util.concurrent.atomic.AtomicReference<AiChatCompletionResult> done =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        StringBuilder streamed = new StringBuilder();
+        boolean ok;
+        try {
+            ok = chatClient.chatCompletionStreamForTier(
+                    List.of(new ChatMessage("system", system), new ChatMessage("user", user)),
+                    tiers.spec(tier), temperature, maxTokens, streamed::append, done::set,
+                    new java.util.concurrent.atomic.AtomicBoolean(false));
+        } catch (AiServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại.", e);
+        }
+        AiChatCompletionResult res = done.get();
+        String content = res != null && res.content() != null && !res.content().isBlank()
+                ? res.content() : streamed.toString();
+        if (!ok || content.isBlank()) {
+            throw new AiServiceException("AI không trả về nội dung, vui lòng thử lại.");
+        }
+        if (res != null) {
+            try {
+                ledger.record(userId, res.provider(), res.model(), res.usage(), FEATURE_PREFIX + op, null, null);
+            } catch (Exception e) {
+                log.warn("[ExamStudio] Không ghi được sổ token: {}", e.getMessage());
+            }
+        }
+        return LlmJson.parse(mapper, content)
+                .orElseThrow(() -> new AiServiceException("AI trả JSON hỏng, hãy thử lại."));
+    }
+
     // ── 1. Rút dữ kiện từ bài nguồn ─────────────────────────────────────────────────────────
 
     static final String FACTS_SYSTEM = """
@@ -109,7 +147,7 @@ public class ExamStudioAi {
         String user = "Niveau: " + level + "\nThema: " + (theme == null ? "frei" : theme)
                 + "\n\nBestehende Fakten:\n" + existingTxt + "\n\nArtikel (Absätze durch Leerzeilen getrennt):\n"
                 + clipped;
-        return call(userId, "FACTS", writerTier, FACTS_SYSTEM, user, 0.2, 3_000);
+        return callLong(userId, "FACTS", writerTier, FACTS_SYSTEM, user, 0.2, 3_000);
     }
 
     // ── 2. Viết bài đọc từ dữ kiện ──────────────────────────────────────────────────────────
@@ -159,7 +197,7 @@ public class ExamStudioAi {
                         + (f.year() == null ? "" : " [Jahr: " + f.year() + "]"))
                 .collect(Collectors.joining("\n"))
                 + (note == null || note.isBlank() ? "" : "\n\nHinweis der Redaktion: " + note);
-        return call(userId, "TEXT", writerTier, system, user, 0.6, 3_500);
+        return callLong(userId, "TEXT", writerTier, system, user, 0.6, 3_500);
     }
 
     static final String REWRITE_SYSTEM = """
@@ -267,7 +305,7 @@ public class ExamStudioAi {
             hints.forEach((slot, hint) -> u.append("slot ").append(slot).append(": ").append(hint).append("\n"));
         }
         u.append(SituationalTeile.avoidBlock(avoid));
-        return call(userId, "ITEMS", writerTier, system, u.toString(), 0.7, 4_500);
+        return callLong(userId, "ITEMS", writerTier, system, u.toString(), 0.7, 4_500);
     }
 
     JsonNode generateHeadlines(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
@@ -345,7 +383,7 @@ public class ExamStudioAi {
         String factsTxt = facts.stream().map(f -> "- " + f.text()
                 + (f.figure() == null ? "" : " [Zahl: " + f.figure() + "]")
                 + (f.year() == null ? "" : " [Jahr: " + f.year() + "]")).collect(Collectors.joining("\n"));
-        return call(userId, "VERIFY", LlmTier.GRADING_EXAM, FAITHFUL_SYSTEM,
+        return callLong(userId, "VERIFY", LlmTier.GRADING_EXAM, FAITHFUL_SYSTEM,
                 "FAKTEN:\n" + factsTxt + "\n\n" + textBlock(spec, text), 0.0, 1_500);
     }
 

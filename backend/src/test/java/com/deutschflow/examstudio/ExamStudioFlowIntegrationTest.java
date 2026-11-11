@@ -89,6 +89,19 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
                     String user = msgs.size() > 1 ? msgs.get(1).content() : "";
                     return new AiChatCompletionResult(reply(system, user), null, "test", "test-model");
                 });
+        // Đầu ra dài (rút dữ kiện, viết bài, ra câu hỏi, đối chiếu dữ kiện) đi đường stream.
+        when(chatClient.chatCompletionStreamForTier(anyList(), any(), anyDouble(), any(), any(), any(), any()))
+                .thenAnswer(inv -> {
+                    List<ChatMessage> msgs = inv.getArgument(0);
+                    String system = msgs.get(0).content();
+                    String user = msgs.size() > 1 ? msgs.get(1).content() : "";
+                    String out = reply(system, user);
+                    java.util.function.Consumer<String> onToken = inv.getArgument(4);
+                    java.util.function.Consumer<AiChatCompletionResult> onComplete = inv.getArgument(5);
+                    onToken.accept(out);
+                    onComplete.accept(new AiChatCompletionResult(out, null, "test", "test-model"));
+                    return true;
+                });
     }
 
     static final List<String> SB_TARGETS = List.of("weil", "obwohl", "damit", "dass", "wenn", "deshalb", "trotzdem",
