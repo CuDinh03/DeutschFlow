@@ -18,6 +18,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -115,6 +116,31 @@ class SourceCatalogIntegrationTest extends AbstractPostgresIntegrationTest {
                 VALUES ('TELC', 'B1', 'LESEN', 2, 'MULTIPLE_CHOICE', '{}'::jsonb) RETURNING id
                 """, Long.class);
         assertThat(catalog.markUsed(article, draft)).isFalse();
+    }
+
+    @Test
+    @DisplayName("V381 — oesterreich.gv.at đọc bằng sitemap: chỉ mục đời sống vào sổ, chấm được theo chủ đề")
+    void sitemapSource() {
+        FeedView oe = feed("OESTERREICH_GV");
+        assertThat(oe.listingKind()).isEqualTo("SITEMAP");
+        when(fetcher.fetchRaw(anyString(), anyInt())).thenReturn(new SourceFetcher.Raw(
+                "https://www.oesterreich.gv.at/sitemap.xml", "application/xml", """
+                <urlset>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/bauen_und_wohnen/wohnen/Seite.210100</loc></url>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/persoenliche_dokumente_und_bestaetigungen/fuehrerschein/Seite.040103</loc></url>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/mobilitaet/Fussgaenger</loc></url>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/gesetze_und_recht/strafrecht/Seite.2460000</loc></url>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/menschen_aus_anderen_staaten/aufenthalt/Seite.120000</loc></url>
+                </urlset>
+                """));
+
+        PollResult r = catalog.poll(oe.id());
+        assertThat(r.found()).isEqualTo(2); // nhà ở + đi lại; giấy tờ, pháp luật, người nước ngoài bị mẫu loại
+        assertThat(r.added()).isEqualTo(2);
+        assertThat(catalog.candidates(List.of("fußgänger"), 10)).extracting(ArticleView::url)
+                .containsExactly("https://www.oesterreich.gv.at/de/themen/mobilitaet/Fussgaenger");
+        // Sitemap thay đổi chậm: thời gian chờ một giờ.
+        assertThatThrownBy(() -> catalog.poll(oe.id())).isInstanceOf(BadRequestException.class);
     }
 
     @Test

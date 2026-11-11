@@ -57,7 +57,7 @@ public class SourceFetcher {
     private static final String PASTE_HINT = " Hãy dán văn bản bài báo.";
 
     public Fetched fetch(String rawUrl) {
-        Connection.Response res = load(rawUrl, PASTE_HINT);
+        Connection.Response res = load(rawUrl, PASTE_HINT, MAX_BYTES);
         String ct = res.contentType() == null ? "" : res.contentType().toLowerCase(Locale.ROOT);
         if (!ct.contains("html")) {
             throw new BadRequestException("Đường dẫn không phải trang web (" + ct + ")." + PASTE_HINT);
@@ -75,12 +75,19 @@ public class SourceFetcher {
     public record Raw(String url, String contentType, String body) {}
 
     public Raw fetchRaw(String rawUrl) {
-        Connection.Response res = load(rawUrl, "");
+        return fetchRaw(rawUrl, MAX_BYTES);
+    }
+
+    /** Trần riêng cho sitemap lớn của một nơi đăng trong danh mục (vd. oesterreich.gv.at ~3,5 MB). */
+    public static final int MAX_SITEMAP_BYTES = 8 * 1024 * 1024;
+
+    public Raw fetchRaw(String rawUrl, int maxBytes) {
+        Connection.Response res = load(rawUrl, "", Math.min(Math.max(maxBytes, 1), MAX_SITEMAP_BYTES));
         return new Raw(res.url().toString(), res.contentType(), res.body());
     }
 
     /** Tải một địa chỉ công khai: kiểm địa chỉ ở MỌI lần chuyển hướng, tôn trọng robots.txt, chỉ nhận mã 200. */
-    private Connection.Response load(String rawUrl, String hint) {
+    private Connection.Response load(String rawUrl, String hint, int maxBytes) {
         URI uri = validate(rawUrl);
         if (!robotsAllow(uri)) {
             throw new BadRequestException("Trang này chặn máy tải tự động (robots.txt)." + hint);
@@ -91,7 +98,7 @@ public class SourceFetcher {
                 res = Jsoup.connect(uri.toString())
                         .userAgent(USER_AGENT)
                         .timeout(TIMEOUT_MS)
-                        .maxBodySize(MAX_BYTES)
+                        .maxBodySize(maxBytes)
                         .followRedirects(false)
                         .ignoreHttpErrors(true)
                         .ignoreContentType(true)

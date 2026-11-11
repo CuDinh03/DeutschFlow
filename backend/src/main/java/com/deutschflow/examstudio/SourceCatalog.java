@@ -85,6 +85,45 @@ final class SourceCatalog {
         return new ArrayList<>(out.values());
     }
 
+    // ── Sitemap: nơi đăng không có feed nhưng công bố toàn bộ địa chỉ trang ───────────────────────────────
+
+    static final int MAX_SITEMAP_ENTRIES = 5_000;
+    private static final Pattern LOC = Pattern.compile("<loc>\\s*([^<\\s]+)\\s*</loc>");
+
+    /**
+     * Các địa chỉ trong sitemap khớp {@code linkPattern}. Sitemap không có tiêu đề, nên tiêu đề tạm lấy từ đường
+     * dẫn ({@link #titleFromPath}) để chấm theo từ khoá chủ đề; tiêu đề thật có khi tải bài.
+     */
+    static List<Entry> parseSitemap(String xml, String linkPattern) {
+        if (xml == null || linkPattern == null || linkPattern.isBlank()) return List.of();
+        Pattern p = Pattern.compile(linkPattern);
+        Map<String, Entry> out = new LinkedHashMap<>();
+        java.util.regex.Matcher m = LOC.matcher(xml);
+        while (m.find() && out.size() < MAX_SITEMAP_ENTRIES) {
+            String url = canonical(m.group(1).replace("&amp;", "&"));
+            if (url == null || !p.matcher(url).find()) continue;
+            out.putIfAbsent(url, new Entry(url, titleFromPath(url), null));
+        }
+        return new ArrayList<>(out.values());
+    }
+
+    /** ".../de/themen/bauen_und_wohnen/wohnen/Seite.210100" → "bauen und wohnen / wohnen". */
+    static String titleFromPath(String url) {
+        String path;
+        try {
+            path = URI.create(url).getPath();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        if (path == null) return null;
+        List<String> parts = new ArrayList<>();
+        for (String seg : path.split("/")) {
+            if (seg.isBlank() || seg.length() <= 2 || seg.matches("\\d+|Seite\\.\\d+|themen")) continue;
+            parts.add(seg.replace('_', ' ').replaceAll("-+", " ").trim());
+        }
+        return clean(String.join(" / ", parts));
+    }
+
     // ── Chuẩn hoá đường dẫn ──────────────────────────────────────────────────────────────────────────────
 
     private static final Pattern SESSION = Pattern.compile(";jsessionid=[^?#/]*", Pattern.CASE_INSENSITIVE);
@@ -156,16 +195,21 @@ final class SourceCatalog {
      */
     static int score(String title, Collection<String> keywords) {
         if (title == null || keywords == null) return 0;
-        String t = title.toLowerCase(Locale.GERMAN);
+        String t = fold(title);
         int n = 0;
         for (String k : keywords) {
             if (k == null || k.isBlank()) continue;
-            String kw = k.trim().toLowerCase(Locale.GERMAN);
+            String kw = fold(k.trim());
             boolean hit = kw.length() >= 4 ? t.contains(kw)
                     : Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(kw) + "(?![\\p{L}\\p{N}])").matcher(t).find();
             if (hit) n++;
         }
         return n;
+    }
+
+    /** Viết thường và đổi ä/ö/ü/ß thành ae/oe/ue/ss: đường dẫn hay viết "fuehrerschein" cho "Führerschein". */
+    static String fold(String s) {
+        return s.toLowerCase(Locale.GERMAN).replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss");
     }
 
     private static String clean(String s) {

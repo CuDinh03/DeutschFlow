@@ -486,7 +486,7 @@ export interface SourceFeed {
   publisher: string
   homeUrl: string
   /** NONE ⇒ chưa có cách lấy danh sách bài tự động. */
-  listingKind: 'RSS' | 'INDEX_PAGE' | 'NONE'
+  listingKind: 'RSS' | 'INDEX_PAGE' | 'SITEMAP' | 'NONE'
   usageClass: SourceUsageClass
   licenseName: string | null
   licenseUrl: string | null
