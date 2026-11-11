@@ -43,7 +43,7 @@ class FsrsWeightProviderTest {
     void validWeights_areParsed() {
         double[] custom = new double[FsrsService.WEIGHT_COUNT];
         for (int i = 0; i < custom.length; i++) custom[i] = i + 0.5;
-        stubQuery("[0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5,19.5]");
+        stubQuery("[0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5]");
 
         assertThat(provider.weightsForUser(1L)).containsExactly(custom);
     }
@@ -68,6 +68,16 @@ class FsrsWeightProviderTest {
     @DisplayName("falls back to defaults when stored vector has the wrong length")
     void wrongLength_fallsBackToDefault() {
         stubQuery("[0.1,0.2,0.3]");
+        assertThat(provider.weightsForUser(1L)).containsExactly(defaults);
+    }
+
+    @Test
+    @DisplayName("vector 20 phần tử của bộ tối ưu cũ bị bỏ qua, dùng mặc định 17 tham số")
+    void legacyTwentyElementVector_fallsBackToDefault() {
+        stubQuery("[0.4072,1.1829,3.1262,15.4722,7.2102,0.5316,1.0651,0.0589,1.533,0.1544,"
+                + "1.0042,1.9395,0.11,0.29,2.27,2.9898,0.51,3.1,0.0714,0.4676]");
+        assertThat(provider.weightsForUser(1L)).containsExactly(defaults).hasSize(17);
+        // gọi lại (mỗi lần ôn gọi một lần) vẫn trả mặc định
         assertThat(provider.weightsForUser(1L)).containsExactly(defaults);
     }
 

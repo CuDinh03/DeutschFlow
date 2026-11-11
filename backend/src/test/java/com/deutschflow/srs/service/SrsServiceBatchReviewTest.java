@@ -55,7 +55,7 @@ class SrsServiceBatchReviewTest {
     @BeforeEach
     void setUp() {
         srsService = new SrsService(repo, fsrsService, fsrsWeightProvider, xpService,
-                notificationAutoAckService, runAfterCommitService);
+                notificationAutoAckService, runAfterCommitService, java.time.Clock.systemUTC());
         when(fsrsWeightProvider.weightsForUser(USER)).thenReturn(new double[19]);
         when(fsrsService.mapSm2ToFsrs(anyInt())).thenReturn(3);
     }
