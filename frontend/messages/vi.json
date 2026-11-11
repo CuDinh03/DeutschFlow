@@ -252,7 +252,7 @@
       "phonemeAnalyzing": "Đang phân tích phát âm…",
       "sessionMission": "Chủ đề: {topic}",
       "summaryViewHistory": "Xem lịch sử nói",
-      "quotaRemaining": "AI còn ~{n}",
+      "quotaRemaining": "AI còn khoảng {n}",
       "quotaHint": "Hạn mức AI speaking còn lại hôm nay",
       "autoTtsOn": "Bật đọc tự động câu AI",
       "autoTtsOff": "Tắt đọc tự động câu AI",
