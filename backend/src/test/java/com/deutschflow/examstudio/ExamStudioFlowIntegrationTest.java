@@ -39,7 +39,9 @@ import static org.mockito.Mockito.when;
  */
 @SpringBootTest
 @Transactional
-@TestPropertySource(properties = "app.ai-jobs.scheduled-enabled=false")
+// Model riêng để trống: mọi lượt gọi đi qua OpenAiChatClient đã mock (đường gọi riêng gọi HTTP thật).
+@TestPropertySource(properties = {"app.ai-jobs.scheduled-enabled=false", "app.exam-studio.writer-model=",
+        "app.exam-studio.judge-model="})
 @DisplayName("Xưởng đề — luồng Lesen Teil 2 từ nguồn tới kho")
 class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
 

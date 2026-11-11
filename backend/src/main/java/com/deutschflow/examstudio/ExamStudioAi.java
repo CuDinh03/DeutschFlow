@@ -84,7 +84,7 @@ public class ExamStudioAi {
         Role role = roleOf(tier);
         String model = role == Role.WRITER ? writerModel : role == Role.JUDGE ? judgeModel : null;
         if (set(model)) {
-            return stream(userId, op, dedicated(tier, model), system, user, temperature,
+            return direct(userId, op, dedicated(tier, model), system, user, temperature,
                     Math.max(maxTokens, minOutputTokens));
         }
         return blocking(userId, op, tiers.spec(tier), system, user, temperature, maxTokens);
@@ -95,10 +95,106 @@ public class ExamStudioAi {
         String model = role == Role.WRITER ? writerModel : judgeModel;
         LlmTier tier = role == Role.WRITER ? writerTier : LlmTier.GRADING_EXAM;
         if (set(model)) {
-            return stream(userId, op, dedicated(tier, model), system, user, temperature,
+            return direct(userId, op, dedicated(tier, model), system, user, temperature,
                     Math.max(maxTokens, minOutputTokens));
         }
         return stream(userId, op, tiers.spec(tier), system, user, temperature, maxTokens);
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${app.ai.groq.api-key:}")
+    private String defaultApiKey = "";
+    @org.springframework.beans.factory.annotation.Value("${app.ai.groq.base-url:}")
+    private String defaultBaseUrl = "";
+    /** Trần thời gian cho MỘT lượt gọi model riêng. Kimi K3 mất ~145 giây cho 5 câu trong phép so 11/11/2026. */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.call-timeout-seconds:300}")
+    private int callTimeoutSeconds = 300;
+
+    private static final java.net.http.HttpClient HTTP = java.net.http.HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(10)).build();
+
+    /** Có đang dùng model riêng (đường gọi riêng, chịu được lượt gọi dài) cho vai viết không. */
+    boolean dedicatedWriter() {
+        return set(writerModel);
+    }
+
+    /**
+     * Đường gọi RIÊNG của Xưởng đề cho model riêng: gọi thẳng endpoint, chờ tới {@code call-timeout-seconds}.
+     *
+     * <p>KHÔNG đi qua {@code GroqChatClient}: client đó phục vụ hội thoại thời gian thực nên có trần 15 giây
+     * (blocking) / 90 giây (stream) và dùng CHUNG semaphore + circuit breaker "groqChat" với luyện nói. Sự cố
+     * 11/11/2026: ba lượt Kimi K3 vượt 90 giây làm ngắt mạch đó, tức việc soạn đề của admin có thể làm rớt hội
+     * thoại của học viên. Soạn đề là việc nền, chậm cũng được, nhưng không được đụng tới đường của học viên.
+     */
+    private JsonNode direct(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
+                            double temperature, int maxTokens) {
+        String url = set(spec.baseUrl()) ? spec.baseUrl() : defaultBaseUrl;
+        String key = set(spec.apiKey()) ? spec.apiKey() : defaultApiKey;
+        if (!set(url) || !set(key)) throw new AiServiceException("Chưa cấu hình endpoint AI cho Xưởng đề.");
+        com.fasterxml.jackson.databind.node.ObjectNode body = mapper.createObjectNode();
+        body.put("model", spec.model());
+        com.fasterxml.jackson.databind.node.ArrayNode msgs = body.putArray("messages");
+        msgs.addObject().put("role", "system").put("content", system);
+        msgs.addObject().put("role", "user").put("content", user);
+        body.put("temperature", temperature);
+        body.put("max_tokens", maxTokens);
+        body.putObject("response_format").put("type", "json_object");
+
+        JsonNode res = null;
+        String failure = null;
+        for (int attempt = 1; attempt <= 2 && res == null; attempt++) {
+            try {
+                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
+                        .timeout(java.time.Duration.ofSeconds(callTimeoutSeconds))
+                        .header("Authorization", "Bearer " + key)
+                        .header("Content-Type", "application/json")
+                        .POST(java.net.http.HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body),
+                                java.nio.charset.StandardCharsets.UTF_8))
+                        .build();
+                java.net.http.HttpResponse<String> http = HTTP.send(req,
+                        java.net.http.HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
+                int code = http.statusCode();
+                if (code == 200) {
+                    res = mapper.readTree(http.body());
+                } else {
+                    failure = "HTTP " + code;
+                    log.warn("[ExamStudio] {} model {} trả {} (lượt {})", op, spec.model(), code, attempt);
+                    // Lỗi phía mình (400/401/404) thử lại cũng vậy; quá tải hay lỗi máy chủ thì thử thêm một lần.
+                    if (code != 429 && code < 500) break;
+                    Thread.sleep(3_000L);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AiServiceException("Yêu cầu AI bị gián đoạn, vui lòng thử lại.", e);
+            } catch (java.net.http.HttpTimeoutException e) {
+                failure = "quá " + callTimeoutSeconds + " giây";
+                log.warn("[ExamStudio] {} model {} quá {} giây", op, spec.model(), callTimeoutSeconds);
+                break;
+            } catch (Exception e) {
+                failure = e.getClass().getSimpleName();
+                log.warn("[ExamStudio] {} model {} lỗi kết nối (lượt {}): {}", op, spec.model(), attempt, e.toString());
+            }
+        }
+        if (res == null) {
+            throw new AiServiceException("Model soạn đề không trả lời (" + failure + "), vui lòng thử lại.");
+        }
+        JsonNode choice = res.path("choices").path(0);
+        String content = choice.path("message").path("content").asText("");
+        if ("length".equals(choice.path("finish_reason").asText())) {
+            throw new AiServiceException("AI bị cắt giữa chừng vì hết hạn mức đầu ra, hãy thử lại.");
+        }
+        if (content.isBlank()) throw new AiServiceException("AI không trả về nội dung, vui lòng thử lại.");
+        try {
+            JsonNode u = res.path("usage");
+            com.deutschflow.speaking.ai.TokenUsage usage = new com.deutschflow.speaking.ai.TokenUsage(
+                    u.path("prompt_tokens").asInt(0), u.path("completion_tokens").asInt(0),
+                    u.path("total_tokens").asInt(0), false,
+                    u.path("prompt_tokens_details").path("cached_tokens").asInt(0));
+            ledger.record(userId, "FIREWORKS", spec.model(), usage, FEATURE_PREFIX + op, null, null);
+        } catch (Exception e) {
+            log.warn("[ExamStudio] Không ghi được sổ token: {}", e.getMessage());
+        }
+        return LlmJson.parse(mapper, content)
+                .orElseThrow(() -> new AiServiceException("AI trả JSON hỏng, hãy thử lại."));
     }
 
     private JsonNode blocking(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
