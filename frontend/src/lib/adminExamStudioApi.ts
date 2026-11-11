@@ -510,3 +510,43 @@ export async function setSourceFeedActive(id: number, active: boolean): Promise<
 export async function pollSourceFeed(id: number): Promise<SourcePollResult> {
   return (await api.post<SourcePollResult>(`${BASE}/catalog/feeds/${id}/poll`, {})).data
 }
+
+// ── Lượt "Tạo bộ đề tự động" ─────────────────────────────────────────────────
+// Một lượt = mọi Teil Xưởng đề làm được của một kỳ thi + cấp; mỗi Teil là một bản nháp thường (draftId).
+export type SetRunStatus = 'PLANNING' | 'RUNNING' | 'REVIEW' | 'NEEDS_ATTENTION' | 'APPROVED' | 'DISCARDED'
+export interface SetRunTeil {
+  section: string
+  teil: number
+  status: 'PENDING' | 'RUNNING' | 'READY' | 'STUCK'
+  /** Bước bộ điều phối đang đứng: NEW, SOURCING, TEXT_PENDING, TEXT, ITEMS, VERIFY, REPAIR_ITEMS, DONE. */
+  stage: string
+  theme: string | null
+  draftId: number | null
+  repairRound: number
+  themeTry: number
+  lastError: string | null
+}
+export interface SetRun {
+  id: number
+  examFormat: string
+  cefrLevel: string
+  status: SetRunStatus
+  channel: string
+  profile: string
+  note: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  teile: SetRunTeil[]
+}
+
+export async function listSetRuns(): Promise<SetRun[]> {
+  return (await api.get<SetRun[]>(`${BASE}/sets`)).data
+}
+export async function createSetRun(body: {
+  examFormat: string; cefrLevel: string; profile?: string; channel?: StudioChannelId
+}): Promise<SetRun> {
+  return (await api.post<SetRun>(`${BASE}/sets`, body)).data
+}
+export async function discardSetRun(id: number): Promise<SetRun> {
+  return (await api.post<SetRun>(`${BASE}/sets/${id}/discard`, {})).data
+}

@@ -559,6 +559,50 @@
       "subtitle": "Prüfungsteile aus deutschen Nachrichtenquellen erstellen: KI schreibt Text und Aufgaben nach Schwierigkeitsmatrix, der Owner gibt sie für den Pool frei.",
       "hint": "Verfügbar: telc B1 (Lesen 1–3, Sprachbausteine 1–2, Schreiben) und telc A2 / Start Deutsch 2 (Lesen 1–3, Schreiben 1–2)",
       "createTeil": "Neuer Teil",
+      "setRuns": {
+        "title": "Prüfungssatz automatisch erstellen",
+        "body": "Das System wählt Themen, holt Quellen, schreibt Texte, erstellt Aufgaben, prüft und korrigiert jeden Teil eines telc-B1-Satzes selbst. Der Lauf nutzt den unter „Erstellen mit“ gewählten KI-Kanal und dauert etwa eine Stunde. Sie prüfen erst, wenn der ganze Satz fertig ist.",
+        "start": "telc-B1-Satz erstellen",
+        "started": "Lauf gestartet.",
+        "oneAtATime": "Ein Lauf ist aktiv. Bitte warten, bis er fertig ist.",
+        "runTitle": "Lauf #{id} · {exam}",
+        "progress": "{ready}/{total} Teile fertig",
+        "none": "Noch keine Läufe.",
+        "openDraft": "Entwurf öffnen",
+        "repairs": "Korrekturrunden: {rounds} · Themenwechsel: {themes}",
+        "discard": "Lauf verwerfen",
+        "keep": "Behalten",
+        "discardTitle": "Lauf #{id} verwerfen?",
+        "discardBody": "Nicht freigegebene Entwürfe dieses Laufs werden verworfen. Bereits verwendete Artikel kehren nicht in das Quellenbuch zurück.",
+        "status": {
+          "PLANNING": "Planung",
+          "RUNNING": "Läuft",
+          "REVIEW": "Bereit zur Prüfung",
+          "NEEDS_ATTENTION": "Bitte ansehen",
+          "APPROVED": "Freigegeben",
+          "DISCARDED": "Verworfen"
+        },
+        "teilStatus": {
+          "PENDING": "Wartet",
+          "RUNNING": "Läuft",
+          "READY": "Fertig",
+          "STUCK": "Hängt"
+        },
+        "stage": {
+          "NEW": "Vorbereitung",
+          "SOURCING": "Quellen holen",
+          "TEXT_PENDING": "Text folgt",
+          "TEXT": "Text schreiben",
+          "ITEMS": "Aufgaben erstellen",
+          "VERIFY": "Selbstprüfung",
+          "REPAIR_ITEMS": "Rote Aufgaben korrigieren",
+          "DONE": "Fertig"
+        },
+        "channel": {
+          "FIREWORKS": "Fireworks AI",
+          "ROUTER": "9Router"
+        }
+      },
       "sources": {
         "intro": "Herausgeber, die die Prüfungssatz-Pipeline nutzen darf. „Neue Artikel lesen“ holt nur die Artikelliste (Titel, Link) und lädt keine Artikel. Jeder Artikel wird nur einmal verwendet.",
         "empty": "Der Quellenkatalog ist leer.",
