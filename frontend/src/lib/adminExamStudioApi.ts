@@ -243,6 +243,28 @@ export async function discardDraft(id: number): Promise<void> {
 export async function addSource(id: number, body: AddSourceBody): Promise<StudioDraft> {
   return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/sources`, body)).data
 }
+/** Tệp nguồn nhận được ở bước Nguồn; trần 10 MB khớp `SourceFileReader.MAX_BYTES` của backend. */
+export const SOURCE_FILE_ACCEPT = '.pdf,.docx,.txt'
+export const SOURCE_FILE_MAX_BYTES = 10 * 1024 * 1024
+
+/**
+ * Nguồn từ tệp (PDF, DOCX, TXT): máy bóc văn bản rồi rút dữ kiện như văn bản dán tay; tệp KHÔNG được lưu.
+ * `url` là đường dẫn bài gốc để in vào dòng Quelle (tuỳ chọn) — máy không tải đường dẫn này.
+ */
+export async function addSourceFile(
+  id: number, file: File, meta: { title?: string; publisher?: string; url?: string } = {},
+): Promise<StudioDraft> {
+  const form = new FormData()
+  form.append('file', file, file.name)
+  if (meta.title) form.append('title', meta.title)
+  if (meta.publisher) form.append('publisher', meta.publisher)
+  if (meta.url) form.append('url', meta.url)
+  // Content-Type phải gỡ tường minh để trình duyệt tự gắn multipart + boundary (xem examSpeakingApi.audioTurn).
+  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/sources/file`, form, {
+    headers: { 'Content-Type': null },
+    timeout: 60_000,
+  })).data
+}
 export async function patchSource(
   id: number, sourceId: number,
   body: { usageMode?: 'ADAPT' | 'FACTS_ONLY'; selectedFactIds?: string[] },
