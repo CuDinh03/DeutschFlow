@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Download, MessageSquare, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
-import { getAccessToken } from '@/lib/authSession'
+import { authFetch } from '@/lib/authFetch'
 import { GaPageHdr, GaBtn, GaCap, GaGlyph, GaStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,10 +21,9 @@ interface DatasetStats {
   last_exported_at?: string
 }
 
-async function downloadJson(path: string, filename: string, token: string, failMsg: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? ''}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+async function downloadJson(path: string, filename: string, failMsg: string) {
+  // authFetch: gắn Bearer + tự làm mới token một lần khi 401.
+  const res = await authFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? ''}${path}`)
   if (!res.ok) throw new Error(failMsg)
   const blob = await res.blob()
   const link = URL.createObjectURL(blob)
@@ -65,9 +64,8 @@ export default function V2AdminTrainingDatasetPage() {
   const handleDownload = async (type: 'conversations' | 'errors') => {
     setDownloading(type)
     try {
-      const token = getAccessToken() ?? ''
       const stamp = new Date().toISOString().slice(0, 10)
-      await downloadJson(`/api/admin/training-dataset/export/${type}`, `deutschflow-training-${type}-${stamp}.json`, token, t('downloadFailed'))
+      await downloadJson(`/api/admin/training-dataset/export/${type}`, `deutschflow-training-${type}-${stamp}.json`, t('downloadFailed'))
       toast.success(t('downloaded'))
     } catch (e: unknown) { toast.error(apiMessage(e)) }
     finally { setDownloading(null) }
