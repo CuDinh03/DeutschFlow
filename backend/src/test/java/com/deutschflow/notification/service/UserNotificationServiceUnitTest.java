@@ -196,7 +196,7 @@ class UserNotificationServiceUnitTest {
         service.insertForUser(user, NotificationType.LEVEL_UP, payload);
 
         verify(expoPushSenderService).sendAsync(
-                eq("ExponentPushToken[xyz]"), eq("⬆️ Lên cấp"), eq("Chúc mừng! Bạn đã lên Level 5!"), any());
+                eq("ExponentPushToken[xyz]"), eq("Lên cấp"), eq("Chúc mừng! Bạn đã lên Level 5!"), any());
     }
 
     @Test
@@ -268,7 +268,7 @@ class UserNotificationServiceUnitTest {
         NotificationPageResponse resp = service.listForRecipient(1L, 0, 20, false);
 
         assertThat(resp.items()).hasSize(1);
-        assertThat(resp.items().get(0).title()).isEqualTo("⬆️ Lên cấp");
+        assertThat(resp.items().get(0).title()).isEqualTo("Lên cấp");
         assertThat(resp.items().get(0).body()).isEqualTo("Chúc mừng! Bạn đã lên Level 5!");
         assertThat(resp.items().get(0).read()).isFalse();
     }
@@ -472,7 +472,7 @@ class UserNotificationServiceUnitTest {
         // Push (nếu có token) phải mang copy regrade, không phải "✅ Bài đã chấm" lần nữa.
         verify(expoPushSenderService).sendAsync(
                 eq("ExponentPushToken[r]"),
-                eq("🔄 Điểm đã được cập nhật"),
+                eq("Điểm đã được cập nhật"),
                 eq("Điểm bài tập của bạn đã được cập nhật — Điểm: 90. Xem phản hồi."),
                 any());
     }
