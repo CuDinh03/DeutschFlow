@@ -7,6 +7,7 @@
  *   /v2/student/mock-exam/oral/other      Kỳ thi khác: chọn hệ × cấp, không đổi lịch ôn
  *   /v2/student/mock-exam/oral/weakness   Ôn yếu điểm
  */
+import { safeNext } from '@/lib/safeNext'
 import type { ExamMode, ExamProvider } from '@/types/exam-speaking'
 
 export const ORAL_BASE = '/v2/student/mock-exam/oral'
@@ -31,13 +32,13 @@ export interface OralEntry {
 }
 
 /**
- * Chỉ nhận đường dẫn nội bộ của khu học viên — chặn `//evil.com`, `https://…`, `javascript:`
- * khi `?return=` bị sửa tay.
+ * Chỉ nhận đường dẫn nội bộ của khu học viên; mọi giá trị khác rơi về nơi về mặc định.
+ * Luật đường dẫn nội bộ dùng chung ở `@/lib/safeNext`.
  */
 export function safeReturn(raw: string | null | undefined): string {
-  if (!raw) return ORAL_DEFAULT_RETURN
-  if (!raw.startsWith('/v2/student/') || raw.startsWith('//') || raw.includes('\\')) return ORAL_DEFAULT_RETURN
-  return raw
+  const path = safeNext(raw)
+  if (!path || !path.startsWith('/v2/student/')) return ORAL_DEFAULT_RETURN
+  return path
 }
 
 export function oralEntryHref({ provider, level, mode = 'MOCK', teil, prepMode, ret }: OralEntry = {}): string {

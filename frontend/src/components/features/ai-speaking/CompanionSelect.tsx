@@ -25,6 +25,7 @@ import { spring } from "@/lib/motion";
 import { useStatusBarStyle } from "@/lib/statusBar";
 import { lightImpact, mediumImpact } from "@/lib/haptics";
 import { isOccupationCode } from "@/lib/occupationTypes";
+import { safeNext } from "@/lib/safeNext";
 import { OccupationInterviewCard } from "./OccupationInterviewCard";
 import { EXPERIENCE_LEVELS } from "./experienceLevels";
 
@@ -137,7 +138,7 @@ export function CompanionSelect({
   // return them into v2 instead of the legacy home. Only set when present so the
   // value survives intra-flow navigation (re-pick companion, restart).
   useEffect(() => {
-    const rp = searchParams.get('return')
+    const rp = safeNext(searchParams.get('return'))
     if (rp) setReturnPath(rp)
   }, [searchParams, setReturnPath])
 
