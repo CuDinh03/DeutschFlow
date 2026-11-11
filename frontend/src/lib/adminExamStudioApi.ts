@@ -226,6 +226,47 @@ export interface AddSourceBody {
 
 const BASE = '/admin/exam-studio'
 
+// ── Kênh tạo đề ──────────────────────────────────────────────────────────────
+// Hai kênh tách riêng: FIREWORKS (tài khoản Fireworks của hệ thống) và ROUTER (cổng 9Router của owner → API
+// Claude / Grok). Admin chọn bằng nút trên màn bản nháp; mọi thao tác AI gửi kèm ?channel=… Kênh lỗi thì
+// backend báo lỗi, không tự chuyển sang kênh kia.
+export type StudioChannelId = 'FIREWORKS' | 'ROUTER'
+export interface StudioChannel {
+  id: StudioChannelId
+  /** false ⇒ máy chủ chưa có địa chỉ / khoá / model cho kênh này: không chọn được. */
+  configured: boolean
+  writerModel: string | null
+  judgeModel: string | null
+}
+
+const CHANNEL_KEY = 'df.examStudio.channel'
+let currentChannel: StudioChannelId | null = null
+
+/** Kênh đang chọn (nhớ theo trình duyệt; mặc định Fireworks). */
+export function getStudioChannel(): StudioChannelId {
+  if (currentChannel) return currentChannel
+  try {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(CHANNEL_KEY) : null
+    currentChannel = saved === 'ROUTER' ? 'ROUTER' : 'FIREWORKS'
+  } catch {
+    currentChannel = 'FIREWORKS'
+  }
+  return currentChannel
+}
+export function setStudioChannel(id: StudioChannelId): void {
+  currentChannel = id
+  try {
+    window.localStorage.setItem(CHANNEL_KEY, id)
+  } catch {
+    // Trình duyệt chặn localStorage: lựa chọn chỉ sống trong phiên này.
+  }
+}
+export async function getChannels(): Promise<StudioChannel[]> {
+  return (await api.get<StudioChannel[]>(`${BASE}/channels`)).data
+}
+/** Tham số kênh gắn vào mọi thao tác AI. */
+const onChannel = () => ({ params: { channel: getStudioChannel() } })
+
 export async function listDrafts(status?: DraftStatus): Promise<StudioDraftSummary[]> {
   const res = await api.get<StudioDraftSummary[]>(`${BASE}/drafts`, { params: status ? { status } : {} })
   return res.data
@@ -252,7 +293,7 @@ export async function discardDraft(id: number): Promise<void> {
   await api.delete(`${BASE}/drafts/${id}`)
 }
 export async function addSource(id: number, body: AddSourceBody): Promise<StudioDraft> {
-  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/sources`, body)).data
+  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/sources`, body, onChannel())).data
 }
 /** Tệp nguồn nhận được ở bước Nguồn; trần 10 MB khớp `SourceFileReader.MAX_BYTES` của backend. */
 export const SOURCE_FILE_ACCEPT = '.pdf,.docx,.txt'
@@ -272,6 +313,7 @@ export async function addSourceFile(
   if (meta.url) form.append('url', meta.url)
   // Content-Type phải gỡ tường minh để trình duyệt tự gắn multipart + boundary (xem examSpeakingApi.audioTurn).
   return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/sources/file`, form, {
+    ...onChannel(),
     headers: { 'Content-Type': null },
     timeout: 60_000,
   })).data
@@ -290,18 +332,18 @@ export async function writeText(
   id: number,
   body: { selection?: string; mode?: 'REWRITE' | 'SIMPLIFY'; note?: string } = {},
 ): Promise<StudioDraft> {
-  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/text`, body)).data
+  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/text`, body, onChannel())).data
 }
 /** Sinh mọi câu chưa khoá theo difficultyPlan. */
 export async function generateItems(id: number): Promise<StudioDraft> {
-  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/items`, {})).data
+  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/items`, {}, onChannel())).data
 }
 export async function regenerateItem(id: number, itemId: string, difficulty?: DifficultyLevel): Promise<StudioDraft> {
   return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/items/${encodeURIComponent(itemId)}/regenerate`,
-    difficulty ? { difficulty } : {})).data
+    difficulty ? { difficulty } : {}, onChannel())).data
 }
 export async function verifyDraft(id: number): Promise<StudioDraft> {
-  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/verify`, {})).data
+  return (await api.post<StudioDraft>(`${BASE}/drafts/${id}/verify`, {}, onChannel())).data
 }
 /** Owner duyệt: mọi mục checklist phải true, không còn đèn đỏ. Trả draft (status APPROVED, blockId). */
 export async function approveDraft(

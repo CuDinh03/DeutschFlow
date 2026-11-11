@@ -908,8 +908,7 @@ public class ExamDraftService {
         Map<Integer, JsonNode> all = new HashMap<>();
         List<Item> known = new ArrayList<>(keep);
         RuntimeException firstError = null;
-        // Đường gọi riêng chịu được lượt dài nên xin ba câu một lượt (ít lượt gọi hơn); đường cũ giữ hai câu.
-        int perCall = ai.dedicatedWriter() ? 3 : ITEMS_PER_CALL;
+        int perCall = ai.itemsPerCall();
         for (int from = 0; from < todo.size(); from += perCall) {
             int to = Math.min(todo.size(), from + perCall);
             List<int[]> part = todo.subList(from, to);
@@ -1138,7 +1137,13 @@ public class ExamDraftService {
                 flags.add("Sai dạng telc: phải là nửa câu để nối tiếp (kết thúc bằng \" …\"), không phải câu hỏi.");
                 sev = 2;
             }
-            if (it.evidence() == null || it.evidence().isBlank() || !context.contains(norm(it.evidence()))) {
+            // Bài báo a/b/c: bằng chứng của câu Khó / Siêu khó là các câu ở HAI đoạn khác nhau, nên không phải một
+            // chuỗi liền trong bài — tìm từng câu một (ItemMetrics). Chạy thật 11/11/2026: phép so chuỗi liền báo
+            // "không có nguyên văn" cho cả năm câu dù từng câu trích đều đúng nguyên văn.
+            ItemMetrics.Measured evidenceMetrics = metricsById.get(it.id());
+            boolean evidenceOk = evidenceMetrics != null ? evidenceMetrics.evidenceFound()
+                    : it.evidence() != null && !it.evidence().isBlank() && context.contains(norm(it.evidence()));
+            if (!evidenceOk) {
                 flags.add("Câu bằng chứng không có nguyên văn trong bài.");
                 sev = Math.max(sev, 1);
             }
@@ -1636,6 +1641,8 @@ public class ExamDraftService {
         Map<String, Object> payload = new HashMap<>(extra);
         payload.put("draftId", draftId);
         payload.put("op", op);
+        // Kênh admin chọn ở request này đi theo job nền (job chạy trên luồng khác).
+        payload.put(ExamStudioJobHandler.CHANNEL, ExamStudioAi.currentChannel().name());
         AiJob job = jobs.save(AiJob.builder().jobType(ExamStudioJobHandler.JOB_TYPE).userId(userId).payload(payload).build());
         jdbc.update("UPDATE exam_drafts SET busy_job_id = ? WHERE id = ?", job.getId(), draftId);
     }

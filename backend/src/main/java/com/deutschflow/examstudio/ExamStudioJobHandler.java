@@ -24,6 +24,8 @@ public class ExamStudioJobHandler implements AiJobHandler {
 
     public static final String JOB_TYPE = "EXAM_STUDIO";
     static final String PASTED_TEXT = "pastedText";
+    /** Kênh tạo đề admin chọn cho thao tác này (FIREWORKS / ROUTER). */
+    static final String CHANNEL = "channel";
 
     private final ExamDraftService drafts;
     private final JdbcTemplate jdbc;
@@ -44,6 +46,7 @@ public class ExamStudioJobHandler implements AiJobHandler {
         long draftId = ((Number) payload.get("draftId")).longValue();
         String op = String.valueOf(payload.get("op"));
         long userId = job.getUserId();
+        ExamStudioAi.useChannel(ExamStudioAi.Channel.of(payload.get(CHANNEL)));
         try {
             switch (op) {
                 case "FACTS" -> drafts.runFacts(draftId, userId, payload, pasted);
@@ -59,6 +62,8 @@ public class ExamStudioJobHandler implements AiJobHandler {
             log.warn("[ExamStudio] {} của bản nháp {} hỏng: {}", op, draftId, msg);
             drafts.finishBusy(draftId, msg);
             throw e;
+        } finally {
+            ExamStudioAi.clearChannel();
         }
         return Map.of("draftId", draftId, "op", op);
     }

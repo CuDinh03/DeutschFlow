@@ -80,9 +80,115 @@ public class ExamStudioAi {
                 base.includeUsage());
     }
 
+    // ── Kênh tạo đề ─────────────────────────────────────────────────────────────────────────
+    // Hai kênh TÁCH RIÊNG, admin chọn bằng nút trên màn Xưởng đề (owner chốt 11/11/2026):
+    //   FIREWORKS — tài khoản Fireworks của hệ thống (Kimi K3 viết, DeepSeek V4.1 Flash chấm);
+    //   ROUTER    — cổng 9Router của owner (endpoint kiểu OpenAI), sau đó là API Claude / Grok owner tự trả tiền.
+    // Không kênh nào tự chuyển sang kênh kia: kênh đang chọn lỗi thì báo lỗi, admin tự đổi kênh rồi bấm lại.
+
+    public enum Channel {
+        FIREWORKS, ROUTER;
+
+        /** Rỗng ⇒ FIREWORKS; tên lạ ⇒ lỗi rõ ràng (không lặng lẽ rơi về kênh mặc định). */
+        public static Channel of(Object v) {
+            if (v == null || String.valueOf(v).isBlank()) return FIREWORKS;
+            try {
+                return valueOf(String.valueOf(v).trim().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new com.deutschflow.common.exception.BadRequestException("Kênh tạo đề không hợp lệ: " + v);
+            }
+        }
+    }
+
+    /** Kênh của thao tác đang chạy trên luồng này: controller đặt khi nhận yêu cầu, job nền đặt lại khi chạy. */
+    private static final ThreadLocal<Channel> CURRENT = new ThreadLocal<>();
+
+    public static void useChannel(Channel c) {
+        CURRENT.set(c == null ? Channel.FIREWORKS : c);
+    }
+
+    public static void clearChannel() {
+        CURRENT.remove();
+    }
+
+    public static Channel currentChannel() {
+        Channel c = CURRENT.get();
+        return c == null ? Channel.FIREWORKS : c;
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.router.base-url:}")
+    private String routerBaseUrl = "";
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.router.api-key:}")
+    private String routerApiKey = "";
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.router.writer-model:}")
+    private String routerWriterModel = "";
+    /** Để trống ⇒ dùng luôn model viết để chấm. */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.router.judge-model:}")
+    private String routerJudgeModel = "";
+    /**
+     * Có gửi {@code temperature} và {@code response_format} cho kênh 9Router không. Mặc định KHÔNG: các model
+     * Claude mới từ chối temperature khác mặc định, và cổng trung gian không phải lúc nào cũng dịch được
+     * response_format. Prompt đã yêu cầu "chỉ trả JSON" và phần đọc kết quả tự bóc ```json.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.router.send-temperature:false}")
+    private boolean routerSendTemperature = false;
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.router.json-mode:false}")
+    private boolean routerJsonMode = false;
+
+    /** Một đích gọi: tên ghi sổ, địa chỉ đầy đủ, khoá, model và cách dựng request. */
+    record Endpoint(String name, String url, String key, String model, boolean sendTemperature, boolean jsonMode) {}
+
+    /** Thông tin một kênh cho màn hình (không bao giờ kèm khoá hay địa chỉ). */
+    public record ChannelInfo(String id, boolean configured, String writerModel, String judgeModel) {}
+
+    /** Nhận cả địa chỉ gốc kiểu ".../v1" (cách các cổng OpenAI-compatible hay ghi) lẫn địa chỉ đầy đủ. */
+    static String chatUrl(String url) {
+        if (url == null) return null;
+        String u = url.trim();
+        while (u.endsWith("/")) u = u.substring(0, u.length() - 1);
+        return u.endsWith("/v1") ? u + "/chat/completions" : u;
+    }
+
+    boolean routerConfigured() {
+        return set(routerBaseUrl) && set(routerApiKey) && set(routerWriterModel);
+    }
+
+    public List<ChannelInfo> channels() {
+        String rj = set(routerJudgeModel) ? routerJudgeModel.trim() : routerWriterModel.trim();
+        return List.of(
+                new ChannelInfo(Channel.FIREWORKS.name(), true,
+                        set(writerModel) ? writerModel : tiers.spec(writerTier).model(),
+                        set(judgeModel) ? judgeModel : tiers.spec(LlmTier.GRADING_EXAM).model()),
+                new ChannelInfo(Channel.ROUTER.name(), routerConfigured(),
+                        routerConfigured() ? routerWriterModel.trim() : null, routerConfigured() ? rj : null));
+    }
+
+    /** Kênh admin yêu cầu; kênh chưa cấu hình thì từ chối ngay ở request, không đợi tới job nền. */
+    public Channel requireChannel(String requested) {
+        Channel c = Channel.of(requested);
+        if (c == Channel.ROUTER && !routerConfigured()) {
+            throw new com.deutschflow.common.exception.BadRequestException(
+                    "Kênh 9Router chưa được cấu hình trên máy chủ (địa chỉ, khoá và model viết).");
+        }
+        return c;
+    }
+
+    private JsonNode viaRouter(Role role, long userId, String op, String system, String user, double temperature,
+                               int maxTokens) {
+        if (!routerConfigured()) throw new AiServiceException("Kênh 9Router chưa được cấu hình trên máy chủ.");
+        String model = role == Role.JUDGE && set(routerJudgeModel) ? routerJudgeModel : routerWriterModel;
+        Endpoint e = new Endpoint("9ROUTER", chatUrl(routerBaseUrl), routerApiKey, model.trim(), routerSendTemperature,
+                routerJsonMode);
+        return withTruncationRetry(userId, op, e, system, user, temperature, Math.max(maxTokens, minOutputTokens));
+    }
+
     JsonNode call(long userId, String op, LlmTier tier, String system, String user, double temperature,
                   int maxTokens) {
         Role role = roleOf(tier);
+        // Kênh 9Router: MỌI lượt gọi của thao tác đi qua 9Router, kể cả lượt không thuộc vai viết/chấm.
+        if (currentChannel() == Channel.ROUTER) {
+            return viaRouter(role == null ? Role.JUDGE : role, userId, op, system, user, temperature, maxTokens);
+        }
         String model = role == Role.WRITER ? writerModel : role == Role.JUDGE ? judgeModel : null;
         if (set(model)) {
             return direct(userId, op, dedicated(tier, model), system, user, temperature,
@@ -93,6 +199,9 @@ public class ExamStudioAi {
 
     /** Lượt VIẾT của Teil lấy từ nguồn báo và lượt đối chiếu dữ kiện: luôn đi đường stream (đầu ra dài). */
     JsonNode callAs(Role role, long userId, String op, String system, String user, double temperature, int maxTokens) {
+        if (currentChannel() == Channel.ROUTER) {
+            return viaRouter(role, userId, op, system, user, temperature, maxTokens);
+        }
         String model = role == Role.WRITER ? writerModel : judgeModel;
         LlmTier tier = role == Role.WRITER ? writerTier : LlmTier.GRADING_EXAM;
         if (set(model)) {
@@ -119,6 +228,14 @@ public class ExamStudioAi {
     }
 
     /**
+     * Số câu a/b/c xin trong một lượt gọi. Kênh 9Router đi qua đường hầm tới máy của owner — lượt gọi quá dài dễ
+     * bị đường hầm cắt, nên xin hai câu một lượt; kênh Fireworks đường riêng xin ba; đường cũ giữ hai.
+     */
+    int itemsPerCall() {
+        return currentChannel() == Channel.ROUTER ? 2 : dedicatedWriter() ? 3 : 2;
+    }
+
+    /**
      * Đường gọi RIÊNG của Xưởng đề cho model riêng: gọi thẳng endpoint, chờ tới {@code call-timeout-seconds}.
      *
      * <p>KHÔNG đi qua {@code GroqChatClient}: client đó phục vụ hội thoại thời gian thực nên có trần 15 giây
@@ -142,29 +259,36 @@ public class ExamStudioAi {
      */
     private JsonNode direct(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
                             double temperature, int maxTokens) {
+        Endpoint e = new Endpoint("FIREWORKS", set(spec.baseUrl()) ? spec.baseUrl() : defaultBaseUrl,
+                set(spec.apiKey()) ? spec.apiKey() : defaultApiKey, spec.model(), true, true);
+        return withTruncationRetry(userId, op, e, system, user, temperature, maxTokens);
+    }
+
+    private JsonNode withTruncationRetry(long userId, String op, Endpoint e, String system, String user,
+                                         double temperature, int maxTokens) {
         try {
-            return directOnce(userId, op, spec, system, user, temperature, maxTokens);
-        } catch (TruncatedException e) {
+            return directOnce(userId, op, e, system, user, temperature, maxTokens);
+        } catch (TruncatedException t) {
             int more = Math.min(MAX_OUTPUT_TOKENS, maxTokens * 2);
-            log.warn("[ExamStudio] {} model {} bị cắt ở {} token — thử lại với {}", op, spec.model(), maxTokens, more);
-            if (more <= maxTokens) throw e;
-            return directOnce(userId, op, spec, system, user, temperature, more);
+            log.warn("[ExamStudio] {} model {} bị cắt ở {} token — thử lại với {}", op, e.model(), maxTokens, more);
+            if (more <= maxTokens) throw t;
+            return directOnce(userId, op, e, system, user, temperature, more);
         }
     }
 
-    private JsonNode directOnce(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
+    private JsonNode directOnce(long userId, String op, Endpoint spec, String system, String user,
                                 double temperature, int maxTokens) {
-        String url = set(spec.baseUrl()) ? spec.baseUrl() : defaultBaseUrl;
-        String key = set(spec.apiKey()) ? spec.apiKey() : defaultApiKey;
+        String url = spec.url();
+        String key = spec.key();
         if (!set(url) || !set(key)) throw new AiServiceException("Chưa cấu hình endpoint AI cho Xưởng đề.");
         com.fasterxml.jackson.databind.node.ObjectNode body = mapper.createObjectNode();
         body.put("model", spec.model());
         com.fasterxml.jackson.databind.node.ArrayNode msgs = body.putArray("messages");
         msgs.addObject().put("role", "system").put("content", system);
         msgs.addObject().put("role", "user").put("content", user);
-        body.put("temperature", temperature);
+        if (spec.sendTemperature()) body.put("temperature", temperature);
         body.put("max_tokens", maxTokens);
-        body.putObject("response_format").put("type", "json_object");
+        if (spec.jsonMode()) body.putObject("response_format").put("type", "json_object");
 
         JsonNode res = null;
         String failure = null;
@@ -216,7 +340,7 @@ public class ExamStudioAi {
                     u.path("prompt_tokens").asInt(0), u.path("completion_tokens").asInt(0),
                     u.path("total_tokens").asInt(0), false,
                     u.path("prompt_tokens_details").path("cached_tokens").asInt(0));
-            ledger.record(userId, "FIREWORKS", spec.model(), usage, FEATURE_PREFIX + op, null, null);
+            ledger.record(userId, spec.name(), spec.model(), usage, FEATURE_PREFIX + op, null, null);
         } catch (Exception e) {
             log.warn("[ExamStudio] Không ghi được sổ token: {}", e.getMessage());
         }
