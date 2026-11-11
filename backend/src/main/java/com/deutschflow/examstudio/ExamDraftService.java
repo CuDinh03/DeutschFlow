@@ -610,9 +610,10 @@ public class ExamDraftService {
             }
             return;
         }
-        JsonNode out = ai.generateItems(userId, spec, r.text().text(), todo, todoLevels, keep, avoid);
-        Map<Integer, JsonNode> bySlot = bySlot(out, todo);
+        Map<Integer, JsonNode> bySlot;
         if (mcNews(spec)) {
+            String context = r.text().text().context();
+            bySlot = generateInBatches(userId, r, todo, todoLevels, keep, avoid, Map.of());
             // Đo ngay bằng code: câu nào trái công thức của bậc (vd. giao Siêu khó mà bằng chứng gói trong một
             // câu) thì cho AI viết lại MỘT lần kèm lời nhắc cụ thể. Lượt tự kiểm sẽ đo lại đầy đủ.
             Map<Integer, String> hints = new java.util.TreeMap<>();
@@ -620,22 +621,26 @@ public class ExamDraftService {
             List<String> redoLevels = new ArrayList<>();
             for (int i = 0; i < todo.size(); i++) {
                 int s = todo.get(i)[0];
-                String hint = recipeHint(r.text().text().context(), bySlot.get(s), todoLevels.get(i));
+                String hint = recipeHint(context, bySlot.get(s), todoLevels.get(i));
                 if (hint == null) continue;
                 hints.put(s, hint);
                 redo.add(todo.get(i));
                 redoLevels.add(todoLevels.get(i));
             }
             if (!hints.isEmpty()) {
-                try {
-                    JsonNode again = ai.generateItems(userId, spec, r.text().text(), redo, redoLevels, keep, avoid, hints);
-                    bySlot(again, redo).forEach((s, n) -> {
-                        if (rawOptions(n) != null) bySlot.put(s, n);
-                    });
-                } catch (RuntimeException e) {
-                    log.warn("[ExamStudio] sinh lại câu lệch công thức của bản nháp {} hỏng: {}", draftId, e.getMessage());
+                Map<Integer, JsonNode> again = generateInBatches(userId, r, redo, redoLevels, keep, avoid, hints);
+                for (int i = 0; i < redo.size(); i++) {
+                    int s = redo.get(i)[0];
+                    JsonNode n = again.get(s);
+                    // Chỉ nhận bản viết lại khi nó đúng khuôn và không còn trái công thức nặng hơn bản đầu.
+                    if (rawOptions(n) != null && (rawOptions(bySlot.get(s)) == null
+                            || recipeHint(context, n, redoLevels.get(i)) == null)) {
+                        bySlot.put(s, n);
+                    }
                 }
             }
+        } else {
+            bySlot = bySlot(ai.generateItems(userId, spec, r.text().text(), todo, todoLevels, keep, avoid), todo);
         }
 
         Random rnd = new Random(draftId * 31 + System.nanoTime());
@@ -695,6 +700,8 @@ public class ExamDraftService {
             }
             List<ItemRules.RawOption> raw = rawOptions(n);
             if (raw == null) {
+                log.warn("[ExamStudio] bản nháp {} câu {} sai khuôn, AI trả: {}", draftId, spec.itemId(s),
+                        n == null ? "(không có)" : cut(n.toString(), 600));
                 problems.add(spec.itemId(s));
                 continue;
             }
@@ -714,10 +721,69 @@ public class ExamDraftService {
         }
     }
 
+    /** Số câu a/b/c tối đa xin AI trong một lượt gọi. */
+    static final int ITEMS_PER_CALL = 2;
+
+    /**
+     * Sinh câu a/b/c theo lô nhỏ. Năm câu một lượt trên model lớn (mỗi câu có dàn ý, bằng chứng, lời giải tiếng
+     * Việt) cho đầu ra hỏng cả năm khi chạy thật 11/11/2026, trong khi sinh từng câu thì đạt. Lô sau được biết
+     * các câu lô trước đã viết để không hỏi trùng. Một lô lỗi không làm hỏng các lô khác.
+     */
+    private Map<Integer, JsonNode> generateInBatches(long userId, Row r, List<int[]> todo, List<String> levels,
+                                                     List<Item> keep, List<String> avoid, Map<Integer, String> hints) {
+        Map<Integer, JsonNode> all = new HashMap<>();
+        List<Item> known = new ArrayList<>(keep);
+        RuntimeException firstError = null;
+        for (int from = 0; from < todo.size(); from += ITEMS_PER_CALL) {
+            int to = Math.min(todo.size(), from + ITEMS_PER_CALL);
+            List<int[]> part = todo.subList(from, to);
+            Map<Integer, String> partHints = new java.util.TreeMap<>();
+            for (int[] t : part) if (hints.containsKey(t[0])) partHints.put(t[0], hints.get(t[0]));
+            try {
+                JsonNode out = ai.generateItems(userId, r.spec(), r.text().text(), part, levels.subList(from, to),
+                        known, avoid, partHints);
+                Map<Integer, JsonNode> got = bySlot(out, part);
+                if (got.isEmpty()) {
+                    log.warn("[ExamStudio] bản nháp {} lô câu {}–{}: không đọc được câu nào, AI trả: {}", r.id(),
+                            from, to - 1, cut(out.toString(), 600));
+                }
+                for (Map.Entry<Integer, JsonNode> e : got.entrySet()) {
+                    all.put(e.getKey(), e.getValue());
+                    List<ItemRules.RawOption> raw = rawOptions(e.getValue());
+                    if (raw == null) continue;
+                    Map<String, String> options = new LinkedHashMap<>();
+                    String correct = "a";
+                    for (int i = 0; i < raw.size(); i++) {
+                        options.put(ItemRules.LETTERS.get(i), raw.get(i).text());
+                        if (raw.get(i).correct()) correct = ItemRules.LETTERS.get(i);
+                    }
+                    known.add(new Item("new-" + e.getKey(), firstNonBlank(text(e.getValue(), "question"), ""), options,
+                            correct, "", "", List.of(), "MEDIUM", null, false, null, List.of()));
+                }
+            } catch (RuntimeException e) {
+                log.warn("[ExamStudio] bản nháp {} lô câu {}–{} hỏng: {}", r.id(), from, to - 1, e.getMessage());
+                if (firstError == null) firstError = e;
+            }
+        }
+        // Không lô nào ra được câu: báo đúng lỗi của AI (quá tải, hết giờ) thay vì "AI trả hỏng câu".
+        if (all.isEmpty() && firstError != null) throw firstError;
+        return all;
+    }
+
+    /** Mảng câu trong câu trả lời của AI: khoá "items", hoặc cả câu trả lời là một mảng / một câu đơn. */
+    private static Iterable<JsonNode> itemNodes(JsonNode out) {
+        if (out == null) return List.of();
+        if (out.isArray()) return out;
+        for (String key : List.of("items", "aufgaben", "Aufgaben", "tasks")) {
+            if (out.path(key).isArray()) return out.path(key);
+        }
+        return out.has("options") ? List.of(out) : List.of();
+    }
+
     private static Map<Integer, JsonNode> bySlot(JsonNode out, List<int[]> todo) {
         Map<Integer, JsonNode> bySlot = new HashMap<>();
         int fallback = 0;
-        for (JsonNode n : out.path("items")) {
+        for (JsonNode n : itemNodes(out)) {
             int slot = n.has("slot") ? n.path("slot").asInt(-1) : -1;
             final int asked = slot;
             if (slot < 0 || todo.stream().noneMatch(t -> t[0] == asked) || bySlot.containsKey(slot)) {
