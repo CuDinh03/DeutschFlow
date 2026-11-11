@@ -27,9 +27,13 @@ import java.util.Map;
 public class ExamQuestionSanitizer {
     private static final ObjectMapper om = new ObjectMapper();
 
-    /** Answer-revealing fields removed from every question item before serving. */
+    /**
+     * Answer-revealing fields removed from every question item before serving. Từ Xưởng đề (V376): câu bằng
+     * chứng, bẫy theo phương án và nhãn độ khó cũng lộ đáp án nên bỏ cùng.
+     */
     private static final List<String> ANSWER_FIELDS =
-            List.of("correct", "correct_answer", "explanation_vi", "explanation");
+            List.of("correct", "correct_answer", "explanation_vi", "explanation",
+                    "evidence", "traps", "difficulty_target", "difficulty_measured", "difficulty_empirical");
 
     /**
      * Parse the stored {@code sections_json}, annotate each item with a {@code type},
@@ -81,8 +85,21 @@ public class ExamQuestionSanitizer {
                     }
                 }
             }
+            // telc A2 Schreiben Teil 1 (Xưởng đề, 10/11/2026): ô form mang đáp án — chỉ giữ tên ô cho học viên.
+            if (castMap(teil).get("form_fields") instanceof List<?> fields) {
+                for (Object f : fields) {
+                    if (f instanceof Map<?, ?> field) {
+                        Map<String, Object> m = castMap(field);
+                        for (String k : FORM_ANSWER_FIELDS) m.remove(k);
+                    }
+                }
+            }
         }
     }
+
+    /** Khoá lộ đáp án trong một ô form có đáp án. */
+    private static final List<String> FORM_ANSWER_FIELDS =
+            List.of("answer", "accept", "explanation_vi", "evidence", "difficulty_target", "difficulty_measured");
 
     private void sanitizeItem(Map<String, Object> item) {
         // Derive type BEFORE stripping the answer key it is derived from.

@@ -1,7 +1,7 @@
 /**
  * Phép thuần của thi thử trọn đề trong giao diện luyện đề mới (06/11/2026). Không gọi API.
  */
-import { kindOf, parseStructure, wordCount, type PracticeTeilData } from './practiceModel'
+import { formProgress, kindOf, parseStructure, wordCount, type PracticeTeilData } from './practiceModel'
 import { MARK_SECTIONS, marksSupported } from '@/components/exam/marks/marksBlocks'
 
 /** Phần thi chạy trong giao diện mới, theo thứ tự đề telc. Sprechen thi ở phòng thi nói AI riêng. */
@@ -38,6 +38,8 @@ export function writingKey(no: number): string {
 
 /** Số câu đã làm / tổng số câu của một Teil. Bài Viết: 1 khi đã có chữ. */
 export function teilProgress(teil: FullTeil, answers: Record<string, string>): { done: number; total: number } {
+  // telc A2 Schreiben Teil 1: form nhiều ô, mỗi ô một câu.
+  if (teil.section === 'SCHREIBEN' && teil.data.type === 'FILL_FORM') return formProgress(teil.data, answers)
   if (teil.section === 'SCHREIBEN') {
     return { done: wordCount(answers[writingKey(teil.no)] ?? '') > 0 ? 1 : 0, total: 1 }
   }

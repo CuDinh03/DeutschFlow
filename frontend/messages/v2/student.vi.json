@@ -2709,7 +2709,10 @@
         "GAP_MC": "Điền chỗ trống · a/b/c",
         "GAP_WORDBANK": "Điền chỗ trống · hộp từ",
         "SCHREIBEN": "Viết thư trả lời",
-        "HOEREN": "Nghe, chọn richtig/falsch"
+        "HOEREN": "Nghe, chọn richtig/falsch",
+        "TRUE_FALSE": "Đọc bài, chọn richtig/falsch",
+        "FILL_FORM": "Điền form",
+        "WRITE_NOTE": "Viết tin nhắn ngắn"
       },
       "fallbackTips": {
         "LESEN": {
@@ -2932,6 +2935,19 @@
         "flaggedNavEmpty": "Chưa đánh dấu câu nào. Bấm hình lá cờ ở một câu (hoặc phím F) để đánh dấu xem lại.",
         "flaggedNavItem": "{teil} · câu {n}",
         "flaggedNavClose": "Đóng danh sách"
+      },
+      "choosePoints": "Chọn {n} trong {total} ý dưới đây, viết khoảng {words} từ.",
+      "form": {
+        "formFallback": "Formular",
+        "sourceLabel": "Đoạn văn",
+        "answersLabel": "Form",
+        "right": "Đúng",
+        "wrong": "Sai",
+        "answer": "đáp án: {answer}",
+        "accept": "cũng được: {list}",
+        "rule": "Sai chính tả nhẹ vẫn được tính; ô có số (ngày, giờ, số điện thoại) phải đúng tuyệt đối.",
+        "progress": "Đã điền {done}/{total} ô",
+        "reviewNoData": "Kết quả lượt thi chưa có đúng/sai từng ô của form — điểm phần này đã tính trong tổng điểm Viết."
       }
     },
     "examHub": {

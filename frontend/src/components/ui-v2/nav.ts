@@ -189,6 +189,8 @@ export const adminNav: RoleNav = {
       labelKey: 'adminContent',
       items: [
         { id: 'admin-mock-packs', label: 'Bộ đề thi', href: '/v2/admin/mock-exam-packs', icon: 'layers' },
+        // 09/11/2026 Xưởng đề: AI viết bài + ra câu theo ma trận độ khó từ nguồn báo, owner duyệt vào kho Teil.
+        { id: 'admin-exam-studio', label: 'Xưởng đề', href: '/v2/admin/exam-studio', icon: 'draw' },
         // Đ5b-A: ngân hàng đề Luyện thi Nói — CRUD đề + ma trận pool, hết cảnh viết migration tay.
         { id: 'admin-exam-bank', label: 'Ngân hàng đề Nói', href: '/v2/admin/exam-bank', icon: 'library_big' },
         // G.1 Golden set: giám khảo người chấm tay phiên mock → đồng thuận máy↔người (gate ra mắt).

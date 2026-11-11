@@ -88,6 +88,8 @@ export interface ExamObjGroup {
   vorspann?: string
   passageLines?: boolean
   glossary?: { term: string; explanation: string }[]
+  /** Dòng ghi nguồn theo giấy phép (Xưởng đề, V371) — hiện nhỏ dưới bài đọc. */
+  quelle?: string
   /** Beispiele in trước các câu (LV Teil 3: một ghép được, một `x`); không chiếm lựa chọn. */
   examples?: { label?: string; situation: string; answer: string }[]
   /** Mẩu tin mà bức thư SB Teil 2 trả lời — in ngay trên thư. */
@@ -685,6 +687,7 @@ function parseObjectiveTeil(teil: Record<string, unknown>): ExamObjGroup | null 
     vorspann: typeof teil.vorspann_de === 'string' && teil.vorspann_de.trim() ? teil.vorspann_de : undefined,
     passageLines: teil.context_lines === true,
     glossary: glossary.length > 0 ? glossary : undefined,
+    quelle: quelleOf(teil),
     examples: examples.length > 0 ? examples : undefined,
     stimulusAd: typeof teil.stimulus_ad === 'string' && teil.stimulus_ad.trim() ? teil.stimulus_ad : undefined,
     items,
@@ -703,4 +706,12 @@ function parseObjectiveTeil(teil: Record<string, unknown>): ExamObjGroup | null 
         ? Math.round(teil.reading_seconds) : 0,
     framing: typeof teil.framing_de === 'string' && teil.framing_de.trim() ? teil.framing_de.trim() : undefined,
   }
+}
+
+/** `teil.source.quelle` của Teil làm từ Xưởng đề; đề viết tay không có ⇒ undefined. */
+export function quelleOf(teil: Record<string, unknown>): string | undefined {
+  const src = teil.source
+  if (!src || typeof src !== 'object') return undefined
+  const q = (src as Record<string, unknown>).quelle
+  return typeof q === 'string' && q.trim() ? q.trim() : undefined
 }

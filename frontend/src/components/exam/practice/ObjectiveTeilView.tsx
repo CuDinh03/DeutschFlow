@@ -28,6 +28,7 @@ import {
   optionsFor,
   ownerOf,
   sharedPool,
+  withTrueFalse,
   type PracticeItem,
   type PracticeKind,
   type PracticeTeilData,
@@ -35,7 +36,7 @@ import {
 
 interface Props {
   teil: PracticeTeilData
-  kind: Exclude<PracticeKind, 'writing' | 'unknown'>
+  kind: Exclude<PracticeKind, 'writing' | 'form' | 'unknown'>
   answers: Record<string, string>
   onAnswer: (itemId: string, value: string | null) => void
   /** Có sau khi bấm "Kiểm tra Teil này" (hoặc mở lại Teil đã kiểm tra). */
@@ -85,9 +86,11 @@ type Req<T> = { n: number } & T
  * dạng nối/chỗ trống/rao vặt cạnh câu đang chọn, phím F) + hàng "Câu đã đánh dấu" để nhảy tới; trang cấp
  * `flags` thì cờ do trang giữ (thi thử lưu cùng nháp). Ô "Vì sao tôi chọn" khi trang cấp `onNote` (luyện Teil).
  */
-export function ObjectiveTeilView({ teil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks, marksMode = 'full' }: Props) {
+export function ObjectiveTeilView({ teil: rawTeil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks, marksMode = 'full' }: Props) {
   const t = useTranslations('v2.student.practice')
   const tf = useTranslations('v2.student.practice.frame')
+  // telc A2 Lesen Teil 2 (TRUE_FALSE): câu không khai options — gắn richtig/falsch như Hören.
+  const teil = React.useMemo(() => (rawTeil.type === 'TRUE_FALSE' ? withTrueFalse(rawTeil) : rawTeil), [rawTeil])
   const items = React.useMemo(() => teil.items ?? [], [teil.items])
   const checked = result != null
   const byId = React.useMemo(() => new Map(result?.items.map((r) => [r.id, r]) ?? []), [result])

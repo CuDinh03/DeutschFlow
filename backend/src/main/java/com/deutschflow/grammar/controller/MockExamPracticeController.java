@@ -173,8 +173,11 @@ public class MockExamPracticeController {
         AsyncJobDispatch.runOrFail(jobs, job.getId(), aiExecutor, () -> {
             try {
                 jobs.updateStatus(job.getId(), AsyncJob.Status.PROCESSING);
-                Map<String, Object> eval = evaluator.evaluateSchreibenPractice(uid, text, task.prompt(), task.level());
-                practice.saveWriting(uid, examId, text, body.elapsedSeconds(), eval);
+                // telc A2 (Xưởng đề): phiếu A2 chính thức (3 ý × 3 + K 1 = 10); còn lại phiếu telc B1 như cũ.
+                Map<String, Object> eval = "A2".equalsIgnoreCase(task.level()) && "TELC".equalsIgnoreCase(task.format())
+                        ? evaluator.evaluateSchreibenTelcA2(uid, text, task.prompt())
+                        : evaluator.evaluateSchreibenPractice(uid, text, task.prompt(), task.level());
+                practice.saveWriting(uid, examId, task.teilKey(), text, body.elapsedSeconds(), eval);
                 jobs.completeJob(job.getId(), om.writeValueAsString(eval));
             } catch (Exception e) {
                 jobs.failJob(job.getId(), e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());

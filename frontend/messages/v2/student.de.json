@@ -2709,7 +2709,10 @@
         "GAP_MC": "Lückentext · a/b/c",
         "GAP_WORDBANK": "Lückentext · Wortkasten",
         "SCHREIBEN": "Antwort-E-Mail",
-        "HOEREN": "Hören, richtig/falsch wählen"
+        "HOEREN": "Hören, richtig/falsch wählen",
+        "TRUE_FALSE": "Lesen, richtig/falsch wählen",
+        "FILL_FORM": "Formular ausfüllen",
+        "WRITE_NOTE": "Kurze Nachricht schreiben"
       },
       "fallbackTips": {
         "LESEN": {
@@ -2932,6 +2935,19 @@
         "flaggedNavEmpty": "Noch nichts markiert. Tippen Sie bei einer Aufgabe auf die Fahne (oder Taste F), um sie zum Überprüfen zu markieren.",
         "flaggedNavItem": "{teil} · Aufgabe {n}",
         "flaggedNavClose": "Liste schließen"
+      },
+      "choosePoints": "Wählen Sie {n} der {total} Punkte und schreiben Sie ca. {words} Wörter.",
+      "form": {
+        "formFallback": "Formular",
+        "sourceLabel": "Text",
+        "answersLabel": "Formular",
+        "right": "Richtig",
+        "wrong": "Falsch",
+        "answer": "Lösung: {answer}",
+        "accept": "auch richtig: {list}",
+        "rule": "Kleine Rechtschreibfehler zählen trotzdem; Felder mit Zahlen (Datum, Uhrzeit, Telefon) müssen genau stimmen.",
+        "progress": "{done}/{total} Felder ausgefüllt",
+        "reviewNoData": "Für diesen Versuch gibt es noch keine Bewertung je Formularfeld — der Teil ist in der Schreiben-Punktzahl enthalten."
       }
     },
     "examHub": {

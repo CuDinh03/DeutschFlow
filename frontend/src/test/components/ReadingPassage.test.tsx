@@ -54,3 +54,16 @@ describe('bài đọc dài kiểu đề thật', () => {
     expect(passageLines('a\r\nb')).toEqual(['a', 'b'])
   })
 })
+
+describe('dòng nguồn của Teil làm từ Xưởng đề', () => {
+  it('hiện nguyên văn dòng Quelle dưới bài khi Teil khai source.quelle', () => {
+    const quelle = 'Quelle: nach Kaufholdová N: „Schlaf“, RKI 2026 · CC BY 4.0 · für die Prüfung neu geschrieben und vereinfacht.'
+    const { container } = render(<ReadingPassage teil={{ ...teil, source: { quelle } }} />)
+    expect(container.querySelector('[data-quelle]')).toHaveTextContent(quelle)
+  })
+
+  it('đề viết tay không khai nguồn thì không có dòng này', () => {
+    const { container } = render(<ReadingPassage teil={teil} />)
+    expect(container.querySelector('[data-quelle]')).toBeNull()
+  })
+})
