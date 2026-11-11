@@ -5,6 +5,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.minor.MinorGate;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
+import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class AiJobController {
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
     private final MinorGate minorGate;
+    private final AiSpeakingSessionRepository aiSpeakingSessionRepository;
 
     /**
      * Ước lượng token để chặn pool org TRƯỚC khi enqueue (audit 24/07 R-B4). Trước đây submit không
@@ -96,19 +98,30 @@ public class AiJobController {
             @AuthenticationPrincipal User user,
             @RequestBody Map<String, Object> body) {
 
-        Object sessionId = body.get("sessionId");
-        if (sessionId == null) {
+        Object rawSessionId = body.get("sessionId");
+        if (rawSessionId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "sessionId is required"));
+        }
+        Long sessionId = parseSessionId(rawSessionId);
+        if (sessionId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "sessionId is invalid"));
+        }
+
+        // Kiểm quyền sở hữu phiên TRƯỚC khi gate quota và enqueue: phiên không tồn tại và phiên
+        // không thuộc người gọi cho cùng một phản hồi 404, không tạo job, không đụng quota.
+        if (!aiSpeakingSessionRepository.existsByIdAndUserId(sessionId, user.getId())) {
+            throw new NotFoundException("Phiên luyện nói không tìm thấy");
         }
 
         // R-B4: gate quota + pool org trước khi enqueue (xem submitPronunciationEval).
         quotaService.assertAllowed(user.getId(), Instant.now(), 1L);
         orgPoolGuard.assertOrgPoolAvailable(user.getId(), INTERVIEW_REPORT_JOB_ESTIMATED_TOKENS);
 
+        // Payload chỉ giữ sessionId đã chuẩn hoá — worker không đọc khoá nào khác của body.
         AiJob job = AiJob.builder()
                 .jobType(AiJob.TYPE_INTERVIEW_REPORT)
                 .userId(user.getId())
-                .payload(body)
+                .payload(Map.of("sessionId", sessionId))
                 .build();
 
         AiJob saved = aiJobRepository.save(job);
@@ -118,6 +131,23 @@ public class AiJobController {
                 "jobId", saved.getId(),
                 "status", AiJob.STATUS_PENDING
         ));
+    }
+
+    /**
+     * Chuẩn hoá {@code sessionId} từ body JSON tự do: nhận số nguyên dương (JSON number) hoặc chuỗi
+     * chữ số. Trả {@code null} cho mọi dạng khác (số thập phân, số âm, chuỗi rỗng, kiểu khác).
+     */
+    static Long parseSessionId(Object raw) {
+        Long value = null;
+        if (raw instanceof Integer || raw instanceof Long || raw instanceof Short || raw instanceof Byte) {
+            value = ((Number) raw).longValue();
+        } else if (raw instanceof String text) {
+            String trimmed = text.trim();
+            if (trimmed.matches("\\d{1,18}")) {
+                value = Long.parseLong(trimmed);
+            }
+        }
+        return value != null && value > 0 ? value : null;
     }
 
     // ──────────────────────────────────────────────────────────────
