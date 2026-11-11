@@ -235,7 +235,7 @@
    - ✅ Frontend: `/student/book-session/` (duration + real-time price), `/teacher/sessions/` (earnings dashboard), `/teachers/[id]` CTA "Đặt lịch học"
 
 10. **Per-User FSRS Weight Optimizer**
-    - ✅ `FsrsWeightOptimizerService`: `@Scheduled` nightly 3AM, điều chỉnh `w17` per-user (≥50 reviews)
+    - ⏸ `FsrsWeightOptimizerService`: ĐANG VÔ HIỆU từ bản sửa FSRS-4.5 (11/2026) — bộ tối ưu viết cho mô hình cũ 20 tham số (`w17`), job ban đêm bỏ qua và không ghi; `FsrsWeightProvider` chỉ nhận vector đúng 17 phần tử, vector cũ bị bỏ qua (dùng 17 tham số mặc định FSRS-4.5)
 
 11. **Adaptive Difficulty Engine**
     - ✅ `AdaptiveEngineService.getWeakPoints()`: kết hợp grammar error history + SRS failure ranking
@@ -329,7 +329,7 @@
 | **Production Stabilization** | ⏳ Needs deploy | PR #113 Đợt 1+2+2.3; DB pool + AI circuit breaker + retention; LIVE P0 cho tới khi deploy |
 | **Login / ERR-161** | ✅ Fixed + deployed | Root cause = DB pool exhaustion (#113), KHÔNG phải Redis (RCA: `docs/RCA_ERR-161.md`). #114 = Redis hardening (best-effort). DB-conn-failure giờ → 503 retryable. Deployed `205022c2` 18:06: login 400@0.8s, health UP@0.9s |
 | **Video Lessons** | ⏳ Needs deploy | ffmpeg+DejaVu in Dockerfile; Groq LLM key required for .mp4/listening |
-| **SRS FSRS-4.5** | ✅ Live | Canonical FSRS; SM-2 migrate-on-read; nightly w17 optimizer; offline batch |
+| **SRS FSRS-4.5** | ✅ Live | Canonical FSRS (17 tham số mặc định, đường cong quên DECAY −0,5 / FACTOR 19/81, retention mục tiêu 0,9); số ngày trôi thật giữa hai lần ôn; `interval_days` do FSRS ghi (nguồn của `countMastered` ≥ 21 ngày và trạng thái MASTERED); SM-2 migrate-on-read; offline batch |
 | **Onboarding Mentor** | ✅ Live | PR #51 merged; FixedMentorResolver + matrix router; MentorChip dashboard |
 | **Onboarding Value-First** | ⏳ Flag OFF | PR #70 merged; PostHog `onboarding-value-first` = OFF; needs backend deploy + E2E |
 | **Student Classes** | ✅ Live | PR #69; class_lessons V197; teacher-tick progress; mobile student-only |
@@ -348,7 +348,7 @@
 | **Shadowing practice** | ✅ Live | In `ListeningView.tsx` after fill-in-the-blanks completion |
 | **Teacher marketplace** | ✅ Live | V179 + `TeacherSessionController` (8 endpoints) + booking/earnings UI |
 | **A2/B1 content** | ✅ Seeded | V180 (A2 days 31/35/39/40) + V181 (B1 days 51–55) |
-| **FSRS optimizer** | ✅ Live | Nightly 3AM `w17` per-user adjustment |
+| **FSRS optimizer** | ⏸ Vô hiệu | Bộ tối ưu `w17` thuộc mô hình cũ (20 tham số) — không áp dụng cho FSRS-4.5; cần viết lại trên nhật ký từng lượt ôn trước khi bật |
 | **Adaptive engine** | ✅ Live | `AdaptiveEngineService.getWeakPoints()` |
 | **AI cost dashboard** | ✅ Live | `/admin/token-analytics/` pie + area charts |
 | **Offline SRS batch** | ✅ Live | Single `POST /srs/review/batch` replaces loop |

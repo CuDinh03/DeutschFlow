@@ -42,7 +42,7 @@ class SrsServiceStatsTest {
     @BeforeEach
     void setUp() {
         srsService = new SrsService(repo, fsrsService, fsrsWeightProvider, xpService,
-                notificationAutoAckService, runAfterCommitService);
+                notificationAutoAckService, runAfterCommitService, java.time.Clock.systemUTC());
     }
 
     @Test
