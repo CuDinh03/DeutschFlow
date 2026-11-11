@@ -249,6 +249,11 @@ server:
     min-response-size: 1024
 
 app:
+  features:
+    # Buổi học 1:1 (giáo viên – học viên đặt buổi riêng, /api/teacher-sessions/**): TẠM TẮT từ
+    # 11/2026 theo quyết định chủ dự án. Khi tắt, mọi endpoint của tính năng trả 404. Chỉ mở lại
+    # khi buổi học được gắn với giao dịch thanh toán. Không liên quan buổi dạy của lớp / bảng công.
+    teacher-sessions-enabled: ${TEACHER_SESSIONS_ENABLED:false}
   # A2 (09/11/2026): bài tập bổ trợ "external" (chỉ có source_url, không có đáp án để server chấm)
   # → học viên tự xác nhận hoàn thành được XP CỐ ĐỊNH này, mỗi bài tối đa 1 lần/ngày (giờ VN).
   # Không tính theo phần trăm client gửi. Không vượt xp_reward của bài.

@@ -32,6 +32,9 @@ storage:
     secret-key: test-secret-key
 
 app:
+  features:
+    # Production mặc định TẮT buổi học 1:1; test bật để các ca hiện có của tính năng vẫn chạy.
+    teacher-sessions-enabled: true
   flyway:
     repair-before-migrate: false
   maintenance:

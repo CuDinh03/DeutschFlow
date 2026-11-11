@@ -228,6 +228,7 @@
    - ✅ `V181__curriculum_b1.sql`: 5 B1 nodes (days 51–55) + `skill_tree_edges`
 
 9. **Teacher Marketplace** (V179)
+   - ⏸️ **Tạm tắt từ 11/2026**: toàn bộ `/api/teacher-sessions/**` trả 404 khi `app.features.teacher-sessions-enabled=false` (mặc định; env `TEACHER_SESSIONS_ENABLED`). Mở lại khi buổi học được gắn với giao dịch thanh toán. Không ảnh hưởng buổi dạy của lớp / bảng công.
    - ✅ `teacher_sessions` table + `hourly_rate_vnd` trên `teacher_profiles`
    - ✅ `TeacherSessionService`: `bookSession()`, `updateStatus()`, `getEarningsSummary()` (15% fee)
    - ✅ `TeacherSessionController`: 8 endpoints
