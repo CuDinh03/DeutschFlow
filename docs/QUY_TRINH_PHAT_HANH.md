@@ -3,9 +3,9 @@
 > **Bắt buộc đọc hết tài liệu này trước mỗi lần merge vào `main` hoặc deploy bất cứ thứ gì lên production** (luật trong `CLAUDE.md`).
 > Tài liệu nằm trong repo để không phụ thuộc trí nhớ của người hay của phiên AI nào. Khi quy trình đổi, sửa tài liệu này trong cùng PR với thay đổi đó.
 >
-> Repo PRIVATE từ 08/11/2026 (từng public, có thể còn bản sao cũ; có thể public lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
+> Repo PUBLIC (công khai lại từ 11/2026; từng private từ 08/11/2026, có thể đổi lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
 >
-> Cập nhật lần cuối: 08/11/2026 (repo private: máy chủ lấy code bằng deploy key chỉ đọc, §8.5).
+> Cập nhật lần cuối: 11/11/2026 (repo công khai lại; máy chủ vẫn lấy code bằng deploy key chỉ đọc, §8.5).
 
 ---
 
@@ -14,7 +14,7 @@
 1. **Production không còn chạy trên AWS.** Frontend và backend chạy trên máy chủ tự host `deutschflow-srv` (VM Ubuntu, sau Cloudflare Tunnel). `amplify.yml` và job "Deploy to EC2" trong `backend-ci.yml` đã gỡ. `deploy-backend.sh`, `cleanup-deploy.sh` ở gốc repo là **di sản AWS — đã chặn bằng `exit 1`, không dùng, không "sửa cho chạy"** (script cũ ghi đè env của máy chủ bằng env EC2 cũ ⇒ mất DB, chết mọi phiên đăng nhập).
 2. **Merge vào `main` KHÔNG tự deploy.** Không còn Amplify tự build. Muốn lên web phải chạy script deploy trên máy chủ (§5, §6), trực tiếp qua SSH hoặc qua workflow "Deploy production" chạy tay, owner duyệt từng lần (§5.0).
 3. **Deploy production (frontend, backend, OTA mobile) chỉ khi owner ra lệnh trực tiếp** trong phiên làm việc. "Merge đi" không có nghĩa là "deploy đi" — hỏi lại nếu chưa rõ.
-4. **`main` được bảo vệ**: chỉ nhận thay đổi qua Pull Request, CI phải xanh. Không push thẳng, không force-push. Repo private trên gói GitHub miễn phí thì GitHub **không** áp luật bảo vệ nhánh (cần GitHub Pro): khi đó luật này chỉ còn do hook máy dev và kỷ luật giữ — vẫn làm đúng, không vì GitHub không chặn mà merge khi CI chưa xanh.
+4. **`main` được bảo vệ**: chỉ nhận thay đổi qua Pull Request, CI phải xanh. Không push thẳng, không force-push. Tại 11/11/2026 repo đang công khai nên bật được luật bảo vệ nhánh, nhưng nhánh `main` CHƯA được bật — tới khi bật, quy tắc này vẫn chỉ là quy ước. Khi repo private trên gói GitHub miễn phí thì GitHub **không** áp luật bảo vệ nhánh (cần GitHub Pro): khi đó luật này chỉ còn do hook máy dev và kỷ luật giữ — vẫn làm đúng, không vì GitHub không chặn mà merge khi CI chưa xanh.
 5. **Biết máy chủ đang deploy từ nhánh nào trước khi làm gì** (§2). Deploy một nhánh thiếu code tự host (R2, Dockerfile, CSP) sẽ làm hỏng production.
 6. **Migration Flyway chạy theo thứ tự, không cho chạy lệch** (`out-of-order: false`). Số migration phải lớn hơn mọi số đang có trên `main` **và trên mọi nhánh đang mở**; nhánh có số nhỏ hơn phải lên prod trước (§6.2).
 7. **Env và secret chỉ sống trên máy chủ.** Không bao giờ chép `.env` từ máy dev lên, không commit, không in giá trị ra log hay chat.
@@ -269,7 +269,7 @@ Username for 'https://github.com'`; script dừng ở "Lấy code", production k
   lên qua lệnh SSH (stdin) rồi `git fetch /tmp/f refs/remotes/origin/main:refs/remotes/origin/main && git reset --hard
   origin/main` trong repo máy chủ, deploy với `SKIP_FETCH=1`. Repo máy chủ là clone nông: bundle cần các commit nền có sẵn
   (`git bundle verify` báo).
-- Repo private trên gói miễn phí: Actions có hạn mức phút mỗi tháng, luật bảo vệ nhánh không được áp (§0.4).
+- Khi repo private trên gói miễn phí: Actions có hạn mức phút mỗi tháng, luật bảo vệ nhánh không được áp (§0.4). Khi repo công khai (hiện tại): không có hai giới hạn đó, nhưng mã nguồn, PR và log Actions ai cũng đọc được.
 
 ---
 
