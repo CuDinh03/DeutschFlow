@@ -22,6 +22,7 @@ import {
 } from '@/components/ui-v2'
 import { BlockPreviewModal } from './BlockPreviewModal'
 import { BlueprintAssembleForm } from './BlueprintAssembleForm'
+import { SetRunsPanel } from './SetRunsPanel'
 import { Note, studioField, studioMiniBtn } from './ui'
 
 function fmtDate(iso: string | null | undefined): string {
@@ -103,6 +104,7 @@ export function AssembliesTab({ active }: { active: boolean }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <SetRunsPanel active={active} />
       <AssembleForm bases={bases} slots={slots} exams={exams} onAssembled={load} />
       <BlueprintAssembleForm exams={exams} onAssembled={load} />
 
