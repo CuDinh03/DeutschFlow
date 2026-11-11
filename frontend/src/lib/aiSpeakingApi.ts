@@ -1,6 +1,6 @@
-import axios from 'axios'
 import api from './api'
-import { getAccessToken, getRefreshToken, setTokens, clearTokens, isSupportMode, markSupportSessionEnded } from './authSession'
+import { authFetch } from './authFetch'
+import { getAccessToken, isSupportMode, markSupportSessionEnded } from './authSession'
 import type { PcmAudioFrame } from './pcmAudioQueue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -232,14 +232,13 @@ function createSpeechStreamer(field: string): (delta: string) => string {
   }
 }
 
-function buildStreamHeaders(accessToken: string | null): Record<string, string> {
-  const h: Record<string, string> = {
+/** Header của stream; `Authorization` do authFetch gắn. */
+function buildStreamHeaders(): Record<string, string> {
+  return {
     'Content-Type': 'application/json',
     Accept: 'text/event-stream',
     'Cache-Control': 'no-cache',
   }
-  if (accessToken) h.Authorization = `Bearer ${accessToken}`
-  return h
 }
 
 function parseSseDataLines(lines: string[]): { eventName: string; data: string } {
@@ -310,15 +309,14 @@ export function chatStream(
 
   void (async () => {
     try {
-      const doFetch = (accessToken: string | null) =>
-        fetch(url, {
-          method: 'POST',
-          headers: buildStreamHeaders(accessToken),
-          body,
-          signal: ctrl.signal,
-        })
-
-      let res = await doFetch(getAccessToken())
+      // authFetch gắn Bearer; khi 401 nó làm mới token qua đường single-flight chung của api.ts (cookie
+      // HttpOnly) và gửi lại đúng một lần. Thân request là chuỗi JSON nên gửi lại được.
+      const res = await authFetch(url, {
+        method: 'POST',
+        headers: buildStreamHeaders(),
+        body,
+        signal: ctrl.signal,
+      })
 
       // Tab phiên hỗ trợ chỉ-đọc: không refresh (cookie là của admin), không xoá token/đưa về /v2/login.
       if (isSupportMode() && (res.status === 401 || res.status === 403)) {
@@ -330,37 +328,9 @@ export function chatStream(
         return
       }
 
+      // Vẫn 401 sau khi authFetch đã thử làm mới: phiên không cứu được ở lượt này. Việc xoá token và
+      // hiện banner đăng nhập lại do refreshAccessToken() quyết (chỉ khi bị từ chối dứt khoát).
       if (res.status === 401) {
-        const rt = getRefreshToken()
-        if (!rt) {
-          if (!settled) {
-            settled = true
-            onError(AI_SPEAKING_UNAUTHORIZED)
-          }
-          return
-        }
-        try {
-          const { data } = await axios.post<{ accessToken?: string; refreshToken?: string | null }>(
-            '/api/auth/refresh',
-            { refreshToken: rt }
-          )
-          setTokens(data)
-          const newToken = data.accessToken ?? null
-          res = await doFetch(newToken)
-        } catch {
-          clearTokens()
-          if (typeof window !== 'undefined') window.location.href = '/v2/login'
-          if (!settled) {
-            settled = true
-            onError(AI_SPEAKING_UNAUTHORIZED)
-          }
-          return
-        }
-      }
-
-      if (res.status === 401) {
-        clearTokens()
-        if (typeof window !== 'undefined') window.location.href = '/v2/login'
         if (!settled) {
           settled = true
           onError(AI_SPEAKING_UNAUTHORIZED)

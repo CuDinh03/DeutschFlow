@@ -8,7 +8,7 @@ jest.mock('@/lib/api', () => ({
   apiMessage: () => 'Câu lỗi chung',
 }))
 
-// Store gói: giữ `isTrialActive` THẬT (selector thuần, M-8 gate trên nó), chỉ thay `getState` để
+// Store gói: giữ `hasRenewingAiAllowance` / `isTrialActive` THẬT (selector thuần), chỉ thay `getState` để
 // từng test đặt `plan` mình muốn.
 const mockPlanState: { plan: unknown; fetchPlan: () => Promise<void> } = { plan: null, fetchPlan: async () => {} }
 jest.mock('@/stores/usePlanStore', () => ({
@@ -24,7 +24,7 @@ jest.mock('@/lib/paywall', () => ({
 }))
 
 import { Alert } from 'react-native'
-import { handleAiError, TRIAL_QUOTA_MESSAGE } from '@/lib/upsell'
+import { handleAiError, RENEWING_QUOTA_MESSAGE } from '@/lib/upsell'
 import { MINOR_AUDIO_BLOCKED_CODE, registerMinorAudioBlockedPresenter } from '@/lib/minorAudio'
 
 const minorError = (reason: string) => ({
@@ -101,7 +101,7 @@ describe('hết lượt AI khi đang dùng thử (M-8)', () => {
     expect(alertSpy).toHaveBeenCalledTimes(1)
     const [title, message, buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]]
     expect(title).toBe('Hết lượt AI hôm nay')
-    expect(message).toBe(TRIAL_QUOTA_MESSAGE)
+    expect(message).toBe(RENEWING_QUOTA_MESSAGE)
     expect(message).toMatch(/Ngày mai bạn có lượt mới/)
     expect(buttons.map((b) => b.text)).toEqual(['Đã hiểu'])
   })
@@ -129,11 +129,80 @@ describe('hết lượt AI khi đang dùng thử (M-8)', () => {
     expect(buttons.map((b) => b.text)).toEqual(['Để sau', 'Nâng cấp'])
   })
 
-  test('không phải trial (đã trả tiền / FREE) → đường cũ, không đụng', () => {
+  test('không có gói (FREE) → đường cũ, không đụng', () => {
     mockPlanState.plan = { isTrial: false, trialEndsAt: null, tier: 'FREE' }
 
     handleAiError(dailyQuota)
 
     expect(alertSpy).toHaveBeenCalledWith('Hết lượt AI', 'AI token quota exceeded.', expect.any(Array))
+  })
+})
+
+// ── 10/11/2026: gói TRẢ TIỀN hết ví giữa kỳ vẫn giữ gói ─────────────────────────────────────────
+// Lượt AI hồi lại hôm sau — cùng câu với dùng thử, một nút "Đã hiểu", KHÔNG mời nâng cấp.
+describe('hết lượt AI khi có gói trả tiền còn hạn', () => {
+  const future = () => new Date(Date.now() + 20 * 86_400_000).toISOString()
+  const quota = {
+    response: {
+      status: 429,
+      data: { type: 'https://x/quota-exceeded', detail: 'Bạn đã dùng hết lượt AI.', extensions: { code: 'QUOTA_EXCEEDED' } },
+    },
+  }
+
+  test('PRO còn hạn → "mai có lượt mới", chỉ "Đã hiểu", không "Nâng cấp" dù paywall bật', () => {
+    mockPlanState.plan = { planCode: 'PRO', tier: 'PRO', isTrial: false, trialEndsAt: null, endsAtUtc: future() }
+    mockPaywall.PAYWALL_ENABLED = true
+
+    handleAiError(quota)
+
+    expect(alertSpy).toHaveBeenCalledTimes(1)
+    const [title, message, buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]]
+    expect(title).toBe('Hết lượt AI hôm nay')
+    expect(message).toBe(RENEWING_QUOTA_MESSAGE)
+    expect(buttons.map((b) => b.text)).toEqual(['Đã hiểu'])
+  })
+
+  test('PRO đã quá hạn trên máy → đường cũ (có "Nâng cấp" khi paywall bật)', () => {
+    mockPlanState.plan = { planCode: 'PRO', tier: 'PRO', isTrial: false, endsAtUtc: '2000-01-01T00:00:00.000Z' }
+    mockPaywall.PAYWALL_ENABLED = true
+
+    handleAiError(quota)
+
+    const [title, , buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]]
+    expect(title).toBe('Hết lượt AI')
+    expect(buttons.map((b) => b.text)).toEqual(['Để sau', 'Nâng cấp'])
+  })
+
+  test('DEFAULT (không có gói) → đường cũ, vẫn mời nâng cấp', () => {
+    mockPlanState.plan = { planCode: 'DEFAULT', tier: 'FREE', isTrial: false, endsAtUtc: null }
+    mockPaywall.PAYWALL_ENABLED = true
+
+    handleAiError(quota)
+
+    const [title, message, buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]]
+    expect(title).toBe('Hết lượt AI')
+    expect(message).toBe('Bạn đã dùng hết lượt AI.')
+    expect(buttons.map((b) => b.text)).toEqual(['Để sau', 'Nâng cấp'])
+  })
+
+  test('PRO còn hạn nhưng lỗi là NGÂN SÁCH TRUNG TÂM → giữ thông điệp "liên hệ trung tâm"', () => {
+    mockPlanState.plan = { planCode: 'PRO', tier: 'PRO', isTrial: false, endsAtUtc: future() }
+    mockPaywall.PAYWALL_ENABLED = true
+
+    handleAiError({
+      response: {
+        status: 429,
+        data: {
+          type: 'https://x/org-budget-exhausted',
+          detail: 'Ngân sách AI của trung tâm đã hết. Vui lòng liên hệ quản trị trung tâm.',
+          extensions: { code: 'ORG_BUDGET_EXHAUSTED' },
+        },
+      },
+    })
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Ngân sách AI của trung tâm',
+      'Ngân sách AI của trung tâm đã hết. Vui lòng liên hệ quản trị trung tâm.',
+    )
   })
 })

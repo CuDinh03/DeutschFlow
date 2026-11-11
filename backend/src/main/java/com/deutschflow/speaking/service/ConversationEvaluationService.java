@@ -146,7 +146,9 @@ public class ConversationEvaluationService {
         return sb.toString();
     }
 
-    private String buildEvaluationPrompt(AiSpeakingSession session, String transcript) {
+    // Package-private để test dựng prompt trực tiếp: một dấu % lẻ trong text block làm formatted() ném
+    // lỗi, generateReport nuốt lỗi và trả null → báo cáo cuối phiên trống mà không ai thấy (11/11/2026).
+    String buildEvaluationPrompt(AiSpeakingSession session, String transcript) {
         String topic = session.getTopic() != null ? session.getTopic() : "Alltag";
         String level = session.getCefrLevel() != null ? session.getCefrLevel() : "A1";
         return """
@@ -171,7 +173,7 @@ public class ConversationEvaluationService {
                   "strengths_vi": ["điểm mạnh cụ thể..."],
                   "improvements_vi": ["điểm cần cải thiện cụ thể..."],
                   "grammar": {
-                    "accuracy_pct": "ước lượng % câu đúng ngữ pháp, ví dụ 'khoảng 80%%'",
+                    "accuracy_pct": "ước lượng %% câu đúng ngữ pháp, ví dụ 'khoảng 80%%'",
                     "common_errors_vi": ["lỗi ngữ pháp thường gặp trong buổi nói..."]
                   },
                   "vocabulary_vi": "nhận xét về vốn từ đã dùng",

@@ -70,7 +70,7 @@ import {
   type ScreenView,
 } from '@/lib/speakingChat'
 import { isTransientFailure } from '@/lib/api'
-import { usePlanStore } from '@/stores/usePlanStore'
+import { hasRenewingAiAllowance, usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
 import { canAutoStartSpeakingIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
@@ -83,7 +83,7 @@ export default function SpeakingScreen() {
   const theme = useTheme()
   const c = theme.colors
   const insets = useSafeAreaInsets()
-  const { hasProAccess } = usePlanStore()
+  const { hasProAccess, plan } = usePlanStore()
 
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
   // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`. LESSON đang
@@ -845,7 +845,9 @@ export default function SpeakingScreen() {
                   ? `Còn ~${Math.max(0, Math.round(quota.remainingSpendable)).toLocaleString('vi-VN')} lượt AI`
                   : quota.orgBudget
                     ? 'Ngân sách AI của trung tâm đã hết hoặc chưa được cấp — liên hệ quản trị trung tâm'
-                    : 'Đã dùng hết lượt AI — nâng cấp để tiếp tục'}
+                    : hasRenewingAiAllowance(plan)
+                      ? 'Lượt AI hôm nay đã hết — ngày mai bạn có lượt mới'
+                      : 'Đã dùng hết lượt AI — nâng cấp để tiếp tục'}
               </ThemedText>
             </View>
           </View>

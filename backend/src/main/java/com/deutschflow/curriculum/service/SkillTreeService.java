@@ -1291,11 +1291,14 @@ public class SkillTreeService {
     // ──────────────────────────────────────────────────────────────
 
     public Map<String, Object> generateInterviewReport(long userId, Long sessionId) {
-        // Lấy toàn bộ messages của session
+        // Lấy messages của session, ràng thêm chủ sở hữu phiên: controller đã kiểm lúc enqueue,
+        // nhưng worker chạy sau nên service tự kiểm lại (phiên không thuộc userId → không có dòng nào).
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT role, content FROM ai_speaking_messages
-                WHERE session_id = ? ORDER BY created_at ASC
-                """, sessionId);
+                SELECT m.role, m.content FROM ai_speaking_messages m
+                JOIN ai_speaking_sessions s ON s.id = m.session_id
+                WHERE m.session_id = ? AND s.user_id = ?
+                ORDER BY m.created_at ASC
+                """, sessionId, userId);
 
         if (rows.isEmpty()) {
             return Map.of(

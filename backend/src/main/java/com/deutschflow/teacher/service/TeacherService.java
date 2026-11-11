@@ -1483,7 +1483,7 @@ public class TeacherService {
                 ca != null ? ca.getAssignmentType() : "GENERAL",
                 ca != null ? ca.getDueDate() : null,
                 a.getSubmissionContent(),
-                submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()),
+                submissionFileUrlResolver.resolve(a),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
         );

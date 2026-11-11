@@ -80,6 +80,35 @@ export function isTrialActive(
   return Number.isFinite(end) && end > now.getTime()
 }
 
+/**
+ * Người dùng có LƯỢT AI TỰ HỒI ngày mai hay không — quyết định owner 10/11/2026: gói trả tiền mà
+ * ví token về 0 giữa kỳ thì VẪN giữ gói, chỉ chức năng AI tạm dừng tới lần cộng ví hôm sau. Khi
+ * true, thông điệp hết hạn mức nói "ngày mai bạn có lượt mới" và KHÔNG mời nâng cấp (họ đã mua rồi).
+ *
+ *   - đang dùng thử còn hạn ({@link isTrialActive}) → true;
+ *   - `isTrial` mà hạn dùng thử đã qua/thiếu/hỏng → false (plan trên máy có thể trễ so với backend);
+ *   - gói ví (`tier`/`planCode` PRO|ULTRA) và `endsAtUtc` còn ở tương lai hoặc null (không kỳ hạn) → true;
+ *   - FREE/DEFAULT, gói đã quá `endsAtUtc`, plan null → false (giữ lời mời nâng cấp như cũ).
+ *
+ * Giả định: `/auth/me/plan` không có cờ "đã trả tiền" riêng — PRO/ULTRA không phải trial được coi
+ * là gói trả tiền/được cấp (kể cả `source` ORG: ví cá nhân của họ cũng được cộng mỗi ngày; lỗi ngân
+ * sách TRUNG TÂM đi theo mã lỗi riêng, xem `isOrgBudgetError`). Hàm thuần; `now` truyền vào để test.
+ */
+export function hasRenewingAiAllowance(
+  plan: Pick<MyPlan, 'isTrial' | 'trialEndsAt' | 'endsAtUtc'> & { tier?: string | null; planCode?: string | null } | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!plan) return false
+  if (plan.isTrial === true) return isTrialActive(plan, now)
+  const tier = (plan.tier ?? '').trim().toUpperCase()
+  const code = (plan.planCode ?? '').trim().toUpperCase()
+  const wallet = tier === 'PRO' || tier === 'ULTRA' || code === 'PRO' || code === 'ULTRA'
+  if (!wallet) return false
+  if (plan.endsAtUtc == null) return true
+  const end = new Date(plan.endsAtUtc).getTime()
+  return Number.isFinite(end) && end > now.getTime()
+}
+
 interface PlanState {
   plan: MyPlan | null
   isPro: boolean

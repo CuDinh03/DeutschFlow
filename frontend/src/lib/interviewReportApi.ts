@@ -1,6 +1,6 @@
 import api from "@/lib/api";
 import { uiText } from "@/lib/i18n/clientLocale";
-import { getAccessToken } from "@/lib/authSession";
+import { authFetch } from "@/lib/authFetch";
 
 // Use same baseURL derivation as api.ts — SSE fetch must go directly to Spring Boot,
 // not to the Next.js server (EventSource/fetch with relative /api would hit Next.js → 404).
@@ -48,14 +48,13 @@ export function streamJobResult(
 
   void (async () => {
     try {
-      const token = getAccessToken();
       const headers: Record<string, string> = {
         Accept: 'text/event-stream',
         'Cache-Control': 'no-cache',
       };
-      if (token) headers.Authorization = `Bearer ${token}`;
 
-      const res = await fetch(url, {
+      // authFetch: gắn Bearer + tự làm mới token một lần khi 401 (đường single-flight của api.ts).
+      const res = await authFetch(url, {
         method: 'GET',
         headers,
         signal: ac.signal,

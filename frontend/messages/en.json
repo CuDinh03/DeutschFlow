@@ -27,6 +27,9 @@
     "quotaBlockedTitle": "AI speaking quota used up",
     "quotaBlockedDesc": "You cannot start a new session or send messages until your quota resets or you upgrade.",
     "quotaBlockedCta": "View plans & upgrade",
+    "errorQuotaRenewing": "You've used up today's AI turns. You get new ones tomorrow.",
+    "quotaBlockedRenewingTitle": "Today's AI turns are used up",
+    "quotaBlockedRenewingDesc": "You get new turns tomorrow — then you can start sessions and send messages again.",
     "streamFallback": "Streaming hiccup — switched to standard mode.",
     "errors": {
       "streamStalled": "Connection stalled. Please try again."

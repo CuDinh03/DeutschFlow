@@ -1880,6 +1880,8 @@
         "retryTurnHint": "Aufnahme/Antwort liegt noch auf deinem Gerät — erneutes Senden zählt nicht als neuer Beitrag.",
         "gradingFailedQuota": "Noch nicht bewertet: dein KI-Budget ist aufgebraucht — deine Prüfung ist gespeichert.",
         "gradingFailedQuotaDesc": "Alles Gesagte bleibt erhalten. Lade auf oder warte auf die nächste Periode und drücke dann „Neu bewerten“ — keine Wiederholung nötig.",
+        "gradingFailedQuotaRenewing": "Noch nicht bewertet: deine KI-Runden für heute sind aufgebraucht — deine Prüfung ist gespeichert.",
+        "gradingFailedQuotaRenewingDesc": "Alles Gesagte bleibt erhalten. Morgen bekommst du neue KI-Runden — drücke dann „Neu bewerten“; keine Wiederholung nötig.",
         "upgradeCta": "Tarife ansehen / aufladen",
         "oral": {
           "eyebrow": "Mündliche Prüfung",

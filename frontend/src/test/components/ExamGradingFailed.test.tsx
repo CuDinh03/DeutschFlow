@@ -49,6 +49,16 @@ vi.mock('@/components/features/exam-speaking/Ergebnisbogen', () => ({
   Ergebnisbogen: () => <div data-testid="ergebnisbogen" />,
 }))
 
+// Gói của người học: mặc định KHÔNG có lượt AI tự hồi (miễn phí) — từng ca tự bật khi cần.
+const planState = vi.hoisted(() => ({ renewingAiAllowance: false }))
+vi.mock('@/contexts/PlanContext', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/contexts/PlanContext')>()
+  return {
+    ...actual,
+    usePlanHelpers: () => ({ ...actual.usePlanHelpers(), renewingAiAllowance: planState.renewingAiAllowance }),
+  }
+})
+
 const NOW = new Date()
 
 function session(state: string, extra: Record<string, unknown> = {}) {
@@ -83,6 +93,7 @@ function renderRoom() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  planState.renewingAiAllowance = false
   api.listBlueprints.mockResolvedValue({ data: [] })
 })
 
@@ -121,6 +132,30 @@ describe('ExamRoom — chấm nền thất bại (GRADING_FAILED)', () => {
     expect(screen.queryByText(/Chấm điểm bị lỗi/)).not.toBeInTheDocument()
     expect(screen.getByTestId('quota-upgrade-link')).toHaveAttribute('href', '/v2/student/tuition')
     expect(screen.getByTestId('regrade-btn')).toBeEnabled()
+  })
+
+  it('10/11: QUOTA_EXCEEDED khi gói còn hạn (trả tiền / dùng thử) → "ngày mai có lượt AI mới", KHÔNG có link nạp/nâng cấp', async () => {
+    planState.renewingAiAllowance = true
+    api.getSession.mockResolvedValue({ data: session('GRADING_FAILED', { gradingError: 'QUOTA_EXCEEDED' }) })
+    renderRoom()
+
+    expect(await screen.findByTestId('exam-grading-failed')).toBeInTheDocument()
+    expect(screen.getByText(/lượt AI hôm nay đã hết/)).toBeInTheDocument()
+    expect(screen.getByText(/Ngày mai bạn có lượt AI mới/)).toBeInTheDocument()
+    expect(screen.queryByText(/ngân sách AI của bạn đã hết/)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('quota-upgrade-link')).not.toBeInTheDocument()
+    expect(screen.getByTestId('regrade-btn')).toBeEnabled()
+  })
+
+  it('10/11: gói còn hạn nhưng lỗi KHÔNG phải hết lượt → vẫn thông điệp job lỗi như cũ', async () => {
+    planState.renewingAiAllowance = true
+    api.getSession.mockResolvedValue({ data: session('GRADING_FAILED', { gradingError: 'JOB_FAILED' }) })
+    renderRoom()
+
+    expect(await screen.findByTestId('exam-grading-failed')).toBeInTheDocument()
+    expect(screen.getByText(/Chấm điểm bị lỗi/)).toBeInTheDocument()
+    expect(screen.queryByText(/lượt AI hôm nay đã hết/)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('quota-upgrade-link')).not.toBeInTheDocument()
   })
 
   it('regrade lỗi (409/mạng) → banner lỗi, vẫn còn nút để thử tiếp', async () => {

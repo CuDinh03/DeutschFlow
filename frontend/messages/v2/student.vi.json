@@ -1880,6 +1880,8 @@
         "retryTurnHint": "Bản ghi/câu trả lời vẫn còn trên máy bạn — gửi lại sẽ không bị tính thành lượt mới.",
         "gradingFailedQuota": "Chưa chấm được vì ngân sách AI của bạn đã hết — bài thi vẫn còn nguyên.",
         "gradingFailedQuotaDesc": "Toàn bộ phần đã nói được giữ lại. Nạp thêm hoặc chờ kỳ mới, rồi bấm \"Chấm lại\" — không phải thi lại.",
+        "gradingFailedQuotaRenewing": "Chưa chấm được vì lượt AI hôm nay đã hết — bài thi vẫn còn nguyên.",
+        "gradingFailedQuotaRenewingDesc": "Toàn bộ phần đã nói được giữ lại. Ngày mai bạn có lượt AI mới — khi đó bấm \"Chấm lại\", không phải thi lại.",
         "upgradeCta": "Xem gói / nạp thêm",
         "oral": {
           "eyebrow": "Mündliche Prüfung",

@@ -27,6 +27,9 @@
     "quotaBlockedTitle": "KI-Sprech-Kontingent aufgebraucht",
     "quotaBlockedDesc": "Neue Sitzungen und Nachrichten sind gesperrt, bis das Kontingent erneuert wird oder du upgradest.",
     "quotaBlockedCta": "Pläne ansehen & upgraden",
+    "errorQuotaRenewing": "Deine KI-Runden für heute sind aufgebraucht. Morgen bekommst du neue.",
+    "quotaBlockedRenewingTitle": "KI-Runden für heute aufgebraucht",
+    "quotaBlockedRenewingDesc": "Morgen bekommst du neue Runden — dann kannst du wieder Sitzungen starten und Nachrichten senden.",
     "streamFallback": "Streaming-Problem — Standardmodus aktiviert.",
     "errors": {
       "streamStalled": "Verbindung hängt. Bitte erneut versuchen."

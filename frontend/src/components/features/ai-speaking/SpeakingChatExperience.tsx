@@ -33,8 +33,9 @@ import { SpeakingMobileCopilotSheet } from "@/components/features/ai-speaking/Sp
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useTracking } from "@/hooks/useTracking";
-import api from "@/lib/api";
+import api, { problemCode } from "@/lib/api";
 import { useStatusBarStyle } from "@/lib/statusBar";
+import { showsRenewingQuotaCopy, usePlan } from "@/contexts/PlanContext";
 
 // The live conversation engine (SSE stream + mic + TTS). It used to live inside the legacy
 // page `app/speaking/chat/page.tsx`; it is a component now so the /v2 (Galerie) surface can
@@ -95,6 +96,9 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const router = useRouter();
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
+  // Hết ví mà gói còn hạn (trả tiền / dùng thử) → "ngày mai có lượt mới", không mời nâng cấp
+  // (quyết định 10/11/2026).
+  const { plan } = usePlan();
 
   const {
     selectedCompanion,
@@ -200,7 +204,9 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     clearPhoneme,
     toggleMic,
     cleanup: cleanupMic,
-  } = useSpeakingRecorderMic(t, trackPhonemeEvaluated);
+  } = useSpeakingRecorderMic(t, trackPhonemeEvaluated, (err) =>
+    showsRenewingQuotaCopy(plan, problemCode(err)) ? "errorQuotaRenewing" : "errorQuota",
+  );
 
   // ─── Timer ──────────────────────────────────────────────────
   useEffect(() => {
@@ -313,11 +319,15 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     }
   }, [messages, sessionMode, showEndPopup]);
 
+  // Số liệu là ngân sách trung tâm (orgBudget) thì giữ thông điệp cũ.
+  const quotaRenewing = !quota?.orgBudget && showsRenewingQuotaCopy(plan);
+  const quotaErrorKey = quotaRenewing ? "errorQuotaRenewing" : "errorQuota";
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
     if (quotaBlocked) {
-      setMicError(t("errorQuota"));
+      setMicError(t(quotaErrorKey));
       return;
     }
     if (repairGate?.blocking) {
@@ -394,13 +404,13 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
   const handleToggleMic = useCallback(() => {
     if (quotaBlocked) {
-      setMicError(t("errorQuota"));
+      setMicError(t(quotaErrorKey));
       return;
     }
     // R-W8: transcript về SAU khi người dùng đã gõ tiếp thì không được ghi đè — ghép vào cuối.
     // Dùng dạng hàm để đọc giá trị mới nhất, tránh closure cũ của lượt bấm mic.
     toggleMic((text) => setInputText((prev) => mergeTranscriptIntoDraft(prev, text)));
-  }, [toggleMic, quotaBlocked, setMicError, t]);
+  }, [toggleMic, quotaBlocked, setMicError, t, quotaErrorKey]);
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
   /**
@@ -608,7 +618,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
       {quotaBlocked && (
         <div className="px-4 pt-3">
-          <SpeakingQuotaBlockedBanner compact upgradeHref={routes.pricing} />
+          <SpeakingQuotaBlockedBanner compact upgradeHref={routes.pricing} renewing={quotaRenewing} />
         </div>
       )}
 

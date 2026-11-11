@@ -142,7 +142,7 @@ public class GradingService {
             item.put("status", sa.getStatus());
             item.put("submittedAt", sa.getSubmittedAt());
             item.put("submissionContent", sa.getSubmissionContent());
-            item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa.getSubmissionFileUrl()));
+            item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa));
             item.put("score", sa.getScore());
             item.put("feedback", sa.getFeedback());
             item.put("attachmentUrl", ca != null ? ca.getAttachmentUrl() : null);
@@ -280,7 +280,7 @@ public class GradingService {
                 item.put("submittedAt", sa.getSubmittedAt());
                 item.put("gradedAt", sa.getGradedAt());
                 item.put("submissionContent", sa.getSubmissionContent());
-                item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa.getSubmissionFileUrl()));
+                item.put("submissionFileUrl", submissionFileUrlResolver.resolve(sa));
             } else {
                 item.put("submissionId", null);
                 item.put("status", "NOT_SUBMITTED");

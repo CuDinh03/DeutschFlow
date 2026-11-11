@@ -64,6 +64,14 @@ vi.mock('@/components/features/exam-speaking/examTts', () => ({
 
 vi.mock('@/hooks/useMicPermission', () => ({ useMicPermission: () => 'granted' }))
 
+// Khối "chiến thuật Teil" trong phòng thi tự gọi GET /exam-strategies qua axios THẬT. Không mock thì
+// jsdom bắn XHR ra localhost:8080 (log `AggregateError` + "Retry 1/1 (GET)"), ~1 giây sau mới thất
+// bại — tức rơi vào giữa một ca KHÁC trong file. Test này không kiểm chiến thuật → trả rỗng.
+vi.mock('@/components/exam/strategy/examStrategy', async (orig) => ({
+  ...(await orig<typeof import('@/components/exam/strategy/examStrategy')>()),
+  fetchExamStrategies: vi.fn(async () => []),
+}))
+
 /**
  * Phát xong lời AI đang treo đầu hàng đợi. speakExamLine được gọi trong passive effect,
  * tức SAU khi turn-status đã vào DOM — trên runner chậm, hàng đợi có thể còn rỗng một nhịp
@@ -124,6 +132,15 @@ function renderRoom() {
 }
 
 beforeEach(() => {
+  // `window.event` bị KẸT sau cú click đầu tiên của cả file: bản dev của React 18 gán lại
+  // `window.event = <event đang xử lý>` quanh mỗi handler, mà vitest bọc global của jsdom bằng
+  // setter "ghi đè vĩnh viễn" → từ đó `window.event` luôn là cú click cũ, kể cả sang ca sau.
+  // React lấy độ ưu tiên của setState NGOÀI handler từ `window.event.type`: 'click' ⇒ SyncLane.
+  // Hệ quả: `setTtsBlocked(true)` (sau await) được commit TRƯỚC `setAiSpeaking(...)` (trong passive
+  // effect, DefaultLane) → có một nhịp DOM "đã hiện Chạm để nghe nhưng mic chưa khoá" mà trình duyệt
+  // thật không có (ở đó `window.event` là undefined ngoài lúc dispatch). Ghim về undefined để hai
+  // cập nhật đi chung một lượt render như ngoài đời; React không gán lại khi giá trị là undefined.
+  ;(window as unknown as { event: unknown }).event = undefined
   vi.clearAllMocks()
   tts.pending.splice(0)
   api.getSession.mockResolvedValue({ data: drillSession(0) })
@@ -135,9 +152,10 @@ describe('Cơ chế lượt phòng thi nói', () => {
     renderRoom()
 
     // Lời chào Teil của Prüfer bắt đầu phát → dải trạng thái + mic khoá.
-    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledWith('PRUEFER', 'Teil 2: Ihre erste Karte.'))
-    const status = await screen.findByTestId('turn-status')
-    expect(status.textContent).toContain('Giám khảo đang nói')
+    // Chờ trên DOM chứ không chờ trên mock: speakExamLine được gọi NGAY sau setAiSpeaking, tức
+    // trước khi React kịp render nhãn — chờ mock xong rồi đọc DOM liền là đua với scheduler.
+    await waitFor(() => expect(screen.getByTestId('turn-status').textContent).toContain('Giám khảo đang nói'))
+    expect(tts.speakExamLine).toHaveBeenCalledWith('PRUEFER', 'Teil 2: Ihre erste Karte.')
     expect(screen.getByTestId('mic-start')).toBeDisabled()
 
     // Phát xong → mở khoá + thông báo đến lượt.
@@ -170,8 +188,9 @@ describe('Cơ chế lượt phòng thi nói', () => {
     await user.click(screen.getByTestId('mic-text-send'))
 
     // Partner bắt đầu nói → trạng thái + input khoá.
-    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledWith('PARTNER', 'Ja, ich esse gern Brot.'))
-    expect(screen.getByTestId('turn-status').textContent).toContain('Bạn thi (AI) đang nói')
+    // Chờ nhãn trên DOM (lý do như ca đầu); nhãn và khoá input cùng suy ra từ một state → cùng commit.
+    await waitFor(() => expect(screen.getByTestId('turn-status').textContent).toContain('Bạn thi (AI) đang nói'))
+    expect(tts.speakExamLine).toHaveBeenCalledWith('PARTNER', 'Ja, ich esse gern Brot.')
     expect(screen.getByTestId('mic-text-input')).toBeDisabled()
     expect(screen.getByTestId('mic-text-send')).toBeDisabled()
 
@@ -201,14 +220,17 @@ describe('Cơ chế lượt phòng thi nói', () => {
     const user = userEvent.setup()
     renderRoom()
 
+    // Khẳng định ĐỒNG BỘ có chủ đích: thông báo "bị chặn" không bao giờ được hiện khi mic còn mở.
     const play = await screen.findByTestId('tts-blocked-play')
     expect(screen.getByTestId('mic-start')).toBeDisabled()
     expect(tts.speakExamLine).toHaveBeenCalledTimes(1)
 
     await user.click(play)
     expect(tts.unlockExamAudio).toHaveBeenCalled()
-    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledTimes(2))
-    expect(screen.queryByTestId('tts-blocked')).toBeNull()
+    // Lần phát lại được gọi ngay sau setTtsBlocked(false), trước khi thông báo kịp gỡ khỏi DOM →
+    // chờ thông báo biến mất, rồi mới kiểm số lần gọi và khoá mic.
+    await waitFor(() => expect(screen.queryByTestId('tts-blocked')).toBeNull())
+    expect(tts.speakExamLine).toHaveBeenCalledTimes(2)
     expect(screen.getByTestId('mic-start')).toBeDisabled()
 
     await finishSpeaking()

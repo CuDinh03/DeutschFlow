@@ -9,7 +9,7 @@
  * Catalog vi THẬT nên test canh luôn thiếu khoá i18n.
  */
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import adminContentVi from '../../../messages/v2/adminContent.vi.json'
@@ -70,8 +70,12 @@ describe('Trang cấu hình AI — hàng rào chống ghi đè prompt', () => {
 
     renderPage()
 
-    await waitFor(() => expect(saveButton()).not.toBeDisabled())
+    // Trang nạp prompt vào form bằng một effect chạy SAU lượt render đã bật nút Lưu (loaded=true),
+    // nên "nút bật" và "prompt hiện" là HAI commit. Chờ nút rồi đọc textarea liền là đua với
+    // scheduler của React (trượt khi lượt render đầu vượt lát cắt 5ms — runner chậm). Chờ trạng thái
+    // đích là prompt thật; khi nó đã hiện thì nút Lưu chắc chắn đã bật từ commit trước.
+    expect(await screen.findByDisplayValue('Bạn là trợ lý tiếng Đức.')).toBeTruthy()
+    expect(saveButton()).not.toBeDisabled()
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByDisplayValue('Bạn là trợ lý tiếng Đức.')).toBeTruthy()
   })
 })

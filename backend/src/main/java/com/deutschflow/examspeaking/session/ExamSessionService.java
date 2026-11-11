@@ -44,7 +44,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -53,6 +55,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Phiên luyện thi cá nhân: tạo (rút đề + kịch bản), lượt (STT verbose cho mock / text cho drill), chuyển Teil,
@@ -95,6 +98,8 @@ public class ExamSessionService {
     private final ExamSpeakingProperties props;
     private final com.deutschflow.examspeaking.weakness.ExamErrorSrsBridge srsBridge;
     private final ExamOpsAlerts opsAlerts;
+    /** Cho {@link #submitAudioTurn}: hai transaction ngắn quanh lời gọi STT (xem {@link #inTurnTransaction}). */
+    private final PlatformTransactionManager transactionManager;
 
     // ── tạo phiên ───────────────────────────────────────────────────────────────────────────
 
@@ -218,37 +223,115 @@ public class ExamSessionService {
     }
 
     /** Overload không lang (test/tương thích). */
-    @Transactional(noRollbackFor = ExamPartTimeoutException.class)
     public TurnResponse submitAudioTurn(long userId, long sessionId, byte[] audio, String filename) {
         return submitAudioTurn(userId, sessionId, audio, filename, null);
     }
 
-    @Transactional(noRollbackFor = ExamPartTimeoutException.class)
+    /**
+     * Lượt nói dạng audio. CỐ Ý không {@code @Transactional}: lời gọi nhận diện giọng nói là HTTP ra
+     * ngoài (timeout 60 giây); bọc nó trong transaction là giữ một kết nối DB suốt thời gian đó, và
+     * cả lớp cùng thi nói thì pool kết nối cạn. Ba bước:
+     * <ol>
+     *   <li>transaction ngắn: nạp phiên, kiểm trạng thái/hạn Teil, cổng tuổi, ngân sách;</li>
+     *   <li>NGOÀI transaction: gọi STT;</li>
+     *   <li>transaction ngắn: ghi sổ STT, nạp LẠI phiên, kiểm nó chưa đổi trong lúc chờ STT, xử lý lượt.</li>
+     * </ol>
+     * Hành vi giữ nguyên so với bản một-transaction: sổ STT vẫn nằm cùng transaction với việc ghi
+     * lượt (lượt bị từ chối thì sổ STT cũng không được ghi; riêng hết giờ Teil thì vẫn ghi — như
+     * {@code noRollbackFor} trước đây).
+     *
+     * <p>Phiên đổi trong lúc chờ STT:
+     * <ul>
+     *   <li>đã rời IN_PART (người dùng bấm kết thúc) → 409 {@link ConflictException}, không ghi gì;</li>
+     *   <li>đã sang Teil/bước khác (bấm chuyển phần, hoặc một lượt khác vừa ghi xong) → 409, không
+     *       ghi gì — bản ghi âm thuộc về bước cũ, không được gán vào bước mới;</li>
+     *   <li>hết giờ Teil (mock) → chuyển phần rồi 409 {@link ExamPartTimeoutException} như cũ.</li>
+     * </ul>
+     * Ghi đè đồng thời trong chính bước 3 vẫn do cột {@code version} của phiên chặn.
+     *
+     * <p>Lưu ý: bước 3 vẫn gọi LLM (lời đáp của giám khảo AI, chấm nhanh drill) bên trong transaction
+     * như trước — chưa tách trong đợt này.
+     */
     public TurnResponse submitAudioTurn(long userId, long sessionId, byte[] audio, String filename, String lang) {
-        SpeakingExamSession s = load(userId, sessionId);
-        // F-22: kiểm trạng thái/hạn Teil TRƯỚC khi đốt một lần Whisper + ghi ledger cho phiên đã đóng.
-        assertAcceptsTurn(s, Instant.now());
-        // DEC-22: cổng tuổi cắm Ở SERVICE, không ở controller — lượt nói audio còn đi qua
-        // idempotency ở controller, và mọi caller (controller, job chấm lại, test) đều qua đây.
-        // Đứng sau assertAcceptsTurn (phiên đã đóng thì 409 mới là câu trả lời đúng) và trước
-        // requireBudget: chưa đủ điều kiện về tuổi thì không được tính là tiêu hạn mức.
-        minorGate.assertAudioAllowed(userId);
-        requireBudget(userId, AiRateLimiterService.Bucket.TRANSCRIBE, STT_ESTIMATED_TOKENS, "Too many transcribe requests.");
+        // (1) Transaction ngắn — mọi kiểm tra phải xong TRƯỚC khi đốt một lần Whisper.
+        TurnCursor before = inTurnTransaction(() -> {
+            SpeakingExamSession s = load(userId, sessionId);
+            // F-22: kiểm trạng thái/hạn Teil TRƯỚC khi đốt một lần Whisper + ghi ledger cho phiên đã đóng.
+            assertAcceptsTurn(s, Instant.now());
+            // DEC-22: cổng tuổi cắm Ở SERVICE, không ở controller — lượt nói audio còn đi qua
+            // idempotency ở controller, và mọi caller (controller, job chấm lại, test) đều qua đây.
+            // Đứng sau assertAcceptsTurn (phiên đã đóng thì 409 mới là câu trả lời đúng) và trước
+            // requireBudget: chưa đủ điều kiện về tuổi thì không được tính là tiêu hạn mức.
+            minorGate.assertAudioAllowed(userId);
+            requireBudget(userId, AiRateLimiterService.Bucket.TRANSCRIBE, STT_ESTIMATED_TOKENS, "Too many transcribe requests.");
+            return new TurnCursor(s.getCurrentPart(), s.getCurrentStep());
+        });
+
+        // (2) NGOÀI transaction — không giữ kết nối DB trong lúc chờ nhà cung cấp STT.
         GroqWhisperClient.VerboseTranscript stt = whisperClient.transcribeVerbose(audio, filename == null ? "audio.webm" : filename, "de", "");
-        ledger.recordStt(userId, "EXAM_SPEAKING_STT", whisperClient.getWhisperModel(), stt.durationSeconds());
-        if (stt.text() == null || stt.text().isBlank()) {
-            throw new BadRequestException("Không nghe được gì trong audio. Hãy thử lại gần mic hơn.");
+
+        // (3) Transaction ngắn — ghi sổ STT và ghi lượt cùng thành công hoặc cùng huỷ.
+        return inTurnTransaction(() -> {
+            ledger.recordStt(userId, "EXAM_SPEAKING_STT", whisperClient.getWhisperModel(), stt.durationSeconds());
+            // Nạp LẠI: entity của bước (1) đã rời persistence context, và phiên có thể đã đổi.
+            SpeakingExamSession s = load(userId, sessionId);
+            assertUnchangedSinceStt(s, before);
+            if (stt.text() == null || stt.text().isBlank()) {
+                throw new BadRequestException("Không nghe được gì trong audio. Hãy thử lại gần mic hơn.");
+            }
+            Map<String, Object> sttJson = new LinkedHashMap<>();
+            sttJson.put("avgLogprob", stt.avgLogprob());
+            sttJson.put("durationSeconds", stt.durationSeconds());
+            sttJson.put("words", stt.words().stream().map(w -> Map.of("word", w.word(), "start", w.start(), "end", w.end())).toList());
+            // Phiên hiệu chuẩn: giữ audio để giám khảo nghe lại (G.2/G.3). Best-effort — S3 hỏng thì
+            // audioRef = null và lượt nói vẫn chạy; không được để việc lưu trữ giết phiên thi.
+            String audioRef = s.isRetainAudio()
+                    ? audioStorage.store(s.getId(), nextSeq(s), audio, filename)
+                    : null;
+            return processCandidateTurn(userId, s, stt.text().trim(), sttJson, audioRef, lang);
+        });
+    }
+
+    /** Vị trí của phiên (Teil, bước) lúc nhận audio — để phát hiện phiên đổi trong lúc chờ STT. */
+    private record TurnCursor(int part, int step) {}
+
+    /**
+     * Phiên có còn đúng chỗ như lúc nhận audio không. Rời IN_PART hoặc đã sang Teil/bước khác → 409,
+     * không ghi đè. Hết giờ Teil KHÔNG xử lý ở đây: {@link #processCandidateTurn} gọi
+     * {@link #assertAcceptsTurn} ngay sau, chuyển phần và ném {@link ExamPartTimeoutException}.
+     */
+    private void assertUnchangedSinceStt(SpeakingExamSession s, TurnCursor before) {
+        if (!SpeakingExamSession.STATE_IN_PART.equals(s.getState())) {
+            throw new ConflictException("Phiên không ở trạng thái nhận lượt nói (state=" + s.getState() + ")");
         }
-        Map<String, Object> sttJson = new LinkedHashMap<>();
-        sttJson.put("avgLogprob", stt.avgLogprob());
-        sttJson.put("durationSeconds", stt.durationSeconds());
-        sttJson.put("words", stt.words().stream().map(w -> Map.of("word", w.word(), "start", w.start(), "end", w.end())).toList());
-        // Phiên hiệu chuẩn: giữ audio để giám khảo nghe lại (G.2/G.3). Best-effort — S3 hỏng thì
-        // audioRef = null và lượt nói vẫn chạy; không được để việc lưu trữ giết phiên thi.
-        String audioRef = s.isRetainAudio()
-                ? audioStorage.store(s.getId(), nextSeq(s), audio, filename)
-                : null;
-        return processCandidateTurn(userId, s, stt.text().trim(), sttJson, audioRef, lang);
+        if (s.getCurrentPart() != before.part() || s.getCurrentStep() != before.step()) {
+            throw new ConflictException("Phiên đã chuyển sang bước khác trong lúc xử lý ghi âm (Teil "
+                    + before.part() + " bước " + before.step() + " → Teil " + s.getCurrentPart()
+                    + " bước " + s.getCurrentStep() + "). Hãy tải lại phiên.");
+        }
+    }
+
+    /**
+     * Chạy {@code body} trong một transaction với đúng ngữ nghĩa
+     * {@code @Transactional(noRollbackFor = ExamPartTimeoutException.class)} của các lượt nói:
+     * {@link ExamPartTimeoutException} → COMMIT (giữ việc chuyển phần) rồi mới ném ra; mọi ngoại lệ
+     * khác → rollback. Dùng {@link TransactionTemplate} vì gọi nội bộ cùng lớp không đi qua proxy
+     * nên {@code @Transactional} trên một phương thức riêng sẽ không có hiệu lực.
+     */
+    private <T> T inTurnTransaction(Supplier<T> body) {
+        ExamPartTimeoutException[] timeout = new ExamPartTimeoutException[1];
+        T result = new TransactionTemplate(transactionManager).execute(status -> {
+            try {
+                return body.get();
+            } catch (ExamPartTimeoutException e) {
+                timeout[0] = e;
+                return null;
+            }
+        });
+        if (timeout[0] != null) {
+            throw timeout[0];
+        }
+        return result;
     }
 
     /**
