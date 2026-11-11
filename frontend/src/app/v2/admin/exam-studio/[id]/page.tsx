@@ -18,6 +18,7 @@ import { StepText } from '@/components/admin/exam-studio/StepText'
 import { StepItems } from '@/components/admin/exam-studio/StepItems'
 import { StepReview } from '@/components/admin/exam-studio/StepReview'
 import { BusyBanner, LastErrorBanner } from '@/components/admin/exam-studio/ui'
+import { ChannelSwitch } from '@/components/admin/exam-studio/ChannelSwitch'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Xưởng đề — trình hướng dẫn 5 bước cho một bản nháp Teil.
@@ -128,6 +129,8 @@ export default function AdminExamStudioDraftPage() {
         <StudioStepper current={shown} maxReachable={maxReach} done={done} onSelect={setView}
           hidden={noItems ? ['ITEMS'] : []}
           labels={draft.needsSources === false ? { SOURCE: t('step.SITUATION') } : undefined} />
+
+        {draft.status === 'DRAFT' && <ChannelSwitch disabled={busy != null || pending} />}
 
         {busy && <BusyBanner op={busy} />}
         {draft.lastError && !busy && <LastErrorBanner message={draft.lastError} />}
