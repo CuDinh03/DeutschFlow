@@ -1071,6 +1071,8 @@ public class ExamDraftService {
         Map<String, String> strong;
         Map<String, String> weak;
         Map<String, String> blind;
+        // Phép thử phụ nào không chạy được thì ghi lại để báo, không làm hỏng cả lượt tự kiểm.
+        List<String> notes = new ArrayList<>();
         if (spec.situational()) {
             String lv = spec.cefrLevel();
             rubric = ai.call(userId, "VERIFY", com.deutschflow.ai.tier.LlmTier.GRADING_EXAM,
@@ -1089,7 +1091,8 @@ public class ExamDraftService {
             // đóng vai vẫn đọc cả bài nên không cho biết gì về độ khó (chạy thử 11/11/2026).
             weak = mcNews(spec) ? Map.of() : answers(ai.solveWeak(userId, spec, text, items), spec);
             // Ghép tiêu đề: không có bài thì không biết "Text 3" nói gì — giải khi giấu bài vô nghĩa, bỏ qua.
-            blind = spec.headlines() ? Map.of() : answers(ai.solveBlind(userId, spec, items), spec);
+            blind = spec.headlines() ? Map.of() : optionalAnswers("giải khi giấu bài", notes, spec,
+                    () -> ai.solveBlind(userId, spec, items));
         }
         Map<String, JsonNode> rubricById = new HashMap<>();
         rubric.path("items").forEach(n -> rubricById.put(n.path("id").asText(), n));
@@ -1107,7 +1110,8 @@ public class ExamDraftService {
             }
             if (!paragraphOf.isEmpty()) {
                 List<Item> multi = items.stream().filter(i -> paragraphOf.containsKey(i.id())).toList();
-                onePara = answers(ai.solveOneParagraph(userId, multi, paragraphOf), spec);
+                onePara = optionalAnswers("chỉ thấy một đoạn", notes, spec,
+                        () -> ai.solveOneParagraph(userId, multi, paragraphOf));
             }
         }
 
@@ -1223,12 +1227,31 @@ public class ExamDraftService {
         TextMetrics m = metrics(r, srcs);
         List<Check> checks = new ArrayList<>(teilChecks(r, srcs, m, verified, strong, null));
         if (!spec.situational()) checks.add(faithfulCheck(userId, spec, text, srcs));
+        if (!notes.isEmpty()) {
+            checks.add(new Check("SKIPPED", "Phép thử phụ chưa chạy được", "YELLOW",
+                    "Chưa chạy: " + String.join("; ", notes) + ". Bấm \"Chạy tự kiểm\" lại để thử lần nữa."));
+        }
         String hash = contentHash(text, verified);
         jdbc.update("""
                 UPDATE exam_drafts SET items_json = ?::jsonb, checks_json = ?::jsonb, verified_hash = ?,
                        updated_at = now() WHERE id = ?
                 """, json(verified), json(checks), hash, draftId);
         advanceStep(draftId, "REVIEW");
+    }
+
+    /**
+     * Phép thử PHỤ (giải khi giấu bài, giải khi chỉ thấy một đoạn): hỏng thì coi như không có kết quả và ghi vào
+     * {@code notes}. Hai lượt chính (chấm thang, AI giỏi giải đề) vẫn bắt buộc — hỏng là hỏng cả lượt tự kiểm.
+     */
+    private Map<String, String> optionalAnswers(String name, List<String> notes, TeilSpec spec,
+                                                java.util.function.Supplier<JsonNode> call) {
+        try {
+            return answers(call.get(), spec);
+        } catch (RuntimeException e) {
+            log.warn("[ExamStudio] phép thử phụ \"{}\" hỏng: {}", name, e.getMessage());
+            notes.add(name);
+            return Map.of();
+        }
     }
 
     /**
