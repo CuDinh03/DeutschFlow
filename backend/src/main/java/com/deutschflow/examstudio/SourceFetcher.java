@@ -57,7 +57,7 @@ public class SourceFetcher {
     private static final String PASTE_HINT = " Hãy dán văn bản bài báo.";
 
     public Fetched fetch(String rawUrl) {
-        Connection.Response res = load(rawUrl, PASTE_HINT, MAX_BYTES);
+        Connection.Response res = load(rawUrl, PASTE_HINT, MAX_BYTES, TIMEOUT_MS);
         String ct = res.contentType() == null ? "" : res.contentType().toLowerCase(Locale.ROOT);
         if (!ct.contains("html")) {
             throw new BadRequestException("Đường dẫn không phải trang web (" + ct + ")." + PASTE_HINT);
@@ -82,12 +82,16 @@ public class SourceFetcher {
     public static final int MAX_SITEMAP_BYTES = 8 * 1024 * 1024;
 
     public Raw fetchRaw(String rawUrl, int maxBytes) {
-        Connection.Response res = load(rawUrl, "", Math.min(Math.max(maxBytes, 1), MAX_SITEMAP_BYTES));
+        int cap = Math.min(Math.max(maxBytes, 1), MAX_SITEMAP_BYTES);
+        // Tệp lớn hơn trần thường cần lâu hơn 10 giây: sitemap 3,5 MB từng hết giờ khi đọc trên production.
+        Connection.Response res = load(rawUrl, "", cap, cap > MAX_BYTES ? LARGE_TIMEOUT_MS : TIMEOUT_MS);
         return new Raw(res.url().toString(), res.contentType(), res.body());
     }
 
     /** Tải một địa chỉ công khai: kiểm địa chỉ ở MỌI lần chuyển hướng, tôn trọng robots.txt, chỉ nhận mã 200. */
-    private Connection.Response load(String rawUrl, String hint, int maxBytes) {
+    private static final int LARGE_TIMEOUT_MS = 60_000;
+
+    private Connection.Response load(String rawUrl, String hint, int maxBytes, int timeoutMs) {
         URI uri = validate(rawUrl);
         if (!robotsAllow(uri)) {
             throw new BadRequestException("Trang này chặn máy tải tự động (robots.txt)." + hint);
@@ -97,7 +101,7 @@ public class SourceFetcher {
             try {
                 res = Jsoup.connect(uri.toString())
                         .userAgent(USER_AGENT)
-                        .timeout(TIMEOUT_MS)
+                        .timeout(timeoutMs)
                         .maxBodySize(maxBytes)
                         .followRedirects(false)
                         .ignoreHttpErrors(true)
@@ -118,6 +122,12 @@ public class SourceFetcher {
         }
         if (res == null || (res.statusCode() >= 300 && res.statusCode() < 400)) {
             throw new BadRequestException("Trang chuyển hướng quá nhiều lần." + hint);
+        }
+        try {
+            // Đọc hết thân trang ngay tại đây: đứt mạng hay hết giờ giữa chừng phải thành lời báo rõ, không thành lỗi 500.
+            res.bufferUp();
+        } catch (Exception e) {
+            throw new BadRequestException("Tải trang bị gián đoạn (" + rootName(e) + ")." + hint);
         }
         return res;
     }
@@ -296,6 +306,12 @@ public class SourceFetcher {
             }
         }
         return bestAllow;
+    }
+
+    private static String rootName(Throwable e) {
+        Throwable t = e;
+        while (t.getCause() != null && t.getCause() != t) t = t.getCause();
+        return t.getClass().getSimpleName();
     }
 
     private static String meta(Document doc, String name) {
