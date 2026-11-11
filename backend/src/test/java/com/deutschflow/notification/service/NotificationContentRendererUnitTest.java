@@ -82,13 +82,13 @@ class NotificationContentRendererUnitTest {
     void assignmentGraded_updatedFlag_rendersRegradeCopy() {
         RenderedContent updated = renderer.render(NotificationType.ASSIGNMENT_GRADED,
                 Map.of("assignmentType", "WRITING", "score", 90, "updated", true));
-        assertThat(updated.title()).isEqualTo("🔄 Điểm đã được cập nhật");
+        assertThat(updated.title()).isEqualTo("Điểm đã được cập nhật");
         assertThat(updated.body()).isEqualTo("Điểm bài tập của bạn đã được cập nhật — Điểm: 90. Xem phản hồi.");
 
         // jsonb đọc lại thường trả Boolean, nhưng chuỗi "true" cũng phải nhận (phòng payload cũ/khác kiểu).
         RenderedContent updatedStr = renderer.render(NotificationType.ASSIGNMENT_GRADED,
                 Map.of("assignmentType", "SPEAKING", "score", 85, "updated", "true"));
-        assertThat(updatedStr.title()).isEqualTo("🔄 Điểm đã được cập nhật");
+        assertThat(updatedStr.title()).isEqualTo("Điểm đã được cập nhật");
         assertThat(updatedStr.body()).contains("nói").contains("Điểm: 85.");
     }
 
