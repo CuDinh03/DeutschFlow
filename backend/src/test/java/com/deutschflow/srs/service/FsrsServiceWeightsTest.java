@@ -62,14 +62,14 @@ class FsrsServiceWeightsTest {
         VocabReviewSchedule bad = newCard();
         fsrsService.initializeCard(bad, 3);
         double[] broken = fsrsService.defaultWeights();
-        broken[17] = Double.NaN;
+        broken[16] = Double.NaN;
         fsrsService.scheduleReview(bad, 3, 1, broken);
 
         assertThat(bad.getStability()).isEqualByComparingTo(global.getStability());
     }
 
     @Test
-    @DisplayName("defaultWeights returns a 20-element defensive copy")
+    @DisplayName("defaultWeights returns a 17-element defensive copy")
     void defaultWeights_isDefensiveCopy() {
         double[] a = fsrsService.defaultWeights();
         assertThat(a).hasSize(FsrsService.WEIGHT_COUNT);

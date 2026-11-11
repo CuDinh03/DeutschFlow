@@ -16,6 +16,9 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
+    @Value("${app.features.teacher-sessions-enabled:false}")
+    private boolean teacherSessionsEnabled;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         // SEC-4: CORS origins are env-driven only (CORS_ALLOWED_ORIGINS → prod domains; dev default
@@ -41,6 +44,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(org.springframework.web.servlet.config.annotation.InterceptorRegistry registry) {
         registry.addInterceptor(new com.deutschflow.common.versioning.ApiDeprecationInterceptor());
+        // Buổi học 1:1 tạm tắt bằng cờ cấu hình — khi tắt, cả nhóm đường dẫn trả 404.
+        registry.addInterceptor(new com.deutschflow.teacher.controller.TeacherSessionsFeatureInterceptor(
+                        teacherSessionsEnabled))
+                .addPathPatterns(com.deutschflow.teacher.controller.TeacherSessionsFeatureInterceptor.PATH_PATTERNS);
     }
 
     @Bean

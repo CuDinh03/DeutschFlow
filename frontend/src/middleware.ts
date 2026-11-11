@@ -4,6 +4,7 @@
 import { jwtVerify, decodeProtectedHeader, importSPKI, type JWTPayload } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { mediaOrigins } from '../media-origins.mjs'
+import { safeNext } from '@/lib/safeNext'
 import { LOCALE_HEADER, isLocalizedPublicPath, localizedHref, publicHref, slugPageFor, splitLocalePrefix } from '@/lib/publicLocale'
 
 type Role = 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
@@ -41,15 +42,6 @@ const LOGIN_ROUTES = new Set(['/login', '/register', '/v2/login', '/v2/register'
  */
 function routeKey(pathname: string): string {
   return pathname.replace(/\/+$/, '') || '/'
-}
-
-/**
- * `?next=` chỉ được phép là đường dẫn NỘI BỘ. Chặn open-redirect: `//evil.com` và
- * `https://evil.com` đều bị loại; chỉ nhận path bắt đầu bằng đúng một dấu "/".
- */
-function safeNext(value: string | null): string | null {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
-  return value
 }
 
 // Trang chủ theo vai trò trên Galerie v2 — đích DUY NHẤT của mọi lần đá người dùng trong file này.

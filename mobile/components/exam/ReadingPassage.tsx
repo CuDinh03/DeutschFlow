@@ -21,12 +21,15 @@ export function ReadingPassage({
   body,
   numbered,
   glossary,
+  quelle,
 }: {
   title?: string
   vorspann?: string
   body: string
   numbered: boolean
   glossary?: { term: string; explanation: string }[]
+  /** Dòng ghi nguồn theo giấy phép (Xưởng đề) — tiếng Đức, hiện nguyên văn. */
+  quelle?: string
 }) {
   const { colors: c } = useTheme()
   let counted = 0
@@ -57,6 +60,7 @@ export function ReadingPassage({
           ))}
         </View>
       ) : null}
+      {quelle ? <ThemedText variant="caption" color="faint">{quelle}</ThemedText> : null}
     </View>
   )
 }

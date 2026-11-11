@@ -13,6 +13,11 @@ export interface RichPassageTeil {
   vorspann_de?: string
   context_lines?: boolean
   glossary?: Array<{ term: string; explanation_de: string }>
+  /**
+   * Nguồn của bài đọc (Xưởng đề, V376): `quelle` là dòng ghi nguồn bắt buộc theo giấy phép (CC BY:
+   * tác giả + giấy phép + "bearbeitet"; báo: "Daten: …"), hiện nhỏ dưới bài. Đề viết tay không khai.
+   */
+  source?: { quelle?: string | null }
 }
 
 /** Đề khai Vorspann / số dòng / chú thích thì dựng theo kiểu đề thật; đề Goethe không khai ⇒ nhánh cũ. */
@@ -101,19 +106,19 @@ export function ReadingPassage({
   const last = React.useMemo(() => (layer ? lastPieces(layer.pack, layer.blockOrder) : undefined), [layer])
 
   return (
-    <article className="mb-6 rounded-ga border border-ga-line bg-ga-surface p-4 lg:p-6">
+    <article className="mb-6 rounded-ga border border-ga-line bg-ga-surface p-3 sm:p-4 lg:p-6">
       {teil.title_de && <h3 className="ga-ui mb-2 text-ga-h3 text-ga-ink">{teil.title_de}</h3>}
       {teil.vorspann_de && (
         <p className="ga-ui mb-4 break-words text-ga-body font-semibold text-ga-ink">{teil.vorspann_de}</p>
       )}
-      <div lang="de" className="ga-ui text-ga-body leading-7 text-ga-ink">
+      <div lang="de" className="ga-ui text-ga-body leading-6 text-ga-ink sm:leading-7">
         {lines.map((line, idx) => {
           if (line.number == null) return <div key={idx} className="h-3" aria-hidden />
           const showNumber = teil.context_lines && line.number % LINE_NUMBER_EVERY === 0
           return (
-            <div key={idx} className="flex gap-3">
+            <div key={idx} className="flex gap-2 sm:gap-3">
               <span
-                className="ga-ui w-6 shrink-0 select-none text-right text-ga-caption tabular-nums text-ga-subtle"
+                className="ga-ui w-5 shrink-0 select-none sm:w-6 text-right text-ga-caption tabular-nums text-ga-subtle"
                 aria-hidden={!showNumber}
               >
                 {showNumber ? line.number : ''}
@@ -136,6 +141,9 @@ export function ReadingPassage({
             </div>
           ))}
         </dl>
+      )}
+      {teil.source?.quelle && (
+        <p data-quelle className="ga-ui mt-3 break-words text-ga-caption text-ga-subtle">{teil.source.quelle}</p>
       )}
     </article>
   )

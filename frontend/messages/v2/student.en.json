@@ -1880,6 +1880,8 @@
         "retryTurnHint": "Your recording/answer is still on this device — resending will not count as a new turn.",
         "gradingFailedQuota": "Not graded yet: your AI budget ran out — your exam answers are safe.",
         "gradingFailedQuotaDesc": "Everything you said is kept. Top up or wait for the next period, then press \"Regrade\" — no need to retake.",
+        "gradingFailedQuotaRenewing": "Not graded yet: today's AI turns are used up — your exam answers are safe.",
+        "gradingFailedQuotaRenewingDesc": "Everything you said is kept. You get new AI turns tomorrow — then press \"Regrade\"; no need to retake.",
         "upgradeCta": "See plans / top up",
         "oral": {
           "eyebrow": "Mündliche Prüfung",
@@ -2518,6 +2520,9 @@
         "colorY": "Yellow · keyword",
         "colorG": "Green · evidence",
         "colorP": "Pink · not sure",
+        "shortY": "Keyword",
+        "shortG": "Evidence",
+        "shortP": "Unsure",
         "underline": "Underline",
         "quick": "Q {n}",
         "quickHint": "Highlight green and link to the current question (Q)",
@@ -2558,6 +2563,7 @@
           "title": "Highlighter",
           "legend": "Colour meaning",
           "hint": "Select text in the passage or a question to highlight, underline, link it to a question or add a note. Click a highlight to edit it. Use ⊘ next to an option to cross it out.",
+          "howTo": "How to use the highlighter",
           "hintTouch": "Press and hold a word to select it, drag the handles to adjust, then pick a colour in the bar at the bottom of the screen. Tap a highlight to edit it. Use ⊘ next to an option to cross it out.",
           "hintExam": "Select text to highlight or underline it, like a pen on a paper exam. During the exam you can't link marks to questions or add notes; the review after you submit has all tools. Use ⊘ next to an option to cross it out.",
           "undo": "Undo mark (Ctrl+Z)",
@@ -2703,7 +2709,10 @@
         "GAP_MC": "Fill the gaps · a/b/c",
         "GAP_WORDBANK": "Fill the gaps · word box",
         "SCHREIBEN": "Write a reply",
-        "HOEREN": "Listen, choose richtig/falsch"
+        "HOEREN": "Listen, choose richtig/falsch",
+        "TRUE_FALSE": "Read, choose richtig/falsch",
+        "FILL_FORM": "Fill in the form",
+        "WRITE_NOTE": "Write a short message"
       },
       "fallbackTips": {
         "LESEN": {
@@ -2926,6 +2935,19 @@
         "flaggedNavEmpty": "No questions marked yet. Tap the flag on a question (or press F) to mark it for review.",
         "flaggedNavItem": "{teil} · question {n}",
         "flaggedNavClose": "Close list"
+      },
+      "choosePoints": "Pick {n} of the {total} points below and write about {words} words.",
+      "form": {
+        "formFallback": "Form",
+        "sourceLabel": "Text",
+        "answersLabel": "Form",
+        "right": "Correct",
+        "wrong": "Wrong",
+        "answer": "answer: {answer}",
+        "accept": "also accepted: {list}",
+        "rule": "Small spelling mistakes still count; fields with numbers (dates, times, phone numbers) must be exactly right.",
+        "progress": "{done}/{total} fields filled",
+        "reviewNoData": "The attempt result has no per-field marks for the form yet — this part is already included in the writing score."
       }
     },
     "examHub": {

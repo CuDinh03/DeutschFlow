@@ -30,6 +30,7 @@ public class MockExamPracticeService {
 
     public static final String ACCESS_KEY = "practice.telc.access";
     public static final String ALLOWLIST_KEY = "practice.telc.allowlist";
+    /** Teil Viết của đề telc B1 (một bức thư). Đề A2 (Xưởng đề) có bài viết ở SCHREIBEN-2 — xem {@link #writingKey}. */
     public static final String WRITING_KEY = "SCHREIBEN-1";
 
     /**
@@ -104,7 +105,9 @@ public class MockExamPracticeService {
             String key = e.getKey();
             String section = key.substring(0, key.lastIndexOf('-'));
             int items = teil.get("items") instanceof List<?> l ? l.size() : 0;
-            double max = WRITING_KEY.equals(key) ? 45 : maxPoints(teil);
+            double max = isFormTeil(teil) || teil.get("max_points") instanceof Number
+                    ? numberOr(teil.get("max_points"), maxPoints(teil))
+                    : key.equals(writingKey(exam.structure())) ? 45 : maxPoints(teil);
             teile.add(new PracticeDtos.Teil(key, section, teilNumber(teil), str(teil.get("type")), items, max,
                     SUGGEST_MINUTES.get(key), toProgress(progress.get(key))));
         }
@@ -126,7 +129,7 @@ public class MockExamPracticeService {
         Map<String, Object> teil = requireTeil(exam, teilKey);
         Map<String, Map<String, Object>> rows = progressRows(user.getId(), examId);
         Map<String, Object> row = rows.get(teilKey);
-        if (row != null && WRITING_KEY.equals(teilKey)) {
+        if (row != null && teilKey.equals(writingKey(exam.structure()))) {
             // Viết: sửa bài sau khi chấm vẫn lưu nháp, nhưng giữ phiếu chấm cũ cho tới lần chấm lại.
             jdbc.update("""
                     UPDATE mock_exam_practice_progress
@@ -153,9 +156,12 @@ public class MockExamPracticeService {
                                        Integer elapsed, Map<String, String> notes) {
         Exam exam = loadExam(user, examId);
         Map<String, Object> teil = requireTeil(exam, teilKey);
-        if (WRITING_KEY.equals(teilKey)) throw new BadRequestException("Teil Viết chấm bằng AI, không kiểm tra theo đáp án.");
+        if (teilKey.equals(writingKey(exam.structure()))) {
+            throw new BadRequestException("Teil Viết chấm bằng AI, không kiểm tra theo đáp án.");
+        }
         Map<String, String> clean = clean(answers);
-        PracticeAnalysis.TeilResult result = PracticeAnalysis.analyse(teilKey, teil, notes(examId, teilKey), clean);
+        PracticeAnalysis.TeilResult result = isFormTeil(teil) ? formResult(teilKey, teil, clean)
+                : PracticeAnalysis.analyse(teilKey, teil, notes(examId, teilKey), clean);
         upsert(user.getId(), examId, teilKey, json(clean), true, result.score(), result.max(),
                 clampElapsed(elapsed), json(result), notesJson(teil, notes));
         return toProgress(progressRows(user.getId(), examId).get(teilKey));
@@ -233,19 +239,82 @@ public class MockExamPracticeService {
     /** Bối cảnh để chấm Viết: đề bài gửi AI + trình độ. Gọi TRƯỚC khi trừ quota để lỗi đề báo sớm. */
     public WritingTask writingTask(User user, long examId, ExamScoringService scoring) {
         Exam exam = loadExam(user, examId);
-        Map<String, Object> teil = requireTeil(exam, WRITING_KEY);
-        return new WritingTask(examId, exam.level(), scoring.taskPrompt(teil));
+        String key = writingKey(exam.structure());
+        if (key == null) throw new BadRequestException("Đề này không có bài viết chấm bằng AI.");
+        Map<String, Object> teil = requireTeil(exam, key);
+        return new WritingTask(examId, exam.level(), scoring.taskPrompt(teil), key, exam.format());
     }
 
-    public record WritingTask(long examId, String level, String prompt) {}
+    /** {@code teilKey}: Teil bài viết của đề (B1 SCHREIBEN-1, A2 SCHREIBEN-2); {@code format}: kỳ thi (chọn phiếu chấm). */
+    public record WritingTask(long examId, String level, String prompt, String teilKey, String format) {
+        public WritingTask(long examId, String level, String prompt) {
+            this(examId, level, prompt, WRITING_KEY, null);
+        }
+    }
 
     /** Lưu phiếu chấm AI của bài Viết (gọi từ luồng nền sau khi chấm xong). */
     public void saveWriting(long userId, long examId, String text, Integer elapsed, Map<String, Object> eval) {
+        saveWriting(userId, examId, WRITING_KEY, text, elapsed, eval);
+    }
+
+    public void saveWriting(long userId, long examId, String teilKey, String text, Integer elapsed,
+                            Map<String, Object> eval) {
         boolean scored = "AI_EVALUATED".equals(eval.get("status"));
         Double score = scored && eval.get("total") instanceof Number n ? n.doubleValue() : null;
         Double max = scored && eval.get("max") instanceof Number m ? m.doubleValue() : null;
-        upsert(userId, examId, WRITING_KEY, json(Map.of("text", text == null ? "" : text)), scored, score, max,
+        upsert(userId, examId, teilKey, json(Map.of("text", text == null ? "" : text)), scored, score, max,
                 clampElapsed(elapsed), json(eval), null);
+    }
+
+    // ─── Viết theo dạng Teil (A2, 10/11/2026) ────────────────────────────────
+
+    /** Teil form có đáp án (telc A2 Schreiben 1): chấm khách quan từng ô. */
+    static boolean isFormTeil(Map<String, Object> teil) {
+        return teil.get("form_fields") instanceof List<?> f && !f.isEmpty()
+                && f.stream().anyMatch(x -> x instanceof Map<?, ?> m && m.get("answer") != null);
+    }
+
+    /**
+     * Teil bài viết chấm bằng AI của đề: Teil SCHREIBEN đầu tiên không phải form. Đề telc B1 ⇒ SCHREIBEN-1; đề A2
+     * (form + tin nhắn) ⇒ SCHREIBEN-2. Không có ⇒ {@code null}.
+     */
+    String writingKey(Map<String, Object> structure) {
+        for (Map.Entry<String, Map<String, Object>> e : practiceTeile(structure).entrySet()) {
+            if (e.getKey().startsWith("SCHREIBEN") && !(e.getValue().get("form_fields") instanceof List<?> f && !f.isEmpty())) {
+                return e.getKey();
+            }
+        }
+        return null;
+    }
+
+    /** Kết quả từng ô form theo luật chấm telc A1/A2 ({@link ExamScoringService#formAnswerMatches}); id ô = {@code form_<i>}. */
+    static PracticeAnalysis.TeilResult formResult(String teilKey, Map<String, Object> teil, Map<String, String> answers) {
+        List<PracticeAnalysis.ItemResult> items = new ArrayList<>();
+        int ok = 0;
+        List<?> fields = (List<?>) teil.get("form_fields");
+        double per = numberOr(teil.get("max_points"), fields.size()) / fields.size();
+        for (int i = 0; i < fields.size(); i++) {
+            if (!(fields.get(i) instanceof Map<?, ?> f)) continue;
+            String id = "form_" + i;
+            String given = answers.get(id);
+            List<String> accepted = new ArrayList<>();
+            if (f.get("answer") != null) accepted.add(String.valueOf(f.get("answer")));
+            if (f.get("accept") instanceof List<?> acc) acc.forEach(a -> accepted.add(String.valueOf(a)));
+            boolean answered = given != null && !given.isBlank();
+            boolean right = answered && ExamScoringService.formAnswerMatches(given, accepted);
+            if (right) ok++;
+            String expl = f.get("explanation_vi") == null ? null : String.valueOf(f.get("explanation_vi"));
+            List<String> ev = f.get("evidence") == null ? List.of() : List.of(String.valueOf(f.get("evidence")));
+            items.add(new PracticeAnalysis.ItemResult(id, String.valueOf(f.get("field")), given, given,
+                    accepted.isEmpty() ? null : accepted.get(0), accepted.isEmpty() ? null : accepted.get(0), answered,
+                    right, right ? per : 0, expl, right ? null : expl, null, ev, null, null));
+        }
+        double max = per * fields.size();
+        return new PracticeAnalysis.TeilResult(teilKey, "FILL_FORM", ok * per, max, ok, fields.size(), items, List.of());
+    }
+
+    private static double numberOr(Object v, double fallback) {
+        return v instanceof Number n && n.doubleValue() > 0 ? n.doubleValue() : fallback;
     }
 
     // ─── ngữ cảnh xem lại cho "Hỏi AI về câu này" (B3) ─────────────────────────
@@ -261,7 +330,7 @@ public class MockExamPracticeService {
     public ReviewContext practiceReview(User user, long examId, String teilKey) {
         Exam exam = loadExam(user, examId);
         Map<String, Object> teil = requireTeil(exam, teilKey);
-        if (WRITING_KEY.equals(teilKey)) throw new BadRequestException("Teil Viết đã có phiếu chấm AI riêng.");
+        if (teilKey.equals(writingKey(exam.structure()))) throw new BadRequestException("Teil Viết đã có phiếu chấm AI riêng.");
         Map<String, Object> row = progressRows(user.getId(), examId).get(teilKey);
         if (row == null || !Boolean.TRUE.equals(row.get("checked"))) {
             throw new ConflictException("Nộp Teil này trước rồi mới hỏi AI về từng câu.");
@@ -338,16 +407,23 @@ public class MockExamPracticeService {
         read((String) row.get("answers")).forEach((k, v) -> answers.put(k, v == null ? null : String.valueOf(v)));
 
         List<PracticeAnalysis.TeilResult> teile = new ArrayList<>();
-        for (Map.Entry<String, Map<String, Object>> e : practiceTeile(read(sections)).entrySet()) {
-            if (e.getKey().startsWith("SCHREIBEN")) continue;
+        Map<String, Object> structure = read(sections);
+        for (Map.Entry<String, Map<String, Object>> e : practiceTeile(structure).entrySet()) {
+            if (e.getKey().startsWith("SCHREIBEN")) {
+                // Form có đáp án (A2): đúng/sai từng ô như Teil khách quan; bài viết đi phiếu AI bên dưới.
+                if (isFormTeil(e.getValue())) teile.add(formResult(e.getKey(), e.getValue(), answers));
+                continue;
+            }
             teile.add(PracticeAnalysis.analyse(e.getKey(), e.getValue(), notes(examId, e.getKey()), answers));
         }
         Object writing = null;
         if (read((String) row.get("detailed")).get("SCHREIBEN") instanceof Map<?, ?> w) {
             writing = ((Map<String, Object>) w).get("teil2_email");
         }
-        String text = answers.get("email_1");
-        if (text == null) text = answers.get("schreiben_1");
+        String wKey = writingKey(structure);
+        String wNo = wKey == null ? "1" : wKey.substring(wKey.lastIndexOf('-') + 1);
+        String text = answers.get("email_" + wNo);
+        if (text == null) text = answers.get("schreiben_" + wNo);
         return new PracticeDtos.AttemptAnalysis(attemptId, examId, sanitizer.stripAnswerKey(sections), teile,
                 text, writing);
     }

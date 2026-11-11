@@ -27,6 +27,9 @@
     "quotaBlockedTitle": "Đã hết hạn mức luyện nói AI",
     "quotaBlockedDesc": "Bạn không thể bắt đầu phiên mới hoặc gửi tin cho đến khi quota được làm mới hoặc nâng gói.",
     "quotaBlockedCta": "Xem gói & nâng cấp",
+    "errorQuotaRenewing": "Lượt AI hôm nay đã hết. Ngày mai bạn có lượt mới.",
+    "quotaBlockedRenewingTitle": "Lượt AI hôm nay đã hết",
+    "quotaBlockedRenewingDesc": "Ngày mai bạn có lượt mới — khi đó bạn bắt đầu phiên và gửi tin lại được.",
     "streamFallback": "Streaming gặp sự cố — đã chuyển sang chế độ thường.",
     "errors": {
       "streamStalled": "Kết nối bị treo. Vui lòng thử lại."

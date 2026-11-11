@@ -27,6 +27,7 @@ import { useMicPermission } from '@/hooks/useMicPermission'
 import { OralResult } from './OralResult'
 import { TourHelpButton, useScreenTour } from '@/components/exam/tour/ScreenTour'
 import { cn } from '@/lib/utils'
+import { usePlanHelpers } from '@/contexts/PlanContext'
 import { DrillSummary } from './DrillSummary'
 import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts, unlockExamAudio } from './examTts'
 
@@ -67,6 +68,7 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
   const [micCheckPassed, setMicCheckPassed] = useState(false)
   const [drillTimeUp, setDrillTimeUp] = useState(false)
   const [session, setSession] = useState<ExamSessionView | null>(null)
+  const { renewingAiAllowance } = usePlanHelpers()
   const [blueprint, setBlueprint] = useState<BlueprintSummary | null>(null)
   const [lines, setLines] = useState<RoomLine[]>([])
   const [result, setResult] = useState<ExamResultView | null>(null)
@@ -768,11 +770,20 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
           icon={CircleAlert}
           tone="red"
           // F-08: hết quota ≠ job chết — người học cần nạp/chờ kỳ mới rồi bấm Chấm lại, không phải "thử lại sau".
-          title={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuota') : t('gradingFailed')}
-          body={session.gradingError === 'QUOTA_EXCEEDED' ? t('gradingFailedQuotaDesc') : t('gradingFailedDesc')}
+          // 10/11/2026: gói còn hạn (trả tiền / dùng thử) thì lượt AI tự hồi ngày mai — nói vậy, không mời nạp/nâng cấp.
+          title={
+            session.gradingError === 'QUOTA_EXCEEDED'
+              ? t(renewingAiAllowance ? 'gradingFailedQuotaRenewing' : 'gradingFailedQuota')
+              : t('gradingFailed')
+          }
+          body={
+            session.gradingError === 'QUOTA_EXCEEDED'
+              ? t(renewingAiAllowance ? 'gradingFailedQuotaRenewingDesc' : 'gradingFailedQuotaDesc')
+              : t('gradingFailedDesc')
+          }
         >
           <div className="flex flex-wrap justify-center gap-2">
-            {session.gradingError === 'QUOTA_EXCEEDED' && (
+            {session.gradingError === 'QUOTA_EXCEEDED' && !renewingAiAllowance && (
               <Link href="/v2/student/tuition" data-testid="quota-upgrade-link" className={cn(primaryBtn, 'bg-ga-yellow text-ga-ink')}>
                 {t('upgradeCta')}
               </Link>

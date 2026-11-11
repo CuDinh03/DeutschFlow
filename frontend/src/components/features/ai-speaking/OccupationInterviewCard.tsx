@@ -12,6 +12,8 @@ import { workplaceInterviewer } from "@/lib/workplaceInterviewers";
 import { companionFromPersonaId } from "@/lib/speaking/resumeSession";
 import { loadSpeakingSessionIntoStore } from "@/lib/speakingSessionBootstrap";
 import { toastApiError } from "@/lib/toastApiError";
+import { problemCode } from "@/lib/api";
+import { showsRenewingQuotaCopy, usePlan } from "@/contexts/PlanContext";
 import { mediumImpact } from "@/lib/haptics";
 import { SpeakingPersonaMiniAvatar } from "@/components/speaking/SpeakingPersonaMiniAvatar";
 import { EXPERIENCE_LEVELS } from "./experienceLevels";
@@ -21,6 +23,8 @@ interface Props {
   cefrLevel: string;
   chatHref: string;
   quotaBlocked: boolean;
+  /** Hết ví nhưng lượt AI tự hồi ngày mai (gói còn hạn) → câu "ngày mai có lượt mới", không mời nâng gói. */
+  quotaRenewing?: boolean;
 }
 
 /**
@@ -31,11 +35,12 @@ interface Props {
  * sơ hoặc `?occupation=`), hỏi số năm kinh nghiệm rồi tạo phiên INTERVIEW chỉ kèm `occupationCode`:
  * persona và vị trí để backend chọn theo nghề. Nghề không tải được ⇒ thẻ không hiện (màn cũ giữ nguyên).
  */
-export function OccupationInterviewCard({ occupationCode, cefrLevel, chatHref, quotaBlocked }: Props) {
+export function OccupationInterviewCard({ occupationCode, cefrLevel, chatHref, quotaBlocked, quotaRenewing = false }: Props) {
   const tc = useTranslations("v2.student.companionSelect");
   const t = useTranslations("speaking");
   const locale = useLocale();
   const router = useRouter();
+  const { plan } = usePlan();
   const [detail, setDetail] = useState<OccupationDetail | null>(null);
   const [experience, setExperience] = useState<string>("1-2Y");
   const [starting, setStarting] = useState(false);
@@ -61,7 +66,7 @@ export function OccupationInterviewCard({ occupationCode, cefrLevel, chatHref, q
     if (!detail || starting) return;
     mediumImpact();
     if (quotaBlocked) {
-      toast.error(t("errorQuota"));
+      toast.error(t(quotaRenewing ? "errorQuotaRenewing" : "errorQuota"));
       return;
     }
     setStarting(true);
@@ -81,7 +86,10 @@ export function OccupationInterviewCard({ occupationCode, cefrLevel, chatHref, q
       });
       router.push(chatHref);
     } catch (error) {
-      toastApiError(error, { quotaMessage: t("errorQuota"), locale });
+      const quotaMessage = t(
+        showsRenewingQuotaCopy(plan, problemCode(error)) ? "errorQuotaRenewing" : "errorQuota",
+      );
+      toastApiError(error, { quotaMessage, locale });
     } finally {
       setStarting(false);
     }

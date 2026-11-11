@@ -6,7 +6,7 @@ jest.mock('@/lib/api', () => ({
   default: { get: jest.fn(), post: jest.fn() },
 }))
 
-import { isTrialActive, trialDaysLeft } from '@/stores/usePlanStore'
+import { hasRenewingAiAllowance, isTrialActive, trialDaysLeft } from '@/stores/usePlanStore'
 
 const NOW = new Date('2026-09-02T10:00:00.000Z')
 
@@ -53,5 +53,35 @@ describe('trialDaysLeft', () => {
 
   test('đã quá hạn → 0, không âm', () => {
     expect(trialDaysLeft('2026-09-01T10:00:00.000Z', NOW)).toBe(0)
+  })
+})
+
+// 10/11/2026: gói trả tiền hết ví giữa kỳ vẫn giữ gói, lượt AI hồi lại hôm sau. Selector này quyết
+// định thông điệp hết hạn mức: true → "ngày mai bạn có lượt mới", không mời nâng cấp.
+describe('hasRenewingAiAllowance', () => {
+  test.each<[string, Parameters<typeof hasRenewingAiAllowance>[0], boolean]>([
+    ['plan null', null, false],
+    ['plan undefined', undefined, false],
+    ['PRO trả tiền còn hạn', { planCode: 'PRO', tier: 'PRO', isTrial: false, endsAtUtc: '2026-10-01T00:00:00.000Z' }, true],
+    ['PRO không kỳ hạn (endsAtUtc null)', { planCode: 'PRO', tier: 'PRO', isTrial: false, endsAtUtc: null }, true],
+    ['PRO backend cũ thiếu isTrial/endsAtUtc', { planCode: 'PRO', tier: 'PRO' }, true],
+    ['ULTRA còn hạn', { planCode: 'ULTRA', tier: 'ULTRA', endsAtUtc: '2026-12-01T00:00:00.000Z' }, true],
+    ['chỉ có planCode PRO (tier thiếu)', { planCode: 'PRO', endsAtUtc: '2026-12-01T00:00:00.000Z' }, true],
+    ['PRO đã hết hạn', { planCode: 'PRO', tier: 'PRO', isTrial: false, endsAtUtc: '2026-09-01T10:00:00.000Z' }, false],
+    ['PRO hết hạn đúng bằng now (mốc exclusive)', { planCode: 'PRO', tier: 'PRO', endsAtUtc: '2026-09-02T10:00:00.000Z' }, false],
+    ['PRO, endsAtUtc hỏng', { planCode: 'PRO', tier: 'PRO', endsAtUtc: 'not-a-date' }, false],
+    ['dùng thử còn hạn', { planCode: 'PRO', tier: 'PRO', isTrial: true, trialEndsAt: '2026-09-09T10:00:00.000Z', endsAtUtc: '2026-09-09T10:00:00.000Z' }, true],
+    ['dùng thử hết hạn', { planCode: 'PRO', tier: 'PRO', isTrial: true, trialEndsAt: '2026-09-01T10:00:00.000Z', endsAtUtc: '2026-09-01T10:00:00.000Z' }, false],
+    ['dùng thử thiếu trialEndsAt dù endsAtUtc tương lai', { planCode: 'PRO', tier: 'PRO', isTrial: true, trialEndsAt: null, endsAtUtc: '2026-12-01T00:00:00.000Z' }, false],
+    ['FREE', { planCode: 'FREE', tier: 'FREE', endsAtUtc: '2026-12-01T00:00:00.000Z' }, false],
+    ['DEFAULT', { planCode: 'DEFAULT', tier: 'DEFAULT', endsAtUtc: null }, false],
+  ])('%s', (_label, plan, expected) => {
+    expect(hasRenewingAiAllowance(plan, NOW)).toBe(expected)
+  })
+
+  test('mặc định lấy giờ hiện tại khi không truyền now', () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString()
+    expect(hasRenewingAiAllowance({ planCode: 'PRO', tier: 'PRO', endsAtUtc: future })).toBe(true)
+    expect(hasRenewingAiAllowance({ planCode: 'PRO', tier: 'PRO', endsAtUtc: '2000-01-01T00:00:00.000Z' })).toBe(false)
   })
 })

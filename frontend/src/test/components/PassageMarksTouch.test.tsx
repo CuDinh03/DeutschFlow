@@ -72,6 +72,8 @@ function longPressSelect(phrase: string) {
 }
 
 beforeEach(() => {
+  window.localStorage.clear()
+  document.documentElement.removeAttribute('data-ga-marking')
   ;[h.draft, h.getMarks, h.saveMarks].forEach((f) => f.mockReset())
   h.draft.mockResolvedValue(undefined)
   h.getMarks.mockResolvedValue({ marks: {}, updatedAt: null })
@@ -108,6 +110,10 @@ describe('Đánh dấu bài đọc — màn hẹp / cảm ứng (đợt 2b)', ()
     const toolbar = await screen.findByRole('toolbar', { name: 'Công cụ đánh dấu' }, { timeout: 2000 })
     expect(toolbar).toHaveAttribute('data-docked')
     expect(toolbar.style.bottom).toContain('12px')
+    // nhường chỗ cho bài đọc: thanh dưới của khung ẩn, ngăn câu hỏi thu về 0; màu có tên ngắn
+    await waitFor(() => expect(document.documentElement).toHaveAttribute('data-ga-marking'))
+    expect(document.querySelector('section[aria-hidden="true"]')).not.toBeNull()
+    expect(within(toolbar).getByText('Bằng chứng')).toBeInTheDocument()
 
     await user.click(within(toolbar).getByRole('button', { name: 'Vàng · từ khoá' }))
     await waitFor(() => expect(h.saveMarks).toHaveBeenCalled(), { timeout: 4000 })
@@ -118,7 +124,27 @@ describe('Đánh dấu bài đọc — màn hẹp / cảm ứng (đợt 2b)', ()
     const dialog = await screen.findByRole('dialog')
     expect(dialog.style.top).toContain('8px')
     await act(async () => undefined)
+
+    // đóng ghi chú + thanh công cụ ⇒ thanh dưới và ngăn câu hỏi trở lại
+    await user.click(within(dialog).getByRole('button', { name: 'Huỷ' }))
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('toolbar')).toBeNull())
+    await waitFor(() => expect(document.documentElement).not.toHaveAttribute('data-ga-marking'))
+    expect(document.querySelector('section[aria-hidden="true"]')).toBeNull()
   }, 10_000)
+
+  it('gợi ý dài chỉ tự mở lần đầu; lần sau nằm sau nút "?"', async () => {
+    const user = userEvent.setup()
+    h.wide = false
+    h.coarse = true
+    window.localStorage.setItem('df.marks.touchHintSeen', '1')
+    render(<PracticeTeilRoute />)
+    const how = await screen.findByRole('button', { name: 'Cách dùng bút đánh dấu' })
+    expect(screen.queryByText(/Nhấn giữ một chữ để chọn/)).toBeNull()
+    expect(screen.getByRole('list', { name: 'Ý nghĩa màu' })).toHaveTextContent('Từ khoá')
+    await user.click(how)
+    expect(screen.getByText(/Nhấn giữ một chữ để chọn/)).toBeInTheDocument()
+  })
 
   it('máy tính bảng cảm ứng, màn rộng: vẫn neo đáy màn', async () => {
     h.wide = true

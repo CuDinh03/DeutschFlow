@@ -1880,6 +1880,8 @@
         "retryTurnHint": "Bản ghi/câu trả lời vẫn còn trên máy bạn — gửi lại sẽ không bị tính thành lượt mới.",
         "gradingFailedQuota": "Chưa chấm được vì ngân sách AI của bạn đã hết — bài thi vẫn còn nguyên.",
         "gradingFailedQuotaDesc": "Toàn bộ phần đã nói được giữ lại. Nạp thêm hoặc chờ kỳ mới, rồi bấm \"Chấm lại\" — không phải thi lại.",
+        "gradingFailedQuotaRenewing": "Chưa chấm được vì lượt AI hôm nay đã hết — bài thi vẫn còn nguyên.",
+        "gradingFailedQuotaRenewingDesc": "Toàn bộ phần đã nói được giữ lại. Ngày mai bạn có lượt AI mới — khi đó bấm \"Chấm lại\", không phải thi lại.",
         "upgradeCta": "Xem gói / nạp thêm",
         "oral": {
           "eyebrow": "Mündliche Prüfung",
@@ -2518,6 +2520,9 @@
         "colorY": "Vàng · từ khoá",
         "colorG": "Xanh · bằng chứng",
         "colorP": "Hồng · chưa chắc",
+        "shortY": "Từ khoá",
+        "shortG": "Bằng chứng",
+        "shortP": "Chưa chắc",
         "underline": "Gạch chân",
         "quick": "Câu {n}",
         "quickHint": "Tô xanh và gắn vào câu đang làm (Q)",
@@ -2558,6 +2563,7 @@
           "title": "Bút đánh dấu",
           "legend": "Ý nghĩa màu",
           "hint": "Bôi đen chữ trong bài hoặc trong câu hỏi để tô màu, gạch chân, gắn vào số câu hay ghi chú. Bấm vào đoạn đã tô để sửa. Nút ⊘ cạnh đáp án để gạch bỏ phương án đã loại.",
+          "howTo": "Cách dùng bút đánh dấu",
           "hintTouch": "Nhấn giữ một chữ để chọn, kéo hai đầu để chỉnh vùng chọn, rồi chọn màu ở thanh dưới màn hình. Chạm vào đoạn đã tô để sửa. Nút ⊘ cạnh đáp án để gạch bỏ phương án đã loại.",
           "hintExam": "Bôi đen chữ để tô màu hoặc gạch chân như bút trên đề giấy. Trong giờ thi không gắn số câu hay ghi chú; nộp bài xong, phần xem lại có đủ công cụ. Nút ⊘ cạnh đáp án để gạch bỏ phương án đã loại.",
           "undo": "Hoàn tác đánh dấu (Ctrl+Z)",
@@ -2703,7 +2709,10 @@
         "GAP_MC": "Điền chỗ trống · a/b/c",
         "GAP_WORDBANK": "Điền chỗ trống · hộp từ",
         "SCHREIBEN": "Viết thư trả lời",
-        "HOEREN": "Nghe, chọn richtig/falsch"
+        "HOEREN": "Nghe, chọn richtig/falsch",
+        "TRUE_FALSE": "Đọc bài, chọn richtig/falsch",
+        "FILL_FORM": "Điền form",
+        "WRITE_NOTE": "Viết tin nhắn ngắn"
       },
       "fallbackTips": {
         "LESEN": {
@@ -2926,6 +2935,19 @@
         "flaggedNavEmpty": "Chưa đánh dấu câu nào. Bấm hình lá cờ ở một câu (hoặc phím F) để đánh dấu xem lại.",
         "flaggedNavItem": "{teil} · câu {n}",
         "flaggedNavClose": "Đóng danh sách"
+      },
+      "choosePoints": "Chọn {n} trong {total} ý dưới đây, viết khoảng {words} từ.",
+      "form": {
+        "formFallback": "Formular",
+        "sourceLabel": "Đoạn văn",
+        "answersLabel": "Form",
+        "right": "Đúng",
+        "wrong": "Sai",
+        "answer": "đáp án: {answer}",
+        "accept": "cũng được: {list}",
+        "rule": "Sai chính tả nhẹ vẫn được tính; ô có số (ngày, giờ, số điện thoại) phải đúng tuyệt đối.",
+        "progress": "Đã điền {done}/{total} ô",
+        "reviewNoData": "Kết quả lượt thi chưa có đúng/sai từng ô của form — điểm phần này đã tính trong tổng điểm Viết."
       }
     },
     "examHub": {

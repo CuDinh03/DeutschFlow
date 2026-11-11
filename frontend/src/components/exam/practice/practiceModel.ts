@@ -1,11 +1,18 @@
 /**
  * Phép thuần của chế độ luyện đề telc (03/11/2026). Không gọi API, không đụng React — để test được.
  */
-import type { WritingAnnotation } from '@/lib/telcPracticeApi'
+import type { PracticeTeilResult, WritingAnnotation } from '@/lib/telcPracticeApi'
 import { orderedWritingPoints } from '@/components/exam/telc/writingTask'
 import type { AudioScript } from '@/components/exam/audioScript'
 
-export type PracticeKind = 'match' | 'mc' | 'gap-mc' | 'gap-bank' | 'writing' | 'unknown'
+/** `form`: telc A2 Schreiben Teil 1 (FILL_FORM) — điền 5 ô từ một đoạn văn, chấm tự động theo khoá `form_<i>`. */
+export type PracticeKind = 'match' | 'mc' | 'gap-mc' | 'gap-bank' | 'form' | 'writing' | 'unknown'
+
+/** Một ô của form (đã gỡ đáp án: `answer`/`accept`/`explanation_vi` không tới client). */
+export interface PracticeFormField {
+  field: string
+  instruction_vi?: string
+}
 
 export interface PracticeItem {
   id: string
@@ -37,10 +44,22 @@ export interface PracticeTeilData {
   vorspann_de?: string
   context_lines?: boolean
   glossary?: Array<{ term: string; explanation_de: string }>
+  /**
+   * Nguồn của bài đọc (Xưởng đề, V376): `quelle` là dòng ghi nguồn bắt buộc theo giấy phép (CC BY:
+   * tác giả + giấy phép + "bearbeitet"; báo: "Daten: …"), hiện nhỏ dưới bài. Đề viết tay không khai.
+   */
+  source?: { quelle?: string | null }
   stimulus?: { type?: string; from?: string; subject?: string; body: string }
   writing_points?: string[]
   shuffle_points?: boolean
   prompt?: string
+  /** telc A2 Schreiben Teil 1 (FILL_FORM): tên form + các ô; đoạn văn nguồn nằm ở `context`. */
+  form_title?: string
+  form_fields?: PracticeFormField[]
+  /** telc A2 Schreiben Teil 2 (WRITE_NOTE): chọn 3 trong 4 ý, khoảng 40 từ, 10 điểm. */
+  choose_points?: number
+  word_target?: number
+  max_points?: number
   items?: PracticeItem[]
   /** Hören: bài nghe cấp Teil (Teil 2), số lần phát, nghi thức telc (Ansage, giây đọc câu hỏi, câu khung). */
   audio_script?: AudioScript
@@ -73,7 +92,7 @@ export function findTeil(json: string | null | undefined, key: string): Practice
 }
 
 export function kindOf(teil: PracticeTeilData | null, key: string): PracticeKind {
-  if (key.startsWith('SCHREIBEN')) return 'writing'
+  if (key.startsWith('SCHREIBEN')) return teil?.type === 'FILL_FORM' ? 'form' : 'writing'
   // Hören telc: mọi câu là richtig/falsch, đề không khai `type` ⇒ dựng như trắc nghiệm từng câu.
   if (key.startsWith('HOEREN')) return teil ? 'mc' : 'unknown'
   switch (teil?.type) {
@@ -81,6 +100,8 @@ export function kindOf(teil: PracticeTeilData | null, key: string): PracticeKind
     case 'MATCH_AD_X':
       return 'match'
     case 'MULTIPLE_CHOICE':
+    // telc A2 Lesen Teil 2: mệnh đề richtig/falsch, câu không khai options — dựng bằng `withTrueFalse`.
+    case 'TRUE_FALSE':
       return 'mc'
     case 'GAP_MC':
       return 'gap-mc'
@@ -226,4 +247,63 @@ export const TRUE_FALSE_OPTIONS: Record<string, string> = { richtig: 'Richtig', 
 export function withTrueFalse(teil: PracticeTeilData): PracticeTeilData {
   if (!teil.items?.some((it) => !it.options)) return teil
   return { ...teil, items: teil.items.map((it) => (it.options ? it : { ...it, options: TRUE_FALSE_OPTIONS })) }
+}
+
+/** Teil cần gắn sẵn richtig/falsch trước khi dựng trắc nghiệm (Hören telc, Lesen A2 Teil 2). */
+export function needsTrueFalse(teil: PracticeTeilData, key: string): boolean {
+  return key.startsWith('HOEREN') || teil.type === 'TRUE_FALSE'
+}
+
+/** Khoá câu trả lời của ô form thứ `i` — backend chấm theo khoá này (`ExamScoringService.formRatio`). */
+export function formKey(i: number): string {
+  return `form_${i}`
+}
+
+/** Số ô form đã điền / tổng số ô. */
+export function formProgress(teil: PracticeTeilData, answers: Record<string, string>): { done: number; total: number } {
+  const fields = teil.form_fields ?? []
+  return { done: fields.filter((_, i) => (answers[formKey(i)] ?? '').trim() !== '').length, total: fields.length }
+}
+
+/** Câu trả lời chỉ gồm các ô form (gửi lên khi kiểm tra Teil form). */
+export function formAnswers(teil: PracticeTeilData, answers: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {}
+  ;(teil.form_fields ?? []).forEach((_, i) => {
+    const v = answers[formKey(i)]
+    if (v != null && v.trim() !== '') out[formKey(i)] = v
+  })
+  return out
+}
+
+/** Số từ gợi ý của bài viết: đề khai `word_target` (A2: 40), không thì 80 (thư telc B1). */
+export function writingTarget(teil: PracticeTeilData | null | undefined): number {
+  return teil?.word_target && teil.word_target > 0 ? teil.word_target : 80
+}
+
+/**
+ * Còn thiếu ý chưa đánh dấu trước khi chấm? Thư telc B1: đủ cả 4 ý. telc A2 Teil 2 (`choose_points` = 3):
+ * chỉ cần 3 trong 4.
+ */
+export function pointsMissing(
+  points: { label: string }[],
+  ticks: Record<string, boolean>,
+  choose?: number | null,
+): boolean {
+  const need = choose != null && choose > 0 ? Math.min(choose, points.length) : points.length
+  return points.filter((p) => ticks[p.label]).length < need
+}
+
+/**
+ * Đúng/sai từng ô form từ kết quả kiểm tra (nếu server trả từng ô theo id `form_<i>`). Ô không có trong kết quả ⇒
+ * `isCorrect` null (không hiện đúng/sai).
+ */
+export function formResults(
+  teil: PracticeTeilData,
+  result: Pick<PracticeTeilResult, 'items'> | null | undefined,
+): { given: string | null; answer: string | null; isCorrect: boolean | null }[] {
+  const byId = new Map((result?.items ?? []).map((r) => [r.id, r]))
+  return (teil.form_fields ?? []).map((_, i) => {
+    const r = byId.get(formKey(i))
+    return { given: r?.given ?? null, answer: r?.correctText ?? r?.correct ?? null, isCorrect: r ? r.isCorrect : null }
+  })
 }

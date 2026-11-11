@@ -38,6 +38,7 @@ import { ObjectiveTeilView, marksTexts } from '@/components/exam/practice/Object
 import { usePassageMarks, type MarksSource } from '@/components/exam/marks/usePassageMarks'
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
+import { FormTeilView } from '@/components/exam/practice/FormTeilView'
 import { WritingResultView } from '@/components/exam/practice/WritingResultView'
 import { displayedPoints, itemLabel, kindOf } from '@/components/exam/practice/practiceModel'
 import { ItemAssist, useCachedAsk, type ItemAssistValue } from '@/components/exam/practice/itemAssist'
@@ -473,13 +474,17 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   const title = tp(`teilTitle.${cur.data.type ?? cur.section}`)
   const subtitle = t('subtitle', { section: tp(`section.${cur.section}`), n: cur.no })
 
-  const teilName = (x: FullTeil) => (x.section === 'SCHREIBEN' ? 'Schreiben' : `${tp(`sectionDe.${x.section}`)} Teil ${x.no}`)
+  // telc A2 có hai Teil Viết (form + ghi chú) ⇒ ghi số Teil; B1 chỉ một ⇒ giữ "Schreiben".
+  const writingTeile = teile.filter((x) => x.section === 'SCHREIBEN').length
+  const teilName = (x: FullTeil) => (x.section === 'SCHREIBEN'
+    ? (writingTeile > 1 ? `Schreiben Teil ${x.no}` : 'Schreiben')
+    : `${tp(`sectionDe.${x.section}`)} Teil ${x.no}`)
   const stopDetails: React.ReactNode[] = []
   const counted: string[] = []
   const skipped: string[] = []
   for (const x of teile) {
     const p = teilProgress(x, answers)
-    if (x.section === 'SCHREIBEN') {
+    if (x.section === 'SCHREIBEN' && x.data.type !== 'FILL_FORM') {
       if (p.done > 0) stopDetails.push(t('stopWriting'))
       else skipped.push(teilName(x))
       continue
@@ -502,6 +507,9 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
   let body: React.ReactNode
   if (ritual) {
     body = <HoerenRitual onStart={() => enterStage(1)} onBack={() => { setRitual(false); setIdx(lastOfStage) }} />
+  } else if (kind === 'form') {
+    // telc A2 Schreiben Teil 1: khoá `form_<i>` nằm chung bản trả lời của lượt thi, server chấm theo đáp án.
+    body = <FormTeilView key={cur.key} teil={cur.data} answers={answers} onAnswer={onAnswer} wide={wide} />
   } else if (cur.section === 'SCHREIBEN') {
     const points = displayedPoints(cur.data.writing_points, cur.data.shuffle_points)
     const key = writingKey(cur.no)
@@ -777,7 +785,10 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
     const subtitle = t('subtitle', { section: tp(`section.${openTeil.section}`), n: openTeil.no })
     const title = tp(`teilTitle.${openTeil.data.type ?? openTeil.section}`)
     let body: React.ReactNode
-    if (openTeil.section === 'SCHREIBEN') {
+    if (openTeil.data.type === 'FILL_FORM') {
+      // Kết quả lượt thi chưa có đúng/sai từng ô form (analysis bỏ qua phần Viết) — hiện ghi chú thay vì đoán.
+      body = <div className="mx-auto max-w-[760px] p-6"><p className="ga-ui text-ga-body text-ga-muted">{tp('form.reviewNoData')}</p></div>
+    } else if (openTeil.section === 'SCHREIBEN') {
       const points = displayedPoints(openTeil.data.writing_points, openTeil.data.shuffle_points)
       body = analysis.writing && analysis.writing.status !== 'PENDING_AI_EVALUATION' ? (
         <WritingResultView evaluation={analysis.writing} text={analysis.writingText ?? ''} points={points} wide={wide} />
@@ -801,7 +812,7 @@ function AttemptResultView({ attemptId }: { attemptId: number }) {
             marks={reviewSource ? reviewMarks : null}
           />
         </ItemAssist.Provider>
-      ) : kind !== 'unknown' && kind !== 'writing' ? (
+      ) : kind !== 'unknown' && kind !== 'writing' && kind !== 'form' ? (
         <ItemAssist.Provider value={reviewAssist}>
           <ObjectiveTeilView
             key={openTeil.key}

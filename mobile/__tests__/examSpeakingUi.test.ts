@@ -54,13 +54,16 @@ describe('gradingFailedCopy (F-08)', () => {
     expect(gradingFailedCopy(null).title).toBe('Chấm bài gặp lỗi')
   })
 
-  // M-8 (Đợt 0 onboarding 17/09): hết lượt GIỮA thời gian dùng thử → lượt hồi lại ngày mai, không mời nạp.
-  it('QUOTA_EXCEEDED khi đang dùng thử → "mai có lượt mới", topUp=false; lý do khác không đổi', () => {
+  // M-8 (Đợt 0 onboarding 17/09) + 10/11/2026: hết lượt khi gói CÒN HẠN (dùng thử / trả tiền) →
+  // lượt hồi lại ngày mai, không mời nạp.
+  it('QUOTA_EXCEEDED khi gói còn hạn → "mai có lượt mới", topUp=false; lý do khác không đổi', () => {
     const t = gradingFailedCopy('QUOTA_EXCEEDED', true)
     expect(t.topUp).toBe(false)
     expect(t.message).toMatch(/Ngày mai bạn có lượt AI mới/)
     expect(t.message).toMatch(/không phải thi lại/)
     expect(t.message).not.toMatch(/Nạp thêm/)
+    expect(t.title).not.toMatch(/dùng thử/i)
+    expect(t.message).not.toMatch(/dùng thử/i)
     expect(gradingFailedCopy('JOB_FAILED', true)).toEqual(gradingFailedCopy('JOB_FAILED'))
   })
 })

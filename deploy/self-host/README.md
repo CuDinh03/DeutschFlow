@@ -11,7 +11,7 @@ Không bao giờ chép `.env` từ máy dev lên server.
 | `deploy-frontend-vm.sh [--rollback]` | Build Next.js (build args từ `frontend-build.env` + JWT public key), màu 3000 ↔ 3001, kiểm cổng vai trò, đổi `df_frontend` |
 | `remote-deploy-guard.sh` | Forced command cho khoá SSH của workflow GitHub "Deploy production": chỉ nhận `<backend\|frontend> <deploy\|rollback\|check> <sha>`. Cài ra `/usr/local/sbin/deutschflow-remote-deploy`, xem `docs/QUY_TRINH_PHAT_HANH.md` §5.0 |
 | `cleanup-vm.sh` | Dọn image/container an toàn — giữ `:latest`, `:prev`, 3 tag commit gần nhất; không đụng volume |
-| `backup-db.sh` | `pg_dump` → mã hoá `age` (khoá công khai) → `/backup/db` (14 bản) → R2 `deutschflow-backup` (30 ngày). Timer `systemd/deutschflow-backup.timer` 03:00 giờ VN |
+| `backup-db.sh` | `pg_dump` → mã hoá `age` (khoá công khai) → `/backup/db` (14 bản) → R2 `deutschflow-backup` (30 ngày). Cùng lần chạy: nén `/srv/deutschflow/env` + `/home/deploy/secrets` → mã hoá `age` → `/backup/secrets` (14 bản) → R2 `deutschflow-backup/secrets`; khôi phục bằng `age -d -i <khoá-bí-mật> secrets-<mốc>.tar.age \| tar -xpf - -C /`. Đặt `REMOTE_PRUNE=0` trong `backup.env` khi bucket đã có lifecycle rule và token chỉ ghi. Timer `systemd/deutschflow-backup.timer` 03:00 giờ VN |
 | `restore-db.sh <file> <age-key> [--into-scratch\|--into-prod]` | Diễn tập restore vào container tạm (mặc định) hoặc restore đè prod |
 
 Biến: `DEPLOY_BRANCH` (mặc định nhánh hiện tại của repo VM), `SKIP_FETCH=1` (build cây đang có).

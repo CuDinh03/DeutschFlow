@@ -9,7 +9,7 @@ import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { presentMinorAudioBlocked } from '@/lib/minorAudio'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { isTrialActive, usePlanStore } from '@/stores/usePlanStore'
+import { hasRenewingAiAllowance, usePlanStore } from '@/stores/usePlanStore'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
@@ -767,8 +767,8 @@ export default function SpeakingExamRoomScreen() {
 
       {/* ── GRADING_FAILED — F-08: hết quota ≠ job chết ── */}
       {session.state === 'GRADING_FAILED' && (() => {
-        // M-8: đang dùng thử → "mai có lượt mới", không mời nạp thêm.
-        const copy = gradingFailedCopy(session.gradingError, isTrialActive(usePlanStore.getState().plan))
+        // M-8 + 10/11/2026: gói còn hạn (dùng thử / trả tiền) → "mai có lượt mới", không mời nạp thêm.
+        const copy = gradingFailedCopy(session.gradingError, hasRenewingAiAllowance(usePlanStore.getState().plan))
         return (
           <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[5] }}>
             <Card style={{ gap: space[3], borderColor: c.danger }}>

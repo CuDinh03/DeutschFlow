@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { WritingStimulus } from '@/components/exam/telc/WritingStimulus'
 import { isWritingStimulus } from '@/components/exam/telc/writingTask'
-import { wordCount, type displayedPoints, type PracticeTeilData } from './practiceModel'
+import { wordCount, writingTarget, type displayedPoints, type PracticeTeilData } from './practiceModel'
 import { Seg } from './WritingResultView'
 import { SplitPanes } from './SplitPanes'
 
@@ -20,8 +20,6 @@ const REDEMITTEL = [
   'Hast du Lust, …?',
   'Viele Grüße',
 ]
-
-const TARGET_WORDS = 80
 
 interface Props {
   teil: PracticeTeilData
@@ -44,6 +42,8 @@ export function WritingTeilView({ teil, points, text, onText, ticks, onTick, wid
   const t = useTranslations('v2.student.practice')
   const [tab, setTab] = React.useState<'task' | 'write'>('write')
   const words = wordCount(text)
+  // telc A2 Schreiben Teil 2 (WRITE_NOTE): khoảng 40 từ, chọn 3 trong 4 ý; thư telc B1: 80 từ, đủ 4 ý.
+  const TARGET_WORDS = writingTarget(teil)
 
   const insert = (phrase: string) => {
     const ta = textareaRef.current
@@ -90,12 +90,21 @@ export function WritingTeilView({ teil, points, text, onText, ticks, onTick, wid
       {tips}
       {teil.instruction_de && <p lang="de" className="ga-ui text-ga-body text-ga-ink">{teil.instruction_de}</p>}
       {teil.instruction_vi && <p className="ga-ui mb-4 mt-1 text-ga-small text-ga-muted">{teil.instruction_vi}</p>}
-      {isWritingStimulus(teil.stimulus) && (
+      {isWritingStimulus(teil.stimulus) ? (
         <div className="mb-4">
           <WritingStimulus stimulus={teil.stimulus} />
         </div>
-      )}
+      ) : teil.prompt ? (
+        <p lang="de" className="ga-ui mb-4 whitespace-pre-line rounded-ga-touch border border-ga-line bg-ga-card px-4 py-3 text-ga-body-lg text-ga-ink">
+          {teil.prompt}
+        </p>
+      ) : null}
       <p className="ga-ui mb-2 text-ga-eyebrow uppercase text-ga-muted">{t('pointsTitle')}</p>
+      {teil.choose_points != null && teil.choose_points < points.length && (
+        <p className="ga-ui mb-2 text-ga-small font-semibold text-ga-ink">
+          {t('choosePoints', { n: teil.choose_points, total: points.length, words: TARGET_WORDS })}
+        </p>
+      )}
       {pointList}
     </div>
   )

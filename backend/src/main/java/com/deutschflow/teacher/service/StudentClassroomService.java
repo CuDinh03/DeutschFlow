@@ -289,7 +289,7 @@ public class StudentClassroomService {
         // Student-facing: forStudent masks score/feedback until the grade is final (F01); file URL
         // đi qua resolver vì bucket private (URL trần đã lưu không mở được).
         return StudentAssignmentDto.forStudent(
-                a, ca, submissionFileUrlResolver.resolve(a.getSubmissionFileUrl()));
+                a, ca, submissionFileUrlResolver.resolve(a));
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.deutschflow.user.controller;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -80,7 +81,10 @@ class StudentAssignmentSubmitTest {
         when(studentAssignmentRepository.save(any(StudentAssignment.class))).thenAnswer(i -> i.getArgument(0));
         when(classAssignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(
                 ClassAssignment.builder().id(ASSIGNMENT_ID).classId(100L).topic("Hörübung").build()));
-        when(submissionFileUrlResolver.resolve(anyString())).thenAnswer(i -> i.getArgument(0));
+        when(submissionFileUrlResolver.resolve(any(StudentAssignment.class)))
+                .thenAnswer(i -> i.<StudentAssignment>getArgument(0).getSubmissionFileUrl());
+        // Mặc định: file thuộc đúng vùng khoá của bài nộp này. Ca bị từ chối tự stub lại false.
+        when(submissionFileUrlResolver.isSubmissionFileOf(anyString(), anyLong(), anyLong())).thenReturn(true);
         // Còn thuộc lớp (ACTIVE/RESERVED) — quyền lớp nay được kiểm ở MỌI lượt nộp, kể cả khi dòng đã có.
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, STUDENT_ID)).thenReturn(true);
     }
@@ -239,6 +243,49 @@ class StudentAssignmentSubmitTest {
         controller.submitAssignment(student, ASSIGNMENT_ID, submitRequest("bài làm", null));
 
         verify(classStudentRepository).existsByIdClassIdAndIdStudentId(100L, STUDENT_ID);
+    }
+
+    // ── Nguồn file bài nộp ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("file được kiểm theo đúng bài tập và đúng người nộp trước khi lưu")
+    void submit_withFile_checksFileAgainstAssignmentAndStudent() {
+        stubExisting(row(AssignmentStatus.PENDING));
+
+        controller.submitAssignment(student, ASSIGNMENT_ID,
+                submitRequest("bài làm", "  https://s3/assignments/500/7_1.jpg  "));
+
+        verify(submissionFileUrlResolver).isSubmissionFileOf("https://s3/assignments/500/7_1.jpg", ASSIGNMENT_ID, STUDENT_ID);
+    }
+
+    @Test
+    @DisplayName("file không do hệ thống cấp cho bài nộp này → 400, dòng bài nộp đứng yên, không báo giáo viên")
+    void submit_withFileOutsideOwnPrefix_isRejected_andRowUntouched() {
+        StudentAssignment row = row(AssignmentStatus.SUBMITTED);
+        row.setSubmissionContent("bản cũ");
+        row.setSubmissionFileUrl("https://s3/assignments/500/7_old.jpg");
+        stubExisting(row);
+        when(submissionFileUrlResolver.isSubmissionFileOf(anyString(), anyLong(), anyLong())).thenReturn(false);
+
+        assertThatThrownBy(() -> controller.submitAssignment(student, ASSIGNMENT_ID,
+                submitRequest("bản mới", "https://elsewhere.example/file.jpg")))
+                .isInstanceOf(BadRequestException.class);
+
+        assertThat(row.getSubmissionContent()).isEqualTo("bản cũ");
+        assertThat(row.getSubmissionFileUrl()).isEqualTo("https://s3/assignments/500/7_old.jpg");
+        assertThat(row.getSubmittedAt()).isNull();
+        verify(studentAssignmentRepository, never()).save(any(StudentAssignment.class));
+        verify(teacherService, never()).notifyTeachersOfSubmission(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("bài nộp chỉ có chữ không qua bước kiểm file")
+    void submit_withoutFile_skipsFileCheck() {
+        stubExisting(row(AssignmentStatus.PENDING));
+
+        controller.submitAssignment(student, ASSIGNMENT_ID, submitRequest("bài làm", "  "));
+
+        verify(submissionFileUrlResolver, never()).isSubmissionFileOf(any(), any(), any());
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
