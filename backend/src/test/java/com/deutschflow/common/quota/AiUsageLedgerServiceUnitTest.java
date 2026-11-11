@@ -21,6 +21,7 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.contains;
@@ -208,7 +209,7 @@ class AiUsageLedgerServiceUnitTest {
     // ── recordStt() — STT quy giây → token-tương-đương, theo cùng ranh giới kênh ──
 
     @Test
-    @DisplayName("STT của staff: 10s ≈ 200 token cộng vào pool, ví không bị trừ")
+    @DisplayName("STT của staff: 10s ≈ 900 token (90 token/giây) cộng vào pool, ví không bị trừ")
     void recordStt_staff_chargesPoolByDuration() {
         when(orgQuotaService.resolveActiveMembership(42L)).thenReturn(TEACHER_MEMBER);
 
@@ -217,18 +218,18 @@ class AiUsageLedgerServiceUnitTest {
         // stt_usage_events insert luôn chạy (M-4: userId lặp lại cho subquery org_members).
         verify(jdbcTemplate).update(contains("stt_usage_events"), eq(42L), eq("STT_TRANSCRIBE"),
                 eq("whisper-large-v3"), eq(10.0), eq(42L));
-        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(200L));
+        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(900L));
         verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
     }
 
     @Test
-    @DisplayName("STT của học viên org: trừ ví 200 token-tương-đương, pool không đổi")
+    @DisplayName("STT của học viên org: trừ ví 900 token-tương-đương (90 token/giây), pool không đổi")
     void recordStt_student_debitsWalletOnly() {
         when(orgQuotaService.resolveActiveMembership(42L)).thenReturn(STUDENT_MEMBER);
 
         service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 10.0);
 
-        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), eq(FixedClockTestConfig.FIXED_NOW));
+        verify(quotaService).applyUsageDebit(eq(42L), eq(900L), eq(FixedClockTestConfig.FIXED_NOW));
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
     }
 
@@ -240,6 +241,38 @@ class AiUsageLedgerServiceUnitTest {
         verify(jdbcTemplate).update(contains("stt_usage_events"), any(), any(), any(), any(), any());
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
         verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("quy đổi ghi âm theo cấu hình: mặc định 90 token/giây, đổi cấu hình thì số trừ đổi theo")
+    void sttConversionFollowsConfiguredRate() {
+        assertThat(AiUsageLedgerService.DEFAULT_STT_TOKENS_PER_SECOND).isEqualTo(90L);
+        assertThat(service.sttTokensFor(1.0)).isEqualTo(90L);
+        assertThat(service.sttTokensFor(23.87)).isEqualTo(2_148L); // vụ thật 23,87 giây: trước là 477
+        assertThat(service.sttTokensFor(0.004)).isZero();          // làm tròn
+        assertThat(service.sttTokensFor(0.0)).isZero();
+        assertThat(service.sttTokensFor(-3.0)).isZero();
+        assertThat(service.sttTokensFor(Double.NaN)).isZero();
+
+        AiUsageLedgerService custom = new AiUsageLedgerService(jdbcTemplate, quotaService, orgQuotaService,
+                Clock.fixed(FixedClockTestConfig.FIXED_NOW, ZoneOffset.UTC), 20L);
+        assertThat(custom.sttTokensFor(23.87)).isEqualTo(477L);
+        when(orgQuotaService.resolveActiveMembership(42L)).thenReturn(STUDENT_MEMBER);
+
+        custom.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 10.0);
+
+        verify(quotaService).applyUsageDebit(eq(42L), eq(200L), eq(FixedClockTestConfig.FIXED_NOW));
+    }
+
+    @Test
+    @DisplayName("cấu hình quy đổi ghi âm ≤ 0 bị từ chối ngay lúc khởi tạo (không cho ghi âm miễn phí do gõ nhầm)")
+    void nonPositiveSttRateIsRejected() {
+        for (long bad : new long[]{0L, -90L}) {
+            assertThatThrownBy(() -> new AiUsageLedgerService(jdbcTemplate, quotaService, orgQuotaService,
+                    Clock.fixed(FixedClockTestConfig.FIXED_NOW, ZoneOffset.UTC), bad))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("app.quota.stt-tokens-per-second");
+        }
     }
 
     @Test

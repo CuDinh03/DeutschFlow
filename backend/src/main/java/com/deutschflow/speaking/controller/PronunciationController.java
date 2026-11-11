@@ -32,7 +32,8 @@ public class PronunciationController {
     // DEC-22: endpoint gửi giọng nói thật ra Whisper → phải qua cổng tuổi trước cổng chi phí.
     private final com.deutschflow.common.minor.MinorGate minorGate;
 
-    private static final long STT_ESTIMATED_TOKENS = 200L;
+    /** Ngân sách phải còn trước khi gọi STT: ≈ 10 giây ghi âm × 90 token/giây (app.quota.stt-tokens-per-second); trước là 200 = 10 giây × 20. */
+    private static final long STT_ESTIMATED_TOKENS = 900L;
 
     @org.springframework.beans.factory.annotation.Value("${app.ai.transcribe.max-bytes:8388608}")
     private long transcribeMaxBytes;

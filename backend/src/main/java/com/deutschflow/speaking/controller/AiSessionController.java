@@ -47,7 +47,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @PreAuthorize("hasAnyRole('STUDENT','TEACHER','ADMIN')")
 public class AiSessionController {
 
-    private static final long STT_ESTIMATED_TOKENS = 200L;
+    /** Ngân sách phải còn trước khi gọi STT: ≈ 10 giây ghi âm × 90 token/giây (app.quota.stt-tokens-per-second); trước là 200 = 10 giây × 20. */
+    private static final long STT_ESTIMATED_TOKENS = 900L;
 
     private final AiSpeakingService aiSpeakingService;
     private final com.deutschflow.speaking.service.SpeakingSuggestionService speakingSuggestionService;
