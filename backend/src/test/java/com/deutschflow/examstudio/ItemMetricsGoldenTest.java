@@ -132,4 +132,16 @@ class ItemMetricsGoldenTest {
         assertThat(StrongVerbForms.lemmas("geschrieben")).contains("schreiben");
         assertThat(StrongVerbForms.lemmas("Strategien")).isEmpty();
     }
+
+    @Test
+    @DisplayName("bài nhiều đoạn vụn được gộp các đoạn kề nhau ngắn nhất, giữ thứ tự câu")
+    void mergesShortParagraphs() {
+        List<String> ten = new ArrayList<>();
+        for (int i = 1; i <= 10; i++) ten.add("Satz " + i + " eins. Satz " + i + " zwei.");
+        List<String> merged = ExamDraftService.mergeShortParagraphs(ten, 6);
+        assertThat(merged).hasSize(6);
+        assertThat(String.join(" ", merged)).isEqualTo(String.join(" ", ten));
+        List<String> five = ten.subList(0, 5);
+        assertThat(ExamDraftService.mergeShortParagraphs(five, 6)).isEqualTo(five);
+    }
 }

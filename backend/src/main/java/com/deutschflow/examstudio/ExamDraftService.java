@@ -495,6 +495,7 @@ public class ExamDraftService {
                 log.warn("[ExamStudio] viết lại bài ngắn của bản nháp {} hỏng: {}", draftId, e.getMessage());
             }
         }
+        paras = mergeShortParagraphs(paras, MAX_TEXT_PARAGRAPHS);
         List<GlossaryEntry> glossary = new ArrayList<>();
         for (JsonNode g : out.path("glossary")) {
             String term = text(g, "term");
@@ -507,6 +508,32 @@ public class ExamDraftService {
                 String.join("\n\n", paras), glossary);
         saveText(draftId, new StoredText(t, used));
         advanceStep(draftId, "TEXT");
+    }
+
+    /** Bài báo Lesen Teil 2 của telc in thành vài đoạn liền mạch, không phải mỗi ý một dòng. */
+    static final int MAX_TEXT_PARAGRAPHS = 6;
+
+    /**
+     * Model hay cho mỗi dữ kiện một "đoạn" hai câu (bài chạy thật 11/11/2026 có 10 đoạn cho 303 từ), trông như
+     * gạch đầu dòng chứ không phải bài báo. Gộp dần hai đoạn KỀ NHAU ngắn nhất cho tới khi còn tối đa
+     * {@code max} đoạn; thứ tự câu giữ nguyên.
+     */
+    static List<String> mergeShortParagraphs(List<String> paras, int max) {
+        List<String> out = new ArrayList<>(paras);
+        while (out.size() > max) {
+            int best = 0;
+            int bestWords = Integer.MAX_VALUE;
+            for (int i = 0; i + 1 < out.size(); i++) {
+                int w = TextChecks.wordCount(out.get(i)) + TextChecks.wordCount(out.get(i + 1));
+                if (w < bestWords) {
+                    bestWords = w;
+                    best = i;
+                }
+            }
+            out.set(best, out.get(best) + " " + out.get(best + 1));
+            out.remove(best + 1);
+        }
+        return out;
     }
 
     private static List<String> paragraphsOf(JsonNode out) {

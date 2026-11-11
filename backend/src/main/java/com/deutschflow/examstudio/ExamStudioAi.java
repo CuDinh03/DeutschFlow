@@ -210,8 +210,10 @@ public class ExamStudioAi {
             Regeln:
             - Benutze NUR die gegebenen Fakten; erfinde keine Zahlen, Namen oder Studien.
             - Schreibe komplett mit eigenen Worten; übernimm keine Formulierung einer Quelle.
-            - Länge des Haupttextes: MINDESTENS %d und höchstens %d Wörter, 5–7 Absätze mit je 3–5 Sätzen,
-              kurze klare Sätze, Wortschatz %s. Ein kürzerer Text ist unbrauchbar. Reichen die Fakten nicht für
+            - Länge des Haupttextes: MINDESTENS %d und höchstens %d Wörter in 4–6 Absätzen. Jeder Absatz ist
+              zusammenhängender Fließtext mit 4–6 Sätzen (etwa 55–90 Wörter) und behandelt EIN Teilthema; fasse
+              verwandte Fakten im selben Absatz zusammen und verbinde die Sätze (deshalb, außerdem, dagegen …).
+              NICHT für jeden Fakt einen eigenen Absatz beginnen. Kurze klare Sätze, Wortschatz %s. Ein kürzerer Text ist unbrauchbar. Reichen die Fakten nicht für
               die Länge, erkläre sie ausführlicher (Beispiel aus dem Alltag, Bedeutung für Betroffene), aber
               erfinde keine neuen Zahlen, Namen oder Ergebnisse.
             - Aussagekraft der Fakten beibehalten: Ein Zusammenhang wird nie zu Ursache und Wirkung. Jede
