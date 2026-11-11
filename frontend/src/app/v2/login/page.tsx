@@ -9,6 +9,7 @@ import api, { problemCode } from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
 import { isMfaChallenge, MFA_ERROR, type AuthSession, type MfaChallenge } from '@/lib/mfaApi'
 import { landingAfterLogin } from '@/lib/roleRouting'
+import { safeNext } from '@/lib/safeNext'
 import { useUserStore } from '@/stores/useUserStore'
 import { useTracking } from '@/hooks/useTracking'
 import { registerPushNotifications } from '@/hooks/usePushNotifications'
@@ -88,16 +89,6 @@ function MaintenanceBanner() {
       </button>
     </div>
   )
-}
-
-/**
- * `?next=` chỉ được phép là đường dẫn NỘI BỘ — cùng đúng một luật với `safeNext()` trong
- * `src/middleware.ts` (không import chung được: middleware chạy ở edge runtime riêng). `//evil.com`
- * và `https://evil.com` đều bị loại; chỉ nhận path bắt đầu bằng đúng một dấu "/".
- */
-function safeNext(value: string | null): string | null {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
-  return value
 }
 
 export default function V2LoginPage() {

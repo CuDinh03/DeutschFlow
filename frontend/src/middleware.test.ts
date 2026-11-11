@@ -1,4 +1,6 @@
+// @vitest-environment node
 import { describe, it, expect, afterEach } from 'vitest'
+import { SignJWT } from 'jose'
 import { NextRequest } from 'next/server'
 import { middleware } from './middleware'
 
@@ -100,5 +102,38 @@ describe('middleware — /v2 role-area anonymous bounce', () => {
     setVerifier(false)
     const res = await middleware(req('/v2/org/accept/'))
     expect(isPassThrough(res)).toBe(true)
+  })
+})
+
+describe('middleware — người đã đăng nhập vào trang đăng nhập với ?next=', () => {
+  const snapshot = { ...process.env }
+  afterEach(() => {
+    for (const k of ENV_KEYS) delete process.env[k]
+    if (snapshot.JWT_SECRET) process.env.JWT_SECRET = snapshot.JWT_SECRET
+    if (snapshot.JWT_RSA_PUBLIC_KEY) process.env.JWT_RSA_PUBLIC_KEY = snapshot.JWT_RSA_PUBLIC_KEY
+  })
+
+  async function studentCookie(): Promise<Record<string, string>> {
+    setVerifier(true)
+    const token = await new SignJWT({ role: 'STUDENT' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('5m')
+      .sign(new TextEncoder().encode('test-hs256-secret'))
+    return { auth_access: token }
+  }
+
+  it('next nội bộ hợp lệ → chuyển tới đúng đường dẫn đó', async () => {
+    const res = await middleware(req('/v2/login/?next=%2Fv2%2Fstudent%2Fexam%2F%3Ftab%3D1', await studentCookie()))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe('https://app.test/v2/student/exam/?tab=1')
+  })
+
+  it('next không hợp lệ → về trang chủ theo vai trò, luôn cùng origin', async () => {
+    const cookies = await studentCookie()
+    for (const bad of ['%2F%2Fexample.com', '%2F%5Cexample.com', '%2F%255Cexample.com', '%2F%09%2Fexample.com', 'https%3A%2F%2Fexample.com']) {
+      const res = await middleware(req(`/v2/login/?next=${bad}`, cookies))
+      expect(res.status, bad).toBe(307)
+      expect(res.headers.get('location'), bad).toBe('https://app.test/v2/student/dashboard')
+    }
   })
 })
