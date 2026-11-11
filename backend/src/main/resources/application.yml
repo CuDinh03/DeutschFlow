@@ -256,6 +256,18 @@ app:
     judge-model: "${APP_EXAM_STUDIO_JUDGE_MODEL:accounts/fireworks/models/deepseek-v4p1-flash}"
     # Sàn max_tokens khi dùng model riêng (phần "nghĩ" của model tính chung vào hạn mức đầu ra).
     min-output-tokens: ${APP_EXAM_STUDIO_MIN_OUTPUT_TOKENS:16000}
+    # Kênh tạo đề thứ hai: cổng 9Router của owner (endpoint kiểu OpenAI → API Claude / Grok owner tự trả tiền).
+    # Admin chọn kênh bằng nút trên màn Xưởng đề; hai kênh tách riêng, không tự chuyển sang nhau.
+    # Thiếu base-url, api-key hoặc writer-model ⇒ kênh này hiện "chưa cấu hình" và không chọn được.
+    # base-url nhận ".../v1" hoặc địa chỉ đầy đủ ".../v1/chat/completions". judge-model trống ⇒ dùng writer-model.
+    router:
+      base-url: "${APP_EXAM_STUDIO_ROUTER_BASE_URL:}"
+      api-key: "${APP_EXAM_STUDIO_ROUTER_API_KEY:}"
+      writer-model: "${APP_EXAM_STUDIO_ROUTER_WRITER_MODEL:}"
+      judge-model: "${APP_EXAM_STUDIO_ROUTER_JUDGE_MODEL:}"
+      # Claude mới từ chối temperature khác mặc định; cổng trung gian chưa chắc dịch được response_format.
+      send-temperature: ${APP_EXAM_STUDIO_ROUTER_SEND_TEMPERATURE:false}
+      json-mode: ${APP_EXAM_STUDIO_ROUTER_JSON_MODE:false}
   features:
     # Buổi học 1:1 (giáo viên – học viên đặt buổi riêng, /api/teacher-sessions/**): TẠM TẮT từ
     # 11/2026 theo quyết định chủ dự án. Khi tắt, mọi endpoint của tính năng trả 404. Chỉ mở lại

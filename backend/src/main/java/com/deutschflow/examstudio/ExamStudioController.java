@@ -30,6 +30,23 @@ public class ExamStudioController {
     private final ExamDraftService service;
     private final ExamAssemblyService assembly;
     private final AuditLogService audit;
+    private final ExamStudioAi ai;
+
+    /** Hai kênh tạo đề và kênh nào đã cấu hình (không trả khoá hay địa chỉ). */
+    @GetMapping("/channels")
+    public List<ExamStudioAi.ChannelInfo> channels() {
+        return ai.channels();
+    }
+
+    /** Chạy một thao tác AI trên kênh admin chọn ({@code channel} trống = Fireworks). */
+    private Draft onChannel(String channel, java.util.function.Supplier<Draft> action) {
+        ExamStudioAi.useChannel(ai.requireChannel(channel));
+        try {
+            return action.get();
+        } finally {
+            ExamStudioAi.clearChannel();
+        }
+    }
 
     @GetMapping("/drafts")
     public List<DraftSummary> list(@RequestParam(required = false) String status) {
@@ -72,8 +89,8 @@ public class ExamStudioController {
 
     @PostMapping("/drafts/{id}/sources")
     public Draft addSource(@PathVariable long id, @RequestBody AddSourceRequest req,
-                           @AuthenticationPrincipal User actor) {
-        return service.addSource(id, req, actor.getId());
+                           @RequestParam(required = false) String channel, @AuthenticationPrincipal User actor) {
+        return onChannel(channel, () -> service.addSource(id, req, actor.getId()));
     }
 
     /** Nguồn từ tệp (PDF, DOCX, TXT): máy bóc văn bản rồi rút dữ kiện như văn bản dán tay. Tệp không được lưu. */
@@ -82,10 +99,12 @@ public class ExamStudioController {
                                @RequestParam(required = false) String title,
                                @RequestParam(required = false) String publisher,
                                @RequestParam(required = false) String url,
+                               @RequestParam(required = false) String channel,
                                @AuthenticationPrincipal User actor) throws IOException {
         if (file.getSize() > SourceFileReader.MAX_BYTES) throw new BadRequestException("Tệp lớn hơn 10 MB.");
-        return service.addSourceFile(id, file.getOriginalFilename(), file.getBytes(), title, publisher, url,
-                actor.getId());
+        byte[] bytes = file.getBytes();
+        return onChannel(channel, () -> service.addSourceFile(id, file.getOriginalFilename(), bytes, title, publisher,
+                url, actor.getId()));
     }
 
     @PatchMapping("/drafts/{id}/sources/{sourceId}")
@@ -100,25 +119,29 @@ public class ExamStudioController {
 
     @PostMapping("/drafts/{id}/text")
     public Draft writeText(@PathVariable long id, @RequestBody(required = false) WriteTextRequest req,
-                           @AuthenticationPrincipal User actor) {
-        return service.writeText(id, req, actor.getId());
+                           @RequestParam(required = false) String channel, @AuthenticationPrincipal User actor) {
+        return onChannel(channel, () -> service.writeText(id, req, actor.getId()));
     }
 
     @PostMapping("/drafts/{id}/items")
-    public Draft generateItems(@PathVariable long id, @AuthenticationPrincipal User actor) {
-        return service.generateItems(id, actor.getId());
+    public Draft generateItems(@PathVariable long id, @RequestParam(required = false) String channel,
+                               @AuthenticationPrincipal User actor) {
+        return onChannel(channel, () -> service.generateItems(id, actor.getId()));
     }
 
     @PostMapping("/drafts/{id}/items/{itemId}/regenerate")
     public Draft regenerateItem(@PathVariable long id, @PathVariable String itemId,
                                 @RequestBody(required = false) RegenerateItemRequest req,
+                                @RequestParam(required = false) String channel,
                                 @AuthenticationPrincipal User actor) {
-        return service.regenerateItem(id, itemId, req == null ? null : req.difficulty(), actor.getId());
+        return onChannel(channel,
+                () -> service.regenerateItem(id, itemId, req == null ? null : req.difficulty(), actor.getId()));
     }
 
     @PostMapping("/drafts/{id}/verify")
-    public Draft verify(@PathVariable long id, @AuthenticationPrincipal User actor) {
-        return service.verify(id, actor.getId());
+    public Draft verify(@PathVariable long id, @RequestParam(required = false) String channel,
+                        @AuthenticationPrincipal User actor) {
+        return onChannel(channel, () -> service.verify(id, actor.getId()));
     }
 
     @PostMapping("/drafts/{id}/approve")

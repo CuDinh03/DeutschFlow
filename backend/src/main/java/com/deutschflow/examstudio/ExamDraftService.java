@@ -908,8 +908,7 @@ public class ExamDraftService {
         Map<Integer, JsonNode> all = new HashMap<>();
         List<Item> known = new ArrayList<>(keep);
         RuntimeException firstError = null;
-        // Đường gọi riêng chịu được lượt dài nên xin ba câu một lượt (ít lượt gọi hơn); đường cũ giữ hai câu.
-        int perCall = ai.dedicatedWriter() ? 3 : ITEMS_PER_CALL;
+        int perCall = ai.itemsPerCall();
         for (int from = 0; from < todo.size(); from += perCall) {
             int to = Math.min(todo.size(), from + perCall);
             List<int[]> part = todo.subList(from, to);
@@ -1615,6 +1614,8 @@ public class ExamDraftService {
         Map<String, Object> payload = new HashMap<>(extra);
         payload.put("draftId", draftId);
         payload.put("op", op);
+        // Kênh admin chọn ở request này đi theo job nền (job chạy trên luồng khác).
+        payload.put(ExamStudioJobHandler.CHANNEL, ExamStudioAi.currentChannel().name());
         AiJob job = jobs.save(AiJob.builder().jobType(ExamStudioJobHandler.JOB_TYPE).userId(userId).payload(payload).build());
         jdbc.update("UPDATE exam_drafts SET busy_job_id = ? WHERE id = ?", job.getId(), draftId);
     }
