@@ -119,4 +119,17 @@ class ItemMetricsGoldenTest {
         assertThat(ExamDraftService.isSentenceStem("Am Wochenende …")).isTrue();
         assertThat(ExamDraftService.isSentenceStem("Was machen viele am Wochenende?")).isFalse();
     }
+
+    @Test
+    @DisplayName("dạng quá khứ / phân từ của động từ mạnh về đúng nguyên mẫu (kể cả có tiền tố)")
+    void strongVerbLemmas() {
+        assertThat(StrongVerbForms.lemmas("litten")).contains("leiden");
+        assertThat(StrongVerbForms.lemmas("traten")).contains("treten");
+        assertThat(StrongVerbForms.lemmas("auftraten")).containsSubsequence("auftreten", "treten");
+        assertThat(StrongVerbForms.lemmas("begann")).contains("beginnen");
+        assertThat(StrongVerbForms.lemmas("empfahlen")).contains("empfehlen");
+        assertThat(StrongVerbForms.lemmas("vergessenen")).contains("vergessen");
+        assertThat(StrongVerbForms.lemmas("geschrieben")).contains("schreiben");
+        assertThat(StrongVerbForms.lemmas("Strategien")).isEmpty();
+    }
 }

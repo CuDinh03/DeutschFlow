@@ -1334,6 +1334,17 @@ public class ExamDraftService {
         for (String w : types) {
             if (glossaryTerms.contains(w)) continue;
             int lv = wordlist.levelOf(w).map(LEVEL_ORDER::indexOf).orElse(-1);
+            if (lv > target) {
+                // Dạng quá khứ / phân từ của động từ mạnh ("litten", "traten") nằm trong danh sách tần suất B2/C1
+                // dù nguyên mẫu thuộc vốn từ của cấp: tra lại theo nguyên mẫu trước khi tính là từ trên cấp.
+                for (String lemma : StrongVerbForms.lemmas(w)) {
+                    int byLemma = wordlist.levelOf(lemma).map(LEVEL_ORDER::indexOf).orElse(-1);
+                    if (byLemma >= 0 && byLemma <= target) {
+                        lv = byLemma;
+                        break;
+                    }
+                }
+            }
             if (lv > target) above.add(w);
         }
         double ratio = types.isEmpty() ? 0 : (double) above.size() / types.size();
