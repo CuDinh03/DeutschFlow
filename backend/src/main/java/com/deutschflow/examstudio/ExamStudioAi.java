@@ -40,6 +40,14 @@ public class ExamStudioAi {
     private final AiUsageLedgerService ledger;
     private final ObjectMapper mapper;
 
+    /**
+     * Tầng model cho việc VIẾT (rút dữ kiện, viết bài, ra câu hỏi) của Teil lấy từ nguồn báo. Chạy thử
+     * 11/11/2026 với tầng CONTENT (model nhỏ): bài chỉ 135/300 từ, câu "Siêu khó" chép gần nguyên một câu
+     * của bài. Mặc định dùng tầng chấm thi (model lớn); đổi bằng {@code app.exam-studio.writer-tier}.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.writer-tier:GRADING_EXAM}")
+    private LlmTier writerTier = LlmTier.GRADING_EXAM;
+
     JsonNode call(long userId, String op, LlmTier tier, String system, String user, double temperature,
                   int maxTokens) {
         AiChatCompletionResult res;
@@ -72,6 +80,9 @@ public class ExamStudioAi {
             1. Extrahiere bis zu 15 überprüfbare FAKTEN, die sich für einen Lesetext auf dem angegebenen
                Niveau eignen. Formuliere jeden Fakt mit EIGENEN Worten neu (max. 25 Wörter), übernimm keine
                Sätze aus dem Artikel. Zahlen immer mit Jahr bzw. Zeitraum.
+               Verändere die AUSSAGEKRAFT nicht: Ein Zusammenhang ("hängt zusammen mit", "ist verbunden mit",
+               "assoziiert") bleibt ein Zusammenhang und wird NIE zu Ursache und Wirkung ("führt zu",
+               "erhöht", "senkt"). Ordne jede Aussage genau der Gruppe zu, für die der Artikel sie macht.
             2. Prüfe die Neutralität des Themas. Erlaubt: Arbeit, Wohnen, Gesundheit, Bildung, Verkehr,
                Reisen, Einkaufen, Technik im Alltag, Sport, Essen und Trinken. NICHT erlaubt: Politik,
                Migration, Krieg, Religion, umstrittene Wirtschaftsthemen. Bei Verstoß: neutral=false und
@@ -98,7 +109,7 @@ public class ExamStudioAi {
         String user = "Niveau: " + level + "\nThema: " + (theme == null ? "frei" : theme)
                 + "\n\nBestehende Fakten:\n" + existingTxt + "\n\nArtikel (Absätze durch Leerzeilen getrennt):\n"
                 + clipped;
-        return call(userId, "FACTS", LlmTier.CONTENT, FACTS_SYSTEM, user, 0.2, 2_500);
+        return call(userId, "FACTS", writerTier, FACTS_SYSTEM, user, 0.2, 3_000);
     }
 
     // ── 2. Viết bài đọc từ dữ kiện ──────────────────────────────────────────────────────────
@@ -108,7 +119,13 @@ public class ExamStudioAi {
             Regeln:
             - Benutze NUR die gegebenen Fakten; erfinde keine Zahlen, Namen oder Studien.
             - Schreibe komplett mit eigenen Worten; übernimm keine Formulierung einer Quelle.
-            - Länge des Haupttextes: %d–%d Wörter, 5–7 Absätze, kurze klare Sätze, Wortschatz %s.
+            - Länge des Haupttextes: MINDESTENS %d und höchstens %d Wörter, 5–7 Absätze mit je 3–5 Sätzen,
+              kurze klare Sätze, Wortschatz %s. Ein kürzerer Text ist unbrauchbar. Reichen die Fakten nicht für
+              die Länge, erkläre sie ausführlicher (Beispiel aus dem Alltag, Bedeutung für Betroffene), aber
+              erfinde keine neuen Zahlen, Namen oder Ergebnisse.
+            - Aussagekraft der Fakten beibehalten: Ein Zusammenhang wird nie zu Ursache und Wirkung. Jede
+              Aussage bleibt bei der Gruppe, für die der Fakt sie macht. Pronomen und "diese/dieser" müssen
+              sich eindeutig auf den richtigen Satz beziehen.
             - Zahlen immer mit Jahr. Neutraler Ton, keine Werbung, keine Politik.
             - Überschrift (titleDe) und Vorspann (vorspannDe, 1–2 Sätze, fett im Druck).
             - Höchstens 2 schwierige Wörter mit * markieren und im Glossar einfach auf Deutsch erklären.
@@ -142,7 +159,7 @@ public class ExamStudioAi {
                         + (f.year() == null ? "" : " [Jahr: " + f.year() + "]"))
                 .collect(Collectors.joining("\n"))
                 + (note == null || note.isBlank() ? "" : "\n\nHinweis der Redaktion: " + note);
-        return call(userId, "TEXT", LlmTier.CONTENT, system, user, 0.6, 2_500);
+        return call(userId, "TEXT", writerTier, system, user, 0.6, 3_500);
     }
 
     static final String REWRITE_SYSTEM = """
@@ -161,34 +178,44 @@ public class ExamStudioAi {
     // ── 3. Ra câu hỏi theo bậc ──────────────────────────────────────────────────────────────
 
     static final String ITEMS_SYSTEM = """
-            Du erstellst Aufgaben für telc Deutsch %s, Leseverstehen Teil 2: jede Aufgabe ist ein
-            Satzanfang ("question", endet mit " …") mit drei Satzenden; genau EIN Ende ist laut Text richtig.
+            Du erstellst Aufgaben für telc Deutsch %s, Leseverstehen Teil 2.
+
+            FORM (wie im Original): Jede Aufgabe ist ein SATZANFANG ("question"), der mit " …" endet, und drei
+            SATZENDEN ("options"), die den Satz grammatisch korrekt fortsetzen; genau EIN Ende ist laut Text
+            richtig. Keine Fragesätze, kein Fragezeichen, kein "Welche Aussage …".
+            Beispiel: "question": "Am Wochenende …", Enden: "schlafen viele Erwachsene länger als an
+            Arbeitstagen." / "schlafen die meisten Menschen kürzer." / "arbeiten immer mehr Menschen."
             Die Reihenfolge der Aufgaben soll NICHT der Reihenfolge des Textes folgen.
 
-            Schwierigkeit pro Aufgabe (alles bleibt Niveau %s, nur die Fragetechnik ändert sich):
-            Bewertungsskala, je 0–2 Punkte:
-            - phrasing: 0 = Lösung wiederholt Wörter des Textes; 1 = umformuliert; 2 = muss erschlossen werden.
-            - evidence: 0 = Beleg in einem Satz; 1 = in einem Absatz (2–3 Sätze); 2 = über ≥ 2 Absätze verteilt.
-            - distractors: 0 = falsch und nicht im Text; 1 = Detail aus dem Text, falsch zugeordnet;
-              2 = feine Falle (Ursache/Wirkung vertauscht, Zukunft statt Gegenwart, Negation, nur/alle,
-              Zahl der falschen Gruppe zugeordnet).
-            - language: 0 = Grundwortschatz; 1 = ein Wort am Rand des Niveaus; 2 = schwierige Struktur
-              (Passiv, Konjunktiv II, doppelte Verneinung).
-            Summe 0–1 = EASY, 2–4 = MEDIUM, 5–6 = HARD, 7–8 = EXPERT.
-            EXPERT zusätzlich: Information aus ≥ 2 Absätzen kombinieren UND mindestens ein Distraktor ist
-            "halb richtig" (eine Hälfte stimmt mit dem Text, die andere nicht).
-            Niemals Schwierigkeit durch Wörter über dem Niveau oder durch unwichtige Details erzeugen.
+            SCHWIERIGKEIT: Alles bleibt Niveau %s; nur die Fragetechnik ändert sich. Jede Stufe hat einen
+            festen BAUPLAN. Halte ihn genau ein:
+            - EASY: Beleg in EINEM Satz. Die Lösung benutzt die Wörter dieses Satzes. Beide falschen Enden
+              nennen etwas, das im Text gar nicht vorkommt.
+            - MEDIUM: Beleg in einem Absatz (2–3 Sätze). Die Lösung sagt dasselbe mit ANDEREN Wörtern
+              (Synonym, andere Satzstruktur). Ein falsches Ende nimmt ein echtes Detail aus dem Text und
+              ordnet es falsch zu.
+            - HARD: Die Lösung steht in keinem Satz wörtlich, sie muss aus 2–3 Sätzen erschlossen werden.
+              BEIDE falschen Enden benutzen echte Details aus dem Text mit einer feinen Falle (Ursache und
+              Wirkung vertauscht, Zukunft statt Gegenwart, Negation, nur/alle, Zahl der falschen Gruppe
+              zugeordnet).
+            - EXPERT: Die Lösung verbindet Informationen aus ZWEI VERSCHIEDENEN Absätzen; kein einzelner
+              Absatz reicht aus. Die Lösung benutzt kaum Wörter aus dem Text. Ein falsches Ende ist
+              "halb richtig": die erste Hälfte stimmt mit dem Text, die zweite nicht.
+            Niemals Schwierigkeit durch Wörter über dem Niveau oder durch unwichtige Details erzeugen. Gibt der
+            Text eine verlangte Stufe nicht her, komme ihr so nah wie möglich.
 
-            Für jede Aufgabe:
+            ARBEITSWEISE: Plane jede Aufgabe ZUERST im Feld "plan", dann schreibe sie:
+            - "plan": {"paragraphs": [Nummern der Absätze, in denen der Beleg steht],
+                       "traps": [Fallenregel je falschem Ende]}
             - "options": genau 3 Objekte {"text", "correct": true|false, "trap": Fallenregel auf Deutsch
               oder null}; genau eines correct.
-            - "evidence": wörtliches Zitat aus dem TEXT (nicht aus der Quelle), das die Lösung belegt.
+            - "evidence": WÖRTLICHE, vollständige Sätze aus dem TEXT (nicht aus der Quelle), die die Lösung
+              belegen — genau die Sätze aus den Absätzen in "plan.paragraphs", unverändert kopiert.
             - "explanationVi": Erklärung auf VIETNAMESISCH, warum die Lösung richtig ist und warum jede
               falsche Option falsch ist, mit Bezug auf die Textstelle. Bezeichne Optionen NUR mit {1}, {2},
               {3} (= Reihenfolge in "options"), niemals mit a/b/c.
-            - "selfScore": {"phrasing","evidence","distractors","language"} nach der Skala.
-            Antworte NUR mit JSON: {"items": [{"slot": 0, "question": "...", "options": [...], "evidence": "...",
-              "explanationVi": "...", "selfScore": {...}}]}
+            Antworte NUR mit JSON: {"items": [{"slot": 0, "plan": {"paragraphs": [2], "traps": ["..."]},
+              "question": "... …", "options": [...], "evidence": "...", "explanationVi": "..."}]}
             """;
 
     static final String ITEMS_T1_SYSTEM = """
@@ -214,6 +241,12 @@ public class ExamStudioAi {
 
     JsonNode generateItems(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
                            List<Item> keep, List<String> avoid) {
+        return generateItems(userId, spec, text, slotIdx, slotLevels, keep, avoid, Map.of());
+    }
+
+    /** {@code hints}: slot → lời nhắc tiếng Đức vì sao lượt trước không đúng công thức của bậc (sinh lại một lần). */
+    JsonNode generateItems(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
+                           List<Item> keep, List<String> avoid, Map<Integer, String> hints) {
         if (spec.headlines()) return generateHeadlines(userId, spec, text, slotIdx, slotLevels, keep, avoid);
         String system = ITEMS_SYSTEM.formatted(spec.cefrLevel(), spec.cefrLevel());
         StringBuilder u = new StringBuilder();
@@ -229,8 +262,12 @@ public class ExamStudioAi {
             u.append("\nBereits vorhandene Aufgaben (nicht wiederholen, andere Textstellen prüfen):\n");
             for (Item it : keep) u.append("- ").append(it.question()).append(" ").append(it.options().get(it.correct())).append("\n");
         }
+        if (hints != null && !hints.isEmpty()) {
+            u.append("\nKORREKTUR — der erste Versuch hielt den Bauplan nicht ein. Schreibe diese Aufgaben neu:\n");
+            hints.forEach((slot, hint) -> u.append("slot ").append(slot).append(": ").append(hint).append("\n"));
+        }
         u.append(SituationalTeile.avoidBlock(avoid));
-        return call(userId, "ITEMS", LlmTier.CONTENT, system, u.toString(), 0.7, 3_500);
+        return call(userId, "ITEMS", writerTier, system, u.toString(), 0.7, 4_500);
     }
 
     JsonNode generateHeadlines(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
@@ -287,6 +324,49 @@ public class ExamStudioAi {
             sicher erkennen kannst (z. B. weil nur eine Option logisch oder allgemein bekannt ist);
             sonst "answer": null. Antworte NUR mit JSON: {"answers": [{"id": "...", "answer": null}]}
             """;
+
+    // ── 4b. Kiểm bài khớp dữ kiện; giải khi chỉ thấy một đoạn ─────────────────────────────────
+
+    static final String FAITHFUL_SYSTEM = """
+            Du prüfst einen Lesetext für eine Deutschprüfung gegen die FAKTEN, aus denen er geschrieben wurde.
+            Melde jeden Satz des Textes, der
+            - UNSUPPORTED: eine Zahl, einen Namen, ein Ergebnis oder einen Vergleich enthält, der in keinem Fakt steht;
+            - CAUSAL: einen Zusammenhang als Ursache und Wirkung darstellt, obwohl der Fakt nur einen
+              Zusammenhang nennt (oder umgekehrt);
+            - WRONG_LINK: eine Aussage der falschen Gruppe, Zeit oder Sache zuordnet (auch durch ein Pronomen
+              oder "diese", das sich auf den falschen Satz bezieht).
+            Allgemeine Erklärungen ohne neue Zahlen oder Ergebnisse sind erlaubt und werden NICHT gemeldet.
+            Sei genau; melde nichts, was die Fakten decken. "problemVi" auf VIETNAMESISCH, ein Satz.
+            Antworte NUR mit JSON: {"issues": [{"sentence": "wörtlicher Satz aus dem Text",
+              "type": "UNSUPPORTED|CAUSAL|WRONG_LINK", "problemVi": "..."}]}
+            """;
+
+    JsonNode faithfulness(long userId, TeilSpec spec, Text text, List<Fact> facts) {
+        String factsTxt = facts.stream().map(f -> "- " + f.text()
+                + (f.figure() == null ? "" : " [Zahl: " + f.figure() + "]")
+                + (f.year() == null ? "" : " [Jahr: " + f.year() + "]")).collect(Collectors.joining("\n"));
+        return call(userId, "VERIFY", LlmTier.GRADING_EXAM, FAITHFUL_SYSTEM,
+                "FAKTEN:\n" + factsTxt + "\n\n" + textBlock(spec, text), 0.0, 1_500);
+    }
+
+    static final String ONE_PARAGRAPH_SYSTEM = """
+            Zu jeder Aufgabe siehst du NUR EINEN Absatz eines längeren Textes. Gib eine Antwort nur dann an,
+            wenn dieser eine Absatz die Lösung sicher belegt und kein weiterer Absatz nötig ist; sonst
+            "answer": null. Rate nicht.
+            Antworte NUR mit JSON: {"answers": [{"id": "...", "answer": null}]}
+            """;
+
+    /** {@code paragraphOf}: mã câu → đoạn duy nhất AI được xem. Câu giải được ở đây không phải câu gộp hai đoạn. */
+    JsonNode solveOneParagraph(long userId, List<Item> items, Map<String, String> paragraphOf) {
+        StringBuilder sb = new StringBuilder();
+        for (Item it : items) {
+            String para = paragraphOf.get(it.id());
+            if (para == null) continue;
+            sb.append(it.id()).append("\n  Absatz: ").append(para).append("\n  Aufgabe: ").append(it.question()).append("\n");
+            for (String l : ItemRules.LETTERS) sb.append("  ").append(l).append(") ").append(it.options().get(l)).append("\n");
+        }
+        return call(userId, "VERIFY", LlmTier.GRADING_EXAM, ONE_PARAGRAPH_SYSTEM, sb.toString(), 0.0, 800);
+    }
 
     JsonNode solveStrong(long userId, TeilSpec spec, Text text, List<Item> items) {
         return call(userId, "VERIFY", LlmTier.GRADING_EXAM, SOLVE_SYSTEM,

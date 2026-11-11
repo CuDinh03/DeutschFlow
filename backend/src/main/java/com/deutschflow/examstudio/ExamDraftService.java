@@ -475,23 +475,46 @@ public class ExamDraftService {
             advanceStep(draftId, "TEXT");
             return;
         }
-        List<String> paras = new ArrayList<>();
-        out.path("paragraphs").forEach(p -> {
-            if (!p.asText("").isBlank()) paras.add(p.asText().trim());
-        });
+        List<String> paras = paragraphsOf(out);
         if (paras.isEmpty()) throw new IllegalStateException("AI không trả bài đọc.");
+        int words = TextChecks.wordCount(String.join(" ", paras));
+        if (words < r.spec().minWords()) {
+            // Model hay viết hụt độ dài. Nhắc đúng con số và cho viết lại MỘT lần; vẫn hụt thì giữ bản dài hơn
+            // (bước Câu hỏi và đèn Độ dài sẽ chặn tiếp).
+            String retryNote = (noteWithAvoid.isBlank() ? "" : noteWithAvoid + "\n") + "Dein letzter Text hatte nur "
+                    + words + " Wörter. Schreibe ihn neu mit mindestens " + r.spec().minWords()
+                    + " Wörtern: jeden Fakt in 2–3 Sätzen erklären, ohne neue Zahlen oder Ergebnisse zu erfinden.";
+            try {
+                JsonNode again = ai.writeText(userId, r.spec(), r.theme(), facts, retryNote);
+                List<String> longer = paragraphsOf(again);
+                if (TextChecks.wordCount(String.join(" ", longer)) > words) {
+                    out = again;
+                    paras = longer;
+                }
+            } catch (RuntimeException e) {
+                log.warn("[ExamStudio] viết lại bài ngắn của bản nháp {} hỏng: {}", draftId, e.getMessage());
+            }
+        }
         List<GlossaryEntry> glossary = new ArrayList<>();
-        out.path("glossary").forEach(g -> {
+        for (JsonNode g : out.path("glossary")) {
             String term = text(g, "term");
             String expl = text(g, "explanationDe");
             if (term != null && expl != null) glossary.add(new GlossaryEntry(term, expl));
-        });
+        }
         List<String> used = new ArrayList<>();
-        out.path("usedFactIds").forEach(u -> used.add(u.asText()));
+        for (JsonNode u : out.path("usedFactIds")) used.add(u.asText());
         Text t = new Text(firstNonBlank(text(out, "titleDe"), "Ohne Titel"), firstNonBlank(text(out, "vorspannDe"), ""),
                 String.join("\n\n", paras), glossary);
         saveText(draftId, new StoredText(t, used));
         advanceStep(draftId, "TEXT");
+    }
+
+    private static List<String> paragraphsOf(JsonNode out) {
+        List<String> paras = new ArrayList<>();
+        for (JsonNode p : out.path("paragraphs")) {
+            if (!p.asText("").isBlank()) paras.add(p.asText().trim());
+        }
+        return paras;
     }
 
     // ── Câu hỏi ─────────────────────────────────────────────────────────────────────────────
@@ -500,14 +523,34 @@ public class ExamDraftService {
         Row r = requireEditable(id);
         if (r.text() == null) throw new BadRequestException("Chưa có bài đọc.");
         if (r.spec().writing()) throw new BadRequestException("Phần Viết không có câu hỏi trắc nghiệm — sang thẳng bước Kiểm & duyệt.");
+        requireLongEnough(r);
         enqueue(id, "ITEMS", userId, new HashMap<>());
         return get(id);
+    }
+
+    /**
+     * Bài báo (Lesen Teil 2) ngắn hơn khuôn thì không đủ chỗ cho năm câu ở các đoạn khác nhau — câu hỏi ra
+     * từ bài như vậy đều dồn vào vài câu văn và không đạt bậc Khó trở lên. Chặn từ đây, khỏi tốn lượt AI.
+     */
+    private void requireLongEnough(Row r) {
+        if (!mcNews(r.spec())) return;
+        int words = TextChecks.wordCount(r.text().text().context());
+        if (words < r.spec().minWords()) {
+            throw new BadRequestException("Bài mới " + words + " từ, khuôn cần ít nhất " + r.spec().minWords()
+                    + ". Hãy thêm dữ kiện hoặc bấm \"AI viết lại cả bài\" trước khi sinh câu hỏi.");
+        }
+    }
+
+    /** Bài báo + câu a/b/c (telc B1 Lesen Teil 2): Teil duy nhất đo được độ khó bằng code ({@link ItemMetrics}). */
+    static boolean mcNews(TeilSpec spec) {
+        return "MULTIPLE_CHOICE".equals(spec.teilType());
     }
 
     public Draft regenerateItem(long id, String itemId, String difficulty, long userId) {
         Row r = requireEditable(id);
         if (r.items().stream().noneMatch(i -> i.id().equals(itemId))) throw new NotFoundException("Không có câu " + itemId + ".");
         if (difficulty != null && !TeilSpec.isLevel(difficulty)) throw new BadRequestException("Bậc không hợp lệ.");
+        requireLongEnough(r);
         Map<String, Object> payload = new HashMap<>();
         payload.put("itemId", itemId);
         if (difficulty != null) payload.put("difficulty", difficulty.toUpperCase(Locale.ROOT));
@@ -568,17 +611,31 @@ public class ExamDraftService {
             return;
         }
         JsonNode out = ai.generateItems(userId, spec, r.text().text(), todo, todoLevels, keep, avoid);
-        Map<Integer, JsonNode> bySlot = new HashMap<>();
-        int fallback = 0;
-        for (JsonNode n : out.path("items")) {
-            int slot = n.has("slot") ? n.path("slot").asInt(-1) : -1;
-            final int asked = slot;
-            if (slot < 0 || todo.stream().noneMatch(t -> t[0] == asked) || bySlot.containsKey(slot)) {
-                while (fallback < todo.size() && bySlot.containsKey(todo.get(fallback)[0])) fallback++;
-                if (fallback >= todo.size()) break;
-                slot = todo.get(fallback)[0];
+        Map<Integer, JsonNode> bySlot = bySlot(out, todo);
+        if (mcNews(spec)) {
+            // Đo ngay bằng code: câu nào trái công thức của bậc (vd. giao Siêu khó mà bằng chứng gói trong một
+            // câu) thì cho AI viết lại MỘT lần kèm lời nhắc cụ thể. Lượt tự kiểm sẽ đo lại đầy đủ.
+            Map<Integer, String> hints = new java.util.TreeMap<>();
+            List<int[]> redo = new ArrayList<>();
+            List<String> redoLevels = new ArrayList<>();
+            for (int i = 0; i < todo.size(); i++) {
+                int s = todo.get(i)[0];
+                String hint = recipeHint(r.text().text().context(), bySlot.get(s), todoLevels.get(i));
+                if (hint == null) continue;
+                hints.put(s, hint);
+                redo.add(todo.get(i));
+                redoLevels.add(todoLevels.get(i));
             }
-            bySlot.put(slot, n);
+            if (!hints.isEmpty()) {
+                try {
+                    JsonNode again = ai.generateItems(userId, spec, r.text().text(), redo, redoLevels, keep, avoid, hints);
+                    bySlot(again, redo).forEach((s, n) -> {
+                        if (rawOptions(n) != null) bySlot.put(s, n);
+                    });
+                } catch (RuntimeException e) {
+                    log.warn("[ExamStudio] sinh lại câu lệch công thức của bản nháp {} hỏng: {}", draftId, e.getMessage());
+                }
+            }
         }
 
         Random rnd = new Random(draftId * 31 + System.nanoTime());
@@ -636,10 +693,8 @@ public class ExamDraftService {
                 problems.add(spec.itemId(s));
                 continue;
             }
-            List<ItemRules.RawOption> raw = new ArrayList<>();
-            n.path("options").forEach(o -> raw.add(new ItemRules.RawOption(
-                    firstNonBlank(text(o, "text"), ""), o.path("correct").asBoolean(false), text(o, "trap"))));
-            if (raw.size() != 3 || raw.stream().filter(ItemRules.RawOption::correct).count() != 1) {
+            List<ItemRules.RawOption> raw = rawOptions(n);
+            if (raw == null) {
                 problems.add(spec.itemId(s));
                 continue;
             }
@@ -657,6 +712,78 @@ public class ExamDraftService {
         if (!problems.isEmpty()) {
             throw new IllegalStateException("AI trả hỏng câu " + String.join(", ", problems) + " — bấm Sinh lại cho câu đó.");
         }
+    }
+
+    private static Map<Integer, JsonNode> bySlot(JsonNode out, List<int[]> todo) {
+        Map<Integer, JsonNode> bySlot = new HashMap<>();
+        int fallback = 0;
+        for (JsonNode n : out.path("items")) {
+            int slot = n.has("slot") ? n.path("slot").asInt(-1) : -1;
+            final int asked = slot;
+            if (slot < 0 || todo.stream().noneMatch(t -> t[0] == asked) || bySlot.containsKey(slot)) {
+                while (fallback < todo.size() && bySlot.containsKey(todo.get(fallback)[0])) fallback++;
+                if (fallback >= todo.size()) break;
+                slot = todo.get(fallback)[0];
+            }
+            bySlot.put(slot, n);
+        }
+        return bySlot;
+    }
+
+    /** Ba phương án AI trả, đúng một phương án đúng; {@code null} khi sai khuôn. */
+    private static List<ItemRules.RawOption> rawOptions(JsonNode n) {
+        if (n == null) return null;
+        List<ItemRules.RawOption> raw = new ArrayList<>();
+        for (JsonNode o : n.path("options")) {
+            raw.add(new ItemRules.RawOption(firstNonBlank(text(o, "text"), ""), o.path("correct").asBoolean(false),
+                    text(o, "trap")));
+        }
+        return raw.size() == 3 && raw.stream().filter(ItemRules.RawOption::correct).count() == 1 ? raw : null;
+    }
+
+    /** Câu a/b/c phải là nửa câu để nối tiếp (đề telc thật), không phải câu hỏi. */
+    static boolean isSentenceStem(String question) {
+        return question != null && !question.isBlank() && !question.contains("?");
+    }
+
+    /**
+     * Lời nhắc (tiếng Đức, đưa thẳng cho AI) khi câu vừa sinh trái công thức của bậc được giao; {@code null} khi ổn
+     * hoặc khi AI trả sai khuôn (đường xử lý lỗi khuôn lo).
+     */
+    static String recipeHint(String context, JsonNode n, String target) {
+        List<ItemRules.RawOption> raw = rawOptions(n);
+        if (raw == null) return null;
+        Map<String, String> options = new LinkedHashMap<>();
+        String correct = "a";
+        for (int i = 0; i < raw.size(); i++) {
+            String l = ItemRules.LETTERS.get(i);
+            options.put(l, raw.get(i).text());
+            if (raw.get(i).correct()) correct = l;
+        }
+        String question = firstNonBlank(text(n, "question"), "");
+        Item probe = new Item("probe", question, options, correct, "", firstNonBlank(text(n, "evidence"), ""),
+                List.of(), target, null, false, null, List.of());
+        ItemMetrics.Measured m = ItemMetrics.measure(context, probe);
+        List<String> out = new ArrayList<>();
+        if (!isSentenceStem(question)) {
+            out.add("Kein Fragesatz: \"question\" muss ein Satzanfang sein, der mit \" …\" endet.");
+        }
+        if (!m.evidenceFound()) {
+            out.add("\"evidence\" muss wörtlich aus dem Text kopiert sein (ganze Sätze).");
+        } else if (ItemRules.rank(target) > ItemRules.rank(ItemMetrics.ceiling(m))) {
+            out.add("EXPERT".equals(target) && !m.multiParagraph()
+                    ? "Verlangt ist EXPERT, aber der Beleg steht nur in Absatz " + m.evidenceParagraphs()
+                    + ". Die Lösung muss Informationen aus ZWEI verschiedenen Absätzen verbinden."
+                    : "Verlangt ist " + target + ", aber der Beleg steht in einem einzigen Satz und die Lösung "
+                    + "wiederholt dessen Wörter. Die Lösung muss aus mehreren Sätzen erschlossen und mit anderen "
+                    + "Wörtern formuliert werden.");
+        } else if (ItemRules.rank(target) < ItemRules.rank(ItemMetrics.floor(m))) {
+            out.add("Verlangt ist EASY: Beleg in EINEM Satz, die Lösung benutzt die Wörter dieses Satzes.");
+        }
+        if (ItemRules.rank(target) >= ItemRules.rank("HARD") && !m.distractorsInText()) {
+            out.add("Die falschen Enden müssen echte Details aus dem Text aufgreifen (feine Falle), nicht frei erfunden sein.");
+        }
+        return out.isEmpty() ? null : String.join(" ", out);
     }
 
     // ── Tự kiểm ─────────────────────────────────────────────────────────────────────────────
@@ -705,12 +832,31 @@ public class ExamDraftService {
         } else {
             rubric = ai.rubric(userId, spec, text, items);
             strong = answers(ai.solveStrong(userId, spec, text, items), spec);
-            weak = answers(ai.solveWeak(userId, spec, text, items), spec);
+            // Bài báo a/b/c: phép thử "chỉ thấy một đoạn" (bên dưới) thay cho AI đóng vai học viên A2 — model
+            // đóng vai vẫn đọc cả bài nên không cho biết gì về độ khó (chạy thử 11/11/2026).
+            weak = mcNews(spec) ? Map.of() : answers(ai.solveWeak(userId, spec, text, items), spec);
             // Ghép tiêu đề: không có bài thì không biết "Text 3" nói gì — giải khi giấu bài vô nghĩa, bỏ qua.
             blind = spec.headlines() ? Map.of() : answers(ai.solveBlind(userId, spec, items), spec);
         }
         Map<String, JsonNode> rubricById = new HashMap<>();
         rubric.path("items").forEach(n -> rubricById.put(n.path("id").asText(), n));
+
+        // Đo bằng code (chỉ bài báo a/b/c) và phép thử "chỉ thấy một đoạn" cho các câu khai bằng chứng ở ≥ 2 đoạn.
+        Map<String, ItemMetrics.Measured> metricsById = new HashMap<>();
+        Map<String, String> onePara = Map.of();
+        if (mcNews(spec)) {
+            List<String> paragraphs = TextChecks.paragraphs(text.context());
+            Map<String, String> paragraphOf = new LinkedHashMap<>();
+            for (Item it : items) {
+                ItemMetrics.Measured im = ItemMetrics.measure(text.context(), it);
+                metricsById.put(it.id(), im);
+                if (im.multiParagraph()) paragraphOf.put(it.id(), paragraphs.get(im.evidenceParagraphs().get(0) - 1));
+            }
+            if (!paragraphOf.isEmpty()) {
+                List<Item> multi = items.stream().filter(i -> paragraphOf.containsKey(i.id())).toList();
+                onePara = answers(ai.solveOneParagraph(userId, multi, paragraphOf), spec);
+            }
+        }
 
         String context = norm(SituationalTeile.metricsText(spec, text));
         List<ExamDedupService.BankBlock> bank = dedup.bank(r.examFormat(), r.cefrLevel(), r.section(), r.teil());
@@ -729,6 +875,10 @@ public class ExamDraftService {
             boolean fmt = spec.situational() ? situ.formatOk(spec, text, it) : formatOk(it, spec);
             if (!fmt) {
                 flags.add("Thiếu câu hỏi, phương án hoặc đáp án.");
+                sev = 2;
+            }
+            if (mcNews(spec) && !isSentenceStem(it.question())) {
+                flags.add("Sai dạng telc: phải là nửa câu để nối tiếp (kết thúc bằng \" …\"), không phải câu hỏi.");
                 sev = 2;
             }
             if (it.evidence() == null || it.evidence().isBlank() || !context.contains(norm(it.evidence()))) {
@@ -752,12 +902,30 @@ public class ExamDraftService {
                         ItemRules.clamp(rn.path("distractors").asInt()), ItemRules.clamp(rn.path("language").asInt()));
                 boolean multi = rn.path("multiParagraph").asBoolean(false);
                 boolean half = rn.path("halfTrue").asBoolean(false);
+                ItemMetrics.Measured im = metricsById.get(it.id());
+                if (im != null) {
+                    // Điểm đếm được lấy theo code; AI chỉ còn quyết ngôn ngữ câu hỏi và độ tinh của bẫy.
+                    String one = onePara.get(it.id());
+                    boolean solvedInOne = one != null && sameAnswer(spec, it, one);
+                    int evidence = im.evidenceFound() ? im.evidence() : sc.evidence();
+                    if (solvedInOne) {
+                        evidence = Math.min(evidence, 1);
+                        flags.add("Chỉ đọc một đoạn đã giải được: câu này chưa phải câu gộp hai đoạn.");
+                    }
+                    int distractors = im.distractorsInText() ? Math.max(1, sc.distractors()) : 0;
+                    sc = new Scores(im.phrasing(), evidence, distractors, sc.language());
+                    multi = im.evidenceFound() ? im.multiParagraph() && !solvedInOne : multi && !solvedInOne;
+                }
                 String level = ItemRules.levelOf(sc, multi, half);
                 String hint = ItemRules.hint(it.difficultyTarget(), level, sc, multi, half);
                 measured = new DifficultyMeasured(sc, sc.total(), level, hint);
                 if (hint != null) {
-                    flags.add("Độ khó lệch: " + hint);
-                    sev = Math.max(sev, 1);
+                    int gap = Math.abs(ItemRules.rank(it.difficultyTarget()) - ItemRules.rank(level));
+                    // Bậc đo bằng code mà lệch từ hai bậc là sai hẳn công thức — chặn duyệt. Lệch một bậc: nhãn
+                    // vào kho theo bậc đo được (xem blockContent), nên chỉ cần báo vàng.
+                    boolean far = im != null && gap >= 2;
+                    flags.add((far ? "Độ khó lệch " + gap + " bậc — sinh lại hoặc đổi bậc giao: " : "Độ khó lệch: ") + hint);
+                    sev = Math.max(sev, far ? 2 : 1);
                 }
             }
             String w = weak.get(it.id());
@@ -770,13 +938,38 @@ public class ExamDraftService {
         }
 
         TextMetrics m = metrics(r, srcs);
-        List<Check> checks = teilChecks(r, srcs, m, verified, strong, null);
+        List<Check> checks = new ArrayList<>(teilChecks(r, srcs, m, verified, strong, null));
+        if (!spec.situational()) checks.add(faithfulCheck(userId, spec, text, srcs));
         String hash = contentHash(text, verified);
         jdbc.update("""
                 UPDATE exam_drafts SET items_json = ?::jsonb, checks_json = ?::jsonb, verified_hash = ?,
                        updated_at = now() WHERE id = ?
                 """, json(verified), json(checks), hash, draftId);
         advanceStep(draftId, "REVIEW");
+    }
+
+    /**
+     * Bài có nói đúng những gì dữ kiện đã tích nói không (đổi "liên quan" thành "gây ra", gắn nhầm nhóm, thêm số
+     * liệu). Đèn VÀNG chứ không đỏ: đây là phán đoán của AI, owner đọc từng câu bị nêu rồi tự tích mục
+     * "Dữ kiện khớp nguồn" trong danh sách duyệt.
+     */
+    private Check faithfulCheck(long userId, TeilSpec spec, Text text, List<SourceRow> srcs) {
+        String label = "Bài khớp dữ kiện đã tích";
+        List<Fact> facts = selectedFacts(srcs);
+        if (facts.isEmpty()) return new Check("FAITHFUL", label, "YELLOW", "Không có dữ kiện nào được tích để đối chiếu.");
+        List<String> issues = new ArrayList<>();
+        try {
+            for (JsonNode n : ai.faithfulness(userId, spec, text, facts).path("issues")) {
+                String sentence = text(n, "sentence");
+                String problem = text(n, "problemVi");
+                if (sentence != null && problem != null) issues.add("„" + cut(sentence, 160) + "“ — " + problem);
+                if (issues.size() >= 5) break;
+            }
+        } catch (RuntimeException e) {
+            return new Check("FAITHFUL", label, "YELLOW", "Không chạy được lượt đối chiếu (" + e.getMessage() + ").");
+        }
+        return new Check("FAITHFUL", label, issues.isEmpty() ? "GREEN" : "YELLOW",
+                issues.isEmpty() ? null : String.join(" · ", issues));
     }
 
     List<Check> teilChecks(Row r, List<SourceRow> srcs, TextMetrics m, List<Item> items, Map<String, String> strong,
@@ -831,7 +1024,9 @@ public class ExamDraftService {
                             : String.join("; ", bad) + " (khuôn " + spec.minWords() + "–" + spec.maxWords() + ").")));
         } else {
             boolean wordsOk = m.wordCount() >= m.wordRange().get(0) && m.wordCount() <= m.wordRange().get(1);
-            out.add(new Check("LENGTH", "Độ dài bài", wordsOk ? "GREEN" : "YELLOW",
+            // Ngắn hơn khuôn là đèn ĐỎ: bài không đủ chỗ cho năm câu ở các đoạn khác nhau. Dài hơn chỉ báo vàng.
+            boolean tooShort = m.wordCount() < m.wordRange().get(0);
+            out.add(new Check("LENGTH", "Độ dài bài", wordsOk ? "GREEN" : tooShort ? "RED" : "YELLOW",
                     m.wordCount() + " từ (khuôn " + m.wordRange().get(0) + "–" + m.wordRange().get(1) + ")."));
         }
 
@@ -994,8 +1189,10 @@ public class ExamDraftService {
             m.put("explanation_vi", it.explanationVi());
             m.put("evidence", it.evidence());
             m.put("traps", it.traps());
-            m.put("difficulty_target", it.difficultyTarget());
-            m.put("difficulty_measured", it.difficultyMeasured() == null ? null : it.difficultyMeasured().level());
+            // Nhãn vào kho là bậc ĐO ĐƯỢC (bài báo a/b/c đo bằng code); bậc giao chỉ là ý định lúc sinh câu.
+            String measured = it.difficultyMeasured() == null ? null : it.difficultyMeasured().level();
+            m.put("difficulty_target", mcNews(r.spec()) && measured != null ? measured : it.difficultyTarget());
+            m.put("difficulty_measured", measured);
             items.add(m);
         }
         c.put("items", items);
@@ -1166,6 +1363,17 @@ public class ExamDraftService {
         for (String w : types) {
             if (glossaryTerms.contains(w)) continue;
             int lv = wordlist.levelOf(w).map(LEVEL_ORDER::indexOf).orElse(-1);
+            if (lv > target) {
+                // Dạng quá khứ / phân từ của động từ mạnh ("litten", "traten") nằm trong danh sách tần suất B2/C1
+                // dù nguyên mẫu thuộc vốn từ của cấp: tra lại theo nguyên mẫu trước khi tính là từ trên cấp.
+                for (String lemma : StrongVerbForms.lemmas(w)) {
+                    int byLemma = wordlist.levelOf(lemma).map(LEVEL_ORDER::indexOf).orElse(-1);
+                    if (byLemma >= 0 && byLemma <= target) {
+                        lv = byLemma;
+                        break;
+                    }
+                }
+            }
             if (lv > target) above.add(w);
         }
         double ratio = types.isEmpty() ? 0 : (double) above.size() / types.size();
@@ -1200,7 +1408,7 @@ public class ExamDraftService {
         if (light.containsKey("NEUTRAL") && r.spec().situational()) neutral = "GREEN".equals(light.get("NEUTRAL"));
         else if (!used.isEmpty()) neutral = used.stream().noneMatch(x -> "FLAGGED".equals(x.source().neutrality()));
         s.put("NEUTRAL", neutral);
-        s.put("FACTS_MATCH", null);
+        s.put("FACTS_MATCH", light.containsKey("FAITHFUL") ? "GREEN".equals(light.get("FAITHFUL")) : null);
         Boolean noCopy = null;
         if (m != null) noCopy = m.overlapMaxRun() < m.overlapLimit();
         s.put("NO_COPY", noCopy);

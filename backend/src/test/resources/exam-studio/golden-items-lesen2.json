@@ -1,0 +1,64 @@
+{
+  "_ghiChu": [
+    "Bộ câu chuẩn để kiểm việc ĐO độ khó của Xưởng đề (telc B1, Lesen Teil 2).",
+    "Mỗi câu có 'level' = bậc do NGƯỜI gán. ItemMetricsGoldenTest chạy phần đo bằng code trên từng câu và so:",
+    "'ceiling' = bậc cao nhất mà cấu trúc bằng chứng cho phép phải >= level; 'floor' <= level.",
+    "Câu LV2-6…LV2-10 là nguyên văn AI sinh trên production ngày 11/11/2026 (đều được giao 'Siêu khó').",
+    "NHÃN HIỆN LÀ TẠM, do trợ lý gán khi soát — owner cần duyệt lại và bổ sung tới 20–30 câu."
+  ],
+  "context": "Im Jahr 2024 wurden Daten aus der repräsentativen Studie „Gesundheit in Deutschland“ ausgewertet. Die Untersuchung umfasst 27.102 Personen im Alter von 18 bis 99 Jahren.\n\nVon den Befragten waren 51,1 % Frauen. Rund 20 % der Teilnehmenden gaben an, eine erhöhte Stressbelastung zu erleben. Dabei zeigte sich, dass Frauen häufiger hohe Stresswerte berichteten als Männer.\n\nPersonen im erwerbsfähigen Alter berichteten von mehr Stress als ältere Menschen. Auch Menschen mit niedriger oder mittlerer Bildung litten stärker unter Stress.\n\nDie Studie untersuchte verschiedene *Coping‑Strategien*. Problemlösendes, proaktives und flexibles Coping waren mit einer geringeren Stressbelastung verbunden.\n\nIm Gegensatz dazu erhöhten Verdrängung und Wunschdenken das Stressempfinden. Diese Unterschiede traten vor allem zwischen den Altersgruppen auf.\n\nDie Autoren betonen die Public‑Health‑Bedeutung von Stress in Deutschland. Sie empfehlen, geeignete Coping‑Strategien gezielt zu fördern, um präventiv zu wirken.",
+  "items": [
+    {
+      "id": "LV2-6",
+      "level": "EASY",
+      "vìSao": "Đáp án chép gần nguyên một câu của bài; hai nhiễu sai rõ.",
+      "question": "Welche Aussage beschreibt die Beziehung zwischen Bildungsniveau und Stressbelastung …",
+      "options": {
+        "a": "Personen mit niedriger oder mittlerer Bildung erlebten weniger Stress als hochgebildete Personen.",
+        "b": "Menschen mit niedriger oder mittlerer Bildung litten stärker unter Stress als Personen mit höherem Bildungsgrad.",
+        "c": "Das Bildungsniveau hatte keinen Einfluss auf die Stressbelastung der Befragten."
+      },
+      "correct": "b",
+      "evidence": "Auch Menschen mit niedriger oder mittlerer Bildung litten stärker unter Stress."
+    },
+    {
+      "id": "LV2-8",
+      "level": "MEDIUM",
+      "vìSao": "Phải gom ba nhóm từ hai đoạn, nhưng đáp án lặp từ của bài và nhiễu đảo ngược rõ.",
+      "question": "Welche Gruppen waren laut Studie am stärksten von einer erhöhten Stressbelastung betroffen …",
+      "options": {
+        "a": "Frauen, Personen im erwerbsfähigen Alter und Menschen mit niedriger oder mittlerer Bildung.",
+        "b": "Männer, ältere Menschen und Personen mit hoher Bildung.",
+        "c": "Nur Personen über 65 Jahre, unabhängig vom Geschlecht oder Bildungsstand."
+      },
+      "correct": "a",
+      "evidence": "Dabei zeigte sich, dass Frauen häufiger hohe Stresswerte berichteten als Männer. Personen im erwerbsfähigen Alter berichteten von mehr Stress als ältere Menschen. Auch Menschen mit niedriger oder mittlerer Bildung litten stärker unter Stress."
+    },
+    {
+      "id": "LV2-9",
+      "level": "MEDIUM",
+      "vìSao": "Gộp đoạn 4 và đoạn 6, nhưng đáp án lặp từ của bài; nhiễu b nói ngược bài một cách lộ liễu.",
+      "question": "Welche Empfehlung der Autoren lässt sich aus den Ergebnissen zur Förderung der öffentlichen Gesundheit ableiten …",
+      "options": {
+        "a": "Gezielte Förderung von problemlösendem, proaktivem und flexiblem Coping.",
+        "b": "Die Förderung von Verdrängung und Wunschdenken als zentrale Coping‑Strategien.",
+        "c": "Eine generelle Reduktion aller Coping‑Strategien, um Stress zu minimieren."
+      },
+      "correct": "a",
+      "evidence": "Die Studie untersuchte verschiedene Coping‑Strategien. Problemlösendes, proaktives und flexibles Coping waren mit einer geringeren Stressbelastung verbunden. Die Autoren betonen die Public‑Health‑Bedeutung von Stress in Deutschland. Sie empfehlen, geeignete Coping‑Strategien gezielt zu fördern, um präventiv zu wirken."
+    },
+    {
+      "id": "LV2-10",
+      "level": "MEDIUM",
+      "vìSao": "Ba câu liền trong một đoạn; đáp án diễn đạt lại ('leicht über die Hälfte'); nhiễu gán nhầm số liệu.",
+      "question": "Wie lässt sich der Anteil der Frauen in der Studie im Kontext der Stressbelastung interpretieren …",
+      "options": {
+        "a": "Da Frauen 51,1 % ausmachen, tragen sie allein für die gesamte Stressbelastung der Stichprobe.",
+        "b": "Der weibliche Anteil von 51,1 % erklärt, warum insgesamt nur 20 % der Teilnehmenden Stress angaben.",
+        "c": "Obwohl Frauen leicht über die Hälfte der Stichprobe ausmachen, berichten sie häufiger von hoher Stressbelastung als Männer."
+      },
+      "correct": "c",
+      "evidence": "Von den Befragten waren 51,1 % Frauen. Rund 20 % der Teilnehmenden gaben an, eine erhöhte Stressbelastung zu erleben. Dabei zeigte sich, dass Frauen häufiger hohe Stresswerte berichteten als Männer."
+    }
+  ]
+}
