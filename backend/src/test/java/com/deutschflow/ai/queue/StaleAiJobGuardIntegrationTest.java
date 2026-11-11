@@ -36,10 +36,16 @@ class StaleAiJobGuardIntegrationTest extends AbstractPostgresIntegrationTest {
         User u = userRepository.save(User.builder()
                 .email("stale-guard-" + System.nanoTime() + "@local.test")
                 .passwordHash("$2a$10$h").displayName("Stale Guard IT").role(User.Role.STUDENT).build());
+        // Lưu ở trạng thái KHÔNG claim được (FAILED) rồi mới chuyển sang PENDING trong CÙNG câu lệnh
+        // lùi tuổi. Nếu lưu thẳng PENDING, job mang created_at = NOW() trong khoảng giữa save() và
+        // UPDATE; scheduler 2s của bất kỳ Spring context nào còn sống trong context-cache có thể claim
+        // nó ở khe đó → ca "job quá hạn không bị claim" thấy PROCESSING (đỏ ngẫu nhiên trên CI, 11/11/2026).
         AiJob job = aiJobRepository.save(AiJob.builder()
-                .jobType("UNKNOWN_TYPE_FOR_TEST").userId(u.getId()).payload(Map.of("x", 1)).build());
+                .jobType("UNKNOWN_TYPE_FOR_TEST").userId(u.getId()).payload(Map.of("x", 1))
+                .status(AiJob.STATUS_FAILED).build());
         // created_at là updatable=false ở tầng JPA → lùi tuổi bằng SQL trực tiếp.
-        jdbcTemplate.update("UPDATE ai_jobs SET created_at = NOW() - make_interval(days => ?) WHERE id = ?",
+        jdbcTemplate.update(
+                "UPDATE ai_jobs SET created_at = NOW() - make_interval(days => ?), status = 'PENDING' WHERE id = ?",
                 days, job.getId());
         return job.getId();
     }
