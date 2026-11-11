@@ -559,6 +559,35 @@
       "subtitle": "Tạo Teil đề thi từ nguồn báo Đức: AI viết bài, ra câu theo ma trận độ khó, owner duyệt vào kho.",
       "hint": "Đang mở: telc B1 (Lesen 1–3, Sprachbausteine 1–2, Schreiben) và telc A2 / Start Deutsch 2 (Lesen 1–3, Schreiben 1–2)",
       "createTeil": "Tạo Teil mới",
+      "sources": {
+        "intro": "Danh mục nơi đăng mà dây chuyền tạo bộ đề được dùng. \"Đọc bài mới\" chỉ lấy danh sách bài (tiêu đề, đường dẫn), không tải bài. Mỗi bài chỉ được dùng một lần.",
+        "empty": "Danh mục nguồn đang trống.",
+        "class": {
+          "ADAPT": {
+            "title": "Được chuyển thể",
+            "body": "Giấy phép cho sửa và dùng thương mại. Máy tải bài, viết lại cho đúng cấp và ghi nguồn kèm \"bearbeitet\"."
+          },
+          "FACTS_ONLY": {
+            "title": "Chỉ lấy dữ kiện",
+            "body": "Máy tải bài, chỉ rút số liệu và dữ kiện, rồi viết bài mới hoàn toàn."
+          },
+          "TOPIC_ONLY": {
+            "title": "Gợi ý chủ đề",
+            "body": "Báo đài có bản quyền. Máy chỉ đọc tiêu đề trong feed để biết chủ đề nào đang được nói tới; không tải bài."
+          }
+        },
+        "on": "Đang bật",
+        "off": "Đã tắt",
+        "counts": "Đã thấy {seen} · đã dùng {used}",
+        "license": "Giấy phép",
+        "approvedOn": "owner duyệt {date}",
+        "lastPoll": "Lần đọc gần nhất {when}",
+        "poll": "Đọc bài mới",
+        "turnOn": "Bật",
+        "turnOff": "Tắt",
+        "noListing": "Chưa có cách lấy danh sách bài tự động.",
+        "openSite": "Mở trang {name}"
+      },
       "channel": {
         "label": "Tạo đề bằng",
         "FIREWORKS": "Fireworks AI",
@@ -641,7 +670,8 @@
       "tabs": {
         "drafts": "Bản nháp",
         "blocks": "Kho Teil",
-        "assemblies": "Bộ đề"
+        "assemblies": "Bộ đề",
+        "sources": "Nguồn"
       },
       "create": {
         "title": "Tạo Teil mới",
