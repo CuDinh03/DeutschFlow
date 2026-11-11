@@ -272,7 +272,7 @@ public class ExamSessionService {
 
         // (3) Transaction ngắn — ghi sổ STT và ghi lượt cùng thành công hoặc cùng huỷ.
         return inTurnTransaction(() -> {
-            ledger.recordStt(userId, "EXAM_SPEAKING_STT", whisperClient.getWhisperModel(), stt.durationSeconds());
+            ledger.recordStt(userId, "EXAM_SPEAKING_STT", stt.modelOr(whisperClient.getWhisperModel()), stt.durationSeconds());
             // Nạp LẠI: entity của bước (1) đã rời persistence context, và phiên có thể đã đổi.
             SpeakingExamSession s = load(userId, sessionId);
             assertUnchangedSinceStt(s, before);

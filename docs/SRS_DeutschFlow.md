@@ -2026,7 +2026,10 @@ Cloudflare (Flexible SSL, proxy mode)
 | `CORS_ALLOWED_ORIGINS` | `https://mydeutschflow.com,https://www.mydeutschflow.com,...` |
 | `NEXT_PUBLIC_BACKEND_URL` | `http://api.mydeutschflow.com` (hardcode trong `amplify.yml`) |
 | `ELEVENLABS_API_KEY`, `GROQ_API_KEY` | Khóa AI services (chat) |
-| `STT_API_KEY` | Khóa Fireworks cho nhận diện giọng nói (whisper-v3-turbo) — có thì STT tự chuyển sang Fireworks (owner chốt 09/11/2026); chưa có thì STT vẫn chạy Groq bằng `GROQ_API_KEY` |
+| `STT_API_KEY` | Khóa riêng cho nhận diện giọng nói (STT); chưa có thì STT dùng `GROQ_API_KEY`. Nhà cung cấp STT chọn qua env, không sửa code |
+| `GROQ_WHISPER_BASE_URL`, `GROQ_WHISPER_MODEL`, `GROQ_WHISPER_PROMPT_ENABLED` | URL endpoint transcriptions, model và cờ gửi prompt của STT |
+| `GROQ_WHISPER_FALLBACK_MODEL`, `GROQ_WHISPER_FALLBACK_BASE_URL` | Model dự phòng cùng nhà cung cấp khi model chính lỗi tạm thời (429, 5xx, timeout). Trống = tự suy theo host (Groq: `whisper-large-v3-turbo` ↔ `whisper-large-v3`) |
+| `GROQ_WHISPER_RETRY_MAX_WAIT_MS` | Trần thời gian chờ theo `retry-after` trước khi thử lại model chính một lần (mặc định 1500; 0 = tắt) |
 
 ### 28.4 Quy trình deploy backend (sau thay đổi code)
 

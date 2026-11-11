@@ -236,7 +236,7 @@ public class SkillTreeController {
             // Step 1: Transcribe audio via Groq Whisper API (pass originalText as prompt)
             TranscribeResult stt = groqWhisperClient.transcribe(
                     audio.getBytes(), audio.getOriginalFilename(), "de", originalText);
-            ledgerService.recordStt(user.getId(), "PRONUNCIATION_EVAL", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
+            ledgerService.recordStt(user.getId(), "PRONUNCIATION_EVAL", stt.modelOr(groqWhisperClient.getWhisperModel()), stt.durationSeconds());
             String transcribed = stt.text();
             
             // Step 2: Parse focus phonemes

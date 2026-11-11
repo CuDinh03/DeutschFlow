@@ -39,7 +39,7 @@ public class PronunciationScorerService {
 
     public PronunciationScore score(byte[] audioBytes, String expectedText, Long userId) {
         VerboseTranscript verbose = whisperClient.transcribeVerbose(audioBytes, "audio.webm", "de", expectedText);
-        ledgerService.recordStt(userId, "PRONUNCIATION_SCORER", whisperClient.getWhisperModel(), verbose.durationSeconds());
+        ledgerService.recordStt(userId, "PRONUNCIATION_SCORER", verbose.modelOr(whisperClient.getWhisperModel()), verbose.durationSeconds());
 
         List<String> expectedWords = tokenize(expectedText);
         List<String> transcribedWords = extractWords(verbose);
