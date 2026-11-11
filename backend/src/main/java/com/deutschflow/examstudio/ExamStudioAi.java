@@ -40,21 +40,74 @@ public class ExamStudioAi {
     private final AiUsageLedgerService ledger;
     private final ObjectMapper mapper;
 
+    /** Vai của một lượt gọi trong Xưởng đề: viết (rút dữ kiện, viết bài, ra câu hỏi) hay chấm (thang, giải thử, đối chiếu). */
+    enum Role { WRITER, JUDGE }
+
     /**
-     * Tầng model cho việc VIẾT (rút dữ kiện, viết bài, ra câu hỏi) của Teil lấy từ nguồn báo. Chạy thử
-     * 11/11/2026 với tầng CONTENT (model nhỏ): bài chỉ 135/300 từ, câu "Siêu khó" chép gần nguyên một câu
-     * của bài. Mặc định dùng tầng chấm thi (model lớn); đổi bằng {@code app.exam-studio.writer-tier}.
+     * Model RIÊNG của Xưởng đề, tách khỏi các tầng dùng chung với luyện nói và chấm thi. Chọn sau phép so
+     * 9 model trên Fireworks ngày 11/11/2026 (cùng dữ kiện, cùng prompt production): Kimi K3 viết tự nhiên và
+     * đúng tầm B1 nhất; DeepSeek V4.1 Flash khác họ với model viết nên dùng để chấm. Để trống một khoá thì vai
+     * đó quay về tầng cũ ({@code writer-tier} cho viết, tầng của lời gọi cho chấm).
      */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.writer-model:}")
+    private String writerModel = "";
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.judge-model:}")
+    private String judgeModel = "";
+    /**
+     * Sàn hạn mức đầu ra khi dùng model riêng. Các model này "nghĩ" trước khi viết và phần nghĩ tính chung vào
+     * max_tokens: với 3 500–4 500 token của prompt cũ, cả 8 model thử đều bị cắt giữa chừng.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.min-output-tokens:16000}")
+    private int minOutputTokens = 16_000;
     @org.springframework.beans.factory.annotation.Value("${app.exam-studio.writer-tier:GRADING_EXAM}")
     private LlmTier writerTier = LlmTier.GRADING_EXAM;
 
+    private static boolean set(String v) {
+        return v != null && !v.isBlank();
+    }
+
+    /** Vai mặc định theo tầng mà lời gọi khai: CONTENT = viết, GRADING_EXAM = chấm; tầng khác giữ nguyên đường cũ. */
+    private static Role roleOf(LlmTier tier) {
+        return tier == LlmTier.CONTENT ? Role.WRITER : tier == LlmTier.GRADING_EXAM ? Role.JUDGE : null;
+    }
+
+    /** Thông số gọi cho model riêng: giữ endpoint và khoá của tầng, đổi model, KHÔNG gửi reasoning_effort (knob của gpt-oss). */
+    private com.deutschflow.ai.tier.TierSpec dedicated(LlmTier tier, String model) {
+        com.deutschflow.ai.tier.TierSpec base = tiers.spec(tier);
+        return new com.deutschflow.ai.tier.TierSpec(base.tier(), model, base.baseUrl(), base.apiKey(), base.providerOrder(),
+                base.requireParameters(), base.sort(), base.quantizations(), null, base.sessionSticky(),
+                base.includeUsage());
+    }
+
     JsonNode call(long userId, String op, LlmTier tier, String system, String user, double temperature,
                   int maxTokens) {
+        Role role = roleOf(tier);
+        String model = role == Role.WRITER ? writerModel : role == Role.JUDGE ? judgeModel : null;
+        if (set(model)) {
+            return stream(userId, op, dedicated(tier, model), system, user, temperature,
+                    Math.max(maxTokens, minOutputTokens));
+        }
+        return blocking(userId, op, tiers.spec(tier), system, user, temperature, maxTokens);
+    }
+
+    /** Lượt VIẾT của Teil lấy từ nguồn báo và lượt đối chiếu dữ kiện: luôn đi đường stream (đầu ra dài). */
+    JsonNode callAs(Role role, long userId, String op, String system, String user, double temperature, int maxTokens) {
+        String model = role == Role.WRITER ? writerModel : judgeModel;
+        LlmTier tier = role == Role.WRITER ? writerTier : LlmTier.GRADING_EXAM;
+        if (set(model)) {
+            return stream(userId, op, dedicated(tier, model), system, user, temperature,
+                    Math.max(maxTokens, minOutputTokens));
+        }
+        return stream(userId, op, tiers.spec(tier), system, user, temperature, maxTokens);
+    }
+
+    private JsonNode blocking(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
+                              double temperature, int maxTokens) {
         AiChatCompletionResult res;
         try {
             res = chatClient.chatCompletionForTier(
                     List.of(new ChatMessage("system", system), new ChatMessage("user", user)),
-                    tiers.spec(tier), temperature, maxTokens, true);
+                    spec, temperature, maxTokens, true);
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {
@@ -73,12 +126,12 @@ public class ExamStudioAi {
     }
 
     /**
-     * Lời gọi cho đầu ra DÀI (bài đọc, bộ câu hỏi) trên model lớn. Đường gọi thường của client có trần đọc 15 giây
-     * cho cả câu trả lời — model lớn viết 300+ từ vượt trần đó (sự cố ngay sau deploy 11/11/2026: "Read timed
-     * out"). Đường stream chỉ đặt trần cho khoảng lặng GIỮA các mẩu, nên dùng nó và gom lại thành một chuỗi.
+     * Đường stream, gom lại thành một chuỗi. Đường gọi thường của client có trần đọc 15 giây cho cả câu trả lời —
+     * bài 300+ từ hay model có phần "nghĩ" đều vượt trần đó (sự cố ngay sau deploy 11/11/2026: "Read timed out").
+     * Đường stream chỉ đặt trần cho khoảng lặng GIỮA các mẩu.
      */
-    JsonNode callLong(long userId, String op, LlmTier tier, String system, String user, double temperature,
-                      int maxTokens) {
+    private JsonNode stream(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
+                            double temperature, int maxTokens) {
         java.util.concurrent.atomic.AtomicReference<AiChatCompletionResult> done =
                 new java.util.concurrent.atomic.AtomicReference<>();
         StringBuilder streamed = new StringBuilder();
@@ -86,7 +139,7 @@ public class ExamStudioAi {
         try {
             ok = chatClient.chatCompletionStreamForTier(
                     List.of(new ChatMessage("system", system), new ChatMessage("user", user)),
-                    tiers.spec(tier), temperature, maxTokens, streamed::append, done::set,
+                    spec, temperature, maxTokens, streamed::append, done::set,
                     new java.util.concurrent.atomic.AtomicBoolean(false));
         } catch (AiServiceException e) {
             throw e;
@@ -118,6 +171,9 @@ public class ExamStudioAi {
             1. Extrahiere bis zu 15 überprüfbare FAKTEN, die sich für einen Lesetext auf dem angegebenen
                Niveau eignen. Formuliere jeden Fakt mit EIGENEN Worten neu (max. 25 Wörter), übernimm keine
                Sätze aus dem Artikel. Zahlen immer mit Jahr bzw. Zeitraum.
+               Schreibe in Alltagssprache des angegebenen Niveaus: ersetze Fachbegriffe und Fremdwörter durch
+               eine einfache Umschreibung (z. B. statt "Coping-Strategie": "Art, mit Stress umzugehen"; statt
+               "Verdrängung": "Probleme nicht wahrhaben wollen"; statt "erwerbsfähiges Alter": "Arbeitsalter").
                Verändere die AUSSAGEKRAFT nicht: Ein Zusammenhang ("hängt zusammen mit", "ist verbunden mit",
                "assoziiert") bleibt ein Zusammenhang und wird NIE zu Ursache und Wirkung ("führt zu",
                "erhöht", "senkt"). Ordne jede Aussage genau der Gruppe zu, für die der Artikel sie macht.
@@ -147,7 +203,7 @@ public class ExamStudioAi {
         String user = "Niveau: " + level + "\nThema: " + (theme == null ? "frei" : theme)
                 + "\n\nBestehende Fakten:\n" + existingTxt + "\n\nArtikel (Absätze durch Leerzeilen getrennt):\n"
                 + clipped;
-        return callLong(userId, "FACTS", writerTier, FACTS_SYSTEM, user, 0.2, 3_000);
+        return callAs(Role.WRITER, userId, "FACTS", FACTS_SYSTEM, user, 0.2, 3_000);
     }
 
     // ── 2. Viết bài đọc từ dữ kiện ──────────────────────────────────────────────────────────
@@ -157,16 +213,26 @@ public class ExamStudioAi {
             Regeln:
             - Benutze NUR die gegebenen Fakten; erfinde keine Zahlen, Namen oder Studien.
             - Schreibe komplett mit eigenen Worten; übernimm keine Formulierung einer Quelle.
-            - Länge des Haupttextes: MINDESTENS %d und höchstens %d Wörter, 5–7 Absätze mit je 3–5 Sätzen,
-              kurze klare Sätze, Wortschatz %s. Ein kürzerer Text ist unbrauchbar. Reichen die Fakten nicht für
+            - Länge des Haupttextes: MINDESTENS %d und höchstens %d Wörter in 4–6 Absätzen. Jeder Absatz ist
+              zusammenhängender Fließtext mit 4–6 Sätzen (etwa 55–90 Wörter) und behandelt EIN Teilthema; fasse
+              verwandte Fakten im selben Absatz zusammen und verbinde die Sätze (deshalb, außerdem, dagegen …).
+              NICHT für jeden Fakt einen eigenen Absatz beginnen. Kurze klare Sätze, Wortschatz %s. Ein kürzerer Text ist unbrauchbar. Reichen die Fakten nicht für
               die Länge, erkläre sie ausführlicher (Beispiel aus dem Alltag, Bedeutung für Betroffene), aber
               erfinde keine neuen Zahlen, Namen oder Ergebnisse.
             - Aussagekraft der Fakten beibehalten: Ein Zusammenhang wird nie zu Ursache und Wirkung. Jede
               Aussage bleibt bei der Gruppe, für die der Fakt sie macht. Pronomen und "diese/dieser" müssen
               sich eindeutig auf den richtigen Satz beziehen.
             - Zahlen immer mit Jahr. Neutraler Ton, keine Werbung, keine Politik.
-            - Überschrift (titleDe) und Vorspann (vorspannDe, 1–2 Sätze, fett im Druck).
-            - Höchstens 2 schwierige Wörter mit * markieren und im Glossar einfach auf Deutsch erklären.
+            - Stil: Zeitungsartikel für ein breites Publikum (wie in einer Tageszeitung), KEIN Forschungsbericht.
+              Beginne mit etwas aus dem Alltag der Leser; nenne die Studie nur kurz als Quelle der Zahlen.
+            - Keine Fachbegriffe und keine englischen Fremdwörter ("Coping", "Public Health", "proaktiv" …):
+              umschreibe sie mit einfachen Wörtern des Niveaus. Stehen solche Wörter in den Fakten, übersetze
+              sie in Alltagssprache.
+            - Überschrift (titleDe) und Vorspann (vorspannDe, 1–2 Sätze). Reiner Text, KEIN Markdown: keine
+              Sternchen für Fettdruck, keine Rauten.
+            - Ein Wort, das über dem Niveau liegt und sich nicht vermeiden lässt, bekommt direkt DAHINTER ein
+              Sternchen (Beispiel: "vorbeugend*") und eine einfache Erklärung im Glossar. Höchstens 4 solche
+              Wörter; jedes Wort, um das sich eine Aufgabe drehen könnte, muss verständlich sein.
             - Der Text muss genug Informationen für 5 Aufgaben bieten (verschiedene Absätze, Zahlen, Meinungen).
             Antworte NUR mit JSON:
             {"titleDe": "...", "vorspannDe": "...", "paragraphs": ["...", "..."],
@@ -197,7 +263,7 @@ public class ExamStudioAi {
                         + (f.year() == null ? "" : " [Jahr: " + f.year() + "]"))
                 .collect(Collectors.joining("\n"))
                 + (note == null || note.isBlank() ? "" : "\n\nHinweis der Redaktion: " + note);
-        return callLong(userId, "TEXT", writerTier, system, user, 0.6, 3_500);
+        return callAs(Role.WRITER, userId, "TEXT", system, user, 0.6, 3_500);
     }
 
     static final String REWRITE_SYSTEM = """
@@ -241,6 +307,17 @@ public class ExamStudioAi {
               "halb richtig": die erste Hälfte stimmt mit dem Text, die zweite nicht.
             Niemals Schwierigkeit durch Wörter über dem Niveau oder durch unwichtige Details erzeugen. Gibt der
             Text eine verlangte Stufe nicht her, komme ihr so nah wie möglich.
+
+            QUALITÄT (gilt für jede Stufe):
+            - Satzanfang und Satzenden benutzen nur Wörter des Niveaus oder Wörter, die im Text stehen. Keine
+              Prüfungs- oder Fachsprache ("interpretieren", "ableiten", "Stichprobe", "im Kontext von").
+            - Jede Zahl, Menge oder Gruppe im Satzanfang muss genau dem Text entsprechen (steht im Text
+              "20 Prozent", dann nicht "ein Viertel").
+            - Der vollständige Satz aus Satzanfang + richtiger Lösung muss eine Aussage sein, die der Text belegt.
+            - Jedes falsche Ende muss für jemanden, der den Text NICHT gelesen hat, genauso glaubwürdig klingen
+              wie die Lösung. Keine Übertreibungen ("alle", "nur", "allein", "niemand"), die man ohne Text als
+              falsch erkennt, außer die Stufe verlangt genau diese Falle und der Text nennt die Gruppe.
+            - Die drei Enden sind etwa gleich lang und gleich gebaut.
 
             ARBEITSWEISE: Plane jede Aufgabe ZUERST im Feld "plan", dann schreibe sie:
             - "plan": {"paragraphs": [Nummern der Absätze, in denen der Beleg steht],
@@ -305,7 +382,7 @@ public class ExamStudioAi {
             hints.forEach((slot, hint) -> u.append("slot ").append(slot).append(": ").append(hint).append("\n"));
         }
         u.append(SituationalTeile.avoidBlock(avoid));
-        return callLong(userId, "ITEMS", writerTier, system, u.toString(), 0.7, 4_500);
+        return callAs(Role.WRITER, userId, "ITEMS", system, u.toString(), 0.7, 4_500);
     }
 
     JsonNode generateHeadlines(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
@@ -336,8 +413,15 @@ public class ExamStudioAi {
             1 Textdetail falsch zugeordnet / 2 feine Falle), language (0 Grundwortschatz / 1 ein Randwort /
             2 schwierige Struktur). Außerdem: multiParagraph (Lösung braucht ≥ 2 Absätze) und halfTrue
             (ein Distraktor ist halb richtig). Sei streng und unabhängig von früheren Einschätzungen.
+            Prüfe zusätzlich jede Aufgabe:
+            - supported: Ist der vollständige Satz aus Aufgabentext + angegebener Lösung eine Aussage, die der
+              Text belegt, UND stimmt jede Zahl, Menge oder Gruppe im Aufgabentext mit dem Text überein? Wenn
+              nicht: false und in "issueVi" in EINEM vietnamesischen Satz sagen, was nicht stimmt.
+            - absurd: Wie viele der falschen Optionen (0, 1 oder 2) erkennt man OHNE den Text als falsch, weil
+              sie übertrieben oder unlogisch sind?
             Antworte NUR mit JSON: {"items": [{"id": "...", "phrasing": 0, "evidence": 0, "distractors": 0,
-              "language": 0, "multiParagraph": false, "halfTrue": false}]}
+              "language": 0, "multiParagraph": false, "halfTrue": false, "supported": true, "issueVi": null,
+              "absurd": 0}]}
             """;
 
     JsonNode rubric(long userId, TeilSpec spec, Text text, List<Item> items) {
@@ -383,7 +467,7 @@ public class ExamStudioAi {
         String factsTxt = facts.stream().map(f -> "- " + f.text()
                 + (f.figure() == null ? "" : " [Zahl: " + f.figure() + "]")
                 + (f.year() == null ? "" : " [Jahr: " + f.year() + "]")).collect(Collectors.joining("\n"));
-        return callLong(userId, "VERIFY", LlmTier.GRADING_EXAM, FAITHFUL_SYSTEM,
+        return callAs(Role.JUDGE, userId, "VERIFY", FAITHFUL_SYSTEM,
                 "FAKTEN:\n" + factsTxt + "\n\n" + textBlock(spec, text), 0.0, 1_500);
     }
 

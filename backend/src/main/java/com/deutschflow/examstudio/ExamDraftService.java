@@ -495,6 +495,7 @@ public class ExamDraftService {
                 log.warn("[ExamStudio] viết lại bài ngắn của bản nháp {} hỏng: {}", draftId, e.getMessage());
             }
         }
+        paras = mergeShortParagraphs(paras, MAX_TEXT_PARAGRAPHS);
         List<GlossaryEntry> glossary = new ArrayList<>();
         for (JsonNode g : out.path("glossary")) {
             String term = text(g, "term");
@@ -503,10 +504,71 @@ public class ExamDraftService {
         }
         List<String> used = new ArrayList<>();
         for (JsonNode u : out.path("usedFactIds")) used.add(u.asText());
-        Text t = new Text(firstNonBlank(text(out, "titleDe"), "Ohne Titel"), firstNonBlank(text(out, "vorspannDe"), ""),
-                String.join("\n\n", paras), glossary);
+        paras = paras.stream().map(ExamDraftService::plainText).toList();
+        Text t = new Text(plainText(firstNonBlank(text(out, "titleDe"), "Ohne Titel")),
+                plainText(firstNonBlank(text(out, "vorspannDe"), "")), String.join("\n\n", paras), glossary);
         saveText(draftId, new StoredText(t, used));
         advanceStep(draftId, "TEXT");
+    }
+
+    /**
+     * Bỏ ký hiệu markdown model hay chèn (bài chạy thật 11/11/2026 hiện nguyên "**…**" ở sapo và "*präventiv*"
+     * trong bài): chữ đậm thành chữ thường; từ có chú thích theo lối in của đề thật — dấu sao đứng SAU từ.
+     */
+    static String plainText(String s) {
+        if (s == null) return null;
+        String t = s.replace("**", "").replace("__", "");
+        t = t.replaceAll("(?<![\\p{L}*])\\*([\\p{L}][\\p{L}\\-‑ ]{0,40}?)\\*(?![\\p{L}*])", "$1*");
+        return t.replaceAll("(?m)^#+\\s*", "").trim();
+    }
+
+    /** Từ trên cấp trong {@code text}, bỏ qua các từ đã có trong {@code allowed} (chữ thường). */
+    private List<String> aboveLevelWords(String text, String cefrLevel, Set<String> allowed) {
+        int target = LEVEL_ORDER.indexOf(cefrLevel);
+        Set<String> types = new LinkedHashSet<>();
+        for (String w : TextChecks.words(text == null ? "" : text)) types.add(w.toLowerCase(Locale.ROOT));
+        List<String> above = new ArrayList<>();
+        for (String w : types) {
+            if (allowed.contains(w)) continue;
+            int lv = wordlist.levelOf(w).map(LEVEL_ORDER::indexOf).orElse(-1);
+            if (lv > target) {
+                for (String lemma : StrongVerbForms.lemmas(w)) {
+                    int byLemma = wordlist.levelOf(lemma).map(LEVEL_ORDER::indexOf).orElse(-1);
+                    if (byLemma >= 0 && byLemma <= target) {
+                        lv = byLemma;
+                        break;
+                    }
+                }
+            }
+            if (lv > target) above.add(w);
+        }
+        return above;
+    }
+
+    /** Bài báo Lesen Teil 2 của telc in thành vài đoạn liền mạch, không phải mỗi ý một dòng. */
+    static final int MAX_TEXT_PARAGRAPHS = 6;
+
+    /**
+     * Model hay cho mỗi dữ kiện một "đoạn" hai câu (bài chạy thật 11/11/2026 có 10 đoạn cho 303 từ), trông như
+     * gạch đầu dòng chứ không phải bài báo. Gộp dần hai đoạn KỀ NHAU ngắn nhất cho tới khi còn tối đa
+     * {@code max} đoạn; thứ tự câu giữ nguyên.
+     */
+    static List<String> mergeShortParagraphs(List<String> paras, int max) {
+        List<String> out = new ArrayList<>(paras);
+        while (out.size() > max) {
+            int best = 0;
+            int bestWords = Integer.MAX_VALUE;
+            for (int i = 0; i + 1 < out.size(); i++) {
+                int w = TextChecks.wordCount(out.get(i)) + TextChecks.wordCount(out.get(i + 1));
+                if (w < bestWords) {
+                    bestWords = w;
+                    best = i;
+                }
+            }
+            out.set(best, out.get(best) + " " + out.get(best + 1));
+            out.remove(best + 1);
+        }
+        return out;
     }
 
     private static List<String> paragraphsOf(JsonNode out) {
@@ -610,9 +672,10 @@ public class ExamDraftService {
             }
             return;
         }
-        JsonNode out = ai.generateItems(userId, spec, r.text().text(), todo, todoLevels, keep, avoid);
-        Map<Integer, JsonNode> bySlot = bySlot(out, todo);
+        Map<Integer, JsonNode> bySlot;
         if (mcNews(spec)) {
+            String context = r.text().text().context();
+            bySlot = generateInBatches(userId, r, todo, todoLevels, keep, avoid, Map.of());
             // Đo ngay bằng code: câu nào trái công thức của bậc (vd. giao Siêu khó mà bằng chứng gói trong một
             // câu) thì cho AI viết lại MỘT lần kèm lời nhắc cụ thể. Lượt tự kiểm sẽ đo lại đầy đủ.
             Map<Integer, String> hints = new java.util.TreeMap<>();
@@ -620,22 +683,26 @@ public class ExamDraftService {
             List<String> redoLevels = new ArrayList<>();
             for (int i = 0; i < todo.size(); i++) {
                 int s = todo.get(i)[0];
-                String hint = recipeHint(r.text().text().context(), bySlot.get(s), todoLevels.get(i));
+                String hint = recipeHint(context, bySlot.get(s), todoLevels.get(i));
                 if (hint == null) continue;
                 hints.put(s, hint);
                 redo.add(todo.get(i));
                 redoLevels.add(todoLevels.get(i));
             }
             if (!hints.isEmpty()) {
-                try {
-                    JsonNode again = ai.generateItems(userId, spec, r.text().text(), redo, redoLevels, keep, avoid, hints);
-                    bySlot(again, redo).forEach((s, n) -> {
-                        if (rawOptions(n) != null) bySlot.put(s, n);
-                    });
-                } catch (RuntimeException e) {
-                    log.warn("[ExamStudio] sinh lại câu lệch công thức của bản nháp {} hỏng: {}", draftId, e.getMessage());
+                Map<Integer, JsonNode> again = generateInBatches(userId, r, redo, redoLevels, keep, avoid, hints);
+                for (int i = 0; i < redo.size(); i++) {
+                    int s = redo.get(i)[0];
+                    JsonNode n = again.get(s);
+                    // Chỉ nhận bản viết lại khi nó đúng khuôn và không còn trái công thức nặng hơn bản đầu.
+                    if (rawOptions(n) != null && (rawOptions(bySlot.get(s)) == null
+                            || recipeHint(context, n, redoLevels.get(i)) == null)) {
+                        bySlot.put(s, n);
+                    }
                 }
             }
+        } else {
+            bySlot = bySlot(ai.generateItems(userId, spec, r.text().text(), todo, todoLevels, keep, avoid), todo);
         }
 
         Random rnd = new Random(draftId * 31 + System.nanoTime());
@@ -695,6 +762,8 @@ public class ExamDraftService {
             }
             List<ItemRules.RawOption> raw = rawOptions(n);
             if (raw == null) {
+                log.warn("[ExamStudio] bản nháp {} câu {} sai khuôn, AI trả: {}", draftId, spec.itemId(s),
+                        n == null ? "(không có)" : cut(n.toString(), 600));
                 problems.add(spec.itemId(s));
                 continue;
             }
@@ -714,10 +783,80 @@ public class ExamDraftService {
         }
     }
 
+    /** Số câu a/b/c tối đa xin AI trong một lượt gọi. */
+    static final int ITEMS_PER_CALL = 2;
+
+    /**
+     * Sinh câu a/b/c theo lô nhỏ. Năm câu một lượt trên model lớn (mỗi câu có dàn ý, bằng chứng, lời giải tiếng
+     * Việt) cho đầu ra hỏng cả năm khi chạy thật 11/11/2026, trong khi sinh từng câu thì đạt. Lô sau được biết
+     * các câu lô trước đã viết để không hỏi trùng. Một lô lỗi không làm hỏng các lô khác.
+     */
+    private Map<Integer, JsonNode> generateInBatches(long userId, Row r, List<int[]> todo, List<String> levels,
+                                                     List<Item> keep, List<String> avoid, Map<Integer, String> hints) {
+        Map<Integer, JsonNode> all = new HashMap<>();
+        List<Item> known = new ArrayList<>(keep);
+        RuntimeException firstError = null;
+        for (int from = 0; from < todo.size(); from += ITEMS_PER_CALL) {
+            int to = Math.min(todo.size(), from + ITEMS_PER_CALL);
+            List<int[]> part = todo.subList(from, to);
+            Map<Integer, String> partHints = new java.util.TreeMap<>();
+            for (int[] t : part) if (hints.containsKey(t[0])) partHints.put(t[0], hints.get(t[0]));
+            try {
+                JsonNode out = ai.generateItems(userId, r.spec(), r.text().text(), part, levels.subList(from, to),
+                        known, avoid, partHints);
+                Map<Integer, JsonNode> got = bySlot(out, part);
+                if (got.isEmpty()) {
+                    log.warn("[ExamStudio] bản nháp {} lô câu {}–{}: không đọc được câu nào, AI trả: {}", r.id(),
+                            from, to - 1, cut(out.toString(), 600));
+                }
+                for (Map.Entry<Integer, JsonNode> e : got.entrySet()) {
+                    all.put(e.getKey(), e.getValue());
+                    List<ItemRules.RawOption> raw = rawOptions(e.getValue());
+                    if (raw == null) continue;
+                    Map<String, String> options = new LinkedHashMap<>();
+                    String correct = "a";
+                    for (int i = 0; i < raw.size(); i++) {
+                        options.put(ItemRules.LETTERS.get(i), raw.get(i).text());
+                        if (raw.get(i).correct()) correct = ItemRules.LETTERS.get(i);
+                    }
+                    known.add(new Item("new-" + e.getKey(), firstNonBlank(text(e.getValue(), "question"), ""), options,
+                            correct, "", "", List.of(), "MEDIUM", null, false, null, List.of()));
+                }
+            } catch (RuntimeException e) {
+                log.warn("[ExamStudio] bản nháp {} lô câu {}–{} hỏng: {}", r.id(), from, to - 1, e.getMessage());
+                if (firstError == null) firstError = e;
+                // Lô hai câu có thể vượt trần thời gian của một lượt gọi với model chậm: thử lại từng câu.
+                for (int i = from; i < to && to - from > 1; i++) {
+                    Map<Integer, String> oneHint = new java.util.TreeMap<>();
+                    if (hints.containsKey(todo.get(i)[0])) oneHint.put(todo.get(i)[0], hints.get(todo.get(i)[0]));
+                    try {
+                        all.putAll(bySlot(ai.generateItems(userId, r.spec(), r.text().text(), todo.subList(i, i + 1),
+                                levels.subList(i, i + 1), known, avoid, oneHint), todo.subList(i, i + 1)));
+                    } catch (RuntimeException single) {
+                        log.warn("[ExamStudio] bản nháp {} câu {} hỏng: {}", r.id(), i, single.getMessage());
+                    }
+                }
+            }
+        }
+        // Không lô nào ra được câu: báo đúng lỗi của AI (quá tải, hết giờ) thay vì "AI trả hỏng câu".
+        if (all.isEmpty() && firstError != null) throw firstError;
+        return all;
+    }
+
+    /** Mảng câu trong câu trả lời của AI: khoá "items", hoặc cả câu trả lời là một mảng / một câu đơn. */
+    private static Iterable<JsonNode> itemNodes(JsonNode out) {
+        if (out == null) return List.of();
+        if (out.isArray()) return out;
+        for (String key : List.of("items", "aufgaben", "Aufgaben", "tasks")) {
+            if (out.path(key).isArray()) return out.path(key);
+        }
+        return out.has("options") ? List.of(out) : List.of();
+    }
+
     private static Map<Integer, JsonNode> bySlot(JsonNode out, List<int[]> todo) {
         Map<Integer, JsonNode> bySlot = new HashMap<>();
         int fallback = 0;
-        for (JsonNode n : out.path("items")) {
+        for (JsonNode n : itemNodes(out)) {
             int slot = n.has("slot") ? n.path("slot").asInt(-1) : -1;
             final int asked = slot;
             if (slot < 0 || todo.stream().noneMatch(t -> t[0] == asked) || bySlot.containsKey(slot)) {
@@ -902,6 +1041,36 @@ public class ExamDraftService {
                         ItemRules.clamp(rn.path("distractors").asInt()), ItemRules.clamp(rn.path("language").asInt()));
                 boolean multi = rn.path("multiParagraph").asBoolean(false);
                 boolean half = rn.path("halfTrue").asBoolean(false);
+                if (mcNews(spec)) {
+                    // Câu dẫn + đáp án phải là điều bài nói, số liệu trong câu dẫn phải khớp bài (đề chạy thật
+                    // 11/11/2026: câu dẫn viết "Ein Viertel" trong khi bài nói 20 %, không phép kiểm nào bắt).
+                    if (!rn.path("supported").asBoolean(true)) {
+                        flags.add("Câu dẫn + đáp án không khớp bài: "
+                                + firstNonBlank(text(rn, "issueVi"), "kiểm lại số liệu và nhóm đối tượng trong câu dẫn."));
+                        sev = 2;
+                    }
+                    int absurd = rn.path("absurd").asInt(0);
+                    if (absurd > 0) {
+                        // Nhiễu loại được bằng suy luận thường thì không còn là bẫy: không tính điểm bẫy tinh.
+                        sc = new Scores(sc.phrasing(), sc.evidence(), Math.min(sc.distractors(), absurd >= 2 ? 0 : 1),
+                                sc.language());
+                        half = half && absurd < 2;
+                        flags.add(absurd + " phương án nhiễu loại được mà không cần đọc bài (quá vô lý hoặc phóng đại).");
+                        sev = Math.max(sev, 1);
+                    }
+                    // Độ khó không được đến từ từ vựng: từ trên cấp trong câu hỏi mà bài không có là sai cách ra đề.
+                    Set<String> inText = new HashSet<>();
+                    for (String w : TextChecks.words(nz(text.titleDe()) + " " + nz(text.vorspannDe()) + " " + text.context())) {
+                        inText.add(w.toLowerCase(Locale.ROOT));
+                    }
+                    List<String> hardWords = aboveLevelWords(it.question() + " " + String.join(" ", it.options().values()),
+                            spec.cefrLevel(), inText);
+                    if (!hardWords.isEmpty()) {
+                        flags.add("Từ trên cấp " + spec.cefrLevel() + " trong câu hỏi mà bài không có: "
+                                + String.join(", ", hardWords.subList(0, Math.min(6, hardWords.size()))) + ".");
+                        sev = Math.max(sev, hardWords.size() >= 3 ? 2 : 1);
+                    }
+                }
                 ItemMetrics.Measured im = metricsById.get(it.id());
                 if (im != null) {
                     // Điểm đếm được lấy theo code; AI chỉ còn quyết ngôn ngữ câu hỏi và độ tinh của bẫy.
@@ -912,7 +1081,7 @@ public class ExamDraftService {
                         evidence = Math.min(evidence, 1);
                         flags.add("Chỉ đọc một đoạn đã giải được: câu này chưa phải câu gộp hai đoạn.");
                     }
-                    int distractors = im.distractorsInText() ? Math.max(1, sc.distractors()) : 0;
+                    int distractors = im.distractorsInText() ? sc.distractors() : 0;
                     sc = new Scores(im.phrasing(), evidence, distractors, sc.language());
                     multi = im.evidenceFound() ? im.multiParagraph() && !solvedInOne : multi && !solvedInOne;
                 }
