@@ -130,31 +130,21 @@ describe("useSpeakingRecorderMic — sequence guard (R-W8)", () => {
     expect(onTranscript).not.toHaveBeenCalled()
   })
 
-  it("chấm phát âm về muộn sau cleanup cũng bị bỏ", async () => {
+  it("hội thoại tự do không gọi chấm phát âm sau khi có transcript", async () => {
     transcribeMock.mockResolvedValue({ data: { transcript: "Hallo" } })
-    const slowEval = deferred<{ score: number }>()
-    evaluatePhonemeMock.mockReturnValueOnce(slowEval.promise)
-
     const onPhonemeScored = vi.fn()
+    const onTranscript = vi.fn()
     const { result } = renderHook(() => useSpeakingRecorderMic(t, onPhonemeScored))
 
     await act(async () => {
-      result.current.toggleMic(vi.fn())
+      result.current.toggleMic(onTranscript)
     })
     await act(async () => {
-      void onBlob!(new Blob(["a"]))
-      await Promise.resolve()
+      await onBlob!(new Blob(["a"]))
     })
 
-    act(() => {
-      result.current.cleanup()
-    })
-
-    await act(async () => {
-      slowEval.resolve({ score: 90 })
-      await Promise.resolve()
-    })
-
+    expect(onTranscript).toHaveBeenCalledWith("Hallo")
+    expect(evaluatePhonemeMock).not.toHaveBeenCalled()
     expect(onPhonemeScored).not.toHaveBeenCalled()
   })
 })
