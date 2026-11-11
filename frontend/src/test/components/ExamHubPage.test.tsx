@@ -88,6 +88,7 @@ function setup() {
           exams: [
             { id: 101, title: 'telc Deutsch B1 — Đề số 1', totalPoints: 300, passPoints: 180, timeLimitMinutes: 150, comingSoon: false },
             { id: 102, title: 'telc Deutsch B1 — Đề số 2', totalPoints: 300, passPoints: 180, timeLimitMinutes: 150, comingSoon: true },
+            { id: 103, title: 'telc Deutsch B1 — Đề số 3', totalPoints: 300, passPoints: 180, timeLimitMinutes: 150, isNew: true },
           ],
         }
       : { id: 1, title: 'Goethe A1', descriptionVi: null, cefrLevel: 'A1', examFormat: 'GOETHE', exams: [{ id: 1, title: 'Goethe A1 — Set 1', totalPoints: 100, passPoints: 60, timeLimitMinutes: 80 }] },
@@ -142,6 +143,9 @@ describe('Luyện thi · Hôm nay', () => {
     expect(within(screen.getByRole('link', { name: /Đề số 1/ })).getByText('Đỗ')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Đề số 2/ })).toBeNull()
     expect(screen.getByText('Sắp có')).toBeInTheDocument()
+    // Nhãn "Mới" chỉ ở đề vừa phát hành mà học viên chưa đụng tới
+    expect(within(screen.getByRole('link', { name: /Đề số 3/ })).getByText('Mới')).toBeInTheDocument()
+    expect(within(screen.getByRole('link', { name: /Đề số 1/ })).queryByText('Mới')).toBeNull()
     expect(screen.queryByText('Goethe A1 — Set 1')).toBeNull()
     expect(h.getMockPack).not.toHaveBeenCalledWith(1)
   })

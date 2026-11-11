@@ -2958,6 +2958,7 @@
       "empty": "No exam sets yet.",
       "lockedPack": "A paid plan is needed to open this set.",
       "comingSoon": "Coming soon",
+      "newExam": "New",
       "teilDone": "{done}/{total} parts",
       "noMock": "No mock exam yet",
       "passed": "Passed",

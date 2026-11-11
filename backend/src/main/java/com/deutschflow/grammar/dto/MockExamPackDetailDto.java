@@ -18,6 +18,8 @@ public record MockExamPackDetailDto(
             Integer totalPoints,
             Integer passPoints,
             Integer timeLimitMinutes,
-            boolean comingSoon
+            boolean comingSoon,
+            /** V379: đề phát hành trong 14 ngày gần đây — client gắn nhãn "Mới". */
+            @com.fasterxml.jackson.annotation.JsonProperty("isNew") boolean isNew
     ) {}
 }

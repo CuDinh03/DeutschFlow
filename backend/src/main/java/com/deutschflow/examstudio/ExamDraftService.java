@@ -44,6 +44,7 @@ public class ExamDraftService {
     private final AiJobRepository jobs;
     private final ExamStudioAi ai;
     private final SourceFetcher fetcher;
+    private final SourceFileReader fileReader;
     private final GoetheWordlist wordlist;
     private final SituationalTeile situ;
     private final ExamDedupService dedup;
@@ -288,6 +289,31 @@ public class ExamDraftService {
         return get(id);
     }
 
+    /**
+     * Thêm nguồn từ tệp tải lên (PDF, DOCX, TXT). Văn bản bóc ra đi cùng đường với văn bản dán tay: chỉ nằm
+     * trong payload của job tới lúc job chạy, không ghi vào bảng nguồn.
+     */
+    public Draft addSourceFile(long id, String fileName, byte[] bytes, String title, String publisher,
+                               String refUrl, long userId) {
+        requireEditable(id);
+        String ref = refUrl == null || refUrl.isBlank() ? null : refUrl.trim();
+        if (ref != null && (!ref.matches("(?i)^https?://\\S+$") || ref.length() > 1000)) {
+            throw new BadRequestException("Đường dẫn bài gốc phải bắt đầu bằng http:// hoặc https://.");
+        }
+        SourceFileReader.Extracted x = fileReader.read(fileName, bytes);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put(ExamStudioJobHandler.PASTED_TEXT, x.text());
+        String t = firstNonBlank(title, x.title());
+        if (t != null) payload.put("title", t);
+        if (publisher != null && !publisher.isBlank()) payload.put("publisher", publisher.trim());
+        if (x.author() != null) payload.put("author", x.author());
+        if (x.licenseText() != null) payload.put("license", x.licenseText());
+        payload.put("ccBy", x.ccBy());
+        if (ref != null) payload.put("refUrl", ref);
+        enqueue(id, "FACTS", userId, payload);
+        return get(id);
+    }
+
     @Transactional
     public Draft patchSource(long id, long sourceId, PatchSourceRequest req) {
         requireEditable(id);
@@ -325,7 +351,10 @@ public class ExamDraftService {
         if (url != null) {
             f = fetcher.fetch(url);
         } else {
-            f = new SourceFetcher.Fetched(null, null, null, null, null, null, false, pastedText);
+            // Dán tay hoặc tệp tải lên: giấy phép và đường dẫn bài gốc (nếu có) đi trong payload.
+            f = new SourceFetcher.Fetched(null, null, (String) payload.get("author"), null, null,
+                    (String) payload.get("license"), Boolean.TRUE.equals(payload.get("ccBy")), pastedText);
+            url = (String) payload.get("refUrl");
         }
         List<SourceRow> existing = sources(draftId);
         List<Fact> existingFacts = existing.stream().flatMap(s -> s.source().facts().stream()).toList();

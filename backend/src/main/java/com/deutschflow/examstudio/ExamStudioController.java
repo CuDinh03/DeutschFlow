@@ -5,11 +5,15 @@ import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.examstudio.ExamStudioDtos.*;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import com.deutschflow.common.exception.BadRequestException;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -60,6 +64,18 @@ public class ExamStudioController {
     public Draft addSource(@PathVariable long id, @RequestBody AddSourceRequest req,
                            @AuthenticationPrincipal User actor) {
         return service.addSource(id, req, actor.getId());
+    }
+
+    /** Nguồn từ tệp (PDF, DOCX, TXT): máy bóc văn bản rồi rút dữ kiện như văn bản dán tay. Tệp không được lưu. */
+    @PostMapping(value = "/drafts/{id}/sources/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Draft addSourceFile(@PathVariable long id, @RequestParam("file") MultipartFile file,
+                               @RequestParam(required = false) String title,
+                               @RequestParam(required = false) String publisher,
+                               @RequestParam(required = false) String url,
+                               @AuthenticationPrincipal User actor) throws IOException {
+        if (file.getSize() > SourceFileReader.MAX_BYTES) throw new BadRequestException("Tệp lớn hơn 10 MB.");
+        return service.addSourceFile(id, file.getOriginalFilename(), file.getBytes(), title, publisher, url,
+                actor.getId());
     }
 
     @PatchMapping("/drafts/{id}/sources/{sourceId}")

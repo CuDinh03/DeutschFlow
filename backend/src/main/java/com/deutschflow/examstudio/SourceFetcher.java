@@ -159,7 +159,8 @@ public class SourceFetcher {
     static boolean isPlainCcBy(String license) {
         if (license == null) return false;
         String u = license.toUpperCase(Locale.ROOT).replace('-', ' ').replaceAll("\\s+", " ").trim();
-        return u.matches("CC BY( \\d(\\.\\d)?)?");
+        // Bản địa phương hoá theo nước (vd. "CC BY 3.0 DE" của RKI) vẫn là CC BY trơn.
+        return u.matches("CC BY( \\d(\\.\\d)?)?( (DE|AT|CH))?");
     }
 
     URI validate(String rawUrl) {

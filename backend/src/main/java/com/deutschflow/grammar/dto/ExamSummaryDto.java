@@ -18,4 +18,14 @@ public record ExamSummaryDto(
         @JsonProperty("pass_points") Integer passPoints,
         @JsonProperty("time_limit_minutes") Integer timeLimitMinutes,
         // V342: đề nháp chờ duyệt — chỉ có mặt khi client xin includeComingSoon=true
-        @JsonProperty("coming_soon") boolean comingSoon) {}
+        @JsonProperty("coming_soon") boolean comingSoon,
+        // V379: đề phát hành trong NEW_BADGE_DAYS ngày gần đây — client gắn nhãn "Mới"
+        @JsonProperty("is_new") boolean isNew) {
+
+    /** Số ngày kể từ lúc phát hành mà đề còn được coi là mới. */
+    public static final int NEW_BADGE_DAYS = 14;
+
+    /** Biểu thức SQL trên bảng mock_exams: đề đã phát hành và còn trong hạn "Mới". */
+    public static final String IS_NEW_SQL =
+            "(reviewed = TRUE AND published_at > now() - make_interval(days => " + NEW_BADGE_DAYS + "))";
+}

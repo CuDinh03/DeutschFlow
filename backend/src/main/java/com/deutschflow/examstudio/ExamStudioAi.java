@@ -97,8 +97,12 @@ public class ExamStudioAi {
              "confirms": []}
             """;
 
+    static final int FACTS_MAX_CHARS = 36_000;
+
     JsonNode extractFacts(long userId, String level, String theme, String articleText, List<Fact> existing) {
-        String clipped = articleText.length() > 14_000 ? articleText.substring(0, 14_000) : articleText;
+        // 36 000 ký tự ≈ một bài khoa học 8–10 trang: với trần 14 000 cũ, phần kết quả của bài tải từ tệp
+        // PDF bị cắt mất, AI chỉ còn đọc được tóm tắt và phương pháp.
+        String clipped = articleText.length() > FACTS_MAX_CHARS ? articleText.substring(0, FACTS_MAX_CHARS) : articleText;
         String existingTxt = existing.isEmpty() ? "(keine)" : existing.stream()
                 .map(f -> f.id() + ": " + f.text())
                 .collect(Collectors.joining("\n"));

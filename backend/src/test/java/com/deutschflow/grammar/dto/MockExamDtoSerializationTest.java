@@ -40,7 +40,7 @@ class MockExamDtoSerializationTest {
     @DisplayName("ExamSummaryDto keeps snake_case keys (not camelCase)")
     void examSummaryKeepsSnakeCaseKeys() throws Exception {
         var json = om.writeValueAsString(
-                new ExamSummaryDto(7L, "B1", "GOETHE", "Set 1", "Mô tả", 100, 60, 90, true));
+                new ExamSummaryDto(7L, "B1", "GOETHE", "Set 1", "Mô tả", 100, 60, 90, true, true));
         assertThat(json)
                 .contains("\"id\":7")
                 .contains("\"cefr_level\":\"B1\"")

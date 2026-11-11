@@ -13,6 +13,8 @@ export interface ExamVariant {
   isRecommended?: boolean
   /** Đề nháp chờ duyệt (V342): hiện "Sắp có", không bấm vào làm được. */
   comingSoon: boolean
+  /** Đề phát hành trong 14 ngày gần đây (V379): hiện nhãn "Mới". */
+  isNew: boolean
 }
 
 export interface RawMockExam {
@@ -23,6 +25,8 @@ export interface RawMockExam {
   total_questions?: number
   /** Chỉ có khi gọi kèm `includeComingSoon=true`; backend cũ không gửi. */
   coming_soon?: boolean
+  /** Backend cũ không gửi ⇒ coi như false. */
+  is_new?: boolean
 }
 
 export function mapExam(e: RawMockExam): ExamVariant {
@@ -33,6 +37,7 @@ export function mapExam(e: RawMockExam): ExamVariant {
     totalQuestions: e.total_questions ?? 0,
     timeLimitMinutes: e.time_limit_minutes,
     comingSoon: e.coming_soon === true,
+    isNew: e.is_new === true,
   }
 }
 
