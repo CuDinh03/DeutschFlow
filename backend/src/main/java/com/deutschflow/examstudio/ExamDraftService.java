@@ -796,8 +796,10 @@ public class ExamDraftService {
         Map<Integer, JsonNode> all = new HashMap<>();
         List<Item> known = new ArrayList<>(keep);
         RuntimeException firstError = null;
-        for (int from = 0; from < todo.size(); from += ITEMS_PER_CALL) {
-            int to = Math.min(todo.size(), from + ITEMS_PER_CALL);
+        // Đường gọi riêng chịu được lượt dài nên xin ba câu một lượt (ít lượt gọi hơn); đường cũ giữ hai câu.
+        int perCall = ai.dedicatedWriter() ? 3 : ITEMS_PER_CALL;
+        for (int from = 0; from < todo.size(); from += perCall) {
+            int to = Math.min(todo.size(), from + perCall);
             List<int[]> part = todo.subList(from, to);
             Map<Integer, String> partHints = new java.util.TreeMap<>();
             for (int[] t : part) if (hints.containsKey(t[0])) partHints.put(t[0], hints.get(t[0]));
