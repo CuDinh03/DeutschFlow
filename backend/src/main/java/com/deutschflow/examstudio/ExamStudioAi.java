@@ -40,21 +40,74 @@ public class ExamStudioAi {
     private final AiUsageLedgerService ledger;
     private final ObjectMapper mapper;
 
+    /** Vai của một lượt gọi trong Xưởng đề: viết (rút dữ kiện, viết bài, ra câu hỏi) hay chấm (thang, giải thử, đối chiếu). */
+    enum Role { WRITER, JUDGE }
+
     /**
-     * Tầng model cho việc VIẾT (rút dữ kiện, viết bài, ra câu hỏi) của Teil lấy từ nguồn báo. Chạy thử
-     * 11/11/2026 với tầng CONTENT (model nhỏ): bài chỉ 135/300 từ, câu "Siêu khó" chép gần nguyên một câu
-     * của bài. Mặc định dùng tầng chấm thi (model lớn); đổi bằng {@code app.exam-studio.writer-tier}.
+     * Model RIÊNG của Xưởng đề, tách khỏi các tầng dùng chung với luyện nói và chấm thi. Chọn sau phép so
+     * 9 model trên Fireworks ngày 11/11/2026 (cùng dữ kiện, cùng prompt production): Kimi K3 viết tự nhiên và
+     * đúng tầm B1 nhất; DeepSeek V4.1 Flash khác họ với model viết nên dùng để chấm. Để trống một khoá thì vai
+     * đó quay về tầng cũ ({@code writer-tier} cho viết, tầng của lời gọi cho chấm).
      */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.writer-model:}")
+    private String writerModel = "";
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.judge-model:}")
+    private String judgeModel = "";
+    /**
+     * Sàn hạn mức đầu ra khi dùng model riêng. Các model này "nghĩ" trước khi viết và phần nghĩ tính chung vào
+     * max_tokens: với 3 500–4 500 token của prompt cũ, cả 8 model thử đều bị cắt giữa chừng.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.exam-studio.min-output-tokens:16000}")
+    private int minOutputTokens = 16_000;
     @org.springframework.beans.factory.annotation.Value("${app.exam-studio.writer-tier:GRADING_EXAM}")
     private LlmTier writerTier = LlmTier.GRADING_EXAM;
 
+    private static boolean set(String v) {
+        return v != null && !v.isBlank();
+    }
+
+    /** Vai mặc định theo tầng mà lời gọi khai: CONTENT = viết, GRADING_EXAM = chấm; tầng khác giữ nguyên đường cũ. */
+    private static Role roleOf(LlmTier tier) {
+        return tier == LlmTier.CONTENT ? Role.WRITER : tier == LlmTier.GRADING_EXAM ? Role.JUDGE : null;
+    }
+
+    /** Thông số gọi cho model riêng: giữ endpoint và khoá của tầng, đổi model, KHÔNG gửi reasoning_effort (knob của gpt-oss). */
+    private com.deutschflow.ai.tier.TierSpec dedicated(LlmTier tier, String model) {
+        com.deutschflow.ai.tier.TierSpec base = tiers.spec(tier);
+        return new com.deutschflow.ai.tier.TierSpec(base.tier(), model, base.baseUrl(), base.apiKey(), base.providerOrder(),
+                base.requireParameters(), base.sort(), base.quantizations(), null, base.sessionSticky(),
+                base.includeUsage());
+    }
+
     JsonNode call(long userId, String op, LlmTier tier, String system, String user, double temperature,
                   int maxTokens) {
+        Role role = roleOf(tier);
+        String model = role == Role.WRITER ? writerModel : role == Role.JUDGE ? judgeModel : null;
+        if (set(model)) {
+            return stream(userId, op, dedicated(tier, model), system, user, temperature,
+                    Math.max(maxTokens, minOutputTokens));
+        }
+        return blocking(userId, op, tiers.spec(tier), system, user, temperature, maxTokens);
+    }
+
+    /** Lượt VIẾT của Teil lấy từ nguồn báo và lượt đối chiếu dữ kiện: luôn đi đường stream (đầu ra dài). */
+    JsonNode callAs(Role role, long userId, String op, String system, String user, double temperature, int maxTokens) {
+        String model = role == Role.WRITER ? writerModel : judgeModel;
+        LlmTier tier = role == Role.WRITER ? writerTier : LlmTier.GRADING_EXAM;
+        if (set(model)) {
+            return stream(userId, op, dedicated(tier, model), system, user, temperature,
+                    Math.max(maxTokens, minOutputTokens));
+        }
+        return stream(userId, op, tiers.spec(tier), system, user, temperature, maxTokens);
+    }
+
+    private JsonNode blocking(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
+                              double temperature, int maxTokens) {
         AiChatCompletionResult res;
         try {
             res = chatClient.chatCompletionForTier(
                     List.of(new ChatMessage("system", system), new ChatMessage("user", user)),
-                    tiers.spec(tier), temperature, maxTokens, true);
+                    spec, temperature, maxTokens, true);
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {
@@ -73,12 +126,12 @@ public class ExamStudioAi {
     }
 
     /**
-     * Lời gọi cho đầu ra DÀI (bài đọc, bộ câu hỏi) trên model lớn. Đường gọi thường của client có trần đọc 15 giây
-     * cho cả câu trả lời — model lớn viết 300+ từ vượt trần đó (sự cố ngay sau deploy 11/11/2026: "Read timed
-     * out"). Đường stream chỉ đặt trần cho khoảng lặng GIỮA các mẩu, nên dùng nó và gom lại thành một chuỗi.
+     * Đường stream, gom lại thành một chuỗi. Đường gọi thường của client có trần đọc 15 giây cho cả câu trả lời —
+     * bài 300+ từ hay model có phần "nghĩ" đều vượt trần đó (sự cố ngay sau deploy 11/11/2026: "Read timed out").
+     * Đường stream chỉ đặt trần cho khoảng lặng GIỮA các mẩu.
      */
-    JsonNode callLong(long userId, String op, LlmTier tier, String system, String user, double temperature,
-                      int maxTokens) {
+    private JsonNode stream(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
+                            double temperature, int maxTokens) {
         java.util.concurrent.atomic.AtomicReference<AiChatCompletionResult> done =
                 new java.util.concurrent.atomic.AtomicReference<>();
         StringBuilder streamed = new StringBuilder();
@@ -86,7 +139,7 @@ public class ExamStudioAi {
         try {
             ok = chatClient.chatCompletionStreamForTier(
                     List.of(new ChatMessage("system", system), new ChatMessage("user", user)),
-                    tiers.spec(tier), temperature, maxTokens, streamed::append, done::set,
+                    spec, temperature, maxTokens, streamed::append, done::set,
                     new java.util.concurrent.atomic.AtomicBoolean(false));
         } catch (AiServiceException e) {
             throw e;
@@ -147,7 +200,7 @@ public class ExamStudioAi {
         String user = "Niveau: " + level + "\nThema: " + (theme == null ? "frei" : theme)
                 + "\n\nBestehende Fakten:\n" + existingTxt + "\n\nArtikel (Absätze durch Leerzeilen getrennt):\n"
                 + clipped;
-        return callLong(userId, "FACTS", writerTier, FACTS_SYSTEM, user, 0.2, 3_000);
+        return callAs(Role.WRITER, userId, "FACTS", FACTS_SYSTEM, user, 0.2, 3_000);
     }
 
     // ── 2. Viết bài đọc từ dữ kiện ──────────────────────────────────────────────────────────
@@ -197,7 +250,7 @@ public class ExamStudioAi {
                         + (f.year() == null ? "" : " [Jahr: " + f.year() + "]"))
                 .collect(Collectors.joining("\n"))
                 + (note == null || note.isBlank() ? "" : "\n\nHinweis der Redaktion: " + note);
-        return callLong(userId, "TEXT", writerTier, system, user, 0.6, 3_500);
+        return callAs(Role.WRITER, userId, "TEXT", system, user, 0.6, 3_500);
     }
 
     static final String REWRITE_SYSTEM = """
@@ -305,7 +358,7 @@ public class ExamStudioAi {
             hints.forEach((slot, hint) -> u.append("slot ").append(slot).append(": ").append(hint).append("\n"));
         }
         u.append(SituationalTeile.avoidBlock(avoid));
-        return callLong(userId, "ITEMS", writerTier, system, u.toString(), 0.7, 4_500);
+        return callAs(Role.WRITER, userId, "ITEMS", system, u.toString(), 0.7, 4_500);
     }
 
     JsonNode generateHeadlines(long userId, TeilSpec spec, Text text, List<int[]> slotIdx, List<String> slotLevels,
@@ -383,7 +436,7 @@ public class ExamStudioAi {
         String factsTxt = facts.stream().map(f -> "- " + f.text()
                 + (f.figure() == null ? "" : " [Zahl: " + f.figure() + "]")
                 + (f.year() == null ? "" : " [Jahr: " + f.year() + "]")).collect(Collectors.joining("\n"));
-        return callLong(userId, "VERIFY", LlmTier.GRADING_EXAM, FAITHFUL_SYSTEM,
+        return callAs(Role.JUDGE, userId, "VERIFY", FAITHFUL_SYSTEM,
                 "FAKTEN:\n" + factsTxt + "\n\n" + textBlock(spec, text), 0.0, 1_500);
     }
 

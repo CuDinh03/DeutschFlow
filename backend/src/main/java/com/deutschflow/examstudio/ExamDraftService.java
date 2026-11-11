@@ -763,6 +763,17 @@ public class ExamDraftService {
             } catch (RuntimeException e) {
                 log.warn("[ExamStudio] bản nháp {} lô câu {}–{} hỏng: {}", r.id(), from, to - 1, e.getMessage());
                 if (firstError == null) firstError = e;
+                // Lô hai câu có thể vượt trần thời gian của một lượt gọi với model chậm: thử lại từng câu.
+                for (int i = from; i < to && to - from > 1; i++) {
+                    Map<Integer, String> oneHint = new java.util.TreeMap<>();
+                    if (hints.containsKey(todo.get(i)[0])) oneHint.put(todo.get(i)[0], hints.get(todo.get(i)[0]));
+                    try {
+                        all.putAll(bySlot(ai.generateItems(userId, r.spec(), r.text().text(), todo.subList(i, i + 1),
+                                levels.subList(i, i + 1), known, avoid, oneHint), todo.subList(i, i + 1)));
+                    } catch (RuntimeException single) {
+                        log.warn("[ExamStudio] bản nháp {} câu {} hỏng: {}", r.id(), i, single.getMessage());
+                    }
+                }
             }
         }
         // Không lô nào ra được câu: báo đúng lỗi của AI (quá tải, hết giờ) thay vì "AI trả hỏng câu".

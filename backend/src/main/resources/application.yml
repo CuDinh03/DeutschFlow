@@ -249,6 +249,13 @@ server:
     min-response-size: 1024
 
 app:
+  # Xưởng đề (admin): model RIÊNG cho việc soạn đề, tách khỏi các tầng dùng chung với luyện nói / chấm thi.
+  # Chọn sau phép so 9 model 11/11/2026 (plans/, PR #859). Để trống một biến ⇒ vai đó quay về tầng cũ.
+  exam-studio:
+    writer-model: "${APP_EXAM_STUDIO_WRITER_MODEL:accounts/fireworks/models/kimi-k3}"
+    judge-model: "${APP_EXAM_STUDIO_JUDGE_MODEL:accounts/fireworks/models/deepseek-v4p1-flash}"
+    # Sàn max_tokens khi dùng model riêng (phần "nghĩ" của model tính chung vào hạn mức đầu ra).
+    min-output-tokens: ${APP_EXAM_STUDIO_MIN_OUTPUT_TOKENS:16000}
   features:
     # Buổi học 1:1 (giáo viên – học viên đặt buổi riêng, /api/teacher-sessions/**): TẠM TẮT từ
     # 11/2026 theo quyết định chủ dự án. Khi tắt, mọi endpoint của tính năng trả 404. Chỉ mở lại
