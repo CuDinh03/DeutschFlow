@@ -143,24 +143,28 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
                         """, u.getId(), 0L);
 
         QuotaSnapshot snap = quotaService.getSnapshot(u.getId(), now);
-        long cap = 400_000L * 30;
+        // V378: PRO cấp 200.000 token/ngày; trần cộng dồn vẫn 30 ngày (theo kỳ gói).
+        long cap = 200_000L * 30;
         assertThat(snap.walletCap()).isEqualTo(cap);
         assertThat(snap.walletBalance()).isEqualTo(cap);
     }
 
     @Test
-    void ledgerDebit_zeroWallet_downgradesPaidToDefault() {
+    void ledgerDebit_zeroWallet_keepsPaidPlan_pausesAiUntilNextDailyGrant() {
+        // Quyết định owner 10/11/2026: ví cạn giữa kỳ thì GIỮ gói trả tiền, chỉ tạm dừng AI tới lần
+        // cộng ví hôm sau. Trước đây nhánh này hạ về DEFAULT và xoá ví.
         User u = userRepository.save(User.builder()
-                .email("quota-it-down@test.com")
+                .email("quota-it-keep@test.com")
                 .passwordHash("$2a$10$h")
-                .displayName("QDWN")
+                .displayName("QKEEP")
                 .role(User.Role.STUDENT)
                 .build());
         userRepository.flush();
 
         Instant now = FixedClockTestConfig.FIXED_NOW;
-        insertSubscription(u.getId(), "ULTRA",
-                Timestamp.from(now.minusSeconds(86400)), null);
+        insertSubscription(u.getId(), "PRO",
+                Timestamp.from(now.minusSeconds(86400)),
+                Timestamp.from(now.plusSeconds(20L * 86400)));
 
         LocalDate vnToday = QuotaVnCalendar.localDateOf(now);
         jdbcTemplate.update("""
@@ -171,20 +175,33 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
         aiUsageLedgerService.record(u.getId(), "x", "m",
                 0, 51, 51, "TEST", null, null);
 
-        Integer activeUltra = jdbcTemplate.queryForObject("""
+        Integer activePro = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*) FROM user_subscriptions
-                        WHERE user_id = ? AND status = 'ACTIVE' AND plan_code = 'ULTRA'
+                        WHERE user_id = ? AND status = 'ACTIVE' AND plan_code = 'PRO'
                         """, Integer.class, u.getId());
         Integer activeDefault = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*) FROM user_subscriptions
                         WHERE user_id = ? AND status = 'ACTIVE' AND plan_code = 'DEFAULT'
                         """, Integer.class, u.getId());
-        assertThat(activeUltra).isZero();
-        assertThat(activeDefault).isEqualTo(1);
+        assertThat(activePro).as("ví cạn không được kết thúc gói còn hạn").isEqualTo(1);
+        assertThat(activeDefault).as("không được hạ về DEFAULT").isZero();
 
-        Integer walletRows = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM user_ai_token_wallets WHERE user_id = ?", Integer.class, u.getId());
-        assertThat(walletRows).isZero();
+        Long balance = jdbcTemplate.queryForObject(
+                "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, u.getId());
+        assertThat(balance).as("dòng ví được giữ ở 0 để hôm sau cộng tiếp").isZero();
+
+        assertThat(quotaService.resolvePlanBadge(u.getId(), now).planCode()).isEqualTo("PRO");
+
+        // Hôm nay: AI bị chặn vì hết token.
+        assertThatThrownBy(() -> quotaService.assertAllowed(u.getId(), now, 1L))
+                .isInstanceOf(QuotaExceededException.class);
+
+        // Hôm sau (giờ VN): ví được cộng một ngày, AI mở lại.
+        Long grant = jdbcTemplate.queryForObject(
+                "SELECT daily_token_grant FROM subscription_plans WHERE code = 'PRO'", Long.class);
+        Instant tomorrow = now.plusSeconds(86400);
+        assertThat(quotaService.assertAllowed(u.getId(), tomorrow, 1L).remainingSpendable())
+                .isEqualTo(grant);
     }
 
     @Test
