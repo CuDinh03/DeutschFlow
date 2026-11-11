@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Mic, MicOff, RotateCcw, Volume2, X } from "lucide-react";
+import { authFetch } from "@/lib/authFetch";
 import { minorAudioBlockedFromProblem, type MinorAudioBlocked } from "@/lib/minorAudio";
 import { MinorAudioBlockedNotice } from "@/components/ui-v2/MinorAudioBlockedNotice";
 
@@ -85,9 +86,10 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
     formData.append("expectedText", expectedText);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/speaking/pronunciation-check`, {
+      // authFetch gắn Bearer (backend chỉ xác thực bằng header) và tự làm mới token khi 401.
+      // KHÔNG đặt Content-Type: trình duyệt tự gắn boundary cho multipart.
+      const res = await authFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/speaking/pronunciation-check`, {
         method: "POST",
-        credentials: "include",
         body: formData,
       });
       if (res.ok) {
