@@ -72,6 +72,10 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
             "Ganz nachholen kann man fehlenden Schlaf aber nicht. Regelmäßige Zeiten helfen mehr."
     };
 
+    static final String FILLER = "Fachleute erklären diesen Punkt in einfachen Worten, damit alle Leserinnen und Leser "
+            + "ihn gut verstehen können. Sie nennen dazu Beispiele aus dem Alltag von Familien, Studierenden und "
+            + "Berufstätigen in großen und kleinen Städten. Außerdem geben sie praktische Tipps für den Abend zu Hause.";
+
     private long admin;
 
     @BeforeEach
@@ -158,7 +162,10 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
             StringBuilder sb = new StringBuilder("{\"titleDe\": \"Zu wenig Schlaf\", \"vorspannDe\": \"Eine Umfrage zeigt:"
                     + " Viele schlafen werktags zu kurz.\", \"glossary\": [], \"usedFactIds\": [\"s1f1\", \"s1f2\"],"
                     + " \"paragraphs\": [");
-            for (int i = 0; i < PARAS.length; i++) sb.append(i == 0 ? "" : ",").append('"').append(PARAS[i]).append('"');
+            // Bài phải đủ khuôn 300–450 từ, nếu không bước Câu hỏi và đèn Độ dài chặn lại.
+            for (int i = 0; i < PARAS.length; i++) {
+                sb.append(i == 0 ? "" : ",").append('"').append(PARAS[i]).append(' ').append(FILLER).append('"');
+            }
             return sb.append("]}").toString();
         }
         if (system.startsWith("Du erstellst Aufgaben")) {
