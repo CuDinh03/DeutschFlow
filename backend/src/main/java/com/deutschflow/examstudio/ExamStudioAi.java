@@ -125,8 +125,34 @@ public class ExamStudioAi {
      * 11/11/2026: ba lượt Kimi K3 vượt 90 giây làm ngắt mạch đó, tức việc soạn đề của admin có thể làm rớt hội
      * thoại của học viên. Soạn đề là việc nền, chậm cũng được, nhưng không được đụng tới đường của học viên.
      */
+    /** Trần hạn mức đầu ra khi thử lại một lượt bị cắt. */
+    static final int MAX_OUTPUT_TOKENS = 48_000;
+
+    /** Lượt bị cắt vì model "nghĩ" hết hạn mức: báo riêng để thử lại với hạn mức lớn hơn. */
+    static final class TruncatedException extends AiServiceException {
+        TruncatedException() {
+            super("AI bị cắt giữa chừng vì hết hạn mức đầu ra, hãy thử lại.");
+        }
+    }
+
+    /**
+     * Gọi model riêng; lượt nào bị cắt vì hết hạn mức đầu ra thì thử lại MỘT lần với hạn mức gấp đôi. Chạy thật
+     * 11/11/2026: DeepSeek V4.1 Flash dùng hết 16 000 token cho phần "nghĩ" ở một lượt giải thử ngắn.
+     */
     private JsonNode direct(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
                             double temperature, int maxTokens) {
+        try {
+            return directOnce(userId, op, spec, system, user, temperature, maxTokens);
+        } catch (TruncatedException e) {
+            int more = Math.min(MAX_OUTPUT_TOKENS, maxTokens * 2);
+            log.warn("[ExamStudio] {} model {} bị cắt ở {} token — thử lại với {}", op, spec.model(), maxTokens, more);
+            if (more <= maxTokens) throw e;
+            return directOnce(userId, op, spec, system, user, temperature, more);
+        }
+    }
+
+    private JsonNode directOnce(long userId, String op, com.deutschflow.ai.tier.TierSpec spec, String system, String user,
+                                double temperature, int maxTokens) {
         String url = set(spec.baseUrl()) ? spec.baseUrl() : defaultBaseUrl;
         String key = set(spec.apiKey()) ? spec.apiKey() : defaultApiKey;
         if (!set(url) || !set(key)) throw new AiServiceException("Chưa cấu hình endpoint AI cho Xưởng đề.");
@@ -180,7 +206,7 @@ public class ExamStudioAi {
         JsonNode choice = res.path("choices").path(0);
         String content = choice.path("message").path("content").asText("");
         if ("length".equals(choice.path("finish_reason").asText())) {
-            throw new AiServiceException("AI bị cắt giữa chừng vì hết hạn mức đầu ra, hãy thử lại.");
+            throw new TruncatedException();
         }
         if (content.isBlank()) throw new AiServiceException("AI không trả về nội dung, vui lòng thử lại.");
         try {
