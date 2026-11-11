@@ -245,6 +245,7 @@ Runbook đầy đủ: `mobile/DEPLOYMENT.md` (local). Tóm tắt luật:
 
 ### 8.3 Backup và restore
 - Tự chạy 03:00 giờ VN: `systemctl list-timers deutschflow-backup.timer`; bản mới nhất ghi ở `/backup/db/.last-success`.
+- Cùng lần chạy đó sao lưu cả env và khoá của máy chủ (`/srv/deutschflow/env`, `/home/deploy/secrets`) vào `/backup/secrets` và R2 `deutschflow-backup/secrets`, mã hoá bằng cùng khoá `age`. Thiếu bản này thì có dump DB cũng không dựng lại được hệ thống. Khôi phục: `age -d -i <khoá-age> secrets-<mốc>.tar.age | tar -xpf - -C /`.
 - Diễn tập restore hằng tháng vào container tạm: `deploy/self-host/restore-db.sh <file> <khoá-age> --into-scratch`. Restore đè prod (`--into-prod`) chỉ khi owner ra lệnh.
 - Khoá bí mật `age` phải có ít nhất một bản ngoài máy dev và ngoài máy chủ (owner tự cất).
 
