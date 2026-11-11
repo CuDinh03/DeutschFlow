@@ -1,0 +1,217 @@
+package com.deutschflow.examstudio;
+
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.examstudio.SourceCatalog.Entry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+
+/**
+ * Danh mục nguồn của dây chuyền tạo bộ đề (owner chốt 12/11/2026): nơi đăng nào được dùng, ở hạng nào, và sổ các
+ * bài đã thấy / đã dùng.
+ *
+ * <ul>
+ *   <li>Hạng {@code ADAPT}, {@code FACTS_ONLY}: máy được tải bài. Một bài chỉ được dùng MỘT lần.</li>
+ *   <li>Hạng {@code TOPIC_ONLY} (báo đài có bản quyền): chỉ lưu tiêu đề và đường dẫn đọc từ feed để gợi ý chủ đề.
+ *       {@link #candidates} không bao giờ trả bài của hạng này, nên dây chuyền không có đường nào tải chúng.</li>
+ * </ul>
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SourceCatalogService {
+
+    public static final String ADAPT = "ADAPT";
+    public static final String FACTS_ONLY = "FACTS_ONLY";
+    public static final String TOPIC_ONLY = "TOPIC_ONLY";
+
+    private static final int CANDIDATE_POOL = 400;
+
+    private final JdbcTemplate jdbc;
+    private final SourceFetcher fetcher;
+
+    public record FeedView(long id, String code, String publisher, String homeUrl, String listingKind,
+                           String usageClass, String licenseName, String licenseUrl, String attribution,
+                           String notes, boolean active, String approvedOn, String lastPolledAt,
+                           String lastPollNote, int seen, int used) {}
+
+    public record ArticleView(long id, long feedId, String feedCode, String publisher, String usageClass,
+                              String url, String title, String publishedAt, String status, int score) {}
+
+    public record PollResult(long feedId, int found, int added, String note) {}
+
+    private record FeedRow(long id, String listingUrl, String listingKind, String linkPattern, String usageClass,
+                           int minDelaySeconds, Instant lastPolledAt) {}
+
+    // ── Danh mục ─────────────────────────────────────────────────────────────────────────────────────────
+
+    public List<FeedView> feeds() {
+        return jdbc.query("""
+                SELECT f.*,
+                       (SELECT count(*) FROM exam_source_articles a WHERE a.feed_id = f.id) AS seen,
+                       (SELECT count(*) FROM exam_source_articles a WHERE a.feed_id = f.id AND a.status = 'USED') AS used
+                FROM exam_source_feeds f
+                ORDER BY CASE f.usage_class WHEN 'ADAPT' THEN 0 WHEN 'FACTS_ONLY' THEN 1 ELSE 2 END, f.publisher
+                """, (rs, i) -> new FeedView(rs.getLong("id"), rs.getString("code"), rs.getString("publisher"),
+                rs.getString("home_url"), rs.getString("listing_kind"), rs.getString("usage_class"),
+                rs.getString("license_name"), rs.getString("license_url"), rs.getString("attribution"),
+                rs.getString("notes"), rs.getBoolean("active"),
+                rs.getDate("approved_on") == null ? null : rs.getDate("approved_on").toString(),
+                iso(rs.getTimestamp("last_polled_at")), rs.getString("last_poll_note"),
+                rs.getInt("seen"), rs.getInt("used")));
+    }
+
+    @Transactional
+    public void setActive(long feedId, boolean active) {
+        if (jdbc.update("UPDATE exam_source_feeds SET active = ? WHERE id = ?", active, feedId) == 0) {
+            throw new NotFoundException("Không có nguồn #" + feedId + " trong danh mục.");
+        }
+    }
+
+    // ── Đọc danh sách bài mới của một nơi đăng ───────────────────────────────────────────────────────────
+
+    /**
+     * Tải feed / trang mục lục của nơi đăng rồi ghi các bài chưa thấy vào sổ. Không tải bài nào. Gọi lại sớm hơn
+     * thời gian chờ của nơi đăng ({@code min_delay_seconds}, theo robots.txt của họ) thì bị từ chối.
+     */
+    @Transactional(noRollbackFor = BadRequestException.class)
+    public PollResult poll(long feedId) {
+        FeedRow f = feed(feedId);
+        if ("NONE".equals(f.listingKind()) || f.listingUrl() == null) {
+            throw new BadRequestException("Nguồn này chưa có cách lấy danh sách bài tự động.");
+        }
+        if (f.lastPolledAt() != null
+                && Duration.between(f.lastPolledAt(), Instant.now()).getSeconds() < f.minDelaySeconds()) {
+            throw new BadRequestException("Vừa đọc nguồn này xong. Chờ " + f.minDelaySeconds() + " giây rồi thử lại.");
+        }
+        List<Entry> entries;
+        try {
+            SourceFetcher.Raw raw = fetcher.fetchRaw(f.listingUrl());
+            entries = "RSS".equals(f.listingKind()) ? SourceCatalog.parseRss(raw.body())
+                    : SourceCatalog.parseIndex(raw.body(), raw.url(), f.linkPattern());
+        } catch (BadRequestException e) {
+            note(feedId, "Lỗi: " + e.getMessage());
+            throw e;
+        }
+        int added = 0;
+        for (Entry e : entries) {
+            added += jdbc.update("""
+                    INSERT INTO exam_source_articles (feed_id, url, url_hash, title, published_at)
+                    VALUES (?, ?, ?, ?, ?) ON CONFLICT (url_hash) DO NOTHING
+                    """, feedId, e.url(), SourceCatalog.hash(e.url()), e.title(),
+                    e.publishedAt() == null ? null : Timestamp.from(e.publishedAt()));
+        }
+        String note = entries.isEmpty() ? "Không đọc được bài nào từ danh sách (có thể trang đã đổi cấu trúc)."
+                : "Thấy " + entries.size() + " bài, " + added + " bài mới.";
+        note(feedId, note);
+        return new PollResult(feedId, entries.size(), added, note);
+    }
+
+    private void note(long feedId, String note) {
+        jdbc.update("UPDATE exam_source_feeds SET last_polled_at = now(), last_poll_note = ? WHERE id = ?",
+                note.length() > 500 ? note.substring(0, 500) : note, feedId);
+    }
+
+    private FeedRow feed(long feedId) {
+        return jdbc.query("SELECT * FROM exam_source_feeds WHERE id = ?", (rs, i) -> new FeedRow(rs.getLong("id"),
+                        rs.getString("listing_url"), rs.getString("listing_kind"), rs.getString("link_pattern"),
+                        rs.getString("usage_class"), rs.getInt("min_delay_seconds"),
+                        rs.getTimestamp("last_polled_at") == null ? null : rs.getTimestamp("last_polled_at").toInstant()),
+                feedId).stream().findFirst()
+                .orElseThrow(() -> new NotFoundException("Không có nguồn #" + feedId + " trong danh mục."));
+    }
+
+    // ── Chọn bài ─────────────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Bài còn dùng được (chưa dùng, chưa loại) của các nơi đăng đang bật ở hạng được tải bài, xếp theo số từ khoá
+     * chủ đề khớp tiêu đề rồi tới ngày đăng. {@code keywords} trống ⇒ xếp theo ngày.
+     */
+    public List<ArticleView> candidates(Collection<String> keywords, int limit) {
+        List<ArticleView> pool = articles("""
+                WHERE a.status = 'SEEN' AND f.active AND f.usage_class IN ('ADAPT', 'FACTS_ONLY')
+                ORDER BY coalesce(a.published_at, a.seen_at) DESC LIMIT %d
+                """.formatted(CANDIDATE_POOL));
+        List<ArticleView> scored = new ArrayList<>();
+        boolean any = keywords != null && keywords.stream().anyMatch(k -> k != null && !k.isBlank());
+        for (ArticleView a : pool) {
+            int s = SourceCatalog.score(a.title(), keywords);
+            if (any && s == 0) continue;
+            scored.add(new ArticleView(a.id(), a.feedId(), a.feedCode(), a.publisher(), a.usageClass(), a.url(),
+                    a.title(), a.publishedAt(), a.status(), s));
+        }
+        scored.sort(Comparator.comparingInt(ArticleView::score).reversed()); // sắp xếp ổn định: giữ thứ tự ngày
+        return scored.subList(0, Math.min(Math.max(limit, 0), scored.size()));
+    }
+
+    /** Tiêu đề gần đây của báo đài hạng gợi ý chủ đề — chỉ tiêu đề, để bộ lập kế hoạch biết đời sống đang nói gì. */
+    public List<String> topicHints(int days, int limit) {
+        return jdbc.queryForList("""
+                SELECT a.title FROM exam_source_articles a JOIN exam_source_feeds f ON f.id = a.feed_id
+                WHERE f.active AND f.usage_class = 'TOPIC_ONLY' AND a.title IS NOT NULL
+                  AND coalesce(a.published_at, a.seen_at) > now() - make_interval(days => ?)
+                ORDER BY coalesce(a.published_at, a.seen_at) DESC LIMIT ?
+                """, String.class, days, limit);
+    }
+
+    public List<ArticleView> list(Long feedId, String status, int limit) {
+        StringBuilder where = new StringBuilder("WHERE TRUE");
+        List<Object> args = new ArrayList<>();
+        if (feedId != null) {
+            where.append(" AND a.feed_id = ?");
+            args.add(feedId);
+        }
+        if (status != null && !status.isBlank()) {
+            where.append(" AND a.status = ?");
+            args.add(status.trim().toUpperCase(java.util.Locale.ROOT));
+        }
+        where.append(" ORDER BY coalesce(a.published_at, a.seen_at) DESC LIMIT ").append(Math.min(Math.max(limit, 1), 200));
+        return articles(where.toString(), args.toArray());
+    }
+
+    private List<ArticleView> articles(String tail, Object... args) {
+        return jdbc.query("""
+                SELECT a.id, a.feed_id, f.code, f.publisher, f.usage_class, a.url, a.title, a.published_at, a.status
+                FROM exam_source_articles a JOIN exam_source_feeds f ON f.id = a.feed_id
+                """ + tail, (rs, i) -> new ArticleView(rs.getLong("id"), rs.getLong("feed_id"), rs.getString("code"),
+                rs.getString("publisher"), rs.getString("usage_class"), rs.getString("url"), rs.getString("title"),
+                iso(rs.getTimestamp("published_at")), rs.getString("status"), 0), args);
+    }
+
+    // ── Sổ dùng một lần ──────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Ghi bài là đã dùng cho một bản nháp. Trả {@code false} nếu bài không còn ở trạng thái "đã thấy" (lượt khác
+     * vừa lấy mất, hoặc đã bị loại) ⇒ người gọi phải chọn bài khác. Bài của hạng gợi ý chủ đề không bao giờ lấy được.
+     */
+    @Transactional
+    public boolean markUsed(long articleId, long draftId) {
+        return jdbc.update("""
+                UPDATE exam_source_articles a SET status = 'USED', used_by_draft_id = ?, used_at = now()
+                FROM exam_source_feeds f
+                WHERE a.id = ? AND a.status = 'SEEN' AND f.id = a.feed_id AND f.usage_class IN ('ADAPT', 'FACTS_ONLY')
+                """, draftId, articleId) == 1;
+    }
+
+    /** Loại một bài khỏi vòng chọn (không tải được, quá ngắn, chủ đề nhạy cảm…), kèm lý do. */
+    @Transactional
+    public void reject(long articleId, String reason) {
+        jdbc.update("UPDATE exam_source_articles SET status = 'REJECTED', reject_reason = ? WHERE id = ? AND status = 'SEEN'",
+                reason == null ? null : reason.substring(0, Math.min(reason.length(), 500)), articleId);
+    }
+
+    private static String iso(Timestamp t) {
+        return t == null ? null : t.toInstant().toString();
+    }
+}

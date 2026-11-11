@@ -1,0 +1,155 @@
+-- Xưởng đề — danh mục nguồn cho dây chuyền tạo bộ đề tự động (owner chốt 12/11/2026).
+--
+-- exam_source_feeds   : nơi đăng được phép dùng, hạng dùng và cách lấy danh sách bài mới.
+--   ADAPT      = giấy phép cho sửa và dùng thương mại: máy tải bài và chuyển thể (ghi nguồn + "bearbeitet").
+--   FACTS_ONLY = máy tải bài, chỉ rút dữ kiện, viết bài mới hoàn toàn.
+--   TOPIC_ONLY = báo đài có bản quyền: CHỈ đọc tiêu đề trong feed để gợi ý chủ đề, không tải bài.
+-- exam_source_articles: sổ bài đã thấy / đã dùng. url_hash duy nhất ⇒ một bài chỉ dùng một lần.
+--
+-- Chỉ thêm bảng mới: màu cũ vẫn chạy được trong lúc blue-green.
+
+CREATE TABLE IF NOT EXISTS exam_source_feeds (
+    id                BIGSERIAL    PRIMARY KEY,
+    code              VARCHAR(60)  NOT NULL UNIQUE,
+    publisher         VARCHAR(300) NOT NULL,
+    home_url          TEXT         NOT NULL,
+    listing_url       TEXT,
+    listing_kind      VARCHAR(20)  NOT NULL DEFAULT 'NONE'
+                      CHECK (listing_kind IN ('RSS', 'INDEX_PAGE', 'NONE')),
+    link_pattern      TEXT,
+    usage_class       VARCHAR(20)  NOT NULL
+                      CHECK (usage_class IN ('ADAPT', 'FACTS_ONLY', 'TOPIC_ONLY')),
+    license_name      VARCHAR(200),
+    license_url       TEXT,
+    attribution       VARCHAR(300),
+    min_delay_seconds INT          NOT NULL DEFAULT 5,
+    notes             TEXT,
+    active            BOOLEAN      NOT NULL DEFAULT TRUE,
+    approved_on       DATE,
+    last_polled_at    TIMESTAMPTZ,
+    last_poll_note    TEXT,
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS exam_source_articles (
+    id               BIGSERIAL    PRIMARY KEY,
+    feed_id          BIGINT       NOT NULL REFERENCES exam_source_feeds (id) ON DELETE CASCADE,
+    url              TEXT         NOT NULL,
+    url_hash         VARCHAR(64)  NOT NULL UNIQUE,
+    title            TEXT,
+    published_at     TIMESTAMPTZ,
+    status           VARCHAR(20)  NOT NULL DEFAULT 'SEEN' CHECK (status IN ('SEEN', 'USED', 'REJECTED')),
+    used_by_draft_id BIGINT       REFERENCES exam_drafts (id) ON DELETE SET NULL,
+    used_at          TIMESTAMPTZ,
+    reject_reason    TEXT,
+    seen_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_exam_source_articles_feed ON exam_source_articles (feed_id, status, seen_at DESC);
+
+-- ── Hạng CHUYỂN THỂ: giấy phép đọc trên trang của từng nơi ngày 12/11/2026 ───────────────────────────────
+INSERT INTO exam_source_feeds
+    (code, publisher, home_url, listing_url, listing_kind, link_pattern, usage_class, license_name, license_url,
+     attribution, min_delay_seconds, notes, approved_on)
+VALUES
+    ('DESTATIS', 'Statistisches Bundesamt (Destatis)', 'https://www.destatis.de',
+     'https://www.destatis.de/SiteGlobals/Functions/RSSFeed/DE/RSSNewsfeed/Aktuell.xml', 'RSS', NULL, 'ADAPT',
+     'Eigene Nutzungsbedingungen: Weiterverwendung auch gewerblich, mit Quellennachweis',
+     'https://www.destatis.de/DE/Service/Impressum/copyright-allgemein.html',
+     'Statistisches Bundesamt (Destatis)', 30,
+     'Thông cáo ngắn, số liệu đời thường. Sửa nội dung phải đánh dấu. Không dùng dữ liệu GENESIS-Online.',
+     DATE '2026-11-12'),
+    ('EU_VERTRETUNG_DE', 'Vertretung der Europäischen Kommission in Deutschland',
+     'https://germany.representation.ec.europa.eu',
+     'https://germany.representation.ec.europa.eu/node/2/rss_en?prefLang=de', 'RSS', NULL, 'ADAPT',
+     'CC BY 4.0', 'https://commission.europa.eu/legal-notice_de', 'Europäische Kommission', 5,
+     'Nhiều tin chính trị: chỉ lấy tin đời thường (tiêu dùng, đi lại, sức khoẻ, môi trường).',
+     DATE '2026-11-12'),
+    ('LEIBNIZ', 'Leibniz-Gemeinschaft', 'https://www.leibniz-gemeinschaft.de',
+     'https://www.leibniz-gemeinschaft.de/rss.xml', 'RSS', NULL, 'ADAPT',
+     'Pressemitteilungen frei verwendbar', 'https://www.leibniz-gemeinschaft.de/impressum',
+     'Leibniz-Gemeinschaft', 5, 'Chỉ thông cáo báo chí; phần còn lại của trang giữ mọi quyền.',
+     DATE '2026-11-12'),
+    ('DWD', 'Deutscher Wetterdienst (DWD)', 'https://www.dwd.de',
+     NULL, 'NONE', NULL, 'ADAPT',
+     'CC BY 4.0', 'https://www.dwd.de/DE/service/rechtliche_hinweise/rechtliche_hinweise.html',
+     'Deutscher Wetterdienst', 10,
+     'Thời tiết, khí hậu. robots.txt của dwd.de cấm máy tải lạ (User-agent: * Disallow: /) nên không lấy bài tự động; dùng bằng cách tải tệp hoặc dán văn bản.',
+     DATE '2026-11-12'),
+    ('OESTERREICH_GV', 'oesterreich.gv.at', 'https://www.oesterreich.gv.at',
+     NULL, 'NONE', NULL, 'ADAPT',
+     'CC BY 4.0', 'https://www.oesterreich.gv.at/de/ueber-oesterreichgvat/impressum',
+     'oesterreich.gv.at', 5,
+     'Trang hướng dẫn đời sống (việc làm, nhà ở, giáo dục, sức khoẻ); tiếng Đức Áo. Không có feed; sitemap 3,5 MB vượt trần tải 2 MB — chưa lấy bài tự động.',
+     DATE '2026-11-12'),
+    ('STATISTIK_BBB', 'Amt für Statistik Berlin-Brandenburg', 'https://www.statistik-berlin-brandenburg.de',
+     NULL, 'NONE', NULL, 'ADAPT',
+     'CC BY 3.0 DE', 'https://www.statistik-berlin-brandenburg.de/impressum/',
+     'Amt für Statistik Berlin-Brandenburg', 5, 'Chưa có cách lấy danh sách bài tự động.',
+     DATE '2026-11-12'),
+    ('RKI_JOHM', 'Robert Koch-Institut — Journal of Health Monitoring', 'https://www.rki.de',
+     NULL, 'NONE', NULL, 'ADAPT',
+     'CC BY 4.0 (theo từng bài)',
+     'https://www.rki.de/DE/Aktuelles/Publikationen/Journal-of-Health-Monitoring/Autoren/Rechte_inhalt.html',
+     'Robert Koch-Institut', 5,
+     'Bài dài, cấp C1: chỉ lấy tóm tắt và số liệu chính. Chưa có cách lấy danh sách bài tự động.',
+     DATE '2026-11-12'),
+    ('WIRTSCHAFTSDIENST', 'Wirtschaftsdienst (ZBW)', 'https://www.wirtschaftsdienst.eu',
+     NULL, 'NONE', NULL, 'ADAPT',
+     'CC BY 4.0 (theo từng bài)', 'https://www.wirtschaftsdienst.eu',
+     'Wirtschaftsdienst', 5, 'Cấp C1; chỉ bài bình luận ngắn. Chưa có cách lấy danh sách bài tự động.',
+     DATE '2026-11-12'),
+    ('EUROSTAT', 'Eurostat', 'https://ec.europa.eu/eurostat',
+     NULL, 'NONE', NULL, 'ADAPT',
+     'CC BY 4.0 (phần biên tập)', 'https://ec.europa.eu/eurostat/de/help/copyright-notice',
+     'Eurostat', 5, 'Chưa kiểm bản tiếng Đức của tin; chưa có cách lấy danh sách bài tự động.',
+     DATE '2026-11-12'),
+    -- ── Hạng CHỈ DỮ KIỆN: cho dùng lại kể cả thương mại, nhưng quyền sửa không nói rõ ────────────────────
+    ('STATISTIK_AUSTRIA', 'Statistik Austria', 'https://www.statistik.at',
+     NULL, 'NONE', NULL, 'FACTS_ONLY',
+     'Eigene Nutzungsbedingungen (Quellenangabe „STATISTIK AUSTRIA“)', 'https://www.statistik.at/impressum',
+     'STATISTIK AUSTRIA', 5, 'Chưa có cách lấy danh sách bài tự động.',
+     DATE '2026-11-12'),
+    -- ── Hạng GỢI Ý CHỦ ĐỀ: chỉ đọc tiêu đề feed, KHÔNG tải bài ──────────────────────────────────────────
+    ('TAGESSCHAU_WISSEN', 'tagesschau.de — Wissen', 'https://www.tagesschau.de',
+     'https://www.tagesschau.de/wissen/index~rss2.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('TAGESSCHAU_GESUNDHEIT', 'tagesschau.de — Gesundheit', 'https://www.tagesschau.de',
+     'https://www.tagesschau.de/wissen/gesundheit/index~rss2.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5,
+     NULL, DATE '2026-11-12'),
+    ('TAGESSCHAU_VERBRAUCHER', 'tagesschau.de — Verbraucher', 'https://www.tagesschau.de',
+     'https://www.tagesschau.de/wirtschaft/verbraucher/index~rss2.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL,
+     5, NULL, DATE '2026-11-12'),
+    ('ZDFHEUTE_RATGEBER', 'ZDFheute — Ratgeber', 'https://www.zdfheute.de',
+     'https://www.zdfheute.de/rss/zdf/nachrichten/ratgeber', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('ZDFHEUTE_WISSEN', 'ZDFheute — Wissen', 'https://www.zdfheute.de',
+     'https://www.zdfheute.de/rss/zdf/nachrichten/wissen', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('NDR_RATGEBER', 'NDR — Ratgeber', 'https://www.ndr.de',
+     'https://www.ndr.de/ratgeber/index-rss.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('MDR_WISSEN', 'MDR — Wissen', 'https://www.mdr.de',
+     'https://www.mdr.de/wissen/index-rss.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('MDR_RATGEBER', 'MDR — Ratgeber', 'https://www.mdr.de',
+     'https://www.mdr.de/ratgeber/index-rss.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('SWR_WISSEN', 'SWR — Wissen', 'https://www.swr.de',
+     'https://www.swr.de/~rss/wissen/index.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('DLF_NACHRICHTEN', 'Deutschlandfunk — Nachrichten', 'https://www.deutschlandfunk.de',
+     'https://www.deutschlandfunk.de/nachrichten-100.rss', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('QUARKS', 'Quarks (WDR)', 'https://www.quarks.de',
+     'https://www.quarks.de/feed/', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL, DATE '2026-11-12'),
+    ('ORF_SCIENCE', 'ORF — Science', 'https://science.orf.at',
+     'https://rss.orf.at/science.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL, DATE '2026-11-12'),
+    ('ORF_HELP', 'ORF — help (Konsumenten)', 'https://help.orf.at',
+     'https://rss.orf.at/help.xml', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL, DATE '2026-11-12'),
+    ('SRF_WISSEN', 'SRF — Wissen', 'https://www.srf.ch',
+     'https://www.srf.ch/wissen/bnf/rss/630', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL,
+     DATE '2026-11-12'),
+    ('SCINEXX', 'scinexx.de', 'https://www.scinexx.de',
+     'https://www.scinexx.de/feed/', 'RSS', NULL, 'TOPIC_ONLY', NULL, NULL, NULL, 5, NULL, DATE '2026-11-12')
+ON CONFLICT (code) DO NOTHING;

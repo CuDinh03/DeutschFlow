@@ -475,3 +475,38 @@ export async function listBlueprints(): Promise<Blueprint[]> {
 export async function assembleFromBlueprint(body: BlueprintAssembleBody): Promise<AssembledExam> {
   return (await api.post<AssembledExam>(`${BASE}/assemblies/blueprint`, body)).data
 }
+
+// ── Danh mục nguồn của dây chuyền tạo bộ đề ──────────────────────────────────
+// ADAPT: máy tải bài và chuyển thể (giấy phép mở). FACTS_ONLY: tải bài, chỉ rút dữ kiện.
+// TOPIC_ONLY: báo đài có bản quyền — chỉ đọc tiêu đề feed để gợi ý chủ đề, không tải bài.
+export type SourceUsageClass = 'ADAPT' | 'FACTS_ONLY' | 'TOPIC_ONLY'
+export interface SourceFeed {
+  id: number
+  code: string
+  publisher: string
+  homeUrl: string
+  /** NONE ⇒ chưa có cách lấy danh sách bài tự động. */
+  listingKind: 'RSS' | 'INDEX_PAGE' | 'NONE'
+  usageClass: SourceUsageClass
+  licenseName: string | null
+  licenseUrl: string | null
+  attribution: string | null
+  notes: string | null
+  active: boolean
+  approvedOn: string | null
+  lastPolledAt: string | null
+  lastPollNote: string | null
+  seen: number
+  used: number
+}
+export interface SourcePollResult { feedId: number; found: number; added: number; note: string }
+
+export async function listSourceFeeds(): Promise<SourceFeed[]> {
+  return (await api.get<SourceFeed[]>(`${BASE}/catalog/feeds`)).data
+}
+export async function setSourceFeedActive(id: number, active: boolean): Promise<SourceFeed[]> {
+  return (await api.patch<SourceFeed[]>(`${BASE}/catalog/feeds/${id}`, { active })).data
+}
+export async function pollSourceFeed(id: number): Promise<SourcePollResult> {
+  return (await api.post<SourcePollResult>(`${BASE}/catalog/feeds/${id}/poll`, {})).data
+}

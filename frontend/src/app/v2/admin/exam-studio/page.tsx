@@ -21,6 +21,7 @@ import { CreateDraftModal } from '@/components/admin/exam-studio/CreateDraftModa
 import { ImportTeilModal } from '@/components/admin/exam-studio/ImportTeilModal'
 import { BlockPreviewModal } from '@/components/admin/exam-studio/BlockPreviewModal'
 import { AssembliesTab } from '@/components/admin/exam-studio/AssembliesTab'
+import { SourcesTab } from '@/components/admin/exam-studio/SourcesTab'
 import { studioMiniBtn } from '@/components/admin/exam-studio/ui'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,8 +29,8 @@ import { studioMiniBtn } from '@/components/admin/exam-studio/ui'
 // plans/2026-11-09-thiet-ke-co-che-tao-de.md (LOCAL). Đợt 1: telc · B1 · LESEN · Teil 2.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Tab = 'drafts' | 'blocks' | 'assemblies'
-const TABS: Tab[] = ['drafts', 'blocks', 'assemblies']
+type Tab = 'drafts' | 'blocks' | 'assemblies' | 'sources'
+const TABS: Tab[] = ['drafts', 'blocks', 'assemblies', 'sources']
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -75,10 +76,12 @@ export default function AdminExamStudioPage() {
             <TkTabsTrigger value="drafts">{t('tabs.drafts')}</TkTabsTrigger>
             <TkTabsTrigger value="blocks">{t('tabs.blocks')}</TkTabsTrigger>
             <TkTabsTrigger value="assemblies">{t('tabs.assemblies')}</TkTabsTrigger>
+            <TkTabsTrigger value="sources">{t('tabs.sources')}</TkTabsTrigger>
           </TkTabsList>
           <TkTabsContent value="drafts"><DraftsTab active={tab === 'drafts'} /></TkTabsContent>
           <TkTabsContent value="blocks"><BlocksTab active={tab === 'blocks'} /></TkTabsContent>
           <TkTabsContent value="assemblies"><AssembliesTab active={tab === 'assemblies'} /></TkTabsContent>
+          <TkTabsContent value="sources"><SourcesTab active={tab === 'sources'} /></TkTabsContent>
         </TkTabs>
       </div>
 

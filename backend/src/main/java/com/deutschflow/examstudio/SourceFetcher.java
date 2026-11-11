@@ -54,10 +54,36 @@ public class SourceFetcher {
         this.resolver = resolver;
     }
 
+    private static final String PASTE_HINT = " Hãy dán văn bản bài báo.";
+
     public Fetched fetch(String rawUrl) {
+        Connection.Response res = load(rawUrl, PASTE_HINT);
+        String ct = res.contentType() == null ? "" : res.contentType().toLowerCase(Locale.ROOT);
+        if (!ct.contains("html")) {
+            throw new BadRequestException("Đường dẫn không phải trang web (" + ct + ")." + PASTE_HINT);
+        }
+        Document doc;
+        try {
+            doc = res.parse();
+        } catch (Exception e) {
+            throw new BadRequestException("Không đọc được trang." + PASTE_HINT);
+        }
+        return extract(doc, res.url().toString());
+    }
+
+    /** Thân trang thô (feed RSS, trang mục lục) — cùng các chốt chặn với {@link #fetch}: SSRF, robots.txt, 2 MB. */
+    public record Raw(String url, String contentType, String body) {}
+
+    public Raw fetchRaw(String rawUrl) {
+        Connection.Response res = load(rawUrl, "");
+        return new Raw(res.url().toString(), res.contentType(), res.body());
+    }
+
+    /** Tải một địa chỉ công khai: kiểm địa chỉ ở MỌI lần chuyển hướng, tôn trọng robots.txt, chỉ nhận mã 200. */
+    private Connection.Response load(String rawUrl, String hint) {
         URI uri = validate(rawUrl);
         if (!robotsAllow(uri)) {
-            throw new BadRequestException("Trang này chặn máy tải tự động (robots.txt). Hãy dán văn bản bài báo.");
+            throw new BadRequestException("Trang này chặn máy tải tự động (robots.txt)." + hint);
         }
         Connection.Response res = null;
         for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -68,10 +94,10 @@ public class SourceFetcher {
                         .maxBodySize(MAX_BYTES)
                         .followRedirects(false)
                         .ignoreHttpErrors(true)
+                        .ignoreContentType(true)
                         .execute();
             } catch (Exception e) {
-                throw new BadRequestException("Không tải được trang (" + e.getClass().getSimpleName()
-                        + "). Hãy dán văn bản bài báo.");
+                throw new BadRequestException("Không tải được trang (" + e.getClass().getSimpleName() + ")." + hint);
             }
             int code = res.statusCode();
             if (code >= 300 && code < 400 && res.header("Location") != null) {
@@ -79,24 +105,14 @@ public class SourceFetcher {
                 continue;
             }
             if (code != 200) {
-                throw new BadRequestException("Trang trả mã " + code + ". Hãy dán văn bản bài báo.");
+                throw new BadRequestException("Trang trả mã " + code + "." + hint);
             }
             break;
         }
         if (res == null || (res.statusCode() >= 300 && res.statusCode() < 400)) {
-            throw new BadRequestException("Trang chuyển hướng quá nhiều lần. Hãy dán văn bản bài báo.");
+            throw new BadRequestException("Trang chuyển hướng quá nhiều lần." + hint);
         }
-        String ct = res.contentType() == null ? "" : res.contentType().toLowerCase(Locale.ROOT);
-        if (!ct.contains("html")) {
-            throw new BadRequestException("Đường dẫn không phải trang web (" + ct + "). Hãy dán văn bản bài báo.");
-        }
-        Document doc;
-        try {
-            doc = res.parse();
-        } catch (Exception e) {
-            throw new BadRequestException("Không đọc được trang. Hãy dán văn bản bài báo.");
-        }
-        return extract(doc, uri.toString());
+        return res;
     }
 
     /** Bóc nội dung chính, thông tin bài và dòng giấy phép. Tách ra để test bằng HTML tĩnh. */
