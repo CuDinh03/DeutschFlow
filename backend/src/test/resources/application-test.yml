@@ -8,6 +8,13 @@ spring:
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
+    # Pool nhỏ cho IT: production dùng tối đa 30 và giữ sẵn 5 kết nối rảnh MỖI context. Bộ IT cache
+    # nhiều ApplicationContext trên một Postgres dùng chung, nên các pool rảnh cộng lại chạm trần
+    # max_connections ("too many clients already"). Context không chạy test trả hết kết nối về 0.
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 0
+      idle-timeout: 15000
   jpa:
     hibernate:
       ddl-auto: validate
