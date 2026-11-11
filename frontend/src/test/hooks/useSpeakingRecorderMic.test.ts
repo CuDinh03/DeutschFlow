@@ -119,6 +119,24 @@ describe("useSpeakingRecorderMic — 403 MINOR_AUDIO_BLOCKED", () => {
     expect(result.current.micError).toBe("errorQuota");
   });
 
+  it("429 + màn gọi truyền resolveQuotaErrorKey → dùng khoá hàm đó trả về, nhận đúng lỗi gốc", async () => {
+    const err = { response: { status: 429, data: { extensions: { code: "QUOTA_EXCEEDED" } } } };
+    vi.mocked(aiSpeakingApi.transcribe).mockRejectedValueOnce(err);
+    const resolve = vi.fn(() => "errorQuotaRenewing");
+
+    const hook = renderHook(() => useSpeakingRecorderMic(t, undefined, resolve));
+    await act(async () => {
+      hook.result.current.toggleMic(() => {});
+    });
+    await waitFor(() => expect(onStop).not.toBeNull());
+    await act(async () => {
+      await onStop!(new Blob(["x"], { type: "audio/webm" }), { reason: "manual", durationMs: 1200 });
+    });
+
+    expect(resolve).toHaveBeenCalledWith(err);
+    expect(hook.result.current.micError).toBe("errorQuotaRenewing");
+  });
+
   it("clearMinorAudioBlocked xoá thông báo; lượt thu mới cũng xoá trước khi gọi mạng", async () => {
     vi.mocked(aiSpeakingApi.transcribe).mockRejectedValueOnce(minor403("BIRTH_DATE_REQUIRED"));
     const { result } = await recordOnce();

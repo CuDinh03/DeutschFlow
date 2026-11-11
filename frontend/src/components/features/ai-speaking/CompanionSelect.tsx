@@ -12,7 +12,8 @@ import { usePersonaText } from "./personaText";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
 import { getMyLearningProfile } from "@/lib/profileApi";
-import { apiMessage, httpStatus } from "@/lib/api";
+import { apiMessage, httpStatus, problemCode } from "@/lib/api";
+import { showsRenewingQuotaCopy, usePlan } from "@/contexts/PlanContext";
 import { isSupportMode } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
 import { useLocale, useTranslations } from "next-intl";
@@ -71,6 +72,10 @@ export function CompanionSelect({
   // trị GỬI API nên không dịch tại nguồn. (`desc` thì dịch được: xem đính chính trong personaText.ts.)
   const personaText = usePersonaText();
   const { quota, quotaBlocked, quotaLoading } = useAiSpeakingQuota();
+  // Hết ví mà gói còn hạn (trả tiền / dùng thử) → "ngày mai có lượt mới", không mời nâng cấp.
+  // Số liệu là ngân sách trung tâm (orgBudget) thì giữ thông điệp cũ.
+  const { plan } = usePlan();
+  const quotaRenewing = !quota?.orgBudget && showsRenewingQuotaCopy(plan);
   const { returnPath, setReturnPath } = useChatStore();
   
   const [selected, setSelected] = useState<PersonaId | null>(null);
@@ -197,7 +202,7 @@ export function CompanionSelect({
     if (!selected || !selectedPersona || confirming || !isReady) return;
     mediumImpact();
     if (quotaBlocked) {
-      toast.error(t("errorQuota"));
+      toast.error(t(quotaRenewing ? "errorQuotaRenewing" : "errorQuota"));
       return;
     }
     setConfirming(true);
@@ -270,8 +275,11 @@ export function CompanionSelect({
       } else if (status === 409) {
         setCreateSessionError(message || tc("errors.tooSoon"));
       } else if (status === 429) {
-        setCreateSessionError(t("errorQuota"));
-        toastApiError(error, { quotaMessage: t("errorQuota") });
+        const quotaMessage = t(
+          showsRenewingQuotaCopy(plan, problemCode(error)) ? "errorQuotaRenewing" : "errorQuota",
+        );
+        setCreateSessionError(quotaMessage);
+        toastApiError(error, { quotaMessage });
       } else if (status >= 500) {
         setCreateSessionError(tc("errors.server"));
       } else {
@@ -356,6 +364,7 @@ export function CompanionSelect({
               cefrLevel={cefrLevel}
               chatHref={chatHref}
               quotaBlocked={quotaBlocked}
+              quotaRenewing={quotaRenewing}
             />
             <p className="ga-ui text-xs text-ga-subtle">{tc("occupation.or")}</p>
           </div>
@@ -529,7 +538,7 @@ export function CompanionSelect({
 
         {/* ── CTA ── */}
         <div className="px-4 pb-10 flex-shrink-0 mt-2 space-y-3">
-          {quotaBlocked && <SpeakingQuotaBlockedBanner compact upgradeHref={pricingHref} />}
+          {quotaBlocked && <SpeakingQuotaBlockedBanner compact upgradeHref={pricingHref} renewing={quotaRenewing} />}
           <AnimatePresence mode="wait">
             {isReady && selectedPersona ? (
               <motion.button key="cta-active"

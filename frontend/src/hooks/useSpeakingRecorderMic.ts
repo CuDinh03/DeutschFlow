@@ -10,9 +10,19 @@ import { parseMinorAudioBlocked, type MinorAudioBlocked } from "@/lib/minorAudio
 
 type TFn = (key: string) => string;
 
+/**
+ * Khoá i18n cho lỗi 429 của lượt transcribe. Mặc định `errorQuota` (câu cũ, có gợi ý nâng gói);
+ * màn gọi truyền hàm riêng để người có gói còn hạn thấy "ngày mai có lượt mới" (10/11/2026).
+ * Hook KHÔNG tự đọc gói — giữ nó không phụ thuộc PlanContext.
+ */
+export type QuotaErrorKeyResolver = (err: unknown) => string;
+
+const defaultQuotaErrorKey: QuotaErrorKeyResolver = () => "errorQuota";
+
 export function useSpeakingRecorderMic(
   t: TFn,
   onPhonemeScored?: (score: number) => void,
+  resolveQuotaErrorKey: QuotaErrorKeyResolver = defaultQuotaErrorKey,
 ) {
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -27,6 +37,9 @@ export function useSpeakingRecorderMic(
   // dạng chuỗi) để UI hiện đúng màn giải thích + lối liên hệ trung tâm thay vì dòng đỏ chung.
   const [minorAudioBlocked, setMinorAudioBlocked] = useState<MinorAudioBlocked | null>(null);
   const clearMinorAudioBlocked = useCallback(() => setMinorAudioBlocked(null), []);
+  // Qua ref: callback transcribe chạy sau khi thả mic, phải dùng hàm mới nhất mà không đổi deps.
+  const quotaKeyRef = useRef(resolveQuotaErrorKey);
+  quotaKeyRef.current = resolveQuotaErrorKey;
 
   // Public setter: clearing or showing a generic message resets the kind.
   const setMicError = useCallback((msg: string | null) => {
@@ -101,7 +114,7 @@ export function useSpeakingRecorderMic(
               setMinorAudioBlocked(blocked);
             } else {
               const st = httpStatus(err);
-              setMicError(st === 429 ? t("errorQuota") : t("transcriptionFailed"));
+              setMicError(st === 429 ? t(quotaKeyRef.current(err)) : t("transcriptionFailed"));
             }
           } finally {
             if (isCurrent()) setIsTranscribing(false);
