@@ -836,6 +836,20 @@ app:
         drive-folder-id: ${GOOGLE_SLIDES_DRIVE_FOLDER_ID:}
     transcribe:
       max-bytes: ${AI_TRANSCRIBE_MAX_BYTES:8388608}
+    # STT — đường dự phòng KHÁC nhà cung cấp: Cloudflare Workers AI. Chỉ được gọi sau khi model chính
+    # và model dự phòng của nhà cung cấp chính (app.ai.groq.whisper-*) cùng hỏng. account-id hoặc
+    # api-token để TRỐNG = TẮT hoàn toàn, không tạo lời gọi nào.
+    stt:
+      cloudflare:
+        account-id: ${CF_AI_ACCOUNT_ID:}
+        # Token có quyền Workers AI. Chỉ đặt ở env máy chủ, không ghi vào repo.
+        api-token: ${CF_AI_API_TOKEN:}
+        # Trống = @cf/openai/whisper-large-v3-turbo (mặc định áp ở CloudflareWhisperClient).
+        model: ${CF_AI_MODEL:}
+        timeout-seconds: ${CF_AI_TIMEOUT_SECONDS:30}
+        # Gửi expectedText làm initial_prompt. Mặc định tắt: chưa đo Cloudflare có nuốt phần transcript
+        # trùng prompt hay không.
+        prompt-enabled: ${CF_AI_PROMPT_ENABLED:false}
     # Per-user request-rate guard on AI endpoints (request rate, not token spend — the quota
     # wallet remains the cost cap). Whisper at ~$0.006/min means a tight loop is real money.
     rate-limit:

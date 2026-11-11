@@ -312,7 +312,7 @@ class GroqWhisperClientFallbackTest {
     void springConstructorHonoursExplicitFallbackModel() {
         script(PRIMARY, 429, Map.of());
         GroqWhisperClient c = new GroqWhisperClient("chat-key", "", PRIMARY, new ObjectMapper(),
-                new GroqConcurrencyLimiter(new GroqProperties()), breakers(), url, "", FALLBACK, "", 1500L, null);
+                new GroqConcurrencyLimiter(new GroqProperties()), breakers(), url, "", FALLBACK, "", 1500L, null, null);
 
         assertThat(c.transcribe(AUDIO, "a.webm", "de", null).model()).isEqualTo(FALLBACK);
         assertThat(calls).containsExactly(PRIMARY, FALLBACK);

@@ -22,8 +22,8 @@ import java.util.UUID;
  * {@code STT_API_KEY}, {@code GROQ_WHISPER_BASE_URL}, {@code GROQ_WHISPER_MODEL},
  * {@code GROQ_WHISPER_PROMPT_ENABLED} (xem constructor Spring).
  *
- * <p><b>Chuỗi gọi cho một lượt nhận diện</b> (tối đa 3 lời gọi HTTP, tất cả nằm trong MỘT permit của
- * {@link GroqConcurrencyLimiter} và MỘT lượt circuit breaker {@code groqWhisper}):
+ * <p><b>Chuỗi gọi cho một lượt nhận diện</b> (tối đa 3 lời gọi HTTP, 4 khi bật đường Cloudflare; tất cả
+ * nằm trong MỘT permit của {@link GroqConcurrencyLimiter} và MỘT lượt circuit breaker {@code groqWhisper}):
  * <ol>
  *   <li>Model chính.</li>
  *   <li>Lỗi tạm thời (HTTP 429, 5xx, timeout/IO) → chuyển NGAY sang model dự phòng, không chờ.
@@ -31,19 +31,24 @@ import java.util.UUID;
  *       không đặt thì tự suy: host {@code api.groq.com} → {@code whisper-large-v3-turbo} ↔
  *       {@code whisper-large-v3} cùng URL (mỗi model một hạn mức request/phút riêng); host audio
  *       Fireworks → host anh em (turbo ↔ prod); còn lại = không có dự phòng.</li>
+ *   <li>Nếu {@link CloudflareWhisperClient} được cấu hình ({@code CF_AI_ACCOUNT_ID} +
+ *       {@code CF_AI_API_TOKEN}; mặc định TẮT): model chính và dự phòng cùng hỏng vì lỗi tạm thời hoặc
+ *       401/403 → gọi NGAY đường khác nhà cung cấp này, trước mọi bước chờ.</li>
  *   <li>Chỉ khi model chính 429 kèm {@code retry-after} ≤ {@code GROQ_WHISPER_RETRY_MAX_WAIT_MS}
  *       VÀ dự phòng cũng 429 (hoặc không có dự phòng): chờ đúng thời gian đó rồi thử lại model chính
  *       MỘT lần. {@code retry-after} dài hơn ngưỡng thì không giữ thread — trả lỗi ngay.</li>
  * </ol>
  * Không chuyển dự phòng khi 400/413/415/422 (lỗi của bản ghi âm). 401/403 là lỗi CẤU HÌNH (khoá hoặc
- * host sai) — ghi log ERROR; chỉ thử dự phòng khi nó nằm ở URL KHÁC (cùng URL + cùng khoá thì chắc
- * chắn nhận lại 401).
+ * host sai) — ghi log ERROR; chỉ thử dự phòng cùng nhà cung cấp khi nó nằm ở URL KHÁC (cùng URL + cùng
+ * khoá thì chắc chắn nhận lại 401), còn đường Cloudflare thì vẫn được gọi — nhà cung cấp chính chết
+ * hẳn vì khoá/host chính là lúc cần đường khác hãng.
  *
  * <p>Kết quả mang tên model THỰC SỰ trả lời ({@link TranscribeResult#model()},
  * {@link VerboseTranscript#model()}) để nơi gọi ghi sổ {@code stt_usage_events} đúng model.
  *
  * <p>Metric (Micrometer): {@code speaking.stt.rate_limited}, {@code speaking.stt.fallback},
- * {@code speaking.stt.failures} — nhãn {@code provider}, {@code model}.
+ * {@code speaking.stt.failures} — nhãn {@code provider} ({@code groq}/{@code fireworks}/{@code custom}/
+ * {@code cloudflare}), {@code model}.
  *
  * <p>Ghi chú di sản Fireworks (bench 08/08/2026; phần mã giữ lại để tương thích ngược khi env còn
  * trỏ tới đó):
@@ -97,6 +102,8 @@ public class GroqWhisperClient {
     /** Trần thời gian (ms) chấp nhận chờ theo {@code retry-after} trước khi thử lại model chính; ≤ 0 = không chờ. */
     private final long retryMaxWaitMs;
     private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
+    /** Đường dự phòng khác nhà cung cấp; null hoặc chưa cấu hình = không bao giờ gọi. */
+    private final CloudflareWhisperClient cloudflare;
     /** Gửi {@code prompt} (expectedText) định hướng STT — tắt khi provider nuốt phần trùng (Fireworks). */
     private final boolean promptEnabled;
     private final ObjectMapper objectMapper;
@@ -127,7 +134,8 @@ public class GroqWhisperClient {
             @Value("${app.ai.groq.whisper-fallback-model:}") String fallbackModel,
             @Value("${app.ai.groq.whisper-fallback-base-url:}") String fallbackBaseUrl,
             @Value("${app.ai.groq.whisper-retry-max-wait-ms:1500}") long retryMaxWaitMs,
-            org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistry) {
+            org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistry,
+            CloudflareWhisperClient cloudflare) {
         this(isSet(sttApiKey) ? sttApiKey : chatApiKey,
                 resolveModel(whisperModel, sttApiKey),
                 objectMapper, concurrencyLimiter, circuitBreakers,
@@ -136,7 +144,8 @@ public class GroqWhisperClient {
                 resolveFallback(resolveUrl(endpointUrl, sttApiKey), resolveModel(whisperModel, sttApiKey),
                         fallbackModel, fallbackBaseUrl),
                 retryMaxWaitMs,
-                meterRegistry == null ? null : meterRegistry.getIfAvailable());
+                meterRegistry == null ? null : meterRegistry.getIfAvailable(),
+                cloudflare);
     }
 
     /** Chữ ký cũ của constructor Spring (trước khi có cấu hình dự phòng) — giữ cho test sẵn có. */
@@ -150,7 +159,7 @@ public class GroqWhisperClient {
             String endpointUrl,
             String promptEnabled) {
         this(chatApiKey, sttApiKey, whisperModel, objectMapper, concurrencyLimiter, circuitBreakers,
-                endpointUrl, promptEnabled, "", "", DEFAULT_RETRY_MAX_WAIT_MS, null);
+                endpointUrl, promptEnabled, "", "", DEFAULT_RETRY_MAX_WAIT_MS, null, null);
     }
 
     private static boolean isSet(String v) {
@@ -193,7 +202,7 @@ public class GroqWhisperClient {
                 fallback, DEFAULT_RETRY_MAX_WAIT_MS, null);
     }
 
-    /** Constructor gốc — mọi constructor khác dồn về đây. {@code meterRegistry} null = registry tạm (test). */
+    /** Không có đường Cloudflare — giữ cho test của chuỗi dự phòng cùng nhà cung cấp. */
     GroqWhisperClient(
             String apiKey,
             String whisperModel,
@@ -205,7 +214,28 @@ public class GroqWhisperClient {
             String[] fallback,
             long retryMaxWaitMs,
             io.micrometer.core.instrument.MeterRegistry meterRegistry) {
+        this(apiKey, whisperModel, objectMapper, concurrencyLimiter, circuitBreakers, endpointUrl, promptEnabled,
+                fallback, retryMaxWaitMs, meterRegistry, null);
+    }
+
+    /**
+     * Constructor gốc — mọi constructor khác dồn về đây. {@code meterRegistry} null = registry tạm (test);
+     * {@code cloudflare} null = không có đường khác nhà cung cấp.
+     */
+    GroqWhisperClient(
+            String apiKey,
+            String whisperModel,
+            ObjectMapper objectMapper,
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            String endpointUrl,
+            boolean promptEnabled,
+            String[] fallback,
+            long retryMaxWaitMs,
+            io.micrometer.core.instrument.MeterRegistry meterRegistry,
+            CloudflareWhisperClient cloudflare) {
         this.apiKey = apiKey;
+        this.cloudflare = cloudflare;
         this.primary = new Target(providerOf(endpointUrl), endpointUrl, whisperModel);
         this.fallback = fallback == null ? null : new Target(providerOf(fallback[0]), fallback[0], fallback[1]);
         this.retryMaxWaitMs = retryMaxWaitMs;
@@ -218,9 +248,11 @@ public class GroqWhisperClient {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-        log.info("GroqWhisperClient initialized — model: {}, endpoint: {}, prompt: {}, fallback: {}, retryMaxWaitMs: {}",
+        log.info("GroqWhisperClient initialized — model: {}, endpoint: {}, prompt: {}, fallback: {}, "
+                        + "retryMaxWaitMs: {}, cloudflare: {}",
                 whisperModel, endpointUrl, promptEnabled ? "on" : "off",
-                this.fallback == null ? "none" : this.fallback.model() + " @ " + this.fallback.url(), retryMaxWaitMs);
+                this.fallback == null ? "none" : this.fallback.model() + " @ " + this.fallback.url(), retryMaxWaitMs,
+                cloudflare != null && cloudflare.isConfigured() ? cloudflare.getModel() : "off");
     }
 
     private static final String FW_TURBO_HOST = "//audio-turbo.";
@@ -367,9 +399,13 @@ public class GroqWhisperClient {
 
     /**
      * Chuỗi gọi của một lượt nhận diện (xem javadoc lớp): chính → dự phòng (ngay, không chờ) →
-     * chờ {@code retry-after} ngắn rồi chính lần nữa. Tối đa 3 lời gọi HTTP.
+     * Cloudflare nếu được cấu hình (ngay, không chờ) → chờ {@code retry-after} ngắn rồi chính lần nữa.
+     * Tối đa 3 lời gọi HTTP, 4 khi bật Cloudflare.
+     *
+     * @param viaCloudflare cách gọi đường Cloudflare cho đúng kiểu kết quả {@code T}
      */
-    private <T> T withFallback(java.util.function.Function<Target, T> send) {
+    private <T> T withFallback(java.util.function.Function<Target, T> send,
+                               java.util.function.Supplier<T> viaCloudflare) {
         java.util.List<AiServiceException> failures = new java.util.ArrayList<>(3);
         AiServiceException first;
         long primaryFailedAtNanos;
@@ -400,6 +436,24 @@ public class GroqWhisperClient {
                 if (!kindOf(e).mayTryNext()) throw terminal(e);
                 failures.add(e);
                 othersAlsoRateLimited = kindOf(e) == FailureKind.RATE_LIMITED;
+            }
+        }
+
+        // Đường khác nhà cung cấp: tới đây nghĩa là chính (và dự phòng, nếu có/được thử) đã hỏng vì lỗi
+        // tạm thời hoặc 401/403 — không phải vì bản ghi âm. Gọi trước bước chờ để người dùng chờ ít nhất.
+        if (cloudflare != null && cloudflare.isConfigured()) {
+            Target cf = new Target(CloudflareWhisperClient.PROVIDER, "", cloudflare.getModel());
+            log.warn("[Whisper] nhà cung cấp chính hỏng ({}) — thử đường Cloudflare {}", firstKind, cf.model());
+            try {
+                T result = viaCloudflare.get();
+                count("speaking.stt.fallback", cf, "outcome", "success");
+                return result;
+            } catch (AiServiceException e) {
+                count("speaking.stt.fallback", cf, "outcome", "failure");
+                if (AiServiceException.isRateLimited(e)) count("speaking.stt.rate_limited", cf);
+                // Transcript rỗng / bị ngắt: trả nguyên như đường chính. Còn lại: Cloudflare cũng hỏng →
+                // rơi xuống bước chờ-thử-lại và lỗi cuối của nhà cung cấp chính, đúng như khi chưa có nó.
+                if (e.getCode() == AiErrorCode.STT_FAILED || e.getCode() == AiErrorCode.AI_INTERRUPTED) throw e;
             }
         }
 
@@ -585,7 +639,8 @@ public class GroqWhisperClient {
             return circuitBreakers.call(
                     "groqWhisper",
                     () -> withFallback(t -> sendAndParseVerbose(
-                            buildRequest(t, audioBytes, filename, language, prompt), t.model())),
+                                    buildRequest(t, audioBytes, filename, language, prompt), t.model()),
+                            () -> cloudflare.transcribeVerbose(audioBytes, language, prompt)),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
                     AiServiceException::isRateLimited);
@@ -692,7 +747,8 @@ public class GroqWhisperClient {
             return circuitBreakers.call(
                     "groqWhisper",
                     () -> withFallback(t -> sendAndParseTranscribe(
-                            buildRequest(t, audioBytes, filename, language, prompt), prompt, audioBytes.length, t.model())),
+                                    buildRequest(t, audioBytes, filename, language, prompt), prompt, audioBytes.length, t.model()),
+                            () -> cloudflare.transcribe(audioBytes, language, prompt)),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
                     AiServiceException::isRateLimited);
