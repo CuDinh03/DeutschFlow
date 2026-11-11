@@ -252,6 +252,10 @@ app:
   # Xưởng đề (admin): model RIÊNG cho việc soạn đề, tách khỏi các tầng dùng chung với luyện nói / chấm thi.
   # Chọn sau phép so 9 model 11/11/2026 (plans/, PR #859). Để trống một biến ⇒ vai đó quay về tầng cũ.
   exam-studio:
+    # Dây chuyền "Tạo bộ đề tự động": nhịp nền đẩy các lượt đang chạy (ExamSetRunScheduler).
+    set-runs:
+      scheduled-enabled: ${APP_EXAM_STUDIO_SET_RUNS_ENABLED:true}
+      tick-ms: ${APP_EXAM_STUDIO_SET_RUNS_TICK_MS:10000}
     writer-model: "${APP_EXAM_STUDIO_WRITER_MODEL:accounts/fireworks/models/kimi-k3}"
     judge-model: "${APP_EXAM_STUDIO_JUDGE_MODEL:accounts/fireworks/models/deepseek-v4p1-flash}"
     # Sàn max_tokens khi dùng model riêng (phần "nghĩ" của model tính chung vào hạn mức đầu ra).

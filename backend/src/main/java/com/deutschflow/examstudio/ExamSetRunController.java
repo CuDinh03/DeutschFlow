@@ -1,0 +1,58 @@
+package com.deutschflow.examstudio;
+
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.examstudio.ExamSetRunService.CreateRunRequest;
+import com.deutschflow.examstudio.ExamSetRunService.RunView;
+import com.deutschflow.user.entity.User;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Xưởng đề (admin) — lượt "Tạo bộ đề tự động". Tạo lượt chỉ ghi DB; mọi việc gọi AI do nhịp nền
+ * ({@link ExamSetRunScheduler}) làm. GET không ghi DB.
+ */
+@RestController
+@RequestMapping("/api/admin/exam-studio/sets")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
+public class ExamSetRunController {
+
+    private final ExamSetRunService runs;
+    private final AuditLogService audit;
+
+    @GetMapping
+    public List<RunView> list() {
+        return runs.list();
+    }
+
+    @GetMapping("/{id}")
+    public RunView get(@PathVariable long id) {
+        return runs.get(id);
+    }
+
+    @PostMapping
+    public RunView create(@RequestBody CreateRunRequest req, @AuthenticationPrincipal User actor) {
+        RunView r = runs.create(req, actor.getId());
+        audit.log("admin.exam_studio.set_run_created", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(r.id()),
+                Map.of("examFormat", r.examFormat(), "cefrLevel", r.cefrLevel(), "channel", r.channel()));
+        return r;
+    }
+
+    @PostMapping("/{id}/discard")
+    public RunView discard(@PathVariable long id, @AuthenticationPrincipal User actor) {
+        RunView r = runs.discard(id);
+        audit.log("admin.exam_studio.set_run_discarded", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(id), Map.of());
+        return r;
+    }
+}
