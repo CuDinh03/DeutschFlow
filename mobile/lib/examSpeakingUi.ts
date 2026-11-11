@@ -309,14 +309,15 @@ export function rubricCaption(p: ExamProvider | string): string {
 /**
  * Thông điệp màn GRADING_FAILED theo lý do backend (F-08): hết quota ≠ job chết.
  *
- * `trialActive` (M-8, Q1 28/08): đang dùng thử mà hết lượt thì lượt hồi lại ngày mai — nói vậy và
- * KHÔNG mời "nạp thêm" (topUp=false); bài vẫn còn nguyên, mai bấm "Chấm lại".
+ * `renewingAllowance` (M-8, Q1 28/08; mở rộng 10/11/2026): gói còn hạn — đang dùng thử HOẶC gói
+ * trả tiền (`hasRenewingAiAllowance` của usePlanStore) — mà hết lượt thì lượt hồi lại ngày mai:
+ * nói vậy và KHÔNG mời "nạp thêm" (topUp=false); bài vẫn còn nguyên, mai bấm "Chấm lại".
  */
 export function gradingFailedCopy(
   gradingError?: string | null,
-  trialActive = false,
+  renewingAllowance = false,
 ): { title: string; message: string; topUp: boolean } {
-  if (gradingError === 'QUOTA_EXCEEDED' && trialActive) {
+  if (gradingError === 'QUOTA_EXCEEDED' && renewingAllowance) {
     return {
       title: 'Chưa chấm được: hết lượt AI hôm nay',
       message: 'Bài nói của bạn vẫn còn nguyên. Ngày mai bạn có lượt AI mới — khi đó bấm "Chấm lại", không phải thi lại.',
