@@ -153,8 +153,20 @@ public final class StrongVerbForms {
                 }
             }
         }
+        // Tính từ / trạng từ ở dạng so sánh, so sánh nhất hoặc có đuôi biến cách ("jüngsten" → "jung",
+        // "liebsten" → "lieb", "frühzeitiges" → "frühzeitig"): danh sách tần suất xếp các DẠNG này vào B2/C1.
+        for (String ending : ADJECTIVE_ENDINGS) {
+            if (!t.endsWith(ending) || t.length() - ending.length() < 3) continue;
+            String stem = t.substring(0, t.length() - ending.length());
+            if (!out.contains(stem)) out.add(stem);
+            String plain = stem.replace('ä', 'a').replace('ö', 'o').replace('ü', 'u');
+            if (!plain.equals(stem) && !out.contains(plain)) out.add(plain);
+        }
         return out;
     }
+
+    private static final String[] ADJECTIVE_ENDINGS = {"esten", "ester", "estes", "estem", "este", "sten", "ster",
+            "stes", "stem", "ste", "eren", "erer", "eres", "erem", "ere", "er", "es", "em", "en", "e"};
 
     private static void collect(String stem, String prefix, List<String> out) {
         String inf = BASE.get(stem);

@@ -1138,7 +1138,13 @@ public class ExamDraftService {
                 flags.add("Sai dạng telc: phải là nửa câu để nối tiếp (kết thúc bằng \" …\"), không phải câu hỏi.");
                 sev = 2;
             }
-            if (it.evidence() == null || it.evidence().isBlank() || !context.contains(norm(it.evidence()))) {
+            // Bài báo a/b/c: bằng chứng của câu Khó / Siêu khó là các câu ở HAI đoạn khác nhau, nên không phải một
+            // chuỗi liền trong bài — tìm từng câu một (ItemMetrics). Chạy thật 11/11/2026: phép so chuỗi liền báo
+            // "không có nguyên văn" cho cả năm câu dù từng câu trích đều đúng nguyên văn.
+            ItemMetrics.Measured evidenceMetrics = metricsById.get(it.id());
+            boolean evidenceOk = evidenceMetrics != null ? evidenceMetrics.evidenceFound()
+                    : it.evidence() != null && !it.evidence().isBlank() && context.contains(norm(it.evidence()));
+            if (!evidenceOk) {
                 flags.add("Câu bằng chứng không có nguyên văn trong bài.");
                 sev = Math.max(sev, 1);
             }

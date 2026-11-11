@@ -130,7 +130,10 @@ class ItemMetricsGoldenTest {
         assertThat(StrongVerbForms.lemmas("empfahlen")).contains("empfehlen");
         assertThat(StrongVerbForms.lemmas("vergessenen")).contains("vergessen");
         assertThat(StrongVerbForms.lemmas("geschrieben")).contains("schreiben");
-        assertThat(StrongVerbForms.lemmas("Strategien")).isEmpty();
+        assertThat(StrongVerbForms.lemmas("Strategien")).doesNotContain("Strategie", "strategie");
+        assertThat(StrongVerbForms.lemmas("jüngsten")).contains("jung");
+        assertThat(StrongVerbForms.lemmas("liebsten")).contains("lieb");
+        assertThat(StrongVerbForms.lemmas("frühzeitiges")).contains("frühzeitig");
     }
 
     @Test
