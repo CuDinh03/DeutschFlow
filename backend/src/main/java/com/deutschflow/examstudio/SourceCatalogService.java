@@ -97,20 +97,32 @@ public class SourceCatalogService {
         }
         List<Entry> entries;
         try {
-            SourceFetcher.Raw raw = fetcher.fetchRaw(f.listingUrl());
-            entries = "RSS".equals(f.listingKind()) ? SourceCatalog.parseRss(raw.body())
-                    : SourceCatalog.parseIndex(raw.body(), raw.url(), f.linkPattern());
+            entries = switch (f.listingKind()) {
+                case "RSS" -> SourceCatalog.parseRss(fetcher.fetchRaw(f.listingUrl()).body());
+                case "SITEMAP" -> SourceCatalog.parseSitemap(
+                        fetcher.fetchRaw(f.listingUrl(), SourceFetcher.MAX_SITEMAP_BYTES).body(), f.linkPattern());
+                default -> {
+                    SourceFetcher.Raw raw = fetcher.fetchRaw(f.listingUrl());
+                    yield SourceCatalog.parseIndex(raw.body(), raw.url(), f.linkPattern());
+                }
+            };
         } catch (BadRequestException e) {
             note(feedId, "Lỗi: " + e.getMessage());
             throw e;
         }
+        // Sitemap có thể mang vài nghìn địa chỉ: ghi theo lô.
         int added = 0;
-        for (Entry e : entries) {
-            added += jdbc.update("""
-                    INSERT INTO exam_source_articles (feed_id, url, url_hash, title, published_at)
-                    VALUES (?, ?, ?, ?, ?) ON CONFLICT (url_hash) DO NOTHING
-                    """, feedId, e.url(), SourceCatalog.hash(e.url()), e.title(),
-                    e.publishedAt() == null ? null : Timestamp.from(e.publishedAt()));
+        for (int[] batch : jdbc.batchUpdate("""
+                INSERT INTO exam_source_articles (feed_id, url, url_hash, title, published_at)
+                VALUES (?, ?, ?, ?, ?) ON CONFLICT (url_hash) DO NOTHING
+                """, entries, 500, (ps, e) -> {
+                    ps.setLong(1, feedId);
+                    ps.setString(2, e.url());
+                    ps.setString(3, SourceCatalog.hash(e.url()));
+                    ps.setString(4, e.title());
+                    ps.setTimestamp(5, e.publishedAt() == null ? null : Timestamp.from(e.publishedAt()));
+                })) {
+            for (int n : batch) if (n > 0) added += n;
         }
         String note = entries.isEmpty() ? "Không đọc được bài nào từ danh sách (có thể trang đã đổi cấu trúc)."
                 : "Thấy " + entries.size() + " bài, " + added + " bài mới.";

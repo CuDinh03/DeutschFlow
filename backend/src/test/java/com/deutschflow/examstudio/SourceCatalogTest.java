@@ -113,6 +113,39 @@ class SourceCatalogTest {
     }
 
     @Test
+    @DisplayName("Sitemap: chỉ lấy địa chỉ khớp mẫu, gộp trùng, tiêu đề tạm suy từ đường dẫn")
+    void sitemap() {
+        String xml = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                <url><loc>https://www.oesterreich.gv.at/de/themen/bauen_und_wohnen/wohnen/Seite.210100</loc></url>
+                <url><loc> https://www.oesterreich.gv.at/de/themen/mobilitaet/Fussgaenger </loc></url>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/mobilitaet/Fussgaenger</loc></url>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/gesetze_und_recht/strafrecht/Seite.2460000</loc></url>
+                <url><loc>https://www.oesterreich.gv.at/en/themen/mobilitaet/pedestrians</loc></url>
+                <url><loc>https://www.oesterreich.gv.at/de/themen/mobilitaet</loc></url>
+                </urlset>
+                """;
+        List<Entry> es = SourceCatalog.parseSitemap(xml, "/de/themen/(bauen_und_wohnen|mobilitaet)/[^?#]+$");
+        assertThat(es).containsExactly(
+                new Entry("https://www.oesterreich.gv.at/de/themen/bauen_und_wohnen/wohnen/Seite.210100",
+                        "bauen und wohnen / wohnen", null),
+                new Entry("https://www.oesterreich.gv.at/de/themen/mobilitaet/Fussgaenger", "mobilitaet / Fussgaenger", null));
+        assertThat(SourceCatalog.parseSitemap(xml, null)).isEmpty();
+        assertThat(SourceCatalog.parseSitemap(null, ".*")).isEmpty();
+        assertThat(SourceCatalog.titleFromPath("https://x.example/de/themen/arbeit_beruf_und_pension/eltern-karenz/3/Seite.3590007"))
+                .isEqualTo("arbeit beruf und pension / eltern karenz");
+    }
+
+    @Test
+    @DisplayName("score: ä/ö/ü/ß khớp cách viết ae/oe/ue/ss trong đường dẫn, theo cả hai chiều")
+    void scoreUmlauts() {
+        assertThat(SourceCatalog.score("persoenliche dokumente / fuehrerschein", List.of("führerschein"))).isEqualTo(1);
+        assertThat(SourceCatalog.score("Führerschein und Straßenverkehr", List.of("fuehrerschein", "strasse"))).isEqualTo(2);
+        assertThat(SourceCatalog.score("mobilitaet / Fussgaenger", List.of("fußgänger", "mobilität"))).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("parseDate: RFC 1123, ISO có múi giờ, ISO UTC; dạng lạ ⇒ null")
     void dates() {
         assertThat(SourceCatalog.parseDate("Tue, 10 Nov 2026 12:00:00 GMT")).isEqualTo(Instant.parse("2026-11-10T12:00:00Z"));
