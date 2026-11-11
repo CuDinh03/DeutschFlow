@@ -188,6 +188,13 @@ public record TeilSpec(
         };
     }
 
+    /** Mọi Teil Xưởng đề làm được của một kỳ thi + cấp, theo thứ tự trong đề. */
+    public static List<TeilSpec> forExam(String format, String level) {
+        if (format == null || level == null) return List.of();
+        return ALL.stream().filter(s -> s.examFormat.equalsIgnoreCase(format.trim())
+                && s.cefrLevel.equalsIgnoreCase(level.trim())).toList();
+    }
+
     public static Optional<TeilSpec> find(String format, String level, String section, Integer teil) {
         if (format == null || level == null || section == null || teil == null) return Optional.empty();
         return ALL.stream()

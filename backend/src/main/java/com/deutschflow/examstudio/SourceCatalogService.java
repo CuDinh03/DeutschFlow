@@ -216,6 +216,16 @@ public class SourceCatalogService {
                 """, draftId, articleId) == 1;
     }
 
+    /** Hạng của nơi đăng mà một bài trong sổ thuộc về; bài không có trong sổ ⇒ {@code null}. */
+    public String usageClassOf(String url) {
+        String canonical = SourceCatalog.canonical(url);
+        if (canonical == null) return null;
+        return jdbc.queryForList("""
+                SELECT f.usage_class FROM exam_source_articles a JOIN exam_source_feeds f ON f.id = a.feed_id
+                WHERE a.url_hash = ?
+                """, String.class, SourceCatalog.hash(canonical)).stream().findFirst().orElse(null);
+    }
+
     /** Loại một bài khỏi vòng chọn (không tải được, quá ngắn, chủ đề nhạy cảm…), kèm lý do. */
     @Transactional
     public void reject(long articleId, String reason) {
