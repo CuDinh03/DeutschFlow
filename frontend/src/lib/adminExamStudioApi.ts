@@ -231,6 +231,15 @@ export async function listDrafts(status?: DraftStatus): Promise<StudioDraftSumma
 export async function createDraft(body: CreateDraftBody): Promise<StudioDraft> {
   return (await api.post<StudioDraft>(`${BASE}/drafts`, body)).data
 }
+/**
+ * Nhập một Teil soạn ngoài hệ thống (tệp JSON `deutschflow-teil-v1`, vd. nhờ Claude soạn theo prompt mẫu).
+ * Bản nháp vào thẳng bước Câu hỏi; vẫn phải chạy tự kiểm và duyệt như bản nháp thường.
+ */
+export async function importDraft(file: File): Promise<StudioDraft> {
+  const form = new FormData()
+  form.append('file', file, file.name)
+  return (await api.post<StudioDraft>(`${BASE}/drafts/import`, form, { headers: { 'Content-Type': null } })).data
+}
 export async function getDraft(id: number): Promise<StudioDraft> {
   return (await api.get<StudioDraft>(`${BASE}/drafts/${id}`)).data
 }

@@ -269,6 +269,118 @@ public class ExamDraftService {
         jdbc.update("UPDATE exam_drafts SET status = 'DISCARDED', updated_at = now() WHERE id = ?", id);
     }
 
+    // ── Nhập Teil soạn ngoài hệ thống ───────────────────────────────────────────────────────
+
+    /** Tên định dạng tệp nhập; đổi cấu trúc thì đổi tên để tệp cũ bị từ chối rõ ràng. */
+    static final String IMPORT_FORMAT = "deutschflow-teil-v1";
+    static final int IMPORT_MAX_BYTES = 512 * 1024;
+
+    /**
+     * Tạo bản nháp từ một tệp JSON soạn ngoài hệ thống (vd. admin nhờ Claude soạn rồi tải tệp lên). Bản nháp vào
+     * thẳng bước Câu hỏi với đủ bài và câu; từ đó đi tiếp qua tự kiểm và duyệt như mọi bản nháp khác — tệp nhập
+     * KHÔNG bỏ qua phép kiểm nào. Hiện nhận telc B1 Lesen Teil 2 (bài báo + câu a/b/c).
+     */
+    @Transactional
+    public Draft importTeil(byte[] bytes, long userId) {
+        if (bytes == null || bytes.length == 0) throw new BadRequestException("Tệp trống.");
+        if (bytes.length > IMPORT_MAX_BYTES) throw new BadRequestException("Tệp lớn hơn 512 KB.");
+        JsonNode in;
+        try {
+            in = mapper.readTree(bytes);
+        } catch (Exception e) {
+            throw new BadRequestException("Tệp không phải JSON hợp lệ: " + cut(String.valueOf(e.getMessage()), 160));
+        }
+        if (in == null || !in.isObject() || !IMPORT_FORMAT.equals(text(in, "format"))) {
+            throw new BadRequestException("Tệp phải có \"format\": \"" + IMPORT_FORMAT + "\" (dùng prompt mẫu của Xưởng đề).");
+        }
+        TeilSpec spec = TeilSpec.find(firstNonBlank(text(in, "exam"), "TELC"), firstNonBlank(text(in, "level"), "B1"),
+                        firstNonBlank(text(in, "section"), "LESEN"), in.path("teil").asInt(2))
+                .filter(ExamDraftService::mcNews)
+                .orElseThrow(() -> new BadRequestException("Hiện chỉ nhập được telc B1 · Lesen · Teil 2 (bài báo + câu a/b/c)."));
+
+        JsonNode tn = in.path("text");
+        List<String> paras = new ArrayList<>();
+        for (JsonNode p : tn.path("paragraphs")) {
+            if (!p.asText("").isBlank()) paras.add(plainText(p.asText().replaceAll("\\s+", " ")));
+        }
+        if (paras.isEmpty()) throw new BadRequestException("Thiếu text.paragraphs (các đoạn của bài đọc).");
+        List<GlossaryEntry> glossary = new ArrayList<>();
+        for (JsonNode g : tn.path("glossary")) {
+            String term = text(g, "term");
+            String expl = text(g, "explanationDe");
+            if (term != null && expl != null) glossary.add(new GlossaryEntry(term, expl));
+        }
+
+        List<JsonNode> itemNodes = new ArrayList<>();
+        in.path("items").forEach(itemNodes::add);
+        if (itemNodes.isEmpty() || itemNodes.size() > 10) throw new BadRequestException("Cần từ 1 đến 10 câu trong \"items\".");
+        Map<String, Integer> plan = new LinkedHashMap<>();
+        List<String> levels = new ArrayList<>();
+        for (int i = 0; i < itemNodes.size(); i++) {
+            JsonNode n = itemNodes.get(i);
+            if (rawOptions(n) == null) {
+                throw new BadRequestException("Câu " + (i + 1) + ": cần đúng 3 phương án {text, correct}, đúng một phương án correct = true.");
+            }
+            if (firstNonBlank(text(n, "question"), "").isBlank()) throw new BadRequestException("Câu " + (i + 1) + ": thiếu question.");
+            String lv = firstNonBlank(text(n, "difficulty"), "MEDIUM").toUpperCase(Locale.ROOT);
+            if (!TeilSpec.isLevel(lv)) throw new BadRequestException("Câu " + (i + 1) + ": difficulty phải là EASY, MEDIUM, HARD hoặc EXPERT.");
+            levels.add(lv);
+            plan.merge(lv, 1, Integer::sum);
+        }
+
+        Draft created = create(new CreateDraftRequest(spec.examFormat(), spec.cefrLevel(), spec.section(), spec.teil(),
+                text(in, "theme"), "PRACTICE", plan), userId);
+        long id = created.id();
+
+        // Nguồn: lấy từ tệp; dữ kiện đều coi là đã tích. Loại dùng chỉ là phỏng đoán theo dòng giấy phép — admin
+        // vẫn phải xác nhận ở bước Nguồn trước khi duyệt.
+        JsonNode sn = in.path("source");
+        String license = text(sn, "license");
+        List<Fact> facts = new ArrayList<>();
+        int k = 0;
+        for (JsonNode f : in.path("facts")) {
+            String ft = f.isTextual() ? f.asText() : text(f, "text");
+            if (ft == null || ft.isBlank()) continue;
+            k++;
+            facts.add(new Fact("s1f" + k, cut(ft.trim(), 400), null, null, null, false, true));
+            if (k >= 20) break;
+        }
+        if (facts.isEmpty()) {
+            facts.add(new Fact("s1f1", "Nội dung soạn ngoài hệ thống — tệp không kèm danh sách dữ kiện.", null, null, null, false, true));
+        }
+        String refUrl = text(sn, "url");
+        if (refUrl != null && !refUrl.matches("(?i)^https?://\\S+$")) refUrl = null;
+        Long sourceId = jdbc.queryForObject("""
+                INSERT INTO exam_sources (url, publisher, title, author, published_at, license_text, usage_mode,
+                                          neutrality, neutrality_reason, facts_json, shingle_hashes, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'OK', NULL, ?::jsonb, '[]'::jsonb, ?) RETURNING id
+                """, Long.class, refUrl, cut(text(sn, "publisher"), 300),
+                firstNonBlank(text(sn, "title"), "Tệp nhập"), cut(text(sn, "author"), 500),
+                cut(text(sn, "publishedAt"), 40), cut(license, 500),
+                SourceFetcher.isPlainCcBy(license) ? "ADAPT" : "FACTS_ONLY", json(facts), userId);
+        jdbc.update("INSERT INTO exam_draft_sources (draft_id, source_id, position) VALUES (?, ?, 1)", id, sourceId);
+
+        Text t = new Text(plainText(firstNonBlank(text(tn, "titleDe"), "Ohne Titel")),
+                plainText(firstNonBlank(text(tn, "vorspannDe"), "")), String.join("\n\n", paras), glossary);
+        saveText(id, new StoredText(t, facts.stream().map(Fact::id).toList()));
+
+        Random rnd = new Random(id * 31 + bytes.length);
+        List<String> letters = new ArrayList<>();
+        for (int s = 0; s < itemNodes.size(); s++) letters.add(null);
+        List<Item> items = new ArrayList<>();
+        for (int s = 0; s < itemNodes.size(); s++) {
+            JsonNode n = itemNodes.get(s);
+            String letter = ItemRules.chooseLetter(letters, s, rnd);
+            letters.set(s, letter);
+            ItemRules.Lettered l = ItemRules.letter(rawOptions(n), letter, text(n, "explanationVi"));
+            items.add(new Item(spec.itemId(s), text(n, "question").trim(), l.options(), l.correct(), l.explanation(),
+                    firstNonBlank(text(n, "evidence"), ""), l.traps(), levels.get(s), null, false, null, List.of()));
+        }
+        saveItems(id, items);
+        advanceStep(id, "ITEMS");
+        return get(id);
+    }
+
     // ── Nguồn ───────────────────────────────────────────────────────────────────────────────
 
     public Draft addSource(long id, AddSourceRequest req, long userId) {
