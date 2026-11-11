@@ -111,11 +111,11 @@ public class MockExamController {
             @RequestParam(defaultValue = "false") boolean includeComingSoon) {
         var exams = jdbcTemplate.query("""
             SELECT id, cefr_level, exam_format, title, description_vi,
-                   total_points, pass_points, time_limit_minutes, reviewed
+                   total_points, pass_points, time_limit_minutes, reviewed, %s AS is_new
             FROM mock_exams
             WHERE cefr_level = ? AND (is_active = TRUE OR (? AND reviewed = FALSE))
             ORDER BY id
-            """, (rs, n) -> new ExamSummaryDto(
+            """.formatted(ExamSummaryDto.IS_NEW_SQL), (rs, n) -> new ExamSummaryDto(
                 rs.getLong("id"),
                 rs.getString("cefr_level"),
                 rs.getString("exam_format"),
@@ -124,7 +124,8 @@ public class MockExamController {
                 (Integer) rs.getObject("total_points"),
                 (Integer) rs.getObject("pass_points"),
                 (Integer) rs.getObject("time_limit_minutes"),
-                !rs.getBoolean("reviewed")),
+                !rs.getBoolean("reviewed"),
+                rs.getBoolean("is_new")),
             cefrLevel, includeComingSoon);
         return ResponseEntity.ok(exams);
     }

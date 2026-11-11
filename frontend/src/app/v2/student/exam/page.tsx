@@ -218,25 +218,28 @@ export default function V2StudentExamHubPage() {
             {rows.length === 0 && locked.length === 0 ? (
               <p className="ga-ui text-ga-body text-ga-muted">{t('empty')}</p>
             ) : (
-              <div className="border-t border-ga-line">
+              <ul className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 xl:grid-cols-3">
                 {rows.map((r) => (
-                  <ExamRowView
-                    key={r.exam.id}
-                    exam={r.exam}
-                    overview={overviews.find((o) => o.examId === r.exam.id)}
-                    attempts={attempts.filter((a) => a.exam_id === r.exam.id)}
-                  />
+                  <li key={r.exam.id} className="min-w-0">
+                    <ExamCard
+                      exam={r.exam}
+                      overview={overviews.find((o) => o.examId === r.exam.id)}
+                      attempts={attempts.filter((a) => a.exam_id === r.exam.id)}
+                    />
+                  </li>
                 ))}
                 {locked.map((p) => (
-                  <div key={p.id} className="ga-ui grid min-h-16 grid-cols-[36px_minmax(0,1fr)] items-center gap-3.5 border-b border-ga-line px-1 py-2.5 text-ga-muted">
-                    <Glyph icon={Lock} tone="plain" />
-                    <span className="min-w-0">
-                      <b className="block truncate text-ga-body font-semibold">{p.title}</b>
-                      <span className="block text-ga-small">{t('lockedPack')}</span>
-                    </span>
-                  </div>
+                  <li key={p.id} className="min-w-0">
+                    <div className="ga-ui flex h-full min-h-[132px] flex-col justify-between gap-3 rounded-ga border border-dashed border-ga-line p-4 text-ga-muted">
+                      <Glyph icon={Lock} tone="plain" />
+                      <span className="min-w-0">
+                        <b className="block truncate text-ga-body font-semibold">{p.title}</b>
+                        <span className="block text-ga-small">{t('lockedPack')}</span>
+                      </span>
+                    </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </section>
         </>
@@ -425,14 +428,17 @@ function DateCard({ passed, onSaved }: { passed: boolean; onSaved: (p: ExamPlan)
   )
 }
 
-function ExamRowView({ exam, overview, attempts }: { exam: PackExam; overview?: PracticeOverview; attempts: MyAttempt[] }) {
+/**
+ * Thẻ một đề trong lưới "Đề luyện": tên đề, nhãn Mới, vạch tiến độ từng Teil, điểm lượt thi thử gần nhất.
+ * Cả thẻ là một liên kết vào trang luyện của đề. Đề "Sắp có" là thẻ nét đứt, không bấm được.
+ */
+function ExamCard({ exam, overview, attempts }: { exam: PackExam; overview?: PracticeOverview; attempts: MyAttempt[] }) {
   const t = useTranslations('v2.student.examHub')
   if (exam.comingSoon) {
     return (
-      <div className="ga-ui grid min-h-16 grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3.5 border-b border-ga-line px-1 py-2.5 text-ga-muted">
-        <Glyph icon={FileText} tone="plain" />
-        <b className="truncate text-ga-body font-semibold">{exam.title}</b>
-        <span className="rounded-ga-pill bg-ga-side-active px-2.5 py-0.5 text-ga-caption font-semibold">{t('comingSoon')}</span>
+      <div className="ga-ui flex h-full min-h-[132px] flex-col justify-between gap-3 rounded-ga border border-dashed border-ga-line p-4 text-ga-muted">
+        <span className="self-start rounded-ga-pill bg-ga-side-active px-2.5 py-0.5 text-ga-caption font-semibold">{t('comingSoon')}</span>
+        <b className="text-ga-body font-semibold">{exam.title}</b>
       </div>
     )
   }
@@ -444,13 +450,10 @@ function ExamRowView({ exam, overview, attempts }: { exam: PackExam; overview?: 
     .filter((a) => a.status === 'COMPLETED')
     .sort((a, b) => (b.finished_at ?? '').localeCompare(a.finished_at ?? ''))[0]
   const running = attempts.some((a) => a.status === 'IN_PROGRESS')
-  const meta = [
-    overview ? t('teilDone', { done, total: teile.length }) : null,
-    last ? (max > 0 ? `${fmtN(last.total_score ?? 0)}/${fmtN(max)}` : fmtN(last.total_score ?? 0)) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const score = last ? (max > 0 ? `${fmtN(last.total_score ?? 0)}/${fmtN(max)}` : fmtN(last.total_score ?? 0)) : null
   const passed = last && max > 0 ? (last.total_score ?? 0) >= passMark : null
+  // Nhãn "Mới": đề vừa phát hành mà học viên chưa đụng tới (chưa thi thử, chưa luyện Teil nào).
+  const showNew = exam.isNew === true && attempts.length === 0 && done === 0
 
   let tag: React.ReactNode
   if (running) {
@@ -474,15 +477,33 @@ function ExamRowView({ exam, overview, attempts }: { exam: PackExam; overview?: 
   return (
     <Link
       href={`/v2/student/mock-exam/practice?examId=${exam.id}`}
-      className="group ga-ui grid min-h-16 grid-cols-[36px_minmax(0,1fr)_auto_18px] items-center gap-3.5 border-b border-ga-line px-1 py-2.5 transition-colors duration-150 hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ga-focus"
+      className="group ga-ui flex h-full min-h-[132px] flex-col gap-3 rounded-ga border border-ga-line bg-ga-card p-4 transition-[border-color,transform] duration-150 hover:-translate-y-px hover:border-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
-      <Glyph icon={FileText} />
-      <span className="min-w-0">
-        <b className="block truncate text-ga-body font-semibold text-ga-ink">{exam.title}</b>
-        {meta && <span className="block truncate text-ga-small tabular-nums text-ga-muted">{meta}</span>}
+      <span className="flex items-start justify-between gap-2">
+        <b className="min-w-0 text-ga-body font-semibold leading-snug text-ga-ink">{exam.title}</b>
+        {showNew && (
+          <span className="shrink-0 rounded-ga-pill bg-ga-yellow px-2 py-0.5 text-ga-caption font-semibold text-ga-ink">{t('newExam')}</span>
+        )}
       </span>
-      {tag}
-      <ChevronRight size={16} className="text-ga-subtle transition-transform duration-150 group-hover:translate-x-[3px]" aria-hidden />
+
+      {teile.length > 0 && (
+        <span className="flex flex-col gap-1.5">
+          <span className="flex gap-1" aria-hidden>
+            {teile.map((x, i) => (
+              <span key={i} className={cn('h-1.5 min-w-0 flex-1 rounded-full', x.progress?.checked ? 'bg-ga-ink' : 'bg-ga-line')} />
+            ))}
+          </span>
+          <span className="text-ga-small tabular-nums text-ga-muted">{t('teilDone', { done, total: teile.length })}</span>
+        </span>
+      )}
+
+      <span className="mt-auto flex items-center justify-between gap-2">
+        <span className="flex min-w-0 flex-wrap items-center gap-2">
+          {tag}
+          {score && <span className="text-ga-small tabular-nums text-ga-muted">{score}</span>}
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-ga-subtle transition-transform duration-150 group-hover:translate-x-[3px]" aria-hidden />
+      </span>
     </Link>
   )
 }

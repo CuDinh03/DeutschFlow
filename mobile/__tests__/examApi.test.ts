@@ -25,7 +25,14 @@ describe('mapExam', () => {
       totalQuestions: 60,
       timeLimitMinutes: 90,
       comingSoon: false,
+      isNew: false,
     })
+  })
+
+  it('đề mới phát hành (is_new) → isNew; backend cũ không gửi khoá → false', () => {
+    const base = { id: 1, cefr_level: 'B1', title: 'x', time_limit_minutes: 90 }
+    expect(mapExam({ ...base, is_new: true }).isNew).toBe(true)
+    expect(mapExam(base).isNew).toBe(false)
   })
 
   it('đề nháp chờ duyệt (coming_soon) → comingSoon; backend cũ không gửi khoá → false', () => {

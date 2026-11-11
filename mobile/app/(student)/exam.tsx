@@ -179,7 +179,12 @@ export default function ExamScreen() {
                 onPress={() => handleStart(variant)}
                 style={{ borderColor: isRec ? theme.colors.accentText : theme.colors.border }}
               >
-                {isRec ? <Pill label="Gợi ý cho bạn" tone="accent" style={{ marginBottom: space[3] }} /> : null}
+                {isRec || variant.isNew ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginBottom: space[3] }}>
+                    {variant.isNew ? <Pill label="Mới" tone="accent" /> : null}
+                    {isRec ? <Pill label="Gợi ý cho bạn" tone="accent" /> : null}
+                  </View>
+                ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
                   <LevelBadge level={variant.cefrLevel} />
                   <View style={{ flex: 1 }}>

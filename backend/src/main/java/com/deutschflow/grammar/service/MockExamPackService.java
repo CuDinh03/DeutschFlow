@@ -115,7 +115,8 @@ public class MockExamPackService {
     /** Đề đang dùng + đề nháp chờ duyệt (hiện "Sắp có", V342) của bộ. */
     private List<PackExamDto> examsOf(MockExamPack pack) {
         return jdbcTemplate.query(
-                "SELECT id, title, total_points, pass_points, time_limit_minutes, reviewed FROM mock_exams "
+                "SELECT id, title, total_points, pass_points, time_limit_minutes, reviewed, "
+                        + com.deutschflow.grammar.dto.ExamSummaryDto.IS_NEW_SQL + " AS is_new FROM mock_exams "
                         + "WHERE cefr_level = ? AND exam_format = ? AND (is_active = TRUE OR reviewed = FALSE) "
                         + "ORDER BY id",
                 (rs, rowNum) -> new PackExamDto(
@@ -124,7 +125,8 @@ public class MockExamPackService {
                         (Integer) rs.getObject("total_points"),
                         (Integer) rs.getObject("pass_points"),
                         (Integer) rs.getObject("time_limit_minutes"),
-                        !rs.getBoolean("reviewed")),
+                        !rs.getBoolean("reviewed"),
+                        rs.getBoolean("is_new")),
                 pack.getCefrLevel(), pack.getExamFormat());
     }
 }
