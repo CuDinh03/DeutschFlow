@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, ExternalLink, Plus, Trash2 } from 'lucide-react'
+import { Check, ExternalLink, Plus, Trash2, Upload } from 'lucide-react'
 import {
-  addSource, patchSource, removeSource,
+  addSource, addSourceFile, patchSource, removeSource,
+  SOURCE_FILE_ACCEPT, SOURCE_FILE_MAX_BYTES,
   type StudioSource,
 } from '@/lib/adminExamStudioApi'
 import { flaggedSelectedSources, selectedFactCount, selectedFactIds } from '@/lib/examStudioLogic'
@@ -12,33 +13,44 @@ import { ConfirmDialog, GaBtn, GaCap, GaCard, TkBadge, TkSeg } from '@/component
 import { cn } from '@/lib/utils'
 import { Note, WarningsBanner, studioField, studioMiniBtn, type StudioStepProps } from './ui'
 
-type InputKind = 'URL' | 'PASTE'
+type InputKind = 'URL' | 'FILE' | 'PASTE'
 
-/** Bước 2 — Nguồn: thêm URL / dán văn bản, xác nhận loại dùng, kiểm trung lập, tích dữ kiện. */
+const isHttpUrl = (v: string) => /^https?:\/\/\S+$/i.test(v.trim())
+
+/** Bước 2 — Nguồn: thêm URL / tải tệp / dán văn bản, xác nhận loại dùng, kiểm trung lập, tích dữ kiện. */
 export function StepSource({ draft, locked, run, onNext }: StudioStepProps & { onNext: () => void }) {
   const t = useTranslations('v2.adminContent.examStudio')
   const [showForm, setShowForm] = useState(draft.sources.length === 0)
   const [kind, setKind] = useState<InputKind>('URL')
   const [url, setUrl] = useState('')
   const [pasted, setPasted] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [refUrl, setRefUrl] = useState('')
   const [title, setTitle] = useState('')
   const [publisher, setPublisher] = useState('')
   const [removing, setRemoving] = useState<StudioSource | null>(null)
 
   const flagged = flaggedSelectedSources(draft.sources)
   const selected = selectedFactCount(draft.sources)
-  const canAdd = kind === 'URL' ? /^https?:\/\/\S+$/i.test(url.trim()) : pasted.trim().length > 0
+  const fileTooLarge = file != null && file.size > SOURCE_FILE_MAX_BYTES
+  const canAdd =
+    kind === 'URL' ? isHttpUrl(url)
+      : kind === 'FILE' ? file != null && !fileTooLarge && (refUrl.trim() === '' || isHttpUrl(refUrl))
+        : pasted.trim().length > 0
 
   const submit = async () => {
+    const meta = {
+      ...(title.trim() ? { title: title.trim() } : {}),
+      ...(publisher.trim() ? { publisher: publisher.trim() } : {}),
+    }
+    const picked = file
     const ok = await run(() =>
-      addSource(draft.id, {
-        ...(kind === 'URL' ? { url: url.trim() } : { pastedText: pasted }),
-        ...(title.trim() ? { title: title.trim() } : {}),
-        ...(publisher.trim() ? { publisher: publisher.trim() } : {}),
-      }),
+      kind === 'FILE' && picked
+        ? addSourceFile(draft.id, picked, { ...meta, ...(refUrl.trim() ? { url: refUrl.trim() } : {}) })
+        : addSource(draft.id, { ...(kind === 'URL' ? { url: url.trim() } : { pastedText: pasted }), ...meta }),
     )
     if (ok) {
-      setUrl(''); setPasted(''); setTitle(''); setPublisher(''); setShowForm(false)
+      setUrl(''); setPasted(''); setFile(null); setRefUrl(''); setTitle(''); setPublisher(''); setShowForm(false)
     }
   }
 
@@ -73,6 +85,7 @@ export function StepSource({ draft, locked, run, onNext }: StudioStepProps & { o
             onValueChange={setKind}
             options={[
               { value: 'URL', label: t('source.kindUrl') },
+              { value: 'FILE', label: t('source.kindFile') },
               { value: 'PASTE', label: t('source.kindPaste') },
             ]}
           />
@@ -81,6 +94,21 @@ export function StepSource({ draft, locked, run, onNext }: StudioStepProps & { o
               <label htmlFor="src-url" className="mb-1.5 block"><GaCap>{t('source.url')}</GaCap></label>
               <input id="src-url" type="url" inputMode="url" className={studioField} value={url}
                 placeholder="https://" onChange={(e) => setUrl(e.target.value)} disabled={locked} />
+            </div>
+          ) : kind === 'FILE' ? (
+            <div className="flex flex-col gap-3">
+              <div>
+                <label htmlFor="src-file" className="mb-1.5 block"><GaCap>{t('source.file')}</GaCap></label>
+                <input id="src-file" type="file" accept={SOURCE_FILE_ACCEPT} disabled={locked}
+                  className={cn(studioField, 'file:mr-3 file:cursor-pointer file:border-0 file:bg-transparent file:font-medium')}
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                {fileTooLarge && <Note tone="red" className="mt-2">{t('source.fileTooLarge')}</Note>}
+              </div>
+              <div>
+                <label htmlFor="src-ref" className="mb-1.5 block"><GaCap>{t('source.refUrl')}</GaCap></label>
+                <input id="src-ref" type="url" inputMode="url" className={studioField} value={refUrl}
+                  placeholder="https://" onChange={(e) => setRefUrl(e.target.value)} disabled={locked} />
+              </div>
             </div>
           ) : (
             <div>
@@ -101,7 +129,7 @@ export function StepSource({ draft, locked, run, onNext }: StudioStepProps & { o
           </div>
           <div className="flex flex-wrap gap-2">
             <GaBtn variant="yellow" size="sm" disabled={locked || !canAdd} onClick={submit}>
-              <Plus size={14} aria-hidden /> {t('source.submit')}
+              {kind === 'FILE' ? <Upload size={14} aria-hidden /> : <Plus size={14} aria-hidden />} {t('source.submit')}
             </GaBtn>
             {draft.sources.length > 0 && (
               <GaBtn variant="ghost" size="sm" onClick={() => setShowForm(false)}>{t('cancel')}</GaBtn>

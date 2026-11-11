@@ -305,6 +305,37 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("Nguồn từ tệp tải lên: giấy phép và đường dẫn bài gốc vào phiếu nguồn, văn bản tệp không được lưu")
+    void uploadedFileBecomesASourceWithoutStoringItsText() {
+        Draft d = service.create(new CreateDraftRequest("TELC", "B1", "LESEN", 2, "Gesundheit", "EXAM",
+                Map.of("EASY", 2, "MEDIUM", 2, "HARD", 1, "EXPERT", 0)), admin);
+        byte[] file = (SOURCE_TEXT + "\n\nLizenz: http://creativecommons.org/licenses/by/3.0/de/\n")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        d = service.addSourceFile(d.id(), "johm.txt", file, "Schlaf in Deutschland", "Journal of Health Monitoring",
+                "https://doi.org/10.25646/00000", admin);
+        assertThat(d.busyOp()).isEqualTo("FACTS");
+        Long jobId = jdbc.queryForObject("SELECT busy_job_id FROM exam_drafts WHERE id = ?", Long.class, d.id());
+        runPendingJob(d.id());
+        String payload = jdbc.queryForObject("SELECT payload::text FROM ai_jobs WHERE id = ?", String.class, jobId);
+        assertThat(payload).doesNotContain("pastedText").doesNotContain("Forschenden");
+
+        d = service.get(d.id());
+        assertThat(d.lastError()).isNull();
+        assertThat(d.sources()).singleElement().satisfies(s -> {
+            assertThat(s.url()).isEqualTo("https://doi.org/10.25646/00000");
+            assertThat(s.title()).isEqualTo("Schlaf in Deutschland");
+            assertThat(s.licenseText()).isEqualTo("CC BY 3.0 DE");
+            assertThat(s.usageMode()).isEqualTo("ADAPT");
+            assertThat(s.usageModeConfirmed()).isFalse(); // máy chỉ đoán, admin vẫn phải xác nhận
+        });
+
+        long id = d.id();
+        assertThatThrownBy(() -> service.addSourceFile(id, "x.txt", file, null, null, "ftp://example.org/x", admin))
+                .hasMessageContaining("http");
+    }
+
+    @Test
     void examModeNeedsExactlyFiveItems() {
         assertThatThrownBy(() -> service.create(new CreateDraftRequest("TELC", "B1", "LESEN", 2, null, "EXAM",
                 Map.of("EASY", 3, "HARD", 1)), admin))
