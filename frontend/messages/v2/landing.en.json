@@ -251,7 +251,7 @@
       "timeline": {
         "name": "Step by step",
         "title": "One person, one step at a time.",
-        "solo": "There is no team behind this. From the first line of code until today, I have built myDeutschFlow on my own, over more than 1,600 commits.",
+        "solo": "There is no team behind myDeutschFlow. Just me, learning German and building by hand every feature I needed myself.",
         "items": [
           {
             "date": "12 April 2026",

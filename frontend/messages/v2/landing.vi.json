@@ -251,7 +251,7 @@
       "timeline": {
         "name": "Từng bước",
         "title": "Một người, từng bước một.",
-        "solo": "Không có đội ngũ nào phía sau. Từ dòng code đầu tiên tới hôm nay, myDeutschFlow do một mình mình làm, qua hơn 1.600 lần commit.",
+        "solo": "Phía sau myDeutschFlow không có đội ngũ nào. Chỉ có mình, vừa học tiếng Đức vừa tự tay làm ra từng tính năng mà chính mình cần.",
         "items": [
           {
             "date": "12/04/2026",
