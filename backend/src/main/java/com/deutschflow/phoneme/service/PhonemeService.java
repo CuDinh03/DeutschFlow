@@ -36,7 +36,7 @@ public class PhonemeService {
     public PhonemeEvalResponse evaluate(byte[] audioBytes, String filename, String target, Long userId) {
         // 1. Transcribe audio with target as context prompt
         TranscribeResult stt = groqWhisperClient.transcribe(audioBytes, filename, "de", target);
-        ledgerService.recordStt(userId, "PHONEME_COACH", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
+        ledgerService.recordStt(userId, "PHONEME_COACH", stt.modelOr(groqWhisperClient.getWhisperModel()), stt.durationSeconds());
         String transcribed = stt.text();
 
         if (transcribed == null || transcribed.isBlank()) {
