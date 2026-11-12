@@ -66,6 +66,7 @@ public class ExamSetRunService {
     private final SourceCatalogService catalog;
     private final ExamStudioAi ai;
     private final UserNotificationService notifications;
+    private final ExamAssemblyService assembly;
 
     public record CreateRunRequest(String examFormat, String cefrLevel, String profile, String channel) {}
 
@@ -131,6 +132,49 @@ public class ExamSetRunService {
         if (run.status().equals("APPROVED")) throw new BadRequestException("Lượt đã duyệt không bỏ được.");
         for (TeilRow t : teile(id)) discardDraftQuietly(t.draftId());
         jdbc.update("UPDATE exam_set_runs SET status = 'DISCARDED', finished_at = now(), updated_at = now() WHERE id = ?", id);
+        return get(id);
+    }
+
+    // ── Duyệt cả bộ ──────────────────────────────────────────────────────────────────────────────────────
+
+    public record ApproveRunRequest(String title, Long baseExamId) {}
+
+    /**
+     * Owner duyệt cả bộ bằng MỘT lần bấm (thay cho 8 mục tích của từng Teil): mọi bản nháp của lượt vào kho Teil,
+     * rồi ghép thành một bộ đề "Sắp có" trên một đề nền viết tay — các Teil lượt chưa làm được (hiện là phần Nghe)
+     * lấy nguyên từ đề nền. Phát hành cho học viên vẫn là bước riêng ở danh sách bộ đề. Hỏng ở Teil nào thì cả lượt
+     * duyệt được hoàn lại, không có trạng thái duyệt dở.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public RunView approve(long id, ApproveRunRequest req, long userId) {
+        RunRow run = run(id);
+        if (!run.status().equals("REVIEW")) {
+            throw new BadRequestException("Chỉ duyệt được lượt đã chạy xong mọi Teil (trạng thái \"Sẵn sàng duyệt\").");
+        }
+        List<ExamAssemblyService.BaseExam> bases = assembly.bases(run.examFormat(), run.cefrLevel());
+        ExamAssemblyService.BaseExam base = req != null && req.baseExamId() != null
+                ? bases.stream().filter(b -> b.id() == req.baseExamId()).findFirst()
+                        .orElseThrow(() -> new BadRequestException("Đề nền không hợp lệ cho kỳ thi và cấp này."))
+                : bases.stream().filter(ExamAssemblyService.BaseExam::reviewed).findFirst()
+                        .orElseThrow(() -> new BadRequestException(
+                                "Chưa có đề viết tay đang chạy nào của kỳ thi này để làm nền cho các phần lượt chưa tạo được."));
+        Map<String, Boolean> checklist = new LinkedHashMap<>();
+        for (String k : TeilSpec.CHECKLIST_KEYS) checklist.put(k, true);
+        List<ExamAssemblyService.Replacement> reps = new ArrayList<>();
+        for (TeilRow t : teile(id)) {
+            if (t.draftId() == null) throw new BadRequestException("Teil " + t.section() + " " + t.teil() + " chưa có bản nháp.");
+            Draft approved = drafts.approve(t.draftId(), checklist, userId);
+            if (approved.blockId() == null) {
+                throw new IllegalStateException("Duyệt bản nháp #" + t.draftId() + " không trả mã Teil kho.");
+            }
+            reps.add(new ExamAssemblyService.Replacement(t.section(), t.teil(), approved.blockId()));
+        }
+        String title = req != null && req.title() != null && !req.title().isBlank() ? req.title().trim()
+                : run.examFormat().toLowerCase() + " Deutsch " + run.cefrLevel() + " — Bộ tự tạo #" + id;
+        ExamAssemblyService.Assembled exam = assembly.assemble(new ExamAssemblyService.AssembleRequest(base.id(), title, reps));
+        jdbc.update("""
+                UPDATE exam_set_runs SET status = 'APPROVED', mock_exam_id = ?, note = ?, updated_at = now() WHERE id = ?
+                """, exam.id(), "Đề nền: " + base.title(), id);
         return get(id);
     }
 

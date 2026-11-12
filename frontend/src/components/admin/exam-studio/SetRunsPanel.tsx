@@ -7,7 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
-  createSetRun, discardSetRun, getStudioChannel, listSetRuns,
+  approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns,
   type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
@@ -34,12 +34,13 @@ function fmtDate(iso: string | null): string {
  * đã tự sửa mấy vòng, có kẹt không. Mỗi Teil là một bản nháp thường, bấm vào mở trong trình 5 bước. Lượt chạy
  * dùng kênh AI đang chọn ở nút "Tạo đề bằng". Trong lúc có lượt đang chạy, bảng tự nạp lại mỗi 10 giây.
  */
-export function SetRunsPanel({ active }: { active: boolean }) {
+export function SetRunsPanel({ active, onApproved }: { active: boolean; onApproved?: () => void }) {
   const t = useTranslations('v2.adminContent.examStudio.setRuns')
   const [runs, setRuns] = useState<SetRun[] | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [discarding, setDiscarding] = useState<SetRun | null>(null)
+  const [approving, setApproving] = useState<SetRun | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
@@ -66,6 +67,22 @@ export function SetRunsPanel({ active }: { active: boolean }) {
       await createSetRun({ examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: getStudioChannel() })
       toast.success(t('started'))
       await load()
+    } catch (e) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const approve = async () => {
+    if (!approving) return
+    setBusy(true)
+    try {
+      await approveSetRun(approving.id)
+      setApproving(null)
+      toast.success(t('approved'))
+      await load()
+      onApproved?.()
     } catch (e) {
       toast.error(apiMessage(e))
     } finally {
@@ -115,12 +132,16 @@ export function SetRunsPanel({ active }: { active: boolean }) {
               <span className="ga-ui min-w-0 flex-1 text-ga-caption text-ga-muted">
                 {t(`channel.${r.channel === 'ROUTER' ? 'ROUTER' : 'FIREWORKS'}`)} · {fmtDate(r.createdAt)}
               </span>
+              {r.status === 'REVIEW' && (
+                <GaBtn size="sm" disabled={busy} onClick={() => setApproving(r)}>{t('approve')}</GaBtn>
+              )}
               {r.status !== 'APPROVED' && (
                 <button type="button" className={studioMiniBtn} disabled={busy} onClick={() => setDiscarding(r)}>
                   {t('discard')}
                 </button>
               )}
             </div>
+            {r.note && <p className="ga-ui text-ga-caption text-ga-muted">{r.note}</p>}
             <ul className="flex flex-col divide-y divide-ga-line">
               {r.teile.map((x) => (
                 <li key={`${x.section}-${x.teil}`} className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0">
@@ -154,6 +175,18 @@ export function SetRunsPanel({ active }: { active: boolean }) {
       {runs && runs.every((r) => r.status === 'DISCARDED') && (
         <p className="ga-ui text-ga-small text-ga-muted"><GaCap>{t('none')}</GaCap></p>
       )}
+
+      <ConfirmDialog
+        open={approving != null}
+        onOpenChange={(o) => { if (!o) setApproving(null) }}
+        tone="caution"
+        title={t('approveTitle', { id: approving?.id ?? 0 })}
+        description={t('approveBody')}
+        confirmLabel={t('approve')}
+        cancelLabel={t('keep')}
+        loading={busy}
+        onConfirm={() => void approve()}
+      />
 
       <ConfirmDialog
         open={discarding != null}

@@ -578,7 +578,8 @@ public class ExamStudioAi {
             SCHWIERIGKEIT: Alles bleibt Niveau %s; nur die Fragetechnik ändert sich. Jede Stufe hat einen
             festen BAUPLAN. Halte ihn genau ein:
             - EASY: Beleg in EINEM Satz. Die Lösung benutzt die Wörter dieses Satzes. Beide falschen Enden
-              nennen etwas, das im Text gar nicht vorkommt.
+              nennen etwas aus DEMSELBEN Thema, das im Text nicht vorkommt, aber im Alltag genauso gut stimmen
+              könnte (andere Zahl, anderer Ort, andere Gruppe, anderer Grund) — nichts Absurdes.
             - MEDIUM: Beleg in einem Absatz (2–3 Sätze). Die Lösung sagt dasselbe mit ANDEREN Wörtern
               (Synonym, andere Satzstruktur). Ein falsches Ende nimmt ein echtes Detail aus dem Text und
               ordnet es falsch zu.
@@ -601,6 +602,10 @@ public class ExamStudioAi {
             - Jedes falsche Ende muss für jemanden, der den Text NICHT gelesen hat, genauso glaubwürdig klingen
               wie die Lösung. Keine Übertreibungen ("alle", "nur", "allein", "niemand"), die man ohne Text als
               falsch erkennt, außer die Stufe verlangt genau diese Falle und der Text nennt die Gruppe.
+            - Die Lösung darf NICHT das einzige vernünftige, positive oder allgemein bekannte Ende sein. Prüfe
+              jede Aufgabe: Könnte jemand mit Allgemeinwissen die Lösung OHNE Text wählen? Dann ersetze die
+              falschen Enden durch Aussagen, die genauso vernünftig klingen, aber dem Text widersprechen.
+              Keine Pflichten, Verbote, Geldbeträge oder Behörden erfinden, nur um ein Ende falsch zu machen.
             - Die drei Enden sind etwa gleich lang und gleich gebaut.
 
             ARBEITSWEISE: Plane jede Aufgabe ZUERST im Feld "plan", dann schreibe sie:

@@ -104,7 +104,7 @@ export function AssembliesTab({ active }: { active: boolean }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <SetRunsPanel active={active} />
+      <SetRunsPanel active={active} onApproved={() => void load()} />
       <AssembleForm bases={bases} slots={slots} exams={exams} onAssembled={load} />
       <BlueprintAssembleForm exams={exams} onAssembled={load} />
 
