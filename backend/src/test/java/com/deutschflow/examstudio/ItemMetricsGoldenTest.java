@@ -165,6 +165,9 @@ class ItemMetricsGoldenTest {
         assertThat(ExamStudioAi.TEXT_SYSTEM.formatted("B1", 300, 450, "B1")).contains("MINDESTENS 300");
         assertThat(ExamStudioAi.RUBRIC_SYSTEM.formatted("B1")).contains("supported");
         assertThat(ExamStudioAi.ITEMS_T1_SYSTEM.formatted("B1", "B1")).isNotBlank();
-        assertThat(ExamStudioAi.TEXT_T1_SYSTEM.formatted("B1", 55, 110, "B1")).isNotBlank();
+        assertThat(ExamStudioAi.TEXT_T1_SYSTEM.formatted("B1", 55, 110, "B1", ExamStudioAi.T1_SAME_FIELD_RULE))
+                .contains("im selben Themenfeld");
+        assertThat(ExamStudioAi.TEXT_T1_SYSTEM.formatted("B1", 55, 110, "B1", ExamStudioAi.T1_MIXED_RULE))
+                .contains("GENAU EINE Quelle").doesNotContain("im selben Themenfeld");
     }
 }
