@@ -58,7 +58,26 @@ public class GroqChatClient implements OpenAiChatClient {
     // (attempt + backoff); một attempt treo tối đa connect 5s + read 15s = 20s.
     private static final int MAX_ATTEMPTS = 3;
     private static final long[] BACKOFF_MILLIS = {2_000L, 4_000L};
-    private static final long REQUEST_DEADLINE_MILLIS = 20_000L;
+    private static final long DEFAULT_REQUEST_DEADLINE_MILLIS = 20_000L;
+    private static final int DEFAULT_READ_TIMEOUT_MILLIS = 15_000;
+    /**
+     * Thời gian chờ một lượt trả lời KHÔNG stream (chấm bài, giải thích…). Mặc định 15 giây, đặt cho model nhanh.
+     * Nguồn chậm hơn (12/11/2026: Grok qua 9Router chấm một bài Viết mất hơn 15 giây ⇒ chấm hỏng) thì nâng bằng
+     * biến môi trường {@code GROQ_READ_TIMEOUT_MS}. Trần tổng của cả lượt (kể cả thử lại) tự nới theo, luôn dư 5 giây.
+     */
+    static final int READ_TIMEOUT_MILLIS = readTimeoutFromEnv(System.getenv("GROQ_READ_TIMEOUT_MS"));
+    static final long REQUEST_DEADLINE_MILLIS = Math.max(DEFAULT_REQUEST_DEADLINE_MILLIS, READ_TIMEOUT_MILLIS + 5_000L);
+
+    /** Giá trị hợp lệ: 5–120 giây. Trống hoặc sai ⇒ mặc định 15 giây. */
+    static int readTimeoutFromEnv(String raw) {
+        if (raw == null || raw.isBlank()) return DEFAULT_READ_TIMEOUT_MILLIS;
+        try {
+            int v = Integer.parseInt(raw.trim());
+            return v < 5_000 || v > 120_000 ? DEFAULT_READ_TIMEOUT_MILLIS : v;
+        } catch (NumberFormatException e) {
+            return DEFAULT_READ_TIMEOUT_MILLIS;
+        }
+    }
     /** Gợi ý Retry-After khi nghẽn cục bộ (semaphore) — permit thường mở sau vài giây. */
     private static final int BUSY_RETRY_AFTER_SECONDS = 15;
     /** Gợi ý Retry-After khi breaker OPEN — khớp wait-duration-in-open-state 30s trong yml. */
@@ -136,7 +155,7 @@ public class GroqChatClient implements OpenAiChatClient {
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5_000);
-        factory.setReadTimeout(15_000);
+        factory.setReadTimeout(READ_TIMEOUT_MILLIS);
 
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -590,7 +609,7 @@ public class GroqChatClient implements OpenAiChatClient {
         return restClientsByBaseUrl.computeIfAbsent(tierBaseUrl, url -> {
             SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
             factory.setConnectTimeout(5_000);
-            factory.setReadTimeout(15_000);
+            factory.setReadTimeout(READ_TIMEOUT_MILLIS);
             return RestClient.builder()
                     .baseUrl(url)
                     .requestFactory(factory)
