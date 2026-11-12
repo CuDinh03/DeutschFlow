@@ -167,13 +167,21 @@ public class ExamDedupService {
         Map<String, String> out = new java.util.LinkedHashMap<>();
         List<String> ids = new ArrayList<>();
         List<String> cores = new ArrayList<>();
+        // Câu điền chỗ trống: đáp án đã chuẩn hoá; câu thường: null.
+        List<String> gapAnswers = new ArrayList<>();
         for (ExamStudioDtos.Item it : items) {
-            String q = it.question() != null && it.question().contains("___") && it.evidence() != null
-                    && !it.evidence().isBlank() ? it.evidence() : it.question();
-            String core = itemCore(q, it.options() == null || it.correct() == null ? null : it.options().get(it.correct()));
+            boolean gap = it.question() != null && it.question().contains("___");
+            String q = gap && it.evidence() != null && !it.evidence().isBlank() ? it.evidence() : it.question();
+            String answer = it.options() == null || it.correct() == null ? null : it.options().get(it.correct());
+            String core = itemCore(q, answer);
+            String gapAnswer = gap ? (answer == null ? "" : answer.trim().toLowerCase(Locale.ROOT)) : null;
             if (!core.isBlank()) {
                 for (int k = 0; k < cores.size(); k++) {
                     String other = cores.get(k);
+                    // Hai chỗ trống KHÁC NHAU trong cùng một câu (đề telc Sprachbausteine vẫn làm vậy: „___ einigen
+                    // Monaten …, ___ leider …") không phải câu trùng: lõi gần như giống nhau vì chung câu, nhưng mỗi
+                    // chỗ hỏi một từ khác. Lượt #8, 13/11/2026: hai cặp như vậy bị báo trùng oan, Teil kẹt.
+                    if (gapAnswer != null && gapAnswers.get(k) != null && !gapAnswer.equals(gapAnswers.get(k))) continue;
                     boolean same = core.equals(other);
                     if (!same) {
                         Set<Long> a = new HashSet<>(TextChecks.shingleHashes(core, ITEM_GRAM));
@@ -189,6 +197,7 @@ public class ExamDedupService {
             }
             ids.add(it.id());
             cores.add(core);
+            gapAnswers.add(gapAnswer);
         }
         return out;
     }

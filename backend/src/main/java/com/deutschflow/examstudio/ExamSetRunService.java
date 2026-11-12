@@ -236,7 +236,10 @@ public class ExamSetRunService {
         List<ExamAssemblyService.Replacement> reps = new ArrayList<>();
         for (TeilRow t : teile(id)) {
             if (t.draftId() == null) throw new BadRequestException("Teil " + t.section() + " " + t.teil() + " chưa có bản nháp.");
-            Draft approved = drafts.approve(t.draftId(), checklist, userId);
+            // Owner có thể đã duyệt riêng một Teil của lượt vào kho từ trước (lượt #6): dùng luôn Teil kho đó.
+            Draft current = drafts.get(t.draftId());
+            Draft approved = "APPROVED".equals(current.status()) && current.blockId() != null
+                    ? current : drafts.approve(t.draftId(), checklist, userId);
             if (approved.blockId() == null) {
                 throw new IllegalStateException("Duyệt bản nháp #" + t.draftId() + " không trả mã Teil kho.");
             }
@@ -721,9 +724,14 @@ public class ExamSetRunService {
     List<Check> setChecks(RunRow run, List<TeilRow> rows) {
         List<ExamSetChecks.TeilDoc> set = new ArrayList<>();
         List<Check> mix = new ArrayList<>();
+        // Teil kho sinh ra từ chính các bản nháp của lượt này (owner duyệt riêng trước khi kiểm lại bộ): không so
+        // bộ với chính nó, nếu không Teil đó bị báo "giống 100 % Teil kho".
+        Set<Long> ownBlocks = new HashSet<>();
         for (TeilRow t : rows) {
             if (!t.status().equals("READY") || t.draftId() == null) continue;
-            set.add(doc(drafts.get(t.draftId()), t));
+            Draft own = drafts.get(t.draftId());
+            if (own.blockId() != null) ownBlocks.add(own.blockId());
+            set.add(doc(own, t));
             if (spec(run, t).headlines()) mix.add(ExamSetChecks.themeMix(t.section() + " " + t.teil(), t.theme()));
         }
         List<ExamSetChecks.Other> corpus = new ArrayList<>();
@@ -731,6 +739,7 @@ public class ExamSetRunService {
                 SELECT id, section, teil, content_json::text AS c FROM exam_teil_blocks
                 WHERE UPPER(exam_format) = UPPER(?) AND cefr_level = ? AND status = 'APPROVED' ORDER BY id DESC LIMIT 600
                 """, rs -> {
+            if (ownBlocks.contains(rs.getLong("id"))) return;
             corpus.add(other("Teil kho #" + rs.getLong("id"), rs.getString("section"), rs.getInt("teil"), readMap(rs.getString("c"))));
         }, run.examFormat(), run.cefrLevel());
         jdbc.query("""
