@@ -166,8 +166,7 @@ class ItemMetricsGoldenTest {
         assertThat(ExamStudioAi.RUBRIC_SYSTEM.formatted("B1")).contains("supported");
         assertThat(ExamStudioAi.ITEMS_T1_SYSTEM.formatted("B1", "B1")).isNotBlank();
         assertThat(ExamStudioAi.TEXT_T1_SYSTEM.formatted("B1", 55, 110, "B1", ExamStudioAi.T1_SAME_FIELD_RULE))
-                .startsWith("Du schreibst FÜNF NEUE").contains("
-- Die fünf Texte").contains("im selben Themenfeld");
+                .startsWith("Du schreibst FÜNF NEUE").contains("\n- Die fünf Texte").contains("im selben Themenfeld");
         assertThat(ExamStudioAi.TEXT_T1_SYSTEM.formatted("B1", 55, 110, "B1", ExamStudioAi.T1_MIXED_RULE))
                 .contains("GENAU EINE Quelle").doesNotContain("im selben Themenfeld");
     }
