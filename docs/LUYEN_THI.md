@@ -26,7 +26,8 @@ Bài chẩn đoán ──► Hôm nay ──► Đề ──► Làm bài (luy�
 | Bài chẩn đoán | `/v2/student/exam/diagnostic` | Khai ngày thi, phút mỗi ngày; 5 phần chấm theo chuẩn telc B1; sinh lịch ôn |
 | Hôm nay | `/v2/student/exam` | Thẻ Hôm nay, bốn kỹ năng, lịch tuần đổi chỗ được, danh sách đề |
 | Đề | `/v2/student/mock-exam/practice?examId=` | Một đề: Teil theo phần thi, ngăn Chiến thuật, lịch sử thi thử |
-| Làm bài | `/v2/student/mock-exam/practice/teil?examId=&teil=` | Luyện một Teil, không ép giờ, nộp xong có phân tích |
+| Làm bài | `/v2/student/mock-exam/practice/teil?examId=&teil=` | Luyện một Teil, không ép giờ, nộp xong có phân tích. `&at=<khối>:<đầu>:<cuối>&w=<chữ>` (mở từ sổ từ) ⇒ cuộn tới và tô tạm chữ đã lưu 4 s; chữ ở vị trí cũ lệch (đề đã sửa) ⇒ tìm lại chữ trong khối, không thấy thì thôi |
+| Sổ từ | `/v2/student/vocabulary/my-words` | Từ đã lưu khi luyện đọc: theo chủ đề / theo bài đọc, tìm, "Mở trong bài", chuyển chủ đề, sửa nghĩa, gỡ (xác nhận); lối vào đầu dải bài luyện của trang Từ vựng |
 | Thi thử | `/v2/student/mock-exam/full?examId=` | Màn trước khi thi → làm bài có đồng hồ tổng của server |
 | Kết quả | `/v2/student/mock-exam/full?attemptId=` | Kết luận, điểm "Ước tính", lấy lại điểm, xem lại từng Teil |
 | Phòng thi nói — lối vào | `/v2/student/mock-exam/oral?provider=&level=&mode=MOCK\|DRILL&teil=&return=` | Thi thử: Kiểm tra micro (lần đầu hoặc micro chưa cho phép) rồi tạo phiên; luyện Teil: tạo phiên ngay |
@@ -261,6 +262,9 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | GET/PUT | `/mock-exams/practice/{examId}/teile/{key}/marks` | Đánh dấu bài đọc của Teil (ghi đè cả gói; sai ⇒ 400) | 〃 + `PassageMarksValidator` |
 | POST / GET | `/my-words` `{text, sentence, examId, teilKey, block, start, end}` | "Lưu từ" ở Luyện Teil (13/11/2026): 1–5 từ bôi đen ⇒ sổ từ riêng + thẻ ôn. Nghĩa: kho `words` (dạng gốc / biến cách / Partizip II) → `vocab_lookup_cache` → AI tầng EXPLAIN (không trừ ví, trần 40 từ cần AI / ngày ⇒ 429; AI lỗi ⇒ 503; chữ sai ⇒ 400). Đã có ⇒ `alreadySaved`. GET = cả sổ | STUDENT, `SavedWordService`, `SavedWordLookupService` |
 | DELETE | `/my-words/{id}` | Gỡ khỏi sổ + gỡ thẻ ôn do sổ tạo (thẻ có từ trước thì giữ); người khác ⇒ 404 | 〃 |
+| GET | `/my-words/topics[?locale=]` | Bộ chủ đề sẵn của kho `{name, label}` cho ô chuyển chủ đề (đợt 2) | 〃 |
+| PUT | `/my-words/{id}/topic` `{topic}` | Chuyển chủ đề (`null` = chưa phân loại; tên ngoài bộ sẵn ⇒ 400; `topic_source = USER`) | 〃 |
+| PUT | `/my-words/{id}/meaning` `{meaning}` | Sửa nghĩa 1–200 ký tự; thẻ ôn do sổ tạo đổi theo | 〃 |
 | GET/PUT | `/mock-exams/attempts/{attemptId}/teile/{key}/marks` | Đánh dấu bài đọc theo lượt thi thử (đợt 2): lượt `IN_PROGRESS` ⇒ server bỏ `q`/`n`; `COMPLETED`/`PARTIAL` ⇒ xem lại sửa đủ; `CANCELLED` ⇒ 409; lượt người khác ⇒ 404. Riêng với nháp đáp án (không đụng `draft_version`) | chủ lượt, `MockExamAttemptMarksService` |
 | POST | `/mock-exams/practice/{examId}/schreiben` | Chấm Viết bằng AI (trả `jobId`) | 〃 |
 | GET | `/mock-exams/practice/attempts/{id}/analysis` | Phân tích từng câu của lượt thi thử | 〃 |

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { myWordsApi, type SaveWordRequest, type SavedWord } from '@/lib/myWordsApi'
@@ -45,6 +45,7 @@ export function SaveWordCard({
   onAnnounce: (msg: string) => void
 }) {
   const t = useTranslations('v2.student.practice.marks')
+  const locale = useLocale()
   const [state, setState] = React.useState<State>({ kind: 'saving' })
   const [busy, setBusy] = React.useState(false)
   const ref = React.useRef<HTMLDivElement>(null)
@@ -60,7 +61,7 @@ export function SaveWordCard({
     let cancelled = false
     setState({ kind: 'saving' })
     if (inflight.current?.key !== job.key) {
-      inflight.current = { key: job.key, promise: myWordsApi.save(job.request) }
+      inflight.current = { key: job.key, promise: myWordsApi.save(job.request, locale) }
     }
     inflight.current.promise
       .then((word) => {
@@ -74,7 +75,7 @@ export function SaveWordCard({
     return () => {
       cancelled = true
     }
-  }, [job.key, job.request])
+  }, [job.key, job.request, locale])
 
   // Esc / bấm ra ngoài ⇒ đóng (lưu vẫn chạy tiếp nếu đang tra).
   React.useEffect(() => {

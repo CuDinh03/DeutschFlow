@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowRight, BarChart3, Layers, ListChecks, Mic, Repeat, Volume2 } from 'lucide-react'
+import { ArrowRight, BarChart3, BookmarkCheck, Layers, ListChecks, Mic, Repeat, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
 
 import { cleanExample, colorForArticle } from '@/lib/vocabWords'
@@ -48,6 +48,8 @@ const FRESH_HREF = '/v2/student/vocabulary/swipe'
 
 /** Dải lối vào các bài luyện — cùng thứ tự với sư phạm: nói → thẻ → mạo từ → thống kê. */
 const DRILLS = [
+  // Sổ từ riêng (13/11/2026): từ học viên tự lưu khi luyện đọc — đứng đầu vì là từ của chính họ.
+  { key: 'myWords', href: '/v2/student/vocabulary/my-words', Icon: BookmarkCheck },
   { key: 'practice', href: '/v2/student/vocabulary/practice', Icon: Mic },
   { key: 'swipe', href: '/v2/student/vocabulary/swipe', Icon: Layers },
   { key: 'articleQuiz', href: '/v2/student/vocabulary/article-quiz', Icon: ListChecks },

@@ -185,8 +185,50 @@ class SavedWordIntegrationTest extends AbstractPostgresIntegrationTest {
     @DisplayName("danh sách: chỉ từ của mình, mới nhất trước")
     void listOwnWords() {
         service.save(userId, req(KHO_FORM, null));
-        var list = service.list(userId);
+        var list = service.list(userId, "vi");
         assertThat(list.total()).isEqualTo(1);
         assertThat(list.items()).extracting(SavedWord::lemma).containsExactly(KHO_LEMMA);
+    }
+
+    @Test
+    @DisplayName("danh sách trả vị trí trong bài để mở lại đúng câu")
+    void listHasPassageLocation() {
+        service.save(userId, req(KHO_FORM, "Die Mzzwohnungen sind teuer."));
+        SavedWord w = service.list(userId, "vi").items().get(0);
+        assertThat(w.block()).isEqualTo("ctx");
+        assertThat(w.start()).isEqualTo(10);
+        assertThat(w.end()).isEqualTo(10 + KHO_FORM.length());
+        assertThat(w.sentence()).isEqualTo("Die Mzzwohnungen sind teuer.");
+    }
+
+    @Test
+    @DisplayName("chuyển chủ đề: tên trong bộ sẵn ⇒ đổi + nhãn theo ngôn ngữ; null ⇒ chưa phân loại; tên lạ ⇒ 400")
+    void changeTopic() {
+        SavedWord w = service.save(userId, req(KHO_FORM, null));
+
+        SavedWord moved = service.setTopic(userId, w.id(), "Reise", "en");
+        assertThat(moved.topic()).isEqualTo("Reise");
+        assertThat(moved.topicLabel()).isNotBlank();
+        assertThat(jdbc.queryForObject("SELECT topic_source FROM user_saved_words WHERE id = ?", String.class, w.id()))
+                .isEqualTo("USER");
+
+        assertThat(service.setTopic(userId, w.id(), null, "vi").topic()).isNull();
+        assertThatThrownBy(() -> service.setTopic(userId, w.id(), "Thuê nhà", "vi")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.setTopic(userId + 999_999, w.id(), "Reise", "vi")).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("sửa nghĩa: đổi cả thẻ ôn do sổ tạo; rỗng hay quá dài ⇒ 400")
+    void editMeaning() {
+        aiReturns("{\"lemma\":\"mzzanmelden\",\"pos\":\"VERB\",\"meaning_vi\":\"đăng ký\"}");
+        SavedWord w = service.save(userId, req("mzzmeldet", null));
+
+        SavedWord edited = service.setMeaning(userId, w.id(), "  đăng ký (khoá học) ", "vi");
+        assertThat(edited.meaning()).isEqualTo("đăng ký (khoá học)");
+        assertThat(jdbc.queryForObject("SELECT meaning FROM vocab_review_schedule WHERE user_id = ? AND vocab_id = ?",
+                String.class, userId, "sw:mzzanmelden")).isEqualTo("đăng ký (khoá học)");
+
+        assertThatThrownBy(() -> service.setMeaning(userId, w.id(), "  ", "vi")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.setMeaning(userId, w.id(), "x".repeat(201), "vi")).isInstanceOf(BadRequestException.class);
     }
 }
