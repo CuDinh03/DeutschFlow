@@ -29,6 +29,39 @@ interface PlayStep {
  * Teil 1) được tách ra đọc bằng giọng người dẫn rồi nghỉ; câu dẫn tình huống (`LEAD_IN`, Teil 3) cũng nghỉ
  * như vậy. Lời thoại hiển thị không đổi (đánh dấu của học viên bám theo số dòng).
  */
+/**
+ * Máy chủ TTS từ chối câu dài hơn 500 ký tự (khi đó trình duyệt rơi về giọng máy, nghe rất khác). Một lượt lời
+ * dài (bài Teil 1 thường ~600 ký tự) được cắt ở ranh giới câu thành các khúc ngắn, đọc nối nhau bằng cùng một giọng.
+ */
+export const TTS_CHUNK_MAX = 420
+
+export function chunkText(text: string, max = TTS_CHUNK_MAX): string[] {
+  const clean = text.trim()
+  if (clean.length <= max) return clean ? [clean] : []
+  const sentences = clean.match(/[^.!?…]+[.!?…]+["“”«»')\]]*\s*|[^.!?…]+$/g) ?? [clean]
+  const out: string[] = []
+  let cur = ''
+  const push = () => {
+    if (cur.trim()) out.push(cur.trim())
+    cur = ''
+  }
+  for (const raw of sentences) {
+    let piece = raw
+    // Một câu đơn dài quá trần: cắt ở khoảng trắng gần nhất.
+    while (piece.length > max) {
+      push()
+      const cut = piece.lastIndexOf(' ', max)
+      const at = cut > 0 ? cut : max
+      out.push(piece.slice(0, at).trim())
+      piece = piece.slice(at)
+    }
+    if ((cur + piece).length > max) push()
+    cur += piece
+  }
+  push()
+  return out
+}
+
 export function playSteps(turns: AudioTurn[]): PlayStep[] {
   const kept = turns.filter((x) => (x.text ?? '').trim())
   const lines = normalizeTurns(turns)
@@ -36,12 +69,12 @@ export function playSteps(turns: AudioTurn[]): PlayStep[] {
   lines.forEach((ln, i) => {
     const leadIn = kept[i]?.kind === 'LEAD_IN'
     const announce = !leadIn ? /^(Nummer\s+\d+\.)\s+(\S[\s\S]*)$/.exec(ln.text) : null
-    if (announce) {
-      steps.push({ line: i, speaker: NARRATOR_ROLE, text: announce[1], pauseAfter: LEAD_IN_PAUSE_MS })
-      steps.push({ line: i, speaker: ln.speaker, text: announce[2], pauseAfter: 0 })
-    } else {
-      steps.push({ line: i, speaker: ln.speaker, text: ln.text, pauseAfter: leadIn ? LEAD_IN_PAUSE_MS : 0 })
-    }
+    const body = announce ? announce[2] : ln.text
+    if (announce) steps.push({ line: i, speaker: NARRATOR_ROLE, text: announce[1], pauseAfter: LEAD_IN_PAUSE_MS })
+    const chunks = chunkText(body)
+    chunks.forEach((text, k) => {
+      steps.push({ line: i, speaker: ln.speaker, text, pauseAfter: leadIn && k === chunks.length - 1 ? LEAD_IN_PAUSE_MS : 0 })
+    })
   })
   for (let k = 0; k < steps.length - 1; k++) {
     if (steps[k].pauseAfter === 0 && steps[k].speaker !== steps[k + 1].speaker) steps[k].pauseAfter = SPEAKER_CHANGE_PAUSE_MS
