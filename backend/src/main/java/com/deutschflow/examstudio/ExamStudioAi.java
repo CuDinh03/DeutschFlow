@@ -531,7 +531,7 @@ public class ExamStudioAi {
               nur harmloses Alltagswissen ohne Zahlen.
             - Komplett eigene Worte, keine Formulierung einer Quelle.
             - Jeder Text %d–%d Wörter, Wortschatz %s, klare Sätze, ein eindeutiges Hauptthema pro Text.
-%s
+            %s
             - Keine Überschriften schreiben.
             Antworte NUR mit JSON: {"texts": [{"text": "...", "usedFactIds": ["s1f1"]}]}
             """;
