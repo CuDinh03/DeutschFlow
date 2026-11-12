@@ -206,6 +206,19 @@ public class SourceCatalogService {
 
     private static final int SITEMAP_POOL = 5_000;
 
+    /**
+     * Nơi đăng mà bài hay hỏng (không tải được, quá ngắn): đã loại từ 3 bài trở lên và số bài loại nhiều hơn gấp đôi
+     * số bài dùng được. Bộ điều phối để các nơi này xuống cuối khi chọn bài (lượt #11, 13/11/2026: bốn trang liền
+     * nhau của một nơi đăng đều quá ngắn, đốt hết lượt thử nguồn của Lesen 1).
+     */
+    public java.util.Set<Long> unreliableFeeds() {
+        return new java.util.HashSet<>(jdbc.queryForList("""
+                SELECT feed_id FROM exam_source_articles GROUP BY feed_id
+                HAVING count(*) FILTER (WHERE status = 'REJECTED') >= 3
+                   AND count(*) FILTER (WHERE status = 'REJECTED') > 2 * count(*) FILTER (WHERE status = 'USED')
+                """, Long.class));
+    }
+
     private static List<ArticleView> score(Collection<String> keywords, List<ArticleView> pool) {
         List<ArticleView> scored = new ArrayList<>();
         boolean any = keywords != null && keywords.stream().anyMatch(k -> k != null && !k.isBlank());

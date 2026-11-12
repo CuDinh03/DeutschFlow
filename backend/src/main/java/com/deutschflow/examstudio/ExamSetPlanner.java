@@ -88,7 +88,7 @@ final class ExamSetPlanner {
     static final int MIX_THEMES = 4;
     static final int MIX_THEMES_MIN = 3;
     /** Mỗi chủ đề của ô nhiều chủ đề phải còn ít nhất bấy nhiêu bài (một bài hỏng vẫn còn bài thay). */
-    static final int MIX_ARTICLES_PER_THEME = 2;
+    static final int MIX_ARTICLES_PER_THEME = 4; // lượt #11: ngưỡng 2 thì một bài hỏng là chủ đề hết bài
     static final String SEP = " / ";
 
     /** "Wohnen / Sport" ⇒ [Wohnen, Sport]; chủ đề đơn ⇒ một phần tử; null ⇒ rỗng. */
