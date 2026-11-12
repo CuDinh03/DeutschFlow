@@ -94,9 +94,10 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
                 Map.of(), Map.of(), null, null, Instant.now(), Instant.now(), null, !spec.situational(), List.of());
     }
 
-    private static Item item(String id, String light) {
-        return new Item(id, "Frage", Map.of("a", "x", "b", "y", "c", "z"), "a", null, null, List.of(), "EASY", null,
-                false, light, List.of());
+    /** Câu hỏi và đáp án khác nhau theo bản nháp, để kiểm cấp bộ không coi các Teil giả là trùng câu. */
+    private static Item item(long draft, String id, String light) {
+        return new Item(id, "Frage " + draft + " " + id, Map.of("a", "Antwort " + draft + " " + id, "b", "y", "c", "z"),
+                "a", null, null, List.of(), "EASY", null, false, light, List.of());
     }
 
     @BeforeEach
@@ -150,7 +151,7 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
             Fake f = fakes.get(inv.<Long>getArgument(0));
             int n = TeilSpec.find(f.req.examFormat(), f.req.cefrLevel(), f.req.section(), f.req.teil()).orElseThrow().itemCount();
             f.items = new ArrayList<>();
-            for (int i = 1; i <= n; i++) f.items.add(item("Q" + i, null));
+            for (int i = 1; i <= n; i++) f.items.add(item(f.id, "Q" + i, null));
             return view(f);
         });
         when(drafts.regenerateItem(anyLong(), anyString(), any(), anyLong())).thenAnswer(inv -> {
@@ -164,7 +165,7 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
             boolean red = redVerifies.getOrDefault(key(f), 0) >= f.verifies
                     || redVerifies.getOrDefault(key(f), 0) == Integer.MAX_VALUE;
             List<Item> out = new ArrayList<>();
-            for (int i = 0; i < f.items.size(); i++) out.add(item(f.items.get(i).id(), red && i == 0 ? "RED" : "GREEN"));
+            for (int i = 0; i < f.items.size(); i++) out.add(item(f.id, f.items.get(i).id(), red && i == 0 ? "RED" : "GREEN"));
             f.items = out;
             f.checks = List.of(new Check("FORMAT", "Đúng khuôn Teil", "GREEN", null));
             return view(f);
@@ -233,6 +234,11 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
 
         verify(notifications, times(1)).onSystemAlert(eq("EXAM_STUDIO_SET"), anyString(), anyString(), any());
         verify(drafts, times(6)).create(any(), eq(admin));
+
+        // Kiểm cấp bộ đã chạy và lưu kèm lượt: 7 mục, không mục nào đỏ.
+        assertThat(done.setChecks()).extracting(ExamStudioDtos.Check::key).contains("SET_THEMES", "SET_UNIQUE_TEXT",
+                "SET_UNIQUE_ITEMS", "SET_DIFFICULTY").hasSize(7);
+        assertThat(done.setChecks()).noneMatch(c -> "RED".equals(c.light()));
     }
 
     @Test

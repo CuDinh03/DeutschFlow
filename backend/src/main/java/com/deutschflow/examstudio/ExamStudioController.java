@@ -207,6 +207,16 @@ public class ExamStudioController {
         return a;
     }
 
+    public record RenameExamRequest(String title) {}
+
+    @PatchMapping("/assemblies/{examId}")
+    public ExamAssemblyService.Assembled rename(@PathVariable long examId, @RequestBody RenameExamRequest req,
+                                                @AuthenticationPrincipal User actor) {
+        ExamAssemblyService.Assembled a = assembly.rename(examId, req == null ? null : req.title());
+        audit.log("admin.exam_studio.exam_renamed", AuditActor.of(actor), "MOCK_EXAM", String.valueOf(examId), Map.of());
+        return a;
+    }
+
     @PostMapping("/assemblies/{examId}/publish")
     public ExamAssemblyService.Assembled publish(@PathVariable long examId, @AuthenticationPrincipal User actor) {
         ExamAssemblyService.Assembled a = assembly.publish(examId);

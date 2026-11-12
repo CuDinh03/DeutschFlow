@@ -343,6 +343,20 @@ public class ExamAssemblyService {
         return rows.get(0);
     }
 
+    /** Đổi tên bộ đề ghép (tên học viên thấy). Chỉ bộ ghép từ Xưởng đề; đề viết tay không đổi ở đây. */
+    @Transactional
+    public Assembled rename(long id, String title) {
+        get(id);
+        String t = title == null ? "" : title.trim();
+        if (t.isEmpty()) throw new BadRequestException("Đặt tên cho bộ đề.");
+        if (t.length() > 200) throw new BadRequestException("Tên bộ đề tối đa 200 ký tự.");
+        Integer clash = jdbc.queryForObject("SELECT count(*) FROM mock_exams WHERE lower(title) = lower(?) AND id <> ?",
+                Integer.class, t, id);
+        if (clash != null && clash > 0) throw new ConflictException("Đã có một đề khác mang tên này.");
+        jdbc.update("UPDATE mock_exams SET title = ? WHERE id = ? AND origin = 'STUDIO'", t, id);
+        return get(id);
+    }
+
     /** Phát hành (kể cả phát hành lại bộ đã gỡ): hết "Sắp có", học viên làm được. */
     @Transactional
     public Assembled publish(long id) {

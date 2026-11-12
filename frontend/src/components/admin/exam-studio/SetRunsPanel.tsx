@@ -142,6 +142,22 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
               )}
             </div>
             {r.note && <p className="ga-ui text-ga-caption text-ga-muted">{r.note}</p>}
+            {(r.setChecks ?? []).length > 0 && (
+              <div className="flex flex-col gap-1 rounded-ga bg-ga-surface px-3 py-2">
+                <GaCap>{t('setChecks')}</GaCap>
+                <ul className="flex flex-col gap-1">
+                  {(r.setChecks ?? []).map((c) => (
+                    <li key={c.key} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <TkBadge tone={c.light === 'RED' ? 'red' : c.light === 'YELLOW' ? 'yellow' : 'green'}>
+                        {t(`light.${c.light}`)}
+                      </TkBadge>
+                      <span className="ga-ui text-ga-small text-ga-ink">{c.label}</span>
+                      {c.detail && <span className="ga-ui basis-full break-words text-ga-caption text-ga-muted">{c.detail}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <ul className="flex flex-col divide-y divide-ga-line">
               {r.teile.map((x) => (
                 <li key={`${x.section}-${x.teil}`} className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0">

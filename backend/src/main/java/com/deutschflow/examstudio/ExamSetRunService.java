@@ -74,7 +74,9 @@ public class ExamSetRunService {
                            int repairRound, int themeTry, String lastError) {}
 
     public record RunView(long id, String examFormat, String cefrLevel, String status, String channel,
-                          String profile, String note, String createdAt, String updatedAt, List<TeilView> teile) {}
+                          String profile, String note, String createdAt, String updatedAt, List<TeilView> teile,
+                          /** Kiểm cấp bộ (có sau khi mọi Teil xong); rỗng khi lượt còn chạy. */
+                          List<Check> setChecks) {}
 
     private record RunRow(long id, String examFormat, String cefrLevel, String status, String channel,
                           String profile, long createdBy) {}
@@ -122,7 +124,8 @@ public class ExamSetRunService {
         return jdbc.query("SELECT * FROM exam_set_runs WHERE id = ?", (rs, i) -> new RunView(rs.getLong("id"),
                         rs.getString("exam_format"), rs.getString("cefr_level"), rs.getString("status"),
                         rs.getString("channel"), rs.getString("profile"), rs.getString("note"),
-                        iso(rs.getTimestamp("created_at")), iso(rs.getTimestamp("updated_at")), teile), id)
+                        iso(rs.getTimestamp("created_at")), iso(rs.getTimestamp("updated_at")), teile,
+                        readChecks(rs.getString("report_json"))), id)
                 .stream().findFirst().orElseThrow(() -> new NotFoundException("Không có lượt tạo bộ đề #" + id + "."));
     }
 
@@ -533,10 +536,22 @@ public class ExamSetRunService {
         List<TeilRow> rows = teile(run.id());
         if (rows.stream().anyMatch(t -> !t.status().equals("READY") && !t.status().equals("STUCK"))) return;
         long stuck = rows.stream().filter(t -> t.status().equals("STUCK")).count();
-        String status = stuck == 0 ? "REVIEW" : "NEEDS_ATTENTION";
+        // Kiểm cấp bộ: bộ có đứng được như một đề và có độc nhất không. Có đèn đỏ ⇒ không cho duyệt cả bộ.
+        List<Check> setChecks = List.of();
+        try {
+            setChecks = setChecks(run, rows);
+        } catch (RuntimeException e) {
+            log.error("[ExamSet] lượt #{}: kiểm cấp bộ lỗi: {}", run.id(), e.getMessage(), e);
+            setChecks = List.of(new Check("SET_ERROR", "Kiểm cấp bộ", "RED", "Không chạy được kiểm cấp bộ: " + e.getMessage()));
+        }
+        boolean setRed = ExamSetChecks.hasRed(setChecks);
+        String status = stuck == 0 && !setRed ? "REVIEW" : "NEEDS_ATTENTION";
         if (jdbc.update("""
-                UPDATE exam_set_runs SET status = ?, finished_at = now(), updated_at = now() WHERE id = ? AND status = 'RUNNING'
-                """, status, run.id()) == 0) return;
+                UPDATE exam_set_runs SET status = ?, report_json = ?::jsonb, finished_at = now(), updated_at = now()
+                WHERE id = ? AND status = 'RUNNING'
+                """, status, json(Map.of("checks", setChecks)), run.id()) == 0) return;
+        if (setRed) log.info("[ExamSet] lượt #{}: kiểm cấp bộ có đèn đỏ: {}", run.id(), setChecks.stream()
+                .filter(c -> "RED".equals(c.light())).map(c -> c.label() + " (" + c.detail() + ")").toList());
         String name = run.examFormat().toLowerCase() + " " + run.cefrLevel();
         try {
             notifications.onSystemAlert("EXAM_STUDIO_SET",
@@ -546,6 +561,116 @@ public class ExamSetRunService {
                     Map.of("runId", run.id(), "url", "/v2/admin/exam-studio?tab=sets&run=" + run.id()));
         } catch (RuntimeException e) {
             log.warn("[ExamSet] không gửi được thông báo cho lượt #{}: {}", run.id(), e.getMessage());
+        }
+    }
+
+    // ── Kiểm cấp bộ ──────────────────────────────────────────────────────────────────────────────────────
+
+    /** So bộ vừa xong với: kho Teil đã duyệt, Teil của các lượt khác đang chờ duyệt, và đề viết tay — cùng kỳ thi + cấp. */
+    List<Check> setChecks(RunRow run, List<TeilRow> rows) {
+        List<ExamSetChecks.TeilDoc> set = new ArrayList<>();
+        for (TeilRow t : rows) {
+            if (!t.status().equals("READY") || t.draftId() == null) continue;
+            set.add(doc(drafts.get(t.draftId()), t));
+        }
+        List<ExamSetChecks.Other> corpus = new ArrayList<>();
+        jdbc.query("""
+                SELECT id, section, teil, content_json::text AS c FROM exam_teil_blocks
+                WHERE UPPER(exam_format) = UPPER(?) AND cefr_level = ? AND status = 'APPROVED' ORDER BY id DESC LIMIT 600
+                """, rs -> {
+            corpus.add(other("Teil kho #" + rs.getLong("id"), rs.getString("section"), rs.getInt("teil"), readMap(rs.getString("c"))));
+        }, run.examFormat(), run.cefrLevel());
+        jdbc.query("""
+                SELECT id, title, sections_json::text AS s FROM mock_exams
+                WHERE UPPER(exam_format) = UPPER(?) AND cefr_level = ? AND origin = 'HANDWRITTEN' ORDER BY id LIMIT 60
+                """, rs -> {
+            Object sections = readMap(rs.getString("s")).get("sections");
+            if (!(sections instanceof List<?> list)) return;
+            for (Object so : list) {
+                if (!(so instanceof Map<?, ?> sec) || !(sec.get("teile") instanceof List<?> teile)) continue;
+                for (Object to : teile) {
+                    if (!(to instanceof Map<?, ?> tm)) continue;
+                    @SuppressWarnings("unchecked") Map<String, Object> content = (Map<String, Object>) tm;
+                    int teilNo = content.get("teil") instanceof Number n ? n.intValue() : 0;
+                    corpus.add(other("đề „" + rs.getString("title") + "“ (" + sec.get("name") + " " + teilNo + ")",
+                            String.valueOf(sec.get("name")), teilNo, content));
+                }
+            }
+        }, run.examFormat(), run.cefrLevel());
+        for (Map<String, Object> r : jdbc.queryForList("""
+                SELECT t.run_id, t.section, t.teil, t.draft_id FROM exam_set_run_teile t JOIN exam_set_runs r ON r.id = t.run_id
+                WHERE r.id <> ? AND r.status IN ('REVIEW', 'NEEDS_ATTENTION') AND t.status = 'READY' AND t.draft_id IS NOT NULL
+                  AND UPPER(r.exam_format) = UPPER(?) AND r.cefr_level = ?
+                """, run.id(), run.examFormat(), run.cefrLevel())) {
+            Draft d = drafts.get(((Number) r.get("draft_id")).longValue());
+            ExamSetChecks.TeilDoc x = doc(d, null);
+            corpus.add(new ExamSetChecks.Other("lượt #" + r.get("run_id") + " (" + r.get("section") + " " + r.get("teil") + ")",
+                    x.cell(), x.text(), x.itemCores(), x.answerKey()));
+        }
+        return ExamSetChecks.run(set, corpus);
+    }
+
+    private ExamSetChecks.TeilDoc doc(Draft d, TeilRow t) {
+        StringBuilder sb = new StringBuilder();
+        ExamStudioDtos.Text x = d.text();
+        if (x != null) {
+            for (String s : new String[]{x.titleDe(), x.vorspannDe(), x.context(), x.stimulusAd()}) if (s != null) sb.append(s).append('\n');
+            if (x.ads() != null) x.ads().values().forEach(v -> sb.append(v).append('\n'));
+            if (x.wordBank() != null) x.wordBank().values().forEach(v -> sb.append(v).append('\n'));
+            if (x.stimulus() != null && x.stimulus().body() != null) sb.append(x.stimulus().body()).append('\n');
+            if (x.writingPoints() != null) x.writingPoints().forEach(v -> sb.append(v).append('\n'));
+            if (x.examples() != null) x.examples().forEach(e -> sb.append(e.situation()).append('\n'));
+        }
+        List<String> cores = new ArrayList<>();
+        StringBuilder key = new StringBuilder();
+        Map<String, Integer> measured = new LinkedHashMap<>();
+        for (Item i : d.items()) {
+            if (i.question() != null) sb.append(i.question()).append('\n');
+            if (i.options() != null) i.options().values().forEach(v -> sb.append(v).append('\n'));
+            String q = i.question() != null && i.question().contains("___") && i.evidence() != null && !i.evidence().isBlank()
+                    ? i.evidence() : i.question();
+            cores.add(ExamDedupService.itemCore(q, i.options() == null || i.correct() == null ? null : i.options().get(i.correct())));
+            if (i.correct() != null) key.append(i.correct());
+            if (i.difficultyMeasured() != null && i.difficultyMeasured().level() != null) {
+                measured.merge(i.difficultyMeasured().level(), 1, Integer::sum);
+            }
+        }
+        return new ExamSetChecks.TeilDoc(d.section().toUpperCase() + "#" + d.teil(), d.section() + " " + d.teil(),
+                t == null ? d.theme() : t.theme(), sb.toString(), cores, key.toString(), d.difficultyPlan(), measured);
+    }
+
+    private static ExamSetChecks.Other other(String label, String section, int teil, Map<String, Object> content) {
+        List<String> cores = new ArrayList<>();
+        StringBuilder key = new StringBuilder();
+        if (content.get("items") instanceof List<?> items) {
+            for (Object o : items) {
+                if (!(o instanceof Map<?, ?> it)) continue;
+                Object opts = it.get("options");
+                Object corr = it.get("correct");
+                String ans = opts instanceof Map<?, ?> m && corr != null && m.get(corr) != null ? m.get(corr).toString() : null;
+                Object q = it.get("question") != null ? it.get("question") : it.get("evidence");
+                cores.add(ExamDedupService.itemCore(q == null ? null : q.toString(), ans));
+                if (corr != null) key.append(corr);
+            }
+        }
+        return new ExamSetChecks.Other(label, String.valueOf(section).toUpperCase() + "#" + teil,
+                ExamDedupService.contentText(content), cores, key.toString());
+    }
+
+    private Map<String, Object> readMap(String jsonText) {
+        try {
+            return jsonText == null ? Map.of() : mapper.readValue(jsonText, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    private List<Check> readChecks(String reportJson) {
+        try {
+            Object c = readMap(reportJson).get("checks");
+            return c == null ? List.of() : mapper.convertValue(c, new TypeReference<List<Check>>() {});
+        } catch (RuntimeException e) {
+            return List.of();
         }
     }
 

@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Eye, EyeOff, ExternalLink, Layers, Send } from 'lucide-react'
+import { Eye, EyeOff, ExternalLink, Layers, Pencil, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
   DIFFICULTY_LABEL,
   assembleExam, listAssembledExams, listAssemblyBases, listAssemblySlots,
-  publishAssembledExam, retireAssembledExam,
+  publishAssembledExam, renameAssembledExam, retireAssembledExam,
   type AssembledExam, type AssemblyBase, type AssemblyBlockOption, type AssemblySlotBlocks,
 } from '@/lib/adminExamStudioApi'
 import {
@@ -66,6 +66,22 @@ export function AssembliesTab({ active }: { active: boolean }) {
   const [error, setError] = useState('')
   const [pending, setPending] = useState<Pending>(null)
   const [acting, setActing] = useState(false)
+  const [renaming, setRenaming] = useState<{ id: number; title: string } | null>(null)
+
+  const saveName = async () => {
+    if (!renaming || !renaming.title.trim()) return
+    setActing(true)
+    try {
+      await renameAssembledExam(renaming.id, renaming.title.trim())
+      setRenaming(null)
+      toast.success(t('assembly.renamed'))
+      setExams(await listAssembledExams())
+    } catch (err: unknown) {
+      toast.error(apiMessage(err))
+    } finally {
+      setActing(false)
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -119,7 +135,17 @@ export function AssembliesTab({ active }: { active: boolean }) {
               return (
                 <li key={e.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                   <div className="min-w-0 flex-1 basis-64">
-                    <p className="ga-ui truncate text-ga-body font-semibold text-ga-ink">{e.title}</p>
+                    {renaming?.id === e.id ? (
+                      <form className="flex flex-wrap items-center gap-1.5" onSubmit={(ev) => { ev.preventDefault(); void saveName() }}>
+                        <input autoFocus value={renaming.title} maxLength={200} aria-label={t('assembly.renameLabel')}
+                          onChange={(ev) => setRenaming({ id: e.id, title: ev.target.value })}
+                          className={`${studioField} min-w-0 flex-1 basis-64`} />
+                        <button type="submit" className={studioMiniBtn} disabled={acting || !renaming.title.trim()}>{t('assembly.renameSave')}</button>
+                        <button type="button" className={studioMiniBtn} disabled={acting} onClick={() => setRenaming(null)}>{t('cancel')}</button>
+                      </form>
+                    ) : (
+                      <p className="ga-ui truncate text-ga-body font-semibold text-ga-ink">{e.title}</p>
+                    )}
                     <p className="ga-ui text-ga-caption text-ga-muted">
                       {e.baseExamId != null
                         ? t('assembly.base', { title: baseTitle.get(e.baseExamId) ?? `#${e.baseExamId}` })
@@ -140,6 +166,9 @@ export function AssembliesTab({ active }: { active: boolean }) {
                       className={studioMiniBtn}>
                       <ExternalLink size={13} aria-hidden /> {t('assembly.viewAsStudent')}
                     </a>
+                    <button type="button" className={studioMiniBtn} onClick={() => setRenaming({ id: e.id, title: e.title })}>
+                      <Pencil size={13} aria-hidden /> {t('assembly.rename')}
+                    </button>
                     {st !== 'PUBLISHED' && (
                       <button type="button" className={studioMiniBtn} onClick={() => setPending({ kind: 'publish', exam: e })}>
                         <Send size={13} aria-hidden /> {t('assembly.publish')}

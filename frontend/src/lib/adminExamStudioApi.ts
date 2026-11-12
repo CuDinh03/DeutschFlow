@@ -439,6 +439,9 @@ export async function listAssembledExams(): Promise<AssembledExam[]> {
 export async function assembleExam(body: AssembleBody): Promise<AssembledExam> {
   return (await api.post<AssembledExam>(`${BASE}/assemblies`, body)).data
 }
+export async function renameAssembledExam(examId: number, title: string): Promise<AssembledExam> {
+  return (await api.patch<AssembledExam>(`${BASE}/assemblies/${examId}`, { title })).data
+}
 export async function publishAssembledExam(examId: number): Promise<AssembledExam> {
   return (await api.post<AssembledExam>(`${BASE}/assemblies/${examId}/publish`, {})).data
 }
@@ -537,6 +540,8 @@ export interface SetRun {
   createdAt: string | null
   updatedAt: string | null
   teile: SetRunTeil[]
+  /** Kiểm cấp bộ; rỗng khi lượt còn chạy. Đèn đỏ ⇒ lượt không duyệt được. */
+  setChecks?: StudioCheck[]
 }
 
 export async function listSetRuns(): Promise<SetRun[]> {
