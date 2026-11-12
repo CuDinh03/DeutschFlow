@@ -1,6 +1,7 @@
 package com.deutschflow.vocabulary.saved;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
@@ -83,7 +84,7 @@ class SavedWordIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     private SaveRequest req(String text, String sentence) {
-        return new SaveRequest(text, sentence, null, "LESEN-2", "ctx", 10, 10 + text.length());
+        return new SaveRequest(text, sentence, null, "LESEN-2", "ctx", 10, 10 + text.length(), null);
     }
 
     private int cards(String vocabId) {
@@ -230,5 +231,32 @@ class SavedWordIntegrationTest extends AbstractPostgresIntegrationTest {
 
         assertThatThrownBy(() -> service.setMeaning(userId, w.id(), "  ", "vi")).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> service.setMeaning(userId, w.id(), "x".repeat(201), "vi")).isInstanceOf(BadRequestException.class);
+    }
+
+    private long attempt(String status) {
+        long examId = jdbc.queryForObject("""
+                INSERT INTO mock_exams (cefr_level, exam_format, title, sections_json, is_active, total_points, pass_points)
+                VALUES ('B1', 'TELC', 'Đề sổ từ', '{"sections":[]}'::jsonb, TRUE, 300, 180)
+                RETURNING id
+                """, Long.class);
+        return jdbc.queryForObject("""
+                INSERT INTO mock_exam_attempts (user_id, exam_id, status) VALUES (?, ?, ?) RETURNING id
+                """, Long.class, userId, examId, status);
+    }
+
+    @Test
+    @DisplayName("xem lại thi thử: lượt đã nộp ⇒ lưu được, gắn đúng đề; đang thi ⇒ 409; lượt người khác ⇒ 404")
+    void saveFromAttemptReview() {
+        long done = attempt("COMPLETED");
+        SavedWord w = service.save(userId, new SaveRequest(KHO_FORM, null, null, "LESEN-2", "ctx", 0, 12, done));
+        Long examOfAttempt = jdbc.queryForObject("SELECT exam_id FROM mock_exam_attempts WHERE id = ?", Long.class, done);
+        assertThat(w.examId()).isEqualTo(examOfAttempt);
+        assertThat(w.examTitle()).isEqualTo("Đề sổ từ");
+
+        long running = attempt("IN_PROGRESS");
+        assertThatThrownBy(() -> service.save(userId, new SaveRequest("Mzzhaus", null, null, "LESEN-1", null, null, null, running)))
+                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.save(userId + 999_999, new SaveRequest(KHO_FORM, null, null, "LESEN-2", null, null, null, done)))
+                .isInstanceOf(NotFoundException.class);
     }
 }

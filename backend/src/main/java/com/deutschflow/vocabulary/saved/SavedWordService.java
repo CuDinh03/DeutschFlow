@@ -1,6 +1,7 @@
 package com.deutschflow.vocabulary.saved;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.srs.dto.ScheduleVocabRequest;
 import com.deutschflow.srs.service.SrsService;
@@ -63,7 +64,18 @@ public class SavedWordService {
         }
         String sentence = SavedWordText.normalizeSentence(req.sentence());
         Long examId = req.examId();
-        if (examId != null) {
+        if (req.attemptId() != null) {
+            // Xem lại thi thử (đợt 3): chỉ lượt của mình, đã nộp / dừng giữa chừng — đang thi thì không lưu từ.
+            List<Map<String, Object>> rows = jdbc.queryForList(
+                    "SELECT exam_id, status FROM mock_exam_attempts WHERE id = ? AND user_id = ?",
+                    req.attemptId(), userId);
+            if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy lượt thi.");
+            String status = String.valueOf(rows.get(0).get("status"));
+            if (!"COMPLETED".equals(status) && !"PARTIAL".equals(status)) {
+                throw new ConflictException("Nộp bài xong mới lưu được từ của lượt thi này.");
+            }
+            examId = ((Number) rows.get(0).get("exam_id")).longValue();
+        } else if (examId != null) {
             Long found = jdbc.queryForObject("SELECT COUNT(*) FROM mock_exams WHERE id = ?", Long.class, examId);
             if (found == null || found == 0) throw new NotFoundException("Không tìm thấy đề.");
         }
@@ -86,6 +98,7 @@ public class SavedWordService {
         String vocabId = srsVocabId(lk.wordId(), lemmaKey);
         String display = lk.article() != null ? lk.article() + " " + lk.lemma() : lk.lemma();
 
+        final Long ex = examId;
         final Integer s = start;
         final Integer e = end;
         final String b = block;
@@ -103,7 +116,7 @@ public class SavedWordService {
                     RETURNING id
                     """, Long.class,
                     userId, cut(lk.lemma(), 120), lemmaKey, cut(surface, 120), lk.article(), lk.pos(), lk.meaning(),
-                    lk.meaningSource(), lk.wordId(), lk.topic(), lk.topicSource(), sentence, examId, teilKey,
+                    lk.meaningSource(), lk.wordId(), lk.topic(), lk.topicSource(), sentence, ex, teilKey,
                     b, s, e, vocabId, srsCreated, lk.aiCalled());
             if (ids.isEmpty()) return null; // đã có (cùng dạng gốc, khác chữ bôi — hoặc hai lần bấm chạy đua)
             if (!srsCreated) return ids.get(0); // thẻ ôn đã có sẵn — giữ nguyên lịch của nó

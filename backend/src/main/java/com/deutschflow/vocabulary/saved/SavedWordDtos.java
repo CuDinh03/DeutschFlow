@@ -18,9 +18,10 @@ public final class SavedWordDtos {
      * @param block    khối chữ trong bài ({@code ctx} hoặc {@code q:<id>}) — để sau mở lại đúng chỗ
      * @param start    vị trí ký tự đầu trong khối
      * @param end      vị trí ký tự cuối (không gồm) trong khối
+     * @param attemptId lượt thi thử đang xem lại (đợt 3) — server lấy đề từ lượt; lượt chưa nộp / đã huỷ ⇒ 409
      */
     public record SaveRequest(String text, String sentence, Long examId, String teilKey,
-                              String block, Integer start, Integer end) {}
+                              String block, Integer start, Integer end, Long attemptId) {}
 
     public record SavedWord(
             long id,

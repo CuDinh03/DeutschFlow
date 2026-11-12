@@ -2611,6 +2611,7 @@
         "wordErrorBad": "You can save 1 to 5 consecutive German words.",
         "wordErrorAi": "Could not look up this word right now. Please try again in a few minutes.",
         "wordError": "Could not save the word. Please try again.",
+        "wordErrorExam": "Submit the exam first to save words from this attempt.",
         "announceWordSaved": "Saved {word} to your word book",
         "bar": {
           "title": "Highlighter",

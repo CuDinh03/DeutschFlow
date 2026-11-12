@@ -19,11 +19,12 @@ type State =
   | { kind: 'removed'; word: SavedWord }
   | { kind: 'error'; message: string }
 
-function errorKey(e: unknown): 'wordErrorCap' | 'wordErrorBad' | 'wordErrorAi' | 'wordError' {
+function errorKey(e: unknown): 'wordErrorCap' | 'wordErrorBad' | 'wordErrorAi' | 'wordErrorExam' | 'wordError' {
   const status = (e as { response?: { status?: number } })?.response?.status
   if (status === 429) return 'wordErrorCap'
   if (status === 400) return 'wordErrorBad'
   if (status === 503) return 'wordErrorAi'
+  if (status === 409) return 'wordErrorExam'
   return 'wordError'
 }
 

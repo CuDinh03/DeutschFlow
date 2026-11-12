@@ -137,6 +137,7 @@ describe('Lưu từ từ bài đọc — luyện Teil', () => {
       text: 'Zeitaufwand',
       sentence: 'Wer zu uns kommt, fragt zuerst nach dem Zeitaufwand.',
       examId: 7,
+      attemptId: null,
       teilKey: 'LESEN-2',
       block: 'ctx',
       start: at,
