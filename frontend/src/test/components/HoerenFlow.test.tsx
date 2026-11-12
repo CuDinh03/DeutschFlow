@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const tts = vi.hoisted(() => ({
   speakExamLine: vi.fn(async () => {}),
   stopExamTts: vi.fn(),
+  prepareExamLine: vi.fn(),
 }))
 vi.mock('@/components/features/exam-speaking/examTts', () => tts)
 vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi'))

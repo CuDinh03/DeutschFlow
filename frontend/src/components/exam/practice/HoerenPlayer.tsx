@@ -4,10 +4,83 @@ import * as React from 'react'
 import { useTranslations } from 'next-intl'
 import { Captions, Lock, Play, Repeat1, Repeat2, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { speakExamLine, stopExamTts } from '@/components/features/exam-speaking/examTts'
-import { canPlayAgain, normalizeTurns, playsLeft, type AudioTurn } from '@/components/exam/audioScript'
+import { prepareExamLine, speakExamLine, stopExamTts } from '@/components/features/exam-speaking/examTts'
+import { canPlayAgain, NARRATOR_ROLE, normalizeTurns, playsLeft, type AudioTurn } from '@/components/exam/audioScript'
 import { MarkLayerContext, MarkedText } from '@/components/exam/marks/MarkedText'
 import { blockText } from '@/components/exam/marks/marksBlocks'
+
+/** Nghỉ sau câu báo số câu / câu dẫn tình huống trước khi vào nội dung (owner chốt 13/11/2026: 3–5 giây). */
+export const LEAD_IN_PAUSE_MS = 4000
+/** Nhịp thở khi đổi người nói — hai lượt lời dính liền nhau nghe như máy đọc. */
+export const SPEAKER_CHANGE_PAUSE_MS = 350
+/** Số lượt lời xin audio trước trong lúc lượt hiện tại đang phát. */
+const PREPARE_AHEAD = 3
+
+/** Một bước phát: `line` = dòng lời thoại đang sáng trên màn hình; `pauseAfter` = quãng nghỉ sau bước. */
+interface PlayStep {
+  line: number
+  speaker: string
+  text: string
+  pauseAfter: number
+}
+
+/**
+ * Đổi các lượt lời thành các bước phát. Câu báo số câu nằm ngay đầu bài („Nummer 41. Ich fahre …", đề telc
+ * Teil 1) được tách ra đọc bằng giọng người dẫn rồi nghỉ; câu dẫn tình huống (`LEAD_IN`, Teil 3) cũng nghỉ
+ * như vậy. Lời thoại hiển thị không đổi (đánh dấu của học viên bám theo số dòng).
+ */
+/**
+ * Máy chủ TTS từ chối câu dài hơn 500 ký tự (khi đó trình duyệt rơi về giọng máy, nghe rất khác). Một lượt lời
+ * dài (bài Teil 1 thường ~600 ký tự) được cắt ở ranh giới câu thành các khúc ngắn, đọc nối nhau bằng cùng một giọng.
+ */
+export const TTS_CHUNK_MAX = 420
+
+export function chunkText(text: string, max = TTS_CHUNK_MAX): string[] {
+  const clean = text.trim()
+  if (clean.length <= max) return clean ? [clean] : []
+  const sentences = clean.match(/[^.!?…]+[.!?…]+["“”«»')\]]*\s*|[^.!?…]+$/g) ?? [clean]
+  const out: string[] = []
+  let cur = ''
+  const push = () => {
+    if (cur.trim()) out.push(cur.trim())
+    cur = ''
+  }
+  for (const raw of sentences) {
+    let piece = raw
+    // Một câu đơn dài quá trần: cắt ở khoảng trắng gần nhất.
+    while (piece.length > max) {
+      push()
+      const cut = piece.lastIndexOf(' ', max)
+      const at = cut > 0 ? cut : max
+      out.push(piece.slice(0, at).trim())
+      piece = piece.slice(at)
+    }
+    if ((cur + piece).length > max) push()
+    cur += piece
+  }
+  push()
+  return out
+}
+
+export function playSteps(turns: AudioTurn[]): PlayStep[] {
+  const kept = turns.filter((x) => (x.text ?? '').trim())
+  const lines = normalizeTurns(turns)
+  const steps: PlayStep[] = []
+  lines.forEach((ln, i) => {
+    const leadIn = kept[i]?.kind === 'LEAD_IN'
+    const announce = !leadIn ? /^(Nummer\s+\d+\.)\s+(\S[\s\S]*)$/.exec(ln.text) : null
+    const body = announce ? announce[2] : ln.text
+    if (announce) steps.push({ line: i, speaker: NARRATOR_ROLE, text: announce[1], pauseAfter: LEAD_IN_PAUSE_MS })
+    const chunks = chunkText(body)
+    chunks.forEach((text, k) => {
+      steps.push({ line: i, speaker: ln.speaker, text, pauseAfter: leadIn && k === chunks.length - 1 ? LEAD_IN_PAUSE_MS : 0 })
+    })
+  })
+  for (let k = 0; k < steps.length - 1; k++) {
+    if (steps[k].pauseAfter === 0 && steps[k].speaker !== steps[k + 1].speaker) steps[k].pauseAfter = SPEAKER_CHANGE_PAUSE_MS
+  }
+  return steps
+}
 
 interface Props {
   turns: AudioTurn[]
@@ -47,11 +120,24 @@ export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcrip
   const [active, setActive] = React.useState(-1)
   const [showText, setShowText] = React.useState(false)
   const runRef = React.useRef(0)
+  const cancelWaitRef = React.useRef<(() => void) | null>(null)
 
   React.useEffect(() => () => {
     runRef.current += 1
+    cancelWaitRef.current?.()
     stopExamTts()
   }, [])
+
+  const wait = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const finish = () => {
+        clearTimeout(id)
+        cancelWaitRef.current = null
+        resolve()
+      }
+      const id = setTimeout(finish, ms)
+      cancelWaitRef.current = finish
+    })
 
   const left = playsLeft(maxPlays, used)
   const exhausted = !canPlayAgain(maxPlays, used)
@@ -59,6 +145,7 @@ export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcrip
 
   const stop = () => {
     runRef.current += 1
+    cancelWaitRef.current?.()
     stopExamTts()
     setPlaying(false)
     setActive(-1)
@@ -72,10 +159,17 @@ export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcrip
     setUsed(nextUsed)
     setPlaying(true)
     onPlayStart?.()
-    for (let i = 0; i < lines.length; i++) {
+    const steps = playSteps(turns)
+    for (let i = 0; i < steps.length; i++) {
       if (runRef.current !== run) return
-      setActive(i)
-      await speakExamLine(lines[i].speaker, lines[i].text)
+      setActive(steps[i].line)
+      // Xin trước audio của vài lượt kế tiếp để đổi người nói không bị khựng.
+      for (const next of steps.slice(i + 1, i + 1 + PREPARE_AHEAD)) prepareExamLine(next.speaker, next.text)
+      const outcome = await speakExamLine(steps[i].speaker, steps[i].text)
+      // Chỉ nghỉ khi câu vừa rồi thật sự phát ra tiếng (tắt tiếng / không có audio thì không bắt chờ).
+      if (outcome === 'played' && steps[i].pauseAfter > 0 && i < steps.length - 1 && runRef.current === run) {
+        await wait(steps[i].pauseAfter)
+      }
     }
     if (runRef.current !== run) return
     setPlaying(false)
