@@ -99,7 +99,8 @@ public class SourceCatalogService {
         List<Entry> entries;
         try {
             entries = switch (f.listingKind()) {
-                case "RSS" -> SourceCatalog.parseRss(fetcher.fetchRaw(f.listingUrl()).body());
+                case "RSS" -> SourceCatalog.filterByPattern(
+                        SourceCatalog.parseRss(fetcher.fetchRaw(f.listingUrl()).body()), f.linkPattern());
                 case "SITEMAP" -> SourceCatalog.parseSitemap(
                         fetcher.fetchRaw(f.listingUrl(), SourceFetcher.MAX_SITEMAP_BYTES).body(), f.linkPattern());
                 default -> {

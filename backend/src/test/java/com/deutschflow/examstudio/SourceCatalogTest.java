@@ -45,6 +45,17 @@ class SourceCatalogTest {
     }
 
     @Test
+    @DisplayName("feed lẫn mục ảnh: nguồn có mẫu đường dẫn chỉ giữ tin bài; không có mẫu thì giữ hết")
+    void filterByPattern() {
+        List<Entry> es = List.of(new Entry("https://presse.wien.gv.at/presse/2026/11/11/wien-jagt-mister-x-mas", "Tin", null),
+                new Entry("https://presse.wien.gv.at/presse/bilder/2026/11/10/herzerlbaum", "Ảnh", null));
+        String pattern = "presse\.wien\.gv\.at/presse/\d{4}/\d{2}/\d{2}/[^/?#]+$";
+        assertThat(SourceCatalog.filterByPattern(es, pattern)).extracting(Entry::title).containsExactly("Tin");
+        assertThat(SourceCatalog.filterByPattern(es, null)).hasSize(2);
+        assertThat(SourceCatalog.filterByPattern(es, " ")).hasSize(2);
+    }
+
+    @Test
     @DisplayName("Atom: link nằm ở thuộc tính href, ngày ở published / updated")
     void atom() {
         List<Entry> es = SourceCatalog.parseRss("""
