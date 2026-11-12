@@ -453,8 +453,11 @@ public class ExamSetRunService {
             usage.put(t.section() + "#" + t.teil(), used);
         }
         Map<String, Integer> avail = new HashMap<>();
+        Set<Long> unreliable = catalog.unreliableFeeds();
+        // Chỉ đếm bài của nơi đăng đáng tin: chủ đề mà sổ chỉ còn bài của nơi hay hỏng thì coi như hết bài.
         return ExamSetPlanner.assign(slots, usage,
-                th -> avail.computeIfAbsent(th.name(), k -> catalog.candidates(th.stems(), 12).size()), banned, run.id());
+                th -> avail.computeIfAbsent(th.name(), k -> (int) catalog.candidates(th.stems(), 40).stream()
+                        .filter(a -> !unreliable.contains(a.feedId())).limit(12).count()), banned, run.id());
     }
 
     // ── Đẩy một Teil thêm một bước. Trả true nếu vừa xếp một job AI (bản nháp bận) ───────────────────────
@@ -564,7 +567,8 @@ public class ExamSetRunService {
         }
         int need = sourcesNeeded(spec);
         if (d.sources().size() < need) {
-            if (t.sourceTries() >= MAX_SOURCE_TRIES) {
+            // Teil nhiều nguồn (Lesen 1: 5 bài) được thử nhiều hơn: mỗi nguồn thêm hai lượt.
+            if (t.sourceTries() >= MAX_SOURCE_TRIES + 2 * (need - 1)) {
                 roundFailed(run, t, "Không tìm được đủ bài dùng được cho chủ đề „" + t.theme() + "“.", true);
                 return false;
             }
@@ -606,7 +610,11 @@ public class ExamSetRunService {
         if (theme == null) return null;
         Set<String> usedPublishers = new HashSet<>();
         for (Source s : d.sources()) if (s.publisher() != null) usedPublishers.add(s.publisher());
-        List<ArticleView> cands = catalog.candidates(theme.stems(), 40);
+        List<ArticleView> all = catalog.candidates(theme.stems(), 60);
+        Set<Long> unreliable = catalog.unreliableFeeds();
+        // Nơi đăng hay hỏng xuống cuối (vẫn dùng khi không còn gì khác).
+        List<ArticleView> cands = new ArrayList<>(all.stream().filter(a -> !unreliable.contains(a.feedId())).toList());
+        cands.addAll(all.stream().filter(a -> unreliable.contains(a.feedId())).toList());
         return cands.stream().filter(a -> !usedPublishers.contains(a.publisher())).findFirst()
                 .orElse(cands.isEmpty() ? null : cands.get(0));
     }

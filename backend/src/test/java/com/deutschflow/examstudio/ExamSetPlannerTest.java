@@ -32,7 +32,7 @@ class ExamSetPlannerTest {
     void assignMixedThemes() {
         List<Slot> slots = List.of(new Slot("LESEN", 1, 5, 4), new Slot("LESEN", 2, 1),
                 new Slot("LESEN", 3, 0), new Slot("SCHREIBEN", 1, 0));
-        Map<String, String> themes = ExamSetPlanner.assign(slots, Map.of(), t -> 3, List.of(), 5L);
+        Map<String, String> themes = ExamSetPlanner.assign(slots, Map.of(), t -> 5, List.of(), 5L);
         List<String> mix = ExamSetPlanner.split(themes.get("LESEN#1"));
         assertThat(mix).hasSize(4).doesNotHaveDuplicates();
         assertThat(mix).doesNotContain(themes.get("LESEN#2"), themes.get("LESEN#3"), themes.get("SCHREIBEN#1"));
@@ -46,7 +46,7 @@ class ExamSetPlannerTest {
     void assignMixedThin() {
         List<Slot> one = List.of(new Slot("LESEN", 1, 5, 4));
         java.util.Set<String> rich = java.util.Set.of("Wohnen", "Sport", "Umwelt");
-        String three = ExamSetPlanner.assign(one, Map.of(), t -> rich.contains(t.name()) ? 2 : 1, List.of(), 1L).get("LESEN#1");
+        String three = ExamSetPlanner.assign(one, Map.of(), t -> rich.contains(t.name()) ? 4 : 1, List.of(), 1L).get("LESEN#1");
         assertThat(ExamSetPlanner.split(three)).containsExactlyInAnyOrder("Wohnen", "Sport", "Umwelt");
         assertThat(ExamSetPlanner.themePerSource("A / B / C", 5)).containsExactly("A", "A", "B", "B", "C");
         assertThat(ExamSetPlanner.assign(one, Map.of(), t -> t.name().equals("Wohnen") ? 9 : 1, List.of(), 1L))
