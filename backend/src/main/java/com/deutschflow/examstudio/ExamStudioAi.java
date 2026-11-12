@@ -276,6 +276,42 @@ public class ExamStudioAi {
         }
     }
 
+    /**
+     * Thân trả lời của một lượt chat. Bình thường là một JSON {@code chat.completion}. Một số kết nối của cổng trung
+     * gian (9Router với kết nối Claude, thấy trên production 12/11/2026) trả dạng dòng sự kiện {@code data: {...}}
+     * dù không xin stream — khi đó ghép các mảnh {@code delta.content} lại thành một {@code chat.completion}.
+     */
+    static JsonNode parseCompletion(ObjectMapper mapper, String body) throws java.io.IOException {
+        String trimmed = body == null ? "" : body.stripLeading();
+        if (!trimmed.startsWith("data:")) return mapper.readTree(trimmed);
+        StringBuilder content = new StringBuilder();
+        String finish = null;
+        JsonNode usage = null;
+        for (String line : trimmed.split("\\r?\\n")) {
+            if (!line.startsWith("data:")) continue;
+            String data = line.substring(5).trim();
+            if (data.isEmpty() || data.equals("[DONE]")) continue;
+            JsonNode chunk;
+            try {
+                chunk = mapper.readTree(data);
+            } catch (java.io.IOException e) {
+                continue; // mảnh hỏng: bỏ qua, các mảnh khác vẫn ghép được
+            }
+            JsonNode choice = chunk.path("choices").path(0);
+            JsonNode piece = choice.path("delta").path("content");
+            if (piece.isTextual()) content.append(piece.asText());
+            if (choice.path("message").path("content").isTextual()) content.append(choice.path("message").path("content").asText());
+            if (choice.path("finish_reason").isTextual()) finish = choice.path("finish_reason").asText();
+            if (chunk.path("usage").isObject()) usage = chunk.path("usage");
+        }
+        com.fasterxml.jackson.databind.node.ObjectNode out = mapper.createObjectNode();
+        com.fasterxml.jackson.databind.node.ObjectNode choice = out.putArray("choices").addObject();
+        choice.putObject("message").put("role", "assistant").put("content", content.toString());
+        if (finish != null) choice.put("finish_reason", finish);
+        if (usage != null) out.set("usage", usage);
+        return out;
+    }
+
     private JsonNode directOnce(long userId, String op, Endpoint spec, String system, String user,
                                 double temperature, int maxTokens) {
         String url = spec.url();
@@ -288,6 +324,7 @@ public class ExamStudioAi {
         msgs.addObject().put("role", "user").put("content", user);
         if (spec.sendTemperature()) body.put("temperature", temperature);
         body.put("max_tokens", maxTokens);
+        body.put("stream", false);
         if (spec.jsonMode()) body.putObject("response_format").put("type", "json_object");
 
         JsonNode res = null;
@@ -305,7 +342,7 @@ public class ExamStudioAi {
                         java.net.http.HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
                 int code = http.statusCode();
                 if (code == 200) {
-                    res = mapper.readTree(http.body());
+                    res = parseCompletion(mapper, http.body());
                 } else {
                     failure = "HTTP " + code;
                     log.warn("[ExamStudio] {} model {} trả {} (lượt {})", op, spec.model(), code, attempt);
