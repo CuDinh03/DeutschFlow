@@ -78,6 +78,20 @@ class SavedWordTextTest {
     }
 
     @Test
+    @DisplayName("AI trả mạo từ / từ loại / chủ đề là null ⇒ không ném lỗi, từ loại thành OTHER")
+    void nullFieldsFromAi() {
+        var r = lookup.parse("{\"lemma\":\"teilnehmen\",\"article\":null,\"pos\":null,"
+                + "\"meaning_vi\":\"tham gia\",\"topic\":null}", "nimmt teil", taxonomy, "m");
+        assertThat(r).isNotNull();
+        assertThat(r.article()).isNull();
+        assertThat(r.pos()).isEqualTo("OTHER");
+        assertThat(r.topic()).isNull();
+        var noKeys = lookup.parse("{\"meaning_vi\":\"tham gia\"}", "teilnehmen", taxonomy, "m");
+        assertThat(noKeys).isNotNull();
+        assertThat(noKeys.lemma()).isEqualTo("teilnehmen");
+    }
+
+    @Test
     @DisplayName("thiếu nghĩa hoặc không phải JSON ⇒ null (dịch vụ báo 503, không lưu nửa vời)")
     void rejectsBadAi() {
         assertThat(lookup.parse("không có JSON", "Haus", taxonomy, "m")).isNull();

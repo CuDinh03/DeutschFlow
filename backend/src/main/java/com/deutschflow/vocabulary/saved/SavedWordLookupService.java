@@ -304,12 +304,13 @@ public class SavedWordLookupService {
         if (meaning == null || meaning.length() > 200) return null;
         String lemma = clean(m.get("lemma"));
         if (lemma == null || lemma.length() > 120 || !LEMMA.matcher(lemma).matches()) lemma = surface;
+        // Set.of(...).contains(null) ném NPE — AI trả "article": null cho động từ là chuyện thường.
         String article = clean(m.get("article"));
         article = article == null ? null : article.toLowerCase(Locale.ROOT);
-        if (!ARTICLES.contains(article)) article = null;
+        if (article != null && !ARTICLES.contains(article)) article = null;
         String pos = clean(m.get("pos"));
         pos = pos == null ? null : pos.toUpperCase(Locale.ROOT);
-        if (!POS.contains(pos)) pos = "OTHER";
+        if (pos == null || !POS.contains(pos)) pos = "OTHER";
         if (!"NOUN".equals(pos)) article = null;
         String topic = clean(m.get("topic"));
         if (topic != null && !taxonomy.contains(topic)) topic = null;
