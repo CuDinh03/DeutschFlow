@@ -109,7 +109,8 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     if (!redoing) return
     setBusy(true)
     try {
-      await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil)
+      // Làm lại bằng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
+      await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil, getStudioChannel())
       setRedoing(null)
       toast.success(t('redoStarted'))
       await load()

@@ -153,7 +153,7 @@ describe('SetRunsPanel', () => {
     expect(within(dialog).getByText(/chọn chủ đề mới không trùng/)).toBeInTheDocument()
     expect(m.redoSetRunTeil).not.toHaveBeenCalled()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Làm lại Teil này' }))
-    await waitFor(() => expect(m.redoSetRunTeil).toHaveBeenCalledWith(6, 'LESEN', 1))
+    await waitFor(() => expect(m.redoSetRunTeil).toHaveBeenCalledWith(6, 'LESEN', 1, 'ROUTER'))
   })
 
   it('lượt đã bỏ không hiện; ba ngôn ngữ đủ khoá', async () => {

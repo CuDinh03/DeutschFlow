@@ -70,8 +70,9 @@ public class ExamSetRunController {
     /** Máy tạo lại riêng một Teil của lượt đã chạy xong (bản nháp cũ bị bỏ, chủ đề mới, luật hiện hành). */
     @PostMapping("/{id}/teile/{section}/{teil}/redo")
     public RunView redoTeil(@PathVariable long id, @PathVariable String section, @PathVariable int teil,
+                            @RequestBody(required = false) Map<String, String> body,
                             @AuthenticationPrincipal User actor) {
-        RunView r = runs.redoTeil(id, section, teil);
+        RunView r = runs.redoTeil(id, section, teil, body == null ? null : body.get("channel"));
         audit.log("admin.exam_studio.set_run_teil_redo", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(id),
                 Map.of("section", section, "teil", teil));
         return r;

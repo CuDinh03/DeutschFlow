@@ -201,6 +201,19 @@ public class ExamSetRunService {
      * Lượt quay về RUNNING cho tới khi Teil đó xong hoặc kẹt, rồi kiểm cấp bộ chạy lại. Mỗi lúc chỉ một lượt chạy.
      */
     public RunView redoTeil(long id, String section, int teil) {
+        return redoTeil(id, section, teil, null);
+    }
+
+    /**
+     * @param channel kênh AI cho lần làm lại (kênh admin đang chọn). Lượt tạo từ hồi dùng kênh khác vẫn làm lại được:
+     *                lượt #1 tạo trên Fireworks, 13/11/2026 tài khoản đó bị khoá nên làm lại trên kênh cũ hỏng ngay.
+     *                Trống ⇒ giữ kênh của lượt.
+     */
+    public RunView redoTeil(long id, String section, int teil, String channel) {
+        if (channel != null && !channel.isBlank()) {
+            String ch = ai.requireChannel(channel).name();
+            jdbc.update("UPDATE exam_set_runs SET channel = ? WHERE id = ? AND status IN ('NEEDS_ATTENTION', 'REVIEW')", ch, id);
+        }
         RunRow run = run(id);
         if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
             throw new BadRequestException("Chỉ làm lại được Teil của lượt đã chạy xong và chưa duyệt.");
