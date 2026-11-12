@@ -562,6 +562,14 @@ public class GroqWhisperClient {
         }
     }
 
+    /** Hàng chờ STT đầy (chưa gọi ra ngoài): vẫn ghi một dòng nhật ký {@code result=ai_busy} để thấy quá tải. */
+    private AiServiceException busy(String feature) {
+        AiServiceException e = new AiServiceException(AiErrorCode.AI_BUSY,
+                "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
+        com.deutschflow.ai.trace.AiCallTrace.start(feature, primary.url(), primary.model()).fail(e);
+        return e;
+    }
+
     /** Model CHÍNH theo cấu hình. Model thực sự trả lời một lượt nằm ở {@code model()} của kết quả. */
     public String getWhisperModel() {
         return primary.model();
@@ -614,8 +622,7 @@ public class GroqWhisperClient {
         boolean acquired = false;
         try {
             acquired = concurrencyLimiter.tryAcquireWhisper();
-            if (!acquired) throw new AiServiceException(AiErrorCode.AI_BUSY,
-                    "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
+            if (!acquired) throw busy("stt-verbose");
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
             return traced("stt-verbose", trace -> circuitBreakers.call(
                     "groqWhisper",
@@ -720,8 +727,7 @@ public class GroqWhisperClient {
             acquired = concurrencyLimiter.tryAcquireWhisper();
             if (!acquired) {
                 log.warn("[Whisper] Semaphore timeout — too many concurrent STT requests");
-                throw new AiServiceException(AiErrorCode.AI_BUSY,
-                        "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
+                throw busy("stt");
             }
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
             return traced("stt", trace -> circuitBreakers.call(

@@ -40,6 +40,11 @@ public final class AiTraceInterceptor implements ClientHttpRequestInterceptor {
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution)
             throws IOException {
         URI uri = request.getURI();
+        // Kiểm tra sức khoẻ không phải lần gọi AI — bỏ qua cho đỡ nhiễu log và metric.
+        String path = uri.getPath();
+        if (path != null && (path.equals("/health") || path.endsWith("/health"))) {
+            return execution.execute(request, body);
+        }
         AiCallTrace trace = AiCallTrace.start(featureOf(uri), uri.toString(), model);
         try {
             ClientHttpResponse response = execution.execute(request, body);
