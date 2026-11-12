@@ -151,10 +151,24 @@ public class SourceCatalogService {
      * chủ đề khớp tiêu đề rồi tới ngày đăng. {@code keywords} trống ⇒ xếp theo ngày.
      */
     public List<ArticleView> candidates(Collection<String> keywords, int limit) {
-        List<ArticleView> pool = articles("""
+        // Bài lấy từ feed (thông cáo, tin: có tiêu đề thật, đủ dài) đứng TRƯỚC trang lấy từ sitemap (tiêu đề chỉ suy
+        // từ đường dẫn, nhiều trang quá ngắn). Lượt chạy thật 12/11/2026: 6 trang sitemap liền nhau đều dưới 800 ký tự.
+        List<ArticleView> scored = new ArrayList<>(score(keywords, articles("""
                 WHERE a.status = 'SEEN' AND f.active AND f.usage_class IN ('ADAPT', 'FACTS_ONLY')
+                  AND f.listing_kind <> 'SITEMAP'
                 ORDER BY coalesce(a.published_at, a.seen_at) DESC LIMIT %d
-                """.formatted(CANDIDATE_POOL));
+                """.formatted(CANDIDATE_POOL))));
+        scored.addAll(score(keywords, articles("""
+                WHERE a.status = 'SEEN' AND f.active AND f.usage_class IN ('ADAPT', 'FACTS_ONLY')
+                  AND f.listing_kind = 'SITEMAP'
+                ORDER BY a.id LIMIT %d
+                """.formatted(SITEMAP_POOL))));
+        return scored.subList(0, Math.min(Math.max(limit, 0), scored.size()));
+    }
+
+    private static final int SITEMAP_POOL = 5_000;
+
+    private static List<ArticleView> score(Collection<String> keywords, List<ArticleView> pool) {
         List<ArticleView> scored = new ArrayList<>();
         boolean any = keywords != null && keywords.stream().anyMatch(k -> k != null && !k.isBlank());
         for (ArticleView a : pool) {
@@ -163,8 +177,8 @@ public class SourceCatalogService {
             scored.add(new ArticleView(a.id(), a.feedId(), a.feedCode(), a.publisher(), a.usageClass(), a.url(),
                     a.title(), a.publishedAt(), a.status(), s));
         }
-        scored.sort(Comparator.comparingInt(ArticleView::score).reversed()); // sắp xếp ổn định: giữ thứ tự ngày
-        return scored.subList(0, Math.min(Math.max(limit, 0), scored.size()));
+        scored.sort(Comparator.comparingInt(ArticleView::score).reversed()); // sắp xếp ổn định: giữ thứ tự gốc
+        return scored;
     }
 
     /** Tiêu đề gần đây của báo đài hạng gợi ý chủ đề — chỉ tiêu đề, để bộ lập kế hoạch biết đời sống đang nói gì. */
@@ -229,7 +243,9 @@ public class SourceCatalogService {
     /** Loại một bài khỏi vòng chọn (không tải được, quá ngắn, chủ đề nhạy cảm…), kèm lý do. */
     @Transactional
     public void reject(long articleId, String reason) {
-        jdbc.update("UPDATE exam_source_articles SET status = 'REJECTED', reject_reason = ? WHERE id = ? AND status = 'SEEN'",
+        // Bài đã được ghi "đã dùng" trước khi tải: tải hỏng thì chuyển sang "loại" kèm lý do, không để nằm ở "đã dùng".
+        jdbc.update("UPDATE exam_source_articles SET status = 'REJECTED', reject_reason = ?, used_by_draft_id = NULL, "
+                        + "used_at = NULL WHERE id = ? AND status IN ('SEEN', 'USED')",
                 reason == null ? null : reason.substring(0, Math.min(reason.length(), 500)), articleId);
     }
 

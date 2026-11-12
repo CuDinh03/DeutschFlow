@@ -231,6 +231,20 @@ class ExamStudioRulesTest {
             assertThatThrownBy(() -> SourceFetcher.extract(Jsoup.parse("<html><body><article><p>kurz</p></article></body></html>"), "u"))
                     .isInstanceOf(BadRequestException.class).hasMessageContaining("dán văn bản");
         }
+
+        @Test
+        @DisplayName("bóc bài: trang hướng dẫn để nội dung trong danh sách — lấy <li> dài, bỏ mục điều hướng, không lấy hai lần")
+        void extractLists() {
+            String li = "<li>Für die Anmeldung des Wohnsitzes brauchen Sie einen Lichtbildausweis und den Meldezettel. </li>";
+            String html = "<html><body><main><nav><ul><li>Startseite und weitere Seiten in der Navigation des Portals</li></ul></nav>"
+                    + "<p>Wer umzieht, muss den neuen Wohnsitz innerhalb von drei Tagen bei der Behörde anmelden.</p>"
+                    + "<ul>" + li.repeat(9) + "<li><p>Dieser Punkt steht in einem Absatz innerhalb der Liste und zählt nur einmal mit.</p></li>"
+                    + "<li>kurz</li></ul></main></body></html>";
+            SourceFetcher.Fetched f = SourceFetcher.extract(Jsoup.parse(html), "https://example.at/umzug");
+            assertThat(f.text()).contains("Lichtbildausweis").contains("innerhalb von drei Tagen")
+                    .doesNotContain("Startseite").doesNotContain("kurz");
+            assertThat(f.text().split("Dieser Punkt steht", -1)).hasSize(2);
+        }
     }
 
     @Nested
