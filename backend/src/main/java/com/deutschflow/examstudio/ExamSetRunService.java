@@ -71,7 +71,12 @@ public class ExamSetRunService {
     public record CreateRunRequest(String examFormat, String cefrLevel, String profile, String channel) {}
 
     public record TeilView(String section, int teil, String status, String stage, String theme, Long draftId,
-                           int repairRound, int themeTry, String lastError) {}
+                           int repairRound, int themeTry, String lastError,
+                           /** Teil kẹt: những mục còn đỏ trong bản nháp NGAY LÚC NÀY (owner sửa xong thì danh sách rỗng). */
+                           List<Problem> problems) {}
+
+    /** Một mục còn đỏ của Teil kẹt. {@code kind}: CHECK = đèn tự kiểm cấp Teil, ITEM = một câu hỏi. */
+    public record Problem(String kind, String ref, String label, String detail) {}
 
     public record RunView(long id, String examFormat, String cefrLevel, String status, String channel,
                           String profile, String note, String createdAt, String updatedAt, List<TeilView> teile,
@@ -129,13 +134,78 @@ public class ExamSetRunService {
 
     public RunView get(long id) {
         List<TeilView> teile = teile(id).stream().map(t -> new TeilView(t.section(), t.teil(), t.status(), t.stage(),
-                t.theme(), t.draftId(), t.repairRound(), t.themeTry(), lastError(t.id()))).toList();
+                t.theme(), t.draftId(), t.repairRound(), t.themeTry(), lastError(t.id()),
+                t.status().equals("STUCK") ? problems(t) : List.of())).toList();
         return jdbc.query("SELECT * FROM exam_set_runs WHERE id = ?", (rs, i) -> new RunView(rs.getLong("id"),
                         rs.getString("exam_format"), rs.getString("cefr_level"), rs.getString("status"),
                         rs.getString("channel"), rs.getString("profile"), rs.getString("note"),
                         iso(rs.getTimestamp("created_at")), iso(rs.getTimestamp("updated_at")), teile,
                         readChecks(rs.getString("report_json"))), id)
                 .stream().findFirst().orElseThrow(() -> new NotFoundException("Không có lượt tạo bộ đề #" + id + "."));
+    }
+
+    /** Những mục còn đỏ trong bản nháp của một Teil kẹt. Bản nháp không đọc được ⇒ rỗng (dòng lỗi cũ vẫn hiện). */
+    private List<Problem> problems(TeilRow t) {
+        if (t.draftId() == null) return List.of();
+        try {
+            return problemsOf(drafts.get(t.draftId()));
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+    }
+
+    static List<Problem> problemsOf(Draft d) {
+        List<Problem> out = new ArrayList<>();
+        for (Check c : d.checks()) {
+            if ("RED".equals(c.light())) out.add(new Problem("CHECK", c.key(), c.label(), c.detail()));
+        }
+        for (Item i : d.items()) {
+            if (!"RED".equals(i.light())) continue;
+            String why = i.flags() == null || i.flags().isEmpty() ? null : String.join("; ", i.flags());
+            out.add(new Problem("ITEM", i.id(), i.question() == null ? null : cut(i.question(), 160), why));
+        }
+        return out;
+    }
+
+    /**
+     * "Kiểm lại bộ" sau khi owner sửa tay các Teil kẹt (owner yêu cầu 13/11/2026). Chỉ cho lượt NEEDS_ATTENTION.
+     *
+     * <ol>
+     *   <li>Teil kẹt nào mà bản nháp đã tự kiểm lại và KHÔNG còn đèn đỏ (cấp Teil lẫn từng câu) ⇒ tính là xong.</li>
+     *   <li>Chạy lại kiểm cấp bộ trên mọi Teil đã xong, lưu kết quả mới.</li>
+     *   <li>Không còn Teil kẹt và kiểm cấp bộ không đỏ ⇒ lượt sang REVIEW (hiện nút "Duyệt cả bộ"); không thì giữ
+     *       NEEDS_ATTENTION với danh sách mục đỏ mới.</li>
+     * </ol>
+     * Không gọi AI, không sửa bản nháp.
+     */
+    public RunView recheck(long id) {
+        RunRow run = run(id);
+        if (!run.status().equals("NEEDS_ATTENTION")) {
+            throw new BadRequestException("Chỉ kiểm lại được lượt đang „Cần bạn xem“.");
+        }
+        for (TeilRow t : teile(id)) {
+            if (!t.status().equals("STUCK") || t.draftId() == null) continue;
+            Draft d = drafts.get(t.draftId());
+            if (d.busyOp() != null && !d.busyOp().isBlank()) {
+                throw new BadRequestException("Bản nháp " + t.section() + " " + t.teil() + " đang chạy AI. Đợi xong rồi kiểm lại.");
+            }
+            boolean verified = !d.checks().isEmpty();
+            if (verified && problemsOf(d).isEmpty() && (specOf(run, t).writing() || !d.items().isEmpty())) {
+                log.info("[ExamSet] lượt #{} {} {}: owner đã sửa xong, không còn đỏ ⇒ tính là xong", id, t.section(), t.teil());
+                setTeil(t.id(), "READY", "DONE", null);
+            }
+        }
+        List<TeilRow> rows = teile(id);
+        long stuck = rows.stream().filter(t -> !t.status().equals("READY")).count();
+        List<Check> setChecks = setChecks(run, rows);
+        String status = stuck == 0 && !ExamSetChecks.hasRed(setChecks) ? "REVIEW" : "NEEDS_ATTENTION";
+        jdbc.update("UPDATE exam_set_runs SET status = ?, report_json = ?::jsonb, updated_at = now() "
+                + "WHERE id = ? AND status = 'NEEDS_ATTENTION'", status, json(Map.of("checks", setChecks)), id);
+        return get(id);
+    }
+
+    private TeilSpec specOf(RunRow run, TeilRow t) {
+        return spec(run, t);
     }
 
     /** Bỏ cả lượt: các bản nháp chưa duyệt của nó bị bỏ theo. Bài báo đã dùng KHÔNG được trả lại sổ. */

@@ -12,14 +12,14 @@ import type { SetAuto, SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
 
 const m = vi.hoisted(() => ({
   listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), approveSetRun: vi.fn(), getStudioChannel: vi.fn(),
-  getSetAuto: vi.fn(), putSetAuto: vi.fn(),
+  getSetAuto: vi.fn(), putSetAuto: vi.fn(), recheckSetRun: vi.fn(),
 }))
 const autoView = (over: Partial<SetAuto> = {}): SetAuto => ({
   enabled: false, examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: 'FIREWORKS', note: null,
   waiting: 1, maxWaiting: 5, ...over,
 })
 vi.mock('@/lib/adminExamStudioApi', async (orig) => ({ ...(await orig<object>()), ...m }))
-const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), message: vi.fn() }))
 vi.mock('sonner', () => ({ toast }))
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
@@ -138,6 +138,37 @@ describe('SetRunsPanel', () => {
     show()
     expect(await screen.findByText('Lượt #8 · telc B1')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Duyệt cả bộ' })).not.toBeInTheDocument()
+  })
+
+  it('Teil kẹt: hiện mục còn đỏ, cách sửa, thế nào là xong; "Kiểm lại bộ" đưa lượt sang chờ duyệt', async () => {
+    const stuck = run({
+      id: 9, status: 'NEEDS_ATTENTION',
+      setChecks: [{ key: 'SET_THEMES', label: 'Mỗi Teil một chủ đề', light: 'GREEN', detail: null }],
+      teile: [
+        teil({ status: 'READY', stage: 'DONE' }),
+        teil({
+          section: 'SPRACHBAUSTEINE', status: 'STUCK', stage: 'VERIFY', theme: 'Verkehr', draftId: 77, repairRound: 2, themeTry: 1,
+          lastError: 'Câu đỏ: SB1-30',
+          problems: [{ kind: 'ITEM', ref: 'SB1-30', label: 'Ich ___ gern mit dem Rad.', detail: 'Hai phương án cùng đúng' }],
+        }),
+      ],
+    })
+    m.listSetRuns.mockResolvedValue([stuck])
+    m.recheckSetRun.mockResolvedValue({ ...stuck, status: 'REVIEW' })
+    show()
+
+    expect(await screen.findByText('Vì sao kẹt và sửa thế nào')).toBeInTheDocument()
+    expect(screen.getByText('Câu SB1-30')).toBeInTheDocument()
+    expect(screen.getByText('Hai phương án cùng đúng')).toBeInTheDocument()
+    expect(screen.getByText(/không còn đèn đỏ nào/)).toBeInTheDocument()
+    // Điều kiện duyệt: 1/2 Teil xong ⇒ chưa đạt; kiểm cấp bộ không đỏ ⇒ đạt.
+    expect(screen.getByText('1/2 Teil xong (không Teil nào kẹt)')).toBeInTheDocument()
+    expect(screen.getByText('Kiểm cấp bộ không còn mục đỏ (đang có 0 mục đỏ)')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Duyệt cả bộ' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Kiểm lại bộ' }))
+    await waitFor(() => expect(m.recheckSetRun).toHaveBeenCalledWith(9))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('đủ điều kiện')))
   })
 
   it('lượt đã bỏ không hiện; ba ngôn ngữ đủ khoá', async () => {
