@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Danh mục nguồn của dây chuyền tạo bộ đề (owner chốt 12/11/2026): nơi đăng nào được dùng, ở hạng nào, và sổ các
@@ -124,10 +125,46 @@ public class SourceCatalogService {
                 })) {
             for (int n : batch) if (n > 0) added += n;
         }
+        int titled = "SITEMAP".equals(f.listingKind()) ? backfillTitles(feedId, TITLE_BACKFILL_BATCH) : 0;
         String note = entries.isEmpty() ? "Không đọc được bài nào từ danh sách (có thể trang đã đổi cấu trúc)."
-                : "Thấy " + entries.size() + " bài, " + added + " bài mới.";
+                : "Thấy " + entries.size() + " bài, " + added + " bài mới."
+                + (titled > 0 ? " Đã lấy tiêu đề cho " + titled + " bài." : "");
         note(feedId, note);
         return new PollResult(feedId, entries.size(), added, note);
+    }
+
+    static final int TITLE_BACKFILL_BATCH = 25;
+    private static final long TITLE_BACKFILL_BUDGET_MS = 40_000;
+
+    /**
+     * Sitemap không có tiêu đề. Với nguồn mà đường dẫn chỉ là số hiệu (Statistik Berlin-Brandenburg), bài nằm trong
+     * sổ mà chưa có tiêu đề thì không chấm được theo chủ đề. Hàm này tải các bài MỚI NHẤT chưa có tiêu đề (tối đa
+     * {@code max} bài, trong 40 giây) và ghi tiêu đề của trang. Bài không tải được thì bị loại khỏi vòng chọn.
+     */
+    public int backfillTitles(long feedId, int max) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT id, url FROM exam_source_articles
+                WHERE feed_id = ? AND status = 'SEEN' AND title IS NULL
+                ORDER BY published_at DESC NULLS LAST, id DESC LIMIT ?
+                """, feedId, Math.max(1, Math.min(max, 60)));
+        long deadline = System.currentTimeMillis() + TITLE_BACKFILL_BUDGET_MS;
+        int done = 0;
+        for (Map<String, Object> r : rows) {
+            if (System.currentTimeMillis() > deadline) break;
+            long id = ((Number) r.get("id")).longValue();
+            try {
+                String title = SourceCatalog.pageTitle(fetcher.fetchRaw((String) r.get("url")).body());
+                if (title == null) {
+                    reject(id, "Trang không có tiêu đề.");
+                } else {
+                    jdbc.update("UPDATE exam_source_articles SET title = ? WHERE id = ?", title, id);
+                    done++;
+                }
+            } catch (BadRequestException e) {
+                reject(id, e.getMessage());
+            }
+        }
+        return done;
     }
 
     private void note(long feedId, String note) {

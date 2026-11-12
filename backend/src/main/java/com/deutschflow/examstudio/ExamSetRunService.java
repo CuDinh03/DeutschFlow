@@ -262,8 +262,17 @@ public class ExamSetRunService {
             if (!f.active() || f.listingKind().equals("NONE") || f.usageClass().equals(SourceCatalogService.TOPIC_ONLY)) continue;
             boolean stale = f.lastPolledAt() == null
                     || Duration.between(Instant.parse(f.lastPolledAt()), Instant.now()).compareTo(FEED_FRESH) > 0;
-            // Sitemap chỉ đọc lần đầu: vài nghìn địa chỉ, đổi rất chậm.
-            if (!stale || (f.listingKind().equals("SITEMAP") && f.seen() > 0)) continue;
+            // Sitemap chỉ đọc lần đầu (vài nghìn địa chỉ, đổi rất chậm); các lượt sau chỉ lấy thêm tiêu đề cho bài
+            // chưa có, mỗi lượt một mẻ, để sổ nguồn dày dần mà không tải dồn dập.
+            if (f.listingKind().equals("SITEMAP") && f.seen() > 0) {
+                try {
+                    catalog.backfillTitles(f.id(), SourceCatalogService.TITLE_BACKFILL_BATCH);
+                } catch (RuntimeException e) {
+                    log.warn("[ExamSet] không lấy được tiêu đề bài của {}: {}", f.code(), e.getMessage());
+                }
+                continue;
+            }
+            if (!stale) continue;
             try {
                 catalog.poll(f.id());
             } catch (RuntimeException e) {

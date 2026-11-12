@@ -138,6 +138,29 @@ class SourceCatalogTest {
     }
 
     @Test
+    @DisplayName("Sitemap có số hiệu thay cho tên: tiêu đề để trống, ngày lấy từ lastmod; tiêu đề thật đọc từ trang")
+    void sitemapNumbered() {
+        String xml = """
+                <urlset>
+                <url><loc>https://www.statistik-berlin-brandenburg.de/166-2025</loc><lastmod>2025-07-03</lastmod></url>
+                <url><loc>https://www.statistik-berlin-brandenburg.de/012-2026</loc><lastmod>2026-01-20T09:30:00+01:00</lastmod></url>
+                <url><loc>https://www.statistik-berlin-brandenburg.de/presse</loc><lastmod>2026-02-01</lastmod></url>
+                </urlset>
+                """;
+        List<Entry> es = SourceCatalog.parseSitemap(xml, "statistik-berlin-brandenburg\\.de/\\d{3}-\\d{4}$");
+        assertThat(es).containsExactly(
+                new Entry("https://www.statistik-berlin-brandenburg.de/166-2025", null, Instant.parse("2025-07-03T00:00:00Z")),
+                new Entry("https://www.statistik-berlin-brandenburg.de/012-2026", null, Instant.parse("2026-01-20T08:30:00Z")));
+
+        assertThat(SourceCatalog.pageTitle("<html><head><title>Seitentitel</title>"
+                + "<meta property='og:title' content='Zahl der Behandlungen  wieder gestiegen'></head></html>"))
+                .isEqualTo("Zahl der Behandlungen wieder gestiegen");
+        assertThat(SourceCatalog.pageTitle("<html><head><title>Nur Titel</title></head></html>")).isEqualTo("Nur Titel");
+        assertThat(SourceCatalog.pageTitle("<html><body>ohne</body></html>")).isNull();
+        assertThat(SourceCatalog.pageTitle(null)).isNull();
+    }
+
+    @Test
     @DisplayName("score: ä/ö/ü/ß khớp cách viết ae/oe/ue/ss trong đường dẫn, theo cả hai chiều")
     void scoreUmlauts() {
         assertThat(SourceCatalog.score("persoenliche dokumente / fuehrerschein", List.of("führerschein"))).isEqualTo(1);
