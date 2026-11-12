@@ -323,6 +323,32 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("làm lại một Teil: bản nháp cũ bị bỏ, chủ đề mới không trùng Teil khác, lượt chạy lại rồi về REVIEW")
+    void redoOneTeil() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        assertThat(done.status()).isEqualTo("REVIEW");
+        Fake before = live("LESEN", 2);
+        String oldTheme = before.req.theme();
+
+        RunView redo = runs.redoTeil(done.id(), "LESEN", 2);
+        assertThat(redo.status()).isEqualTo("RUNNING");
+        assertThat(before.discarded).isTrue();
+        // Đang làm lại thì không tạo được lượt mới.
+        assertThatThrownBy(() -> runs.create(new CreateRunRequest("TELC", "B1", null, null), admin))
+                .isInstanceOf(BadRequestException.class);
+
+        RunView again = runToEnd(done.id());
+        assertThat(again.status()).isEqualTo("REVIEW");
+        Fake after = live("LESEN", 2);
+        assertThat(after.id).isNotEqualTo(before.id);
+        assertThat(after.req.theme()).isNotEqualTo(oldTheme);
+        Set<String> all = new HashSet<>();
+        for (TeilView t : again.teile()) all.addAll(ExamSetPlanner.split(t.theme()));
+        assertThat(all).hasSize(9);   // Lesen 1 bốn chủ đề + năm Teil còn lại, không chủ đề nào lặp
+        assertThat(again.setChecks()).isNotEmpty().noneMatch(c -> "RED".equals(c.light()));
+    }
+
+    @Test
     @DisplayName("duyệt cả bộ: chỉ lượt REVIEW mới duyệt được; mọi bản nháp được duyệt với đủ 8 mục, hỏng một Teil thì không ghép")
     void approveWholeSet() {
         long id = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id();

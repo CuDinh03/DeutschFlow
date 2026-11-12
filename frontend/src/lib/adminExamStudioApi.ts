@@ -569,6 +569,10 @@ export async function approveSetRun(id: number): Promise<SetRun> {
 export async function recheckSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/recheck`, {})).data
 }
+/** Máy tạo lại riêng một Teil của lượt đã chạy xong: bỏ bản nháp cũ, chủ đề mới, chạy lại từ đầu. */
+export async function redoSetRunTeil(id: number, section: string, teil: number): Promise<SetRun> {
+  return (await api.post<SetRun>(`${BASE}/sets/${id}/teile/${encodeURIComponent(section)}/${teil}/redo`, {})).data
+}
 export async function discardSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/discard`, {})).data
 }
