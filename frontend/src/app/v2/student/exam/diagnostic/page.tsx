@@ -348,7 +348,8 @@ function DiagnosticRun({
   } else if (part === ORAL_PART) {
     body = <OralCard />
   } else {
-    const data = findTeil(overview.sectionsJson, part)
+    // Dùng bản đã memo (markData): parse lại đề ở mỗi lần render tạo object Teil mới, làm màn Nghe chạy lại hướng dẫn.
+    const data = part === WRITING_KEY ? findTeil(overview.sectionsJson, part) : markData
     const kind = kindOf(data, part)
     if (!data || kind === 'unknown') {
       body = <div className="p-6"><ErrorBanner message={tp('teilMissing')} /></div>

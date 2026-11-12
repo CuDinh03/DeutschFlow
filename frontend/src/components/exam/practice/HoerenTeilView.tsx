@@ -64,8 +64,14 @@ function asTurns(script: AudioScript): AudioTurn[] {
  *
  * Luyện thoải mái (chỉ luyện Teil) và sau khi kiểm tra: không nghi thức, nghe không giới hạn, có lời thoại.
  */
-export function HoerenTeilView({ teil, answers, onAnswer, result, wide, tips, allowRelaxed = false, onRelaxedChange, marks }: Props) {
+export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide, tips, allowRelaxed = false, onRelaxedChange, marks }: Props) {
   const t = useTranslations('v2.student.practice.hoeren')
+  // Trang cha có thể dựng lại object Teil ở mỗi lần render (bài chẩn đoán từng parse lại đề mỗi lần chọn đáp án).
+  // Nghi thức và đoạn đang nghe phải bám theo NỘI DUNG Teil, không theo danh tính object — nếu không thì mỗi lần
+  // bấm một câu, hướng dẫn chạy lại từ đầu và đoạn nghe quay về đoạn 1.
+  const teilSig = JSON.stringify(teilProp)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const teil = React.useMemo(() => teilProp, [teilSig])
   const data = React.useMemo(() => withTrueFalse(teil), [teil])
   const gate = React.useMemo(() => parseHoerenGate(teil), [teil])
   const checked = result != null
