@@ -1119,6 +1119,8 @@ public class ExamDraftService {
         Map<String, ExamDedupService.ItemDup> dupById = new HashMap<>();
         for (ExamDedupService.ItemDup d : dedup.itemDuplicates(bank, items)) dupById.put(d.itemId(), d);
         List<Item> verified = new ArrayList<>();
+        // Hai câu cùng Teil hỏi cùng một ý ⇒ câu sau đỏ, để bước sửa sinh lại đúng câu đó.
+        Map<String, String> twins = ExamDedupService.duplicatesWithin(items);
         for (Item it : items) {
             List<String> flags = new ArrayList<>();
             int sev = 0;
@@ -1150,6 +1152,11 @@ public class ExamDraftService {
             String s = strong.get(it.id());
             if (s != null && !sameAnswer(spec, it, s)) {
                 flags.add("AI giỏi chọn " + s + " thay vì " + it.correct() + ": câu có thể mơ hồ hoặc đáp án sai.");
+                sev = 2;
+            }
+            String twin = twins.get(it.id());
+            if (twin != null) {
+                flags.add("Hỏi cùng một ý với câu " + twin + " (câu hỏi và đáp án gần như trùng): sinh lại câu này với ý khác.");
                 sev = 2;
             }
             String b = blind.get(it.id());

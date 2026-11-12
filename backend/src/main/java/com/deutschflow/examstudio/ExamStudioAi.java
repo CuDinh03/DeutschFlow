@@ -606,6 +606,8 @@ public class ExamStudioAi {
               jede Aufgabe: Könnte jemand mit Allgemeinwissen die Lösung OHNE Text wählen? Dann ersetze die
               falschen Enden durch Aussagen, die genauso vernünftig klingen, aber dem Text widersprechen.
               Keine Pflichten, Verbote, Geldbeträge oder Behörden erfinden, nur um ein Ende falsch zu machen.
+            - Jede Aufgabe prüft eine ANDERE Information des Textes. Zwei Aufgaben dürfen nie dieselbe Textstelle
+              abfragen oder dieselbe Lösung haben — auch nicht mit anderen Worten.
             - Die drei Enden sind etwa gleich lang und gleich gebaut.
 
             ARBEITSWEISE: Plane jede Aufgabe ZUERST im Feld "plan", dann schreibe sie:
