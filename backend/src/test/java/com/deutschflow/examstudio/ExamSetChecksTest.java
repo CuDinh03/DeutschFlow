@@ -115,4 +115,14 @@ class ExamSetChecksTest {
         assertThat(c.light()).isEqualTo("YELLOW");
         assertThat(c.detail()).isEqualTo("Giao 4-4-2-0 · đo được 0-4-4-2 (Dễ-Vừa-Khó-Siêu khó).");
     }
+
+    @Test
+    @DisplayName("Lesen 1 nhiều chủ đề: đủ 4 ⇒ xanh, 3 ⇒ vàng, một chủ đề ⇒ đỏ")
+    void themeMix() {
+        assertThat(ExamSetChecks.themeMix("LESEN 1", "Wohnen / Sport / Umwelt / Familie").light()).isEqualTo("GREEN");
+        assertThat(ExamSetChecks.themeMix("LESEN 1", "Wohnen / Sport / Umwelt").light()).isEqualTo("YELLOW");
+        Check red = ExamSetChecks.themeMix("LESEN 1", "Wohnen");
+        assertThat(red.light()).isEqualTo("RED");
+        assertThat(red.detail()).contains("1 chủ đề");
+    }
 }

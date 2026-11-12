@@ -69,11 +69,60 @@ final class ExamSetPlanner {
         return plan;
     }
 
-    /** Một ô cần gán chủ đề. {@code sourcesNeeded} = 0 với Teil soạn theo tình huống. */
-    record Slot(String section, int teil, int sourcesNeeded) {
+    /**
+     * Một ô cần gán chủ đề. {@code sourcesNeeded} = 0 với Teil soạn theo tình huống. {@code themesNeeded} > 1 với
+     * Teil gồm nhiều văn bản ngắn (Lesen Teil 1): owner chốt 13/11/2026 — 5 đoạn trải trên nhiều chủ đề riêng, chỉ
+     * một cặp được chung chủ đề (vd. 2 Wohnen, 1 Sport, 1 Umwelt, 1 Familie).
+     */
+    record Slot(String section, int teil, int sourcesNeeded, int themesNeeded) {
+        Slot(String section, int teil, int sourcesNeeded) {
+            this(section, teil, sourcesNeeded, 1);
+        }
+
         String key() {
             return section + "#" + teil;
         }
+    }
+
+    /** Số chủ đề của Lesen Teil 1 (5 đoạn ⇒ 2+1+1+1). Sổ nguồn mỏng thì chấp nhận 3 (2+2+1), ít hơn ⇒ kẹt. */
+    static final int MIX_THEMES = 4;
+    static final int MIX_THEMES_MIN = 3;
+    /** Mỗi chủ đề của ô nhiều chủ đề phải còn ít nhất bấy nhiêu bài (một bài hỏng vẫn còn bài thay). */
+    static final int MIX_ARTICLES_PER_THEME = 2;
+    static final String SEP = " / ";
+
+    /** "Wohnen / Sport" ⇒ [Wohnen, Sport]; chủ đề đơn ⇒ một phần tử; null ⇒ rỗng. */
+    static List<String> split(String theme) {
+        List<String> out = new ArrayList<>();
+        if (theme == null) return out;
+        for (String p : theme.split("/")) if (!p.isBlank()) out.add(p.trim());
+        return out;
+    }
+
+    /**
+     * Chủ đề cho từng nguồn của một Teil {@code n} văn bản: các chủ đề đầu nhận phần dư. 5 văn bản, 4 chủ đề
+     * ⇒ [A, A, B, C, D]; 3 chủ đề ⇒ [A, A, B, B, C].
+     */
+    static List<String> themePerSource(String theme, int n) {
+        List<String> parts = split(theme);
+        List<String> out = new ArrayList<>();
+        if (parts.isEmpty() || n <= 0) return out;
+        int base = n / parts.size();
+        int extra = n % parts.size();
+        for (int i = 0; i < parts.size(); i++) {
+            int k = base + (i < extra ? 1 : 0);
+            for (int j = 0; j < k; j++) out.add(parts.get(i));
+        }
+        return out;
+    }
+
+    /** Chủ đề còn thiếu nguồn, biết các nguồn đang có thuộc chủ đề nào. Đủ cả ⇒ chủ đề đầu. */
+    static String nextTheme(String theme, int n, Collection<String> assigned) {
+        List<String> left = new ArrayList<>(themePerSource(theme, n));
+        if (left.isEmpty()) return null;
+        String first = left.get(0);
+        for (String a : assigned) left.remove(a);
+        return left.isEmpty() ? first : left.get(0);
     }
 
     /**
@@ -92,11 +141,27 @@ final class ExamSetPlanner {
         Random rnd = new Random(seed);
         Map<String, Integer> tieBreak = new LinkedHashMap<>();
         for (Theme t : THEMES) tieBreak.put(t.name(), rnd.nextInt(1_000_000));
-        // Ô cần nhiều nguồn nhất chọn trước: ít lựa chọn nhất.
+        // Ô cần nhiều chủ đề, rồi nhiều nguồn nhất chọn trước: ít lựa chọn nhất.
         List<Slot> order = new ArrayList<>(slots);
-        order.sort(Comparator.comparingInt(Slot::sourcesNeeded).reversed());
+        order.sort(Comparator.comparingInt(Slot::themesNeeded).reversed()
+                .thenComparing(Comparator.comparingInt(Slot::sourcesNeeded).reversed()));
         for (Slot s : order) {
             Map<String, Integer> used = usage.getOrDefault(s.key(), Map.of());
+            if (s.themesNeeded() > 1) {
+                List<String> picks = THEMES.stream()
+                        .filter(t -> !taken.contains(t.name()) && (banned == null || !banned.contains(t.name())))
+                        .filter(t -> available.applyAsInt(t) >= MIX_ARTICLES_PER_THEME)
+                        .sorted(Comparator.<Theme>comparingInt(t -> used.getOrDefault(t.name(), 0))
+                                .thenComparingInt(t -> tieBreak.get(t.name())))
+                        .limit(s.themesNeeded()).map(Theme::name).toList();
+                if (picks.size() < Math.min(MIX_THEMES_MIN, s.themesNeeded())) {
+                    out.put(s.key(), null);
+                } else {
+                    taken.addAll(picks);
+                    out.put(s.key(), String.join(SEP, picks));
+                }
+                continue;
+            }
             String pick = THEMES.stream()
                     .filter(t -> !taken.contains(t.name()) && (banned == null || !banned.contains(t.name())))
                     .filter(t -> s.sourcesNeeded() == 0 || available.applyAsInt(t) >= s.sourcesNeeded())

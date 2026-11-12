@@ -59,12 +59,26 @@ final class ExamSetChecks {
         Map<String, String> seen = new LinkedHashMap<>();
         List<String> dup = new ArrayList<>();
         for (TeilDoc t : set) {
-            if (t.theme() == null || t.theme().isBlank()) continue;
-            String prev = seen.putIfAbsent(t.theme().toLowerCase(Locale.GERMAN), t.label());
-            if (prev != null) dup.add(prev + " và " + t.label() + " cùng chủ đề „" + t.theme() + "“");
+            // Teil nhiều văn bản ngắn mang nhiều chủ đề ("A / B / C"): không chủ đề nào được lặp ở Teil khác.
+            for (String th : new java.util.LinkedHashSet<>(ExamSetPlanner.split(t.theme()))) {
+                String prev = seen.putIfAbsent(th.toLowerCase(Locale.GERMAN), t.label());
+                if (prev != null) dup.add(prev + " và " + t.label() + " cùng chủ đề „" + th + "“");
+            }
         }
         return new Check("SET_THEMES", "Mỗi Teil một chủ đề", dup.isEmpty() ? "GREEN" : "RED",
                 dup.isEmpty() ? null : String.join("; ", dup));
+    }
+
+    /**
+     * Teil nhiều văn bản ngắn (Lesen Teil 1): các đoạn phải trải trên nhiều chủ đề (owner chốt 13/11/2026). Đủ
+     * {@link ExamSetPlanner#MIX_THEMES} ⇒ xanh; {@link ExamSetPlanner#MIX_THEMES_MIN} ⇒ vàng; ít hơn ⇒ đỏ.
+     */
+    static Check themeMix(String label, String theme) {
+        int n = new HashSet<>(ExamSetPlanner.split(theme)).size();
+        String light = n >= ExamSetPlanner.MIX_THEMES ? "GREEN" : n >= ExamSetPlanner.MIX_THEMES_MIN ? "YELLOW" : "RED";
+        return new Check("SET_THEME_MIX", label + ": các đoạn trải trên nhiều chủ đề", light,
+                "GREEN".equals(light) ? null : "Chỉ có " + n + " chủ đề (" + (theme == null ? "—" : theme) + "); cần "
+                        + ExamSetPlanner.MIX_THEMES + ".");
     }
 
     private static Check internalOverlap(List<TeilDoc> set) {

@@ -531,17 +531,30 @@ public class ExamStudioAi {
               nur harmloses Alltagswissen ohne Zahlen.
             - Komplett eigene Worte, keine Formulierung einer Quelle.
             - Jeder Text %d–%d Wörter, Wortschatz %s, klare Sätze, ein eindeutiges Hauptthema pro Text.
-            - Die fünf Texte unterscheiden sich, bleiben aber im selben Themenfeld (damit verwechselbare
-              Überschriften möglich sind).
+%s
             - Keine Überschriften schreiben.
             Antworte NUR mit JSON: {"texts": [{"text": "...", "usedFactIds": ["s1f1"]}]}
             """;
 
+    static final String T1_SAME_FIELD_RULE = """
+            - Die fünf Texte unterscheiden sich, bleiben aber im selben Themenfeld (damit verwechselbare
+              Überschriften möglich sind).""";
+
+    /** Owner chốt 13/11/2026: 5 đoạn của Lesen Teil 1 trải trên nhiều chủ đề, chỉ một cặp được chung chủ đề. */
+    static final String T1_MIXED_RULE = """
+            - Jeder Text stützt sich auf GENAU EINE Quelle (Fakten mit demselben Präfix: s1…, s2…, s3…); jede
+              Quelle wird für genau einen Text benutzt. Text 1 gehört zu Quelle s1, Text 2 zu s2 usw.
+            - Die Texte verteilen sich auf die genannten Themenfelder (wie im echten Test: z. B. zwei Texte aus
+              einem Themenfeld, die anderen aus je einem eigenen). Höchstens ZWEI Texte dürfen dasselbe
+              Themenfeld haben; diese zwei behandeln völlig verschiedene Ereignisse, Orte und Personen.""";
+
     JsonNode writeText(long userId, TeilSpec spec, String theme, List<Fact> facts, String note) {
+        boolean mixed = spec.headlines() && theme != null && theme.contains("/");
         String system = spec.headlines()
-                ? TEXT_T1_SYSTEM.formatted(spec.cefrLevel(), spec.minWords(), spec.maxWords(), spec.cefrLevel())
+                ? TEXT_T1_SYSTEM.formatted(spec.cefrLevel(), spec.minWords(), spec.maxWords(), spec.cefrLevel(),
+                        mixed ? T1_MIXED_RULE : T1_SAME_FIELD_RULE)
                 : TEXT_SYSTEM.formatted(spec.cefrLevel(), spec.minWords(), spec.maxWords(), spec.cefrLevel());
-        String user = "Thema: " + (theme == null ? "frei" : theme) + "\nFakten:\n" + facts.stream()
+        String user = (mixed ? "Themenfelder: " : "Thema: ") + (theme == null ? "frei" : theme) + "\nFakten:\n" + facts.stream()
                 .map(f -> f.id() + ": " + f.text()
                         + (f.figure() == null ? "" : " [Zahl: " + f.figure() + "]")
                         + (f.year() == null ? "" : " [Jahr: " + f.year() + "]"))

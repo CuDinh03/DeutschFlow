@@ -28,6 +28,46 @@ class ExamSetPlannerTest {
     }
 
     @Test
+    @DisplayName("Lesen Teil 1 nhận 4 chủ đề riêng, mỗi chủ đề còn ≥ 2 bài; không chủ đề nào lặp ở Teil khác")
+    void assignMixedThemes() {
+        List<Slot> slots = List.of(new Slot("LESEN", 1, 5, 4), new Slot("LESEN", 2, 1),
+                new Slot("LESEN", 3, 0), new Slot("SCHREIBEN", 1, 0));
+        Map<String, String> themes = ExamSetPlanner.assign(slots, Map.of(), t -> 3, List.of(), 5L);
+        List<String> mix = ExamSetPlanner.split(themes.get("LESEN#1"));
+        assertThat(mix).hasSize(4).doesNotHaveDuplicates();
+        assertThat(mix).doesNotContain(themes.get("LESEN#2"), themes.get("LESEN#3"), themes.get("SCHREIBEN#1"));
+        // 5 đoạn: một cặp chung chủ đề đầu, ba đoạn còn lại mỗi đoạn một chủ đề.
+        assertThat(ExamSetPlanner.themePerSource(themes.get("LESEN#1"), 5))
+                .containsExactly(mix.get(0), mix.get(0), mix.get(1), mix.get(2), mix.get(3));
+    }
+
+    @Test
+    @DisplayName("sổ nguồn mỏng: 3 chủ đề vẫn nhận (2+2+1); dưới 3 ⇒ null")
+    void assignMixedThin() {
+        List<Slot> one = List.of(new Slot("LESEN", 1, 5, 4));
+        java.util.Set<String> rich = java.util.Set.of("Wohnen", "Sport", "Umwelt");
+        String three = ExamSetPlanner.assign(one, Map.of(), t -> rich.contains(t.name()) ? 2 : 1, List.of(), 1L).get("LESEN#1");
+        assertThat(ExamSetPlanner.split(three)).containsExactlyInAnyOrder("Wohnen", "Sport", "Umwelt");
+        assertThat(ExamSetPlanner.themePerSource("A / B / C", 5)).containsExactly("A", "A", "B", "B", "C");
+        assertThat(ExamSetPlanner.assign(one, Map.of(), t -> t.name().equals("Wohnen") ? 9 : 1, List.of(), 1L))
+                .containsEntry("LESEN#1", null);
+    }
+
+    @Test
+    @DisplayName("bài kế tiếp lấy cho chủ đề còn thiếu nguồn; chủ đề đơn thì luôn là chính nó")
+    void nextTheme() {
+        String mix = "Wohnen / Sport / Umwelt / Familie";
+        assertThat(ExamSetPlanner.nextTheme(mix, 5, List.of())).isEqualTo("Wohnen");
+        assertThat(ExamSetPlanner.nextTheme(mix, 5, List.of("Wohnen"))).isEqualTo("Wohnen");
+        assertThat(ExamSetPlanner.nextTheme(mix, 5, List.of("Wohnen", "Wohnen"))).isEqualTo("Sport");
+        // Bài Sport bị loại sau khi các chủ đề sau đã có nguồn ⇒ quay lại lấy Sport.
+        assertThat(ExamSetPlanner.nextTheme(mix, 5, List.of("Wohnen", "Wohnen", "Umwelt", "Familie"))).isEqualTo("Sport");
+        assertThat(ExamSetPlanner.nextTheme("Reisen", 1, List.of())).isEqualTo("Reisen");
+        assertThat(ExamSetPlanner.nextTheme("Reisen", 5, List.of("Reisen", "Reisen"))).isEqualTo("Reisen");
+        assertThat(ExamSetPlanner.nextTheme(null, 5, List.of())).isNull();
+    }
+
+    @Test
     @DisplayName("hồ sơ Nước rút: tổng vẫn đúng số câu, có Siêu khó")
     void sprintProfile() {
         assertThat(ExamSetPlanner.difficultyPlan("SPRINT", 5).values()).containsExactly(1, 1, 2, 1);
