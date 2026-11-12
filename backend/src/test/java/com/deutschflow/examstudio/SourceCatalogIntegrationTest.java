@@ -144,6 +144,36 @@ class SourceCatalogIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("V383 — nguồn mới có đủ hạng và giấy phép; Berlin-Brandenburg đọc sitemap rồi lấy tiêu đề thật từ trang")
+    void moreFeedsAndTitleBackfill() {
+        assertThat(feed("BFR").usageClass()).isEqualTo("ADAPT");
+        assertThat(feed("ESO_DE").usageClass()).isEqualTo("ADAPT");
+        assertThat(List.of(feed("STATISTIK_NORD"), feed("IT_NRW"), feed("WIEN_RK")))
+                .allSatisfy(f -> assertThat(f.usageClass()).isEqualTo("FACTS_ONLY"));
+
+        FeedView bbb = feed("STATISTIK_BBB");
+        assertThat(bbb.listingKind()).isEqualTo("SITEMAP");
+        when(fetcher.fetchRaw(anyString(), anyInt())).thenReturn(new SourceFetcher.Raw("x", "text/xml", """
+                <urlset>
+                <url><loc>https://www.statistik-berlin-brandenburg.de/166-2025</loc><lastmod>2025-07-03</lastmod></url>
+                <url><loc>https://www.statistik-berlin-brandenburg.de/167-2025</loc><lastmod>2025-07-04</lastmod></url>
+                </urlset>
+                """));
+        when(fetcher.fetchRaw("https://www.statistik-berlin-brandenburg.de/167-2025")).thenReturn(new SourceFetcher.Raw(
+                "x", "text/html", "<html><head><title>Mieten in Berlin steigen weiter</title></head></html>"));
+        when(fetcher.fetchRaw("https://www.statistik-berlin-brandenburg.de/166-2025"))
+                .thenThrow(new BadRequestException("Trang trả mã 404."));
+
+        PollResult r = catalog.poll(bbb.id());
+        assertThat(r.added()).isEqualTo(2);
+        assertThat(r.note()).contains("Đã lấy tiêu đề cho 1 bài");
+        // Bài có tiêu đề được chọn theo chủ đề; bài không tải được bị loại kèm lý do.
+        assertThat(catalog.candidates(List.of("miet"), 10)).extracting(ArticleView::title)
+                .containsExactly("Mieten in Berlin steigen weiter");
+        assertThat(catalog.list(bbb.id(), "REJECTED", 10)).hasSize(1);
+    }
+
+    @Test
     @DisplayName("nguồn chưa có cách lấy danh sách bài: báo rõ, không gọi mạng")
     void noListing() {
         assertThatThrownBy(() -> catalog.poll(feed("RKI_JOHM").id())).isInstanceOf(BadRequestException.class)

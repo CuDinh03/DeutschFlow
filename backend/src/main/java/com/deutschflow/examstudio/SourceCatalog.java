@@ -102,9 +102,25 @@ final class SourceCatalog {
         while (m.find() && out.size() < MAX_SITEMAP_ENTRIES) {
             String url = canonical(m.group(1).replace("&amp;", "&"));
             if (url == null || !p.matcher(url).find()) continue;
-            out.putIfAbsent(url, new Entry(url, titleFromPath(url), null));
+            // <lastmod> của chính mục này: nằm giữa <loc> này và </url> kế tiếp.
+            int end = xml.indexOf("</url>", m.end());
+            java.util.regex.Matcher lm = LASTMOD.matcher(end < 0 ? "" : xml.substring(m.end(), end));
+            Instant when = lm.find() ? parseDate(lm.group(1).length() == 10 ? lm.group(1) + "T00:00:00Z" : lm.group(1)) : null;
+            String title = titleFromPath(url);
+            // Đường dẫn chỉ gồm số hiệu (vd. "/166-2025") không cho biết gì về nội dung: để trống, lấy tiêu đề từ trang sau.
+            out.putIfAbsent(url, new Entry(url, title != null && title.matches(".*\\p{L}{3,}.*") ? title : null, when));
         }
         return new ArrayList<>(out.values());
+    }
+
+    private static final Pattern LASTMOD = Pattern.compile("<lastmod>\\s*([^<\\s]+)\\s*</lastmod>");
+
+    /** Tiêu đề của một trang HTML: og:title, không có thì thẻ title. Trống ⇒ {@code null}. */
+    static String pageTitle(String html) {
+        if (html == null) return null;
+        Document doc = Jsoup.parse(html);
+        Element og = doc.selectFirst("meta[property=og:title]");
+        return clean(firstNonBlank(og == null ? null : og.attr("content"), doc.title()));
     }
 
     /** ".../de/themen/bauen_und_wohnen/wohnen/Seite.210100" → "bauen und wohnen / wohnen". */
