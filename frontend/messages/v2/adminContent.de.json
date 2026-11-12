@@ -561,7 +561,11 @@
       "createTeil": "Neuer Teil",
       "setRuns": {
         "setChecks": "Prüfungen auf Satzebene",
-        "light": {"GREEN": "In Ordnung", "YELLOW": "Ansehen", "RED": "Blockiert Freigabe"},
+        "light": {
+          "GREEN": "In Ordnung",
+          "YELLOW": "Ansehen",
+          "RED": "Blockiert Freigabe"
+        },
         "approve": "Ganzen Satz freigeben",
         "approved": "Freigegeben. Der Satz steht unten in der Liste als „Demnächst“.",
         "approveTitle": "Ganzen Satz von Lauf #{id} freigeben?",
@@ -607,6 +611,31 @@
         "channel": {
           "FIREWORKS": "Fireworks AI",
           "ROUTER": "9Router"
+        },
+        "recheck": "Satz erneut prüfen",
+        "recheckedReady": "Der Satz erfüllt jetzt die Bedingungen. „Ganzen Satz freigeben“ drücken, wenn Sie ihn geprüft haben.",
+        "recheckedStill": "Der Satz hat noch offene Punkte. Siehe die neue Liste unten.",
+        "gate": {
+          "title": "Bedingungen für die Freigabe des ganzen Satzes",
+          "ok": "Erfüllt",
+          "missing": "Offen",
+          "teile": "{ready}/{total} Teile fertig (keiner hängt)",
+          "checks": "Keine rote Prüfung auf Satzebene (aktuell {red} rot)",
+          "next": "Nach der Korrektur der hängenden Teile „Satz erneut prüfen“ drücken. Ein Teil ohne rotes Licht gilt als fertig, die Prüfungen auf Satzebene laufen erneut; sind beide Bedingungen erfüllt, wechselt der Lauf zu „Wartet auf Freigabe“ und der Knopf „Ganzen Satz freigeben“ erscheint. Gelbe Punkte blockieren nicht."
+        },
+        "fix": {
+          "title": "Warum es hängt und wie man es behebt",
+          "problems": "Noch rot im Entwurf",
+          "noProblems": "Der Entwurf hat keine roten Punkte mehr. Oben im Lauf „Satz erneut prüfen“ drücken.",
+          "item": "Aufgabe {id}",
+          "check": "Selbstprüfung",
+          "howTitle": "So beheben",
+          "step1": "„Entwurf öffnen“ für diesen Teil drücken.",
+          "step2": "Rote Aufgabe: Frage, Optionen oder Lösung von Hand ändern oder nur diese Aufgabe neu erzeugen. Rotes Licht zum Text: den genannten Abschnitt ändern oder neu schreiben lassen.",
+          "step3": "Zum Schritt Prüfung gehen und die Selbstprüfung erneut starten. Die Maschine hat alle Reparaturrunden verbraucht, jetzt entscheiden Sie.",
+          "step4": "Hierher zurückkehren und „Satz erneut prüfen“ drücken.",
+          "doneTitle": "Wann gilt es als behoben",
+          "done": "Nach der letzten Selbstprüfung hat der Entwurf kein rotes Licht mehr: weder auf Teil-Ebene noch bei einer Aufgabe. Gelbe Lichter dürfen bleiben."
         }
       },
       "sources": {

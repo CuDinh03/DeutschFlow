@@ -561,7 +561,11 @@
       "createTeil": "Tạo Teil mới",
       "setRuns": {
         "setChecks": "Kiểm cấp bộ",
-        "light": {"GREEN": "Đạt", "YELLOW": "Nên xem", "RED": "Chặn duyệt"},
+        "light": {
+          "GREEN": "Đạt",
+          "YELLOW": "Nên xem",
+          "RED": "Chặn duyệt"
+        },
         "approve": "Duyệt cả bộ",
         "approved": "Đã duyệt. Bộ đề được đánh số tiếp theo và nằm ở danh sách bên dưới, trạng thái \"Sắp có\".",
         "approveTitle": "Duyệt cả bộ của lượt #{id}?",
@@ -607,6 +611,31 @@
         "channel": {
           "FIREWORKS": "Fireworks AI",
           "ROUTER": "9Router"
+        },
+        "recheck": "Kiểm lại bộ",
+        "recheckedReady": "Bộ đã đủ điều kiện. Bấm „Duyệt cả bộ“ khi bạn đã xem xong.",
+        "recheckedStill": "Bộ vẫn còn mục chưa đạt. Xem danh sách mới bên dưới.",
+        "gate": {
+          "title": "Điều kiện để duyệt cả bộ",
+          "ok": "Đạt",
+          "missing": "Chưa",
+          "teile": "{ready}/{total} Teil xong (không Teil nào kẹt)",
+          "checks": "Kiểm cấp bộ không còn mục đỏ (đang có {red} mục đỏ)",
+          "next": "Sửa xong các Teil kẹt thì bấm „Kiểm lại bộ“. Máy tính Teil hết đỏ là xong, chạy lại kiểm cấp bộ; đủ hai điều kiện thì lượt chuyển sang „Chờ duyệt“ và hiện nút „Duyệt cả bộ“. Mục vàng không chặn duyệt, bạn tự cân nhắc."
+        },
+        "fix": {
+          "title": "Vì sao kẹt và sửa thế nào",
+          "problems": "Còn đỏ trong bản nháp",
+          "noProblems": "Bản nháp không còn mục đỏ. Bấm „Kiểm lại bộ“ ở đầu lượt để cập nhật.",
+          "item": "Câu {id}",
+          "check": "Tự kiểm",
+          "howTitle": "Cách sửa",
+          "step1": "Bấm „Mở bản nháp“ của Teil này.",
+          "step2": "Câu đỏ: sửa tay câu hỏi, phương án hoặc đáp án, hoặc bấm sinh lại riêng câu đó. Đèn đỏ về bài đọc: sửa đoạn văn bị nêu hoặc cho viết lại.",
+          "step3": "Sang bước Kiểm tra và bấm tự kiểm lại. Máy đã tự sửa hết số vòng cho phép nên lần này bạn là người quyết.",
+          "step4": "Quay lại đây, bấm „Kiểm lại bộ“.",
+          "doneTitle": "Thế nào là sửa xong",
+          "done": "Sau lần tự kiểm mới nhất, bản nháp không còn đèn đỏ nào: cả các đèn cấp Teil lẫn từng câu. Đèn vàng được phép còn."
         }
       },
       "sources": {

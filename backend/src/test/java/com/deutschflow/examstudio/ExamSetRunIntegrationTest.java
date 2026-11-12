@@ -290,6 +290,39 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("kiểm lại bộ: Teil kẹt hiện mục còn đỏ; owner sửa hết đỏ rồi kiểm lại ⇒ Teil xong, lượt sang REVIEW")
+    void recheckAfterManualFix() {
+        redVerifies.put("LESEN#3", Integer.MAX_VALUE);
+        RunView stuck = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        assertThat(stuck.status()).isEqualTo("NEEDS_ATTENTION");
+        TeilView lesen3 = stuck.teile().stream().filter(t -> t.section().equals("LESEN") && t.teil() == 3)
+                .findFirst().orElseThrow();
+        assertThat(lesen3.problems()).extracting(ExamSetRunService.Problem::kind, ExamSetRunService.Problem::ref)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("ITEM", "Q1"));
+        assertThat(stuck.teile()).filteredOn(t -> t.status().equals("READY"))
+                .allSatisfy(t -> assertThat(t.problems()).isEmpty());
+
+        // Chưa sửa gì: kiểm lại vẫn kẹt.
+        assertThat(runs.recheck(stuck.id()).status()).isEqualTo("NEEDS_ATTENTION");
+
+        // Owner sửa tay câu đỏ và tự kiểm lại trong trình 5 bước ⇒ bản nháp hết đỏ.
+        Fake f = live("LESEN", 3);
+        List<Item> fixed = new ArrayList<>();
+        for (Item i : f.items) fixed.add(item(f.id, i.id(), "GREEN"));
+        f.items = fixed;
+
+        RunView done = runs.recheck(stuck.id());
+        assertThat(done.status()).isEqualTo("REVIEW");
+        assertThat(done.teile()).allSatisfy(t -> {
+            assertThat(t.status()).isEqualTo("READY");
+            assertThat(t.problems()).isEmpty();
+        });
+        assertThat(done.setChecks()).isNotEmpty().noneMatch(c -> "RED".equals(c.light()));
+        // Lượt đã sang REVIEW thì không kiểm lại nữa.
+        assertThatThrownBy(() -> runs.recheck(stuck.id())).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
     @DisplayName("duyệt cả bộ: chỉ lượt REVIEW mới duyệt được; mọi bản nháp được duyệt với đủ 8 mục, hỏng một Teil thì không ghép")
     void approveWholeSet() {
         long id = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id();
