@@ -32,7 +32,8 @@ CMD=${SSH_ORIGINAL_COMMAND:-}
 TARGET=${BASH_REMATCH[1]} MODE=${BASH_REMATCH[2]} SHA=${BASH_REMATCH[3]}
 
 # Hai lần chạy từ workflow không được chồng nhau (workflow đã có concurrency; đây là lớp thứ hai).
-# Deploy tay qua ssh không lấy khoá này — đừng deploy tay trong lúc workflow đang chạy.
+# Lớp thứ ba nằm trong chính deploy-*-vm.sh (_lib.sh: acquire_deploy_lock, /srv/deutschflow/deploy.lock):
+# deploy tay qua ssh cũng phải lấy khoá đó, nên không chạy chồng được với workflow.
 exec 9>"$LOCK"
 flock -n 9 || deny "đang có một lần deploy từ xa khác chạy"
 

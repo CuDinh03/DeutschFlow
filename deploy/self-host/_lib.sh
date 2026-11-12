@@ -23,6 +23,22 @@ reexec_from_tmp() {
     cp "$DF_REPO/deploy/self-host/"*.sh "$tmpdir/"
     DF_REEXEC=1 exec bash "$tmpdir/$(basename "$1")" "${@:2}"
   fi
+  acquire_deploy_lock "$(basename "$1")" "${@:2}"
+}
+
+# Khoá chung cho MỌI lần deploy/rollback (tay qua SSH, workflow, backend hay frontend): cả hai script
+# cùng `git reset --hard` một repo và cùng đổi upstream nginx ⇒ chạy chồng là hỏng. Khoá nhả khi
+# tiến trình kết thúc (kể cả bị kill). Lần chạy thứ hai từ chối ngay và in ra ai đang giữ khoá.
+readonly DF_DEPLOY_LOCK=$DF_ROOT/deploy.lock
+acquire_deploy_lock() {
+  exec 8<>"$DF_DEPLOY_LOCK"
+  if ! flock -n 8; then
+    error "Đang có một lần deploy khác chạy — không chạy chồng. Người giữ khoá:"
+    sed 's/^/        /' "$DF_DEPLOY_LOCK" >&2
+    error "Chờ lần đó xong rồi chạy lại (kiểm: ps -eo pid,etime,args | grep '[d]eutschflow-deploy')"
+    exit 75
+  fi
+  printf 'pid=%s  bắt đầu=%s  lệnh=%s\n' "$$" "$(date '+%F %T')" "$*" > "$DF_DEPLOY_LOCK"
 }
 
 # Cổng đang phục vụ của một upstream (df_backend → 8080|8081).
