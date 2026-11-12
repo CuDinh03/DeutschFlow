@@ -134,14 +134,43 @@ export function stopExamTts(): void {
   done?.()
 }
 
+// Âm thanh đã xin trước cho các câu sắp đọc (bài nghe nhiều lượt lời). Không có nó thì mỗi lượt lời chỉ
+// bắt đầu xin audio khi lượt trước vừa dứt ⇒ giữa hai nhân vật có một quãng chết 1–3 giây (owner phản
+// hồi 13/11/2026: "khựng giữa việc chuyển lời của 2 nhân vật"). Dùng một lần rồi bỏ; giữ tối đa vài câu.
+const PREPARED_MAX = 8
+const prepared = new Map<string, Promise<Blob>>()
+const lineKey = (role: string, text: string) => `${VOICE_BY_ROLE[role] ?? 'DEFAULT'}\u0000${text}`
+
+function fetchLine(role: string, text: string): Promise<Blob> {
+  const persona = VOICE_BY_ROLE[role] ?? 'DEFAULT'
+  // 20s thay trần mặc định 8s: câu Prüfer dài sinh audio lâu; hụt trần là rơi xuống Web Speech oan.
+  return api
+    .post('/ai-speaking/tts', { text, persona }, { responseType: 'blob', timeout: 20_000 })
+    .then((resp) => resp.data as Blob)
+}
+
+/** Xin trước audio của một câu sắp đọc. Lỗi thì im lặng: `speakExamLine` tự lo đường lui khi tới lượt. */
+export function prepareExamLine(role: string, text: string): void {
+  if (muted || !text?.trim()) return
+  const key = lineKey(role, text)
+  if (prepared.has(key)) return
+  if (prepared.size >= PREPARED_MAX) {
+    const oldest = prepared.keys().next().value
+    if (oldest !== undefined) prepared.delete(oldest)
+  }
+  const p = fetchLine(role, text)
+  p.catch(() => undefined)
+  prepared.set(key, p)
+}
+
 export async function speakExamLine(role: string, text: string): Promise<ExamSpeakOutcome> {
   if (muted || !text?.trim()) return 'skipped'
   stopExamTts()
-  const persona = VOICE_BY_ROLE[role] ?? 'DEFAULT'
   try {
-    // 20s thay trần mặc định 8s: câu Prüfer dài sinh audio lâu; hụt trần là rơi xuống Web Speech oan.
-    const resp = await api.post('/ai-speaking/tts', { text, persona }, { responseType: 'blob', timeout: 20_000 })
-    const blob = resp.data as Blob
+    const key = lineKey(role, text)
+    const ready = prepared.get(key)
+    prepared.delete(key)
+    const blob = await (ready ?? fetchLine(role, text))
     // 2xx nhưng body rỗng = backend CHỦ Ý không trả audio (TTS tắt / e2e mock 204) → coi như đã
     // "nói xong" ngay, KHÔNG fallback Web Speech (fallback chỉ dành cho lỗi thật: network/5xx).
     if (!blob || blob.size === 0) return 'skipped'

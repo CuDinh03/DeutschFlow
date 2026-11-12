@@ -7,7 +7,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/components/features/exam-speaking/examTts', () => ({ speakExamLine: vi.fn(async () => {}), stopExamTts: vi.fn() }))
+vi.mock('@/components/features/exam-speaking/examTts', () => ({ speakExamLine: vi.fn(async () => {}), stopExamTts: vi.fn(), prepareExamLine: vi.fn() }))
 vi.mock('next-intl', async () => (await import('@/test/intlCatalog')).nextIntlCatalogMock('vi'))
 
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
