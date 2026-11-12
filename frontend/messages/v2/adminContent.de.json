@@ -636,7 +636,11 @@
           "step4": "Hierher zurückkehren und „Satz erneut prüfen“ drücken.",
           "doneTitle": "Wann gilt es als behoben",
           "done": "Nach der letzten Selbstprüfung hat der Entwurf kein rotes Licht mehr: weder auf Teil-Ebene noch bei einer Aufgabe. Gelbe Lichter dürfen bleiben."
-        }
+        },
+        "redo": "Diesen Teil neu erstellen",
+        "redoTitle": "{teil} von Lauf #{id} neu erstellen?",
+        "redoBody": "Die Maschine verwirft den aktuellen Entwurf dieses Teils, wählt ein neues Thema, das kein anderer Teil nutzt, und erstellt ihn nach den aktuellen Regeln neu (etwa 10–20 Minuten). Die anderen Teile bleiben unverändert. Währenddessen kann kein neuer Lauf starten.",
+        "redoStarted": "Neuerstellung gestartet. Die Tabelle aktualisiert sich selbst."
       },
       "sources": {
         "intro": "Herausgeber, die die Prüfungssatz-Pipeline nutzen darf. „Neue Artikel lesen“ holt nur die Artikelliste (Titel, Link) und lädt keine Artikel. Jeder Artikel wird nur einmal verwendet.",

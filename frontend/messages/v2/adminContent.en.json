@@ -636,7 +636,11 @@
           "step4": "Come back here and press “Re-check set”.",
           "doneTitle": "What counts as fixed",
           "done": "After the latest self-check the draft has no red light at all: neither Teil-level lights nor any item. Yellow lights may remain."
-        }
+        },
+        "redo": "Redo this Teil",
+        "redoTitle": "Redo {teil} of run #{id}?",
+        "redoBody": "The machine discards this Teil’s current draft, picks a new theme that no other Teil uses and builds it again under the current rules (about 10–20 minutes). The other Teile stay as they are. No new run can start meanwhile.",
+        "redoStarted": "Redo started. The table updates by itself."
       },
       "sources": {
         "intro": "Publishers the exam-set pipeline may use. \"Read new articles\" only collects the article list (title, link); it does not download articles. Each article is used once.",

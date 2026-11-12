@@ -17,6 +17,27 @@ class TwinItemsAndOverlapRepairTest {
                 "a", null, null, List.of(), "EASY", null, false, null, List.of());
     }
 
+    private static Item gap(String id, String question, String answer, String evidence) {
+        return new Item(id, question, Map.of("a", answer), "a", null, evidence, List.of(), "EASY", null, false, null, List.of());
+    }
+
+    @Test
+    @DisplayName("lượt #8: hai chỗ trống khác nhau trong cùng một câu KHÔNG phải câu trùng; cùng chỗ trống cùng đáp án thì trùng")
+    void gapsInSameSentenceAreNotTwins() {
+        String s1 = "Seit einigen Monaten versuche ich, zu Hause selbst Brot zu backen, aber leider gelingt es mir nicht immer.";
+        String s2 = "Deshalb möchte ich gern von einem Profi lernen, was ich falsch mache.";
+        assertThat(ExamDedupService.duplicatesWithin(List.of(
+                gap("SB2-31", "___ einigen Monaten versuche ich, zu Hause selbst Brot zu backen, aber leider gelingt es mir nicht immer.", "SEIT", s1),
+                gap("SB2-32", "Seit einigen Monaten versuche ich, zu Hause selbst Brot zu backen, ___ leider gelingt es mir nicht immer.", "ABER", s1),
+                gap("SB2-33", "___ möchte ich gern von einem Profi lernen, was ich falsch mache.", "DESHALB", s2),
+                gap("SB2-34", "Deshalb möchte ich gern ___ einem Profi lernen, was ich falsch mache.", "VON", s2)))).isEmpty();
+        // Cùng câu, cùng đáp án ⇒ vẫn là câu trùng (không phân biệt hoa thường).
+        assertThat(ExamDedupService.duplicatesWithin(List.of(
+                gap("SB1-21", "Ich freue mich ___ Ihre baldige Antwort.", "auf", "Ich freue mich auf Ihre baldige Antwort."),
+                gap("SB1-30", "Ich freue mich ___ Ihre baldige Antwort.", "AUF", "Ich freue mich auf Ihre baldige Antwort."))))
+                .containsExactly(Map.entry("SB1-30", "SB1-21"));
+    }
+
     @Test
     @DisplayName("lượt #6: hai câu hỏi phiếu câu đố lấy ở đâu, khác cách ngắt câu ⇒ câu sau bị coi là trùng câu trước")
     void twinsFromRun6() {

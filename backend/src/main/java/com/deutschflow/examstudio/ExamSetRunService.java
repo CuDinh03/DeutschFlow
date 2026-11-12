@@ -195,6 +195,54 @@ public class ExamSetRunService {
         return get(id);
     }
 
+    /**
+     * "Làm lại Teil này" (owner chốt 13/11/2026): máy tạo lại RIÊNG một Teil của lượt đã chạy xong — bỏ bản nháp cũ,
+     * chọn chủ đề mới không trùng các Teil còn lại, chạy lại từ đầu theo luật hiện hành (vd. Lesen 1 trải 4 chủ đề).
+     * Lượt quay về RUNNING cho tới khi Teil đó xong hoặc kẹt, rồi kiểm cấp bộ chạy lại. Mỗi lúc chỉ một lượt chạy.
+     */
+    public RunView redoTeil(long id, String section, int teil) {
+        RunRow run = run(id);
+        if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
+            throw new BadRequestException("Chỉ làm lại được Teil của lượt đã chạy xong và chưa duyệt.");
+        }
+        Integer running = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+        if (running != null && running > 0) {
+            throw new BadRequestException("Đang có một lượt tạo bộ đề chạy. Đợi lượt đó xong rồi bấm lại.");
+        }
+        List<TeilRow> rows = teile(id);
+        TeilRow t = rows.stream().filter(x -> x.section().equalsIgnoreCase(section) && x.teil() == teil).findFirst()
+                .orElseThrow(() -> new NotFoundException("Lượt #" + id + " không có Teil " + section + " " + teil + "."));
+        if (t.draftId() != null) {
+            Draft d = drafts.get(t.draftId());
+            if ("APPROVED".equals(d.status())) {
+                throw new BadRequestException("Teil này đã được duyệt vào kho, không làm lại được.");
+            }
+            if (d.busyOp() != null && !d.busyOp().isBlank()) {
+                throw new BadRequestException("Bản nháp của Teil này đang chạy AI. Đợi xong rồi bấm lại.");
+            }
+        }
+        Set<String> banned = new HashSet<>();
+        for (TeilRow other : rows) if (other.id() != t.id()) banned.addAll(ExamSetPlanner.split(other.theme()));
+        String theme = assignThemes(run, List.of(t), banned).get(t.section() + "#" + t.teil());
+        if (theme == null) {
+            throw new BadRequestException("Sổ nguồn không còn đủ bài cho các chủ đề chưa dùng trong bộ này. Đọc thêm nguồn ở tab Nguồn rồi thử lại.");
+        }
+        discardDraftQuietly(t.draftId());
+        jdbc.update("""
+                UPDATE exam_set_run_teile SET draft_id = NULL, status = 'RUNNING', stage = 'NEW', theme = ?, theme_try = 0,
+                       repair_round = 0, errors = 0, source_tries = 0, pending_article_id = NULL,
+                       repair_queue = '[]'::jsonb, source_themes = '{}'::jsonb, last_error = NULL, updated_at = now()
+                WHERE id = ?
+                """, theme, t.id());
+        jdbc.update("""
+                UPDATE exam_set_runs SET status = 'RUNNING', report_json = '{}'::jsonb, finished_at = NULL, updated_at = now()
+                WHERE id = ?
+                """, id);
+        log.info("[ExamSet] lượt #{} {} {}: owner cho làm lại, chủ đề mới „{}“", id, t.section(), t.teil(), theme);
+        return get(id);
+    }
+
     private TeilSpec specOf(RunRow run, TeilRow t) {
         return spec(run, t);
     }
@@ -236,7 +284,10 @@ public class ExamSetRunService {
         List<ExamAssemblyService.Replacement> reps = new ArrayList<>();
         for (TeilRow t : teile(id)) {
             if (t.draftId() == null) throw new BadRequestException("Teil " + t.section() + " " + t.teil() + " chưa có bản nháp.");
-            Draft approved = drafts.approve(t.draftId(), checklist, userId);
+            // Owner có thể đã duyệt riêng một Teil của lượt vào kho từ trước (lượt #6): dùng luôn Teil kho đó.
+            Draft current = drafts.get(t.draftId());
+            Draft approved = "APPROVED".equals(current.status()) && current.blockId() != null
+                    ? current : drafts.approve(t.draftId(), checklist, userId);
             if (approved.blockId() == null) {
                 throw new IllegalStateException("Duyệt bản nháp #" + t.draftId() + " không trả mã Teil kho.");
             }
@@ -721,9 +772,14 @@ public class ExamSetRunService {
     List<Check> setChecks(RunRow run, List<TeilRow> rows) {
         List<ExamSetChecks.TeilDoc> set = new ArrayList<>();
         List<Check> mix = new ArrayList<>();
+        // Teil kho sinh ra từ chính các bản nháp của lượt này (owner duyệt riêng trước khi kiểm lại bộ): không so
+        // bộ với chính nó, nếu không Teil đó bị báo "giống 100 % Teil kho".
+        Set<Long> ownBlocks = new HashSet<>();
         for (TeilRow t : rows) {
             if (!t.status().equals("READY") || t.draftId() == null) continue;
-            set.add(doc(drafts.get(t.draftId()), t));
+            Draft own = drafts.get(t.draftId());
+            if (own.blockId() != null) ownBlocks.add(own.blockId());
+            set.add(doc(own, t));
             if (spec(run, t).headlines()) mix.add(ExamSetChecks.themeMix(t.section() + " " + t.teil(), t.theme()));
         }
         List<ExamSetChecks.Other> corpus = new ArrayList<>();
@@ -731,6 +787,7 @@ public class ExamSetRunService {
                 SELECT id, section, teil, content_json::text AS c FROM exam_teil_blocks
                 WHERE UPPER(exam_format) = UPPER(?) AND cefr_level = ? AND status = 'APPROVED' ORDER BY id DESC LIMIT 600
                 """, rs -> {
+            if (ownBlocks.contains(rs.getLong("id"))) return;
             corpus.add(other("Teil kho #" + rs.getLong("id"), rs.getString("section"), rs.getInt("teil"), readMap(rs.getString("c"))));
         }, run.examFormat(), run.cefrLevel());
         jdbc.query("""

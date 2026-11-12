@@ -636,7 +636,11 @@
           "step4": "Quay lại đây, bấm „Kiểm lại bộ“.",
           "doneTitle": "Thế nào là sửa xong",
           "done": "Sau lần tự kiểm mới nhất, bản nháp không còn đèn đỏ nào: cả các đèn cấp Teil lẫn từng câu. Đèn vàng được phép còn."
-        }
+        },
+        "redo": "Làm lại Teil này",
+        "redoTitle": "Làm lại {teil} của lượt #{id}?",
+        "redoBody": "Máy bỏ bản nháp hiện tại của Teil này, chọn chủ đề mới không trùng các Teil còn lại và tạo lại từ đầu theo luật hiện hành (khoảng 10–20 phút). Các Teil khác giữ nguyên. Trong lúc đó không tạo được lượt mới.",
+        "redoStarted": "Đã bắt đầu làm lại Teil. Bảng tự cập nhật."
       },
       "sources": {
         "intro": "Danh mục nơi đăng mà dây chuyền tạo bộ đề được dùng. \"Đọc bài mới\" chỉ lấy danh sách bài (tiêu đề, đường dẫn), không tải bài. Mỗi bài chỉ được dùng một lần.",

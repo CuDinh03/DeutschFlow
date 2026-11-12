@@ -12,7 +12,7 @@ import type { SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
 
 const m = vi.hoisted(() => ({
   listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), approveSetRun: vi.fn(), getStudioChannel: vi.fn(),
-  recheckSetRun: vi.fn(),
+  recheckSetRun: vi.fn(), redoSetRunTeil: vi.fn(),
 }))
 vi.mock('@/lib/adminExamStudioApi', async (orig) => ({ ...(await orig<object>()), ...m }))
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), message: vi.fn() }))
@@ -141,6 +141,19 @@ describe('SetRunsPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Kiểm lại bộ' }))
     await waitFor(() => expect(m.recheckSetRun).toHaveBeenCalledWith(9))
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('đủ điều kiện')))
+  })
+
+  it('"Làm lại Teil này": xác nhận rồi gọi API cho đúng Teil; lượt đang chạy thì không có nút', async () => {
+    const r = run({ id: 6, status: 'NEEDS_ATTENTION', teile: [teil({ status: 'READY', stage: 'DONE' })] })
+    m.listSetRuns.mockResolvedValue([r])
+    m.redoSetRunTeil.mockResolvedValue({ ...r, status: 'RUNNING' })
+    show()
+    await userEvent.click(await screen.findByRole('button', { name: 'Làm lại Teil này' }))
+    const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
+    expect(within(dialog).getByText(/chọn chủ đề mới không trùng/)).toBeInTheDocument()
+    expect(m.redoSetRunTeil).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Làm lại Teil này' }))
+    await waitFor(() => expect(m.redoSetRunTeil).toHaveBeenCalledWith(6, 'LESEN', 1))
   })
 
   it('lượt đã bỏ không hiện; ba ngôn ngữ đủ khoá', async () => {

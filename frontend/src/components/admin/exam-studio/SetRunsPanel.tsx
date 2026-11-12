@@ -7,7 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
-  approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns, recheckSetRun,
+  approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns, recheckSetRun, redoSetRunTeil,
   type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
@@ -41,6 +41,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const [busy, setBusy] = useState(false)
   const [discarding, setDiscarding] = useState<SetRun | null>(null)
   const [approving, setApproving] = useState<SetRun | null>(null)
+  const [redoing, setRedoing] = useState<{ run: SetRun; teil: SetRunTeil } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
@@ -96,6 +97,21 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
       const next = await recheckSetRun(r.id)
       if (next.status === 'REVIEW') toast.success(t('recheckedReady'))
       else toast.message(t('recheckedStill'))
+      await load()
+    } catch (e) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const redo = async () => {
+    if (!redoing) return
+    setBusy(true)
+    try {
+      await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil)
+      setRedoing(null)
+      toast.success(t('redoStarted'))
       await load()
     } catch (e) {
       toast.error(apiMessage(e))
@@ -206,11 +222,19 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
                         {t('repairs', { rounds: x.repairRound, themes: x.themeTry })}
                       </span>
                     )}
-                    {x.draftId != null && (
-                      <Link href={`/v2/admin/exam-studio/${x.draftId}`} className="ga-ui ml-auto text-ga-caption font-semibold text-ga-accent hover:underline">
-                        {t('openDraft')}
-                      </Link>
-                    )}
+                    <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {(r.status === 'NEEDS_ATTENTION' || r.status === 'REVIEW') && (
+                        <button type="button" className={studioMiniBtn} disabled={busy || anyActive}
+                          onClick={() => setRedoing({ run: r, teil: x })}>
+                          {t('redo')}
+                        </button>
+                      )}
+                      {x.draftId != null && (
+                        <Link href={`/v2/admin/exam-studio/${x.draftId}`} className="ga-ui text-ga-caption font-semibold text-ga-accent hover:underline">
+                          {t('openDraft')}
+                        </Link>
+                      )}
+                    </span>
                   </div>
                   {x.lastError && x.status !== 'READY' && (
                     <p className="ga-ui break-words text-ga-caption text-ga-muted">{x.lastError}</p>
@@ -272,6 +296,18 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
         cancelLabel={t('keep')}
         loading={busy}
         onConfirm={() => void approve()}
+      />
+
+      <ConfirmDialog
+        open={redoing != null}
+        onOpenChange={(o) => { if (!o) setRedoing(null) }}
+        tone="caution"
+        title={t('redoTitle', { teil: redoing ? slotLabel(redoing.teil.section, redoing.teil.teil) : '', id: redoing?.run.id ?? 0 })}
+        description={t('redoBody')}
+        confirmLabel={t('redo')}
+        cancelLabel={t('keep')}
+        loading={busy}
+        onConfirm={() => void redo()}
       />
 
       <ConfirmDialog
