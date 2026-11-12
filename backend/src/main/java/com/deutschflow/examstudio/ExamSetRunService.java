@@ -373,10 +373,14 @@ public class ExamSetRunService {
         List<Check> redChecks = d.checks().stream().filter(c -> "RED".equals(c.light())).toList();
         List<String> redItems = d.items().stream().filter(i -> "RED".equals(i.light())).map(Item::id).toList();
         if (redChecks.isEmpty() && redItems.isEmpty()) {
+            log.info("[ExamSet] lượt #{} {} {}: xong (vòng sửa {}, đổi chủ đề {})", run.id(), t.section(), t.teil(),
+                    t.repairRound(), t.themeTry());
             setTeil(t.id(), "READY", "DONE", null);
             return false;
         }
         String why = describe(redChecks, redItems);
+        log.info("[ExamSet] lượt #{} {} {}: còn đỏ sau tự kiểm (vòng sửa {}): {}", run.id(), t.section(), t.teil(),
+                t.repairRound(), why);
         boolean duplicate = redChecks.stream().anyMatch(c -> "DUPLICATE".equals(c.key()));
         if (duplicate || t.repairRound() >= MAX_REPAIR_ROUNDS) {
             roundFailed(run, t, why, false);
@@ -389,7 +393,14 @@ public class ExamSetRunService {
                     UPDATE exam_set_run_teile SET repair_round = repair_round + 1, stage = 'TEXT', last_error = ?,
                            updated_at = now() WHERE id = ?
                     """, why, t.id());
-            drafts.writeText(d.id(), new WriteTextRequest(null, null, cut("Vorherige Fassung hatte Mängel: " + why, 600)), user);
+            // Đèn "trùng nguồn": nêu đúng các cụm bị chép để lần viết lại tránh được (lượt thật 12/11: viết lại hai
+            // lần vẫn dính vì lời dặn chỉ nói chung chung).
+            String copied = d.textMetrics() == null || d.textMetrics().overlapSnippets() == null
+                    || d.textMetrics().overlapSnippets().isEmpty() ? ""
+                    : " Diese Wortfolgen stehen wörtlich in der Quelle und müssen anders formuliert werden: "
+                    + String.join(" | ", d.textMetrics().overlapSnippets().stream().limit(6).toList()) + ".";
+            drafts.writeText(d.id(), new WriteTextRequest(null, null,
+                    cut("Vorherige Fassung hatte Mängel: " + why + copied, 900)), user);
             return true;
         }
         List<String> queue = redItems.isEmpty() ? d.items().stream().filter(i -> !i.locked()).map(Item::id).toList() : redItems;
@@ -411,6 +422,8 @@ public class ExamSetRunService {
 
     /** Job của bước hiện tại báo lỗi: thử lại bước đó; lỗi liên tiếp quá ngưỡng ⇒ coi như hỏng vòng. */
     private void stageFailed(RunRow run, TeilRow t, String error) {
+        log.info("[ExamSet] lượt #{} {} {}: bước {} lỗi (lần {}): {}", run.id(), t.section(), t.teil(), t.stage(),
+                t.errors() + 1, error);
         if (t.draftId() != null) drafts.finishBusy(t.draftId(), null); // xoá last_error để nhịp sau không tính lại
         if (t.errors() + 1 > MAX_STAGE_ERRORS) {
             roundFailed(run, t, error, false);
@@ -433,6 +446,8 @@ public class ExamSetRunService {
      * Hết ⇒ Teil kẹt (bản nháp giữ lại để owner mở xem và sửa tay).
      */
     private void roundFailed(RunRow run, TeilRow t, String why, boolean sourceProblem) {
+        log.info("[ExamSet] lượt #{} {} {}: hỏng vòng ở chủ đề „{}“ (đã đổi chủ đề {} lần): {}", run.id(), t.section(),
+                t.teil(), t.theme(), t.themeTry(), why);
         if (t.themeTry() >= MAX_THEME_TRIES) {
             setTeil(t.id(), "STUCK", t.stage(), cut(why, 900));
             return;

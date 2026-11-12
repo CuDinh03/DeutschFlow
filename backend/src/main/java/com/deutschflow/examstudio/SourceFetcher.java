@@ -150,7 +150,11 @@ public class SourceFetcher {
         if (root == null) root = doc.body();
         List<String> paras = new ArrayList<>();
         if (root != null) {
-            for (Element p : root.select("p")) {
+            // Trang hướng dẫn (vd. oesterreich.gv.at) để phần lớn nội dung trong danh sách: lấy cả <li> dài, trừ mục
+            // nằm trong thanh điều hướng và mục đã chứa <p> (tránh lấy hai lần).
+            for (Element p : root.select("p, li")) {
+                if (p.tagName().equals("li") && (p.selectFirst("p") != null || p.closest("nav, header, footer") != null)) continue;
+                if (p.tagName().equals("p") && p.closest("nav, header, footer") != null) continue;
                 String t = p.text().trim();
                 if (t.length() >= 40) paras.add(t);
             }
