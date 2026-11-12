@@ -58,6 +58,13 @@ final class SourceCatalog {
         return new ArrayList<>(out.values());
     }
 
+    /** Feed lẫn mục không phải bài (ảnh, lịch…): nguồn có mẫu đường dẫn thì chỉ giữ mục khớp mẫu; không có mẫu ⇒ giữ hết. */
+    static List<Entry> filterByPattern(List<Entry> entries, String linkPattern) {
+        if (linkPattern == null || linkPattern.isBlank()) return entries;
+        Pattern p = Pattern.compile(linkPattern);
+        return entries.stream().filter(e -> p.matcher(e.url()).find()).toList();
+    }
+
     private static String textOf(Element parent, String tag) {
         Element e = parent.selectFirst("> " + tag);
         if (e == null) return null;

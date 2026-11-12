@@ -563,7 +563,7 @@
         "setChecks": "Kiểm cấp bộ",
         "light": {"GREEN": "Đạt", "YELLOW": "Nên xem", "RED": "Chặn duyệt"},
         "approve": "Duyệt cả bộ",
-        "approved": "Đã duyệt. Bộ đề nằm ở danh sách bên dưới, trạng thái \"Sắp có\".",
+        "approved": "Đã duyệt. Bộ đề được đánh số tiếp theo và nằm ở danh sách bên dưới, trạng thái \"Sắp có\".",
         "approveTitle": "Duyệt cả bộ của lượt #{id}?",
         "approveBody": "Mọi Teil của lượt này vào kho và được ghép thành một bộ đề ở trạng thái \"Sắp có\". Học viên chưa thấy cho tới khi bạn bấm Phát hành ở danh sách bộ đề. Phần Nghe lấy nguyên từ một đề viết tay đang chạy, vì máy chưa tạo được phần Nghe.",
         "title": "Tạo bộ đề tự động",

@@ -173,12 +173,40 @@ public class ExamSetRunService {
             reps.add(new ExamAssemblyService.Replacement(t.section(), t.teil(), approved.blockId()));
         }
         String title = req != null && req.title() != null && !req.title().isBlank() ? req.title().trim()
-                : run.examFormat().toLowerCase() + " Deutsch " + run.cefrLevel() + " — Bộ tự tạo #" + id;
+                : nextExamTitle(base.title(), jdbc.queryForList(
+                        "SELECT title FROM mock_exams WHERE UPPER(exam_format) = UPPER(?) AND cefr_level = ?",
+                        String.class, run.examFormat(), run.cefrLevel()), run.examFormat(), run.cefrLevel());
         ExamAssemblyService.Assembled exam = assembly.assemble(new ExamAssemblyService.AssembleRequest(base.id(), title, reps));
         jdbc.update("""
                 UPDATE exam_set_runs SET status = 'APPROVED', mock_exam_id = ?, note = ?, updated_at = now() WHERE id = ?
                 """, exam.id(), "Đề nền: " + base.title(), id);
         return get(id);
+    }
+
+    private static final java.util.regex.Pattern NUMBERED = java.util.regex.Pattern.compile("^(.*?Đề số)\\s*(\\d+)\\s*$");
+
+    /**
+     * Tên bộ đề khi owner duyệt cả bộ (owner chốt 12/11/2026): đánh số nối tiếp các đề đang có của cùng kỳ thi + cấp,
+     * đúng kiểu đề viết tay — "telc Deutsch B1 — Đề số 5". Số mới = số lớn nhất đang có (kể cả đề đã gỡ, để không
+     * dùng lại số) + 1. Phần chữ lấy từ tên đề nền; đề nền không theo kiểu "… Đề số N" thì dựng từ kỳ thi + cấp.
+     */
+    static String nextExamTitle(String baseTitle, List<String> existingTitles, String examFormat, String cefrLevel) {
+        String prefix = null;
+        java.util.regex.Matcher bm = NUMBERED.matcher(baseTitle == null ? "" : baseTitle.trim());
+        if (bm.matches()) prefix = bm.group(1);
+        if (prefix == null) prefix = examFormat.toLowerCase() + " Deutsch " + cefrLevel + " — Đề số";
+        int max = 0;
+        for (String t : existingTitles) {
+            java.util.regex.Matcher m = NUMBERED.matcher(t == null ? "" : t.trim());
+            if (m.matches()) {
+                try {
+                    max = Math.max(max, Integer.parseInt(m.group(2)));
+                } catch (NumberFormatException ignored) {
+                    // số quá dài: bỏ qua
+                }
+            }
+        }
+        return prefix + " " + (max + 1);
     }
 
     // ── Nhịp điều phối ───────────────────────────────────────────────────────────────────────────────────

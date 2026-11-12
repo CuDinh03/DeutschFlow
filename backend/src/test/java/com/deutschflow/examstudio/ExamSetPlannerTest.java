@@ -76,6 +76,19 @@ class ExamSetPlannerTest {
     }
 
     @Test
+    @DisplayName("tên bộ đề khi duyệt: đánh số nối tiếp số lớn nhất đang có, theo kiểu tên đề nền")
+    void nextExamTitle() {
+        java.util.List<String> existing = java.util.List.of("telc Deutsch B1 — Đề số 1", "telc Deutsch B1 — Đề số 4 ",
+                "telc Deutsch B1 — Bộ tự tạo #9", "telc Deutsch B1 — Đề số 2", "Übungstest");
+        assertThat(ExamSetRunService.nextExamTitle("telc Deutsch B1 — Đề số 1", existing, "TELC", "B1"))
+                .isEqualTo("telc Deutsch B1 — Đề số 5");
+        // Đề nền không theo kiểu đánh số ⇒ dựng tên từ kỳ thi + cấp; chưa có đề nào ⇒ số 1.
+        assertThat(ExamSetRunService.nextExamTitle("Modelltest", java.util.List.of(), "TELC", "B2"))
+                .isEqualTo("telc Deutsch B2 — Đề số 1");
+        assertThat(ExamSetRunService.nextExamTitle(null, existing, "TELC", "B1")).isEqualTo("telc Deutsch B1 — Đề số 5");
+    }
+
+    @Test
     @DisplayName("mọi chủ đề có gốc từ khoá viết thường, không trùng tên")
     void themeTable() {
         assertThat(ExamSetPlanner.THEMES).extracting(ExamSetPlanner.Theme::name).doesNotHaveDuplicates();
