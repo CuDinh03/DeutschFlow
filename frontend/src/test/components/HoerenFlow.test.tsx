@@ -63,6 +63,33 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
+describe('Hören — trang cha dựng lại object Teil ở mỗi lần render', () => {
+  /** Giống bài chẩn đoán trước khi sửa: mỗi lần chọn đáp án, trang parse lại đề ⇒ object Teil mới, nội dung y cũ. */
+  function Reparsing() {
+    const [answers, setAnswers] = React.useState<Record<string, string>>({})
+    const fresh = JSON.parse(JSON.stringify(teil1)) as PracticeTeilData
+    return (
+      <HoerenTeilView teil={fresh} answers={answers} result={null} wide tips={null}
+        onAnswer={(id, v) => setAnswers((p) => ({ ...p, [id]: v ?? '' }))} />
+    )
+  }
+
+  it('hướng dẫn chỉ chạy một lần: chọn đáp án không đưa màn hình về bước chuẩn bị', async () => {
+    const user = userEvent.setup()
+    render(<Reparsing />)
+    await user.click(screen.getByRole('button', { name: /Bắt đầu Teil 1/ }))
+    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledTimes(1))
+    await user.click(await screen.findByRole('button', { name: /Bỏ qua|Nghe luôn|Bắt đầu nghe/ }).catch(() => screen.getAllByRole('button')[0]))
+    await waitFor(() => expect(screen.getByText('Der Zug fährt von Gleis 7.')).toBeInTheDocument())
+
+    // Trả lời một câu ⇒ trang render lại với object Teil mới.
+    await user.click(screen.getAllByRole('radio')[0])
+    expect(screen.queryByRole('button', { name: /Bắt đầu Teil 1/ })).not.toBeInTheDocument()
+    expect(screen.getByText('Der Zug fährt von Gleis 7.')).toBeInTheDocument()
+    expect(tts.speakExamLine).toHaveBeenCalledTimes(1) // hướng dẫn không đọc lại
+  })
+})
+
 describe('Hören — như thi thật', () => {
   it('chuẩn bị: nói rõ nghe mấy lần, câu hỏi khoá; bắt đầu ⇒ đọc Ansage, đọc câu hỏi rồi mới nghe', async () => {
     const user = userEvent.setup()
