@@ -7,7 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
-  approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns,
+  approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns, recheckSetRun,
   type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
@@ -90,6 +90,20 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     }
   }
 
+  const recheck = async (r: SetRun) => {
+    setBusy(true)
+    try {
+      const next = await recheckSetRun(r.id)
+      if (next.status === 'REVIEW') toast.success(t('recheckedReady'))
+      else toast.message(t('recheckedStill'))
+      await load()
+    } catch (e) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const discard = async () => {
     if (!discarding) return
     setBusy(true)
@@ -121,6 +135,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
 
       {(runs ?? []).filter((r) => r.status !== 'DISCARDED').map((r) => {
         const ready = r.teile.filter((x) => x.status === 'READY').length
+        const redChecks = (r.setChecks ?? []).filter((c) => c.light === 'RED').length
         return (
           <GaCard key={r.id} className="flex flex-col gap-3 p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -135,6 +150,9 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
               {r.status === 'REVIEW' && (
                 <GaBtn size="sm" disabled={busy} onClick={() => setApproving(r)}>{t('approve')}</GaBtn>
               )}
+              {r.status === 'NEEDS_ATTENTION' && (
+                <GaBtn size="sm" variant="ghost" disabled={busy} onClick={() => void recheck(r)}>{t('recheck')}</GaBtn>
+              )}
               {r.status !== 'APPROVED' && (
                 <button type="button" className={studioMiniBtn} disabled={busy} onClick={() => setDiscarding(r)}>
                   {t('discard')}
@@ -142,6 +160,22 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
               )}
             </div>
             {r.note && <p className="ga-ui text-ga-caption text-ga-muted">{r.note}</p>}
+            {r.status === 'NEEDS_ATTENTION' && (
+              <div className="flex flex-col gap-1 rounded-ga border border-ga-line px-3 py-2">
+                <GaCap>{t('gate.title')}</GaCap>
+                <ul className="flex flex-col gap-1">
+                  <li className="flex flex-wrap items-baseline gap-x-2">
+                    <TkBadge tone={ready === r.teile.length ? 'green' : 'red'}>{t(ready === r.teile.length ? 'gate.ok' : 'gate.missing')}</TkBadge>
+                    <span className="ga-ui text-ga-small text-ga-ink">{t('gate.teile', { ready, total: r.teile.length })}</span>
+                  </li>
+                  <li className="flex flex-wrap items-baseline gap-x-2">
+                    <TkBadge tone={redChecks === 0 ? 'green' : 'red'}>{t(redChecks === 0 ? 'gate.ok' : 'gate.missing')}</TkBadge>
+                    <span className="ga-ui text-ga-small text-ga-ink">{t('gate.checks', { red: redChecks })}</span>
+                  </li>
+                </ul>
+                <p className="ga-ui text-ga-caption text-ga-muted">{t('gate.next')}</p>
+              </div>
+            )}
             {(r.setChecks ?? []).length > 0 && (
               <div className="flex flex-col gap-1 rounded-ga bg-ga-surface px-3 py-2">
                 <GaCap>{t('setChecks')}</GaCap>
@@ -180,6 +214,42 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
                   </div>
                   {x.lastError && x.status !== 'READY' && (
                     <p className="ga-ui break-words text-ga-caption text-ga-muted">{x.lastError}</p>
+                  )}
+                  {x.status === 'STUCK' && (
+                    <details className="rounded-ga bg-ga-surface px-3 py-2" open>
+                      <summary className="ga-ui cursor-pointer text-ga-small font-semibold text-ga-ink">{t('fix.title')}</summary>
+                      <div className="mt-2 flex flex-col gap-2">
+                        <div>
+                          <GaCap>{t('fix.problems')}</GaCap>
+                          {(x.problems ?? []).length === 0 ? (
+                            <p className="ga-ui text-ga-small text-ga-ink">{t('fix.noProblems')}</p>
+                          ) : (
+                            <ul className="flex flex-col gap-1">
+                              {(x.problems ?? []).map((p) => (
+                                <li key={`${p.kind}-${p.ref}`} className="ga-ui text-ga-small text-ga-ink">
+                                  <TkBadge tone="red">{p.kind === 'ITEM' ? t('fix.item', { id: p.ref }) : t('fix.check')}</TkBadge>{' '}
+                                  <span lang={p.kind === 'ITEM' ? 'de' : undefined}>{p.label}</span>
+                                  {p.detail && <span className="block break-words text-ga-caption text-ga-muted">{p.detail}</span>}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <div>
+                          <GaCap>{t('fix.howTitle')}</GaCap>
+                          <ol className="ga-ui list-decimal pl-5 text-ga-small text-ga-ink">
+                            <li>{t('fix.step1')}</li>
+                            <li>{t('fix.step2')}</li>
+                            <li>{t('fix.step3')}</li>
+                            <li>{t('fix.step4')}</li>
+                          </ol>
+                        </div>
+                        <div>
+                          <GaCap>{t('fix.doneTitle')}</GaCap>
+                          <p className="ga-ui text-ga-small text-ga-ink">{t('fix.done')}</p>
+                        </div>
+                      </div>
+                    </details>
                   )}
                 </li>
               ))}

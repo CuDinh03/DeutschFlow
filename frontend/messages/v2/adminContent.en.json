@@ -561,7 +561,11 @@
       "createTeil": "New Teil",
       "setRuns": {
         "setChecks": "Set-level checks",
-        "light": {"GREEN": "OK", "YELLOW": "Review", "RED": "Blocks approval"},
+        "light": {
+          "GREEN": "OK",
+          "YELLOW": "Review",
+          "RED": "Blocks approval"
+        },
         "approve": "Approve whole set",
         "approved": "Approved. The exam is in the list below as \"Coming soon\".",
         "approveTitle": "Approve the whole set of run #{id}?",
@@ -607,6 +611,31 @@
         "channel": {
           "FIREWORKS": "Fireworks AI",
           "ROUTER": "9Router"
+        },
+        "recheck": "Re-check set",
+        "recheckedReady": "The set now meets the conditions. Press “Approve whole set” once you have reviewed it.",
+        "recheckedStill": "The set still has failing items. See the updated list below.",
+        "gate": {
+          "title": "Conditions to approve the whole set",
+          "ok": "Met",
+          "missing": "Not yet",
+          "teile": "{ready}/{total} Teile done (none stuck)",
+          "checks": "No red set-level check ({red} red now)",
+          "next": "After fixing the stuck Teile, press “Re-check set”. A Teil with no red light counts as done and the set-level checks run again; when both conditions hold the run moves to “Awaiting approval” and the “Approve whole set” button appears. Yellow items do not block approval."
+        },
+        "fix": {
+          "title": "Why it is stuck and how to fix it",
+          "problems": "Still red in the draft",
+          "noProblems": "The draft has no red items left. Press “Re-check set” at the top of the run.",
+          "item": "Item {id}",
+          "check": "Self-check",
+          "howTitle": "How to fix",
+          "step1": "Press “Open draft” for this Teil.",
+          "step2": "Red item: edit the question, options or answer by hand, or regenerate just that item. Red light on the text: edit the passage named or have it rewritten.",
+          "step3": "Go to the Check step and run the self-check again. The machine has used all its repair rounds, so this time you decide.",
+          "step4": "Come back here and press “Re-check set”.",
+          "doneTitle": "What counts as fixed",
+          "done": "After the latest self-check the draft has no red light at all: neither Teil-level lights nor any item. Yellow lights may remain."
         }
       },
       "sources": {

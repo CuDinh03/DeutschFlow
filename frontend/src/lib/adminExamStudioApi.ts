@@ -528,6 +528,15 @@ export interface SetRunTeil {
   repairRound: number
   themeTry: number
   lastError: string | null
+  /** Teil kẹt: các mục còn đỏ trong bản nháp lúc này. Rỗng = bản nháp đã hết đỏ, bấm "Kiểm lại bộ". */
+  problems?: SetRunProblem[]
+}
+/** `CHECK` = đèn tự kiểm cấp Teil; `ITEM` = một câu hỏi (ref = mã câu). */
+export interface SetRunProblem {
+  kind: 'CHECK' | 'ITEM'
+  ref: string
+  label: string | null
+  detail: string | null
 }
 export interface SetRun {
   id: number
@@ -555,6 +564,10 @@ export async function createSetRun(body: {
 /** Duyệt cả bộ: mọi Teil vào kho và ghép thành một bộ đề "Sắp có" (chưa phát hành). */
 export async function approveSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/approve`, {})).data
+}
+/** Kiểm lại lượt "Cần bạn xem" sau khi sửa tay: Teil hết đỏ tính là xong, chạy lại kiểm cấp bộ. */
+export async function recheckSetRun(id: number): Promise<SetRun> {
+  return (await api.post<SetRun>(`${BASE}/sets/${id}/recheck`, {})).data
 }
 export async function discardSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/discard`, {})).data

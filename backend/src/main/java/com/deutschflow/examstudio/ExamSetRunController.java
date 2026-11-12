@@ -58,6 +58,15 @@ public class ExamSetRunController {
         return r;
     }
 
+    /** Kiểm lại lượt "Cần bạn xem" sau khi owner sửa tay Teil kẹt: Teil hết đỏ tính là xong, chạy lại kiểm cấp bộ. */
+    @PostMapping("/{id}/recheck")
+    public RunView recheck(@PathVariable long id, @AuthenticationPrincipal User actor) {
+        RunView r = runs.recheck(id);
+        audit.log("admin.exam_studio.set_run_rechecked", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(id),
+                Map.of("status", r.status()));
+        return r;
+    }
+
     @PostMapping("/{id}/discard")
     public RunView discard(@PathVariable long id, @AuthenticationPrincipal User actor) {
         RunView r = runs.discard(id);
