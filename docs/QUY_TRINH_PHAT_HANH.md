@@ -229,7 +229,23 @@ Runbook đầy đủ: `mobile/DEPLOYMENT.md` (local). Tóm tắt luật:
 
 - Policy `runtimeVersion: fingerprint`: OTA chỉ tới bản build có fingerprint trùng. Sau mỗi lần publish kiểm `npx eas-cli@latest update:list --branch production` — `runtimeVersion` phải trùng build đích.
 - Không thêm `.fingerprintignore` giữa vòng đời một build.
+- OTA **không** đổi `version` trong `app.json` (fingerprint mặc định hash cả version ⇒ OTA lệch build). Việc cần sửa trên App Store Connect cho từng đường (OTA: không gì; bản mới: version, What's New, ảnh, build, review): `mobile/docs/APP_STORE_CONNECT_KHI_PHAT_HANH.md`.
 - Mobile gọi `api.mydeutschflow.com`: thay đổi API phá tương thích phải deploy backend theo kiểu tương thích ngược, vì bản app cũ còn trên máy người dùng.
+
+### 7.1 Tự đổi version khi phát hành bản mới (bắt buộc với phiên Claude)
+
+Khi owner ra lệnh build bản mới lên store, phiên làm việc **tự tính và tự sửa** `mobile/app.json` → `expo.version`, không hỏi lại số, rồi mới build. Không ai gõ số bằng tay.
+
+1. Lấy `X.Y.Z` = version đang trên App Store: dòng "store" mới nhất trong nhật ký §4 của `mobile/docs/APP_STORE_CONNECT_KHI_PHAT_HANH.md` (đối chiếu `app.json`).
+2. Gom **mọi** thay đổi mobile kể từ `X.Y.Z`, gồm cả các bản OTA `X.Y.Z-ota.K` đã ra (`git log` trên `mobile/` từ commit build `X.Y.Z` + nhật ký).
+3. Xét theo thứ tự, gặp điều nào đúng trước thì lấy điều đó:
+   - **MAJOR** `(X+1).0.0`: đổi mô hình sản phẩm, làm lại toàn bộ giao diện, hoặc backend ngừng hỗ trợ bản app cũ.
+   - **MINOR** `X.(Y+1).0`: có tính năng hoặc màn hình mới mà người dùng nhìn thấy, hoặc thêm gói mua trong app.
+   - **PATCH** `X.Y.(Z+1)`: chỉ sửa lỗi, nâng thư viện hay SDK, đổi quyền, icon, hiệu năng.
+4. Sửa `expo.version` thành số mới, commit cùng đợt (`release(mobile): vA.B.C`), ghi dòng mới vào nhật ký, rồi build/submit như bảng trên. Báo owner số mới và lý do chọn mức tăng trong một câu.
+5. Không sửa build number (EAS tự tăng). Trên App Store Connect gõ đúng chuỗi `A.B.C` khi tạo version (xem tài liệu ASC ở trên).
+
+**OTA không bao giờ đổi `expo.version`** (đổi là lệch fingerprint, OTA không tới máy nào). Bản OTA chỉ mang nhãn `X.Y.Z-ota.K` trong `--message` của `eas update` và trong nhật ký; K đếm từ 1, quay về 1 khi có version store mới.
 
 ---
 
