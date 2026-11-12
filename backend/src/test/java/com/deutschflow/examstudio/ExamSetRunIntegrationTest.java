@@ -278,6 +278,24 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("duyệt cả bộ: chỉ lượt REVIEW mới duyệt được; mọi bản nháp được duyệt với đủ 8 mục, hỏng một Teil thì không ghép")
+    void approveWholeSet() {
+        long id = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id();
+        assertThatThrownBy(() -> runs.approve(id, null, admin)).isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Sẵn sàng duyệt");
+        assertThat(runToEnd(id).status()).isEqualTo("REVIEW");
+
+        // Bản nháp giả không vào kho thật ⇒ lượt duyệt dừng ở Teil đầu tiên và lượt vẫn ở REVIEW.
+        when(drafts.approve(anyLong(), any(), anyLong())).thenThrow(new BadRequestException("test: không duyệt được"));
+        assertThatThrownBy(() -> runs.approve(id, null, admin)).isInstanceOf(BadRequestException.class);
+        assertThat(runs.get(id).status()).isEqualTo("REVIEW");
+        org.mockito.ArgumentCaptor<Map<String, Boolean>> checklist = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(drafts).approve(anyLong(), checklist.capture(), eq(admin));
+        assertThat(checklist.getValue()).containsOnlyKeys(TeilSpec.CHECKLIST_KEYS).containsValues(true)
+                .doesNotContainValue(false);
+    }
+
+    @Test
     @DisplayName("bỏ lượt: bản nháp của lượt bị bỏ theo, lượt sang DISCARDED và cho tạo lượt mới")
     void discardRun() {
         long id = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id();

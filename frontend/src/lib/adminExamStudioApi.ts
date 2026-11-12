@@ -547,6 +547,10 @@ export async function createSetRun(body: {
 }): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets`, body)).data
 }
+/** Duyệt cả bộ: mọi Teil vào kho và ghép thành một bộ đề "Sắp có" (chưa phát hành). */
+export async function approveSetRun(id: number): Promise<SetRun> {
+  return (await api.post<SetRun>(`${BASE}/sets/${id}/approve`, {})).data
+}
 export async function discardSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/discard`, {})).data
 }

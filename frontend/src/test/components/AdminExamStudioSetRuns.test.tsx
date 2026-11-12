@@ -11,7 +11,7 @@ import chromeVi from '../../../messages/v2/chrome.vi.json'
 import type { SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
 
 const m = vi.hoisted(() => ({
-  listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), getStudioChannel: vi.fn(),
+  listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), approveSetRun: vi.fn(), getStudioChannel: vi.fn(),
 }))
 vi.mock('@/lib/adminExamStudioApi', async (orig) => ({ ...(await orig<object>()), ...m }))
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
@@ -84,6 +84,31 @@ describe('SetRunsPanel', () => {
     const schreiben = screen.getByText('Schreiben T1').closest('li') as HTMLElement
     expect(within(schreiben).getByText('Kẹt')).toBeInTheDocument()
     expect(within(schreiben).queryByRole('link', { name: 'Mở bản nháp' })).not.toBeInTheDocument()
+  })
+
+  it('lượt sẵn sàng duyệt: bấm "Duyệt cả bộ", xác nhận, gọi API và báo cho tab nạp lại danh sách bộ đề', async () => {
+    m.listSetRuns.mockResolvedValue([run({ status: 'REVIEW', teile: [teil({ status: 'READY', stage: 'DONE' })] })])
+    m.approveSetRun.mockResolvedValue(run({ status: 'APPROVED' }))
+    const onApproved = vi.fn()
+    render(
+      <NextIntlClientProvider locale="vi" messages={{ v2: { ...adminContentVi, ...chromeVi } }} onError={() => undefined}>
+        <SetRunsPanel active onApproved={onApproved} />
+      </NextIntlClientProvider>,
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Duyệt cả bộ' }))
+    const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
+    expect(within(dialog).getByText(/Phần Nghe lấy nguyên từ một đề viết tay/)).toBeInTheDocument()
+    expect(m.approveSetRun).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Duyệt cả bộ' }))
+    await waitFor(() => expect(m.approveSetRun).toHaveBeenCalledWith(7))
+    await waitFor(() => expect(onApproved).toHaveBeenCalled())
+  })
+
+  it('lượt đang chạy hoặc cần xem thì không có nút duyệt', async () => {
+    m.listSetRuns.mockResolvedValue([run({}), run({ id: 8, status: 'NEEDS_ATTENTION' })])
+    show()
+    expect(await screen.findByText('Lượt #8 · telc B1')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Duyệt cả bộ' })).not.toBeInTheDocument()
   })
 
   it('lượt đã bỏ không hiện; ba ngôn ngữ đủ khoá', async () => {

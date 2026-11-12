@@ -49,6 +49,15 @@ public class ExamSetRunController {
         return r;
     }
 
+    /** Duyệt cả bộ: mọi Teil vào kho, ghép thành một bộ đề "Sắp có". Chưa phát hành cho học viên. */
+    @PostMapping("/{id}/approve")
+    public RunView approve(@PathVariable long id, @RequestBody(required = false) ExamSetRunService.ApproveRunRequest req,
+                           @AuthenticationPrincipal User actor) {
+        RunView r = runs.approve(id, req, actor.getId());
+        audit.log("admin.exam_studio.set_run_approved", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(id), Map.of());
+        return r;
+    }
+
     @PostMapping("/{id}/discard")
     public RunView discard(@PathVariable long id, @AuthenticationPrincipal User actor) {
         RunView r = runs.discard(id);
