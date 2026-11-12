@@ -374,6 +374,24 @@ public class ExamSetRunService {
                 stage(t.id(), "VERIFY");
                 yield true;
             }
+            case "REPAIR_TEXT" -> {
+                List<String> queue = new ArrayList<>(t.repairQueue());
+                String context = d.text() == null ? "" : d.text().context();
+                // Câu đã đổi sau lần sửa trước (hoặc không còn trong bài) thì bỏ qua.
+                while (!queue.isEmpty() && !context.contains(queue.get(0))) queue.remove(0);
+                if (queue.isEmpty()) {
+                    jdbc.update("UPDATE exam_set_run_teile SET repair_queue = '[]'::jsonb, updated_at = now() WHERE id = ?", t.id());
+                    drafts.verify(d.id(), user);
+                    stage(t.id(), "VERIFY");
+                } else {
+                    String sentence = queue.remove(0);
+                    jdbc.update("UPDATE exam_set_run_teile SET repair_queue = ?::jsonb, updated_at = now() WHERE id = ?",
+                            json(queue), t.id());
+                    drafts.writeText(d.id(), new WriteTextRequest(sentence, "REWRITE",
+                            "Dieser Satz übernimmt Wörter wörtlich aus der Quelle. Gleicher Inhalt, völlig andere Formulierung."), user);
+                }
+                yield true;
+            }
             case "REPAIR_ITEMS" -> {
                 List<String> queue = new ArrayList<>(t.repairQueue());
                 if (queue.isEmpty()) {
@@ -480,6 +498,20 @@ public class ExamSetRunService {
             return false;
         }
         long user = run.createdBy();
+        // Chỉ đỏ vì trùng nguyên văn nguồn ⇒ sửa ĐÚNG các câu văn dính, không viết lại cả bài. Viết lại cả bài hay
+        // sinh ra chỗ trùng mới (lượt #5, #6: hai vòng viết lại vẫn còn 6–8 từ trùng) và buộc sinh lại mọi câu hỏi.
+        boolean onlyOverlap = !redChecks.isEmpty() && redItems.isEmpty()
+                && redChecks.stream().allMatch(c -> "OVERLAP".equals(c.key()));
+        if (onlyOverlap && d.text() != null && d.textMetrics() != null) {
+            List<String> sentences = sentencesWith(d.text().context(), d.textMetrics().overlapSnippets());
+            if (!sentences.isEmpty()) {
+                jdbc.update("""
+                        UPDATE exam_set_run_teile SET repair_round = repair_round + 1, stage = 'REPAIR_TEXT', last_error = ?,
+                               repair_queue = ?::jsonb, updated_at = now() WHERE id = ?
+                        """, why, json(sentences), t.id());
+                return false;
+            }
+        }
         boolean rewrite = redChecks.stream().anyMatch(c -> !ITEM_LEVEL_CHECKS.contains(c.key()));
         if (rewrite || spec.writing()) {
             jdbc.update("""
@@ -526,7 +558,7 @@ public class ExamSetRunService {
         String back = switch (t.stage()) {
             case "TEXT" -> "TEXT_PENDING";
             case "ITEMS" -> "TEXT";
-            case "VERIFY", "REPAIR_ITEMS" -> "ITEMS";
+            case "VERIFY", "REPAIR_ITEMS", "REPAIR_TEXT" -> "ITEMS";
             default -> t.stage();
         };
         jdbc.update("""
@@ -717,6 +749,32 @@ public class ExamSetRunService {
     static boolean isModelError(String error) {
         return error != null && (error.startsWith("Model soạn đề") || error.startsWith("AI không trả về")
                 || error.startsWith("AI trả") || error.contains("Yêu cầu AI"));
+    }
+
+    /**
+     * Các câu văn của bài có chứa một đoạn trùng nguồn (tối đa 6 câu). Đoạn trùng là dãy từ đã bỏ dấu câu, nên so
+     * trên dạng "chỉ còn từ" của từng câu; đoạn vắt qua hai câu thì lấy câu chứa 4 từ đầu hoặc 4 từ cuối của đoạn.
+     */
+    static List<String> sentencesWith(String context, List<String> snippets) {
+        if (context == null || snippets == null || snippets.isEmpty()) return List.of();
+        List<String> out = new ArrayList<>();
+        for (String raw : context.split("(?<=[.!?])\\s+|\\n+")) {
+            String sentence = raw.trim();
+            if (sentence.length() < 20 || out.contains(sentence)) continue;
+            String norm = " " + String.join(" ", TextChecks.words(sentence)).toLowerCase(java.util.Locale.GERMAN) + " ";
+            for (String sn : snippets) {
+                List<String> w = TextChecks.words(sn);
+                if (w.size() < 4) continue;
+                String head = " " + String.join(" ", w.subList(0, 4)).toLowerCase(java.util.Locale.GERMAN) + " ";
+                String tail = " " + String.join(" ", w.subList(w.size() - 4, w.size())).toLowerCase(java.util.Locale.GERMAN) + " ";
+                if (norm.contains(head) || norm.contains(tail)) {
+                    out.add(sentence);
+                    break;
+                }
+            }
+            if (out.size() >= 6) break;
+        }
+        return out;
     }
 
     static int sourcesNeeded(TeilSpec spec) {

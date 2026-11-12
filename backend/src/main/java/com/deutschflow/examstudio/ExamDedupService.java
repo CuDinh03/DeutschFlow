@@ -158,6 +158,41 @@ public class ExamDedupService {
                 """, url.trim(), excludeDraftId);
     }
 
+    /**
+     * Hai câu của CÙNG một Teil hỏi cùng một ý (lượt tạo bộ đề #6: sinh lại riêng một câu thì câu mới trùng câu sẵn
+     * có). Trả id câu sau → id câu trước mà nó trùng. Trùng = lõi (câu hỏi + đáp án đúng) giống hệt, hoặc giống từ
+     * {@value #ITEM_LIMIT} theo cụm {@value #ITEM_GRAM} từ ở cả hai chiều.
+     */
+    static Map<String, String> duplicatesWithin(List<ExamStudioDtos.Item> items) {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        List<String> ids = new ArrayList<>();
+        List<String> cores = new ArrayList<>();
+        for (ExamStudioDtos.Item it : items) {
+            String q = it.question() != null && it.question().contains("___") && it.evidence() != null
+                    && !it.evidence().isBlank() ? it.evidence() : it.question();
+            String core = itemCore(q, it.options() == null || it.correct() == null ? null : it.options().get(it.correct()));
+            if (!core.isBlank()) {
+                for (int k = 0; k < cores.size(); k++) {
+                    String other = cores.get(k);
+                    boolean same = core.equals(other);
+                    if (!same) {
+                        Set<Long> a = new HashSet<>(TextChecks.shingleHashes(core, ITEM_GRAM));
+                        Set<Long> b = new HashSet<>(TextChecks.shingleHashes(other, ITEM_GRAM));
+                        same = !a.isEmpty() && !b.isEmpty() && TextChecks.containment(core, b, ITEM_GRAM) >= ITEM_LIMIT
+                                && TextChecks.containment(other, a, ITEM_GRAM) >= ITEM_LIMIT;
+                    }
+                    if (same) {
+                        out.put(it.id(), ids.get(k));
+                        break;
+                    }
+                }
+            }
+            ids.add(it.id());
+            cores.add(core);
+        }
+        return out;
+    }
+
     static String itemCore(String question, String answer) {
         // "Text 3" (Lesen T1) không phải nội dung câu — bỏ để hai câu khác nhau không bị coi là trùng.
         String q = question == null ? "" : question.replaceAll("(?i)^\\s*text\\s*\\d+\\s*$", "");
