@@ -240,6 +240,13 @@ public class SourceCatalogService {
                 """, String.class, SourceCatalog.hash(canonical)).stream().findFirst().orElse(null);
     }
 
+    /** Trả một bài "đã dùng" về sổ (lượt tải hỏng không phải do bài, vd. kênh AI trục trặc). */
+    @Transactional
+    public void release(long articleId) {
+        jdbc.update("UPDATE exam_source_articles SET status = 'SEEN', used_by_draft_id = NULL, used_at = NULL "
+                + "WHERE id = ? AND status = 'USED'", articleId);
+    }
+
     /** Loại một bài khỏi vòng chọn (không tải được, quá ngắn, chủ đề nhạy cảm…), kèm lý do. */
     @Transactional
     public void reject(long articleId, String reason) {

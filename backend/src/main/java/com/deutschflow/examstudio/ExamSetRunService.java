@@ -314,6 +314,15 @@ public class ExamSetRunService {
         // 1) Kết quả của bài vừa thử.
         if (t.pendingArticleId() != null) {
             boolean failed = d.lastError() != null && !d.lastError().isBlank();
+            // Chỉ loại bài khi lỗi là của BÀI (không tải được, quá ngắn). Model không trả lời thì bài không có lỗi:
+            // trả bài về sổ, và tính là lỗi của bước để không đốt hết sổ nguồn khi kênh AI trục trặc (lượt #3, 12/11).
+            boolean modelError = failed && isModelError(d.lastError());
+            if (modelError) {
+                catalog.release(t.pendingArticleId());
+                jdbc.update("UPDATE exam_set_run_teile SET pending_article_id = NULL WHERE id = ?", t.id());
+                stageFailed(run, reload(t.id()), d.lastError());
+                return false;
+            }
             if (failed) catalog.reject(t.pendingArticleId(), d.lastError());
             jdbc.update("""
                     UPDATE exam_set_run_teile SET pending_article_id = NULL, source_tries = source_tries + ?,
@@ -497,6 +506,12 @@ public class ExamSetRunService {
     }
 
     // ── Phụ ──────────────────────────────────────────────────────────────────────────────────────────────
+
+    /** Lời báo của {@link ExamStudioAi} khi model / kênh AI hỏng, khác lời báo của máy tải bài. */
+    static boolean isModelError(String error) {
+        return error != null && (error.startsWith("Model soạn đề") || error.startsWith("AI không trả về")
+                || error.startsWith("AI trả") || error.contains("Yêu cầu AI"));
+    }
 
     static int sourcesNeeded(TeilSpec spec) {
         return spec.situational() ? 0 : Math.max(spec.textCount(), 1);

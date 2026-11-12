@@ -123,6 +123,36 @@ class ExamStudioAiChannelTest {
     }
 
     @Test
+    @DisplayName("thân trả lời dạng dòng sự kiện (9Router + Claude): ghép các mảnh thành một câu trả lời, giữ finish_reason")
+    void parsesEventStream() throws Exception {
+        String sse = """
+                data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
+
+                data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"{\\"wort\\": \\"Sch"},"finish_reason":null}]}
+
+                data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"metterling\\"}"},"finish_reason":null}]}
+
+                data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":7,"total_tokens":19}}
+
+                data: [DONE]
+                """;
+        JsonNode out = ExamStudioAi.parseCompletion(OM, sse);
+        assertThat(out.path("choices").path(0).path("message").path("content").asText()).isEqualTo("{\"wort\": \"Schmetterling\"}");
+        assertThat(out.path("choices").path(0).path("finish_reason").asText()).isEqualTo("stop");
+        assertThat(out.path("usage").path("total_tokens").asInt()).isEqualTo(19);
+
+        // Bị cắt giữa chừng vẫn nhận ra để thử lại với ngân sách lớn hơn.
+        JsonNode cut = ExamStudioAi.parseCompletion(OM, "data: {\"choices\":[{\"delta\":{\"content\":\"{\"},\"finish_reason\":\"length\"}]}\n");
+        assertThat(cut.path("choices").path(0).path("finish_reason").asText()).isEqualTo("length");
+
+        // JSON thường không đổi.
+        JsonNode plain = ExamStudioAi.parseCompletion(OM, "{\"choices\":[{\"message\":{\"content\":\"x\"},\"finish_reason\":\"stop\"}]}");
+        assertThat(plain.path("choices").path(0).path("message").path("content").asText()).isEqualTo("x");
+        assertThat(ExamSetRunService.isModelError("Model soạn đề không trả lời (JsonParseException), vui lòng thử lại.")).isTrue();
+        assertThat(ExamSetRunService.isModelError("Chỉ đọc được 143 ký tự nội dung")).isFalse();
+    }
+
+    @Test
     @DisplayName("chọn kênh 9Router: mọi lượt đi 9Router với khoá và model riêng, không gửi temperature / response_format")
     void routerChannel() {
         configureRouter("grok-judge");
