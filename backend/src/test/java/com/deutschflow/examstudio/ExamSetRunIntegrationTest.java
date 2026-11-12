@@ -217,6 +217,12 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         Fake lesen2 = live("LESEN", 2);
         assertThat(lesen1.sources).hasSize(5);                 // 5 văn bản ⇒ 5 nguồn
         assertThat(lesen2.sources).hasSize(1);
+        // Lesen 1 trải trên 4 chủ đề: 2 bài của chủ đề đầu, mỗi chủ đề còn lại một bài; không chủ đề nào là của Lesen 2.
+        List<String> mix = ExamSetPlanner.split(lesen1.req.theme());
+        assertThat(mix).hasSize(4).doesNotHaveDuplicates().doesNotContain(lesen2.req.theme());
+        java.util.Map<String, Long> perTheme = new java.util.HashMap<>();
+        for (Source s : lesen1.sources) perTheme.merge(s.url().split("/")[4], 1L, Long::sum);
+        assertThat(perTheme.values()).containsExactlyInAnyOrder(2L, 1L, 1L, 1L);
         assertThat(lesen2.req.difficultyPlan()).containsEntry("EASY", 2).containsEntry("MEDIUM", 2)
                 .containsEntry("HARD", 1).containsEntry("EXPERT", 0);
         assertThat(lesen2.req.mode()).isEqualTo("EXAM");
@@ -237,7 +243,7 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
 
         // Kiểm cấp bộ đã chạy và lưu kèm lượt: 7 mục, không mục nào đỏ.
         assertThat(done.setChecks()).extracting(ExamStudioDtos.Check::key).contains("SET_THEMES", "SET_UNIQUE_TEXT",
-                "SET_UNIQUE_ITEMS", "SET_DIFFICULTY").hasSize(7);
+                "SET_UNIQUE_ITEMS", "SET_DIFFICULTY", "SET_THEME_MIX").hasSize(8);
         assertThat(done.setChecks()).noneMatch(c -> "RED".equals(c.light()));
     }
 

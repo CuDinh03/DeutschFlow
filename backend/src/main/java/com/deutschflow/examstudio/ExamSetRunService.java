@@ -314,7 +314,8 @@ public class ExamSetRunService {
         Map<String, Map<String, Integer>> usage = new HashMap<>();
         for (TeilRow t : rows) {
             TeilSpec spec = spec(run, t);
-            slots.add(new Slot(t.section(), t.teil(), sourcesNeeded(spec)));
+            slots.add(new Slot(t.section(), t.teil(), sourcesNeeded(spec),
+                    spec.headlines() ? ExamSetPlanner.MIX_THEMES : 1));
             Map<String, Integer> used = new HashMap<>();
             jdbc.query("""
                     SELECT theme, count(*) AS n FROM (
@@ -325,7 +326,7 @@ public class ExamSetRunService {
                          WHERE exam_format = ? AND cefr_level = ? AND section = ? AND teil = ? AND status = 'DRAFT'
                     ) x WHERE theme IS NOT NULL GROUP BY theme
                     """, rs -> {
-                used.put(rs.getString("theme"), rs.getInt("n"));
+                for (String th : ExamSetPlanner.split(rs.getString("theme"))) used.merge(th, rs.getInt("n"), Integer::sum);
             }, run.examFormat(), run.cefrLevel(), t.section(), t.teil(), run.examFormat(), run.cefrLevel(),
                     t.section(), t.teil());
             usage.put(t.section() + "#" + t.teil(), used);
@@ -446,13 +447,23 @@ public class ExamSetRunService {
                 roundFailed(run, t, "Không tìm được đủ bài dùng được cho chủ đề „" + t.theme() + "“.", true);
                 return false;
             }
-            Theme theme = ExamSetPlanner.theme(t.theme());
+            // Teil nhiều chủ đề (Lesen 1): bài kế tiếp lấy cho chủ đề còn thiếu nguồn.
+            Map<String, Object> byUrl = sourceThemes(t.id());
+            List<String> assigned = new ArrayList<>();
+            for (Source s : d.sources()) {
+                Object th = byUrl.get(String.valueOf(SourceCatalog.canonical(s.url())));
+                if (th != null) assigned.add(th.toString());
+            }
+            String themeName = ExamSetPlanner.nextTheme(t.theme(), need, assigned);
+            Theme theme = ExamSetPlanner.theme(themeName);
             ArticleView pick = pickArticle(theme, d);
             if (pick == null || !catalog.markUsed(pick.id(), d.id())) {
-                if (pick == null) roundFailed(run, t, "Sổ nguồn hết bài cho chủ đề „" + t.theme() + "“.", true);
+                if (pick == null) roundFailed(run, t, "Sổ nguồn hết bài cho chủ đề „" + themeName + "“.", true);
                 return false;
             }
-            jdbc.update("UPDATE exam_set_run_teile SET pending_article_id = ?, updated_at = now() WHERE id = ?", pick.id(), t.id());
+            byUrl.put(String.valueOf(SourceCatalog.canonical(pick.url())), themeName);
+            jdbc.update("UPDATE exam_set_run_teile SET pending_article_id = ?, source_themes = ?::jsonb, updated_at = now() WHERE id = ?",
+                    pick.id(), json(byUrl), t.id());
             drafts.addSource(d.id(), new ExamStudioDtos.AddSourceRequest(pick.url(), null, null, pick.publisher()), user);
             return true;
         }
@@ -578,7 +589,7 @@ public class ExamSetRunService {
             return;
         }
         Set<String> banned = new HashSet<>();
-        for (TeilRow other : teile(run.id())) if (other.theme() != null) banned.add(other.theme());
+        for (TeilRow other : teile(run.id())) banned.addAll(ExamSetPlanner.split(other.theme()));
         Map<String, String> next = assignThemes(run, List.of(t), banned);
         String theme = next.get(t.section() + "#" + t.teil());
         if (theme == null) {
@@ -588,6 +599,7 @@ public class ExamSetRunService {
         discardDraftQuietly(t.draftId());
         jdbc.update("""
                 UPDATE exam_set_run_teile SET draft_id = NULL, stage = 'NEW', theme = ?, theme_try = theme_try + 1,
+                       source_themes = '{}'::jsonb,
                        repair_round = 0, errors = 0, source_tries = 0, pending_article_id = NULL,
                        repair_queue = '[]'::jsonb, last_error = ?, updated_at = now() WHERE id = ?
                 """, theme, cut((sourceProblem ? "Đổi chủ đề vì thiếu nguồn: " : "Đổi chủ đề sau khi tự sửa không qua: ") + why, 900),
@@ -638,9 +650,11 @@ public class ExamSetRunService {
     /** So bộ vừa xong với: kho Teil đã duyệt, Teil của các lượt khác đang chờ duyệt, và đề viết tay — cùng kỳ thi + cấp. */
     List<Check> setChecks(RunRow run, List<TeilRow> rows) {
         List<ExamSetChecks.TeilDoc> set = new ArrayList<>();
+        List<Check> mix = new ArrayList<>();
         for (TeilRow t : rows) {
             if (!t.status().equals("READY") || t.draftId() == null) continue;
             set.add(doc(drafts.get(t.draftId()), t));
+            if (spec(run, t).headlines()) mix.add(ExamSetChecks.themeMix(t.section() + " " + t.teil(), t.theme()));
         }
         List<ExamSetChecks.Other> corpus = new ArrayList<>();
         jdbc.query("""
@@ -676,7 +690,15 @@ public class ExamSetRunService {
             corpus.add(new ExamSetChecks.Other("lượt #" + r.get("run_id") + " (" + r.get("section") + " " + r.get("teil") + ")",
                     x.cell(), x.text(), x.itemCores(), x.answerKey()));
         }
-        return ExamSetChecks.run(set, corpus);
+        List<Check> out = new ArrayList<>(ExamSetChecks.run(set, corpus));
+        out.addAll(1, mix); // ngay sau "Mỗi Teil một chủ đề"
+        return out;
+    }
+
+    /** Địa chỉ bài (đã chuẩn hoá) → chủ đề mà bài đó được lấy cho, của một Teil nhiều chủ đề. */
+    private Map<String, Object> sourceThemes(long teilRowId) {
+        String raw = jdbc.queryForObject("SELECT source_themes::text FROM exam_set_run_teile WHERE id = ?", String.class, teilRowId);
+        return new LinkedHashMap<>(readMap(raw));
     }
 
     private ExamSetChecks.TeilDoc doc(Draft d, TeilRow t) {
