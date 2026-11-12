@@ -53,7 +53,7 @@ public class ExamSetRunService {
     static final int MAX_THEME_TRIES = 1;        // số lần ĐỔI chủ đề (owner chốt: 1)
     static final int MAX_SOURCE_TRIES = 6;       // số bài hỏng tối đa cho một Teil trước khi coi là kẹt nguồn
     static final int MAX_STAGE_ERRORS = 2;       // job của một bước lỗi liên tiếp bấy nhiêu lần ⇒ hỏng vòng
-    static final int MAX_BUSY_DRAFTS = 3;        // số bản nháp của một lượt được chạy AI cùng lúc
+    static final int MAX_BUSY_DRAFTS = 6;        // số bản nháp của một lượt được chạy AI cùng lúc (owner nâng 3 → 6, 13/11/2026)
     static final Duration BUSY_TIMEOUT = Duration.ofMinutes(25);
     static final Duration FEED_FRESH = Duration.ofHours(6);
 
@@ -88,14 +88,23 @@ public class ExamSetRunService {
     // ── Tạo lượt, xem lượt ───────────────────────────────────────────────────────────────────────────────
 
     public RunView create(CreateRunRequest req, long userId) {
+        return createRun(req, userId);
+    }
+
+    private static String normProfile(String raw) {
+        String profile = raw == null || raw.isBlank() ? "REAL" : raw.trim().toUpperCase();
+        if (!profile.equals("REAL") && !profile.equals("SPRINT")) {
+            throw new BadRequestException("Hồ sơ độ khó không hợp lệ (REAL hoặc SPRINT).");
+        }
+        return profile;
+    }
+
+    private RunView createRun(CreateRunRequest req, Long userId) {
         List<TeilSpec> specs = TeilSpec.forExam(req.examFormat(), req.cefrLevel());
         if (specs.isEmpty()) {
             throw new BadRequestException("Chưa có khuôn Teil nào cho kỳ thi và cấp này trong Xưởng đề.");
         }
-        String profile = req.profile() == null || req.profile().isBlank() ? "REAL" : req.profile().trim().toUpperCase();
-        if (!profile.equals("REAL") && !profile.equals("SPRINT")) {
-            throw new BadRequestException("Hồ sơ độ khó không hợp lệ (REAL hoặc SPRINT).");
-        }
+        String profile = normProfile(req.profile());
         String channel = ai.requireChannel(req.channel()).name();
         Integer running = jdbc.queryForObject(
                 "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
@@ -136,6 +145,107 @@ public class ExamSetRunService {
         for (TeilRow t : teile(id)) discardDraftQuietly(t.draftId());
         jdbc.update("UPDATE exam_set_runs SET status = 'DISCARDED', finished_at = now(), updated_at = now() WHERE id = ?", id);
         return get(id);
+    }
+
+    // ── Tự nối lượt ──────────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Số bộ chờ owner xem (REVIEW / NEEDS_ATTENTION) tối đa trước khi chế độ tự nối TẠM DỪNG. Chặn máy đốt tiền AI
+     * ra hàng chục bộ trong lúc owner vắng; owner duyệt hoặc bỏ bớt thì máy tự chạy tiếp.
+     */
+    static final int AUTO_MAX_WAITING = 5;
+
+    public record AutoRequest(boolean enabled, String examFormat, String cefrLevel, String profile, String channel) {}
+
+    public record AutoView(boolean enabled, String examFormat, String cefrLevel, String profile, String channel,
+                           /** Lý do máy đang tạm dừng hoặc đã tự tắt; null khi chạy bình thường. */
+                           String note, int waiting, int maxWaiting) {}
+
+    public AutoView auto() {
+        Integer waiting = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('REVIEW', 'NEEDS_ATTENTION')", Integer.class);
+        return jdbc.query("SELECT * FROM exam_set_auto WHERE id = 1", (rs, i) -> new AutoView(rs.getBoolean("enabled"),
+                        rs.getString("exam_format"), rs.getString("cefr_level"), rs.getString("profile"),
+                        rs.getString("channel"), rs.getString("note"), waiting == null ? 0 : waiting, AUTO_MAX_WAITING))
+                .stream().findFirst()
+                .orElse(new AutoView(false, "TELC", "B1", "REAL", "FIREWORKS", null, waiting == null ? 0 : waiting,
+                        AUTO_MAX_WAITING));
+    }
+
+    /** Bật / tắt tự nối lượt. Bật thì lưu kỳ thi, cấp, hồ sơ và kênh AI cho mọi lượt máy tự tạo về sau. */
+    public AutoView setAuto(AutoRequest req, long userId) {
+        if (req.enabled()) {
+            if (TeilSpec.forExam(req.examFormat(), req.cefrLevel()).isEmpty()) {
+                throw new BadRequestException("Chưa có khuôn Teil nào cho kỳ thi và cấp này trong Xưởng đề.");
+            }
+            TeilSpec first = TeilSpec.forExam(req.examFormat(), req.cefrLevel()).get(0);
+            String profile = normProfile(req.profile());
+            String channel = ai.requireChannel(req.channel()).name();
+            jdbc.update("""
+                    INSERT INTO exam_set_auto (id, enabled, exam_format, cefr_level, profile, channel, created_by, note, updated_at)
+                    VALUES (1, true, ?, ?, ?, ?, ?, NULL, now())
+                    ON CONFLICT (id) DO UPDATE SET enabled = true, exam_format = EXCLUDED.exam_format,
+                        cefr_level = EXCLUDED.cefr_level, profile = EXCLUDED.profile, channel = EXCLUDED.channel,
+                        created_by = EXCLUDED.created_by, note = NULL, updated_at = now()
+                    """, first.examFormat(), first.cefrLevel(), profile, channel, userId);
+        } else {
+            jdbc.update("""
+                    INSERT INTO exam_set_auto (id, enabled, note, updated_at) VALUES (1, false, NULL, now())
+                    ON CONFLICT (id) DO UPDATE SET enabled = false, note = NULL, updated_at = now()
+                    """);
+        }
+        return auto();
+    }
+
+    /**
+     * Gọi sau mỗi nhịp: tự nối lượt đang bật và không còn lượt nào chạy ⇒ tạo lượt kế tiếp. Tạm dừng khi đã có
+     * {@link #AUTO_MAX_WAITING} bộ chờ xem; tự TẮT khi lượt máy vừa tạo kẹt hết mọi Teil (hỏng có hệ thống — nguồn,
+     * kênh AI — chạy tiếp chỉ đốt tiền). {@code updated_at} chỉ đổi khi owner bật/tắt, để mốc "lượt tạo sau khi bật"
+     * không trôi khi máy ghi ghi chú.
+     */
+    void autoContinue() {
+        Map<String, Object> cfg = jdbc.queryForList("SELECT * FROM exam_set_auto WHERE id = 1").stream().findFirst().orElse(null);
+        if (cfg == null || !Boolean.TRUE.equals(cfg.get("enabled"))) return;
+        Integer active = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+        if (active != null && active > 0) return;
+
+        // Lượt gần nhất tạo sau lần bật mà kẹt hết mọi Teil ⇒ tắt hẳn, báo owner.
+        List<Long> deadRuns = jdbc.queryForList("""
+                SELECT r.id FROM exam_set_runs r, exam_set_auto a
+                 WHERE a.id = 1 AND r.created_at >= a.updated_at AND r.status = 'NEEDS_ATTENTION'
+                   AND r.id = (SELECT max(id) FROM exam_set_runs)
+                   AND NOT EXISTS (SELECT 1 FROM exam_set_run_teile t WHERE t.run_id = r.id AND t.status <> 'STUCK')
+                """, Long.class);
+        if (!deadRuns.isEmpty()) {
+            String why = "Đã tự tắt: lượt #" + deadRuns.get(0) + " kẹt hết mọi Teil. Xem lỗi của lượt đó rồi bật lại.";
+            jdbc.update("UPDATE exam_set_auto SET enabled = false, note = ? WHERE id = 1", why);
+            try {
+                notifications.onSystemAlert("EXAM_STUDIO_SET", "Tự nối lượt đã tắt", why,
+                        Map.of("runId", deadRuns.get(0), "url", "/v2/admin/exam-studio?tab=sets&run=" + deadRuns.get(0)));
+            } catch (RuntimeException e) {
+                log.warn("[ExamSet] không gửi được thông báo tự nối lượt tắt: {}", e.getMessage());
+            }
+            return;
+        }
+
+        Integer waiting = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('REVIEW', 'NEEDS_ATTENTION')", Integer.class);
+        if (waiting != null && waiting >= AUTO_MAX_WAITING) {
+            String why = "Tạm dừng: đang có " + waiting + " bộ chờ bạn xem. Duyệt hoặc bỏ bớt thì máy chạy tiếp.";
+            jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1 AND note IS DISTINCT FROM ?", why, why);
+            return;
+        }
+        Number by = (Number) cfg.get("created_by");
+        try {
+            RunView r = createRun(new CreateRunRequest((String) cfg.get("exam_format"), (String) cfg.get("cefr_level"),
+                    (String) cfg.get("profile"), (String) cfg.get("channel")), by == null ? null : by.longValue());
+            jdbc.update("UPDATE exam_set_auto SET note = NULL WHERE id = 1");
+            log.info("[ExamSet] tự nối lượt: tạo lượt #{}", r.id());
+        } catch (BadRequestException e) {
+            jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1 AND note IS DISTINCT FROM ?",
+                    "Không tạo được lượt mới: " + e.getMessage(), "Không tạo được lượt mới: " + e.getMessage());
+        }
     }
 
     // ── Duyệt cả bộ ──────────────────────────────────────────────────────────────────────────────────────
@@ -221,6 +331,11 @@ public class ExamSetRunService {
             } catch (RuntimeException e) {
                 log.error("[ExamSet] lượt #{} lỗi ở nhịp điều phối: {}", id, e.getMessage(), e);
             }
+        }
+        try {
+            autoContinue();
+        } catch (RuntimeException e) {
+            log.error("[ExamSet] tự nối lượt lỗi: {}", e.getMessage(), e);
         }
     }
 

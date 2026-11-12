@@ -321,4 +321,65 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThatThrownBy(() -> runs.create(new CreateRunRequest("GOETHE", "C2", null, null), admin))
                 .isInstanceOf(BadRequestException.class);
     }
+
+    private long lastRunId() {
+        return jdbc.queryForObject("SELECT coalesce(max(id), 0) FROM exam_set_runs", Long.class);
+    }
+
+    @Test
+    @DisplayName("tự nối lượt: bật thì máy tự tạo lượt; lượt xong thì tạo lượt kế; tắt thì dừng")
+    void autoContinueChainsRuns() {
+        assertThat(runs.auto().enabled()).isFalse();
+        long base = lastRunId();
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(base);                            // tắt: không tự tạo gì
+
+        var on = runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", null, "FIREWORKS"), admin);
+        assertThat(on.enabled()).isTrue();
+        assertThat(on.examFormat()).isEqualTo("TELC");
+        runs.tickAll();
+        long first = lastRunId();
+        assertThat(first).isGreaterThan(base);
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(first);                           // lượt đang chạy: không tạo thêm
+
+        assertThat(runToEnd(first).status()).isEqualTo("REVIEW");
+        runs.tickAll();
+        long second = lastRunId();
+        assertThat(second).isGreaterThan(first);
+        assertThat(runs.get(second).channel()).isEqualTo("FIREWORKS");
+
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+        assertThat(runToEnd(second).status()).isEqualTo("REVIEW");
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(second);                          // đã tắt: lượt đang chạy xong là dừng
+    }
+
+    @Test
+    @DisplayName("tự nối lượt tạm dừng khi đủ 5 bộ chờ xem, tự tắt khi lượt mới kẹt hết mọi Teil")
+    void autoContinuePausesAndStops() {
+        for (int i = 0; i < ExamSetRunService.AUTO_MAX_WAITING; i++) {
+            jdbc.update("INSERT INTO exam_set_runs (exam_format, cefr_level, status) VALUES ('TELC', 'B1', 'REVIEW')");
+        }
+        long before = lastRunId();
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(before);
+        assertThat(runs.auto().note()).contains("Tạm dừng").contains("5 bộ");
+        assertThat(runs.auto().enabled()).isTrue();
+
+        // Bỏ bớt một bộ chờ ⇒ chạy tiếp; lượt máy vừa tạo kẹt hết mọi Teil ⇒ máy tự tắt và báo owner.
+        jdbc.update("UPDATE exam_set_runs SET status = 'DISCARDED' WHERE id = ?", before);
+        runs.tickAll();
+        long created = lastRunId();
+        assertThat(created).isGreaterThan(before);
+        assertThat(runs.auto().note()).isNull();
+        jdbc.update("UPDATE exam_set_runs SET status = 'NEEDS_ATTENTION' WHERE id = ?", created);
+        jdbc.update("UPDATE exam_set_run_teile SET status = 'STUCK' WHERE run_id = ?", created);
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(created);
+        assertThat(runs.auto().enabled()).isFalse();
+        assertThat(runs.auto().note()).contains("Đã tự tắt").contains("#" + created);
+        verify(notifications).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Tự nối lượt đã tắt"), anyString(), any());
+    }
 }

@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Sparkles } from 'lucide-react'
+import { Repeat, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
-  approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns,
-  type SetRun, type SetRunStatus, type SetRunTeil,
+  approveSetRun, createSetRun, discardSetRun, getSetAuto, getStudioChannel, listSetRuns, putSetAuto,
+  type SetAuto, type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { slotLabel } from './AssembliesTab'
@@ -41,11 +41,14 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const [busy, setBusy] = useState(false)
   const [discarding, setDiscarding] = useState<SetRun | null>(null)
   const [approving, setApproving] = useState<SetRun | null>(null)
+  const [auto, setAuto] = useState<SetAuto | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
     try {
-      setRuns(await listSetRuns())
+      const [list, a] = await Promise.all([listSetRuns(), getSetAuto().catch(() => null)])
+      setRuns(list)
+      setAuto(a)
       setError('')
     } catch (e) {
       setError(apiMessage(e))
@@ -56,10 +59,25 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
 
   const anyActive = (runs ?? []).some((r) => ACTIVE.includes(r.status))
   useEffect(() => {
-    if (!active || !anyActive) return
+    if (!active || (!anyActive && !auto?.enabled)) return
     timer.current = setTimeout(() => void load(), REFRESH_MS)
     return () => { if (timer.current) clearTimeout(timer.current) }
-  }, [active, anyActive, runs, load])
+  }, [active, anyActive, auto?.enabled, runs, load])
+
+  const toggleAuto = async () => {
+    setBusy(true)
+    try {
+      const on = !auto?.enabled
+      setAuto(await putSetAuto(on
+        ? { enabled: true, examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: getStudioChannel() }
+        : { enabled: false }))
+      toast.success(t(on ? 'autoEnabled' : 'autoDisabled'))
+    } catch (e) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const start = async () => {
     setBusy(true)
@@ -111,10 +129,24 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
           <h2 id="set-runs-h" className="ga-ui text-ga-h3 text-ga-ink">{t('title')}</h2>
           <p className="ga-ui mt-1 text-ga-small text-ga-muted">{t('body')}</p>
         </div>
-        <GaBtn onClick={() => void start()} disabled={busy || anyActive}>
-          <Sparkles className="h-4 w-4" aria-hidden /> {t('start')}
-        </GaBtn>
-        {anyActive && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('oneAtATime')}</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          <GaBtn variant="ghost" onClick={() => void toggleAuto()} disabled={busy || auto == null}
+            aria-pressed={auto?.enabled ?? false}>
+            <Repeat className="h-4 w-4" aria-hidden /> {t(auto?.enabled ? 'autoOff' : 'autoOn')}
+          </GaBtn>
+          <GaBtn onClick={() => void start()} disabled={busy || anyActive}>
+            <Sparkles className="h-4 w-4" aria-hidden /> {t('start')}
+          </GaBtn>
+        </div>
+        {auto?.enabled ? (
+          <p className="ga-ui basis-full text-ga-caption font-semibold text-ga-ink">
+            {t('autoRunning', { waiting: auto.waiting, max: auto.maxWaiting })}
+          </p>
+        ) : (
+          <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('autoHint', { max: auto?.maxWaiting ?? 5 })}</p>
+        )}
+        {auto?.note && <p className="ga-ui basis-full break-words text-ga-caption text-ga-muted">{auto.note}</p>}
+        {anyActive && !auto?.enabled && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('oneAtATime')}</p>}
       </GaCard>
 
       {error && <ErrorBanner message={error} />}

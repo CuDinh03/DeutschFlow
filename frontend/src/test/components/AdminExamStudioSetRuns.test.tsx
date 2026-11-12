@@ -8,11 +8,16 @@ import adminContentVi from '../../../messages/v2/adminContent.vi.json'
 import adminContentEn from '../../../messages/v2/adminContent.en.json'
 import adminContentDe from '../../../messages/v2/adminContent.de.json'
 import chromeVi from '../../../messages/v2/chrome.vi.json'
-import type { SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
+import type { SetAuto, SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
 
 const m = vi.hoisted(() => ({
   listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), approveSetRun: vi.fn(), getStudioChannel: vi.fn(),
+  getSetAuto: vi.fn(), putSetAuto: vi.fn(),
 }))
+const autoView = (over: Partial<SetAuto> = {}): SetAuto => ({
+  enabled: false, examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: 'FIREWORKS', note: null,
+  waiting: 1, maxWaiting: 5, ...over,
+})
 vi.mock('@/lib/adminExamStudioApi', async (orig) => ({ ...(await orig<object>()), ...m }))
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock('sonner', () => ({ toast }))
@@ -42,6 +47,30 @@ describe('SetRunsPanel', () => {
     Object.values(m).forEach((f) => f.mockReset())
     toast.success.mockReset()
     m.getStudioChannel.mockReturnValue('ROUTER')
+    m.getSetAuto.mockResolvedValue(autoView())
+  })
+
+  it('bật tự nối lượt: gửi kỳ thi + kênh đang chọn, hiện trạng thái đang tự nối; bấm lần nữa thì tắt', async () => {
+    m.listSetRuns.mockResolvedValue([run({})])
+    m.putSetAuto.mockResolvedValueOnce(autoView({ enabled: true, channel: 'ROUTER' }))
+      .mockResolvedValueOnce(autoView({ enabled: false }))
+    show()
+    await userEvent.click(await screen.findByRole('button', { name: /Bật tự nối lượt/ }))
+    await waitFor(() => expect(m.putSetAuto).toHaveBeenCalledWith(
+      { enabled: true, examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: 'ROUTER' }))
+    expect(await screen.findByText(/Đang tự nối lượt/)).toBeInTheDocument()
+    expect(toast.success).toHaveBeenCalledWith('Đã bật tự nối lượt.')
+    await userEvent.click(screen.getByRole('button', { name: /Tắt tự nối lượt/ }))
+    await waitFor(() => expect(m.putSetAuto).toHaveBeenLastCalledWith({ enabled: false }))
+    expect(await screen.findByRole('button', { name: /Bật tự nối lượt/ })).toBeInTheDocument()
+  })
+
+  it('tự nối lượt đang tạm dừng: hiện lý do máy ghi', async () => {
+    m.listSetRuns.mockResolvedValue([])
+    m.getSetAuto.mockResolvedValue(autoView({ enabled: true, waiting: 5, note: 'Tạm dừng: đang có 5 bộ chờ bạn xem.' }))
+    show()
+    expect(await screen.findByText('Tạm dừng: đang có 5 bộ chờ bạn xem.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Tắt tự nối lượt/ })).toBeInTheDocument()
   })
 
   it('chưa có lượt: bấm nút tạo lượt telc B1 trên kênh đang chọn', async () => {

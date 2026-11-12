@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,6 +35,22 @@ public class ExamSetRunController {
     @GetMapping
     public List<RunView> list() {
         return runs.list();
+    }
+
+    /** Chế độ "Tự nối lượt": xong một lượt thì nhịp nền tự tạo lượt kế tiếp. */
+    @GetMapping("/auto")
+    public ExamSetRunService.AutoView auto() {
+        return runs.auto();
+    }
+
+    @PutMapping("/auto")
+    public ExamSetRunService.AutoView setAuto(@RequestBody ExamSetRunService.AutoRequest req,
+                                              @AuthenticationPrincipal User actor) {
+        ExamSetRunService.AutoView v = runs.setAuto(req, actor.getId());
+        audit.log(v.enabled() ? "admin.exam_studio.set_auto_enabled" : "admin.exam_studio.set_auto_disabled",
+                AuditActor.of(actor), "EXAM_SET_AUTO", "1",
+                Map.of("examFormat", v.examFormat(), "cefrLevel", v.cefrLevel(), "channel", v.channel()));
+        return v;
     }
 
     @GetMapping("/{id}")

@@ -556,6 +556,29 @@ export async function createSetRun(body: {
 export async function approveSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/approve`, {})).data
 }
+/** Chế độ "Tự nối lượt": xong một lượt thì máy tự tạo lượt kế tiếp (chạy ở backend, đóng trình duyệt vẫn chạy). */
+export interface SetAuto {
+  enabled: boolean
+  examFormat: string
+  cefrLevel: string
+  profile: string
+  channel: string
+  /** Lý do máy đang tạm dừng hoặc đã tự tắt; null khi chạy bình thường. */
+  note: string | null
+  waiting: number
+  maxWaiting: number
+}
+
+export async function getSetAuto(): Promise<SetAuto> {
+  return (await api.get<SetAuto>(`${BASE}/sets/auto`)).data
+}
+
+export async function putSetAuto(body: {
+  enabled: boolean; examFormat?: string; cefrLevel?: string; profile?: string; channel?: StudioChannelId
+}): Promise<SetAuto> {
+  return (await api.put<SetAuto>(`${BASE}/sets/auto`, body)).data
+}
+
 export async function discardSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/discard`, {})).data
 }
