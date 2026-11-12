@@ -19,6 +19,7 @@
 6. **Migration Flyway chạy theo thứ tự, không cho chạy lệch** (`out-of-order: false`). Số migration phải lớn hơn mọi số đang có trên `main` **và trên mọi nhánh đang mở**; nhánh có số nhỏ hơn phải lên prod trước (§6.2).
 7. **Env và secret chỉ sống trên máy chủ.** Không bao giờ chép `.env` từ máy dev lên, không commit, không in giá trị ra log hay chat.
 8. **Sửa code thì cập nhật SRS cùng đợt** (`TAI_LIEU_DAC_TA_SAN_PHAM/chi-tiet/` + ca nghiệm thu, ca mới để NOT_RUN).
+9. **Không deploy chồng.** `deploy-backend-vm.sh` và `deploy-frontend-vm.sh` (kể cả `--rollback`, kể cả chạy tay qua SSH hay qua workflow) đều lấy chung khoá `/srv/deutschflow/deploy.lock`. Lần chạy thứ hai thoát ngay với mã **75** và in ra pid, giờ bắt đầu, lệnh của lần đang giữ khoá. Gặp mã 75 thì **chờ**, không xoá file khoá, không tìm cách lách: khoá tự nhả khi tiến trình kia kết thúc (kể cả bị kill).
 
 ---
 
