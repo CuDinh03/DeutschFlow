@@ -27,6 +27,9 @@ public class AIModelService {
         // request thread (and its DB connection) indefinitely. Honour app.ai.timeout-ms as the
         // read timeout (the config existed but was never wired in).
         this.restTemplate = RestTemplates.withTimeouts(3000, aiTimeoutMs);
+        // Nhật ký gọi AI: một dòng mỗi request tới máy chủ model cục bộ (tên tính năng theo đoạn đầu của path).
+        this.restTemplate.getInterceptors().add(
+                com.deutschflow.ai.trace.AiTraceInterceptor.byPath("local-ai", null));
         this.aiServerUrl = aiServerUrl;
         this.circuitBreakers = circuitBreakers;
         log.info("AI Model Service initialized with URL: {} (timeout {}ms)", aiServerUrl, aiTimeoutMs);

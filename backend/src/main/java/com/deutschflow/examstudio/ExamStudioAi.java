@@ -184,6 +184,13 @@ public class ExamStudioAi {
 
     JsonNode call(long userId, String op, LlmTier tier, String system, String user, double temperature,
                   int maxTokens) {
+        // Mọi lời gọi AI bên trong mang tên thao tác Xưởng đề trong nhật ký gọi AI (thay vì nhãn chung "chat").
+        return com.deutschflow.ai.trace.AiCallTrace.withFeature(FEATURE_PREFIX + op,
+                () -> callTraced(userId, op, tier, system, user, temperature, maxTokens));
+    }
+
+    private JsonNode callTraced(long userId, String op, LlmTier tier, String system, String user, double temperature,
+                                int maxTokens) {
         Role role = roleOf(tier);
         // Kênh 9Router: MỌI lượt gọi của thao tác đi qua 9Router, kể cả lượt không thuộc vai viết/chấm.
         if (currentChannel() == Channel.ROUTER) {
@@ -199,6 +206,12 @@ public class ExamStudioAi {
 
     /** Lượt VIẾT của Teil lấy từ nguồn báo và lượt đối chiếu dữ kiện: luôn đi đường stream (đầu ra dài). */
     JsonNode callAs(Role role, long userId, String op, String system, String user, double temperature, int maxTokens) {
+        return com.deutschflow.ai.trace.AiCallTrace.withFeature(FEATURE_PREFIX + op,
+                () -> callAsTraced(role, userId, op, system, user, temperature, maxTokens));
+    }
+
+    private JsonNode callAsTraced(Role role, long userId, String op, String system, String user, double temperature,
+                                  int maxTokens) {
         if (currentChannel() == Channel.ROUTER) {
             return viaRouter(role, userId, op, system, user, temperature, maxTokens);
         }
@@ -329,7 +342,12 @@ public class ExamStudioAi {
 
         JsonNode res = null;
         String failure = null;
+        Integer lastStatus = null;
+        boolean timedOut = false;
+        com.deutschflow.ai.trace.AiCallTrace trace =
+                com.deutschflow.ai.trace.AiCallTrace.start(FEATURE_PREFIX + op, url, spec.model());
         for (int attempt = 1; attempt <= 2 && res == null; attempt++) {
+            if (attempt > 1) trace.retry();
             try {
                 java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
                         .timeout(java.time.Duration.ofSeconds(callTimeoutSeconds))
@@ -341,6 +359,7 @@ public class ExamStudioAi {
                 java.net.http.HttpResponse<String> http = HTTP.send(req,
                         java.net.http.HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
                 int code = http.statusCode();
+                lastStatus = code;
                 if (code == 200) {
                     res = parseCompletion(mapper, http.body());
                 } else {
@@ -352,25 +371,40 @@ public class ExamStudioAi {
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                trace.outcome("interrupted");
                 throw new AiServiceException("Yêu cầu AI bị gián đoạn, vui lòng thử lại.", e);
             } catch (java.net.http.HttpTimeoutException e) {
+                timedOut = true;
+                lastStatus = null;
                 failure = "quá " + callTimeoutSeconds + " giây";
                 log.warn("[ExamStudio] {} model {} quá {} giây", op, spec.model(), callTimeoutSeconds);
                 break;
             } catch (Exception e) {
+                lastStatus = null;
                 failure = e.getClass().getSimpleName();
                 log.warn("[ExamStudio] {} model {} lỗi kết nối (lượt {}): {}", op, spec.model(), attempt, e.toString());
             }
         }
         if (res == null) {
+            if (lastStatus != null) trace.failHttp(lastStatus);
+            else trace.outcome(timedOut ? "timeout" : "error_" + failure);
             throw new AiServiceException("Model soạn đề không trả lời (" + failure + "), vui lòng thử lại.");
         }
         JsonNode choice = res.path("choices").path(0);
         String content = choice.path("message").path("content").asText("");
+        JsonNode usageNode = res.path("usage");
+        if (usageNode.isObject()) {
+            trace.tokens(usageNode.path("prompt_tokens").asInt(0), usageNode.path("completion_tokens").asInt(0));
+        }
         if ("length".equals(choice.path("finish_reason").asText())) {
+            trace.outcome("truncated");
             throw new TruncatedException();
         }
-        if (content.isBlank()) throw new AiServiceException("AI không trả về nội dung, vui lòng thử lại.");
+        if (content.isBlank()) {
+            trace.outcome("empty");
+            throw new AiServiceException("AI không trả về nội dung, vui lòng thử lại.");
+        }
+        trace.ok();
         try {
             JsonNode u = res.path("usage");
             com.deutschflow.speaking.ai.TokenUsage usage = new com.deutschflow.speaking.ai.TokenUsage(

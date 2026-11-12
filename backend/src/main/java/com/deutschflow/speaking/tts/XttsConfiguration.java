@@ -22,7 +22,10 @@ public class XttsConfiguration {
     /** Dedicated client with connect/read timeouts — a hung XTTS call must not pin a thread. */
     @Bean("xttsRestTemplate")
     public RestTemplate xttsRestTemplate(XttsProperties props) {
-        return RestTemplates.withTimeouts(props.getConnectTimeoutMs(), props.getReadTimeoutMs());
+        RestTemplate rt = RestTemplates.withTimeouts(props.getConnectTimeoutMs(), props.getReadTimeoutMs());
+        // Nhật ký gọi AI: một dòng mỗi câu gửi máy XTTS (không ghi câu đọc).
+        rt.getInterceptors().add(new com.deutschflow.ai.trace.AiTraceInterceptor("tts-xtts", "xtts"));
+        return rt;
     }
 
     /** Per-sentence TTS synthesis pool — separate from the LLM stream executor. */

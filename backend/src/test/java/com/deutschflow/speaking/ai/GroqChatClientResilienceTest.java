@@ -108,10 +108,15 @@ class GroqChatClientResilienceTest {
                 new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":\"{\\\"ai_speech_de\\\":\\\"Hallo\\\"}\"}}],"
                         + "\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}"));
 
-        var result = client().chatCompletion(messages(), null, 0.7, 100);
+        try (com.deutschflow.ai.trace.AiTraceCapture trace = new com.deutschflow.ai.trace.AiTraceCapture()) {
+            var result = client().chatCompletion(messages(), null, 0.7, 100);
 
-        assertThat(result).isNotNull();
-        assertThat(requestCount.get()).isEqualTo(2);
+            assertThat(result).isNotNull();
+            assertThat(requestCount.get()).isEqualTo(2);
+            // Nhật ký gọi AI: một dòng, đã thử lại 1 lần, token lấy từ `usage` của API.
+            assertThat(trace.single()).contains("feature=chat")
+                    .contains("result=ok attempts=2 fallbacks=0 tokens_in=1 tokens_out=1");
+        }
     }
 
     @Test
@@ -132,10 +137,13 @@ class GroqChatClientResilienceTest {
         respondWith(404, "{\"error\":{\"message\":\"The model `x` does not exist or you do not have "
                 + "access to it.\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\"}}");
 
-        assertThatThrownBy(() -> client().chatCompletion(messages(), null, 0.7, 100))
-                .isInstanceOf(AiServiceException.class);
+        try (com.deutschflow.ai.trace.AiTraceCapture trace = new com.deutschflow.ai.trace.AiTraceCapture()) {
+            assertThatThrownBy(() -> client().chatCompletion(messages(), null, 0.7, 100))
+                    .isInstanceOf(AiServiceException.class);
 
-        assertThat(requestCount.get()).isEqualTo(1);
+            assertThat(requestCount.get()).isEqualTo(1);
+            assertThat(trace.single()).contains("result=http_404 attempts=1");
+        }
     }
 
     // ── Hạn mức upstream 429 (sự cố 04/08: free tier 8000 TPM) ──────────────
