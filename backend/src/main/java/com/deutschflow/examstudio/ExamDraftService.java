@@ -4,6 +4,7 @@ import com.deutschflow.ai.queue.AiJob;
 import com.deutschflow.ai.queue.AiJobRepository;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.GuidedException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.examspeaking.metrics.GoetheWordlist;
 import com.deutschflow.examstudio.ExamStudioDtos.*;
@@ -1456,35 +1457,58 @@ public class ExamDraftService {
 
     // ── Duyệt ───────────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Vì sao bản nháp này CHƯA duyệt vào kho được (rỗng = duyệt được, chưa tính danh sách duyệt owner tích tay).
+     * Chỉ đọc. "Duyệt cả bộ" gọi cho MỌI Teil trước khi đưa Teil nào vào kho, để báo một lần đủ danh sách.
+     */
+    public List<ApprovalGuide.Blocker> approvalBlockers(long id) {
+        return approvalBlockers(load(id), sources(id));
+    }
+
+    List<ApprovalGuide.Blocker> approvalBlockers(Row r, List<SourceRow> srcs) {
+        TeilSpec spec = r.spec();
+        boolean draft = "DRAFT".equals(r.status());
+        boolean hasContent = r.text() != null && (!r.items().isEmpty() || spec.writing());
+        boolean everVerified = !r.checks().isEmpty() && r.verifiedHash() != null;
+        boolean current = hasContent && everVerified && r.verifiedHash().equals(contentHash(r.text().text(), r.items()));
+        List<String> red = new ArrayList<>();
+        for (Check c : r.checks()) if ("RED".equals(c.light())) red.add(c.label());
+        for (int i = 0; i < r.items().size(); i++) if ("RED".equals(r.items().get(i).light())) red.add("câu " + (i + 1));
+        List<SourceRow> used = usedSources(srcs);
+        boolean confirmed = used.stream().allMatch(s -> s.source().usageModeConfirmed());
+        Long dup = null;
+        // Chỉ so kho khi bản nháp đã qua các cửa trên: nội dung dở dang thì chưa dựng được Teil kho để so.
+        if (draft && r.busyOp() == null && current && red.isEmpty() && confirmed && (!used.isEmpty() || spec.situational())) {
+            String hash = TextChecks.sha256(ExamDedupService.contentText(blockContent(r, used)));
+            dup = jdbc.query("SELECT id FROM exam_teil_blocks WHERE content_hash = ? ORDER BY id LIMIT 1",
+                    (rs, n) -> rs.getLong(1), hash).stream().findFirst().orElse(null);
+        }
+        return ApprovalGuide.blockers(new ApprovalGuide.Facts(r.status(), r.busyOp() != null, hasContent, everVerified,
+                current, red, !used.isEmpty(), !spec.situational(), confirmed, dup));
+    }
+
     @Transactional
     public Draft approve(long id, Map<String, Boolean> checklist, long userId) {
-        Row r = requireEditable(id);
-        if (r.text() == null || (r.items().isEmpty() && !r.spec().writing())) {
-            throw new BadRequestException("Chưa có bài và câu hỏi.");
+        Row r = load(id);
+        List<SourceRow> srcs = sources(id);
+        List<ApprovalGuide.Blocker> blockers = approvalBlockers(r, srcs);
+        if (!blockers.isEmpty()) throw ApprovalGuide.draftNotApprovable(id, r.section(), r.teil(), blockers);
+        long unticked = TeilSpec.CHECKLIST_KEYS.stream()
+                .filter(k -> checklist == null || !Boolean.TRUE.equals(checklist.get(k))).count();
+        if (unticked > 0) {
+            throw GuidedException.badRequest("EXAM_DRAFT_CHECKLIST_INCOMPLETE",
+                            "Chưa duyệt được bản nháp #" + id + " (" + ApprovalGuide.slotLabel(r.section(), r.teil()) + ")")
+                    .where("draftId", id)
+                    .issue("CHECKLIST_INCOMPLETE", null,
+                            "Danh sách duyệt còn " + unticked + " trong " + TeilSpec.CHECKLIST_KEYS.size() + " mục chưa tích",
+                            "Ở " + ApprovalGuide.REVIEW_STEP + ", đọc và tích hết các mục trong \"Danh sách duyệt\", rồi bấm \"Duyệt và đưa vào kho\"",
+                            ApprovalGuide.draftUrl(id), Map.of("draftId", id))
+                    .build();
         }
-        if (r.checks().isEmpty() || r.verifiedHash() == null
-                || !r.verifiedHash().equals(contentHash(r.text().text(), r.items()))) {
-            throw new ConflictException("Nội dung đã đổi sau lần tự kiểm cuối — hãy chạy tự kiểm lại.");
-        }
-        if (r.checks().stream().anyMatch(c -> "RED".equals(c.light()))
-                || r.items().stream().anyMatch(i -> "RED".equals(i.light()))) {
-            throw new ConflictException("Còn đèn đỏ — sửa trước khi duyệt.");
-        }
-        List<String> missing = TeilSpec.CHECKLIST_KEYS.stream()
-                .filter(k -> checklist == null || !Boolean.TRUE.equals(checklist.get(k))).toList();
-        if (!missing.isEmpty()) throw new BadRequestException("Chưa tích đủ danh sách duyệt: " + String.join(", ", missing));
-        List<SourceRow> used = usedSources(sources(id));
-        if (used.isEmpty() && !r.spec().situational()) {
-            throw new BadRequestException("Teil phải có ít nhất một nguồn có dữ kiện đã tích.");
-        }
-        if (used.stream().anyMatch(s -> !s.source().usageModeConfirmed())) {
-            throw new BadRequestException("Hãy xác nhận loại dùng (Chuyển thể / Chỉ dữ kiện) cho mọi nguồn đã dùng.");
-        }
+        List<SourceRow> used = usedSources(srcs);
 
         Map<String, Object> content = blockContent(r, used);
         String hash = TextChecks.sha256(ExamDedupService.contentText(content));
-        Integer dup = jdbc.queryForObject("SELECT COUNT(*) FROM exam_teil_blocks WHERE content_hash = ?", Integer.class, hash);
-        if (dup != null && dup > 0) throw new ConflictException("Teil này đã có y hệt trong kho.");
         Long blockId = jdbc.queryForObject("""
                 INSERT INTO exam_teil_blocks (exam_format, cefr_level, section, teil, teil_type, theme, content_json,
                                               content_hash, reviewed_by)

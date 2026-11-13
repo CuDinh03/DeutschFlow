@@ -355,12 +355,27 @@ public class ExamSetRunService {
         for (String k : TeilSpec.CHECKLIST_KEYS) checklist.put(k, true);
         List<ExamAssemblyService.Replacement> reps = new ArrayList<>();
         List<TeilRow> runTeile = teile(id);
+        // Kiểm TRƯỚC mọi Teil rồi mới đưa Teil đầu tiên vào kho (owner chốt 13/11/2026 sau lượt #11): báo một lần
+        // đủ danh sách Teil chưa đạt, mỗi Teil kèm lý do, việc cần làm và đường dẫn mở bản nháp.
+        Map<Long, Draft> current = new HashMap<>();
+        List<ApprovalGuide.TeilBlockers> failing = new ArrayList<>();
         for (TeilRow t : runTeile) {
-            if (t.draftId() == null) throw new BadRequestException("Teil " + t.section() + " " + t.teil() + " chưa có bản nháp.");
+            if (t.draftId() == null) {
+                failing.add(new ApprovalGuide.TeilBlockers(t.section(), t.teil(), null, List.of(ApprovalGuide.noDraft())));
+                continue;
+            }
+            Draft d = drafts.get(t.draftId());
+            current.put(t.draftId(), d);
             // Owner có thể đã duyệt riêng một Teil của lượt vào kho từ trước (lượt #6): dùng luôn Teil kho đó.
-            Draft current = drafts.get(t.draftId());
-            Draft approved = "APPROVED".equals(current.status()) && current.blockId() != null
-                    ? current : drafts.approve(t.draftId(), checklist, userId);
+            if ("APPROVED".equals(d.status()) && d.blockId() != null) continue;
+            List<ApprovalGuide.Blocker> why = drafts.approvalBlockers(t.draftId());
+            if (!why.isEmpty()) failing.add(new ApprovalGuide.TeilBlockers(t.section(), t.teil(), t.draftId(), why));
+        }
+        if (!failing.isEmpty()) throw ApprovalGuide.runNotApprovable(id, runTeile.size(), failing);
+        for (TeilRow t : runTeile) {
+            Draft before = current.get(t.draftId());
+            Draft approved = "APPROVED".equals(before.status()) && before.blockId() != null
+                    ? before : drafts.approve(t.draftId(), checklist, userId);
             if (approved.blockId() == null) {
                 throw new IllegalStateException("Duyệt bản nháp #" + t.draftId() + " không trả mã Teil kho.");
             }

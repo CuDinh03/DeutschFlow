@@ -6,11 +6,13 @@ import { useTranslations } from 'next-intl'
 import { Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
+import { apiProblem, isGuided, type ApiProblem } from '@/lib/apiProblem'
 import {
   addSetRunHoeren, approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns, recheckSetRun, redoSetRunTeil,
   type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
+import { ProblemNotice } from '@/components/admin/ProblemNotice'
 import { slotLabel } from './AssembliesTab'
 import { studioMiniBtn } from './ui'
 
@@ -49,6 +51,8 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const [approving, setApproving] = useState<SetRun | null>(null)
   const [redoing, setRedoing] = useState<{ run: SetRun; teil: SetRunTeil } | null>(null)
   const [addingHoeren, setAddingHoeren] = useState<SetRun | null>(null)
+  // Lỗi có chỉ dẫn của một lượt (vd. duyệt cả bộ bị chặn): hiện ngay trong thẻ lượt đó, không tự tắt.
+  const [problem, setProblem] = useState<{ runId: number; problem: ApiProblem } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
@@ -88,11 +92,20 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     try {
       await approveSetRun(approving.id)
       setApproving(null)
+      setProblem(null)
       toast.success(t('approved'))
       await load()
       onApproved?.()
     } catch (e) {
-      toast.error(apiMessage(e))
+      const p = apiProblem(e)
+      if (isGuided(p)) {
+        // Danh sách Teil chưa đạt cần đọc kỹ và bấm tới từng bản nháp: đóng hộp xác nhận, hiện trong thẻ lượt.
+        setProblem({ runId: approving.id, problem: p })
+        setApproving(null)
+        toast.error(t('approveBlocked', { id: approving.id, count: new Set(p.issues.map((i) => i.label)).size }))
+      } else {
+        toast.error(p.message)
+      }
     } finally {
       setBusy(false)
     }
@@ -203,6 +216,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
               )}
             </div>
             {r.note && <p className="ga-ui text-ga-caption text-ga-muted">{r.note}</p>}
+            {problem?.runId === r.id && <ProblemNotice problem={problem.problem} onDismiss={() => setProblem(null)} />}
             {r.status === 'NEEDS_ATTENTION' && (
               <div className="flex flex-col gap-1 rounded-ga border border-ga-line px-3 py-2">
                 <GaCap>{t('gate.title')}</GaCap>

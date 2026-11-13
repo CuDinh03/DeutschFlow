@@ -554,6 +554,13 @@
       "removeOne": "Remove {name}",
       "unknownCap": "Entries that match no account"
     },
+    "problemNotice": {
+      "fallbackTitle": "This action could not be completed",
+      "todo": "What to do:",
+      "openDraft": "Open draft",
+      "open": "Open to fix",
+      "dismiss": "Dismiss notice"
+    },
     "examStudio": {
       "title": "Exam studio",
       "subtitle": "Build an exam Teil from German news sources: AI drafts the text and items by difficulty matrix, the owner approves into the bank.",
@@ -568,6 +575,7 @@
         },
         "approve": "Approve whole set",
         "approved": "Approved. The exam is in the list below as \"Coming soon\".",
+        "approveBlocked": "Run #{id} could not be approved: {count} Teil not ready. The list and how to fix it are shown in the run card.",
         "approveTitle": "Approve the whole set of run #{id}?",
         "approveBody": "Every Teil of this run goes into the bank and is assembled into one exam marked \"Coming soon\". Students do not see it until you press Publish in the exam list. The listening part of the exam is the three listening Teile generated in this run.",
         "title": "Generate an exam set automatically",

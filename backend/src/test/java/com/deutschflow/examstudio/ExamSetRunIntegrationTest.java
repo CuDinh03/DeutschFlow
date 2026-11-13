@@ -429,6 +429,33 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("duyệt cả bộ: kiểm trước MỌI Teil, báo một lần đủ Teil chưa đạt kèm bản nháp và việc cần làm, chưa Teil nào vào kho")
+    void approveWholeSetReportsEveryFailingTeil() {
+        long id = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id();
+        assertThat(runToEnd(id).status()).isEqualTo("REVIEW");
+        List<ExamSetRunService.TeilView> teile = runs.get(id).teile();
+        long first = teile.get(0).draftId();
+        long last = teile.get(teile.size() - 1).draftId();
+        ApprovalGuide.Blocker stale = ApprovalGuide.blockers(new ApprovalGuide.Facts(
+                "DRAFT", false, true, true, false, List.of(), true, true, true, null)).get(0);
+        when(drafts.approvalBlockers(first)).thenReturn(List.of(stale));
+        when(drafts.approvalBlockers(last)).thenReturn(List.of(stale));
+
+        assertThatThrownBy(() -> runs.approve(id, null, admin))
+                .isInstanceOfSatisfying(com.deutschflow.common.exception.GuidedException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo("EXAM_SET_RUN_NOT_APPROVABLE");
+                    assertThat(e.getWhere()).containsEntry("runId", id);
+                    assertThat(e.getIssues()).hasSize(2);
+                    assertThat(e.getIssues()).extracting(i -> i.where().get("draftId")).containsExactly(first, last);
+                    assertThat(e.getIssues()).allSatisfy(i -> assertThat(i.url()).startsWith("/v2/admin/exam-studio/"));
+                    assertThat(e.getMessage()).contains("lượt #" + id, "bản nháp #" + first, "bản nháp #" + last,
+                            "Chạy tự kiểm", "Duyệt cả bộ");
+                });
+        verify(drafts, org.mockito.Mockito.never()).approve(anyLong(), any(), anyLong());
+        assertThat(runs.get(id).status()).isEqualTo("REVIEW");
+    }
+
+    @Test
     @DisplayName("bỏ lượt: bản nháp của lượt bị bỏ theo, lượt sang DISCARDED và cho tạo lượt mới")
     void discardRun() {
         long id = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id();
