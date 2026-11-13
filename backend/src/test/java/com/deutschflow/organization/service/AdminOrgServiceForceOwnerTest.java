@@ -153,7 +153,9 @@ class AdminOrgServiceForceOwnerTest {
             assertThatThrownBy(() -> service.forceOwner(ADMIN, ORG_ID, NEW_OWNER_ID, bad))
                     .as("lý do: [%s]", bad)
                     .isInstanceOf(BadRequestException.class)
-                    .hasMessageContaining("Lý do");
+                    .hasMessageContaining("Lý do")
+                    // Nói luôn việc cần làm và ở đâu (owner yêu cầu 13/11/2026).
+                    .hasMessageContaining("Điền ô lý do").hasMessageContaining("Chỉ định giám đốc");
         }
         // Đúng 500 ký tự sau trim thì qua — biên trên là bao gồm.
         when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.empty());
