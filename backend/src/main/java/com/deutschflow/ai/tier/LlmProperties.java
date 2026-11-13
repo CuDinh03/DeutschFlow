@@ -31,6 +31,16 @@ public class LlmProperties {
     /** API key đi kèm {@link #baseUrl}. Rỗng ⇒ dùng key mặc định của client ({@code GROQ_API_KEY}). */
     private String apiKey = "";
 
+    /**
+     * Model dự phòng dùng chung cho mọi tầng (và đường gọi cũ không theo tầng), theo thứ tự ưu tiên —
+     * env {@code AI_LLM_FALLBACK_MODELS}, phân cách bằng dấu phẩy. Cùng endpoint/key với model chính.
+     * Tầng nào khai {@code fallback-models} riêng thì dùng danh sách riêng. Rỗng = tắt (13/11/2026).
+     */
+    private List<String> fallbackModels = new java.util.ArrayList<>();
+
+    /** Model vừa lỗi bị bỏ qua bao lâu trước khi thử lại làm model chính (giây). */
+    private int failoverCooldownSeconds = 120;
+
     /** Khoá = {@link LlmTier#configKey()} ({@code chat-free}, {@code grading-exam}, …). */
     private Map<String, Tier> tiers = new HashMap<>();
 
@@ -50,5 +60,7 @@ public class LlmProperties {
         private String reasoningEffort;
         private boolean sessionSticky = false;
         private boolean includeUsage = false;
+        /** Model dự phòng riêng tầng này; null = theo danh sách chung {@code app.ai.llm.fallback-models}. */
+        private List<String> fallbackModels;
     }
 }
