@@ -19,23 +19,53 @@ import { MARK_SECTIONS, marksSupported, marksTexts } from '@/components/exam/mar
 import { HoerenTeilView } from '@/components/exam/practice/HoerenTeilView'
 import { WritingTeilView } from '@/components/exam/practice/WritingTeilView'
 import { FormTeilView } from '@/components/exam/practice/FormTeilView'
-import { displayedPoints, findTeil, kindOf, wordCount } from '@/components/exam/practice/practiceModel'
+import { displayedPoints, findTeil, kindOf, wordCount, type PracticeTeilData } from '@/components/exam/practice/practiceModel'
 import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { Bar, Glyph, STATUS_TEXT_CLASS } from '@/components/exam/today/visual'
 import { oralHref, statusOf } from '@/components/exam/today/todayModel'
 
 const HUB = '/v2/student/exam'
 const MINUTES = [20, 30, 45, 60]
-/** Lesen T1 15' + Sprachbausteine T1 10' + Hören T1 8' + Schreiben 30' + thi nói ~20'. */
-const ABOUT_MINUTES = 85
+/**
+ * Đủ mọi Teil như đề thật: phần viết telc B1 150' (Leseverstehen + Sprachbausteine 90', Hörverstehen
+ * khoảng 30', Schreiben 30' — cùng con số với "Phần viết" ở màn trước khi thi thử) + thi nói khoảng 20'.
+ */
+const WRITTEN_MINUTES = 150
+const ORAL_MINUTES = 20
+const ABOUT_MINUTES = WRITTEN_MINUTES + ORAL_MINUTES
+/** Hàng nhãn ở màn khai thông tin: phần thi + các Teil của nó trong bài chẩn đoán. */
+const FORM_PARTS: [string, string | null][] = [
+  ['LESEN', '1–3'],
+  ['SPRACHBAUSTEINE', '1–2'],
+  ['HOEREN', '1–3'],
+  ['SCHREIBEN', null],
+  ['SPRECHEN', '1–3'],
+]
+/** Số lần nghe của đề thật telc B1 theo Teil — chỉ dùng khi đề không khai `max_plays`. */
+const EXAM_PLAYS: Record<number, number> = { 1: 1, 2: 2, 3: 2 }
 const PART_ICON: Record<string, LucideIcon> = { LESEN: BookOpen, SPRACHBAUSTEINE: Puzzle, HOEREN: Headphones, SCHREIBEN: PenLine, SPRECHEN: Mic }
 const sectionOf = (part: string) => (part.includes('-') ? part.slice(0, part.lastIndexOf('-')) : part)
+const teilNoOf = (part: string) => (part.includes('-') ? Number(part.slice(part.lastIndexOf('-') + 1)) || 1 : 1)
+
+/**
+ * Bài chẩn đoán nghe như thi thật: Teil 1 một lần, Teil 2 và 3 hai lần. Đề đã khai `max_plays` thì giữ
+ * nguyên object (màn Nghe chạy lại nghi thức khi object Teil đổi); đề thiếu thì bù theo đề thật thay vì
+ * để nghe không giới hạn.
+ */
+function withExamPlays(teil: PracticeTeilData, teilNo: number): PracticeTeilData {
+  if (teil.max_plays && teil.max_plays > 0) return teil
+  return { ...teil, max_plays: EXAM_PLAYS[teil.teil ?? teilNo] ?? 2 }
+}
 
 /**
  * Bài chẩn đoán — `/v2/student/exam/diagnostic` (đợt (f) làm mới Luyện thi, 07/11/2026).
- * Khai thông tin (kỳ thi, ngày thi, phút mỗi ngày) → năm phần ngắn (Lesen, Sprachbausteine, Hören chấm
- * theo đáp án; Schreiben, Sprechen tự đánh giá) → bản đồ kỹ năng + "Lịch ôn đã sẵn sàng". Rời giữa
- * chừng thì lần sau vào thẳng phần đang dở. Màn này là bước làm quen đầu tiên, không có hướng dẫn chồng lên.
+ * Khai thông tin (kỳ thi, ngày thi, phút mỗi ngày) → đủ mọi Teil như đề thật, theo thứ tự thi thật
+ * (owner chốt 13/11/2026): Lesen 1–3 → Sprachbausteine 1–2 → Hören 1–3 (chấm theo đáp án) → Schreiben
+ * (AI chấm) → Sprechen (thi thử phần nói) → bản đồ kỹ năng + "Lịch ôn đã sẵn sàng". Rời giữa chừng thì
+ * lần sau vào thẳng phần đang dở. Màn này là bước làm quen đầu tiên, không có hướng dẫn chồng lên.
+ *
+ * Lượt bắt đầu từ bản ngắn (chỉ Teil 1 mỗi phần): tiến độ đọc từ tiến độ luyện của đề đã chọn, nên Teil đã
+ * chấm và nháp đang viết vẫn còn; người học làm tiếp Teil đầu tiên chưa xong theo thứ tự mới.
  */
 export default function DiagnosticPage() {
   const t = useTranslations('v2.student.diagnostic')
@@ -128,11 +158,11 @@ function DiagnosticForm({ onStarted }: { onStarted: (v: DiagnosticView) => void 
         <p className="ga-ui mt-2 text-ga-body text-ga-muted">{t('formLead')}</p>
       </div>
       <ul className="ga-ui flex flex-wrap gap-2" aria-label={t('partsLabel')}>
-        {['LESEN', 'SPRACHBAUSTEINE', 'HOEREN', 'SCHREIBEN', 'SPRECHEN'].map((p) => {
+        {FORM_PARTS.map(([p, range]) => {
           const Icon = PART_ICON[p]
           return (
             <li key={p} lang="de" className="inline-flex items-center gap-1.5 rounded-ga-pill border border-ga-line bg-ga-card px-3 py-1 text-ga-small text-ga-ink">
-              <Icon size={14} className="text-ga-navy" aria-hidden /> {t(`part.${p}`)}
+              <Icon size={14} className="text-ga-navy" aria-hidden /> {range ? t('partRange', { part: t(`part.${p}`), range }) : t(`part.${p}`)}
             </li>
           )
         })}
@@ -210,7 +240,21 @@ function DiagnosticRun({
   const t = useTranslations('v2.student.diagnostic')
   const tp = useTranslations('v2.student.practice')
   const wide = useWide(SPLIT_MIN_WIDTH)
-  const parts = React.useMemo(() => [...view.teile, ORAL_PART], [view.teile])
+  // Teil mà đề đã chọn không có (lượt cũ chọn đề khi bài chỉ cần Teil 1) thì bỏ qua — server chốt theo cùng luật.
+  const parts = React.useMemo(
+    () => [...view.teile.filter((key) => overview.teile.some((x) => x.key === key)), ORAL_PART],
+    [view.teile, overview.teile],
+  )
+  /** Phần liền nhau cùng một phần thi gom thành một nhóm trên thanh tiến độ. */
+  const groups = React.useMemo(() => {
+    const out: { section: string; parts: string[] }[] = []
+    for (const p of parts) {
+      const last = out[out.length - 1]
+      if (last && last.section === sectionOf(p)) last.parts.push(p)
+      else out.push({ section: sectionOf(p), parts: [p] })
+    }
+    return out
+  }, [parts])
   const done = (part: string) => (part === ORAL_PART ? view.oral != null : !!overview.teile.find((x) => x.key === part)?.progress?.checked)
   const idx = parts.findIndex((p) => !done(p))
   const part = idx >= 0 ? parts[idx] : null
@@ -254,7 +298,7 @@ function DiagnosticRun({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [part])
 
-  // Làm xong cả năm phần ⇒ chốt kết quả.
+  // Làm xong mọi phần ⇒ chốt kết quả.
   React.useEffect(() => {
     if (part !== null || busy) return
     setBusy(true)
@@ -327,10 +371,11 @@ function DiagnosticRun({
 
   // Bút đánh dấu (đợt 3, 10/11/2026) — như thi thử: chỉ màu, gạch chân, gạch bỏ (owner chốt 09/11/2026).
   // Bài chẩn đoán chấm qua đường luyện đề ⇒ đánh dấu lưu cùng chỗ với luyện Teil của đề đó.
-  const markData = React.useMemo(
-    () => (teilKey && teilKey !== WRITING_KEY ? findTeil(overview.sectionsJson, teilKey) : null),
-    [overview.sectionsJson, teilKey],
-  )
+  const markData = React.useMemo(() => {
+    if (!teilKey || teilKey === WRITING_KEY) return null
+    const data = findTeil(overview.sectionsJson, teilKey)
+    return data && sectionOf(teilKey) === 'HOEREN' ? withExamPlays(data, teilNoOf(teilKey)) : data
+  }, [overview.sectionsJson, teilKey])
   const markSource = React.useMemo<MarksSource | null>(
     () =>
       teilKey && markData && MARK_SECTIONS.includes(sectionOf(teilKey)) && marksSupported(markData, kindOf(markData, teilKey))
@@ -342,6 +387,9 @@ function DiagnosticRun({
   const marks = usePassageMarks({ source: markSource, texts: markTexts })
 
   const section = part ? sectionOf(part) : 'LESEN'
+  // Phần thi có nhiều Teil trong bài (Lesen, Sprachbausteine, Hören) ghi rõ Teil đang làm.
+  const multiTeil = groups.some((g) => g.section === section && g.parts.length > 1)
+  const partName = part && multiTeil ? t('partTeil', { part: t(`part.${section}`), n: teilNoOf(part) }) : t(`part.${section}`)
   let body: React.ReactNode
   if (!part) {
     body = <div className="p-6">{error ? <ErrorBanner message={error} /> : <LoadingState label={t('finishing')} />}</div>
@@ -397,17 +445,24 @@ function DiagnosticRun({
     <>
       {error && part && <div className="w-full"><ErrorBanner message={error} /></div>}
       <ol className="ga-ui flex min-w-0 flex-1 basis-full gap-1.5 sm:basis-auto" aria-label={t('progressLabel', { n: Math.max(0, idx) + 1, total: parts.length })}>
-        {parts.map((p, i) => {
-          const Icon = PART_ICON[sectionOf(p)]
-          const state = done(p) ? 'done' : i === idx ? 'cur' : 'todo'
+        {groups.map((g) => {
+          const Icon = PART_ICON[g.section]
+          const current = part != null && g.parts.includes(part)
+          const untouched = !current && !g.parts.some(done)
           return (
-            <li key={p} className="min-w-0 flex-1" aria-current={state === 'cur' ? 'step' : undefined}>
-              <span
-                aria-hidden
-                className={cn('block h-1.5 rounded-ga-pill transition-colors duration-ga-base', state === 'done' ? 'bg-ga-navy' : state === 'cur' ? 'bg-ga-ink' : 'bg-ga-line')}
-              />
-              <span className={cn('mt-1 hidden items-center gap-1 truncate text-ga-caption sm:flex', state === 'todo' ? 'text-ga-subtle' : 'text-ga-ink')}>
-                <Icon size={12} aria-hidden /> <span lang="de" className="truncate">{t(`partShort.${sectionOf(p)}`)}</span>
+            <li key={g.section} className="min-w-0 flex-1" aria-current={current ? 'step' : undefined}>
+              <span aria-hidden className="flex gap-0.5">
+                {g.parts.map((p) => (
+                  <span
+                    key={p}
+                    data-part={p}
+                    data-state={done(p) ? 'done' : p === part ? 'cur' : 'todo'}
+                    className={cn('block h-1.5 min-w-0 flex-1 rounded-ga-pill transition-colors duration-ga-base', done(p) ? 'bg-ga-navy' : p === part ? 'bg-ga-ink' : 'bg-ga-line')}
+                  />
+                ))}
+              </span>
+              <span className={cn('mt-1 hidden items-center gap-1 truncate text-ga-caption sm:flex', untouched ? 'text-ga-subtle' : 'text-ga-ink')}>
+                <Icon size={12} aria-hidden /> <span lang="de" className="truncate">{t(`partShort.${g.section}`)}</span>
               </span>
             </li>
           )
@@ -432,7 +487,7 @@ function DiagnosticRun({
       onExit={requestExit}
       section={part && part !== ORAL_PART ? section : null}
       subtitle={t('runSubtitle', { n: Math.max(0, idx) + 1, total: parts.length })}
-      title={part ? t(`part.${section}`) : t('finishing')}
+      title={part ? partName : t('finishing')}
       footer={footer}
     >
       {body}
@@ -441,7 +496,7 @@ function DiagnosticRun({
       open={exitOpen}
       onOpenChange={setExitOpen}
       title={t('exitTitle')}
-      description={exitFailed ? t('exitFailed') : t('exitBody', { part: t(`part.${section}`) })}
+      description={exitFailed ? t('exitFailed') : t('exitBody', { part: partName })}
       confirmLabel={exitFailed ? t('exitRetry') : t('exitConfirm')}
       cancelLabel={t('keepGoing')}
       destructive={false}
@@ -498,6 +553,7 @@ function DiagnosticResult({ view, onRetake }: { view: DiagnosticView; onRetake: 
       <h1 className="font-ga-display text-ga-h1 text-ga-ink">
         {weakest ? t('resultTitle', { skill: th(`skill.${weakest.id}`) }) : t('resultTitlePlain')}
       </h1>
+      {view.shortForm && <p className="ga-ui -mt-4 text-ga-body text-ga-muted">{t('shortFormNote')}</p>}
       <div className="border-t border-ga-line">
         {rows.map((r) => {
           const status = statusOf(r.pct)

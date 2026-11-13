@@ -343,7 +343,8 @@ public class ExamPlanService {
     }
 
     /**
-     * Chưa có bài thi thử nào: dùng tỉ lệ đạt của bài chẩn đoán (đợt (f)) để xếp Teil ưu tiên. Bài chẩn
+     * Chưa có bài thi thử nào: dùng tỉ lệ đạt của bài chẩn đoán (đợt (f)) để xếp Teil ưu tiên — tỉ lệ
+     * của từng Teil nếu bài chẩn đoán đã đo Teil đó, không thì tỉ lệ của cả phần. Bài chẩn
      * đoán chỉ có cho telc B1; kỳ thi khác hoặc chưa làm thì rỗng (xếp theo trọng số như trước).
      */
     @SuppressWarnings("unchecked")
@@ -361,7 +362,14 @@ public class ExamPlanService {
             ((Map<String, Object>) raw).forEach((k, v) -> {
                 if (v instanceof Number n) ratios.put(k, n.doubleValue());
             });
-            return ExamDiagnosticScoring.losses(ratios, blueprint);
+            // Bài đủ Teil (13/11/2026) ghi thêm tỉ lệ từng Teil; kết quả bản ngắn không có ⇒ dùng tỉ lệ phần.
+            Map<String, Double> teilRatios = new HashMap<>();
+            if (result.get("teile") instanceof Map<?, ?> rawTeile) {
+                ((Map<String, Object>) rawTeile).forEach((k, v) -> {
+                    if (v instanceof Number n) teilRatios.put(k, n.doubleValue());
+                });
+            }
+            return ExamDiagnosticScoring.losses(ratios, teilRatios, blueprint);
         } catch (Exception e) {
             log.warn("[ExamPlan] Không đọc được kết quả chẩn đoán của {}: {}", userId, e.getMessage());
             return List.of();

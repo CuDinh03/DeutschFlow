@@ -3110,7 +3110,7 @@
       "suggestOral": "Thi nói lần đầu",
       "diagTitle": "Làm bài chẩn đoán",
       "diagResumeTitle": "Bài chẩn đoán đang làm dở",
-      "diagLead": "Khoảng 85 phút, làm từng phần được. Xong là có lịch ôn theo từng ngày.",
+      "diagLead": "Đủ mọi Teil như đề thật, khoảng 170 phút, làm từng phần và chia nhiều buổi được. Xong là có lịch ôn theo từng ngày.",
       "diagStart": "Bắt đầu",
       "diagResume": "Làm tiếp"
     },
@@ -3400,7 +3400,7 @@
     "diagnostic": {
       "loading": "Đang tải…",
       "formTitle": "Khoảng {n} phút để biết nên luyện gì trước",
-      "formLead": "Mỗi kỹ năng một phần, chấm theo chuẩn telc B1 (Viết và Nói do AI chấm). Làm từng phần, lưu lại, làm dở được.",
+      "formLead": "Đủ mọi Teil như đề thật: Lesen 1–3, Sprachbausteine 1–2, Hören 1–3, Schreiben và thi nói, chấm theo chuẩn telc B1 (Viết và Nói do AI chấm). Phần viết khoảng 150 phút, thi nói khoảng 20 phút. Mỗi Teil lưu riêng, làm dở được, chia ra nhiều buổi cũng được.",
       "partsLabel": "Các phần",
       "examLabel": "Kỳ thi",
       "examHint": "Hiện có telc Deutsch B1. Mục tiêu học sẽ đặt là kỳ thi này.",
@@ -3425,6 +3425,9 @@
       "planMeta": "{m} phút mỗi ngày · {k} lần thi thử",
       "seeToday": "Xem hôm nay",
       "retake": "Làm lại bài chẩn đoán",
+      "partRange": "{part} · Teil {range}",
+      "partTeil": "{part} · Teil {n}",
+      "shortFormNote": "Kết quả này là của bài chẩn đoán bản ngắn (chỉ Teil 1 mỗi phần). Làm lại để đo đủ mọi Teil như đề thật.",
       "part": {
         "LESEN": "Lesen",
         "SPRACHBAUSTEINE": "Sprachbausteine",

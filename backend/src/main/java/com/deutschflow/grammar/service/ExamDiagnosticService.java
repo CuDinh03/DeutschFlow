@@ -28,14 +28,21 @@ import java.util.Map;
  * <ol>
  *   <li>{@link #start}: học viên khai ngày thi + phút mỗi ngày ⇒ lưu vào hồ sơ (kỳ thi telc B1), chọn
  *       một đề có sẵn mà học viên ít luyện nhất trong các Teil chẩn đoán.</li>
- *   <li>Lesen T1, Sprachbausteine T1, Hören T1 làm và chấm qua đường luyện đề; Schreiben là đề thật của
- *       đề đó, AI chấm theo phiếu telc B1 ({@code /mock-exams/practice/{id}/schreiben}). Kết quả vào
- *       luôn tiến độ luyện.</li>
+ *   <li>Đủ mọi Teil như đề thật (owner chốt 13/11/2026; trước đó chỉ Teil 1 mỗi phần): Lesen 1–3,
+ *       Sprachbausteine 1–2, Hören 1–3 làm và chấm qua đường luyện đề; Schreiben là đề thật của đề đó,
+ *       AI chấm theo phiếu telc B1 ({@code /mock-exams/practice/{id}/schreiben}). Kết quả vào luôn
+ *       tiến độ luyện. Danh sách và thứ tự: {@link ExamDiagnosticScoring#TEILE}.</li>
  *   <li>Sprechen: một lượt thi thử phần nói telc B1 với giám khảo AI (chấm theo rubric telc) làm SAU
  *       khi bắt đầu bài chẩn đoán.</li>
  *   <li>{@link #finish}: chốt tỉ lệ đạt từng phần vào {@code result_json}; lộ trình đếm ngược dùng tỉ lệ
  *       này để xếp Teil ưu tiên khi chưa có bài thi thử nào ({@link ExamPlanService}).</li>
  * </ol>
+ *
+ * <p><b>Lượt bắt đầu từ bản ngắn</b> (đang dở lúc phát hành bản đủ Teil): tiến độ không lưu theo danh
+ * sách phần mà đọc từ tiến độ luyện của đề đã chọn, nên Teil đã chấm và nháp đang viết được giữ nguyên;
+ * học viên làm tiếp các Teil còn thiếu theo thứ tự thi thật rồi mới chốt. Đề đã chọn mà thiếu Teil nào
+ * thì bỏ Teil đó (chỉ bắt buộc bốn Teil lõi). Bài bản ngắn ĐÃ chốt giữ nguyên kết quả, {@link View#shortForm}
+ * báo để màn kết quả mời làm lại.
  */
 @Service
 @RequiredArgsConstructor
@@ -62,11 +69,12 @@ public class ExamDiagnosticService {
      * @param teile  khoá Teil chẩn đoán, theo thứ tự làm (sau đó là phần Nói)
      * @param oral   lượt thi nói đã có điểm, làm sau khi bắt đầu bài chẩn đoán; {@code null} nếu chưa
      * @param skills kỹ năng → % (chỉ khi {@code DONE})
+     * @param shortForm {@code true} khi kết quả đã chốt là của bài bản ngắn (chỉ Teil 1 mỗi phần)
      */
     public record View(String status, Long examId, List<String> teile, Oral oral, Map<String, Integer> skills,
-                       Instant startedAt, Instant finishedAt) {
+                       Instant startedAt, Instant finishedAt, boolean shortForm) {
         static View none() {
-            return new View(STATUS_NONE, null, ExamDiagnosticScoring.TEILE, null, Map.of(), null, null);
+            return new View(STATUS_NONE, null, ExamDiagnosticScoring.TEILE, null, Map.of(), null, null, false);
         }
     }
 
@@ -86,10 +94,13 @@ public class ExamDiagnosticService {
         Instant finished = instant(row.get("finished_at"));
         Oral oral = oralSince(user.getId(), started);
         if (finished == null) {
-            return new View(STATUS_IN_PROGRESS, examId, ExamDiagnosticScoring.TEILE, oral, Map.of(), started, null);
+            return new View(STATUS_IN_PROGRESS, examId, ExamDiagnosticScoring.TEILE, oral, Map.of(), started, null, false);
         }
-        return new View(STATUS_DONE, examId, ExamDiagnosticScoring.TEILE, oral, readSkills((String) row.get("result")),
-                started, finished);
+        Map<String, Object> result = readResult((String) row.get("result"));
+        // Bài đủ Teil ghi thêm "teile" (tỉ lệ từng Teil); kết quả bản ngắn không có khoá này.
+        boolean shortForm = !(result.get("teile") instanceof Map<?, ?>);
+        return new View(STATUS_DONE, examId, ExamDiagnosticScoring.TEILE, oral, readSkills(result), started, finished,
+                shortForm);
     }
 
     /** Bắt đầu (hoặc làm lại) bài chẩn đoán: lưu ngày thi + phút mỗi ngày, chọn đề. */
@@ -120,14 +131,22 @@ public class ExamDiagnosticService {
         return view(user);
     }
 
-    /** Chốt kết quả: bốn Teil đã chấm (Viết đã có điểm AI) và đã có lượt thi nói sau khi bắt đầu. */
+    /**
+     * Chốt kết quả: mọi Teil chẩn đoán mà đề có đều đã chấm (Viết đã có điểm AI) và đã có lượt thi nói
+     * sau khi bắt đầu.
+     */
     @Transactional
     public View finish(User user) {
         View current = view(user);
         if (!STATUS_IN_PROGRESS.equals(current.status())) throw new BadRequestException("Chưa bắt đầu bài chẩn đoán.");
         PracticeDtos.Overview overview = practice.overview(user, current.examId());
         Map<String, double[]> scores = new LinkedHashMap<>();
-        for (String key : ExamDiagnosticScoring.TEILE) {
+        List<String> required = ExamDiagnosticScoring.present(
+                overview.teile().stream().map(PracticeDtos.Teil::key).toList());
+        for (String core : ExamDiagnosticScoring.CORE_TEILE) {
+            if (!required.contains(core)) throw new BadRequestException("Còn phần chưa làm: " + core);
+        }
+        for (String key : required) {
             PracticeDtos.Teil teil = overview.teile().stream().filter(t -> t.key().equals(key)).findFirst().orElse(null);
             PracticeDtos.Progress p = teil == null ? null : teil.progress();
             if (p == null || !p.checked() || p.score() == null) {
@@ -140,6 +159,7 @@ public class ExamDiagnosticService {
         double[] oral = {current.oral().total(), current.oral().max()};
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("ratios", ExamDiagnosticScoring.ratios(scores, oral));
+        result.put("teile", ExamDiagnosticScoring.teilRatios(scores));
         result.put("skills", ExamDiagnosticScoring.skills(scores, oral));
         result.put("oralSessionId", current.oral().sessionId());
         try {
@@ -152,8 +172,9 @@ public class ExamDiagnosticService {
     }
 
     /**
-     * Đề cho bài chẩn đoán: trong các đề telc B1 đã duyệt mà học viên mở được, đề có ít Teil chẩn đoán
-     * đã luyện nhất; bằng nhau thì đề mới nhất (đề cũ nhất để dành cho đề full đầu tiên của lộ trình).
+     * Đề cho bài chẩn đoán: trong các đề telc B1 đã duyệt mà học viên mở được và có đủ bốn Teil lõi, ưu
+     * tiên đề thiếu ít Teil chẩn đoán nhất (đề đủ cả chín Teil đứng trước), rồi tới đề có ít Teil chẩn
+     * đoán đã luyện nhất; bằng nhau thì đề mới nhất (đề cũ nhất để dành cho đề full đầu tiên của lộ trình).
      */
     long pickExam(User user) {
         List<Long> ids = jdbc.queryForList("""
@@ -162,6 +183,7 @@ public class ExamDiagnosticService {
                 ORDER BY id DESC
                 """, Long.class);
         Long best = null;
+        long bestMissing = Long.MAX_VALUE;
         long bestDone = Long.MAX_VALUE;
         for (Long id : ids) {
             PracticeDtos.Overview o;
@@ -170,12 +192,15 @@ public class ExamDiagnosticService {
             } catch (RuntimeException e) {
                 continue; // đề khoá với học viên này
             }
-            if (!o.teile().stream().map(PracticeDtos.Teil::key).toList().containsAll(ExamDiagnosticScoring.TEILE)) continue;
+            List<String> keys = o.teile().stream().map(PracticeDtos.Teil::key).toList();
+            if (!keys.containsAll(ExamDiagnosticScoring.CORE_TEILE)) continue;
+            long missing = ExamDiagnosticScoring.TEILE.size() - ExamDiagnosticScoring.present(keys).size();
             long done = o.teile().stream()
                     .filter(t -> ExamDiagnosticScoring.TEILE.contains(t.key()) && t.progress() != null && t.progress().checked())
                     .count();
-            if (done < bestDone) {
+            if (missing < bestMissing || (missing == bestMissing && done < bestDone)) {
                 best = id;
+                bestMissing = missing;
                 bestDone = done;
             }
         }
@@ -202,20 +227,23 @@ public class ExamDiagnosticService {
         return v instanceof Timestamp ts ? ts.toInstant() : null;
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Integer> readSkills(String json) {
+    private Map<String, Object> readResult(String json) {
         try {
-            Map<String, Object> m = json == null ? Map.of() : om.readValue(json, MAP);
-            Map<String, Integer> out = new LinkedHashMap<>();
-            if (m.get("skills") instanceof Map<?, ?> s) {
-                ((Map<String, Object>) s).forEach((k, v) -> {
-                    if (v instanceof Number n) out.put(k, n.intValue());
-                });
-            }
-            return out;
+            return json == null ? Map.of() : om.readValue(json, MAP);
         } catch (Exception e) {
             log.warn("[Diagnostic] Không đọc được kết quả: {}", e.getMessage());
             return Map.of();
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Integer> readSkills(Map<String, Object> result) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        if (result.get("skills") instanceof Map<?, ?> s) {
+            ((Map<String, Object>) s).forEach((k, v) -> {
+                if (v instanceof Number n) out.put(k, n.intValue());
+            });
+        }
+        return out;
     }
 }
