@@ -575,6 +575,7 @@
         },
         "approve": "Approve whole set",
         "approved": "Approved. The exam is in the list below as \"Coming soon\".",
+        "loadError": "Could not load the list of exam-set runs",
         "approveBlocked": "Run #{id} could not be approved: {count} Teil not ready. The list and how to fix it are shown in the run card.",
         "approveTitle": "Approve the whole set of run #{id}?",
         "approveBody": "Every Teil of this run goes into the bank and is assembled into one exam marked \"Coming soon\". Students do not see it until you press Publish in the exam list. The listening part of the exam is the three listening Teile generated in this run.",
@@ -621,8 +622,8 @@
           "ROUTER": "9Router"
         },
         "recheck": "Re-check set",
-        "recheckedReady": "The set now meets the conditions. Press “Approve whole set” once you have reviewed it.",
-        "recheckedStill": "The set still has failing items. See the updated list below.",
+        "recheckedReady": "Run #{id} now meets the conditions. Review the Teile, then press \"Approve whole set\".",
+        "recheckedStill": "Run #{id} still cannot be approved: {stuck, plural, =0 {no stuck Teil left} other {# Teil not done ({teile})}}, set-level checks {red, plural, =0 {have no red items} other {have # red items}}. See \"Conditions to approve the whole set\" in the run card, fix them, then press \"Re-check set\" again.",
         "gate": {
           "title": "Conditions to approve the whole set",
           "ok": "Met",

@@ -142,6 +142,57 @@ describe('Thông báo lỗi có chỉ dẫn', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('"Kiểm lại bộ" chưa đạt: toast nêu lượt nào, Teil nào còn kẹt, mấy mục đỏ và bấm gì tiếp', async () => {
+    const stuck = run({ status: 'NEEDS_ATTENTION', teile: [
+      teil({}), teil({ section: 'HOEREN', teil: 2, status: 'STUCK', stage: 'VERIFY', draftId: 103 }),
+    ] })
+    m.listSetRuns.mockResolvedValue([stuck])
+    m.recheckSetRun.mockResolvedValue({ ...stuck, setChecks: [{ key: 'DUP', label: 'Trùng Teil kho', light: 'RED', detail: null }] })
+    wrap(<SetRunsPanel active />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Kiểm lại bộ' }))
+    await waitFor(() => expect(toast.message).toHaveBeenCalled())
+    const said = toast.message.mock.calls[0][0] as string
+    expect(said).toContain('Lượt #11 vẫn chưa duyệt được')
+    expect(said).toContain('còn 1 Teil chưa xong (Hören T2)')
+    expect(said).toContain('còn 1 mục đỏ')
+    expect(said).toContain('Kiểm lại bộ')
+  })
+
+  it('"Làm lại Teil này" khi lượt khác đang chạy: khung lỗi trong thẻ lượt nêu lượt đang chạy và có nút mở', async () => {
+    const r = run({ status: 'NEEDS_ATTENTION' })
+    m.listSetRuns.mockResolvedValue([r])
+    m.redoSetRunTeil.mockRejectedValue(Object.assign(new Error('x'), {
+      isAxiosError: true,
+      response: { status: 400, data: { detail: 'Chưa chạy được "Làm lại Teil này": lượt #12 đang chạy. …', extensions: {
+        code: 'EXAM_SET_RUN_ANOTHER_ACTIVE', title: 'Chưa chạy được "Làm lại Teil này": lượt #12 đang chạy', where: { runId: 12 },
+        issues: [{ code: 'ANOTHER_RUN_ACTIVE', label: 'Lượt #12', what: 'Mỗi lúc máy chỉ chạy một lượt tạo bộ đề',
+          action: 'Đợi lượt #12 chạy xong', url: '/v2/admin/exam-studio?tab=assemblies&run=12', where: { runId: 12 } }],
+        next: 'Sau đó bấm lại "Làm lại Teil này"',
+      } } },
+    }))
+    wrap(<SetRunsPanel active />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Làm lại Teil này' }))
+    const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Làm lại Teil này' }))
+    const notice = await screen.findByRole('alert')
+    expect(within(notice).getByText('Chưa chạy được "Làm lại Teil này": lượt #12 đang chạy')).toBeInTheDocument()
+    expect(within(notice).getByText('Lượt #12')).toBeInTheDocument()
+    expect(within(notice).getByText('Đợi lượt #12 chạy xong')).toBeInTheDocument()
+    expect(within(notice).getByRole('link', { name: /Mở chỗ cần sửa/ }))
+      .toHaveAttribute('href', '/v2/admin/exam-studio?tab=assemblies&run=12')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  })
+
+  it('không tải được danh sách lượt: nói rõ đang tải gì và có nút thử lại', async () => {
+    m.listSetRuns.mockRejectedValueOnce(new Error('mất mạng')).mockResolvedValue([])
+    wrap(<SetRunsPanel active />)
+    const banner = await screen.findByRole('alert')
+    expect(within(banner).getByText('Không tải được danh sách lượt tạo bộ đề')).toBeInTheDocument()
+    await userEvent.click(within(banner).getByRole('button'))
+    await waitFor(() => expect(m.listSetRuns).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
   it('ProblemNotice: nhiều lý do của cùng một bản nháp gộp dưới một nhãn và một nút; hideLinks ẩn nút', () => {
     const p = apiProblem(blocked())
     p.issues[1] = { ...p.issues[1], label: p.issues[0].label, url: p.issues[0].url }

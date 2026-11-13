@@ -52,7 +52,8 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const [redoing, setRedoing] = useState<{ run: SetRun; teil: SetRunTeil } | null>(null)
   const [addingHoeren, setAddingHoeren] = useState<SetRun | null>(null)
   // Lỗi có chỉ dẫn của một lượt (vd. duyệt cả bộ bị chặn): hiện ngay trong thẻ lượt đó, không tự tắt.
-  const [problem, setProblem] = useState<{ runId: number; problem: ApiProblem } | null>(null)
+  const [problem, setProblem] = useState<{ runId: number | null; problem: ApiProblem } | null>(null)
+  const focused = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
@@ -73,14 +74,34 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     return () => { if (timer.current) clearTimeout(timer.current) }
   }, [active, anyActive, runs, load])
 
+  /**
+   * Lỗi của một thao tác: có chỉ dẫn (chuyện gì – ở đâu – làm gì) thì hiện khung không tự tắt ngay tại lượt liên
+   * quan, toast chỉ nhắc ngắn; lỗi kiểu cũ vẫn là toast câu chữ của backend.
+   */
+  const fail = (e: unknown, runId: number | null) => {
+    const p = apiProblem(e)
+    if (!isGuided(p)) { toast.error(p.message); return }
+    setProblem({ runId, problem: p })
+    toast.error(p.title ?? p.message)
+  }
+
+  // Mở từ thông báo chuông (?run=11): cuộn tới thẻ của lượt đó một lần sau khi nạp xong.
+  useEffect(() => {
+    if (focused.current || !runs) return
+    focused.current = true
+    const id = new URLSearchParams(window.location.search).get('run')
+    if (id) document.getElementById(`set-run-${id}`)?.scrollIntoView?.({ block: 'start' })
+  }, [runs])
+
   const start = async () => {
     setBusy(true)
     try {
       await createSetRun({ examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: getStudioChannel() })
+      setProblem(null)
       toast.success(t('started'))
       await load()
     } catch (e) {
-      toast.error(apiMessage(e))
+      fail(e, null)
     } finally {
       setBusy(false)
     }
@@ -115,11 +136,18 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     setBusy(true)
     try {
       const next = await recheckSetRun(r.id)
-      if (next.status === 'REVIEW') toast.success(t('recheckedReady'))
-      else toast.message(t('recheckedStill'))
+      setProblem(null)
+      if (next.status === 'REVIEW') {
+        toast.success(t('recheckedReady', { id: r.id }))
+      } else {
+        // Nói rõ còn vướng gì: Teil nào chưa xong, mấy mục kiểm cấp bộ còn đỏ.
+        const notReady = next.teile.filter((x) => x.status !== 'READY').map((x) => slotLabel(x.section, x.teil))
+        const red = (next.setChecks ?? []).filter((c) => c.light === 'RED').length
+        toast.message(t('recheckedStill', { id: r.id, stuck: notReady.length, teile: notReady.join(', ') || '—', red }))
+      }
       await load()
     } catch (e) {
-      toast.error(apiMessage(e))
+      fail(e, r.id)
     } finally {
       setBusy(false)
     }
@@ -132,10 +160,12 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
       // Làm lại bằng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
       await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil, getStudioChannel())
       setRedoing(null)
+      setProblem(null)
       toast.success(t('redoStarted'))
       await load()
     } catch (e) {
-      toast.error(apiMessage(e))
+      setRedoing(null)
+      fail(e, redoing.run.id)
     } finally {
       setBusy(false)
     }
@@ -148,10 +178,12 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
       // Như "Làm lại Teil": dùng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
       await addSetRunHoeren(addingHoeren.id, getStudioChannel())
       setAddingHoeren(null)
+      setProblem(null)
       toast.success(t('addHoerenStarted'))
       await load()
     } catch (e) {
-      toast.error(apiMessage(e))
+      setAddingHoeren(null)
+      fail(e, addingHoeren.id)
     } finally {
       setBusy(false)
     }
@@ -163,9 +195,10 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     try {
       await discardSetRun(discarding.id)
       setDiscarding(null)
+      setProblem(null)
       await load()
     } catch (e) {
-      toast.error(apiMessage(e))
+      fail(e, discarding.id)
     } finally {
       setBusy(false)
     }
@@ -184,13 +217,16 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
         {anyActive && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('oneAtATime')}</p>}
       </GaCard>
 
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner title={t('loadError')} message={error} onRetry={() => void load()} />}
+      {problem && (problem.runId == null || !(runs ?? []).some((r) => r.id === problem.runId && r.status !== 'DISCARDED')) && (
+        <ProblemNotice problem={problem.problem} onDismiss={() => setProblem(null)} />
+      )}
 
       {(runs ?? []).filter((r) => r.status !== 'DISCARDED').map((r) => {
         const ready = r.teile.filter((x) => x.status === 'READY').length
         const redChecks = (r.setChecks ?? []).filter((c) => c.light === 'RED').length
         return (
-          <GaCard key={r.id} className="flex flex-col gap-3 p-4 sm:p-5">
+          <GaCard key={r.id} id={`set-run-${r.id}`} className="flex scroll-mt-4 flex-col gap-3 p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <span className="ga-ui text-ga-body font-semibold text-ga-ink">
                 {t('runTitle', { id: r.id, exam: `${r.examFormat.toLowerCase()} ${r.cefrLevel}` })}

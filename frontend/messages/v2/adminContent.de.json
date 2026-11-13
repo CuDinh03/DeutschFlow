@@ -575,6 +575,7 @@
         },
         "approve": "Ganzen Satz freigeben",
         "approved": "Freigegeben. Der Satz steht unten in der Liste als „Demnächst“.",
+        "loadError": "Die Liste der Durchläufe konnte nicht geladen werden",
         "approveBlocked": "Durchlauf #{id} konnte nicht freigegeben werden: {count} Teil nicht bereit. Liste und Lösung stehen in der Karte des Durchlaufs.",
         "approveTitle": "Ganzen Satz von Lauf #{id} freigeben?",
         "approveBody": "Alle Teile dieses Laufs kommen in den Bestand und werden zu einem Prüfungssatz mit dem Status „Demnächst“ zusammengestellt. Lernende sehen ihn erst, wenn Sie in der Liste auf Veröffentlichen klicken. Der Hörteil des Satzes besteht aus den drei Hörteilen, die in diesem Lauf erzeugt wurden.",
@@ -621,8 +622,8 @@
           "ROUTER": "9Router"
         },
         "recheck": "Satz erneut prüfen",
-        "recheckedReady": "Der Satz erfüllt jetzt die Bedingungen. „Ganzen Satz freigeben“ drücken, wenn Sie ihn geprüft haben.",
-        "recheckedStill": "Der Satz hat noch offene Punkte. Siehe die neue Liste unten.",
+        "recheckedReady": "Lauf #{id} erfüllt jetzt die Bedingungen. Teile durchsehen, dann „Ganzen Satz freigeben“ drücken.",
+        "recheckedStill": "Lauf #{id} kann noch nicht freigegeben werden: {stuck, plural, =0 {kein Teil hängt mehr} other {# Teil nicht fertig ({teile})}}, Satzprüfung {red, plural, =0 {ohne rote Punkte} other {mit # roten Punkten}}. Siehe „Bedingungen für die Freigabe des ganzen Satzes“ in der Karte des Laufs, beheben und erneut „Satz erneut prüfen“ drücken.",
         "gate": {
           "title": "Bedingungen für die Freigabe des ganzen Satzes",
           "ok": "Erfüllt",

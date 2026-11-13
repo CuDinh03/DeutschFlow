@@ -205,7 +205,7 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(created.teile()).filteredOn(t -> t.section().equals("HOEREN")).extracting(TeilView::teil)
                 .containsExactly(1, 2, 3);
         assertThatThrownBy(() -> runs.create(new CreateRunRequest("TELC", "B1", null, null), admin))
-                .isInstanceOf(BadRequestException.class).hasMessageContaining("Đang có một lượt");
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("Mỗi lúc máy chỉ chạy một lượt");
 
         RunView done = runToEnd(created.id());
 

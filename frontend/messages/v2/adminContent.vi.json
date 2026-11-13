@@ -575,6 +575,7 @@
         },
         "approve": "Duyệt cả bộ",
         "approved": "Đã duyệt. Bộ đề được đánh số tiếp theo và nằm ở danh sách bên dưới, trạng thái \"Sắp có\".",
+        "loadError": "Không tải được danh sách lượt tạo bộ đề",
         "approveBlocked": "Chưa duyệt được lượt #{id}: {count} Teil chưa đạt. Danh sách và cách sửa nằm ngay trong thẻ của lượt.",
         "approveTitle": "Duyệt cả bộ của lượt #{id}?",
         "approveBody": "Mọi Teil của lượt này vào kho và được ghép thành một bộ đề ở trạng thái \"Sắp có\". Học viên chưa thấy cho tới khi bạn bấm Phát hành ở danh sách bộ đề. Phần Nghe của bộ đề là ba Teil Nghe do máy soạn trong lượt này.",
@@ -621,8 +622,8 @@
           "ROUTER": "9Router"
         },
         "recheck": "Kiểm lại bộ",
-        "recheckedReady": "Bộ đã đủ điều kiện. Bấm „Duyệt cả bộ“ khi bạn đã xem xong.",
-        "recheckedStill": "Bộ vẫn còn mục chưa đạt. Xem danh sách mới bên dưới.",
+        "recheckedReady": "Lượt #{id} đã đủ điều kiện. Xem lại các Teil rồi bấm „Duyệt cả bộ“.",
+        "recheckedStill": "Lượt #{id} vẫn chưa duyệt được: {stuck, plural, =0 {không còn Teil kẹt} other {còn # Teil chưa xong ({teile})}}, kiểm cấp bộ {red, plural, =0 {không còn mục đỏ} other {còn # mục đỏ}}. Xem „Điều kiện để duyệt cả bộ“ trong thẻ của lượt, sửa rồi bấm lại „Kiểm lại bộ“.",
         "gate": {
           "title": "Điều kiện để duyệt cả bộ",
           "ok": "Đạt",
