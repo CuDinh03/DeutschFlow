@@ -86,10 +86,11 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
   const live = React.useRef({ bar, noteFor, canEdit, pack, docked })
   live.current = { bar, noteFor, canEdit, pack, docked }
 
-  // "Lưu từ" (13/11/2026): chỉ ở Luyện Teil — chế độ đủ công cụ trên gói luyện. Bài chẩn đoán cũng lưu theo
-  // gói luyện nhưng chạy chế độ thi (`full = false`) ⇒ không có; lượt thi thử (kể cả xem lại) chưa có.
-  const practiceSource = marks.source?.kind === 'practice' ? marks.source : null
-  const canSaveWord = full && practiceSource != null
+  // "Lưu từ" (13/11/2026): chế độ đủ công cụ — Luyện Teil (gói luyện) và xem lại lượt thi thử đã nộp (đợt 3,
+  // server lấy đề từ lượt và chặn lượt chưa nộp). Đang thi thử và bài chẩn đoán chạy chế độ thi (`full = false`)
+  // ⇒ không có.
+  const saveSource = marks.source ?? null
+  const canSaveWord = full && saveSource != null
   const [wordJob, setWordJob] = React.useState<SaveWordJob | null>(null)
   const wordSeq = React.useRef(0)
   const closeWord = React.useCallback(() => setWordJob(null), [])
@@ -313,7 +314,7 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
   saveRef.current = selWord != null
 
   const onSaveWord = () => {
-    if (bar?.mode !== 'select' || !practiceSource) return
+    if (bar?.mode !== 'select' || !saveSource) return
     const word = wordOf(bar.piece)
     if (!word) return
     const { b, s, e } = bar.piece
@@ -324,8 +325,9 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
       request: {
         text: word,
         sentence: sentenceAround(texts[b] ?? '', s, e),
-        examId: practiceSource.examId,
-        teilKey: practiceSource.teilKey,
+        examId: saveSource.kind === 'practice' ? saveSource.examId : null,
+        attemptId: saveSource.kind === 'attempt' ? saveSource.attemptId : null,
+        teilKey: saveSource.teilKey,
         block: b,
         start: s,
         end: e,

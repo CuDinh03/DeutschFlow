@@ -2611,6 +2611,7 @@
         "wordErrorBad": "Chỉ lưu được 1 đến 5 từ tiếng Đức liền nhau.",
         "wordErrorAi": "Chưa tra được nghĩa từ này lúc này. Bạn thử lại sau ít phút nhé.",
         "wordError": "Chưa lưu được từ. Bạn thử lại nhé.",
+        "wordErrorExam": "Nộp bài xong mới lưu được từ của lượt thi này.",
         "announceWordSaved": "Đã lưu {word} vào sổ từ",
         "bar": {
           "title": "Bút đánh dấu",

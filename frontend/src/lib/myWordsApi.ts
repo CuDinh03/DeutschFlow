@@ -10,6 +10,8 @@ export interface SaveWordRequest {
   /** Câu chứa chữ đó — để tra đúng nghĩa và làm ví dụ cho thẻ ôn. */
   sentence: string | null
   examId: number | null
+  /** Xem lại lượt thi thử đã nộp — server lấy đề từ lượt (lượt chưa nộp ⇒ 409). */
+  attemptId?: number | null
   teilKey: string | null
   /** Khối chữ trong bài (`ctx`, `q:<id>`) và vị trí — để sau mở lại đúng chỗ. */
   block: string | null

@@ -2611,6 +2611,7 @@
         "wordErrorBad": "Du kannst 1 bis 5 zusammenhängende deutsche Wörter speichern.",
         "wordErrorAi": "Die Bedeutung kann gerade nicht nachgeschlagen werden. Bitte versuche es in ein paar Minuten noch einmal.",
         "wordError": "Das Wort konnte nicht gespeichert werden. Bitte versuche es noch einmal.",
+        "wordErrorExam": "Gib die Prüfung zuerst ab, um Wörter aus diesem Versuch zu speichern.",
         "announceWordSaved": "{word} im Wortschatzheft gespeichert",
         "bar": {
           "title": "Textmarker",
