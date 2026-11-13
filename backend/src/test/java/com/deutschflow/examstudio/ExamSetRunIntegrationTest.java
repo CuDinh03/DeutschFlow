@@ -540,20 +540,27 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         long busy = lastRunId();
         assertThat(busy).isGreaterThan(done.id());
 
-        RunView queued = runs.redoTeil(done.id(), "LESEN", 2);
+        RunView queued = runs.redoTeil(done.id(), "LESEN", 2, null, admin);
         assertThat(queued.status()).isEqualTo("REVIEW");                    // chưa chạy: đang chờ lượt kia xong
-        runs.redoTeil(done.id(), "LESEN", 2);                                // bấm lại: không xếp trùng
+        runs.redoTeil(done.id(), "LESEN", 2, null, admin);                   // bấm lại: không xếp trùng
         assertThat(runs.auto().pending()).singleElement()
                 .satisfies(p -> {
                     assertThat(p.kind()).isEqualTo("REDO");
                     assertThat(p.runId()).isEqualTo(done.id());
                     assertThat(p.section()).isEqualTo("LESEN");
                     assertThat(p.teil()).isEqualTo(2);
+                    assertThat(p.status()).isEqualTo("WAITING");
+                    assertThat(p.createdBy()).isEqualTo(admin);              // ghi người bấm
                 });
 
         assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");
         assertThat(runs.get(done.id()).status()).isEqualTo("RUNNING");     // việc xếp hàng chạy ngay
         assertThat(runs.auto().pending()).isEmpty();
+        assertThat(runs.auto().history()).singleElement().satisfies(h -> {  // giữ lại làm lịch sử
+            assertThat(h.status()).isEqualTo("DONE");
+            assertThat(h.finishedAt()).isNotNull();
+            assertThat(h.error()).isNull();
+        });
         assertThat(lastRunId()).isEqualTo(busy);                            // chưa tự tạo lượt mới
 
         assertThat(runToEnd(done.id()).status()).isEqualTo("REVIEW");
@@ -580,13 +587,18 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
         runs.tickAll();
         long busy = lastRunId();
-        runs.addHoeren(done.id(), null);
+        runs.addHoeren(done.id(), null, admin);
         assertThat(runs.auto().pending()).singleElement().satisfies(p -> assertThat(p.kind()).isEqualTo("ADD_HOEREN"));
         runs.discard(done.id());
 
         assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");
         assertThat(runs.auto().pending()).isEmpty();
         assertThat(runs.auto().note()).contains("Chưa chạy được việc bạn đã xếp").contains("#" + done.id());
+        assertThat(runs.auto().history()).singleElement().satisfies(h -> {
+            assertThat(h.status()).isEqualTo("FAILED");
+            assertThat(h.error()).isNotBlank();
+            assertThat(h.createdBy()).isEqualTo(admin);
+        });
         verify(notifications).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Việc xếp hàng chưa chạy được"), anyString(), any());
         runs.tickAll();
         assertThat(lastRunId()).isGreaterThan(busy);                        // tự nối vẫn chạy tiếp

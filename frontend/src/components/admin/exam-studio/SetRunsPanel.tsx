@@ -10,7 +10,7 @@ import { apiProblem, isGuided, type ApiProblem } from '@/lib/apiProblem'
 import {
   addSetRunHoeren, approveSetRun, createSetRun, discardSetRun, getSetAuto, getStudioChannel, listSetRuns, putSetAuto,
   recheckSetRun, redoSetRunTeil,
-  type SetAuto, type SetRun, type SetRunStatus, type SetRunTeil,
+  type SetAuto, type SetAutoJob, type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { ProblemNotice } from '@/components/admin/ProblemNotice'
@@ -31,6 +31,9 @@ const hasHoeren = (r: SetRun) => r.teile.some((x) => x.section.toUpperCase() ===
 /** Lượt cũ đã chạy xong, chưa duyệt, là telc B1 (cấp duy nhất máy soạn được phần Nghe) ⇒ hiện nút "Tạo phần Nghe". */
 const canAddHoeren = (r: SetRun) => (r.status === 'REVIEW' || r.status === 'NEEDS_ATTENTION')
   && r.examFormat.toUpperCase() === 'TELC' && r.cefrLevel === 'B1' && !hasHoeren(r)
+
+/** Nhãn việc đứng đầu dòng lịch sử thì viết hoa chữ đầu ("phần Nghe…" ⇒ "Phần Nghe…"). */
+const capitalize = (s: string) => (s ? s.charAt(0).toLocaleUpperCase('vi') + s.slice(1) : s)
 
 function fmtDate(iso: string | null): string {
   if (!iso) return ''
@@ -75,9 +78,11 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const anyActive = activeRun != null
   // Tự nối đang bật: "Làm lại Teil" / "Tạo phần Nghe" vẫn bấm được lúc máy chạy — backend xếp hàng (owner chốt 13/11/2026).
   const canQueue = auto?.enabled === true
-  const pendingItems = (auto?.pending ?? []).map((p) => (p.kind === 'REDO'
+  const jobLabel = (p: SetAutoJob) => (p.kind === 'REDO'
     ? t('pendingRedo', { teil: slotLabel(p.section ?? '', p.teil ?? 0), id: p.runId })
-    : t('pendingAddHoeren', { id: p.runId })))
+    : t('pendingAddHoeren', { id: p.runId }))
+  const pendingItems = (auto?.pending ?? []).map(jobLabel)
+  const history = auto?.history ?? []
   useEffect(() => {
     if (!active || (!anyActive && !auto?.enabled)) return
     timer.current = setTimeout(() => void load(), REFRESH_MS)
@@ -260,6 +265,23 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
           <p className="ga-ui basis-full break-words text-ga-caption font-semibold text-ga-ink">
             {t('autoPending', { items: pendingItems.join('; ') })}
           </p>
+        )}
+        {history.length > 0 && (
+          <details className="basis-full">
+            <summary className="ga-ui cursor-pointer text-ga-caption font-semibold text-ga-ink">
+              {t('historyTitle', { count: history.length })}
+            </summary>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {history.map((h) => (
+                <li key={h.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <TkBadge tone={h.status === 'DONE' ? 'green' : 'red'}>{t(h.status === 'DONE' ? 'jobDone' : 'jobFailed')}</TkBadge>
+                  <span className="ga-ui text-ga-small text-ga-ink">{capitalize(jobLabel(h))}</span>
+                  <span className="ga-ui text-ga-caption text-ga-muted">{fmtDate(h.finishedAt ?? h.createdAt)}</span>
+                  {h.error && <span className="ga-ui basis-full break-words text-ga-caption text-ga-muted">{h.error}</span>}
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </GaCard>
 

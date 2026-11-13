@@ -12,10 +12,26 @@ CREATE TABLE IF NOT EXISTS exam_set_auto (
     channel     VARCHAR(20)  NOT NULL DEFAULT 'FIREWORKS',
     created_by  BIGINT       REFERENCES users (id) ON DELETE SET NULL,
     note        TEXT,
-    -- Việc owner bấm ("Làm lại Teil này", "Tạo phần Nghe") lúc tự nối đang bật và máy đang chạy một lượt: xếp hàng,
-    -- nhịp nền chạy lần lượt ngay khi không còn lượt nào chạy, TRƯỚC khi tự tạo lượt mới (owner chốt 13/11/2026).
-    pending     JSONB        NOT NULL DEFAULT '[]'::jsonb,
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
 INSERT INTO exam_set_auto (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- Hàng chờ việc của owner (owner chốt 13/11/2026): bấm "Làm lại Teil này" (REDO) hoặc "Tạo phần Nghe" (ADD_HOEREN)
+-- lúc tự nối đang bật mà máy đang chạy lượt khác ⇒ xếp một dòng WAITING. Nhịp nền chạy dòng WAITING cũ nhất ngay khi
+-- không còn lượt nào chạy, TRƯỚC khi tự tạo lượt mới. Dòng đã chạy giữ lại làm lịch sử (DONE, hoặc FAILED kèm lý do).
+CREATE TABLE IF NOT EXISTS exam_set_pending (
+    id          BIGSERIAL    PRIMARY KEY,
+    kind        VARCHAR(20)  NOT NULL CHECK (kind IN ('REDO', 'ADD_HOEREN')),
+    run_id      BIGINT       NOT NULL REFERENCES exam_set_runs (id) ON DELETE CASCADE,
+    section     VARCHAR(20),
+    teil        INT,
+    channel     VARCHAR(20),
+    status      VARCHAR(10)  NOT NULL DEFAULT 'WAITING' CHECK (status IN ('WAITING', 'DONE', 'FAILED')),
+    error       TEXT,
+    created_by  BIGINT       REFERENCES users (id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    finished_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_exam_set_pending_status ON exam_set_pending (status, id);

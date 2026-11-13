@@ -89,7 +89,7 @@ public class ExamSetRunController {
     public RunView redoTeil(@PathVariable long id, @PathVariable String section, @PathVariable int teil,
                             @RequestBody(required = false) Map<String, String> body,
                             @AuthenticationPrincipal User actor) {
-        RunView r = runs.redoTeil(id, section, teil, body == null ? null : body.get("channel"));
+        RunView r = runs.redoTeil(id, section, teil, body == null ? null : body.get("channel"), actor.getId());
         audit.log("admin.exam_studio.set_run_teil_redo", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(id),
                 Map.of("section", section, "teil", teil));
         return r;
@@ -99,7 +99,7 @@ public class ExamSetRunController {
     @PostMapping("/{id}/add-hoeren")
     public RunView addHoeren(@PathVariable long id, @RequestBody(required = false) Map<String, String> body,
                              @AuthenticationPrincipal User actor) {
-        RunView r = runs.addHoeren(id, body == null ? null : body.get("channel"));
+        RunView r = runs.addHoeren(id, body == null ? null : body.get("channel"), actor.getId());
         audit.log("admin.exam_studio.set_run_hoeren_added", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(id),
                 Map.of("channel", r.channel()));
         return r;

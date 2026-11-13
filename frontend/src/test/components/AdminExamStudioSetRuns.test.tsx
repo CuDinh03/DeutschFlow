@@ -8,7 +8,7 @@ import adminContentVi from '../../../messages/v2/adminContent.vi.json'
 import adminContentEn from '../../../messages/v2/adminContent.en.json'
 import adminContentDe from '../../../messages/v2/adminContent.de.json'
 import chromeVi from '../../../messages/v2/chrome.vi.json'
-import type { SetAuto, SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
+import type { SetAuto, SetAutoJob, SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
 
 const m = vi.hoisted(() => ({
   listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), approveSetRun: vi.fn(), getStudioChannel: vi.fn(),
@@ -34,6 +34,11 @@ const teil = (over: Partial<SetRunTeil>): SetRunTeil => ({
 const run = (over: Partial<SetRun>): SetRun => ({
   id: 7, examFormat: 'TELC', cefrLevel: 'B1', status: 'RUNNING', channel: 'FIREWORKS', profile: 'REAL', note: null,
   createdAt: '2026-11-12T01:00:00Z', updatedAt: null, teile: [teil({})], ...over,
+})
+
+const job = (over: Partial<SetAutoJob>): SetAutoJob => ({
+  id: 1, kind: 'REDO', runId: 6, section: 'LESEN', teil: 1, channel: 'ROUTER', status: 'WAITING', error: null,
+  createdBy: 1, createdAt: '2026-11-13T01:00:00Z', finishedAt: null, ...over,
 })
 
 const show = () => render(
@@ -233,15 +238,31 @@ describe('SetRunsPanel', () => {
     const redo = screen.getByRole('button', { name: 'Làm lại Teil này' })
     expect(redo).toBeEnabled()
 
-    m.getSetAuto.mockResolvedValue(autoView({
-      enabled: true, pending: [{ kind: 'REDO', runId: 6, section: 'LESEN', teil: 1, channel: 'ROUTER' }],
-    }))
+    m.getSetAuto.mockResolvedValue(autoView({ enabled: true, pending: [job({})] }))
     await userEvent.click(redo)
     const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
     await userEvent.click(within(dialog).getByRole('button', { name: 'Làm lại Teil này' }))
     await waitFor(() => expect(m.redoSetRunTeil).toHaveBeenCalledWith(6, 'LESEN', 1, 'ROUTER'))
     expect(toast.success).toHaveBeenCalledWith('Đã xếp hàng: máy làm việc này ngay khi lượt #8 chạy xong.')
     expect(await screen.findByText(/Chờ chạy: .* của lượt #6\./)).toBeInTheDocument()
+  })
+
+  it('lịch sử việc đã xếp: việc đã chạy và việc không chạy được kèm lý do', async () => {
+    m.listSetRuns.mockResolvedValue([run({ id: 8, status: 'REVIEW', teile: [teil({ status: 'READY', stage: 'DONE' })] })])
+    m.getSetAuto.mockResolvedValue(autoView({
+      enabled: true,
+      history: [
+        job({ id: 2, kind: 'ADD_HOEREN', runId: 5, section: null, teil: null, status: 'FAILED',
+          error: 'Lượt #5 đã bỏ.', finishedAt: '2026-11-13T02:00:00Z' }),
+        job({ id: 1, status: 'DONE', finishedAt: '2026-11-13T01:30:00Z' }),
+      ],
+    }))
+    show()
+    await userEvent.click(await screen.findByText('Việc đã xếp gần đây (2)'))
+    expect(screen.getByText('Không chạy được')).toBeInTheDocument()
+    expect(screen.getByText('Phần Nghe của lượt #5')).toBeInTheDocument()
+    expect(screen.getByText('Lượt #5 đã bỏ.')).toBeInTheDocument()
+    expect(screen.getByText('Đã chạy')).toBeInTheDocument()
   })
 
   it('tự nối tắt và có lượt chạy: "Làm lại Teil này" bị khoá, hiện lý do', async () => {

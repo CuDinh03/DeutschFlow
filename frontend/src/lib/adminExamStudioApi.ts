@@ -595,15 +595,25 @@ export interface SetAuto {
   waiting: number
   maxWaiting: number
   /** Việc owner bấm lúc tự nối đang bật mà máy đang chạy lượt khác: chạy ngay khi lượt đó xong, theo thứ tự bấm. */
-  pending?: SetAutoPending[]
+  pending?: SetAutoJob[]
+  /** Mười việc xếp hàng đã chạy hoặc hỏng gần nhất (mới trước). */
+  history?: SetAutoJob[]
 }
 
-export interface SetAutoPending {
+/** Một việc trong hàng chờ tự nối (bảng `exam_set_pending`). */
+export interface SetAutoJob {
+  id: number
   kind: 'REDO' | 'ADD_HOEREN'
   runId: number
   section: string | null
   teil: number | null
   channel: string | null
+  status: 'WAITING' | 'DONE' | 'FAILED'
+  /** Lý do khi `FAILED`. */
+  error: string | null
+  createdBy: number | null
+  createdAt: string
+  finishedAt: string | null
 }
 
 export async function getSetAuto(): Promise<SetAuto> {
