@@ -120,7 +120,7 @@ function AiUsageLedgerTab() {
 
   return (
     <div className="space-y-5" data-testid="ai-usage-ledger">
-        {error && <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
+        {error && <ErrorBanner title={t('errorTitle')} message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
 
         <form
           className="flex flex-wrap items-end gap-3"

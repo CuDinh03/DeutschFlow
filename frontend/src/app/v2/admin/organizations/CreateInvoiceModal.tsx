@@ -85,7 +85,7 @@ export function CreateInvoiceModal({ org, onClose, onCreated }: CreateInvoiceMod
         </>
       }
     >
-      {error && <ErrorBanner className="mb-4" message={error} />}
+      {error && <ErrorBanner className="mb-4" title={t('errorTitle')} message={error} />}
 
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

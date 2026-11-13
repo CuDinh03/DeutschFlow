@@ -125,7 +125,7 @@ export function AdminCreateUserModal({ onClose, onCreated }: { onClose: () => vo
           </>
         }
       >
-        {error && <ErrorBanner className="mb-4" message={error} />}
+        {error && <ErrorBanner className="mb-4" title={t('errorTitle')} message={error} />}
 
         <div className="space-y-4">
           <label className="block">

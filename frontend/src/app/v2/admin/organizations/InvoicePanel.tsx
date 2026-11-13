@@ -187,7 +187,7 @@ export function InvoicePanel({ org, invoices, onChanged }: InvoicePanelProps) {
         </GaBtn>
       </div>
 
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner title={t('errorTitle')} message={error} />}
 
       <DataTable
         columns={columns}

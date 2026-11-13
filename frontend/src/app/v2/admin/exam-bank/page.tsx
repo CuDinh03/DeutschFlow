@@ -108,7 +108,7 @@ export default function AdminExamBankPage() {
         }
       />
       <div className="flex-1 space-y-5 px-4 py-5 sm:px-6 lg:px-10">
-        {error && <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
+        {error && <ErrorBanner title={t('loadErrorTitle')} message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
 
         {loading ? (
           <LoadingState label={t('loading')} />
@@ -276,7 +276,7 @@ function TaskEditor({ row, onSaved, onClose }: { row: BankTaskRow | null; onSave
     <TkModal open onOpenChange={(o) => { if (!o) onClose() }} title={row ? t('editorEditTitle', { id: row.id }) : t('editorCreateTitle')} size="lg">
       <div className="grid gap-4 lg:grid-cols-2" data-testid="bank-editor">
         <div className="space-y-3">
-          {error && <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
+          {error && <ErrorBanner title={t('saveErrorTitle')} message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
           <div className="flex flex-wrap gap-2">
             <label className="ga-ui flex flex-col gap-1 text-[12px] text-ga-muted">
               {t('providerLabel')}

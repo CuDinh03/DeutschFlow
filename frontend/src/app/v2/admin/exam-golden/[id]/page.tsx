@@ -75,7 +75,7 @@ export default function AdminExamGoldenRatePage() {
     }
   }
 
-  if (error && !detail) return <ErrorBanner variant="page" message={error} />
+  if (error && !detail) return <ErrorBanner variant="page" title={t('detailLoadErrorTitle')} message={error} />
   if (!detail) return <LoadingState label={t('loading')} />
 
   return (
@@ -91,7 +91,7 @@ export default function AdminExamGoldenRatePage() {
         }
       />
       <div className="flex-1 space-y-4 px-4 py-5 sm:px-6 lg:px-10">
-        {error && <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
+        {error && <ErrorBanner title={t('saveErrorTitle')} message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
 
         {saved && (
           <GaCard className="border-2 border-ga-accent p-4" data-testid="golden-saved">

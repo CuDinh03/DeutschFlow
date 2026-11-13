@@ -121,7 +121,7 @@ export default function AdminExamGoldenPage() {
         }
       />
       <div className="flex-1 space-y-5 px-4 py-5 sm:px-6 lg:px-10">
-        {error && <ErrorBanner message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
+        {error && <ErrorBanner title={t('errorTitle')} message={error} onRetry={() => setError(null)} retryLabel={t('dismiss')} />}
 
         <div className="flex flex-wrap items-center gap-3">
           <TkSeg
@@ -324,7 +324,7 @@ function ParticipantsCard({ t }: { t: ReturnType<typeof useTranslations> }) {
 
       {error && (
         <div className="mb-3">
-          <ErrorBanner message={error} onRetry={() => setError(null)} />
+          <ErrorBanner title={t('errorTitle')} message={error} onRetry={() => setError(null)} />
         </div>
       )}
 
