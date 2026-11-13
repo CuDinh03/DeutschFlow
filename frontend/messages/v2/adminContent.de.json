@@ -602,6 +602,7 @@
         "jobDone": "Ausgeführt",
         "jobFailed": "Nicht ausführbar",
         "queued": "Eingereiht: startet, sobald Lauf #{id} fertig ist.",
+        "queuedNoRun": "Eingereiht: startet, sobald der laufende Lauf fertig ist.",
         "runTitle": "Lauf #{id} · {exam}",
         "progress": "{ready}/{total} Teile fertig",
         "none": "Noch keine Läufe.",

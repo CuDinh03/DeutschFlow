@@ -602,6 +602,7 @@
         "jobDone": "Ran",
         "jobFailed": "Could not run",
         "queued": "Queued: this starts as soon as run #{id} finishes.",
+        "queuedNoRun": "Queued: this starts as soon as the current run finishes.",
         "runTitle": "Run #{id} · {exam}",
         "progress": "{ready}/{total} Teile done",
         "none": "No exam-set runs yet.",

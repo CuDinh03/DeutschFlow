@@ -602,6 +602,7 @@
         "jobDone": "Đã chạy",
         "jobFailed": "Không chạy được",
         "queued": "Đã xếp hàng: máy làm việc này ngay khi lượt #{id} chạy xong.",
+        "queuedNoRun": "Đã xếp hàng: máy làm việc này ngay khi lượt đang chạy xong.",
         "runTitle": "Lượt #{id} · {exam}",
         "progress": "{ready}/{total} Teil xong",
         "none": "Chưa có lượt tạo bộ đề nào.",

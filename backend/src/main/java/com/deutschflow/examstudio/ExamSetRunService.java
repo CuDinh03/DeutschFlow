@@ -459,6 +459,14 @@ public class ExamSetRunService {
         Integer active = jdbc.queryForObject(
                 "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
         if (!autoOn || active == null || active == 0) return false;
+        // Kiểm ngay lúc bấm (owner chốt 13/11/2026): kênh AI lạ hay Teil không có trong lượt thì báo lỗi luôn, không để
+        // tới lượt chạy mới lộ ra; cũng chặn chuỗi lạ vượt cột VARCHAR.
+        if (channel != null && !channel.isBlank()) channel = ai.requireChannel(channel).name();
+        if (JOB_REDO.equals(kind) && teile(runId).stream()
+                .noneMatch(x -> x.section().equalsIgnoreCase(section) && teil != null && x.teil() == teil)) {
+            throw new NotFoundException("Lượt #" + runId + " không có " + ApprovalGuide.slotLabel(section, teil == null ? 0 : teil)
+                    + ". Tải lại trang để xem danh sách Teil hiện tại của lượt.");
+        }
         Integer same = jdbc.queryForObject("""
                 SELECT count(*) FROM exam_set_pending
                  WHERE status = 'WAITING' AND kind = ? AND run_id = ? AND section IS NOT DISTINCT FROM ?
@@ -522,28 +530,39 @@ public class ExamSetRunService {
         });
     }
 
-    private void runJob(AutoJob j) {
+    /**
+     * Chạy một việc đã xếp. Lúc deploy blue-green có hai bản backend cùng chạy nhịp nền và có thể cùng chọn một việc:
+     * bản nào vào khoá sau thấy việc không còn WAITING thì bỏ qua im lặng, không ghi đè DONE thành FAILED, không báo
+     * chuông giả (owner chốt cách sửa 13/11/2026). Package-private để test gọi lại như bản thứ hai.
+     */
+    void runJob(AutoJob j) {
         int teil = j.teil() == null ? 0 : j.teil();
         try {
-            locked(() -> {
-                RunView r = JOB_REDO.equals(j.kind())
-                        ? doRedoTeil(j.runId(), j.section(), teil, j.channel())
-                        : doAddHoeren(j.runId(), j.channel());
-                jdbc.update("UPDATE exam_set_pending SET status = 'DONE', finished_at = now() WHERE id = ?", j.id());
-                return r;
-            });
-            log.info("[ExamSet] chạy việc owner xếp hàng #{}: {} lượt #{}", j.id(), j.kind(), j.runId());
+            boolean ran = Boolean.TRUE.equals(locked(() -> {
+                String st = jdbc.query("SELECT status FROM exam_set_pending WHERE id = ?", (rs, i) -> rs.getString("status"), j.id())
+                        .stream().findFirst().orElse(null);
+                if (!"WAITING".equals(st)) return false;
+                if (JOB_REDO.equals(j.kind())) doRedoTeil(j.runId(), j.section(), teil, j.channel());
+                else doAddHoeren(j.runId(), j.channel());
+                jdbc.update("UPDATE exam_set_pending SET status = 'DONE', finished_at = now() WHERE id = ? AND status = 'WAITING'", j.id());
+                return true;
+            }));
+            if (ran) log.info("[ExamSet] chạy việc owner xếp hàng #{}: {} lượt #{}", j.id(), j.kind(), j.runId());
+            else log.info("[ExamSet] việc xếp hàng #{} đã được xử lý ở nơi khác, bỏ qua", j.id());
         } catch (RuntimeException e) {
             String what = JOB_REDO.equals(j.kind())
                     ? "\"" + RunGuide.BTN_REDO + "\" " + ApprovalGuide.slotLabel(j.section(), teil)
                     : "\"" + RunGuide.BTN_ADD_HOEREN + "\"";
             String why = "Chưa chạy được việc bạn đã xếp: " + what + " của lượt #" + j.runId() + ". " + e.getMessage();
-            locked(() -> {
-                jdbc.update("UPDATE exam_set_pending SET status = 'FAILED', error = ?, finished_at = now() WHERE id = ?",
-                        e.getMessage(), j.id());
-                jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1", why);
-                return null;
+            int marked = locked(() -> {
+                int n = jdbc.update("""
+                        UPDATE exam_set_pending SET status = 'FAILED', error = ?, finished_at = now()
+                         WHERE id = ? AND status = 'WAITING'
+                        """, e.getMessage(), j.id());
+                if (n > 0) jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1", why);
+                return n;
             });
+            if (marked == 0) return; // bản khác đã xử lý việc này
             log.warn("[ExamSet] việc xếp hàng #{} ({} lượt #{}) hỏng: {}", j.id(), j.kind(), j.runId(), e.getMessage());
             // Ghi chú bị xoá khi máy tạo lượt kế tiếp; lịch sử giữ lý do, chuông báo để owner không lỡ.
             try {

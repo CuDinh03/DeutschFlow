@@ -604,4 +604,45 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(lastRunId()).isGreaterThan(busy);                        // tự nối vẫn chạy tiếp
         runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
     }
+
+    @Test
+    @DisplayName("hai bản backend cùng chọn một việc (blue-green): bản sau bỏ qua, không ghi đè Đã chạy thành hỏng, không báo chuông giả")
+    void secondInstanceSkipsJobAlreadyRun() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        long busy = lastRunId();
+        runs.redoTeil(done.id(), "LESEN", 2, null, admin);
+        ExamSetRunService.AutoJob picked = runs.auto().pending().get(0);   // bản thứ hai cũng đã chọn việc này
+
+        assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");          // bản thứ nhất chạy việc
+        runs.runJob(picked);                                               // bản thứ hai tới sau
+
+        assertThat(runs.auto().history()).singleElement().satisfies(h -> assertThat(h.status()).isEqualTo("DONE"));
+        assertThat(runs.auto().note()).isNull();
+        verify(notifications, times(0)).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Việc xếp hàng chưa chạy được"), anyString(), any());
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
+
+    @Test
+    @DisplayName("xếp hàng kiểm ngay lúc bấm: Teil không có trong lượt hoặc kênh AI lạ thì báo lỗi luôn, không xếp")
+    void queueValidatesAtPressTime() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+
+        assertThatThrownBy(() -> runs.redoTeil(done.id(), "LESEN", 9, null, admin))
+                .isInstanceOf(com.deutschflow.common.exception.NotFoundException.class).hasMessageContaining("không có");
+        assertThatThrownBy(() -> runs.redoTeil(done.id(), "LESEN", 2, "KHONG_CO_KENH_NAY_DAU", admin))
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("Kênh tạo đề không hợp lệ");
+        assertThatThrownBy(() -> runs.addHoeren(done.id(), "XYZ", admin)).isInstanceOf(BadRequestException.class);
+        assertThat(runs.auto().pending()).isEmpty();
+
+        runs.redoTeil(done.id(), "lesen", 2, "fireworks", admin);           // chữ thường vẫn nhận, lưu dạng chuẩn
+        assertThat(runs.auto().pending()).singleElement().satisfies(p -> {
+            assertThat(p.section()).isEqualTo("LESEN");
+            assertThat(p.channel()).isEqualTo("FIREWORKS");
+        });
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
 }

@@ -81,6 +81,8 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const jobLabel = (p: SetAutoJob) => (p.kind === 'REDO'
     ? t('pendingRedo', { teil: slotLabel(p.section ?? '', p.teil ?? 0), id: p.runId })
     : t('pendingAddHoeren', { id: p.runId }))
+  // Giao diện có thể chưa thấy lượt máy vừa tự tạo (nạp lại 10 giây một lần): khi đó báo câu không kèm số lượt.
+  const queuedMsg = () => (activeRun ? t('queued', { id: activeRun.id }) : t('queuedNoRun'))
   const pendingItems = (auto?.pending ?? []).map(jobLabel)
   const history = auto?.history ?? []
   useEffect(() => {
@@ -192,7 +194,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
       setRedoing(null)
       setProblem(null)
       // Lượt chưa chuyển sang chạy ⇒ backend đã xếp hàng chờ lượt đang chạy xong.
-      toast.success(ACTIVE.includes(next.status) ? t('redoStarted') : t('queued', { id: activeRun?.id ?? '' }))
+      toast.success(ACTIVE.includes(next.status) ? t('redoStarted') : queuedMsg())
       await load()
     } catch (e) {
       setRedoing(null)
@@ -210,7 +212,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
       const next = await addSetRunHoeren(addingHoeren.id, getStudioChannel())
       setAddingHoeren(null)
       setProblem(null)
-      toast.success(ACTIVE.includes(next.status) ? t('addHoerenStarted') : t('queued', { id: activeRun?.id ?? '' }))
+      toast.success(ACTIVE.includes(next.status) ? t('addHoerenStarted') : queuedMsg())
       await load()
     } catch (e) {
       setAddingHoeren(null)
