@@ -94,7 +94,7 @@ export default function WhatIsPage() {
           <p className={P}>
             <strong>myDeutschFlow</strong> là công cụ luyện phỏng vấn xin việc bằng tiếng Đức cho người Việt chuẩn bị sang Đức làm việc, dùng được trên web (mydeutschflow.com) và ứng dụng iPhone. AI đóng vai nhà tuyển dụng Đức, hỏi theo nghề bạn chọn, rồi chỉ ra chỗ cần sửa sau mỗi câu trả lời: ngữ pháp, từ dùng chưa đúng, ý còn thiếu.
           </p>
-          <p className={P}>Ngoài phỏng vấn, nền tảng có lộ trình học tiếng Đức từ A1 đến B1, thi thử theo format Goethe và telc, và công cụ cho trung tâm, giáo viên tiếng Đức.</p>
+          <p className={P}>Ngoài phỏng vấn, nền tảng có lộ trình học tiếng Đức từ A1 đến B1, thi thử telc B1, và công cụ cho trung tâm, giáo viên tiếng Đức.</p>
           <p className={P}>
             myDeutschFlow do <Link href="/about/" className={A}>{FOUNDER}</Link> phát triển. Người sáng lập cũng đang học tiếng Đức và chuẩn bị phỏng vấn; mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán.
           </p>
@@ -130,9 +130,9 @@ export default function WhatIsPage() {
           <h3 className={H3}>Lộ trình A1–B1 và ôn từ vựng</h3>
           <p className={P}>Lộ trình học từng ngày từ A1 đến B1, mỗi chặng có bốn kỹ năng nghe, đọc, nói, viết. Tiến độ hiện thành cây lộ trình: chặng đã xong mọc thành lá, chặng đang học là bông hoa. Từ vựng được nhắc lại theo cách lặp lại ngắt quãng, đúng lúc bạn sắp quên. B2 đang được xây dựng.</p>
 
-          <h3 className={H3}>Thi thử theo format Goethe và telc</h3>
+          <h3 className={H3}>Thi thử telc B1</h3>
           <p className={P}>
-            Luyện đủ 4 phần thi Goethe-Zertifikat A2–B2 và telc B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm. Bài Viết nộp qua ảnh để AI chấm bố cục và ngữ pháp. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo. Đề thi thử mô phỏng format, không liên kết với Goethe-Institut hay telc và không thay cho chứng chỉ. Xem <Link href="/luyen-thi/" className={A}>cấu trúc từng kỳ thi</Link> hoặc <Link href="/free-grade/" className={A}>chấm thử bài Schreiben B1 miễn phí</Link>.
+            Luyện đủ 4 phần thi telc Deutsch B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm. Bài Viết nộp qua ảnh để AI chấm bố cục và ngữ pháp. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo. Đề thi thử mô phỏng format telc B1, không liên kết với telc và không thay cho chứng chỉ. Xem <Link href="/luyen-thi/" className={A}>cấu trúc từng kỳ thi</Link> hoặc <Link href="/free-grade/" className={A}>chấm thử bài Schreiben B1 miễn phí</Link>.
           </p>
 
           <h2 className={H2}>Mỗi con đường sang Đức cần luyện gì?</h2>
@@ -181,7 +181,7 @@ export default function WhatIsPage() {
           <p className={P}>Với nhà tuyển dụng ở Đức, tính năng xem hồ sơ luyện nói của ứng viên đang chuẩn bị; nền tảng đang tìm đối tác chạy thử.</p>
 
           <h2 className={H2}>Chi phí và thiết bị</h2>
-          <p className={P}>Bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng; thông tin gói trả phí có trong ứng dụng. Dùng trên trình duyệt web máy tính và ứng dụng iPhone (iOS 15.1 trở lên). Trang web có giao diện tiếng Việt, tiếng Anh và tiếng Đức.</p>
+          <p className={P}>Bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng; thông tin gói trả phí có trong ứng dụng. Dùng trên trình duyệt web (máy tính và điện thoại) và ứng dụng iPhone (iOS 15.1 trở lên); máy Android dùng bản web. Trang web có giao diện tiếng Việt, tiếng Anh và tiếng Đức.</p>
 
           <h2 className={H2}>Câu hỏi thường gặp</h2>
           <div className="border-t border-ga-border">

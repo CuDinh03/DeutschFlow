@@ -5,7 +5,7 @@ import { jwtVerify, decodeProtectedHeader, importSPKI, type JWTPayload } from 'j
 import { NextRequest, NextResponse } from 'next/server'
 import { mediaOrigins } from '../media-origins.mjs'
 import { safeNext } from '@/lib/safeNext'
-import { LOCALE_HEADER, isLocalizedPublicPath, localizedHref, publicHref, slugPageFor, splitLocalePrefix } from '@/lib/publicLocale'
+import { LOCALE_HEADER, isLocalizedPublicPath, isVietnameseOnlyPublicPath, localizedHref, publicHref, slugPageFor, splitLocalePrefix } from '@/lib/publicLocale'
 
 type Role = 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
 
@@ -405,6 +405,11 @@ export async function middleware(request: NextRequest) {
       target.search = request.nextUrl.search
       return redirectTo(target)
     }
+  }
+  if (!urlLocale && isVietnameseOnlyPublicPath(pathname)) {
+    // Trang công khai chỉ có tiếng Việt (đợt 1, 14/11/2026): ép `vi` để `<html lang>` và chữ chung
+    // (header, footer) không chạy theo cookie EN/DE trên nội dung tiếng Việt.
+    requestHeaders.set(LOCALE_HEADER, 'vi')
   }
 
   // ĐÃ GỠ: kill-switch `GALERIE_V2_DISABLED` (bounce mọi /v2/* về path legacy tương ứng).

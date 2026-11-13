@@ -11,6 +11,7 @@ import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { GaInput, GaTextarea } from '@/components/ui-v2/GaInput'
 import { useTracking } from '@/hooks/useTracking'
 import { B2B_EVENT } from '@/lib/analytics/b2bEvents'
+import { START_HREF } from '@/components/landing-v2/links'
 
 const MIN_CHARS = 50
 const MAX_CHARS = 3000
@@ -96,7 +97,7 @@ export default function FreeGradeClientPage() {
       <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ga-small text-ga-muted">
         <li className="inline-flex items-center gap-2"><Clock size={16} aria-hidden className="text-ga-ink" /> Kết quả sau khoảng 15 giây</li>
         <li className="inline-flex items-center gap-2"><ShieldCheck size={16} aria-hidden className="text-ga-ink" /> Theo tiêu chí Goethe/telc</li>
-        <li className="inline-flex items-center gap-2"><Check size={16} aria-hidden className="text-ga-ink" /> Miễn phí, không cần tài khoản</li>
+        <li className="inline-flex items-center gap-2"><Check size={16} aria-hidden className="text-ga-ink" /> Miễn phí, không cần tài khoản — chỉ cần email hoặc Zalo để nhận kết quả</li>
       </ul>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-5">
@@ -159,7 +160,8 @@ export default function FreeGradeClientPage() {
             </div>
             <div>
               <label htmlFor="contact" className="mb-1.5 block text-ga-small font-semibold text-ga-ink">
-                Email / Zalo nhận kết quả
+                Email / Zalo nhận kết quả <span aria-hidden className="text-ga-red">*</span>
+                <span className="sr-only"> (bắt buộc)</span>
               </label>
               <div className="flex min-h-11 overflow-hidden rounded-ga-touch border border-ga-line bg-ga-card focus-within:ring-2 focus-within:ring-ga-focus lg:min-h-9">
                 <select
@@ -173,6 +175,7 @@ export default function FreeGradeClientPage() {
                 </select>
                 <input
                   id="contact"
+                  aria-required="true"
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                   placeholder={contactType === 'EMAIL' ? 'ban@email.com' : '09xx xxx xxx'}
@@ -241,8 +244,8 @@ function ResultCard({ result }: { result: FreeGradeResult }) {
         </div>
       </div>
       <GaBtn asChild variant="ink" size="lg" className="w-full">
-        <Link href="/v2/register">
-          Luyện thi tiếp với myDeutschFlow <ArrowRight size={16} aria-hidden />
+        <Link href={START_HREF}>
+          Luyện tiếp với myDeutschFlow <ArrowRight size={16} aria-hidden />
         </Link>
       </GaBtn>
       <p className="px-1 text-center text-ga-caption text-ga-muted">{result.message}</p>

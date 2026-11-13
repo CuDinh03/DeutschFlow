@@ -1,6 +1,9 @@
-/** Nhãn chất lượng của câu hỏi / từ chuyên môn (đợt 2d A+B+E): Đã duyệt · AI tạo · Bộ câu hỏi chung. */
+/**
+ * Nhãn chất lượng của câu hỏi / từ chuyên môn (đợt 2d A+B+E): Đã duyệt · AI tạo · Bộ câu hỏi chung.
+ * 14/11/2026: "Đã duyệt" bỏ viền mực đậm (trông như nút bấm được) — nền navy nhạt, không viền.
+ */
 const LABEL_CLASS = {
-  approved: 'border-ga-ink text-ga-ink',
+  approved: 'border-transparent bg-ga-navy-soft text-ga-navy',
   aiGenerated: 'border-ga-yellow bg-ga-yellow-soft text-ga-ink',
   general: 'border-ga-border text-ga-muted',
 } as const

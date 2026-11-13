@@ -3,7 +3,7 @@
     "shotScrollHint": "Scroll sideways for the rest",
     "meta": {
       "title": "myDeutschFlow — Practise German job interviews with AI",
-      "description": "Practise German job interviews with AI: questions for your profession and feedback after every answer. A1–B1 learning path, mock exams in Goethe format."
+      "description": "Practise German job interviews with AI: questions for your profession and feedback after every answer. A1–B1 learning path, telc B1 mock exams."
     },
     "nav": {
       "interview": "Interview by trade",
@@ -11,6 +11,7 @@
       "exam": "Exam practice",
       "centers": "For schools",
       "training": "Vocational training",
+      "guide": "Guides",
       "about": "About us",
       "mainAria": "Main navigation"
     },
@@ -28,7 +29,7 @@
       "sub": "An AI plays the German employer, asks questions for your trade and shows you what to fix after every answer: grammar, word choice, missing points.",
       "ctaStart": "Try it for free",
       "microcopy": "No card needed · Start in 2 minutes · iPhone app available",
-      "bullets": ["Questions for your own trade", "Mock exams in Goethe and telc format"]
+      "bullets": ["Questions for your own trade", "telc B1 mock exams in the real format"]
     },
     "explorer": {
       "cap": "Preview the interview questions",
@@ -65,7 +66,7 @@
         { "name": "Vocational training", "de": "Ausbildung", "who": "Starting a trade in Germany or switching to a new one.", "level": "B1, sometimes B2", "exam": "Goethe or telc B1", "interview": "Motivation, plans, knowledge of the trade and of Germany", "fit": "On myDeutschFlow: interviews by trade, A1–B1 path, B1 mock exams." },
         { "name": "Recognised qualifications", "de": "Anerkennung", "who": "Qualified and experienced: healthcare, engineering, crafts…", "level": "B1–B2, depending on the job and the state", "exam": "Job-specific exams such as telc Pflege, DTB", "interview": "Expertise, workplace situations, procedures", "fit": "On myDeutschFlow: interviews by trade. Job-specific exam papers are being written." },
         { "name": "Job search", "de": "Chancenkarte · Blaue Karte", "who": "Engineers, IT specialists, university graduates.", "level": "From A1, or B2 English", "exam": "Depends on the employer", "interview": "Expertise; German is an advantage", "fit": "On myDeutschFlow: interviews for IT, engineering and office roles." },
-        { "name": "University", "de": "Studium", "who": "Students planning to study at a German university.", "level": "Usually B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "University and visa interviews", "fit": "On myDeutschFlow: speaking practice, mock exams up to B2. No C1 path yet." },
+        { "name": "University", "de": "Studium", "who": "Students planning to study at a German university.", "level": "Usually B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "University and visa interviews", "fit": "On myDeutschFlow: speaking practice, telc B1 mock exams. No C1 path yet." },
         { "name": "Family reunion, settling", "de": "Familiennachzug", "who": "Spouses and relatives of people living in Germany.", "level": "A1 for the visa, B1 to settle long-term", "exam": "Start Deutsch A1, DTZ", "interview": "Visa interviews, everyday life", "fit": "On myDeutschFlow: path from A1, everyday speaking practice." }
       ]
     },
@@ -119,27 +120,25 @@
       ],
       "button": "Download on the App Store",
       "newTab": "(opens in a new tab)",
-      "note": "Free to download · For iPhone, iOS 15.1 or later",
+      "note": "Free to download · For iPhone, iOS 15.1 or later · Android: use the web version",
       "heroLink": "Also available for iPhone",
       "footer": "iPhone app"
     },
     "exam": {
-      "shotCap": "Real screen · Lesen exam room, clock running",
-      "shotAlt": "The reading section of the Goethe B1 mock exam: 58 minutes left of the 65 allowed, a 2-of-4 progress bar, richtig/falsch questions in German and a note that answers are being saved.",
       "clipCap": "Real screen recording · 24 seconds",
       "clipAlt": "24-second silent screen recording: Lesen practice with a running timer, choosing answers, reviewing mistakes, then AI marking a Writing task against three telc criteria.",
       "clipPlay": "Play video",
       "clipPause": "Pause video",
       "cap": "Exam practice",
       "title": "Mock exams in the real exam format",
-      "sub": "Practise all four parts of the Goethe-Zertifikat A2–B2 and telc B1 with the real timing and structure, with a weakness analysis after every attempt.",
+      "sub": "Practise all four parts of telc Deutsch B1 with the real timing and structure, with a weakness analysis after every attempt.",
       "parts": [
-        { "name": "Reading", "time": "65 min", "body": "5 reading parts with everyday and workplace texts, auto-scored instantly." },
-        { "name": "Listening", "time": "40 min", "body": "Dialogues, announcements and radio interviews at real exam speed." },
-        { "name": "Writing", "time": "60 min", "body": "Emails and opinion pieces — submit a photo, the AI scores structure and grammar." },
+        { "name": "Reading", "time": "90 min", "body": "Reading and Sprachbausteine (grammar and vocabulary) with everyday and workplace texts, auto-scored instantly." },
+        { "name": "Listening", "time": "30 min", "body": "Dialogues, announcements and short interviews at real exam speed." },
+        { "name": "Writing", "time": "30 min", "body": "A letter or email for a given situation — submit a photo, the AI scores structure and grammar." },
         { "name": "Speaking", "time": "15 min", "body": "Paired speaking, practised with the AI before exam day. Speaking scoring is in beta." }
       ],
-      "disclaimer": "Mock exams simulate the exam format and are not affiliated with the Goethe-Institut or telc. Speaking scoring is in beta; scores are for guidance only.",
+      "disclaimer": "Mock exams simulate the telc B1 format and are not affiliated with telc. Speaking scoring is in beta; scores are for guidance only.",
       "guideLink": "See the structure of each exam",
       "bannerCap": "AI-scored mock exam",
       "bannerTitle": "Know where you stand against B1 before you register for the real exam.",
@@ -153,7 +152,7 @@
         "title": "Students practise speaking every day between classes",
         "body": "Teachers assign work to the whole class, students do it on their phones and the AI drafts the grade. Teachers review and confirm grades for written work; results become a report for families.",
         "points": ["Assign a speaking task to a whole class with one topic", "Grade photos of handwritten work", "AI drafts, the teacher confirms grades for written work", "Family reports in Vietnamese, English and German"],
-        "ctaConsult": "Get a consultation for your school",
+        "ctaConsult": "Book a 20-minute demo",
         "ctaFree": "Free plan for teachers"
       },
       "employers": {
@@ -171,7 +170,7 @@
       "title": "Pick the plan that fits",
       "plans": [
         { "name": "Free", "price": "0₫", "sub": "", "features": ["A1–B1 vocabulary & grammar", "Daily spaced repetition (SRS)", "AI interviews with a daily limit"], "cta": "Start now" },
-        { "name": "Pro", "price": "299,000₫", "sub": "/month", "features": ["High daily AI interview limit", "Detailed grammar & content feedback", "Every interview trade", "Goethe exam practice A1–B2"], "cta": "Try 7 days free" },
+        { "name": "Pro", "price": "299,000₫", "sub": "/month", "features": ["High daily AI interview limit", "Detailed grammar & content feedback", "Every interview trade", "telc B1 mock exams"], "cta": "Try 7 days free" },
         { "name": "Teachers", "price": "Contact us", "sub": "", "features": ["Class management", "AI materials", "Speaking grading", "Student progress reports"], "cta": "Get a consultation" }
       ]
     },
@@ -191,7 +190,7 @@
         { "q": "How accurate is the AI feedback?", "a": "The AI points out grammar mistakes, wrong words and missing points, with a corrected sentence. Scores help you track progress and do not replace a real exam. If you study with a school, your teacher reviews and confirms grades for written work." },
         { "q": "Does it score pronunciation?", "a": "The AI shows which words it could not hear clearly in your answer. This is not yet a detailed sound-by-sound pronunciation analysis." },
         { "q": "What happens to my recordings?", "a": "Recordings are turned into text so they can be scored and reviewed. How long they are kept and how to ask for deletion is described in the Privacy Policy." },
-        { "q": "Is a mock exam a certificate?", "a": "No. Mock exams simulate the Goethe and telc format, are not affiliated with either organisation and do not replace a certificate." },
+        { "q": "Is a mock exam a certificate?", "a": "No. Mock exams simulate the telc B1 format, are not affiliated with telc and do not replace a certificate." },
         { "q": "I study at a language school. Can we use it together?", "a": "Yes. The school creates classes and assigns work; you do it in the app and your teacher follows and grades it." },
         { "q": "Does it cost anything?", "a": "You start for free with a daily AI practice allowance, no credit card needed. Paid plans are shown in the app." }
       ]
@@ -246,7 +245,7 @@
       "ch2": {
         "name": "Building it",
         "title": "So I built the tool I needed.",
-        "body": "An AI plays a German employer, asks about your actual job and points out what to fix after every answer. Add a day-by-day A1–B1 path and mock exams in the Goethe and telc format. Every job has an interviewer from that line of work."
+        "body": "An AI plays a German employer, asks about your actual job and points out what to fix after every answer. Add a day-by-day A1–B1 path and telc B1 mock exams. Every job has an interviewer from that line of work."
       },
       "timeline": {
         "name": "Step by step",

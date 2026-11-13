@@ -12,9 +12,9 @@ import { START_HREF } from '@/components/landing-v2/links'
 /**
  * Trang tổng luyện thi `/luyen-thi/` (chỉ tiếng Việt). Đợt C kế hoạch cải thiện trang chủ (08/11/2026):
  * chuyển sang hệ Galerie, dùng header/footer chung của trang công khai (ẩn nút đổi ngôn ngữ vì trang
- * chưa có bản en/de), title chứa cụm "thi thử Goethe B1 online". Nội dung các kỳ thi giữ nguyên.
+ * chưa có bản en/de), title chứa cụm "thi thử telc B1 online" (14/11/2026: chỉ telc B1 có thi thử thật — owner chốt). Nội dung các kỳ thi giữ nguyên.
  */
-const TITLE = 'Thi thử Goethe B1 online, luyện thi telc B1 · myDeutschFlow'
+const TITLE = 'Thi thử telc B1 online, cấu trúc đề Goethe · myDeutschFlow'
 const DESCRIPTION =
   'Hướng dẫn luyện thi tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.'
 
@@ -68,7 +68,7 @@ export default function ExamHubPage() {
           Luyện thi tiếng Đức Goethe và telc
         </h1>
         <p className="mt-5 max-w-[680px] text-ga-body-lg text-ga-muted">
-          Cấu trúc đề, cách tính điểm và checklist sẵn sàng thi cho các kỳ thi Goethe và telc. Thi thử Goethe B1
+          Cấu trúc đề, cách tính điểm và checklist sẵn sàng thi cho các kỳ thi Goethe và telc. Thi thử telc B1
           online ngay trên myDeutschFlow, đúng thời gian và cấu trúc đề. Chọn kỳ thi của bạn bên dưới.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -81,7 +81,7 @@ export default function ExamHubPage() {
         </div>
         <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">
           <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
-          Đề thi thử là mô phỏng theo format, không liên kết với Goethe-Institut hay telc.
+          Thi thử trên myDeutschFlow hiện có cho telc B1 (mô phỏng theo format). Các trang Goethe là hướng dẫn cấu trúc đề. myDeutschFlow không liên kết với Goethe-Institut hay telc.
         </p>
 
         <div className="mt-14 flex flex-col gap-12">

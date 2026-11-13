@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { absoluteUrl } from '@/lib/siteUrl'
+import { AI_SEARCH_BOTS, AI_TRAINING_BOTS } from '@/lib/aiCrawlers'
 
 /**
  * robots.txt — cho phép index trang công khai, chặn khu vực sau đăng nhập & API.
@@ -15,13 +16,16 @@ import { absoluteUrl } from '@/lib/siteUrl'
  * mỗi URL là phiếu điểm của một học viên, mở được chỉ vì token trong đường dẫn là bí mật. Trang tự khai
  * `noindex, nofollow` ở metadata; dòng này là lớp thứ hai để crawler đừng bò vào ngay từ đầu.
  */
+const PRIVATE_PATHS = ['/v2/', '/admin/', '/teacher/', '/student/', '/org/', '/api/', '/payment/', '/phieu/']
+
+
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      userAgent: '*',
-      allow: '/',
-      disallow: ['/v2/', '/admin/', '/teacher/', '/student/', '/org/', '/api/', '/payment/', '/phieu/'],
-    },
+    rules: [
+      { userAgent: '*', allow: '/', disallow: PRIVATE_PATHS },
+      { userAgent: [...AI_SEARCH_BOTS], allow: '/', disallow: PRIVATE_PATHS },
+      { userAgent: [...AI_TRAINING_BOTS], disallow: '/' },
+    ],
     sitemap: absoluteUrl('/sitemap.xml'),
   }
 }

@@ -58,8 +58,11 @@ describe('AboutStory — Về chúng tôi', () => {
     const about = within(nav).getByRole('link', { name: 'Về chúng tôi' })
     expect(about.getAttribute('href')).toBe('/about/')
     expect(about.getAttribute('aria-current')).toBe('page')
-    // Các mục còn lại trỏ về neo trên trang chủ, không phải neo trong trang này.
-    expect(within(nav).getByRole('link', { name: 'Phỏng vấn theo nghề' }).getAttribute('href')).toBe('/#interview')
+    // Đợt 1 (14/11/2026): mục có trang riêng trỏ CỐ ĐỊNH tới trang đó, không về neo trên trang chủ.
+    expect(within(nav).getByRole('link', { name: 'Phỏng vấn theo nghề' }).getAttribute('href')).toBe('/phong-van/')
+    expect(within(nav).getByRole('link', { name: 'Luyện thi' }).getAttribute('href')).toBe('/luyen-thi/')
+    expect(within(nav).getByRole('link', { name: 'Cẩm nang' }).getAttribute('href')).toBe('/cam-nang/')
+    expect(within(nav).queryByRole('link', { name: 'Hành trình' })).toBeNull()
   })
 
   it('kể đủ bốn chương và có ảnh người làm sản phẩm', () => {
@@ -100,6 +103,9 @@ describe('AboutStory — Về chúng tôi', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('learning German.')
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
     expect(within(nav).getByRole('link', { name: 'About us' }).getAttribute('href')).toBe('/en/about/')
-    expect(within(nav).getByRole('link', { name: 'Interview by trade' }).getAttribute('href')).toBe('/en/#interview')
+    expect(within(nav).getByRole('link', { name: 'Interview by trade' }).getAttribute('href')).toBe('/en/phong-van/')
+    // Trang Luyện thi và Cẩm nang chỉ có tiếng Việt: bản en lùi về khối trên trang chủ, Cẩm nang không hiện.
+    expect(within(nav).getByRole('link', { name: 'Exam practice' }).getAttribute('href')).toBe('/en/#exam')
+    expect(within(nav).queryByRole('link', { name: 'Guides' })).toBeNull()
   })
 })

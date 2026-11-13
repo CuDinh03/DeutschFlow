@@ -56,10 +56,13 @@
   color: var(--ga-gold);
 }
 
+/* 14/11/2026: link màu navy, gạch chân vàng — gold #C79A00 trên nền sáng chỉ ~2,6:1, dưới WCAG AA. */
 .ga-legal a {
-  color: var(--ga-gold);
+  color: var(--ga-navy);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: var(--ga-yellow);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
   transition: color var(--ga-duration, 150ms) var(--ga-ease-out, ease);
 }
 

@@ -3,7 +3,7 @@
     "shotScrollHint": "Seitwärts scrollen für den Rest",
     "meta": {
       "title": "myDeutschFlow — Vorstellungsgespräche auf Deutsch mit KI üben",
-      "description": "Vorstellungsgespräche auf Deutsch mit KI üben: Fragen passend zum Beruf, Feedback nach jeder Antwort. Lernpfad A1–B1, Probeprüfungen im Goethe-Format."
+      "description": "Vorstellungsgespräche auf Deutsch mit KI üben: Fragen passend zum Beruf, Feedback nach jeder Antwort. Lernpfad A1–B1, Probeprüfungen telc B1."
     },
     "nav": {
       "interview": "Interviews nach Beruf",
@@ -11,6 +11,7 @@
       "exam": "Prüfungstraining",
       "centers": "Für Sprachschulen",
       "training": "Ausbildung",
+      "guide": "Ratgeber",
       "about": "Über uns",
       "mainAria": "Hauptnavigation"
     },
@@ -28,7 +29,7 @@
       "sub": "Eine KI spielt den deutschen Arbeitgeber, stellt Fragen zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können: Grammatik, Wortwahl, fehlende Inhalte.",
       "ctaStart": "Kostenlos testen",
       "microcopy": "Keine Karte nötig · In 2 Minuten starten · App fürs iPhone",
-      "bullets": ["Fragen passend zu Ihrem Beruf", "Probeprüfungen im Goethe- und telc-Format"]
+      "bullets": ["Fragen passend zu Ihrem Beruf", "Probeprüfungen telc B1 im echten Format"]
     },
     "explorer": {
       "cap": "Fragen vorab ansehen",
@@ -65,7 +66,7 @@
         { "name": "Ausbildung", "de": "Ausbildung", "who": "Einstieg in einen Beruf in Deutschland oder Berufswechsel.", "level": "B1, manchmal B2", "exam": "Goethe oder telc B1", "interview": "Motivation, Pläne, Wissen über Beruf und Deutschland", "fit": "Bei myDeutschFlow: Interviews nach Beruf, Lernpfad A1–B1, Probeprüfung B1." },
         { "name": "Anerkennung", "de": "Anerkennung", "who": "Mit Abschluss und Berufserfahrung: Gesundheit, Technik, Handwerk…", "level": "B1–B2, je nach Beruf und Bundesland", "exam": "Berufsbezogene Prüfungen wie telc Pflege, DTB", "interview": "Fachwissen, Situationen im Beruf, Abläufe", "fit": "Bei myDeutschFlow: Interviews nach Beruf. Berufsbezogene Prüfungen werden gerade erstellt." },
         { "name": "Jobsuche", "de": "Chancenkarte · Blaue Karte", "who": "Ingenieurinnen und Ingenieure, IT-Fachkräfte, Hochschulabsolventen.", "level": "Ab A1 oder B2 Englisch", "exam": "Je nach Arbeitgeber", "interview": "Fachwissen; Deutsch ist ein Vorteil", "fit": "Bei myDeutschFlow: Interviews für IT, Technik und Büro." },
-        { "name": "Studium", "de": "Studium", "who": "Schülerinnen und Schüler, Studierende mit Studienziel Deutschland.", "level": "Meist B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Gespräche mit Hochschule und Visumstelle", "fit": "Bei myDeutschFlow: Sprechtraining, Probeprüfungen bis B2. Noch kein C1-Lernpfad." },
+        { "name": "Studium", "de": "Studium", "who": "Schülerinnen und Schüler, Studierende mit Studienziel Deutschland.", "level": "Meist B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Gespräche mit Hochschule und Visumstelle", "fit": "Bei myDeutschFlow: Sprechtraining, Probeprüfungen telc B1. Noch kein C1-Lernpfad." },
         { "name": "Familiennachzug", "de": "Familiennachzug", "who": "Ehepartner und Angehörige von Menschen, die in Deutschland leben.", "level": "A1 für das Visum, B1 für den Daueraufenthalt", "exam": "Start Deutsch A1, DTZ", "interview": "Visumgespräch, Alltag", "fit": "Bei myDeutschFlow: Lernpfad ab A1, Sprechtraining für den Alltag." }
       ]
     },
@@ -119,27 +120,25 @@
       ],
       "button": "Im App Store laden",
       "newTab": "(öffnet in neuem Tab)",
-      "note": "Kostenloser Download · Für iPhone ab iOS 15.1",
+      "note": "Kostenloser Download · Für iPhone ab iOS 15.1 · Android: Web-Version nutzen",
       "heroLink": "Auch als iPhone-App",
       "footer": "iPhone-App"
     },
     "exam": {
-      "shotCap": "Echter Screen · Prüfungsraum Lesen, Uhr läuft",
-      "shotAlt": "Der Leseteil der Goethe-B1-Modellprüfung: noch 58 von 65 Minuten, Fortschrittsbalken 2 von 4, Richtig-Falsch-Aufgaben auf Deutsch und der Hinweis, dass gespeichert wird.",
       "clipCap": "Echte Bildschirmaufnahme · 24 Sekunden",
       "clipAlt": "24 Sekunden ohne Ton, echte Bildschirmaufnahme: Lesen-Training mit laufender Uhr, Antworten wählen, Fehler ansehen, danach bewertet die KI einen Schreiben-Text nach drei telc-Kriterien.",
       "clipPlay": "Video abspielen",
       "clipPause": "Video anhalten",
       "cap": "Prüfungstraining",
       "title": "Probeprüfungen im echten Prüfungsformat",
-      "sub": "Alle vier Teile des Goethe-Zertifikats A2–B2 und telc B1 mit echter Zeit und Struktur üben, mit Schwächenanalyse nach jedem Durchgang.",
+      "sub": "Alle vier Teile von telc Deutsch B1 mit echter Zeit und Struktur üben, mit Schwächenanalyse nach jedem Durchgang.",
       "parts": [
-        { "name": "Leseverstehen", "time": "65 Min.", "body": "5 Leseteile mit Alltags- und Arbeitstexten, sofort automatisch bewertet." },
-        { "name": "Hörverstehen", "time": "40 Min.", "body": "Dialoge, Durchsagen und Radiointerviews im echten Prüfungstempo." },
-        { "name": "Schreiben", "time": "60 Min.", "body": "E-Mails und Stellungnahmen — als Foto einreichen, die KI bewertet Aufbau und Grammatik." },
+        { "name": "Leseverstehen", "time": "90 Min.", "body": "Leseverstehen und Sprachbausteine mit Alltags- und Arbeitstexten, sofort automatisch bewertet." },
+        { "name": "Hörverstehen", "time": "30 Min.", "body": "Dialoge, Durchsagen und kurze Interviews im echten Prüfungstempo." },
+        { "name": "Schreiben", "time": "30 Min.", "body": "Ein Brief oder eine E-Mail zu einer Situation — als Foto einreichen, die KI bewertet Aufbau und Grammatik." },
         { "name": "Sprechen", "time": "15 Min.", "body": "Partnergespräch, vor dem Prüfungstag mit der KI üben. Die Sprechbewertung ist in der Beta-Phase." }
       ],
-      "disclaimer": "Die Probeprüfungen sind Simulationen im Prüfungsformat und stehen in keiner Verbindung zum Goethe-Institut oder zu telc. Die Sprechbewertung ist in der Beta-Phase, die Punkte dienen nur zur Orientierung.",
+      "disclaimer": "Die Probeprüfungen sind Simulationen im Format telc B1 und stehen in keiner Verbindung zu telc. Die Sprechbewertung ist in der Beta-Phase, die Punkte dienen nur zur Orientierung.",
       "guideLink": "Aufbau der Prüfungen ansehen",
       "bannerCap": "Probeprüfung mit KI-Bewertung",
       "bannerTitle": "Wissen, wo Sie im Vergleich zu B1 stehen, bevor Sie sich zur echten Prüfung anmelden.",
@@ -153,7 +152,7 @@
         "title": "Lernende üben jeden Tag Sprechen, auch außerhalb des Unterrichts",
         "body": "Lehrkräfte geben der ganzen Klasse Aufgaben, Lernende bearbeiten sie auf dem Handy, die KI macht einen Bewertungsvorschlag. Lehrkräfte prüfen und bestätigen die Noten für schriftliche Aufgaben; die Ergebnisse werden zum Bericht für die Familie.",
         "points": ["Sprechaufgabe mit einem Thema an die ganze Klasse geben", "Fotos handschriftlicher Texte bewerten", "KI-Vorschlag, Lehrkraft bestätigt die Note für schriftliche Aufgaben", "Familienbericht auf Vietnamesisch, Englisch und Deutsch"],
-        "ctaConsult": "Beratung für Ihre Sprachschule",
+        "ctaConsult": "Demo (20 Minuten) buchen",
         "ctaFree": "Kostenloses Paket für Lehrkräfte"
       },
       "employers": {
@@ -171,7 +170,7 @@
       "title": "Das passende Paket wählen",
       "plans": [
         { "name": "Kostenlos", "price": "0₫", "sub": "", "features": ["Wortschatz & Grammatik A1–B1", "Tägliche Wiederholung (SRS)", "KI-Gespräche mit Tageslimit"], "cta": "Jetzt starten" },
-        { "name": "Pro", "price": "299.000₫", "sub": "/Monat", "features": ["Hohes Tageslimit für KI-Gespräche", "Detailliertes Feedback zu Grammatik & Inhalt", "Alle Berufe im Gesprächstraining", "Goethe-Prüfungstraining A1–B2"], "cta": "7 Tage kostenlos testen" },
+        { "name": "Pro", "price": "299.000₫", "sub": "/Monat", "features": ["Hohes Tageslimit für KI-Gespräche", "Detailliertes Feedback zu Grammatik & Inhalt", "Alle Berufe im Gesprächstraining", "Probeprüfungen telc B1"], "cta": "7 Tage kostenlos testen" },
         { "name": "Lehrkräfte", "price": "Auf Anfrage", "sub": "", "features": ["Klassenverwaltung", "KI-Materialien", "Sprechbewertung", "Fortschrittsberichte der Lernenden"], "cta": "Beratung anfragen" }
       ]
     },
@@ -191,7 +190,7 @@
         { "q": "Wie genau ist das KI-Feedback?", "a": "Die KI zeigt Grammatikfehler, unpassende Wörter und fehlende Inhalte, mit korrigiertem Satz. Die Punkte helfen, den Fortschritt zu verfolgen, und ersetzen keine echte Prüfung. Wer mit einer Sprachschule lernt, bekommt Noten für schriftliche Aufgaben von der Lehrkraft bestätigt." },
         { "q": "Wird die Aussprache bewertet?", "a": "Die KI zeigt, welche Wörter in Ihrer Antwort nicht klar zu verstehen waren. Eine detaillierte Analyse einzelner Laute ist das noch nicht." },
         { "q": "Was passiert mit meinen Aufnahmen?", "a": "Aufnahmen werden in Text umgewandelt, damit sie bewertet und kommentiert werden können. Speicherdauer und Löschung stehen in der Datenschutzerklärung." },
-        { "q": "Ist eine Probeprüfung ein Zertifikat?", "a": "Nein. Probeprüfungen simulieren das Goethe- und telc-Format, stehen in keiner Verbindung zu diesen Organisationen und ersetzen kein Zertifikat." },
+        { "q": "Ist eine Probeprüfung ein Zertifikat?", "a": "Nein. Probeprüfungen simulieren das Format telc B1, stehen in keiner Verbindung zu telc und ersetzen kein Zertifikat." },
         { "q": "Ich lerne an einer Sprachschule. Können wir es gemeinsam nutzen?", "a": "Ja. Die Sprachschule legt Klassen an und gibt Aufgaben; Sie bearbeiten sie in der App, die Lehrkraft verfolgt und bewertet sie." },
         { "q": "Kostet das etwas?", "a": "Sie starten kostenlos mit einem täglichen KI-Kontingent, ohne Kreditkarte. Bezahlpakete werden in der App angezeigt." }
       ]
@@ -246,7 +245,7 @@
       "ch2": {
         "name": "Selbst gebaut",
         "title": "Also habe ich das Werkzeug gebaut, das ich gebraucht habe.",
-        "body": "Eine KI spielt eine Arbeitgeberin oder einen Arbeitgeber in Deutschland, fragt zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können. Dazu ein Tag-für-Tag-Lernweg A1–B1 und Probeprüfungen im Format von Goethe und telc. Für jeden Beruf gibt es eine Person aus der Branche."
+        "body": "Eine KI spielt eine Arbeitgeberin oder einen Arbeitgeber in Deutschland, fragt zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können. Dazu ein Tag-für-Tag-Lernweg A1–B1 und Probeprüfungen telc B1. Für jeden Beruf gibt es eine Person aus der Branche."
       },
       "timeline": {
         "name": "Schritt für Schritt",

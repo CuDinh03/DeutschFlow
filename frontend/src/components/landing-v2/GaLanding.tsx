@@ -351,15 +351,8 @@ export function GaLanding() {
           <>
             {examGrid}
             {examDisclaimer}
-            <div className="mt-9 md:mt-11">
-              <GaShot
-                name="exam"
-                caption={t('exam.shotCap')}
-                alt={t('exam.shotAlt')}
-                accent="var(--ga-orange)"
-                sizes={SHOT_FULL_SIZES}
-              />
-            </div>
+            {/* 14/11/2026: bỏ ảnh phòng thi Goethe B1 — chỉ telc B1 có thi thử thật (owner chốt). Có ảnh
+                phòng thi telc B1 thì thêm lại ở đây (`landingShots` `exam`). */}
           </>
         )}
         <div className="mt-6 flex flex-wrap items-center gap-[18px] bg-ga-ink p-5 text-ga-bg sm:p-[22px_28px]">

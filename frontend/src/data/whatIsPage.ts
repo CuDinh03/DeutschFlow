@@ -9,7 +9,7 @@
 export const PATH = '/mydeutschflow-la-gi/'
 export const TITLE = 'myDeutschFlow là gì? Cách luyện phỏng vấn tiếng Đức với AI'
 export const DESCRIPTION =
-  'myDeutschFlow giúp người Việt luyện phỏng vấn tiếng Đức theo đúng nghề với AI, học A1–B1 và thi thử theo format Goethe, telc. Xem cách dùng và chi phí.'
+  'myDeutschFlow giúp người Việt luyện phỏng vấn tiếng Đức theo đúng nghề với AI, học A1–B1 và thi thử telc B1. Xem cách dùng và chi phí.'
 export const H1 = 'myDeutschFlow là gì? Cách luyện phỏng vấn tiếng Đức với AI'
 export const FOUNDER = 'Đinh Huy Cự'
 
@@ -17,7 +17,7 @@ export const PATHWAYS = [
   { name: 'Học nghề (Ausbildung)', level: 'B1, đôi khi B2', exam: 'Goethe hoặc telc B1', interview: 'Động lực, kế hoạch, hiểu biết về nghề và nước Đức', fit: 'Lộ trình A1–B1, phỏng vấn theo nghề, thi thử B1' },
   { name: 'Công nhận bằng nghề (Anerkennung)', level: 'B1–B2, tuỳ nghề và bang', exam: 'Kỳ thi nghề nghiệp như telc Pflege, DTB', interview: 'Chuyên môn, tình huống trong nghề, quy trình', fit: 'Phỏng vấn theo nghề. Đề thi nghề nghiệp đang được biên soạn' },
   { name: 'Tìm việc (Chancenkarte, Blaue Karte)', level: 'Từ A1, hoặc B2 tiếng Anh', exam: 'Tuỳ nhà tuyển dụng', interview: 'Chuyên môn; tiếng Đức là lợi thế', fit: 'Phỏng vấn cho IT, kỹ thuật, văn phòng' },
-  { name: 'Du học đại học (Studium)', level: 'Thường B2–C1', exam: 'TestDaF, DSH, Goethe C1', interview: 'Phỏng vấn trường, phỏng vấn visa', fit: 'Luyện nói, thi thử đến B2. Chưa có lộ trình C1' },
+  { name: 'Du học đại học (Studium)', level: 'Thường B2–C1', exam: 'TestDaF, DSH, Goethe C1', interview: 'Phỏng vấn trường, phỏng vấn visa', fit: 'Luyện nói, thi thử telc B1. Chưa có lộ trình C1' },
   { name: 'Đoàn tụ, định cư (Familiennachzug)', level: 'A1 khi xin visa, B1 khi định cư lâu dài', exam: 'Start Deutsch A1, DTZ', interview: 'Phỏng vấn visa, đời sống hằng ngày', fit: 'Lộ trình từ A1, luyện nói đời sống hằng ngày' },
 ] as const
 
@@ -32,7 +32,7 @@ export const FAQS = [
   },
   {
     q: 'AI chấm có chính xác không? Điểm có thay chứng chỉ không?',
-    a: 'AI chỉ ra lỗi ngữ pháp, từ dùng chưa đúng và ý còn thiếu, kèm câu sửa. Điểm dùng để theo dõi tiến bộ, không thay cho kỳ thi thật. Thi thử mô phỏng format Goethe và telc, không liên kết với hai tổ chức này và không phải chứng chỉ.',
+    a: 'AI chỉ ra lỗi ngữ pháp, từ dùng chưa đúng và ý còn thiếu, kèm câu sửa. Điểm dùng để theo dõi tiến bộ, không thay cho kỳ thi thật. Thi thử telc B1 mô phỏng format đề, không liên kết với telc và không phải chứng chỉ.',
   },
   {
     q: 'Có mất phí không?',
