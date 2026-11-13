@@ -37,9 +37,8 @@ describe('khung lỗi ở trang admin', () => {
     for (const file of ROOTS.flatMap(walk)) {
       const rel = relative(process.cwd(), file).split(sep).join('/')
       const src = readFileSync(file, 'utf8')
-      for (const m of src.matchAll(/<ErrorBanner\b[^>]*>/g)) {
+      for (const tag of src.match(/<ErrorBanner\b[^>]*>/g) ?? []) {
         seen += 1
-        const tag = m[0]
         if (/\btitle=/.test(tag)) continue
         // message={t('…')}: câu cố định của trang, tự nó đã nói chuyện gì.
         if (/message=\{t\(/.test(tag)) continue
