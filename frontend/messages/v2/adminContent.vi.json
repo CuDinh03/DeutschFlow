@@ -648,6 +648,7 @@
         "addHoerenStarted": "Đã bắt đầu tạo phần Nghe. Bảng tự cập nhật."
       },
       "sources": {
+        "loadError": "Không tải được danh mục nguồn",
         "intro": "Danh mục nơi đăng mà dây chuyền tạo bộ đề được dùng. \"Đọc bài mới\" chỉ lấy danh sách bài (tiêu đề, đường dẫn), không tải bài. Mỗi bài chỉ được dùng một lần.",
         "empty": "Danh mục nguồn đang trống.",
         "class": {

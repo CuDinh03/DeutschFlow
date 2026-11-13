@@ -648,6 +648,7 @@
         "addHoerenStarted": "Listening part started. The table updates by itself."
       },
       "sources": {
+        "loadError": "Could not load the source catalogue",
         "intro": "Publishers the exam-set pipeline may use. \"Read new articles\" only collects the article list (title, link); it does not download articles. Each article is used once.",
         "empty": "The source catalogue is empty.",
         "class": {
