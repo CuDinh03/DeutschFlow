@@ -16,6 +16,10 @@ import type { PersonaId } from '@/lib/personas'
 export const COMMON_INTRO_QUESTION =
   'Bitte stellen Sie sich kurz vor: Werdegang, relevante Erfahrung für {pos}, und Ihr nächster Schritt.'
 
+/** Hai câu làm quen dùng chung (`ice_motivation`, `ice_found_role`, giai đoạn ICE_BREAKER) — bài Cẩm nang giới thiệu bản thân trích. */
+export const COMMON_MOTIVATION_QUESTION = 'Was hat Sie besonders an der Position {pos} interessiert?'
+export const COMMON_FOUND_ROLE_QUESTION = 'Wie sind Sie auf diese Stelle aufmerksam geworden, und was erwarten Sie vom Team?'
+
 /** Nhân vật có bộ câu hỏi phỏng vấn riêng (supportsInterview = true trong src/lib/personas.ts). */
 export type InterviewPersonaId = Exclude<PersonaId, 'tuan' | 'lan' | 'minh'>
 

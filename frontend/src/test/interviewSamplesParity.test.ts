@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { COMMON_INTRO_QUESTION, INTERVIEW_SAMPLES } from '@/data/interviewSamples'
+import { COMMON_FOUND_ROLE_QUESTION, COMMON_INTRO_QUESTION, COMMON_MOTIVATION_QUESTION, INTERVIEW_SAMPLES } from '@/data/interviewSamples'
 import { PERSONA_LIST } from '@/lib/personas'
 
 /**
@@ -24,6 +24,11 @@ describe('câu hỏi mẫu trên landing khớp InterviewQuestionBank', () => {
 
   it('câu mở đầu dùng chung có trong bank', () => {
     expect(bank).toContain(`"${COMMON_INTRO_QUESTION}"`)
+  })
+
+  it('hai câu làm quen dùng chung có trong bank', () => {
+    expect(bank).toContain(`"${COMMON_MOTIVATION_QUESTION}"`)
+    expect(bank).toContain(`"${COMMON_FOUND_ROLE_QUESTION}"`)
   })
 
   for (const [persona, questions] of Object.entries(INTERVIEW_SAMPLES)) {
