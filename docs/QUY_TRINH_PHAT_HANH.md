@@ -5,7 +5,7 @@
 >
 > Repo PUBLIC (công khai lại từ 11/2026; từng private từ 08/11/2026, có thể đổi lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
 >
-> Cập nhật lần cuối: 11/11/2026 (repo công khai lại; máy chủ vẫn lấy code bằng deploy key chỉ đọc, §8.5).
+> Cập nhật lần cuối: 13/11/2026 (deploy backend từ chối khi Xưởng đề đang chạy, §6.1).
 
 ---
 
@@ -205,7 +205,9 @@ DEPLOY_BRANCH=main deploy/self-host/deploy-backend-vm.sh   # sau khi máy chủ 
 deploy/self-host/deploy-backend-vm.sh --rollback       # quay về :prev
 ```
 
-Script: preflight (`backend.env` đủ biến, không còn `AWS_*`/placeholder, disk < 90 %, Postgres `pg_isready`, Redis `PONG`) → build image tag theo commit → chạy màu kia → health 300 s + warm-up → đổi upstream nginx → kiểm `https://api.mydeutschflow.com/actuator/health` = UP → xả màu cũ sau 30 s → tag `:prev`/`:latest` → dọn an toàn.
+Script: preflight (`backend.env` đủ biến, không còn `AWS_*`/placeholder, disk < 90 %, Postgres `pg_isready`, Redis `PONG`, **Xưởng đề không có việc AI đang chạy**) → build image tag theo commit → chạy màu kia → health 300 s + warm-up → đổi upstream nginx → kiểm `https://api.mydeutschflow.com/actuator/health` = UP → xả màu cũ sau 30 s → tag `:prev`/`:latest` → dọn an toàn.
+
+**Xưởng đề đang chạy thì script từ chối deploy.** Lượt "Tạo bộ đề tự động" và các bước AI của bản nháp chạy nền trong tiến trình backend; đổi màu là cắt ngang chúng (13/11/2026: một lần deploy làm lượt #9 treo 25 phút). Preflight đếm lượt đang `PLANNING`/`RUNNING` và bản nháp đang gọi AI trong 30 phút gần nhất; khác 0 thì dừng, production không bị đụng. Chờ chúng xong (admin → Xưởng đề → Bộ đề) rồi chạy lại. Chỉ khi buộc phải lên ngay (vá khẩn): `ALLOW_DEPLOY_DURING_EXAM_RUN=1 deploy/self-host/deploy-backend-vm.sh` — các việc đang chạy sẽ hỏng và phải bấm làm lại. `--rollback` không bị chặn. Deploy frontend không ảnh hưởng.
 
 ### 6.2 Migration (Flyway)
 

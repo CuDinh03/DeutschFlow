@@ -45,6 +45,27 @@ success "backend.env: đủ ${#REQUIRED[@]} biến bắt buộc, 0 AWS_*"
 docker exec deutschflow-postgres pg_isready -U deutschflow_user -d deutschflow >/dev/null || { error "Postgres chưa sẵn sàng"; exit 1; }
 [ "$(docker exec deutschflow-redis redis-cli ping 2>/dev/null)" = PONG ] || { error "Redis không PONG"; exit 1; }
 success "Postgres + Redis OK"
+# Việc AI đang chạy nền (Xưởng đề) sống trong tiến trình backend: đổi màu là cắt ngang chúng. 13/11/2026 một lần
+# deploy lúc lượt tạo bộ đề #9 đang tự kiểm làm bước đó treo 25 phút. Rollback là thao tác khẩn nên không chặn.
+# Bảng chưa có (DB mới) hoặc truy vấn lỗi ⇒ coi như không có việc nào, không chặn deploy.
+if [ "$MODE" != --rollback ]; then
+  busy_runs=$(docker exec deutschflow-postgres psql -U deutschflow_user -d deutschflow -Atc \
+    "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING','RUNNING')" 2>/dev/null || echo 0)
+  busy_drafts=$(docker exec deutschflow-postgres psql -U deutschflow_user -d deutschflow -Atc \
+    "SELECT count(*) FROM exam_drafts WHERE busy_op IS NOT NULL AND status = 'DRAFT' AND updated_at > now() - interval '30 minutes'" 2>/dev/null || echo 0)
+  busy_runs=${busy_runs:-0}; busy_drafts=${busy_drafts:-0}
+  if [ "$busy_runs" != 0 ] || [ "$busy_drafts" != 0 ]; then
+    if [ "${ALLOW_DEPLOY_DURING_EXAM_RUN:-0}" = 1 ]; then
+      warn "Xưởng đề đang chạy ($busy_runs lượt tạo bộ đề, $busy_drafts bản nháp đang gọi AI) — vẫn deploy vì ALLOW_DEPLOY_DURING_EXAM_RUN=1; các việc đó sẽ bị cắt ngang"
+    else
+      error "Xưởng đề đang chạy: $busy_runs lượt tạo bộ đề, $busy_drafts bản nháp đang gọi AI. Deploy backend lúc này sẽ cắt ngang chúng."
+      error "Chờ chúng xong (trang admin → Xưởng đề → Bộ đề) rồi chạy lại. Buộc phải deploy ngay: ALLOW_DEPLOY_DURING_EXAM_RUN=1 $0"
+      exit 1
+    fi
+  else
+    success "Xưởng đề không có việc AI nào đang chạy"
+  fi
+fi
 disk_guard
 
 ACTIVE_PORT=$(active_port backend)
