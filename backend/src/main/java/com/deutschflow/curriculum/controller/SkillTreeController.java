@@ -38,7 +38,8 @@ public class SkillTreeController {
 
     private static final long CORRECT_WRITING_ESTIMATED_TOKENS = 2_500L;
     private static final long SATELLITE_GEN_ESTIMATED_TOKENS   = 4_000L;
-    private static final long STT_ESTIMATED_TOKENS              =   200L;
+    /** ≈ 10 giây ghi âm × 90 token/giây (app.quota.stt-tokens-per-second); trước là 200 = 10 giây × 20. */
+    private static final long STT_ESTIMATED_TOKENS              =   900L;
 
     private final SkillTreeService skillTreeService;
     private final com.deutschflow.ai.tier.LlmTierResolver llmTierResolver;

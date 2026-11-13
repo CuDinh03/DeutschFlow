@@ -1014,6 +1014,15 @@ app:
     deepl-free-monthly-char-cap: ${DEEPL_FREE_MONTHLY_CHAR_CAP:490000}
     strict-free-mode: ${APP_VOCAB_STRICT_FREE:true}
 
+  # ── Quy đổi dùng AI ra token của ví / pool trung tâm ──
+  quota:
+    # Số token-tương-đương trừ vào ví (hoặc pool trung tâm) cho MỖI GIÂY ghi âm gửi đi nhận diện
+    # giọng nói. Nhà cung cấp STT tính tiền theo giây chứ không theo token nên phải quy đổi.
+    # Chủ dự án chốt 90 (11/2026; trước đó cố định 20 trong mã) vì 20 thấp hơn chi phí thật của
+    # một giây ghi âm nhiều lần. Phải > 0. Các cổng kiểm tra trước khi gọi STT (STT_ESTIMATED_TOKENS
+    # = 900 ≈ 10 giây) đặt theo mặc định này — đổi đáng kể thì rà lại các hằng đó.
+    stt-tokens-per-second: ${APP_QUOTA_STT_TOKENS_PER_SECOND:90}
+
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 

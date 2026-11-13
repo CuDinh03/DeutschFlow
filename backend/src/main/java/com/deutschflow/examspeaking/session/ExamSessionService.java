@@ -69,7 +69,8 @@ public class ExamSessionService {
     public static final String JOB_TYPE_MOCK_GRADING = "EXAM_MOCK_GRADING";
     static final long TURN_ESTIMATED_TOKENS = 700L;
     static final long DRILL_EVAL_ESTIMATED_TOKENS = 600L;
-    static final long STT_ESTIMATED_TOKENS = 200L;
+    /** Ngân sách phải còn trước khi gọi STT: ≈ 10 giây ghi âm × 90 token/giây (app.quota.stt-tokens-per-second); trước là 200 = 10 giây × 20. */
+    static final long STT_ESTIMATED_TOKENS = 900L;
     static final long MOCK_GRADING_ESTIMATED_TOKENS = 12_000L;
     /** F-08: mock phải có ngân sách chấm ngay lúc TẠO — thi trọn bài rồi mới biết hết ví là đánh đổi sai. */
     static final long MOCK_CREATE_ESTIMATED_TOKENS = MOCK_GRADING_ESTIMATED_TOKENS + TURN_ESTIMATED_TOKENS;

@@ -44,8 +44,12 @@ public class AiJobController {
      * Ước lượng token để chặn pool org TRƯỚC khi enqueue (audit 24/07 R-B4). Trước đây submit không
      * gate quota/pool và worker chỉ ghi ledger SAU khi tiêu — user hết quota hoặc org cạn pool vẫn
      * đốt Whisper + Groq không giới hạn qua hàng đợi. Pronunciation ≈ Whisper ngắn; report ≈ 1 lượt LLM.
+     *
+     * <p>Pronunciation là ước lượng theo GHI ÂM (~25 giây): 500 khi quy đổi là 20 token/giây, nay
+     * 2 250 theo 90 token/giây ({@code app.quota.stt-tokens-per-second}) — nhân đúng tỷ lệ 4,5.
+     * Report là ước lượng LLM, không liên quan ghi âm nên giữ nguyên.
      */
-    private static final long PRONUNCIATION_JOB_ESTIMATED_TOKENS = 500L;
+    private static final long PRONUNCIATION_JOB_ESTIMATED_TOKENS = 2_250L;
     private static final long INTERVIEW_REPORT_JOB_ESTIMATED_TOKENS = 1_500L;
 
     // ──────────────────────────────────────────────────────────────

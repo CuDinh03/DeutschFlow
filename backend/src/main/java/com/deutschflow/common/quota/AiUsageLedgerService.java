@@ -4,7 +4,8 @@ import com.deutschflow.organization.service.OrgQuotaService;
 import com.deutschflow.organization.service.OrgQuotaService.OrgMembership;
 import com.deutschflow.organization.service.OrgQuotaService.OrgReservation;
 import com.deutschflow.speaking.ai.TokenUsage;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 
 @Service
-@RequiredArgsConstructor
 public class AiUsageLedgerService {
 
     private final JdbcTemplate jdbcTemplate;
@@ -27,13 +27,56 @@ public class AiUsageLedgerService {
     private final Clock clock;
 
     /**
-     * Token-tương-đương cho mỗi giây audio STT. Whisper bị Groq tính theo giây (không theo
-     * token), nên để STT cũng trừ vào org token pool + ví người dùng như các tính năng token
-     * khác (audit M-3: trước đây STT KHÔNG trừ gì → org metered chạy Speaking "miễn phí" với
-     * pool). Hiệu chỉnh để 1 clip ~10s ≈ {@code STT_ESTIMATED_TOKENS} (200) mà OrgPoolGuard
-     * dùng ở bước pre-check gate.
+     * Mặc định của {@code app.quota.stt-tokens-per-second}: token-tương-đương cho mỗi giây ghi âm.
+     * Chủ dự án chốt 90 (trước đó 20) vì 20 thấp hơn chi phí thật của một giây ghi âm nhiều lần.
      */
-    private static final long STT_TOKENS_PER_SECOND = 20L;
+    public static final long DEFAULT_STT_TOKENS_PER_SECOND = 90L;
+
+    /**
+     * Token-tương-đương cho mỗi giây audio STT, đọc từ {@code app.quota.stt-tokens-per-second}.
+     * Nhà cung cấp STT tính tiền theo giây (không theo token), nên để STT cũng trừ vào org token
+     * pool + ví người dùng như các tính năng token khác (audit M-3: trước đây STT KHÔNG trừ gì →
+     * org metered chạy Speaking "miễn phí" với pool) phải quy giây ra token.
+     *
+     * <p>Các cổng kiểm tra trước khi gọi STT ({@code STT_ESTIMATED_TOKENS} = 900 ở
+     * {@code AiSessionController}, {@code PronunciationController}, {@code SkillTreeController},
+     * {@code ExamSessionService}) được đặt bằng một clip ~10 giây theo mặc định 90. Đổi cấu hình
+     * này đáng kể thì rà lại các hằng đó.
+     */
+    private final long sttTokensPerSecond;
+
+    @Autowired
+    public AiUsageLedgerService(JdbcTemplate jdbcTemplate,
+                                QuotaService quotaService,
+                                OrgQuotaService orgQuotaService,
+                                Clock clock,
+                                @Value("${app.quota.stt-tokens-per-second:" + DEFAULT_STT_TOKENS_PER_SECOND + "}")
+                                long sttTokensPerSecond) {
+        if (sttTokensPerSecond <= 0) {
+            // 0 hoặc âm = ghi âm miễn phí (hoặc CỘNG token) cho mọi người — sai cấu hình, không chạy tiếp.
+            throw new IllegalArgumentException(
+                    "app.quota.stt-tokens-per-second phải > 0, đang là " + sttTokensPerSecond);
+        }
+        this.jdbcTemplate = jdbcTemplate;
+        this.quotaService = quotaService;
+        this.orgQuotaService = orgQuotaService;
+        this.clock = clock;
+        this.sttTokensPerSecond = sttTokensPerSecond;
+    }
+
+    /** Dùng mặc định {@link #DEFAULT_STT_TOKENS_PER_SECOND} — cho test dựng service bằng tay. */
+    public AiUsageLedgerService(JdbcTemplate jdbcTemplate, QuotaService quotaService,
+                                OrgQuotaService orgQuotaService, Clock clock) {
+        this(jdbcTemplate, quotaService, orgQuotaService, clock, DEFAULT_STT_TOKENS_PER_SECOND);
+    }
+
+    /** Số token-tương-đương tính cho {@code durationSeconds} giây ghi âm (làm tròn; không âm). */
+    public long sttTokensFor(double durationSeconds) {
+        if (!(durationSeconds > 0)) {
+            return 0L;
+        }
+        return Math.round(durationSeconds * sttTokensPerSecond);
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public void recordStt(Long userId, String feature, String model, double durationSeconds) {
@@ -52,7 +95,7 @@ public class AiUsageLedgerService {
         // B2B-COGS (audit M-3): quy giây audio → token-tương-đương và trừ vào org pool + ví,
         // giống record(). No-op cho user không thuộc org (pool) / plan không có ví.
         if (userId != null && durationSeconds > 0) {
-            chargeOrgPoolAndWallet(userId, Math.round(durationSeconds * STT_TOKENS_PER_SECOND));
+            chargeOrgPoolAndWallet(userId, sttTokensFor(durationSeconds));
         }
     }
 

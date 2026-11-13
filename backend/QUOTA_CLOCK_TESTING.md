@@ -96,7 +96,7 @@ kết quả     = min(cap, balance + pulls × daily)
 | `daily_token_grant` của PRO | 400 000 | `V42__ai_quota_daily_vn_and_wallets.sql:18`, giữ nguyên ở `V73__subscription_plans_v2.sql:57` |
 | `wallet_cap_days` của PRO | 30 | cùng hai migration trên |
 | `cap` | 30 × 400 000 = 12 000 000 | tích của hai dòng trên |
-| Số token bị trừ | 477 | `QuotaBillingIntegrationTest` — "STT 23,87s ≈ 477 token-tương-đương", số của vụ thật |
+| Số token bị trừ | 477 | `QuotaBillingIntegrationTest` — "STT 23,87s ≈ 477 token-tương-đương", số của vụ thật (theo quy đổi 20 token/giây lúc đó). Test truyền thẳng 477 vào `record(...)`, không tính từ số giây, nên không đổi khi quy đổi ghi âm lên 90 token/giây (`app.quota.stt-tokens-per-second`; cùng clip nay ≈ 2 148). |
 
 Test **không** hard-code 400 000; nó đọc từ DB (`QuotaBillingIntegrationTest.java:223`), nên bảng trên
 là để hiểu, không phải hằng số phải đồng bộ tay.
