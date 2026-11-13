@@ -71,7 +71,13 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
 
   useEffect(() => { if (active) void load() }, [active, load])
 
-  const anyActive = (runs ?? []).some((r) => ACTIVE.includes(r.status))
+  const activeRun = (runs ?? []).find((r) => ACTIVE.includes(r.status)) ?? null
+  const anyActive = activeRun != null
+  // Tự nối đang bật: "Làm lại Teil" / "Tạo phần Nghe" vẫn bấm được lúc máy chạy — backend xếp hàng (owner chốt 13/11/2026).
+  const canQueue = auto?.enabled === true
+  const pendingItems = (auto?.pending ?? []).map((p) => (p.kind === 'REDO'
+    ? t('pendingRedo', { teil: slotLabel(p.section ?? '', p.teil ?? 0), id: p.runId })
+    : t('pendingAddHoeren', { id: p.runId })))
   useEffect(() => {
     if (!active || (!anyActive && !auto?.enabled)) return
     timer.current = setTimeout(() => void load(), REFRESH_MS)
@@ -177,10 +183,11 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     setBusy(true)
     try {
       // Làm lại bằng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
-      await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil, getStudioChannel())
+      const next = await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil, getStudioChannel())
       setRedoing(null)
       setProblem(null)
-      toast.success(t('redoStarted'))
+      // Lượt chưa chuyển sang chạy ⇒ backend đã xếp hàng chờ lượt đang chạy xong.
+      toast.success(ACTIVE.includes(next.status) ? t('redoStarted') : t('queued', { id: activeRun?.id ?? '' }))
       await load()
     } catch (e) {
       setRedoing(null)
@@ -195,10 +202,10 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     setBusy(true)
     try {
       // Như "Làm lại Teil": dùng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
-      await addSetRunHoeren(addingHoeren.id, getStudioChannel())
+      const next = await addSetRunHoeren(addingHoeren.id, getStudioChannel())
       setAddingHoeren(null)
       setProblem(null)
-      toast.success(t('addHoerenStarted'))
+      toast.success(ACTIVE.includes(next.status) ? t('addHoerenStarted') : t('queued', { id: activeRun?.id ?? '' }))
       await load()
     } catch (e) {
       setAddingHoeren(null)
@@ -248,6 +255,12 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
         )}
         {auto?.note && <p className="ga-ui basis-full break-words text-ga-caption text-ga-muted">{auto.note}</p>}
         {anyActive && !auto?.enabled && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('oneAtATime')}</p>}
+        {anyActive && canQueue && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('autoQueueHint')}</p>}
+        {pendingItems.length > 0 && (
+          <p className="ga-ui basis-full break-words text-ga-caption font-semibold text-ga-ink">
+            {t('autoPending', { items: pendingItems.join('; ') })}
+          </p>
+        )}
       </GaCard>
 
       {error && <ErrorBanner title={t('loadError')} message={error} onRetry={() => void load()} />}
@@ -276,7 +289,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
                 <GaBtn size="sm" variant="ghost" disabled={busy} onClick={() => void recheck(r)}>{t('recheck')}</GaBtn>
               )}
               {canAddHoeren(r) && (
-                <GaBtn size="sm" variant="ghost" disabled={busy || anyActive} onClick={() => setAddingHoeren(r)}>{t('addHoeren')}</GaBtn>
+                <GaBtn size="sm" variant="ghost" disabled={busy || (anyActive && !canQueue)} onClick={() => setAddingHoeren(r)}>{t('addHoeren')}</GaBtn>
               )}
               {r.status !== 'APPROVED' && (
                 <button type="button" className={studioMiniBtn} disabled={busy} onClick={() => setDiscarding(r)}>
@@ -334,7 +347,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
                     )}
                     <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
                       {(r.status === 'NEEDS_ATTENTION' || r.status === 'REVIEW') && (
-                        <button type="button" className={studioMiniBtn} disabled={busy || anyActive}
+                        <button type="button" className={studioMiniBtn} disabled={busy || (anyActive && !canQueue)}
                           onClick={() => setRedoing({ run: r, teil: x })}>
                           {t('redo')}
                         </button>

@@ -594,6 +594,16 @@ export interface SetAuto {
   note: string | null
   waiting: number
   maxWaiting: number
+  /** Việc owner bấm lúc tự nối đang bật mà máy đang chạy lượt khác: chạy ngay khi lượt đó xong, theo thứ tự bấm. */
+  pending?: SetAutoPending[]
+}
+
+export interface SetAutoPending {
+  kind: 'REDO' | 'ADD_HOEREN'
+  runId: number
+  section: string | null
+  teil: number | null
+  channel: string | null
 }
 
 export async function getSetAuto(): Promise<SetAuto> {

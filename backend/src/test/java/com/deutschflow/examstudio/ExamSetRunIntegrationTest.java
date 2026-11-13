@@ -530,4 +530,66 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(runs.auto().note()).contains("Đã tự tắt").contains("#" + created);
         verify(notifications).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Tự nối lượt đã tắt"), anyString(), any());
     }
+
+    @Test
+    @DisplayName("tự nối đang chạy: bấm làm lại Teil thì xếp hàng; lượt đang chạy xong thì làm việc đó trước rồi mới tạo lượt mới")
+    void autoQueuesOwnerRedo() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        long busy = lastRunId();
+        assertThat(busy).isGreaterThan(done.id());
+
+        RunView queued = runs.redoTeil(done.id(), "LESEN", 2);
+        assertThat(queued.status()).isEqualTo("REVIEW");                    // chưa chạy: đang chờ lượt kia xong
+        runs.redoTeil(done.id(), "LESEN", 2);                                // bấm lại: không xếp trùng
+        assertThat(runs.auto().pending()).singleElement()
+                .satisfies(p -> {
+                    assertThat(p.kind()).isEqualTo("REDO");
+                    assertThat(p.runId()).isEqualTo(done.id());
+                    assertThat(p.section()).isEqualTo("LESEN");
+                    assertThat(p.teil()).isEqualTo(2);
+                });
+
+        assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");
+        assertThat(runs.get(done.id()).status()).isEqualTo("RUNNING");     // việc xếp hàng chạy ngay
+        assertThat(runs.auto().pending()).isEmpty();
+        assertThat(lastRunId()).isEqualTo(busy);                            // chưa tự tạo lượt mới
+
+        assertThat(runToEnd(done.id()).status()).isEqualTo("REVIEW");
+        runs.tickAll();
+        assertThat(lastRunId()).isGreaterThan(busy);                        // xong việc của owner mới nối lượt
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
+
+    @Test
+    @DisplayName("tự nối tắt: có lượt đang chạy thì làm lại Teil vẫn báo đợi như cũ, không xếp hàng")
+    void manualModeStillRejectsWhileBusy() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.create(new CreateRunRequest("TELC", "B1", null, null), admin);
+        assertThatThrownBy(() -> runs.redoTeil(done.id(), "LESEN", 2)).isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đang chạy");
+        assertThatThrownBy(() -> runs.addHoeren(done.id(), null)).isInstanceOf(BadRequestException.class);
+        assertThat(runs.auto().pending()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("việc xếp hàng không còn làm được (lượt đã bị bỏ): ghi chú và báo chuông, không chặn tự nối")
+    void queuedActionThatNoLongerFitsIsReported() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        long busy = lastRunId();
+        runs.addHoeren(done.id(), null);
+        assertThat(runs.auto().pending()).singleElement().satisfies(p -> assertThat(p.kind()).isEqualTo("ADD_HOEREN"));
+        runs.discard(done.id());
+
+        assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");
+        assertThat(runs.auto().pending()).isEmpty();
+        assertThat(runs.auto().note()).contains("Chưa chạy được việc bạn đã xếp").contains("#" + done.id());
+        verify(notifications).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Việc xếp hàng chưa chạy được"), anyString(), any());
+        runs.tickAll();
+        assertThat(lastRunId()).isGreaterThan(busy);                        // tự nối vẫn chạy tiếp
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
 }

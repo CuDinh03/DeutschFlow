@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS exam_set_auto (
     channel     VARCHAR(20)  NOT NULL DEFAULT 'FIREWORKS',
     created_by  BIGINT       REFERENCES users (id) ON DELETE SET NULL,
     note        TEXT,
+    -- Việc owner bấm ("Làm lại Teil này", "Tạo phần Nghe") lúc tự nối đang bật và máy đang chạy một lượt: xếp hàng,
+    -- nhịp nền chạy lần lượt ngay khi không còn lượt nào chạy, TRƯỚC khi tự tạo lượt mới (owner chốt 13/11/2026).
+    pending     JSONB        NOT NULL DEFAULT '[]'::jsonb,
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 

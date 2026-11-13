@@ -221,6 +221,39 @@ describe('SetRunsPanel', () => {
     await waitFor(() => expect(m.redoSetRunTeil).toHaveBeenCalledWith(6, 'LESEN', 1, 'ROUTER'))
   })
 
+  it('tự nối đang bật và có lượt chạy: "Làm lại Teil này" vẫn bấm được, báo đã xếp hàng và hiện việc đang chờ', async () => {
+    const busy = run({ id: 8, status: 'RUNNING' })
+    const done = run({ id: 6, status: 'REVIEW', teile: [teil({ status: 'READY', stage: 'DONE' })] })
+    m.listSetRuns.mockResolvedValue([busy, done])
+    m.getSetAuto.mockResolvedValue(autoView({ enabled: true }))
+    m.redoSetRunTeil.mockResolvedValue(done) // backend xếp hàng: lượt chưa chuyển sang chạy
+    show()
+    expect(await screen.findByText(/việc được xếp hàng, chạy ngay khi lượt đó xong/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Tạo bộ đề telc B1/ })).toBeDisabled()
+    const redo = screen.getByRole('button', { name: 'Làm lại Teil này' })
+    expect(redo).toBeEnabled()
+
+    m.getSetAuto.mockResolvedValue(autoView({
+      enabled: true, pending: [{ kind: 'REDO', runId: 6, section: 'LESEN', teil: 1, channel: 'ROUTER' }],
+    }))
+    await userEvent.click(redo)
+    const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Làm lại Teil này' }))
+    await waitFor(() => expect(m.redoSetRunTeil).toHaveBeenCalledWith(6, 'LESEN', 1, 'ROUTER'))
+    expect(toast.success).toHaveBeenCalledWith('Đã xếp hàng: máy làm việc này ngay khi lượt #8 chạy xong.')
+    expect(await screen.findByText(/Chờ chạy: .* của lượt #6\./)).toBeInTheDocument()
+  })
+
+  it('tự nối tắt và có lượt chạy: "Làm lại Teil này" bị khoá, hiện lý do', async () => {
+    m.listSetRuns.mockResolvedValue([
+      run({ id: 8, status: 'RUNNING' }),
+      run({ id: 6, status: 'REVIEW', teile: [teil({ status: 'READY', stage: 'DONE' })] }),
+    ])
+    show()
+    expect(await screen.findByRole('button', { name: 'Làm lại Teil này' })).toBeDisabled()
+    expect(screen.getByText(/Đợi lượt đó xong/)).toBeInTheDocument()
+  })
+
   it('lượt đã bỏ không hiện; ba ngôn ngữ đủ khoá', async () => {
     m.listSetRuns.mockResolvedValue([run({ status: 'DISCARDED' })])
     show()

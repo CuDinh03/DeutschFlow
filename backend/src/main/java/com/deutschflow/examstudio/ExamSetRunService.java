@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -67,6 +69,20 @@ public class ExamSetRunService {
     private final ExamStudioAi ai;
     private final UserNotificationService notifications;
     private final ExamAssemblyService assembly;
+    private final PlatformTransactionManager txManager;
+
+    /**
+     * Khoá chung (pg_advisory_xact_lock) cho mọi chỗ "kiểm không có lượt chạy rồi tạo / chạy lại lượt": nút của owner
+     * và nhịp tự nối không chen nhau ra hai lượt cùng chạy. Khoá nhả khi giao dịch kết thúc.
+     */
+    private static final long RUNS_LOCK = 0x45584D5352554E53L; // "EXMSRUNS"
+
+    private <T> T locked(java.util.function.Supplier<T> body) {
+        return new TransactionTemplate(txManager).execute(status -> {
+            jdbc.query("SELECT pg_advisory_xact_lock(?)", rs -> null, RUNS_LOCK);
+            return body.get();
+        });
+    }
 
     public record CreateRunRequest(String examFormat, String cefrLevel, String profile, String channel) {}
 
@@ -93,7 +109,7 @@ public class ExamSetRunService {
     // ── Tạo lượt, xem lượt ───────────────────────────────────────────────────────────────────────────────
 
     public RunView create(CreateRunRequest req, long userId) {
-        return createRun(req, userId);
+        return locked(() -> createRun(req, userId));
     }
 
     /** Hồ sơ độ khó REAL (mặc định) hoặc SPRINT; lạ thì báo kèm nút cần bấm lại. */
@@ -218,6 +234,23 @@ public class ExamSetRunService {
      *                Trống ⇒ giữ kênh của lượt.
      */
     public RunView redoTeil(long id, String section, int teil, String channel) {
+        return locked(() -> {
+            requireFinished(id, RunGuide.BTN_REDO);
+            if (queueIfAutoBusy(new PendingAction(PendingAction.REDO, id, section.toUpperCase(), teil, channel))) return get(id);
+            return doRedoTeil(id, section, teil, channel);
+        });
+    }
+
+    /** Hai nút "Làm lại Teil này" / "Tạo phần Nghe" chỉ dùng cho lượt đã chạy xong và chưa duyệt. */
+    private void requireFinished(long id, String button) {
+        RunRow run = run(id);
+        if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
+            throw RunGuide.wrongStatus(id, run.status(), button,
+                    "đã chạy xong và chưa duyệt (\"Cần bạn xem\" hoặc \"Sẵn sàng duyệt\")");
+        }
+    }
+
+    private RunView doRedoTeil(long id, String section, int teil, String channel) {
         if (channel != null && !channel.isBlank()) {
             String ch = ai.requireChannel(channel).name();
             jdbc.update("UPDATE exam_set_runs SET channel = ? WHERE id = ? AND status IN ('NEEDS_ATTENTION', 'REVIEW')", ch, id);
@@ -274,8 +307,16 @@ public class ExamSetRunService {
      * với {@link #redoTeil}: chỉ lượt đã chạy xong và chưa duyệt, mỗi lúc một lượt chạy, kênh AI là kênh admin đang
      * chọn (trống ⇒ giữ kênh của lượt). Không đủ chủ đề thì không thêm dòng nào.
      */
-    @org.springframework.transaction.annotation.Transactional
     public RunView addHoeren(long id, String channel) {
+        return locked(() -> {
+            requireFinished(id, RunGuide.BTN_ADD_HOEREN);
+            if (queueIfAutoBusy(new PendingAction(PendingAction.ADD_HOEREN, id, null, null, channel))) return get(id);
+            return doAddHoeren(id, channel);
+        });
+    }
+
+    /** Chạy trong {@link #locked}: hỏng giữa chừng thì cả giao dịch hoàn lại, ba dòng Teil vừa thêm biến mất. */
+    private RunView doAddHoeren(long id, String channel) {
         RunRow run = run(id);
         if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
             throw RunGuide.wrongStatus(id, run.status(), RunGuide.BTN_ADD_HOEREN,
@@ -352,17 +393,79 @@ public class ExamSetRunService {
 
     public record AutoView(boolean enabled, String examFormat, String cefrLevel, String profile, String channel,
                            /** Lý do máy đang tạm dừng hoặc đã tự tắt; null khi chạy bình thường. */
-                           String note, int waiting, int maxWaiting) {}
+                           String note, int waiting, int maxWaiting,
+                           /** Việc owner đã bấm, chờ lượt đang chạy xong (theo thứ tự bấm). */
+                           List<PendingAction> pending) {}
+
+    /**
+     * Một việc owner bấm lúc tự nối đang bật mà máy đang chạy lượt khác: {@code kind} là {@link #REDO} (kèm
+     * {@code section}, {@code teil}) hoặc {@link #ADD_HOEREN}. {@code channel} là kênh AI lúc bấm (trống ⇒ kênh của lượt).
+     */
+    public record PendingAction(String kind, long runId, String section, Integer teil, String channel) {
+        static final String REDO = "REDO";
+        static final String ADD_HOEREN = "ADD_HOEREN";
+
+        boolean sameAs(PendingAction o) {
+            return kind.equals(o.kind) && runId == o.runId && java.util.Objects.equals(section, o.section)
+                    && java.util.Objects.equals(teil, o.teil);
+        }
+    }
 
     public AutoView auto() {
         Integer waiting = jdbc.queryForObject(
                 "SELECT count(*) FROM exam_set_runs WHERE status IN ('REVIEW', 'NEEDS_ATTENTION')", Integer.class);
+        int w = waiting == null ? 0 : waiting;
         return jdbc.query("SELECT * FROM exam_set_auto WHERE id = 1", (rs, i) -> new AutoView(rs.getBoolean("enabled"),
                         rs.getString("exam_format"), rs.getString("cefr_level"), rs.getString("profile"),
-                        rs.getString("channel"), rs.getString("note"), waiting == null ? 0 : waiting, AUTO_MAX_WAITING))
+                        rs.getString("channel"), rs.getString("note"), w, AUTO_MAX_WAITING,
+                        readPending(rs.getString("pending"))))
                 .stream().findFirst()
-                .orElse(new AutoView(false, "TELC", "B1", "REAL", "FIREWORKS", null, waiting == null ? 0 : waiting,
-                        AUTO_MAX_WAITING));
+                .orElse(new AutoView(false, "TELC", "B1", "REAL", "FIREWORKS", null, w, AUTO_MAX_WAITING, List.of()));
+    }
+
+    private List<PendingAction> readPending(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return mapper.readValue(json, new TypeReference<List<PendingAction>>() {});
+        } catch (Exception e) {
+            log.warn("[ExamSet] hàng chờ tự nối lượt hỏng, bỏ qua: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<PendingAction> pending() {
+        return jdbc.query("SELECT pending::text AS p FROM exam_set_auto WHERE id = 1", (rs, i) -> readPending(rs.getString("p")))
+                .stream().findFirst().orElse(List.of());
+    }
+
+    private void savePending(List<PendingAction> list) {
+        try {
+            jdbc.update("UPDATE exam_set_auto SET pending = ?::jsonb WHERE id = 1", mapper.writeValueAsString(list));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("Không ghi được hàng chờ tự nối lượt", e);
+        }
+    }
+
+    /**
+     * Owner chốt 13/11/2026 ("bấm thì tự tạm dừng"): tự nối đang bật và máy đang chạy một lượt ⇒ không báo lỗi mà xếp
+     * việc vào hàng; nhịp nền chạy việc đó ngay khi lượt đang chạy xong, trước khi tự tạo lượt mới. Tự nối tắt ⇒ giữ
+     * luật cũ (báo "đợi lượt đang chạy xong"). Bấm trùng việc đã xếp ⇒ không xếp thêm. Gọi trong {@link #locked}.
+     *
+     * @return true nếu đã xếp hàng (người gọi không chạy ngay)
+     */
+    private boolean queueIfAutoBusy(PendingAction action) {
+        boolean autoOn = Boolean.TRUE.equals(jdbc.query("SELECT enabled FROM exam_set_auto WHERE id = 1",
+                (rs, i) -> rs.getBoolean("enabled")).stream().findFirst().orElse(false));
+        Integer active = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+        if (!autoOn || active == null || active == 0) return false;
+        List<PendingAction> list = new ArrayList<>(pending());
+        if (list.stream().noneMatch(p -> p.sameAs(action))) {
+            list.add(action);
+            savePending(list);
+            log.info("[ExamSet] tự nối đang chạy: xếp hàng {} cho lượt #{}", action.kind(), action.runId());
+        }
+        return true;
     }
 
     /** Bật / tắt tự nối lượt. Bật thì lưu kỳ thi, cấp, hồ sơ và kênh AI cho mọi lượt máy tự tạo về sau. */
@@ -397,6 +500,53 @@ public class ExamSetRunService {
      * không trôi khi máy ghi ghi chú.
      */
     void autoContinue() {
+        // Việc owner đã xếp hàng chạy trước, mỗi nhịp một việc. Lấy việc ra (giao dịch 1) rồi chạy (giao dịch 2):
+        // việc hỏng giữa chừng thì chỉ giao dịch 2 hoàn lại, việc đã lấy ra không bị chạy lại mãi.
+        PendingAction next = locked(() -> {
+            Integer active = jdbc.queryForObject(
+                    "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+            if (active != null && active > 0) return null;
+            List<PendingAction> list = new ArrayList<>(pending());
+            if (list.isEmpty()) return null;
+            PendingAction first = list.remove(0);
+            savePending(list);
+            return first;
+        });
+        if (next != null) {
+            runPending(next);
+            return;
+        }
+        locked(() -> {
+            autoCreateNext();
+            return null;
+        });
+    }
+
+    private void runPending(PendingAction p) {
+        try {
+            locked(() -> PendingAction.REDO.equals(p.kind())
+                    ? doRedoTeil(p.runId(), p.section(), p.teil() == null ? 0 : p.teil(), p.channel())
+                    : doAddHoeren(p.runId(), p.channel()));
+            log.info("[ExamSet] chạy việc owner xếp hàng: {} lượt #{}", p.kind(), p.runId());
+        } catch (RuntimeException e) {
+            String what = PendingAction.REDO.equals(p.kind())
+                    ? "\"" + RunGuide.BTN_REDO + "\" " + ApprovalGuide.slotLabel(p.section(), p.teil() == null ? 0 : p.teil())
+                    : "\"" + RunGuide.BTN_ADD_HOEREN + "\"";
+            String why = "Chưa chạy được việc bạn đã xếp: " + what + " của lượt #" + p.runId() + ". " + e.getMessage();
+            jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1", why);
+            log.warn("[ExamSet] việc xếp hàng {} lượt #{} hỏng: {}", p.kind(), p.runId(), e.getMessage());
+            // Ghi chú bị xoá khi máy tạo lượt kế tiếp, nên báo thêm qua chuông để owner không lỡ.
+            try {
+                notifications.onSystemAlert("EXAM_STUDIO_SET", "Việc xếp hàng chưa chạy được", why,
+                        Map.of("runId", p.runId(), "url", RunGuide.runUrl(p.runId())));
+            } catch (RuntimeException ne) {
+                log.warn("[ExamSet] không gửi được thông báo việc xếp hàng hỏng: {}", ne.getMessage());
+            }
+        }
+    }
+
+    /** Phần tự tạo lượt kế tiếp của {@link #autoContinue}; gọi trong {@link #locked}. */
+    private void autoCreateNext() {
         Map<String, Object> cfg = jdbc.queryForList("SELECT * FROM exam_set_auto WHERE id = 1").stream().findFirst().orElse(null);
         if (cfg == null || !Boolean.TRUE.equals(cfg.get("enabled"))) return;
         Integer active = jdbc.queryForObject(
