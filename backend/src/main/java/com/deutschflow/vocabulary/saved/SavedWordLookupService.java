@@ -183,7 +183,7 @@ public class SavedWordLookupService {
         // Chủ đề AI (chọn theo câu, trong bộ sẵn) đứng trước luật từ khoá: luật so khớp CHUỖI CON nên dễ
         // trúng nhầm (từ khoá "ei" của Essen khớp cả "teilnehmen").
         if (aiTopic != null && taxonomy.contains(aiTopic)) return new Topic(aiTopic, "AI");
-        List<String> fromRules = topicKeywordRuleService.inferTags(lemma, meaning, taxonomy);
+        List<String> fromRules = topicKeywordRuleService.inferTagsStrict(lemma, meaning, taxonomy);
         if (!fromRules.isEmpty()) return new Topic(fromRules.get(0), "RULE");
         return new Topic(null, "NONE");
     }
