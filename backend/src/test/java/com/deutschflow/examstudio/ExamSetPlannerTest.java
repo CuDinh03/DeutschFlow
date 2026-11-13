@@ -87,6 +87,32 @@ class ExamSetPlannerTest {
     }
 
     @Test
+    @DisplayName("bộ 9 Teil (có 3 Teil Nghe): Lesen 1 bốn chủ đề + tám Teil còn lại = 12 chủ đề khác nhau, vẫn còn chủ đề để đổi")
+    void assignNineSlots() {
+        List<Slot> nine = List.of(new Slot("LESEN", 1, 5, ExamSetPlanner.MIX_THEMES), new Slot("LESEN", 2, 1),
+                new Slot("LESEN", 3, 0), new Slot("SPRACHBAUSTEINE", 1, 0), new Slot("SPRACHBAUSTEINE", 2, 0),
+                new Slot("HOEREN", 1, 0), new Slot("HOEREN", 2, 0), new Slot("HOEREN", 3, 0), new Slot("SCHREIBEN", 1, 0));
+        for (long seed = 1; seed <= 20; seed++) {
+            Map<String, String> themes = ExamSetPlanner.assign(nine, Map.of(), t -> 7, List.of(), seed);
+            assertThat(themes.keySet()).containsExactly("LESEN#1", "LESEN#2", "LESEN#3", "SPRACHBAUSTEINE#1",
+                    "SPRACHBAUSTEINE#2", "HOEREN#1", "HOEREN#2", "HOEREN#3", "SCHREIBEN#1");
+            assertThat(themes.values()).doesNotContainNull();
+            List<String> all = new java.util.ArrayList<>();
+            for (String th : themes.values()) all.addAll(ExamSetPlanner.split(th));
+            assertThat(all).hasSize(12).doesNotHaveDuplicates();
+            // Một Teil Nghe hỏng vòng: cấm mọi chủ đề đang dùng trong bộ, vẫn còn chủ đề khác để đổi.
+            Map<String, String> swap = ExamSetPlanner.assign(List.of(new Slot("HOEREN", 2, 0)), Map.of(), t -> 0, all, seed);
+            assertThat(swap.get("HOEREN#2")).isNotNull().isNotIn(all);
+        }
+        // Thêm phần Nghe cho lượt cũ: ba ô, cấm 9 chủ đề của sáu Teil đã có ⇒ ba chủ đề mới, không lặp.
+        List<String> used = List.of("Wohnen", "Arbeit", "Gesundheit", "Bildung", "Verkehr", "Reisen", "Einkaufen", "Sport", "Umwelt");
+        Map<String, String> added = ExamSetPlanner.assign(nine.subList(5, 8), Map.of(), t -> 0, used, 3L);
+        assertThat(added.values()).doesNotContainNull().doesNotHaveDuplicates().doesNotContainAnyElementsOf(used);
+        // Bảng chủ đề đủ rộng: ít nhất 12 + 4 chủ đề dự phòng.
+        assertThat(ExamSetPlanner.THEMES.size()).isGreaterThanOrEqualTo(16);
+    }
+
+    @Test
     @DisplayName("gán chủ đề: ưu tiên chủ đề ô đó dùng ít nhất; chủ đề bị cấm không được chọn")
     void assignLeastUsedAndBanned() {
         Map<String, Map<String, Integer>> usage = new java.util.HashMap<>();
@@ -138,5 +164,10 @@ class ExamSetPlannerTest {
         });
         assertThat(ExamSetPlanner.theme("wohnen").name()).isEqualTo("Wohnen");
         assertThat(ExamSetPlanner.theme("Politik")).isNull();
+        // Luật cứng: không chính trị, di cư, chiến tranh, tôn giáo — cả ở tên lẫn gốc từ khoá.
+        assertThat(ExamSetPlanner.THEMES).allSatisfy(t -> assertThat((t.name() + " " + String.join(" ", t.stems()))
+                .toLowerCase(java.util.Locale.GERMAN)).doesNotContain("politi", "migra", "flücht", "krieg", "relig", "kirch", "wahl"));
+        // Gốc quá chung khớp nhầm tiêu đề ("amt" trong "gesamt", "fest" trong "feststellen").
+        assertThat(ExamSetPlanner.THEMES).allSatisfy(t -> assertThat(t.stems()).doesNotContain("amt", "fest"));
     }
 }

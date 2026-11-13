@@ -65,10 +65,18 @@ public class ExamDedupService {
         if (c.get("examples") instanceof List<?> ex) {
             for (Object e : ex) if (e instanceof Map<?, ?> m && m.get("situation") != null) sb.append(m.get("situation")).append('\n');
         }
+        // Phần Nghe: câu khung, lời thoại cấp Teil (mảng lượt lời) và lời thoại của từng câu. Câu dẫn tình huống
+        // (lead_in_de) là câu nghi thức lặp lại giữa các đề nên không tính.
+        if (c.get("framing_de") != null) sb.append(c.get("framing_de")).append('\n');
+        if (c.get("audio_script") instanceof List<?> turns) {
+            for (Object t : turns) if (t instanceof Map<?, ?> m && m.get("text") != null) sb.append(m.get("text")).append('\n');
+        }
         if (c.get("items") instanceof List<?> items) {
             for (Object o : items) {
                 if (!(o instanceof Map<?, ?> it)) continue;
-                for (String k : List.of("text", "question")) if (it.get(k) != null) sb.append(it.get(k)).append('\n');
+                for (String k : List.of("text", "audio_script", "question")) {
+                    if (it.get(k) instanceof String v) sb.append(v).append('\n');
+                }
                 if (it.get("options") instanceof Map<?, ?> op) op.values().forEach(v -> sb.append(v).append('\n'));
             }
         }
@@ -137,12 +145,33 @@ public class ExamDedupService {
                     .limit(3).map(Object::toString).toList());
             if (head == null && b.content().get("headlines") instanceof Map<?, ?> hl) head = String.join(" | ", hl.values().stream()
                     .limit(5).map(Object::toString).toList());
+            if (head == null) head = hoerenHead(b.content());
             if (head == null) continue;
             String flat = head.replaceAll("\\s+", " ").trim();
             out.add(flat.length() > 140 ? flat.substring(0, 140) + "…" : flat);
             if (out.size() >= max) break;
         }
         return out;
+    }
+
+    /** Teil Nghe đã có: câu khung (Teil 1), lời mở đầu cuộc phỏng vấn (Teil 2) hoặc các câu dẫn tình huống (Teil 3). */
+    private static String hoerenHead(Map<String, Object> content) {
+        String framing = str(content.get("framing_de"));
+        if (framing != null && !framing.isBlank()) return framing;
+        if (content.get("audio_script") instanceof List<?> turns && !turns.isEmpty()
+                && turns.get(0) instanceof Map<?, ?> first && first.get("text") != null) {
+            return first.get("text").toString();
+        }
+        if (content.get("items") instanceof List<?> items) {
+            List<String> leads = new ArrayList<>();
+            for (Object o : items) {
+                if (o instanceof Map<?, ?> it && it.get("lead_in_de") != null) {
+                    leads.add(it.get("lead_in_de").toString().replaceFirst("^Lesen Sie jetzt die Aufgabe \\d+\\.\\s*", ""));
+                }
+            }
+            if (!leads.isEmpty()) return String.join(" | ", leads);
+        }
+        return null;
     }
 
     /** Bản nháp/Teil khác đã dùng cùng URL (bỏ bản nháp hiện tại và bản nháp đã bỏ). */

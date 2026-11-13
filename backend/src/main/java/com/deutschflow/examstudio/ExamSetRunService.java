@@ -260,6 +260,64 @@ public class ExamSetRunService {
         return spec(run, t);
     }
 
+    /**
+     * "Tạo phần Nghe" cho lượt cũ (tạo trước khi Xưởng đề soạn được Hören, chỉ có 6 Teil): thêm ba Teil HOEREN với
+     * chủ đề chưa dùng trong bộ, rồi đưa lượt về RUNNING để nhịp nền dựng tiếp. Các Teil đã xong giữ nguyên. Cùng luật
+     * với {@link #redoTeil}: chỉ lượt đã chạy xong và chưa duyệt, mỗi lúc một lượt chạy, kênh AI là kênh admin đang
+     * chọn (trống ⇒ giữ kênh của lượt). Không đủ chủ đề thì không thêm dòng nào.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public RunView addHoeren(long id, String channel) {
+        RunRow run = run(id);
+        if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
+            throw new BadRequestException("Chỉ thêm phần Nghe được cho lượt đã chạy xong và chưa duyệt.");
+        }
+        String ch = channel == null || channel.isBlank() ? null : ai.requireChannel(channel).name();
+        Integer running = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+        if (running != null && running > 0) {
+            throw new BadRequestException("Đang có một lượt tạo bộ đề chạy. Đợi lượt đó xong rồi bấm lại.");
+        }
+        List<TeilRow> rows = teile(id);
+        if (rows.stream().anyMatch(t -> HOEREN.equalsIgnoreCase(t.section()))) {
+            throw new BadRequestException("Lượt này đã có phần Nghe.");
+        }
+        List<TeilSpec> specs = TeilSpec.forExam(run.examFormat(), run.cefrLevel()).stream().filter(TeilSpec::listening).toList();
+        if (specs.isEmpty()) {
+            throw new BadRequestException("Xưởng đề chưa soạn được phần Nghe cho kỳ thi và cấp này.");
+        }
+        Set<String> banned = new HashSet<>();
+        for (TeilRow other : rows) banned.addAll(ExamSetPlanner.split(other.theme()));
+        for (TeilSpec s : specs) {
+            jdbc.update("INSERT INTO exam_set_run_teile (run_id, section, teil) VALUES (?, ?, ?)", id, s.section(), s.teil());
+        }
+        List<TeilRow> added = teile(id).stream().filter(t -> HOEREN.equalsIgnoreCase(t.section())).toList();
+        Map<String, String> themes = assignThemes(run, added, banned);
+        for (TeilRow t : added) {
+            String theme = themes.get(t.section() + "#" + t.teil());
+            if (theme == null) {
+                // Ngoại lệ ⇒ giao dịch hoàn lại, ba dòng vừa thêm biến mất.
+                throw new BadRequestException("Không còn đủ chủ đề chưa dùng trong bộ này cho phần Nghe.");
+            }
+            jdbc.update("UPDATE exam_set_run_teile SET theme = ?, status = 'RUNNING', stage = 'NEW', updated_at = now() WHERE id = ?",
+                    theme, t.id());
+        }
+        jdbc.update("""
+                UPDATE exam_set_runs SET status = 'RUNNING', channel = COALESCE(?, channel), report_json = '{}'::jsonb,
+                       finished_at = NULL, updated_at = now()
+                WHERE id = ?
+                """, ch, id);
+        log.info("[ExamSet] lượt #{}: owner cho tạo thêm phần Nghe, chủ đề {}", id, themes.values());
+        return get(id);
+    }
+
+    /** Lượt có Teil Nghe do máy soạn không (lượt tạo trước 13/11/2026 thì không). */
+    private static boolean hasHoeren(List<TeilRow> rows) {
+        return rows.stream().anyMatch(t -> HOEREN.equalsIgnoreCase(t.section()));
+    }
+
+    private static final String HOEREN = "HOEREN";
+
     /** Bỏ cả lượt: các bản nháp chưa duyệt của nó bị bỏ theo. Bài báo đã dùng KHÔNG được trả lại sổ. */
     public RunView discard(long id) {
         RunRow run = run(id);
@@ -275,8 +333,9 @@ public class ExamSetRunService {
 
     /**
      * Owner duyệt cả bộ bằng MỘT lần bấm (thay cho 8 mục tích của từng Teil): mọi bản nháp của lượt vào kho Teil,
-     * rồi ghép thành một bộ đề "Sắp có" trên một đề nền viết tay — các Teil lượt chưa làm được (hiện là phần Nghe)
-     * lấy nguyên từ đề nền. Phát hành cho học viên vẫn là bước riêng ở danh sách bộ đề. Hỏng ở Teil nào thì cả lượt
+     * rồi ghép thành một bộ đề "Sắp có" trên một đề nền viết tay — các phần lượt không có (phần Nói; và phần Nghe
+     * với lượt cũ tạo trước khi máy soạn được Hören) lấy nguyên từ đề nền. Dòng ghi chú của lượt nói rõ phần Nghe
+     * lấy từ đâu. Phát hành cho học viên vẫn là bước riêng ở danh sách bộ đề. Hỏng ở Teil nào thì cả lượt
      * duyệt được hoàn lại, không có trạng thái duyệt dở.
      */
     @org.springframework.transaction.annotation.Transactional
@@ -295,7 +354,8 @@ public class ExamSetRunService {
         Map<String, Boolean> checklist = new LinkedHashMap<>();
         for (String k : TeilSpec.CHECKLIST_KEYS) checklist.put(k, true);
         List<ExamAssemblyService.Replacement> reps = new ArrayList<>();
-        for (TeilRow t : teile(id)) {
+        List<TeilRow> runTeile = teile(id);
+        for (TeilRow t : runTeile) {
             if (t.draftId() == null) throw new BadRequestException("Teil " + t.section() + " " + t.teil() + " chưa có bản nháp.");
             // Owner có thể đã duyệt riêng một Teil của lượt vào kho từ trước (lượt #6): dùng luôn Teil kho đó.
             Draft current = drafts.get(t.draftId());
@@ -313,8 +373,13 @@ public class ExamSetRunService {
         ExamAssemblyService.Assembled exam = assembly.assemble(new ExamAssemblyService.AssembleRequest(base.id(), title, reps));
         jdbc.update("""
                 UPDATE exam_set_runs SET status = 'APPROVED', mock_exam_id = ?, note = ?, updated_at = now() WHERE id = ?
-                """, exam.id(), "Đề nền: " + base.title(), id);
+                """, exam.id(), approvalNote(base.title(), hasHoeren(runTeile)), id);
         return get(id);
+    }
+
+    /** Ghi chú của lượt đã duyệt: chỉ nói phần Nghe lấy từ đề nền khi lượt KHÔNG có Teil Nghe (lượt cũ). */
+    static String approvalNote(String baseTitle, boolean runHasHoeren) {
+        return "Đề nền: " + baseTitle + (runHasHoeren ? "" : " · phần Nghe lấy nguyên từ đề nền này");
     }
 
     private static final java.util.regex.Pattern NUMBERED = java.util.regex.Pattern.compile("^(.*?Đề số)\\s*(\\d+)\\s*$");
@@ -868,7 +933,11 @@ public class ExamSetRunService {
             if (i.options() != null) i.options().values().forEach(v -> sb.append(v).append('\n'));
             String q = i.question() != null && i.question().contains("___") && i.evidence() != null && !i.evidence().isBlank()
                     ? i.evidence() : i.question();
-            cores.add(ExamDedupService.itemCore(q, i.options() == null || i.correct() == null ? null : i.options().get(i.correct())));
+            // Câu richtig/falsch: lõi chỉ là mệnh đề (đáp án "richtig" không phải nội dung), khớp cách tính lõi của
+            // Teil kho và đề viết tay ở other() — nếu không, câu trùng hẳn giữa hai bộ sẽ không bao giờ khớp.
+            boolean trueFalse = "richtig".equals(i.correct()) || "falsch".equals(i.correct());
+            cores.add(ExamDedupService.itemCore(q, trueFalse || i.options() == null || i.correct() == null
+                    ? null : i.options().get(i.correct())));
             if (i.correct() != null) key.append(i.correct());
             if (i.difficultyMeasured() != null && i.difficultyMeasured().level() != null) {
                 measured.merge(i.difficultyMeasured().level(), 1, Integer::sum);

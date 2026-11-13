@@ -396,8 +396,11 @@ export type TeilKind =
   | 'ARTICLE' | 'MATCH_HEADLINE' | 'MATCH_AD_X' | 'GAP_MC' | 'GAP_WORDBANK' | 'WRITE_EMAIL'
   // Đợt 4 — telc A2: bảng thông tin a/b/c, richtig/falsch, form 5 ô, tin nhắn ngắn.
   | 'MC_INFO' | 'TRUE_FALSE' | 'FILL_FORM' | 'WRITE_NOTE'
+  // Đợt 5 — Hören telc B1: 5 người trả lời một câu hỏi, phỏng vấn radio, 5 thông báo ngắn (đều richtig/falsch).
+  | 'HOEREN_STATEMENTS' | 'HOEREN_INTERVIEW' | 'HOEREN_ANNOUNCEMENTS'
 const KINDS: TeilKind[] = [
   'MATCH_HEADLINE', 'MATCH_AD_X', 'GAP_MC', 'GAP_WORDBANK', 'WRITE_EMAIL', 'MC_INFO', 'TRUE_FALSE', 'FILL_FORM', 'WRITE_NOTE',
+  'HOEREN_STATEMENTS', 'HOEREN_INTERVIEW', 'HOEREN_ANNOUNCEMENTS',
 ]
 
 /** Dạng hiển thị theo `teilType`; lạ hoặc MULTIPLE_CHOICE (Lesen T2) → ARTICLE. */
@@ -408,6 +411,21 @@ export function teilKind(teilType: string | null | undefined): TeilKind {
 
 export function isGapKind(kind: TeilKind): boolean {
   return kind === 'GAP_MC' || kind === 'GAP_WORDBANK'
+}
+
+/** Phần Nghe: bài là lời thoại (`audioTurns`), câu là mệnh đề richtig/falsch. */
+export function isHoerenKind(kind: TeilKind): boolean {
+  return kind === 'HOEREN_STATEMENTS' || kind === 'HOEREN_INTERVIEW' || kind === 'HOEREN_ANNOUNCEMENTS'
+}
+
+/** Số từ của lời thoại phần Nghe (khớp backend TeilSpec): T1/T3 cho MỖI đoạn, T2 cho cả cuộc phỏng vấn. */
+export const HOEREN_WORD_RANGE: Partial<Record<TeilKind, [number, number]>> = {
+  HOEREN_STATEMENTS: [60, 110], HOEREN_INTERVIEW: [400, 650], HOEREN_ANNOUNCEMENTS: [40, 95],
+}
+
+/** Hören T1/T3: câu "HV1-43" thuộc đoạn lời thoại thứ mấy (0-based), biết số câu đầu của Teil (41 / 56). */
+export function hoerenSegmentIndex(itemId: string, first: number, fallback: number): number {
+  return itemNumber(itemId, first + fallback) - first
 }
 
 /** Teil viết tự do (không có câu hỏi, không ma trận): Schreiben B1 E-Mail, A2 tin nhắn ngắn. */
@@ -423,6 +441,9 @@ export function firstItemNumber(kind: TeilKind, teil: number): number {
     case 'MATCH_AD_X': return 11
     case 'GAP_MC': return 21
     case 'GAP_WORDBANK': return 31
+    case 'HOEREN_STATEMENTS': return 41
+    case 'HOEREN_INTERVIEW': return 46
+    case 'HOEREN_ANNOUNCEMENTS': return 56
     default: return 1
   }
 }
@@ -443,6 +464,9 @@ export const STUDIO_TEIL_CATALOG: TeilCatalogEntry[] = [
   { cefrLevel: 'B1', section: 'LESEN', teil: 3, teilType: 'MATCH_AD_X', itemCount: 10, needsSources: false },
   { cefrLevel: 'B1', section: 'SPRACHBAUSTEINE', teil: 1, teilType: 'GAP_MC', itemCount: 10, needsSources: false },
   { cefrLevel: 'B1', section: 'SPRACHBAUSTEINE', teil: 2, teilType: 'GAP_WORDBANK', itemCount: 10, needsSources: false },
+  { cefrLevel: 'B1', section: 'HOEREN', teil: 1, teilType: 'HOEREN_STATEMENTS', itemCount: 5, needsSources: false },
+  { cefrLevel: 'B1', section: 'HOEREN', teil: 2, teilType: 'HOEREN_INTERVIEW', itemCount: 10, needsSources: false },
+  { cefrLevel: 'B1', section: 'HOEREN', teil: 3, teilType: 'HOEREN_ANNOUNCEMENTS', itemCount: 5, needsSources: false },
   { cefrLevel: 'B1', section: 'SCHREIBEN', teil: 1, teilType: 'WRITE_EMAIL', itemCount: 0, needsSources: false },
   // Đợt 4 — telc Deutsch A2 / Start Deutsch 2 (Übungstest 1 chính thức). Hören làm cùng đợt audio.
   { cefrLevel: 'A2', section: 'LESEN', teil: 1, teilType: 'MC_INFO', itemCount: 5, needsSources: false },
@@ -706,8 +730,10 @@ export function blockIdFromDetail(detail: string | null | undefined): number | n
 export function trueFalseBalance(items: { correct?: string | null }[]): { richtig: number; falsch: number; balanced: boolean } {
   const richtig = items.filter((i) => i.correct === 'richtig').length
   const falsch = items.filter((i) => i.correct === 'falsch').length
-  const ok = (n: number) => n >= 2 && n <= 3
-  return { richtig, falsch, balanced: items.length === 0 || (ok(richtig) && ok(falsch)) }
+  // Mỗi loại 40–60 % số câu: 5 câu ⇒ 2–3 (đề A2 Lesen 2, Hören T1/T3), 10 câu ⇒ 4–6 (Hören T2).
+  const total = items.length
+  const ok = (n: number) => n * 10 >= total * 4 && n * 10 <= total * 6
+  return { richtig, falsch, balanced: total === 0 || (ok(richtig) && ok(falsch)) }
 }
 
 /** `meta.accept` ("Mo|Montag") ⇄ danh sách cách viết chấp nhận. */

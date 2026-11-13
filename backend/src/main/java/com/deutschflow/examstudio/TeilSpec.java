@@ -11,6 +11,7 @@ import java.util.Optional;
  *       theo bài — số đo từ bản thử „Schlaf" và đề thật (phân tích 17/09).</li>
  *   <li>telc · B1 · LESEN · Teil 1 (đợt 2): 5 văn bản ngắn 55–110 từ, 10 tiêu đề a–j, mỗi tiêu đề dùng một lần;
  *       mỗi văn bản một tiêu đề đúng + một tiêu đề nhiễu „gần đúng" (phân tích 17/09, N6).</li>
+ *   <li>telc · B1 · HOEREN · Teil 1–3 (đợt 5): lời thoại + mệnh đề richtig/falsch, không lưu audio.</li>
  * </ul>
  * {@code minWords}/{@code maxWords} là cho MỖI văn bản khi {@code textCount > 1}.
  */
@@ -93,6 +94,32 @@ public record TeilSpec(
             "Viết một E-Mail xưng „du“ trả lời bạn: đủ bốn ý dưới đây, tự sắp thứ tự cho hợp lý, có lời chào đầu và "
                     + "cuối. Bốn ý in không theo thứ tự — như tờ đề thật. Gợi ý độ dài: 120–180 từ.");
 
+    // ── Đợt 5: Hörverstehen telc B1 (owner chốt 13/11/2026: máy soạn cả phần Nghe) ───────────────
+    // Không lưu audio: app đọc lời thoại bằng TTS lúc bấm, nên một Teil Nghe chỉ là lời thoại + câu richtig/falsch.
+    // minWords/maxWords: Teil 1 và 3 = MỖI đoạn lời thoại; Teil 2 = cả cuộc phỏng vấn. Lời dẫn lấy đúng theo đề
+    // viết tay (V343).
+
+    static final TeilSpec TELC_B1_HOEREN_1 = new TeilSpec(
+            "TELC", "B1", "HOEREN", 1, "HOEREN_STATEMENTS", 5, 41, "HV1-", 5, 5, 60, 110, 0.06,
+            "Sie hören nun fünf kurze Texte. Sie hören diese Texte nur einmal. Entscheiden Sie beim Hören, ob die "
+                    + "Aussagen 41–45 richtig oder falsch sind.",
+            "Nghe 5 người kể về cùng một chủ đề, mỗi người CHỈ MỘT LẦN. Sau hướng dẫn có 30 giây đọc câu hỏi. "
+                    + "Chọn đúng hoặc sai.");
+
+    static final TeilSpec TELC_B1_HOEREN_2 = new TeilSpec(
+            "TELC", "B1", "HOEREN", 2, "HOEREN_INTERVIEW", 10, 46, "HV2-", 2.5, 1, 400, 650, 0.06,
+            "Sie hören nun ein Gespräch. Sie hören das Gespräch zweimal. Entscheiden Sie beim Hören, ob die "
+                    + "Aussagen 46–55 richtig oder falsch sind.",
+            "Nghe một cuộc phỏng vấn radio, được nghe HAI LẦN. Sau hướng dẫn có một phút đọc câu hỏi. Các mệnh đề "
+                    + "đi theo thứ tự bài.");
+
+    static final TeilSpec TELC_B1_HOEREN_3 = new TeilSpec(
+            "TELC", "B1", "HOEREN", 3, "HOEREN_ANNOUNCEMENTS", 5, 56, "HV3-", 5, 5, 40, 95, 0.06,
+            "Sie hören nun fünf kurze Texte. Sie hören jeden Text zweimal. Entscheiden Sie beim Hören, ob die "
+                    + "Aussagen 56–60 richtig oder falsch sind.",
+            "Nghe 5 thông báo/tin nhắn ngắn, mỗi bài được nghe HAI LẦN. Trước mỗi bài có một câu dẫn tình huống. "
+                    + "Chọn đúng hoặc sai.");
+
     // ── Đợt 4: telc Deutsch A2 / Start Deutsch 2 (cấu trúc theo Übungstest 1 chính thức của telc, 2024) ──
     // Lesen 3 Teil × 5 câu (1 điểm), Schreiben Teil 1 = form 5 ô (1 điểm), Teil 2 = 3 trong 4 ý, ~40 từ (10 điểm).
     // Hören (3 Teil × 5) làm cùng đợt audio.
@@ -131,7 +158,8 @@ public record TeilSpec(
             List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o");
 
     private static final List<TeilSpec> ALL = List.of(TELC_B1_LESEN_1, TELC_B1_LESEN_2, TELC_B1_LESEN_3,
-            TELC_B1_SB_1, TELC_B1_SB_2, TELC_B1_SCHREIBEN, TELC_A2_LESEN_1, TELC_A2_LESEN_2, TELC_A2_LESEN_3,
+            TELC_B1_SB_1, TELC_B1_SB_2, TELC_B1_HOEREN_1, TELC_B1_HOEREN_2, TELC_B1_HOEREN_3, TELC_B1_SCHREIBEN,
+            TELC_A2_LESEN_1, TELC_A2_LESEN_2, TELC_A2_LESEN_3,
             TELC_A2_SCHREIBEN_1, TELC_A2_SCHREIBEN_2);
 
     /** Teil soạn theo tình huống: không có bước nguồn báo, dùng ô "Tình huống". */
@@ -162,6 +190,50 @@ public record TeilSpec(
         };
     }
 
+    /** Phần Nghe: bài là lời thoại (TTS đọc lúc bấm), câu hỏi là mệnh đề richtig/falsch. */
+    public boolean listening() {
+        return teilType.startsWith("HOEREN_");
+    }
+
+    /** Teil Nghe gồm nhiều đoạn rời, mỗi đoạn một câu (Teil 1 và 3); Teil 2 là một cuộc phỏng vấn liền. */
+    public boolean listeningSegments() {
+        return "HOEREN_STATEMENTS".equals(teilType) || "HOEREN_ANNOUNCEMENTS".equals(teilType);
+    }
+
+    /** Số lần được nghe: Teil 1 một lần, Teil 2 và 3 hai lần (luật telc B1). */
+    public int maxPlays() {
+        return "HOEREN_STATEMENTS".equals(teilType) ? 1 : 2;
+    }
+
+    /** Giây đọc câu hỏi sau lời dẫn: Teil 1 = 30, Teil 2 = 60, Teil 3 = 0 (đọc từng câu trước mỗi đoạn). */
+    public int readingSeconds() {
+        return switch (teilType) {
+            case "HOEREN_STATEMENTS" -> 30;
+            case "HOEREN_INTERVIEW" -> 60;
+            default -> 0;
+        };
+    }
+
+    /** Lời dẫn nghi thức đọc trước Teil Nghe — nguyên văn như đề viết tay (V343). */
+    public String ansageDe() {
+        int from = firstItemNumber;
+        int to = firstItemNumber + itemCount - 1;
+        return switch (teilType) {
+            case "HOEREN_STATEMENTS" -> "Hörverstehen, Teil 1. Sie hören nun fünf kurze Texte. Dazu sollen Sie fünf "
+                    + "Aufgaben lösen. Sie hören diese Texte nur einmal. Entscheiden Sie beim Hören, ob die Aussagen "
+                    + from + " bis " + to + " richtig oder falsch sind. Lesen Sie jetzt die Aufgaben " + from + " bis "
+                    + to + ". Sie haben dazu 30 Sekunden Zeit.";
+            case "HOEREN_INTERVIEW" -> "Hörverstehen, Teil 2. Sie hören nun ein Gespräch. Dazu sollen Sie zehn Aufgaben "
+                    + "lösen. Sie hören das Gespräch zweimal. Entscheiden Sie beim Hören, ob die Aussagen " + from
+                    + " bis " + to + " richtig oder falsch sind. Lesen Sie jetzt die Aufgaben " + from + " bis " + to
+                    + ". Sie haben dazu eine Minute Zeit.";
+            case "HOEREN_ANNOUNCEMENTS" -> "Hörverstehen, Teil 3. Sie hören nun fünf kurze Texte. Dazu sollen Sie fünf "
+                    + "Aufgaben lösen. Sie hören jeden Text zweimal. Entscheiden Sie beim Hören, ob die Aussagen " + from
+                    + " bis " + to + " richtig oder falsch sind.";
+            default -> null;
+        };
+    }
+
     /** Phần Viết: không có câu hỏi trắc nghiệm, không có ma trận độ khó. */
     public boolean writing() {
         return "WRITE_EMAIL".equals(teilType) || "WRITE_NOTE".equals(teilType);
@@ -181,7 +253,8 @@ public record TeilSpec(
         return switch (teilType) {
             case "MATCH_HEADLINE" -> HEADLINE_LETTERS;
             case "MATCH_AD_X" -> java.util.stream.Stream.concat(adLetters().stream(), java.util.stream.Stream.of("x")).toList();
-            case "TRUE_FALSE" -> List.of("richtig", "falsch");
+            case "TRUE_FALSE", "HOEREN_STATEMENTS", "HOEREN_INTERVIEW", "HOEREN_ANNOUNCEMENTS" ->
+                    List.of("richtig", "falsch");
             case "FILL_FORM" -> List.of();
             case "GAP_WORDBANK" -> BANK_LETTERS;
             default -> ItemRules.LETTERS;

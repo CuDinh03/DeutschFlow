@@ -78,6 +78,16 @@ public class ExamSetRunController {
         return r;
     }
 
+    /** Lượt cũ chỉ có 6 Teil: thêm ba Teil Nghe (chủ đề chưa dùng trong bộ) rồi cho lượt chạy tiếp. */
+    @PostMapping("/{id}/add-hoeren")
+    public RunView addHoeren(@PathVariable long id, @RequestBody(required = false) Map<String, String> body,
+                             @AuthenticationPrincipal User actor) {
+        RunView r = runs.addHoeren(id, body == null ? null : body.get("channel"));
+        audit.log("admin.exam_studio.set_run_hoeren_added", AuditActor.of(actor), "EXAM_SET_RUN", String.valueOf(id),
+                Map.of("channel", r.channel()));
+        return r;
+    }
+
     @PostMapping("/{id}/discard")
     public RunView discard(@PathVariable long id, @AuthenticationPrincipal User actor) {
         RunView r = runs.discard(id);

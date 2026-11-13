@@ -18,10 +18,10 @@ describe('dạng Teil + danh mục', () => {
     expect(teilKind('gap_wordbank')).toBe('GAP_WORDBANK')
     expect(teilKind('WRITE_EMAIL')).toBe('WRITE_EMAIL')
   })
-  it('danh mục khớp số câu đề thật; Hören chưa có', () => {
+  it('danh mục khớp số câu đề thật; Hören B1 có từ đợt 5', () => {
     expect(catalogEntry('LESEN', 3)).toMatchObject({ teilType: 'MATCH_AD_X', itemCount: 10, needsSources: false })
     expect(catalogEntry('SCHREIBEN', 1)?.itemCount).toBe(0)
-    expect(catalogEntry('HOEREN', 1)).toBeNull()
+    expect(catalogEntry('HOEREN', 1)).toMatchObject({ teilType: 'HOEREN_STATEMENTS', itemCount: 5, needsSources: false })
   })
 })
 

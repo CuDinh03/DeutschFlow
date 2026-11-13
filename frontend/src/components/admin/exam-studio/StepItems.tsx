@@ -9,13 +9,14 @@ import {
   type DifficultyLevel, type OptionKey, type StudioItem,
 } from '@/lib/adminExamStudioApi'
 import {
-  DIFFICULTY_ORDER, countByLevel, hasHeadlineIssues, headlineIssues, headlineTable, isGapKind, itemNumber,
+  DIFFICULTY_ORDER, countByLevel, hasHeadlineIssues, headlineIssues, headlineTable, isGapKind, isHoerenKind, itemNumber,
   hasDigits, joinAccept, matchTextIndex, normalizeHeadline, optionKeys, splitAccept, splitMatchTexts, teilKind, type TeilKind,
 } from '@/lib/examStudioLogic'
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import { LightDot, Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
 import { AdRoleTable, FormItemsPanel, GapLetterPanel, TrueFalseSummary, WordBankTable } from './ItemsSituational'
+import { HoerenAnswerSummary, hoerenSegmentOf } from './HoerenParts'
 
 /** Phương án dạng bản đồ chuỗi: T2 có a/b/c, T1 có 2 chữ trong a–j (type cũ chỉ khai a|b|c). */
 const optsOf = (it: Pick<StudioItem, 'options'>) => it.options as Record<string, string>
@@ -83,6 +84,7 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
       {match && draft.items.length > 0 && <HeadlineTable items={draft.items} />}
       {kind === 'MATCH_AD_X' && draft.items.length > 0 && <AdRoleTable draft={draft} />}
       {kind === 'TRUE_FALSE' && draft.items.length > 0 && <TrueFalseSummary draft={draft} />}
+      {isHoerenKind(kind) && draft.items.length > 0 && <HoerenAnswerSummary draft={draft} />}
       {kind === 'FILL_FORM' && draft.items.length > 0 && <FormItemsPanel draft={draft} />}
       {gap && draft.items.length > 0 && <GapLetterPanel draft={draft} />}
       {kind === 'GAP_WORDBANK' && draft.items.length > 0 && <WordBankTable draft={draft} />}
@@ -99,7 +101,9 @@ export function StepItems({ draft, locked, run, onNext }: StudioStepProps & { on
             index={i}
             match={match}
             kind={kind}
-            excerptText={match ? excerpt(texts[matchTextIndex(it.id, i)] ?? '') : undefined}
+            excerptText={match ? excerpt(texts[matchTextIndex(it.id, i)] ?? '')
+              // Hören T1/T3: đoạn lời thoại của đúng câu này, để đọc đối chiếu khi sửa mệnh đề.
+              : hoerenSegmentOf(draft, kind, it.id, i)?.text}
             locked={locked}
             onSave={saveItem}
             onRegenerate={(lv) => run(() => regenerateItem(draft.id, it.id, lv))}
@@ -138,7 +142,7 @@ function ItemCard({
   const adX = kind === 'MATCH_AD_X'
   // SB2: phương án là từ trong hộp (máy dựng) — không sửa chữ ở đây, chỉ sửa giải thích/bằng chứng.
   // A2: richtig/falsch cố định (chỉ đổi đáp án); form không có phương án (đáp án + cách viết khác ở `meta.accept`).
-  const trueFalse = kind === 'TRUE_FALSE'
+  const trueFalse = kind === 'TRUE_FALSE' || isHoerenKind(kind)
   const fillForm = kind === 'FILL_FORM'
   // `correct` khai OptionKey (a–o, x) nhưng A2 dùng cả "richtig"/"falsch" và chữ tự do của ô form.
   const correctStr = item.correct as string
@@ -248,7 +252,7 @@ function ItemCard({
           {adX && item.correct === 'x' && (
             <p className="ga-ui rounded-ga bg-ga-green-soft px-2.5 py-1.5 text-ga-small font-semibold text-ga-green">{t('items.adAnswerX')}</p>
           )}
-          {match && excerptText != null && (
+          {(match || isHoerenKind(kind)) && excerptText != null && (
             <p className="whitespace-pre-line rounded-ga border border-ga-line px-3 py-2 text-ga-small text-ga-muted" lang="de">
               {excerptText || t('preview.noText')}
             </p>
