@@ -55,8 +55,9 @@ public class PronunciationScorerService {
         int rawScore = total == 0 ? 0 : (int) Math.round((correct + 0.5 * close) * 100.0 / total);
         int finalScore = (int) Math.min(100, rawScore * 0.8 + logprobBonus);
 
-        log.info("[Pronunciation] expected='{}' transcribed='{}' score={} logprob={}",
-                expectedText, verbose.text(), finalScore, verbose.avgLogprob());
+        log.info("[Pronunciation] expectedChars={} transcribedChars={} score={} logprob={}",
+                expectedText != null ? expectedText.length() : 0,
+                verbose.text() != null ? verbose.text().length() : 0, finalScore, verbose.avgLogprob());
 
         return new PronunciationScore(verbose.text(), finalScore, verbose.avgLogprob(), results);
     }
