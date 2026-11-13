@@ -247,8 +247,12 @@ public class GroqChatClient implements OpenAiChatClient {
             // Mặc định là backoff cố định; nhánh 429 ghi đè bằng chính Retry-After của upstream.
             long nextDelayMillis = BACKOFF_MILLIS[Math.min(attempt - 1, BACKOFF_MILLIS.length - 1)];
             try {
+                // Accept tường minh: mặc định RestClient gửi "text/plain, */*" (theo bộ đọc String), cổng AI
+                // tự host đổi ngày 12/11/2026 thấy vậy thì trả SSE thay cho JSON ⇒ mọi lượt chặn hỏng
+                // "Failed to parse Groq response" (13/11/2026). extractResult vẫn đọc được SSE phòng khi khác.
                 String responseBody = client.post()
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authKey)
+                        .accept(MediaType.APPLICATION_JSON)
                         .body(requestBody)
                         .retrieve()
                         .body(String.class);
@@ -537,9 +541,35 @@ public class GroqChatClient implements OpenAiChatClient {
         }
     }
 
+    /**
+     * Ghép thân SSE ({@code data: {...chunk...}} từng dòng, kết thúc {@code data: [DONE]}) thành một
+     * {@code chat.completion} thường: nối {@code delta.content}, lấy {@code usage} của chunk cuối có nó.
+     * Thân không phải SSE ⇒ trả nguyên.
+     */
+    static String sseToCompletionJson(ObjectMapper mapper, String body) throws java.io.IOException {
+        if (body == null) return null;
+        String trimmed = body.stripLeading();
+        if (!trimmed.startsWith("data:")) return body;
+        StringBuilder content = new StringBuilder();
+        JsonNode usage = null;
+        for (String line : trimmed.split("\\r?\\n")) {
+            if (!line.startsWith("data:")) continue;
+            String data = line.substring(5).trim();
+            if (data.isEmpty() || "[DONE]".equals(data)) continue;
+            JsonNode chunk = mapper.readTree(data);
+            JsonNode piece = chunk.path("choices").path(0).path("delta").path("content");
+            if (piece.isTextual()) content.append(piece.asText());
+            if (chunk.hasNonNull("usage")) usage = chunk.get("usage");
+        }
+        ObjectNode root = mapper.createObjectNode();
+        root.putArray("choices").addObject().putObject("message").put("content", content.toString());
+        if (usage != null) root.set("usage", usage);
+        return mapper.writeValueAsString(root);
+    }
+
     private AiChatCompletionResult extractResult(String responseBody, String effectiveModel) {
         try {
-            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode root = objectMapper.readTree(sseToCompletionJson(objectMapper, responseBody));
             JsonNode usage = root.get("usage");
             TokenUsage parsedUsage = null;
             Double costUsd = null;
