@@ -35,7 +35,7 @@ export const LOCALE_HEADER = 'x-df-locale'
  * Trang công khai CHỈ có tiếng Việt (không có bản /en/, /de/) — middleware ép `vi` cho chúng (đợt 1,
  * 14/11/2026), để `<html lang>` không theo cookie EN/DE mà gắn `lang="en"` lên nội dung tiếng Việt.
  */
-const VIETNAMESE_ONLY_PREFIXES = ['/luyen-thi', '/cam-nang', '/free-grade', '/mydeutschflow-la-gi'] as const
+const VIETNAMESE_ONLY_PREFIXES = ['/luyen-thi', '/cam-nang', '/free-grade', '/mydeutschflow-la-gi', '/chi-phi'] as const
 
 export function isVietnameseOnlyPublicPath(pathname: string): boolean {
   return VIETNAMESE_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))

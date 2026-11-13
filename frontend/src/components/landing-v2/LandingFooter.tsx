@@ -20,7 +20,8 @@ export function LandingFooter() {
     ['terms', '/terms'],
     ['support', '/support'],
     // Cẩm nang chỉ có tiếng Việt (đợt D, 08/11/2026).
-    ...(locale === 'vi' ? ([['guide', '/cam-nang/'], ['whatIs', '/mydeutschflow-la-gi/']] as [string, string][]) : []),
+    // Chi phí (14/11/2026) chỉ có tiếng Việt.
+    ...(locale === 'vi' ? ([['guide', '/cam-nang/'], ['whatIs', '/mydeutschflow-la-gi/'], ['pricing', '/chi-phi/']] as [string, string][]) : []),
   ]
   return (
     <footer className="border-t border-ga-border bg-ga-bg">

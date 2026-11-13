@@ -122,7 +122,7 @@ test.describe('Trang gói cước (/v2/payment)', () => {
     // v1.0: FREE + PRO. ULTRA đã hoãn — nếu thêm gói thứ ba thì phải sửa test này CÓ Ý THỨC.
     await expect(page.getByText('Miễn phí', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Pro', { exact: true })).toBeVisible();
-    await expect(page.getByText('299.000₫')).toBeVisible();
+    await expect(page.getByText('249.000₫')).toBeVisible();
 
     // Chưa có thanh toán tự phục vụ: CTA gói trả phí phải bị vô hiệu hoá, không dẫn đi đâu cả.
     const paidCta = page.getByRole('button', { name: 'Sắp ra mắt' });

@@ -36,7 +36,7 @@ export const FAQS = [
   },
   {
     q: 'Có mất phí không?',
-    a: 'Bạn bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng. Thông tin gói trả phí có trong ứng dụng.',
+    a: 'Bạn bắt đầu miễn phí, không cần thẻ tín dụng, và có 7 ngày Pro khi đăng ký. Sau đó bài học và ôn từ vựng vẫn miễn phí; luyện nói, phỏng vấn và chấm bài bằng AI cần gói trả phí. Giá các gói ở trang Chi phí (mydeutschflow.com/chi-phi/).',
   },
   {
     q: 'Ghi âm của tôi được xử lý thế nào?',

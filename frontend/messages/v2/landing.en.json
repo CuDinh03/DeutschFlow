@@ -170,7 +170,7 @@
       "title": "Pick the plan that fits",
       "plans": [
         { "name": "Free", "price": "0₫", "sub": "", "features": ["A1–B1 vocabulary & grammar", "Daily spaced repetition (SRS)", "AI interviews with a daily limit"], "cta": "Start now" },
-        { "name": "Pro", "price": "299,000₫", "sub": "/month", "features": ["High daily AI interview limit", "Detailed grammar & content feedback", "Every interview trade", "telc B1 mock exams"], "cta": "Try 7 days free" },
+        { "name": "Pro", "price": "249,000₫", "sub": "/month", "features": ["High daily AI interview limit", "Detailed grammar & content feedback", "Every interview trade", "telc B1 mock exams"], "cta": "Try 7 days free" },
         { "name": "Teachers", "price": "Contact us", "sub": "", "features": ["Class management", "AI materials", "Speaking grading", "Student progress reports"], "cta": "Get a consultation" }
       ]
     },
@@ -192,7 +192,7 @@
         { "q": "What happens to my recordings?", "a": "Recordings are turned into text so they can be scored and reviewed. How long they are kept and how to ask for deletion is described in the Privacy Policy." },
         { "q": "Is a mock exam a certificate?", "a": "No. Mock exams simulate the telc B1 format, are not affiliated with telc and do not replace a certificate." },
         { "q": "I study at a language school. Can we use it together?", "a": "Yes. The school creates classes and assigns work; you do it in the app and your teacher follows and grades it." },
-        { "q": "Does it cost anything?", "a": "You start for free with a daily AI practice allowance, no credit card needed. Paid plans are shown in the app." }
+        { "q": "Does it cost anything?", "a": "You start for free, no credit card needed, with 7 days of Pro when you sign up. After that, lessons and vocabulary review stay free; AI speaking, interview practice and AI grading need Pro, from 249,000₫ a month in the iPhone app." }
       ]
     },
     "founder": {
@@ -372,12 +372,13 @@
         "faqLevelQ": "What level of German do I need for a {name} interview?",
         "faqLevelA": "It depends on the employer and the programme. Many vocational training programmes ask for B1, some ask for B2. Check the requirements of the place you are applying to.",
         "faqCostQ": "Does practising the {name} interview cost anything?",
-        "faqCostA": "You start for free, with a daily AI practice allowance and no credit card. Paid plans are described in the app."
+        "faqCostA": "You start for free, with no credit card and 7 days of Pro to practise interviews with the AI. After that, interview practice needs Pro, from 249,000₫ a month in the iPhone app."
       }
     },
     "footer": {
       "guide": "Guides",
       "whatIs": "What is myDeutschFlow?",
+      "pricing": "Pricing",
       "about": "About us",
       "privacy": "Privacy policy",
       "terms": "Terms of use",

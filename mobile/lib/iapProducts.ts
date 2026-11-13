@@ -58,7 +58,7 @@ export const APPLE_PRODUCT_META: Readonly<Record<AppleProductId, AppleProductMet
     planCode: 'ULTRA',
     durationMonths: 2,
     label: 'Tăng tốc 2 tháng',
-    note: 'Quyền như Pro, hạn mức AI gấp đôi (400.000 token/ngày). Dành cho người luyện hơn 4–5 phiên nói mỗi ngày.',
+    note: 'Quyền như Pro, hạn mức AI mỗi ngày gấp đôi. Dành cho người luyện hơn 4–5 phiên nói mỗi ngày.',
   },
 }
 

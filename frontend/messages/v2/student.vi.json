@@ -407,7 +407,7 @@
       "emptyGroup": "Không có nhân vật nào cho chế độ này trong nhóm đã chọn.",
       "pro": {
         "title": "Nhân vật PRO",
-        "desc": "Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.",
+        "desc": "Nhân vật cấp độ ADVANCED chỉ dành cho gói Pro hoặc Tăng tốc. Nâng cấp để luyện phỏng vấn chuyên sâu.",
         "upgrade": "Nâng cấp →"
       },
       "positionLabel": "Bạn ứng tuyển vị trí nào?",

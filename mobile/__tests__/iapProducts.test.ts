@@ -44,10 +44,10 @@ describe('iapProducts catalog', () => {
     expect(metaForProductId('com.deutschflow.app.ultra.yearly')).toBeNull()
   })
 
-  it('không ghi số tiền trong ghi chú gói — giá luôn lấy từ StoreKit; không hứa "không giới hạn"', () => {
+  it('không ghi số tiền (giá lấy từ StoreKit), không ghi số token (owner 14/11/2026), không hứa "không giới hạn"', () => {
     for (const id of APPLE_PRODUCT_IDS) {
       const { note = '', label } = APPLE_PRODUCT_META[id]
-      expect(`${label} ${note}`).not.toMatch(/₫|VND|\d\s*đồng|không giới hạn|phổ biến nhất/i)
+      expect(`${label} ${note}`).not.toMatch(/₫|VND|\d\s*đồng|token|không giới hạn|phổ biến nhất/i)
     }
   })
 
