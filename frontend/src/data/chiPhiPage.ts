@@ -3,7 +3,7 @@
  * xuất thêm hằng số, và để test đọc được.
  *
  * Nguồn: quyết định owner 14/11/2026 (QĐ-QG-17..26 trong `plans/2026-11-11-audit-3-quota-gia-QUYET-DINH.md`),
- * đặc tả `plans/2026-11-14-chi-phi-noi-dung.md`. Khớp migration V389 và `mobile/lib/iapProducts.ts`.
+ * đặc tả `plans/2026-11-14-chi-phi-noi-dung.md`. Khớp migration V387 và `mobile/lib/iapProducts.ts`.
  *
  * Luật (sổ lời hứa QLT-19 + Apple 3.1.2): số tiền bị trừ mỗi kỳ là chữ lớn nhất; số quy ra tháng chỉ là dòng
  * phụ; không gạch giá, không đếm ngược, không nhãn "phổ biến nhất" (chưa có người mua), không hứa kết quả.
@@ -17,7 +17,7 @@ export const DESCRIPTION =
   'Bảng giá myDeutschFlow: Pro 249.000₫ một tháng hoặc 399.000₫ hai tháng, mua trong app iPhone. Trung tâm từ 65.000₫ mỗi học viên mỗi tháng.'
 export const H1 = 'Chi phí myDeutschFlow'
 export const INTRO =
-  'Bạn bắt đầu miễn phí, không cần thẻ, và học viên mới có ngay 7 ngày Pro để dùng thử mọi phần luyện AI. Gói Pro giá 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone và tự gia hạn. Trung tâm tiếng Đức trả 75.000₫ cho mỗi học viên đang học mỗi tháng.'
+  'Bạn bắt đầu miễn phí, không cần thanh toán trước, và học viên mới có ngay 7 ngày Pro để dùng thử mọi phần luyện AI. Gói Pro giá 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone và tự gia hạn. Trung tâm tiếng Đức trả 75.000₫ cho mỗi học viên đang học mỗi tháng.'
 
 export type PlanCta = 'start' | 'appStore'
 
@@ -99,7 +99,7 @@ export const PLANS: readonly PricePlan[] = [
 ]
 
 export const PLANS_FOOTNOTE =
-  'Thời gian dùng thử 7 ngày do myDeutschFlow cấp, không qua App Store: không cần thẻ, không tự trừ tiền, hết hạn tự về gói Miễn phí. Phần chấm Nói đang Beta, điểm chỉ để tham khảo. Số phiên nói là ước tính, tính theo phiên 10 lượt, mỗi lượt khoảng 15 giây.'
+  'Thời gian dùng thử 7 ngày do myDeutschFlow cấp, không qua App Store: không cần thanh toán trước, không tự trừ tiền, hết hạn tự về gói Miễn phí. Phần chấm Nói đang Beta, điểm chỉ để tham khảo. Số phiên nói là ước tính, tính theo phiên 10 lượt, mỗi lượt khoảng 15 giây.'
 
 export const ANDROID_NOTE = {
   title: 'Bạn dùng Android?',
@@ -152,8 +152,8 @@ export const SCHOOL = {
 
 export const FAQS: readonly { q: string; a: string }[] = [
   {
-    q: 'Dùng thử có cần thẻ không?',
-    a: 'Không. Học viên mới có 7 ngày Pro ngay khi đăng ký, không cần thẻ. Hết 7 ngày, tài khoản tự về gói Miễn phí và không bị trừ tiền.',
+    q: 'Dùng thử có phải thanh toán trước không?',
+    a: 'Không. Học viên mới có 7 ngày Pro ngay khi đăng ký, không cần thanh toán trước. Hết 7 ngày, tài khoản tự về gói Miễn phí và không bị trừ tiền.',
   },
   {
     q: 'Hết 7 ngày dùng thử thì còn dùng được gì?',

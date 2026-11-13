@@ -13,6 +13,7 @@ import { buildLlmsTxt } from '@/lib/llmsTxt'
 import { isVietnameseOnlyPublicPath } from '@/lib/publicLocale'
 import { COMPARE_ROWS, DESCRIPTION, FAQS, PATH, PLANS, SCHOOL, TITLE } from '@/data/chiPhiPage'
 import landingVi from '../../messages/v2/landing.vi.json'
+import authVi from '../../messages/v2/auth.vi.json'
 
 const PAGE = readFileSync(join(__dirname, '..', 'app', 'chi-phi', 'page.tsx'), 'utf8')
 const vnd = (s: string) => Number(s.replace(/\D/g, ''))
@@ -80,6 +81,15 @@ describe('/chi-phi/ — hiện trạng và B2B', () => {
     const text = JSON.stringify(landingVi)
     expect(text).toContain('Trung tâm trả 75.000₫ cho mỗi học viên đang học mỗi tháng')
     expect(text).not.toContain('có hạn mức luyện AI mỗi ngày')
+  })
+})
+
+describe('câu chữ "không cần thanh toán trước" (owner 14/11/2026)', () => {
+  it('không còn "không cần thẻ" ở catalog tiếng Việt, /chi-phi/ và /mydeutschflow-la-gi/', () => {
+    const whatIs = readFileSync(join(__dirname, '..', 'app', 'mydeutschflow-la-gi', 'page.tsx'), 'utf8')
+    const text = [JSON.stringify(landingVi), JSON.stringify(authVi), ALL_TEXT, PAGE, whatIs].join(' ')
+    expect(text).not.toMatch(/không cần thẻ/i)
+    expect(text).toContain('không cần thanh toán trước')
   })
 })
 

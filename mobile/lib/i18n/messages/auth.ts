@@ -21,7 +21,7 @@ export const authMessages = defineMessages(
     },
     register: {
       title: 'Tạo tài khoản',
-      subtitle: 'Miễn phí, không cần thẻ tín dụng',
+      subtitle: 'Miễn phí, không cần thanh toán trước',
       displayName: 'Tên hiển thị',
       displayNamePlaceholder: 'Nguyễn Văn A',
       phone: 'Số điện thoại (không bắt buộc)',

@@ -1,4 +1,4 @@
--- V389: Giá B2C mới + bộ sản phẩm App Store mới (owner chốt 14/11/2026, QĐ-QG-17..20).
+-- V387: Giá B2C mới + bộ sản phẩm App Store mới (owner chốt 14/11/2026, QĐ-QG-17..20).
 --
 --   PRO   = Pro tháng 249.000đ (1 tháng) và Pro 2 tháng 399.000đ (gói chính); 200.000 token/ngày (V378, QĐ-QG-12).
 --   ULTRA = "Tăng tốc" 2 tháng 599.000đ: quyền bằng đúng PRO, chỉ khác 400.000 token/ngày. Đảo QĐ-QG-16

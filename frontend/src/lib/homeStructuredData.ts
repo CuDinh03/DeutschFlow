@@ -39,7 +39,7 @@ export function homeStructuredData(locale: keyof typeof IN_LANGUAGE, description
         downloadUrl: APP_STORE_URL,
         installUrl: APP_STORE_URL,
         image: absoluteUrl('/icon-512.png'),
-        // Học thử không cần thẻ: gói bắt đầu giá 0. Giá gói trả phí theo nước chưa chốt (bảng giá ẩn).
+        // Học thử không cần thanh toán trước: gói bắt đầu giá 0. Giá gói trả phí theo nước chưa chốt (bảng giá ẩn).
         offers: { '@type': 'Offer', price: 0, priceCurrency: 'VND' },
         publisher: { '@id': ORG_ID },
       },

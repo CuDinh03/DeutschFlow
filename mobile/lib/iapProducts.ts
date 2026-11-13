@@ -6,7 +6,7 @@
  *
  * The product identifiers MUST match, exactly:
  *   • App Store Connect subscription product IDs, and
- *   • the backend `apple_products` seed (migration V389; V189 seeded the retired com.deutschflow.app.* ids).
+ *   • the backend `apple_products` seed (migration V387; V189 seeded the retired com.deutschflow.app.* ids).
  * The backend resolves productId → plan on `/api/payments/apple/verify`; a mismatch means a real
  * purchase can never be activated.
  */
@@ -28,7 +28,7 @@ export interface AppleProductMeta {
 /**
  * Bộ sản phẩm owner chốt 14/11/2026 (QĐ-QG-18..20): Pro tháng 249.000đ (chim mồi), Pro 2 tháng 399.000đ
  * (gói chính, đặt giữa), Tăng tốc 2 tháng 599.000đ (mã ULTRA, 400.000 token/ngày). Cả ba là thuê bao tự
- * gia hạn cùng một nhóm trên App Store Connect; khớp migration V389. Thứ tự = thứ tự hiển thị.
+ * gia hạn cùng một nhóm trên App Store Connect; khớp migration V387. Thứ tự = thứ tự hiển thị.
  */
 export const APPLE_PRODUCT_IDS = [
   'com.cudinh.mydeutschflow.pro.monthly',

@@ -228,7 +228,7 @@ export default function ChiPhiPage() {
               </a>
             </GaBtn>
           </div>
-          <p className="mt-3 text-ga-small text-ga-muted">Không cần thẻ · 7 ngày Pro · App iPhone; Android dùng bản web</p>
+          <p className="mt-3 text-ga-small text-ga-muted">Không cần thanh toán trước · 7 ngày Pro · App iPhone; Android dùng bản web</p>
           <p className="mt-8 text-ga-small text-ga-muted">
             Xem thêm: <Link href="/luyen-thi/telc-b1/" className={A}>cấu trúc đề telc B1</Link>,{' '}
             <Link href="/phong-van/" className={A}>phỏng vấn theo nghề</Link>,{' '}

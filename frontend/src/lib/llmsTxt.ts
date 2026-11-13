@@ -20,7 +20,7 @@ export function buildLlmsTxt(): string {
     '- Thi thử trên myDeutschFlow hiện chỉ có cho telc Deutsch B1, mô phỏng theo format đề; không liên kết với telc hay Goethe-Institut và không thay cho chứng chỉ. Các trang Goethe là hướng dẫn cấu trúc đề.',
     '- Phần chấm Nói đang ở giai đoạn Beta; điểm dùng để theo dõi tiến bộ.',
     '- Dùng trên web và ứng dụng iPhone (iOS 15.1 trở lên); máy Android dùng bản web.',
-    '- Bắt đầu miễn phí, không cần thẻ tín dụng, có 7 ngày Pro khi đăng ký; sau đó các phần dùng AI cần gói trả phí, mua trong ứng dụng iPhone. Bảng giá ở trang Chi phí.',
+    '- Bắt đầu miễn phí, không cần thanh toán trước, có 7 ngày Pro khi đăng ký; sau đó các phần dùng AI cần gói trả phí, mua trong ứng dụng iPhone. Bảng giá ở trang Chi phí.',
     '- Giao diện trang web: tiếng Việt, tiếng Anh, tiếng Đức. Hướng dẫn luyện thi và Cẩm nang chỉ có tiếng Việt.',
     '',
     '## Trang chính',
