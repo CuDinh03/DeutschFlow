@@ -14,7 +14,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.deutschflow.interview.entity.OccupationContentStatus.AI_GENERATED;
@@ -127,5 +130,27 @@ class OccupationPublicServiceTest {
 
         assertThat(service.detail("astronaut")).isEmpty();
         verifyNoInteractions(questionRepository, termRepository);
+    }
+
+    @Test
+    void indexable_sameRuleAsReviewed_withLatestDate() {
+        OccupationDto koch = base("koch", OccupationDto.CURATED).occupation();
+        OccupationDto maurer = base("maurer", OccupationDto.GENERAL).occupation();
+        OccupationDto bauhelfer = base("bauhelfer", OccupationDto.GENERAL).occupation();
+        when(catalogService.list()).thenReturn(List.of(koch, maurer, bauhelfer));
+        Map<String, LocalDateTime> updated = new LinkedHashMap<>();
+        updated.put("koch", LocalDateTime.of(2026, 10, 1, 9, 0));
+        updated.put("maurer", LocalDateTime.of(2026, 10, 1, 9, 0));
+        updated.put("bauhelfer", null);
+        when(catalogService.updatedAtByCode()).thenReturn(updated);
+        when(questionRepository.statsByOccupation(APPROVED, "HARD_SKILLS")).thenReturn(List.of(
+                new Object[]{"maurer", 3L, LocalDateTime.of(2026, 11, 5, 8, 0)},
+                new Object[]{"bauhelfer", 2L, LocalDateTime.of(2026, 11, 6, 8, 0)}));
+
+        var out = service.indexable();
+
+        assertThat(out).extracting("code").containsExactly("koch", "maurer");
+        assertThat(out.get(0).lastModified()).isEqualTo("2026-10-01");
+        assertThat(out.get(1).lastModified()).isEqualTo("2026-11-05");
     }
 }

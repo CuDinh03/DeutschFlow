@@ -20,6 +20,13 @@ export interface OccupationSummary {
   questionSet: 'CURATED' | 'GENERAL'
 }
 
+/** Trang nghề được lập chỉ mục (`GET /api/public/occupations/indexable`) — nguồn của sitemap. */
+export interface IndexableOccupation {
+  code: string
+  /** Ngày nội dung đổi lần cuối, `yyyy-MM-dd`; `null` khi backend không biết. */
+  lastModified: string | null
+}
+
 /**
  * Câu tiếng Đức kèm bản dịch (K4). Bản dịch tuỳ chọn: câu lớp nghề sinh trước V339 chưa dịch bù, và
  * backend cũ chưa trả hai trường này.
@@ -66,6 +73,32 @@ export function occupationName(o: Pick<OccupationSummary, 'nameDe' | 'nameEn' | 
   if (locale === 'en') return o.nameEn
   if (locale === 'de') return o.nameDe
   return o.nameVi
+}
+
+/**
+ * Tên tiếng Việt dùng trong tiêu đề và H1 trang nghề (SEO 3b, 13/11/2026) — đúng cụm người Việt gõ
+ * tìm ("phỏng vấn tiếng Đức nghề điều dưỡng"). Nghề ưu tiên có tên ngắn hơn tên danh mục; nghề khác
+ * dùng tên danh mục, viết thường chữ đầu vì đứng giữa câu. Không đổi tên danh mục ở backend.
+ */
+const SEO_NAME_VI: Readonly<Record<string, string>> = {
+  pflegefachkraft: 'điều dưỡng',
+  altenpfleger: 'điều dưỡng lão khoa',
+  koch: 'đầu bếp',
+  kellner: 'phục vụ nhà hàng',
+  hotelfachkraft: 'nhân viên khách sạn',
+  kfz_mechatroniker: 'cơ điện tử ô tô',
+  fachkraft_lagerlogistik: 'kho vận',
+}
+
+export function occupationSeoNameVi(o: Pick<OccupationSummary, 'code' | 'nameVi'>): string {
+  const fixed = SEO_NAME_VI[o.code]
+  if (fixed) return fixed
+  return o.nameVi.charAt(0).toLocaleLowerCase('vi') + o.nameVi.slice(1)
+}
+
+/** Tên nghề trong tiêu đề/H1 trang nghề: tiếng Việt dùng tên SEO, ngôn ngữ khác như `occupationName`. */
+export function occupationTitleName(o: Pick<OccupationSummary, 'code' | 'nameDe' | 'nameEn' | 'nameVi'>, locale: string): string {
+  return locale === 'vi' ? occupationSeoNameVi(o) : occupationName(o, locale)
 }
 
 /** Mã nghề hợp lệ trên URL (khớp cột `occupation.code`). */

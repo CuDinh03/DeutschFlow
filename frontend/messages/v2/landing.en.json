@@ -349,6 +349,7 @@
       "detail": {
         "meta": {
           "title": "{nameDe} interview questions in German | myDeutschFlow",
+          "titleShort": "{nameDe} interview questions in German | myDeutschFlow",
           "description": "German job interview questions for {name} ({nameDe}), key terms and your interviewer. Practise your answers with AI for free."
         },
         "back": "All occupations",

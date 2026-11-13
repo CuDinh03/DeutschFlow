@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { GUIDE_ARTICLES } from '@/data/camNang'
 import { absoluteUrl } from '@/lib/siteUrl'
 import { ogImage } from '@/lib/ogImage'
+import { breadcrumbStructuredData, toJsonLd } from '@/lib/homeStructuredData'
 import { LandingHeader } from '@/components/landing-v2/LandingHeader'
 import { LandingFooter } from '@/components/landing-v2/LandingFooter'
 
@@ -30,6 +31,7 @@ export default function GuideIndexPage() {
     <div className="ga-scope min-h-screen overflow-x-clip bg-ga-bg font-ga-ui text-ga-ink">
       <LandingHeader current="guide" showLanguage={false} />
       <main className="mx-auto max-w-[1240px] px-5 pb-16 pt-10 sm:px-8 md:pt-14 lg:px-[60px]">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbStructuredData([['Trang chủ', '/'], ['Cẩm nang', '/cam-nang/']])) }} />
         <div className="mb-[22px] inline-flex items-center gap-2 text-ga-eyebrow uppercase text-ga-muted">
           <span className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />Cẩm nang
         </div>

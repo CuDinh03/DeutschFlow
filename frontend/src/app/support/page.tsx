@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { absoluteUrl } from '@/lib/siteUrl'
 import Link from 'next/link'
 import '@/styles/galerie.css'
 import { GaLogo } from '@/components/ui-v2'
@@ -7,6 +8,7 @@ import '@/components/legal/legalGa.css'
 export const metadata: Metadata = {
   title: 'Support · myDeutschFlow',
   description: 'myDeutschFlow support / Hỗ trợ.',
+  alternates: { canonical: absoluteUrl('/support/') },
 }
 
 // Footer links — mirrors the legal pages' footer (LegalFooterGa).

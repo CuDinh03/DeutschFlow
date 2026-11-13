@@ -348,11 +348,12 @@
       },
       "detail": {
         "meta": {
-          "title": "Câu hỏi phỏng vấn {nameDe} bằng tiếng Đức | myDeutschFlow",
+          "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe}) | myDeutschFlow",
+          "titleShort": "Phỏng vấn tiếng Đức nghề {name} ({nameDe})",
           "description": "Câu hỏi phỏng vấn xin việc tiếng Đức cho nghề {name} ({nameDe}), từ chuyên môn và người phỏng vấn của bạn. Luyện trả lời miễn phí với AI."
         },
         "back": "Tất cả nghề",
-        "title": "Phỏng vấn xin việc: {nameDe}",
+        "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe})",
         "subtitle": "{name} · {workplace}",
         "interviewer": "Người phỏng vấn của bạn",
         "questionsCap": "Câu hỏi tiêu biểu",

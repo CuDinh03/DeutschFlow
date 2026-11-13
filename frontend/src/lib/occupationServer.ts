@@ -1,4 +1,4 @@
-import type { OccupationDetail, OccupationSummary } from '@/lib/occupationTypes'
+import type { IndexableOccupation, OccupationDetail, OccupationSummary } from '@/lib/occupationTypes'
 import { isOccupationCode } from '@/lib/occupationTypes'
 
 /**
@@ -38,6 +38,21 @@ export async function fetchOccupations(): Promise<OccupationSummary[] | null> {
     const res = await request('')
     if (!res.ok) return null
     return (await res.json()) as OccupationSummary[]
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Trang nghề được lập chỉ mục + ngày sửa nội dung (sitemap). Cùng điều kiện `reviewed` của trang chi
+ * tiết, tính một lần ở backend. Backend chưa có endpoint hoặc lỗi → `null`: sitemap lùi về bộ viết tay.
+ */
+export async function fetchIndexableOccupations(): Promise<IndexableOccupation[] | null> {
+  try {
+    const res = await request('/indexable')
+    if (!res.ok) return null
+    const body: unknown = await res.json()
+    return Array.isArray(body) ? (body as IndexableOccupation[]) : null
   } catch {
     return null
   }

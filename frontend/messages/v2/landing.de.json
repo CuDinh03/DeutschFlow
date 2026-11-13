@@ -349,6 +349,7 @@
       "detail": {
         "meta": {
           "title": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
+          "titleShort": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
           "description": "Typische Fragen im Vorstellungsgespräch als {nameDe}, Fachbegriffe und Ihr Interviewer. Antworten kostenlos mit KI üben."
         },
         "back": "Alle Berufe",

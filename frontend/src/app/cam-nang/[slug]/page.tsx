@@ -1,5 +1,6 @@
 import '@/styles/galerie.css'
 import type { Metadata } from 'next'
+import { breadcrumbStructuredData } from '@/lib/homeStructuredData'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { GUIDE_ARTICLES, guideArticle, guideDocumentTitle } from '@/data/camNang'
@@ -67,6 +68,8 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
         author: { '@type': 'Organization', name: 'myDeutschFlow', url: absoluteUrl('/') },
         publisher: { '@type': 'Organization', name: 'myDeutschFlow', logo: { '@type': 'ImageObject', url: absoluteUrl('/icon-512.png') } },
       },
+      // SEO 3d: khớp dải "Cẩm nang / …" hiện trên trang.
+      { ...breadcrumbStructuredData([['Trang chủ', '/'], ['Cẩm nang', '/cam-nang/'], [a.h1, `/cam-nang/${a.slug}/`]]), '@context': undefined },
       {
         '@type': 'FAQPage',
         mainEntity: a.faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
