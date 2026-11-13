@@ -1138,7 +1138,7 @@ public class AdminManagementController {
         if (cefrLevel != null && !cefrLevel.isBlank()) {
             String normalized = cefrLevel.trim().toUpperCase();
             if (!VALID_CEFR_LEVELS.contains(normalized)) {
-                throw new BadRequestException("Invalid cefrLevel");
+                throw new BadRequestException("Cấp độ \"" + cefrLevel + "\" không hợp lệ. Chọn một cấp từ A1 đến C2 trong bộ lọc.");
             }
             sql.append(" AND w.cefr_level = ?");
             params.add(normalized);
@@ -1259,7 +1259,7 @@ public class AdminManagementController {
         String r = raw == null ? "" : raw.trim();
         if (r.length() < REASON_MIN || r.length() > REASON_MAX) {
             throw new BadRequestException(
-                    "Thao tác này cần lý do " + REASON_MIN + "–" + REASON_MAX + " ký tự (reason).");
+                    "Thao tác này cần lý do dài " + REASON_MIN + "–" + REASON_MAX + " ký tự. Điền ô \"Lý do\" trong hộp xác nhận rồi bấm lại.");
         }
         return r;
     }
