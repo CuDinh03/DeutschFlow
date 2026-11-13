@@ -798,6 +798,12 @@ app:
     llm:
       base-url: ${AI_LLM_BASE_URL:}
       api-key: ${AI_LLM_API_KEY:}
+      # Model dự phòng (13/11/2026): model chính lỗi 5xx/429/quá giờ/không dùng được ⇒ chuyển ngay sang
+      # model kế theo thứ tự; model lỗi bị bỏ qua failover-cooldown-seconds giây. Cùng endpoint/key với
+      # model chính, áp cho mọi tầng (tầng nào khai `fallback-models` riêng thì dùng của tầng). Rỗng = tắt.
+      # Ví dụ: AI_LLM_FALLBACK_MODELS=ag/gpt-oss-120b-medium,gcli/grok-4.7-build-fast,cx/gpt-6-luna
+      fallback-models: ${AI_LLM_FALLBACK_MODELS:}
+      failover-cooldown-seconds: ${AI_LLM_FAILOVER_COOLDOWN_SECONDS:120}
       tiers:
         # Chat nói real-time — FREE. Model + effort gương env cũ để không ai phải đổi env.
         chat-free:
