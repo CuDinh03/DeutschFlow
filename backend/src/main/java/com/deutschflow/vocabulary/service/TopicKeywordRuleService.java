@@ -49,6 +49,21 @@ public class TopicKeywordRuleService {
      * Infer up to 3 taxonomy tags from German lemma + optional meaning snippet.
      */
     public List<String> inferTags(String baseForm, String meaningSnippet, Set<String> validTaxonomyTags) {
+        return infer(baseForm, meaningSnippet, validTaxonomyTags, false);
+    }
+
+    /**
+     * Như {@link #inferTags} nhưng từ khoá NGẮN (≤ {@value #SHORT_KEYWORD_MAX} ký tự) phải khớp nguyên một
+     * từ — "ei" (Essen) không còn trúng "Zeit", "uni" không trúng "Kommunikation". Từ khoá dài vẫn khớp
+     * chuỗi con để bắt từ ghép ("Fußballverein" ⇒ "verein"). Dùng cho sổ từ của học viên (13/11/2026).
+     */
+    public List<String> inferTagsStrict(String baseForm, String meaningSnippet, Set<String> validTaxonomyTags) {
+        return infer(baseForm, meaningSnippet, validTaxonomyTags, true);
+    }
+
+    static final int SHORT_KEYWORD_MAX = 4;
+
+    private List<String> infer(String baseForm, String meaningSnippet, Set<String> validTaxonomyTags, boolean strict) {
         Map<String, List<String>> rules = keywordByTag;
         if (rules.isEmpty() || baseForm == null || baseForm.isBlank()) {
             return List.of();
@@ -70,12 +85,26 @@ public class TopicKeywordRuleService {
                     continue;
                 }
                 String k = kw.toLowerCase(Locale.ROOT).trim();
-                if (blob.contains(k)) {
+                if (strict && k.length() <= SHORT_KEYWORD_MAX ? containsWord(blob, k) : blob.contains(k)) {
                     hits.add(tagName);
                     break;
                 }
             }
         }
         return hits.stream().distinct().limit(3).toList();
+    }
+
+    /** {@code kw} xuất hiện trong {@code blob} với hai đầu không phải chữ/số. */
+    static boolean containsWord(String blob, String kw) {
+        int from = 0;
+        while (true) {
+            int i = blob.indexOf(kw, from);
+            if (i < 0) return false;
+            int end = i + kw.length();
+            boolean leftOk = i == 0 || !Character.isLetterOrDigit(blob.charAt(i - 1));
+            boolean rightOk = end == blob.length() || !Character.isLetterOrDigit(blob.charAt(end));
+            if (leftOk && rightOk) return true;
+            from = i + 1;
+        }
     }
 }
