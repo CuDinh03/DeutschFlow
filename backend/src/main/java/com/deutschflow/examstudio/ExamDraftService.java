@@ -129,7 +129,7 @@ public class ExamDraftService {
                        situation
                 FROM exam_drafts WHERE id = ?
                 """, (rs, n) -> mapRow(rs), id);
-        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy bản nháp " + id + ".");
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy bản nháp #" + id + ". Có thể bản nháp đã bị xoá; quay lại tab \"Bản nháp\" của Xưởng đề để xem danh sách hiện có.");
         return rows.get(0);
     }
 
@@ -274,7 +274,7 @@ public class ExamDraftService {
     @Transactional
     public void discard(long id) {
         Row r = load(id);
-        if ("APPROVED".equals(r.status())) throw new ConflictException("Bản nháp đã duyệt vào kho, không bỏ được.");
+        if ("APPROVED".equals(r.status())) throw new ConflictException("Không huỷ được bản nháp #" + id + ": bản nháp đã duyệt và Teil của nó đang nằm trong kho. Không cần làm gì thêm; Teil kho chỉ tới học viên khi được ghép vào một bộ đề.");
         jdbc.update("UPDATE exam_drafts SET status = 'DISCARDED', updated_at = now() WHERE id = ?", id);
     }
 
@@ -439,10 +439,10 @@ public class ExamDraftService {
     public Draft patchSource(long id, long sourceId, PatchSourceRequest req) {
         requireEditable(id);
         SourceRow s = sources(id).stream().filter(x -> x.source().id() == sourceId).findFirst()
-                .orElseThrow(() -> new NotFoundException("Nguồn không thuộc bản nháp này."));
+                .orElseThrow(() -> new NotFoundException("Nguồn vừa chọn không còn thuộc bản nháp này (có thể đã bị xoá ở cửa sổ khác). Tải lại trang để xem danh sách nguồn hiện tại."));
         if (req.usageMode() != null) {
             String m = req.usageMode().trim().toUpperCase(Locale.ROOT);
-            if (!m.equals("ADAPT") && !m.equals("FACTS_ONLY")) throw new BadRequestException("Loại dùng không hợp lệ.");
+            if (!m.equals("ADAPT") && !m.equals("FACTS_ONLY")) throw new BadRequestException("Loại dùng nguồn gửi lên không đúng mẫu. Tải lại trang, rồi ở bước \"Nguồn\" chọn lại \"Chuyển thể\" hoặc \"Chỉ dữ kiện\".");
             jdbc.update("UPDATE exam_sources SET usage_mode = ?, usage_mode_confirmed = TRUE WHERE id = ?", m, sourceId);
         }
         if (req.selectedFactIds() != null) {
@@ -504,7 +504,7 @@ public class ExamDraftService {
                     n.hasNonNull("paragraph") ? n.path("paragraph").asInt() : null, sameAs != null, false));
             if (k >= 20) break;
         }
-        if (facts.isEmpty()) throw new BadRequestException("AI không rút được dữ kiện nào từ nguồn này.");
+        if (facts.isEmpty()) throw new BadRequestException("AI không rút được dữ kiện nào từ nguồn này (bài quá ngắn hoặc không có số liệu, sự việc cụ thể). Ở bước \"Nguồn\", xoá nguồn này và thêm một bài khác, hoặc dán nguyên văn bài báo.");
 
         String usage = f.ccBy() ? "ADAPT" : "FACTS_ONLY";
         List<Long> shingles = TextChecks.shingleHashes(f.text(), TeilSpec.OVERLAP_LIMIT);
@@ -534,17 +534,17 @@ public class ExamDraftService {
         Row r = requireEditable(id);
         Map<String, Object> payload = new HashMap<>();
         if (req != null && req.selection() != null && !req.selection().isBlank()) {
-            if (r.text() == null) throw new BadRequestException("Chưa có bài để viết lại.");
+            if (r.text() == null) throw new BadRequestException("Bản nháp chưa có bài nên chưa viết lại một đoạn được. Ở bước \"Bài đọc\", bấm \"AI viết bài\" trước.");
             if (!r.text().text().context().contains(req.selection())) {
-                throw new BadRequestException("Đoạn bôi đen không còn nằm trong bài (bài đã đổi?).");
+                throw new BadRequestException("Đoạn bạn bôi đen không còn nằm nguyên văn trong bài (bài đã được sửa sau khi bôi). Tải lại trang, bôi đen lại đúng đoạn cần viết lại rồi bấm lại.");
             }
             payload.put("selection", req.selection());
             payload.put("mode", "SIMPLIFY".equalsIgnoreCase(req.mode()) ? "SIMPLIFY" : "REWRITE");
         } else if (!r.spec().situational() && selectedFacts(sources(id)).isEmpty()) {
-            throw new BadRequestException("Hãy tích ít nhất một dữ kiện ở bước Nguồn.");
+            throw new BadRequestException("Chưa viết bài được: chưa có dữ kiện nào được tích. Quay lại bước \"Nguồn\", tích ít nhất một dữ kiện, rồi bấm lại \"AI viết bài\".");
         } else if (sources(id).stream().anyMatch(s -> "FLAGGED".equals(s.source().neutrality())
                 && s.source().facts().stream().anyMatch(Fact::selected))) {
-            throw new BadRequestException("Có nguồn bị cờ chủ đề nhạy cảm — bỏ dữ kiện của nguồn đó trước.");
+            throw new BadRequestException("Chưa viết bài được: có nguồn bị gắn cờ chủ đề nhạy cảm (ở bước \"Nguồn\", nguồn đó có nhãn cảnh báo). Bỏ tích mọi dữ kiện của nguồn đó hoặc xoá nguồn, rồi bấm lại \"AI viết bài\".");
         }
         if (req != null && req.note() != null) payload.put("note", req.note());
         enqueue(id, "TEXT", userId, payload);
@@ -704,8 +704,8 @@ public class ExamDraftService {
 
     public Draft generateItems(long id, long userId) {
         Row r = requireEditable(id);
-        if (r.text() == null) throw new BadRequestException("Chưa có bài đọc.");
-        if (r.spec().writing()) throw new BadRequestException("Phần Viết không có câu hỏi trắc nghiệm — sang thẳng bước Kiểm & duyệt.");
+        if (r.text() == null) throw new BadRequestException("Chưa sinh câu hỏi được: bản nháp chưa có bài. Ở bước \"Bài đọc\", bấm \"AI viết bài\" và lưu bài trước.");
+        if (r.spec().writing()) throw new BadRequestException("Teil Viết không có câu hỏi trắc nghiệm nên không cần sinh câu. Sang thẳng bước \"Kiểm & duyệt\".");
         requireLongEnough(r);
         enqueue(id, "ITEMS", userId, new HashMap<>());
         return get(id);
@@ -731,8 +731,8 @@ public class ExamDraftService {
 
     public Draft regenerateItem(long id, String itemId, String difficulty, long userId) {
         Row r = requireEditable(id);
-        if (r.items().stream().noneMatch(i -> i.id().equals(itemId))) throw new NotFoundException("Không có câu " + itemId + ".");
-        if (difficulty != null && !TeilSpec.isLevel(difficulty)) throw new BadRequestException("Bậc không hợp lệ.");
+        if (r.items().stream().noneMatch(i -> i.id().equals(itemId))) throw new NotFoundException("Câu vừa chọn không còn trong bản nháp (có thể đã được sinh lại). Tải lại trang để xem các câu hiện tại.");
+        if (difficulty != null && !TeilSpec.isLevel(difficulty)) throw new BadRequestException("Bậc độ khó gửi lên không đúng mẫu. Tải lại trang rồi chọn lại bậc (Dễ, Vừa, Khó, Siêu khó).");
         requireLongEnough(r);
         Map<String, Object> payload = new HashMap<>();
         payload.put("itemId", itemId);
@@ -769,7 +769,7 @@ public class ExamDraftService {
             todo.add(new int[]{s});
             todoLevels.add(level);
         }
-        if (todo.isEmpty()) throw new BadRequestException("Mọi câu đều đang khoá.");
+        if (todo.isEmpty()) throw new BadRequestException("Không có câu nào để sinh lại: mọi câu đều đang khoá. Ở bước \"Câu hỏi\", bấm \"Mở khoá\" ở những câu muốn AI làm lại, rồi bấm lại.");
         List<Item> keep = new ArrayList<>();
         for (int s = 0; s < count; s++) {
             int fs = s;
@@ -1052,7 +1052,7 @@ public class ExamDraftService {
     public Draft verify(long id, long userId) {
         Row r = requireEditable(id);
         if (r.text() == null || (r.items().isEmpty() && !r.spec().writing())) {
-            throw new BadRequestException("Cần có bài đọc và câu hỏi trước.");
+            throw new BadRequestException("Chưa chạy tự kiểm được: bản nháp cần có bài (bước \"Bài đọc\") và câu hỏi (bước \"Câu hỏi\") trước.");
         }
         enqueue(id, "VERIFY", userId, new HashMap<>());
         return get(id);
@@ -1653,7 +1653,7 @@ public class ExamDraftService {
                     counts(json(content.getOrDefault("items", List.of()))), rs.getString("reviewer"),
                     instant(rs.getTimestamp("reviewed_at")), content);
         }, id);
-        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy Teil " + id + ".");
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy Teil #" + id + " trong kho. Tải lại tab \"Kho Teil\" để xem danh sách hiện có.");
         return rows.get(0);
     }
 
@@ -1676,7 +1676,7 @@ public class ExamDraftService {
                 UPDATE exam_drafts SET busy_op = ?, busy_job_id = NULL, last_error = NULL, updated_at = now()
                 WHERE id = ? AND busy_op IS NULL AND status = 'DRAFT'
                 """, op, draftId);
-        if (n == 0) throw new ConflictException("Đang có một thao tác AI chạy trên bản nháp này, đợi xong rồi thử lại.");
+        if (n == 0) throw new ConflictException("Máy đang chạy một thao tác AI trên bản nháp #" + draftId + ". Đợi dải báo đang chạy ở đầu trang biến mất (màn hình tự cập nhật) rồi bấm lại.");
         Map<String, Object> payload = new HashMap<>(extra);
         payload.put("draftId", draftId);
         payload.put("op", op);
@@ -1722,9 +1722,10 @@ public class ExamDraftService {
 
     private Row requireEditable(long id) {
         Row r = load(id);
-        if (!"DRAFT".equals(r.status())) throw new ConflictException("Bản nháp đã " + ("APPROVED".equals(r.status())
-                ? "duyệt vào kho" : "bị bỏ") + ", không sửa được.");
-        if (r.busyOp() != null) throw new ConflictException("Đang có thao tác AI chạy, đợi xong rồi thử lại.");
+        if (!"DRAFT".equals(r.status())) throw new ConflictException("APPROVED".equals(r.status())
+                ? "Bản nháp #" + id + " đã duyệt vào kho nên không sửa được nữa. Cần bản khác thì bấm \"Tạo Teil mới\" ở tab \"Bản nháp\"."
+                : "Bản nháp #" + id + " đã bị huỷ nên chỉ xem được. Cần làm tiếp thì bấm \"Tạo Teil mới\" ở tab \"Bản nháp\".");
+        if (r.busyOp() != null) throw new ConflictException("Máy đang chạy một thao tác AI trên bản nháp #" + id + " nên chưa sửa được. Đợi dải báo đang chạy ở đầu trang biến mất (màn hình tự cập nhật) rồi làm lại.");
         return r;
     }
 
@@ -1930,7 +1931,7 @@ public class ExamDraftService {
         for (int s = 0; s < r.itemCount(); s++) valid.add(r.spec().itemId(s));
         List<Item> out = new ArrayList<>();
         for (Item i : in) {
-            if (!valid.contains(i.id())) throw new BadRequestException("Mã câu không hợp lệ: " + i.id());
+            if (!valid.contains(i.id())) throw new BadRequestException("Danh sách câu gửi lên không khớp bản nháp (câu " + i.id() + " không có). Tải lại trang rồi lưu lại.");
             String target = TeilSpec.isLevel(i.difficultyTarget()) ? i.difficultyTarget().toUpperCase(Locale.ROOT) : "MEDIUM";
             out.add(new Item(i.id(), nz(i.question()), i.options() == null ? Map.of() : i.options(), i.correct(),
                     nz(i.explanationVi()), nz(i.evidence()), i.traps() == null ? List.of() : i.traps(), target,
@@ -1949,7 +1950,7 @@ public class ExamDraftService {
         if (spec.listening() && sum != spec.itemCount()) {
             throw new BadRequestException("Teil Nghe này luôn có đúng " + spec.itemCount() + " câu (đang " + sum + ").");
         }
-        if (sum < 1 || sum > 10) throw new BadRequestException("Số câu phải từ 1 đến 10.");
+        if (sum < 1 || sum > 10) throw new BadRequestException("Tổng số câu trong ma trận độ khó đang là " + sum + "; bài luyện lẻ cần từ 1 đến 10 câu. Sửa các ô ở bước \"Khung\".");
         return p;
     }
 

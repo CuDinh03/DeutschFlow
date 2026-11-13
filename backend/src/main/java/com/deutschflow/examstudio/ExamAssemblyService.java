@@ -98,8 +98,8 @@ public class ExamAssemblyService {
                 .filter(b -> b.examFormat().equalsIgnoreCase(String.valueOf(req.examFormat()))
                         && b.cefrLevel().equalsIgnoreCase(String.valueOf(req.cefrLevel())))
                 .findFirst().orElseThrow(() -> new BadRequestException("Chưa có khung đề cho " + req.examFormat() + " "
-                        + req.cefrLevel() + "."));
-        if (req.title() == null || req.title().isBlank()) throw new BadRequestException("Đặt tên cho bộ đề.");
+                        + req.cefrLevel() + ". \"Ghép từ khung\" hiện chỉ dùng cho các cấp có sẵn trong ô chọn; tải lại trang rồi chọn lại."));
+        if (req.title() == null || req.title().isBlank()) throw new BadRequestException("Bộ đề chưa có tên. Điền ô \"Tên bộ đề\" rồi bấm lại.");
         Map<String, Long> chosen = new HashMap<>();
         for (Replacement r : req.replacements() == null ? List.<Replacement>of() : req.replacements()) {
             if (r != null && r.blockId() != null) chosen.put(r.section() + ":" + r.teil(), r.blockId());
@@ -109,9 +109,9 @@ public class ExamAssemblyService {
             if (!chosen.containsKey(sl.section() + ":" + sl.teil())) missing.add(sl.section() + " Teil " + sl.teil());
         }
         if (!missing.isEmpty()) throw new BadRequestException("Khung " + bp.cefrLevel() + " cần đủ Teil — còn thiếu: "
-                + String.join(", ", missing) + ".");
+                + String.join(", ", missing) + ". Chọn một Teil kho cho từng ô còn trống rồi bấm \"Ghép\". Ô nào kho chưa có Teil thì tạo và duyệt Teil đó trước.");
         if (chosen.values().stream().distinct().count() != chosen.size()) {
-            throw new BadRequestException("Một Teil kho không dùng hai chỗ.");
+            throw new BadRequestException("Có một Teil kho đang được chọn cho hai ô khác nhau; mỗi Teil kho chỉ đặt vào một ô. Xem lại các ô đã chọn và đổi một trong hai ô sang Teil khác.");
         }
         if (!Boolean.TRUE.equals(req.allowReuse())) {
             List<String> clashes = new ArrayList<>();
@@ -127,7 +127,8 @@ public class ExamAssemblyService {
             if (!other.active() || other.baseExamId() != null) continue;
             Set<String> theirs = new TreeSet<>();
             for (Map<String, Object> t : other.teile()) theirs.add(t.get("section") + ":" + t.get("teil") + ":" + t.get("blockId"));
-            if (theirs.equals(wanted)) throw new ConflictException("Bộ đề này đã có: \"" + other.title() + "\" (#" + other.id() + ").");
+            if (theirs.equals(wanted)) throw new ConflictException("Bộ đề này đã có: \"" + other.title() + "\" (#" + other.id()
+                    + ") dùng đúng các Teil bạn vừa chọn. Đổi ít nhất một Teil nếu muốn có bộ đề mới.");
         }
 
         com.fasterxml.jackson.databind.node.ObjectNode root = mapper.createObjectNode();
@@ -148,12 +149,13 @@ public class ExamAssemblyService {
                         SELECT exam_format, cefr_level, section, teil, status, content_json::text AS content
                         FROM exam_teil_blocks WHERE id = ?
                         """, blockId);
-                if (blk.isEmpty()) throw new NotFoundException("Không có Teil kho " + blockId + ".");
+                if (blk.isEmpty()) throw new NotFoundException("Teil kho #" + blockId + " không còn trong kho. Tải lại tab \"Bộ đề\" rồi chọn Teil khác cho ô " + sl.section() + " Teil " + sl.teil() + ".");
                 Map<String, Object> k = blk.get(0);
-                if (!"APPROVED".equals(k.get("status"))) throw new BadRequestException("Teil kho " + blockId + " đã gỡ.");
+                if (!"APPROVED".equals(k.get("status"))) throw new BadRequestException("Teil kho #" + blockId + " đã gỡ khỏi kho nên không ghép được. Chọn Teil khác cho ô " + sl.section() + " Teil " + sl.teil() + ".");
                 if (!bp.examFormat().equalsIgnoreCase((String) k.get("exam_format")) || !bp.cefrLevel().equals(k.get("cefr_level"))
                         || !sl.section().equals(k.get("section")) || ((Number) k.get("teil")).intValue() != sl.teil()) {
-                    throw new BadRequestException("Teil kho " + blockId + " không khớp ô " + sl.section() + " Teil " + sl.teil() + ".");
+                    throw new BadRequestException("Teil kho #" + blockId + " không khớp ô " + sl.section() + " Teil " + sl.teil()
+                            + " (khác kỳ thi, cấp, phần hoặc số Teil). Tải lại tab \"Bộ đề\" rồi chọn lại Teil cho ô này.");
                 }
                 ObjectNode content = (ObjectNode) parse((String) k.get("content"));
                 content.put("teil", sl.teil());
@@ -219,22 +221,22 @@ public class ExamAssemblyService {
 
     @Transactional
     public Assembled assemble(AssembleRequest req) {
-        if (req == null || req.baseExamId() == null) throw new BadRequestException("Chọn đề nền.");
-        if (req.title() == null || req.title().isBlank()) throw new BadRequestException("Đặt tên cho bộ đề.");
-        if (req.title().length() > 200) throw new BadRequestException("Tên bộ đề tối đa 200 ký tự.");
+        if (req == null || req.baseExamId() == null) throw new BadRequestException("Chưa chọn đề nền. Chọn một đề viết tay ở ô \"Đề nền\" rồi bấm \"Ghép\".");
+        if (req.title() == null || req.title().isBlank()) throw new BadRequestException("Bộ đề chưa có tên. Điền ô \"Tên bộ đề\" rồi bấm lại.");
+        if (req.title().length() > 200) throw new BadRequestException("Tên bộ đề dài quá 200 ký tự. Rút ngắn ô \"Tên bộ đề\" rồi bấm lại.");
         List<Replacement> reps = req.replacements() == null ? List.of() : req.replacements().stream()
                 .filter(r -> r != null && r.blockId() != null).toList();
-        if (reps.isEmpty()) throw new BadRequestException("Chọn ít nhất một Teil từ kho để thay.");
+        if (reps.isEmpty()) throw new BadRequestException("Chưa chọn Teil nào để thay. Chọn ít nhất một Teil kho cho một ô của đề nền rồi bấm \"Ghép\".");
 
         List<Map<String, Object>> base = jdbc.queryForList("""
                 SELECT id, cefr_level, exam_format, title, description_vi, sections_json::text AS sections,
                        total_points, pass_points, time_limit_minutes, origin, is_active
                 FROM mock_exams WHERE id = ?
                 """, req.baseExamId());
-        if (base.isEmpty()) throw new NotFoundException("Không tìm thấy đề nền.");
+        if (base.isEmpty()) throw new NotFoundException("Không tìm thấy đề nền vừa chọn (có thể đã bị xoá). Tải lại tab \"Bộ đề\" rồi chọn lại đề nền.");
         Map<String, Object> b = base.get(0);
         if (!"HANDWRITTEN".equals(b.get("origin")) || !Boolean.TRUE.equals(b.get("is_active"))) {
-            throw new BadRequestException("Đề nền phải là đề viết tay đang chạy.");
+            throw new BadRequestException("Đề vừa chọn không dùng làm đề nền được: đề nền phải là đề viết tay đang chạy cho học viên. Tải lại tab \"Bộ đề\" rồi chọn một đề nền trong danh sách.");
         }
         String format = (String) b.get("exam_format");
         String level = (String) b.get("cefr_level");
@@ -249,7 +251,8 @@ public class ExamAssemblyService {
             Set<String> theirs = new TreeSet<>();
             for (Map<String, Object> t : other.teile()) theirs.add(t.get("section") + ":" + t.get("teil") + ":" + t.get("blockId"));
             if (theirs.equals(wanted)) {
-                throw new ConflictException("Bộ đề này đã có: \"" + other.title() + "\" (#" + other.id() + ").");
+                throw new ConflictException("Bộ đề này đã có: \"" + other.title() + "\" (#" + other.id()
+                    + ") dùng đúng các Teil bạn vừa chọn. Đổi ít nhất một Teil nếu muốn có bộ đề mới.");
             }
         }
         if (!Boolean.TRUE.equals(req.allowReuse())) {
@@ -270,28 +273,29 @@ public class ExamAssemblyService {
         List<Map<String, Object>> trace = new ArrayList<>();
         for (Replacement r : reps) {
             String slotKey = r.section() + ":" + r.teil();
-            if (!seenSlots.add(slotKey)) throw new BadRequestException("Teil " + slotKey + " bị chọn hai lần.");
-            if (!seenBlocks.add(r.blockId())) throw new BadRequestException("Một Teil kho không dùng hai chỗ.");
+            if (!seenSlots.add(slotKey)) throw new BadRequestException("Ô " + r.section() + " Teil " + r.teil() + " đang được chọn hai Teil kho; mỗi ô chỉ nhận một. Tải lại tab \"Bộ đề\" rồi chọn lại.");
+            if (!seenBlocks.add(r.blockId())) throw new BadRequestException("Có một Teil kho đang được chọn cho hai ô khác nhau; mỗi Teil kho chỉ đặt vào một ô. Xem lại các ô đã chọn và đổi một trong hai ô sang Teil khác.");
             List<Map<String, Object>> blk = jdbc.queryForList("""
                     SELECT exam_format, cefr_level, section, teil, teil_type, status, content_json::text AS content
                     FROM exam_teil_blocks WHERE id = ?
                     """, r.blockId());
-            if (blk.isEmpty()) throw new NotFoundException("Không có Teil kho " + r.blockId() + ".");
+            if (blk.isEmpty()) throw new NotFoundException("Teil kho #" + r.blockId() + " không còn trong kho. Tải lại tab \"Bộ đề\" rồi chọn Teil khác cho ô " + r.section() + " Teil " + r.teil() + ".");
             Map<String, Object> k = blk.get(0);
-            if (!"APPROVED".equals(k.get("status"))) throw new BadRequestException("Teil kho " + r.blockId() + " đã gỡ.");
+            if (!"APPROVED".equals(k.get("status"))) throw new BadRequestException("Teil kho #" + r.blockId() + " đã gỡ khỏi kho nên không ghép được. Chọn Teil khác cho ô " + r.section() + " Teil " + r.teil() + ".");
             if (!format.equalsIgnoreCase((String) k.get("exam_format")) || !level.equals(k.get("cefr_level"))
                     || !String.valueOf(k.get("section")).equals(r.section())
                     || ((Number) k.get("teil")).intValue() != r.teil()) {
-                throw new BadRequestException("Teil kho " + r.blockId() + " không khớp ô " + slotKey + " của đề "
-                        + format + " " + level + ".");
+                throw new BadRequestException("Teil kho #" + r.blockId() + " không khớp ô " + r.section() + " Teil " + r.teil() + " của đề "
+                        + format + " " + level + " (khác kỳ thi, cấp, phần hoặc số Teil). Chọn lại Teil cho ô này.");
             }
             ObjectNode target = findTeil(sections, r.section(), r.teil());
-            if (target == null) throw new BadRequestException("Đề nền không có " + slotKey + ".");
+            if (target == null) throw new BadRequestException("Đề nền không có ô " + r.section() + " Teil " + r.teil() + " nên không thay được ô đó. Bỏ chọn ô này hoặc đổi đề nền.");
             String baseType = target.path("type").asText("");
             boolean typeOk = typeMatches(baseType, String.valueOf(k.get("teil_type")));
             if (!typeOk) {
-                throw new BadRequestException("Dạng Teil kho (" + k.get("teil_type") + ") khác dạng của đề nền ("
-                        + target.path("type").asText() + ").");
+                throw new BadRequestException("Teil kho #" + r.blockId() + " khác dạng bài với ô " + r.section() + " Teil " + r.teil()
+                        + " của đề nền (kho: " + k.get("teil_type") + ", đề nền: " + target.path("type").asText()
+                        + "). Chọn một Teil kho cùng dạng, hoặc đổi sang đề nền khác.");
             }
             JsonNode content = parse((String) k.get("content"));
             target.removeAll();
@@ -337,7 +341,7 @@ public class ExamAssemblyService {
                 """, (rs, n) -> toAssembled(rs.getLong("id"), rs.getString("title"), rs.getString("cefr_level"),
                 rs.getString("exam_format"), rs.getBoolean("reviewed"), rs.getBoolean("is_active"),
                 rs.getString("block_ids"), rs.getTimestamp("created_at")), id);
-        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy bộ đề ghép " + id + ".");
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy bộ đề ghép #" + id + ". Tải lại tab \"Bộ đề\" để xem danh sách hiện có.");
         return rows.get(0);
     }
 
@@ -346,11 +350,11 @@ public class ExamAssemblyService {
     public Assembled rename(long id, String title) {
         get(id);
         String t = title == null ? "" : title.trim();
-        if (t.isEmpty()) throw new BadRequestException("Đặt tên cho bộ đề.");
-        if (t.length() > 200) throw new BadRequestException("Tên bộ đề tối đa 200 ký tự.");
+        if (t.isEmpty()) throw new BadRequestException("Bộ đề chưa có tên. Điền ô \"Tên bộ đề\" rồi bấm lại.");
+        if (t.length() > 200) throw new BadRequestException("Tên bộ đề dài quá 200 ký tự. Rút ngắn ô \"Tên bộ đề\" rồi bấm lại.");
         Integer clash = jdbc.queryForObject("SELECT count(*) FROM mock_exams WHERE lower(title) = lower(?) AND id <> ?",
                 Integer.class, t, id);
-        if (clash != null && clash > 0) throw new ConflictException("Đã có một đề khác mang tên này.");
+        if (clash != null && clash > 0) throw new ConflictException("Đã có một đề khác mang tên này. Đặt tên khác (ví dụ thêm số thứ tự) rồi lưu lại.");
         jdbc.update("UPDATE mock_exams SET title = ? WHERE id = ? AND origin = 'STUDIO'", t, id);
         return get(id);
     }
