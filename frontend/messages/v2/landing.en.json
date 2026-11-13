@@ -362,7 +362,18 @@
         "termsEmpty": "Key terms for this job are being prepared.",
         "labelsNote": "“Reviewed” questions have been checked by a person. “AI-generated” questions were written by AI for this job and are awaiting review. The “general question set” is used for every job, with your job title.",
         "cta": "Practise this interview",
-        "ctaNote": "Free. The AI asks in German and shows what to improve after every answer."
+        "ctaNote": "Free. The AI asks in German and shows what to improve after every answer.",
+        "relatedCap": "Related jobs",
+        "guideLink": "Guide: {title}",
+        "examLink": "Exam prep: {name}",
+        "faqCap": "Frequently asked questions",
+        "faqAskQ": "What do German job interviews for {name} ask?",
+        "faqAskA": "The practice interview opens with a request to introduce yourself, then the interviewer asks about your experience and job skills, for example: „{example}“. Questions may differ or be phrased differently.",
+        "faqAskANoExample": "The practice interview opens with a request to introduce yourself, then the interviewer asks about your experience and job skills. Questions may differ or be phrased differently.",
+        "faqLevelQ": "What level of German do I need for a {name} interview?",
+        "faqLevelA": "It depends on the employer and the programme. Many vocational training programmes ask for B1, some ask for B2. Check the requirements of the place you are applying to.",
+        "faqCostQ": "Is practising the {name} interview free?",
+        "faqCostA": "Yes. You practise for free: the AI asks in German and shows what to improve after every answer."
       }
     },
     "footer": {

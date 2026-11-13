@@ -4,7 +4,7 @@ import { occupationOgImage } from '@/lib/ogImage'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { OccupationDetailView } from '@/components/landing-v2/OccupationPages'
-import { fetchOccupationDetail } from '@/lib/occupationServer'
+import { fetchIndexableOccupations, fetchOccupationDetail, fetchOccupations } from '@/lib/occupationServer'
 import { occupationName, occupationTitleName } from '@/lib/occupationTypes'
 import { breadcrumbStructuredData, toJsonLd } from '@/lib/homeStructuredData'
 import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
@@ -68,6 +68,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function OccupationPage({ params, searchParams }: Props) {
   const detail = await fetchOccupationDetail(params.nghe)
   if (!detail) notFound()
+  // Khối "Nghề liên quan" (cụm chủ đề): lỗi ở đây chỉ ẩn khối, không làm hỏng trang (cả hai trả `null`).
+  const [catalog, indexable] = await Promise.all([fetchOccupations(), fetchIndexableOccupations()])
   const raw = await getLocale()
   const locale = isPublicLocale(raw) ? raw : DEFAULT_PUBLIC_LOCALE
   const o = detail.occupation
@@ -79,7 +81,12 @@ export default async function OccupationPage({ params, searchParams }: Props) {
   return (
     <div className="ga-scope">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(crumbs) }} />
-      <OccupationDetailView detail={detail} showTraining={ausbildungVisible(searchParams?.[DRAFT_PREVIEW_PARAM])} />
+      <OccupationDetailView
+        detail={detail}
+        showTraining={ausbildungVisible(searchParams?.[DRAFT_PREVIEW_PARAM])}
+        catalog={catalog}
+        indexable={indexable}
+      />
     </div>
   )
 }
