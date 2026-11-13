@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, ArrowRight, BookOpenText, Check, Pencil, Repeat, Trash2, Volume2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpenText, Check, ChevronDown, Pencil, Repeat, Trash2, Volume2, X } from 'lucide-react'
 import { colorForArticle } from '@/lib/vocabWords'
 import { myWordsApi, passageHref, type SavedWord, type WordTopic } from '@/lib/myWordsApi'
 import {
@@ -252,17 +252,22 @@ export default function MyWordsPage() {
                                 <div className="ga-ui mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-ga-caption text-ga-muted">
                                   {by === 'topic' && w.examTitle && <span className="truncate">{w.examTitle}</span>}
                                   {href && (
-                                    <Link href={href} className="font-semibold text-ga-accent hover:underline">
+                                    <Link href={href} className="font-semibold text-ga-ink underline decoration-ga-accent decoration-2 underline-offset-2 hover:decoration-ga-ink">
                                       {t('openInText')}
                                     </Link>
                                   )}
-                                  <label className="inline-flex items-center gap-1">
-                                    <span className="sr-only">{t('topicLabel', { word: display(w) })}</span>
+                                  {/* Chip chủ đề: nhãn tự vẽ theo thang chữ Galerie; select thật phủ trong suốt lên trên
+                                      để vẫn mở bộ chọn của hệ thống (màn hẹp/iOS) mà không lộ kiểu ô mặc định —
+                                      .ga-scope ép select 16px dưới 1024px nên ô lộ ra trông to và bị cắt chữ. */}
+                                  <span className="relative inline-flex h-7 min-w-0 max-w-full items-center gap-1 rounded-full border border-ga-line bg-ga-card pl-2.5 pr-2 font-semibold text-ga-ink hover:bg-ga-side-active focus-within:ring-2 focus-within:ring-ga-focus">
+                                    <span aria-hidden className="truncate">{w.topicLabel ?? t('unsorted')}</span>
+                                    <ChevronDown size={12} aria-hidden className="shrink-0 text-ga-muted" />
                                     <select
+                                      aria-label={t('topicLabel', { word: display(w) })}
                                       value={w.topic ?? ''}
                                       disabled={busy === w.id}
                                       onChange={(e) => void changeTopic(w, e.target.value || null)}
-                                      className="h-8 max-w-[11rem] rounded-ga border border-ga-line bg-ga-card px-1.5 text-ga-caption text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+                                      className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 focus:outline-none disabled:cursor-wait"
                                     >
                                       <option value="">{t('unsorted')}</option>
                                       {topics.map((tp) => (
@@ -271,7 +276,7 @@ export default function MyWordsPage() {
                                         </option>
                                       ))}
                                     </select>
-                                  </label>
+                                  </span>
                                 </div>
                               </div>
                               <div className="flex shrink-0 items-center">
