@@ -41,9 +41,11 @@ public class ExamOpsAlerts {
         extra.put("sessionId", sessionId);
         extra.put("jobId", jobId);
         extra.put("reason", reason);
-        send("Chấm mock thất bại (" + reason + ")",
-                "Phiên " + sessionId + " chuyển GRADING_FAILED — lý do " + reason
-                        + (detail == null || detail.isBlank() ? "" : ": " + abbreviate(detail)) + ".",
+        send("Chấm thi nói thử thất bại",
+                "Phiên thi nói thử #" + sessionId + " không chấm được: " + reasonLabel(reason)
+                        + (detail == null || detail.isBlank() ? "" : " (" + abbreviate(detail) + ")")
+                        + ". Học viên chưa có kết quả cho phiên này. Mở trang \"Cấu hình AI\" để kiểm tra model chấm thi và hạn mức "
+                        + "của nhà cung cấp; nếu lỗi lặp lại, báo kỹ thuật kèm số phiên.",
                 extra);
     }
 
@@ -69,9 +71,11 @@ public class ExamOpsAlerts {
         extra.put("unscored", unscored);
         extra.put("total", total);
         extra.put("llmInvalidTeil", llmInvalid);
-        send("Chấm mock thiếu tín hiệu",
-                "Phiên " + sessionId + ": " + unscored + "/" + total + " tiêu chí không chấm được"
-                        + (llmInvalid ? " (có Teil LLM trả JSON hỏng)" : "") + " — kiểm tra nhà cung cấp LLM.",
+        send("Chấm thi nói thử thiếu dữ liệu",
+                "Phiên thi nói thử #" + sessionId + ": " + unscored + " trong " + total + " tiêu chí không chấm được"
+                        + (llmInvalid ? " (ở ít nhất một Teil, AI trả lời sai mẫu)" : "")
+                        + ". Phiếu điểm đã phát hành nhưng thiếu các tiêu chí đó. Mở trang \"Cấu hình AI\" để kiểm tra model chấm thi; "
+                        + "nếu nhiều phiên cùng bị, báo kỹ thuật kèm số phiên.",
                 extra);
     }
 
@@ -84,7 +88,21 @@ public class ExamOpsAlerts {
         return true;
     }
 
+    /** Trang admin mở ra khi bấm vào thông báo. */
+    static final String URL = "/v2/admin/ai-config";
+
+    /** Lý do chấm hỏng nói bằng lời thường thay cho mã nội bộ. */
+    static String reasonLabel(String reason) {
+        return switch (reason == null ? "" : reason) {
+            case "QUOTA_EXCEEDED" -> "hết hạn mức AI";
+            case "JOB_FAILED" -> "lượt chấm bị lỗi";
+            case "JOB_STUCK" -> "lượt chấm treo quá lâu";
+            default -> "lỗi chưa rõ loại";
+        };
+    }
+
     private void send(String title, String message, Map<String, Object> extra) {
+        extra.putIfAbsent("url", URL);
         try {
             notifications.onSystemAlert(SOURCE, title, message, extra);
         } catch (RuntimeException e) {

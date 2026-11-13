@@ -71,6 +71,25 @@ class ExamOpsAlertsTest {
     }
 
     @Test
+    @DisplayName("câu chữ chuông: nói phiên nào, chuyện gì, làm gì; không lộ mã nội bộ; có đường dẫn trang cần mở")
+    void alertTextAnswersWhatWhereAndNext() {
+        alerts.gradingFailed(7L, 99L, "QUOTA_EXCEEDED", "provider down");
+        ArgumentCaptor<String> title = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> extra = ArgumentCaptor.forClass(Map.class);
+        verify(notifications).onSystemAlert(eq(ExamOpsAlerts.SOURCE), title.capture(), message.capture(), extra.capture());
+        assertThat(title.getValue()).isEqualTo("Chấm thi nói thử thất bại");
+        assertThat(message.getValue())
+                .contains("Phiên thi nói thử #7", "hết hạn mức AI", "provider down", "Cấu hình AI", "báo kỹ thuật")
+                .doesNotContain("GRADING_FAILED").doesNotContain("QUOTA_EXCEEDED").doesNotContain("mock").doesNotContain("LLM");
+        assertThat(extra.getValue()).containsEntry("url", "/v2/admin/ai-config").containsEntry("sessionId", 7L);
+
+        for (String reason : java.util.List.of("QUOTA_EXCEEDED", "JOB_FAILED", "JOB_STUCK", "KHAC")) {
+            assertThat(ExamOpsAlerts.reasonLabel(reason)).isNotBlank().doesNotContain("_");
+        }
+    }
+
+    @Test
     @DisplayName("kênh thông báo ném lỗi → nuốt, không lan sang luồng chấm")
     void notificationFailureSwallowed() {
         doThrow(new RuntimeException("db down")).when(notifications).onSystemAlert(anyString(), anyString(), anyString(), any());

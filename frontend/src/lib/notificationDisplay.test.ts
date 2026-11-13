@@ -70,6 +70,17 @@ describe('resolveNotificationHref', () => {
     expect(resolveNotificationHref(notif('ADMIN_ORG_CREATED', { orgId: 1 }), 'admin')).toBe('/v2/admin/organizations')
   })
 
+  // 13/11/2026: cảnh báo hệ thống phải bấm tới được chỗ xử lý (trước đây không dẫn đi đâu).
+  it('opens the page a system alert points to, only inside the admin area', () => {
+    expect(resolveNotificationHref(notif('ADMIN_SYSTEM_ALERT', { url: '/v2/admin/exam-studio?tab=assemblies&run=11' }), 'admin'))
+      .toBe('/v2/admin/exam-studio?tab=assemblies&run=11')
+    expect(resolveNotificationHref(notif('ADMIN_SYSTEM_ALERT', { url: '/v2/admin/ai-config' }), 'admin')).toBe('/v2/admin/ai-config')
+    expect(resolveNotificationHref(notif('ADMIN_SYSTEM_ALERT', {}), 'admin')).toBeNull()
+    expect(resolveNotificationHref(notif('ADMIN_SYSTEM_ALERT', { url: 'https://example.com/x' }), 'admin')).toBeNull()
+    expect(resolveNotificationHref(notif('ADMIN_SYSTEM_ALERT', { url: '/v2/student/dashboard' }), 'admin')).toBeNull()
+    expect(resolveNotificationHref(notif('ADMIN_SYSTEM_ALERT', { url: '/v2/admin/ai-config' }), 'teacher')).toBeNull()
+  })
+
   it('an org viewer’s invoice notification goes to org billing', () => {
     expect(resolveNotificationHref(notif('ADMIN_ORG_INVOICE_PAID', { orgId: 1 }), 'org')).toBe('/v2/org/billing')
   })
