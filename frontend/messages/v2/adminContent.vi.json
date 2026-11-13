@@ -576,6 +576,10 @@
         "approve": "Duyệt cả bộ",
         "approved": "Đã duyệt. Bộ đề được đánh số tiếp theo và nằm ở danh sách bên dưới, trạng thái \"Sắp có\".",
         "loadError": "Không tải được danh sách lượt tạo bộ đề",
+        "lastErrorWhen": {
+          "RUNNING": "Lần thử trước chưa được, máy đang tự làm lại (bạn chưa cần làm gì):",
+          "STUCK": "Lý do máy dừng ở Teil này:"
+        },
         "approveBlocked": "Chưa duyệt được lượt #{id}: {count} Teil chưa đạt. Danh sách và cách sửa nằm ngay trong thẻ của lượt.",
         "approveTitle": "Duyệt cả bộ của lượt #{id}?",
         "approveBody": "Mọi Teil của lượt này vào kho và được ghép thành một bộ đề ở trạng thái \"Sắp có\". Học viên chưa thấy cho tới khi bạn bấm Phát hành ở danh sách bộ đề. Phần Nghe của bộ đề là ba Teil Nghe do máy soạn trong lượt này.",
@@ -711,6 +715,14 @@
       "saved": "Đã lưu",
       "unsaved": "Có thay đổi chưa lưu",
       "later": "Đợt sau",
+      "lastErrorTodo": "Cần làm:",
+      "lastErrorHelp": {
+        "CHANNEL": "Đây là lỗi của kênh AI, không phải của bản nháp. Bấm lại đúng nút bạn vừa bấm. Nếu lỗi lặp lại, đổi kênh ở nút \"Tạo đề bằng\" rồi thử lần nữa.",
+        "INCOMPLETE": "AI trả lời thiếu hoặc sai mẫu. Bấm lại đúng nút bạn vừa bấm để AI làm lại. Nếu lỗi lặp lại ba lần, đổi kênh ở nút \"Tạo đề bằng\".",
+        "TIMEOUT": "Máy đã dừng thao tác vì chạy quá lâu. Bấm lại đúng nút bạn vừa bấm.",
+        "SOURCE": "Lỗi nằm ở nguồn bài báo. Ở bước \"Nguồn\", dán văn bản của bài thay cho đường dẫn, hoặc chọn một nguồn khác.",
+        "OTHER": "Bấm lại đúng nút bạn vừa bấm. Nếu lỗi lặp lại, báo kỹ thuật kèm số bản nháp #{id}."
+      },
       "lastErrorTitle": "Thao tác AI gần nhất bị lỗi",
       "busyHint": "Màn hình tự cập nhật khi xong.",
       "busy": {

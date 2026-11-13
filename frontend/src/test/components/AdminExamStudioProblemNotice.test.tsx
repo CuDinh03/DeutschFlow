@@ -24,6 +24,8 @@ vi.mock('next/link', () => ({
 import { SetRunsPanel } from '@/components/admin/exam-studio/SetRunsPanel'
 import { ProblemNotice } from '@/components/admin/ProblemNotice'
 import { apiProblem, isGuided } from '@/lib/apiProblem'
+import { LastErrorBanner } from '@/components/admin/exam-studio/ui'
+import { lastErrorKind } from '@/lib/examStudioLogic'
 
 const teil = (over: Partial<SetRunTeil>): SetRunTeil => ({
   section: 'LESEN', teil: 1, status: 'READY', stage: 'DONE', theme: 'Wohnen', draftId: 41,
@@ -191,6 +193,46 @@ describe('Thông báo lỗi có chỉ dẫn', () => {
     await userEvent.click(within(banner).getByRole('button'))
     await waitFor(() => expect(m.listSetRuns).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
+  it('lỗi máy ghi lại: phân loại theo câu chữ backend và luôn kèm việc cần làm', () => {
+    // Các câu backend đang ghi vào last_error (ExamStudioAi, ExamDraftService, SituationalTeile, SourceFetcher…).
+    const cases: [string, string][] = [
+      ['Model soạn đề không trả lời (HTTP 503), vui lòng thử lại.', 'CHANNEL'],
+      ['AI không trả về nội dung, vui lòng thử lại.', 'CHANNEL'],
+      ['AI trả JSON hỏng, hãy thử lại.', 'CHANNEL'],
+      ['Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại.', 'CHANNEL'],
+      ['Kênh 9Router chưa được cấu hình trên máy chủ.', 'CHANNEL'],
+      ['AI chỉ trả 3/5 văn bản, hãy thử lại.', 'INCOMPLETE'],
+      ['AI không trả bức thư.', 'INCOMPLETE'],
+      ['AI trả hỏng câu q2, q4 — bấm Sinh lại cho câu đó.', 'INCOMPLETE'],
+      ['Thao tác "Viết bài" chạy quá 20 phút nên máy đã dừng.', 'TIMEOUT'],
+      ['Không tải được trang (SocketTimeoutException). Hãy dán văn bản.', 'SOURCE'],
+      ['Trang trả mã 403.', 'SOURCE'],
+      ['Thao tác AI thất bại, hãy thử lại.', 'OTHER'],
+      ['một câu hoàn toàn mới', 'OTHER'],
+    ]
+    for (const [msg, kind] of cases) expect([msg, lastErrorKind(msg)]).toEqual([msg, kind])
+
+    const { unmount } = wrap(<LastErrorBanner message="AI trả JSON hỏng, hãy thử lại." draftId={103} />)
+    const banner = screen.getByRole('alert')
+    expect(within(banner).getByText('AI trả JSON hỏng, hãy thử lại.')).toBeInTheDocument()
+    expect(within(banner).getByText('Cần làm:')).toBeInTheDocument()
+    expect(within(banner).getByText(/lỗi của kênh AI, không phải của bản nháp.*đổi kênh ở nút "Tạo đề bằng"/)).toBeInTheDocument()
+    unmount()
+    wrap(<LastErrorBanner message="một câu hoàn toàn mới" draftId={103} />)
+    expect(screen.getByText(/báo kỹ thuật kèm số bản nháp #103/)).toBeInTheDocument()
+  })
+
+  it('dòng lỗi của Teil trong lượt: nói rõ máy đang tự làm lại hay đã dừng', async () => {
+    m.listSetRuns.mockResolvedValue([run({ status: 'RUNNING', teile: [
+      teil({ status: 'RUNNING', stage: 'TEXT', lastError: 'AI không trả bài đọc.' }),
+      teil({ teil: 2, status: 'STUCK', stage: 'VERIFY', draftId: 42, lastError: 'Trùng nguồn' }),
+    ] })])
+    wrap(<SetRunsPanel active />)
+    const retrying = await screen.findByText('AI không trả bài đọc.', { exact: false })
+    expect(retrying).toHaveTextContent('Lần thử trước chưa được, máy đang tự làm lại (bạn chưa cần làm gì): AI không trả bài đọc.')
+    expect(screen.getByText(/Lý do máy dừng ở Teil này:/).parentElement).toHaveTextContent('Lý do máy dừng ở Teil này: Trùng nguồn')
   })
 
   it('ProblemNotice: nhiều lý do của cùng một bản nháp gộp dưới một nhãn và một nút; hideLinks ẩn nút', () => {

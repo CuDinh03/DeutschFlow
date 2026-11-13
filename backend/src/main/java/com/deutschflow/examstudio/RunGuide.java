@@ -101,6 +101,23 @@ final class RunGuide {
                 .build();
     }
 
+    /** Tên thao tác AI đúng như nhãn trên giao diện, thay cho mã nội bộ (TEXT, ITEMS…). */
+    static String opLabel(String op) {
+        return switch (op == null ? "" : op) {
+            case "FACTS" -> "Rút dữ kiện";
+            case "TEXT" -> "Viết bài";
+            case "ITEMS" -> "Ra câu hỏi";
+            case "ITEM" -> "Sinh lại câu";
+            case "VERIFY" -> "Tự kiểm";
+            default -> "AI";
+        };
+    }
+
+    /** Lời ghi vào bản nháp khi một thao tác AI treo quá hạn và bị máy dừng. */
+    static String timedOut(String op, long minutes) {
+        return "Thao tác \"" + opLabel(op) + "\" chạy quá " + minutes + " phút nên máy đã dừng.";
+    }
+
     static String teilLabel(String section, int teil, Long draftId) {
         String slot = ApprovalGuide.slotLabel(section, teil);
         return draftId == null ? slot : slot + " · bản nháp #" + draftId;
