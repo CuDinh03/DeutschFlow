@@ -28,7 +28,7 @@
       "titleEm": "đúng nghề của bạn.",
       "sub": "AI đóng vai nhà tuyển dụng Đức, hỏi theo nghề bạn chọn và chỉ ra chỗ cần sửa sau mỗi câu trả lời: ngữ pháp, từ dùng chưa đúng, ý còn thiếu.",
       "ctaStart": "Học thử miễn phí",
-      "microcopy": "Không cần thẻ · 2 phút bắt đầu · Có app iPhone",
+      "microcopy": "Không cần thanh toán trước · 2 phút bắt đầu · Có app iPhone",
       "bullets": ["Câu hỏi theo đúng nghề", "Thi thử telc B1 theo format đề thật"]
     },
     "explorer": {
@@ -170,7 +170,7 @@
       "title": "Chọn gói phù hợp",
       "plans": [
         { "name": "Miễn phí", "price": "0₫", "sub": "", "features": ["Học từ vựng & ngữ pháp A1–B1", "Ôn tập ngắt quãng (SRS) mỗi ngày", "Trải nghiệm phỏng vấn AI có hạn mức"], "cta": "Bắt đầu ngay" },
-        { "name": "Pro", "price": "299.000₫", "sub": "/tháng", "features": ["Phỏng vấn AI hạn mức cao mỗi ngày", "Nhận xét ngữ pháp & nội dung chi tiết", "Đủ bộ ngành nghề phỏng vấn", "Thi thử telc B1"], "cta": "Dùng thử 7 ngày miễn phí" },
+        { "name": "Pro", "price": "249.000₫", "sub": "/tháng", "features": ["Phỏng vấn AI hạn mức cao mỗi ngày", "Nhận xét ngữ pháp & nội dung chi tiết", "Đủ bộ ngành nghề phỏng vấn", "Thi thử telc B1"], "cta": "Dùng thử 7 ngày miễn phí" },
         { "name": "Giáo viên", "price": "Liên hệ", "sub": "", "features": ["Quản lý lớp học", "Tạo tài liệu AI", "Chấm bài Speaking", "Báo cáo tiến độ học viên"], "cta": "Nhận tư vấn" }
       ]
     },
@@ -192,7 +192,7 @@
         { "q": "Ghi âm của tôi được xử lý thế nào?", "a": "Bản ghi âm được chuyển thành chữ để chấm và nhận xét. Thời gian lưu và cách yêu cầu xoá được ghi trong Chính sách bảo mật." },
         { "q": "Thi thử có phải chứng chỉ không?", "a": "Không. Thi thử mô phỏng format đề telc B1, không liên kết với telc và không thay cho chứng chỉ." },
         { "q": "Tôi đang học ở trung tâm, dùng chung được không?", "a": "Được. Trung tâm tạo lớp và giao bài; bạn làm trên ứng dụng, giáo viên theo dõi và chấm." },
-        { "q": "Có mất phí không?", "a": "Bạn bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng. Thông tin gói trả phí có trong ứng dụng." }
+        { "q": "Có mất phí không?", "a": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro khi đăng ký. Hết 7 ngày, bạn vẫn học bài và ôn từ vựng miễn phí; luyện nói, phỏng vấn và chấm bài bằng AI cần gói Pro, từ 249.000₫ một tháng, mua trong app iPhone. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)." }
       ]
     },
     "founder": {
@@ -372,12 +372,13 @@
         "faqLevelQ": "Cần trình độ tiếng Đức nào để phỏng vấn nghề {name}?",
         "faqLevelA": "Tuỳ nhà tuyển dụng và chương trình. Nhiều chương trình học nghề yêu cầu từ B1, có nơi yêu cầu B2. Hãy kiểm tra yêu cầu của nơi bạn ứng tuyển.",
         "faqCostQ": "Luyện phỏng vấn nghề {name} có mất phí không?",
-        "faqCostA": "Bạn bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng. Thông tin gói trả phí có trong ứng dụng."
+        "faqCostA": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro để luyện phỏng vấn với AI. Sau đó luyện phỏng vấn cần gói Pro, từ 249.000₫ một tháng, mua trong app iPhone. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)."
       }
     },
     "footer": {
       "guide": "Cẩm nang",
       "whatIs": "myDeutschFlow là gì?",
+      "pricing": "Chi phí",
       "about": "Về chúng tôi",
       "privacy": "Chính sách bảo mật",
       "terms": "Điều khoản sử dụng",
@@ -470,7 +471,7 @@
       "pricing": {
         "cap": "Chi phí",
         "title": "Tính theo học viên đang học.",
-        "body": "Trung tâm trả theo số học viên đang học mỗi tháng, với hạn mức sử dụng ghi rõ bằng số. Có gói chạy thử ngắn hạn; phí chạy thử được trừ vào hợp đồng nếu trung tâm dùng tiếp. Báo giá cụ thể trong buổi demo."
+        "body": "Trung tâm trả 75.000₫ cho mỗi học viên đang học mỗi tháng (65.000₫ khi trả trước 6 tháng, giá chưa gồm VAT). Chạy thử 2 tuần miễn phí, sau đó 1.500.000₫ mỗi lớp tới hết tuần 6; phí chạy thử được trừ vào hợp đồng nếu trung tâm dùng tiếp. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)."
       },
       "data": {
         "cap": "Dữ liệu học viên",

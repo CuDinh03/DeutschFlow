@@ -149,7 +149,7 @@ describe('GaLanding — menu mobile', () => {
 
     const home = screen.getByRole('link', { name: 'myDeutschFlow' })
     expect(home.textContent).toBe('myDeutschFlow')
-    expect(screen.getByText('Không cần thẻ · 2 phút bắt đầu · Có app iPhone')).toBeInTheDocument()
+    expect(screen.getByText('Không cần thanh toán trước · 2 phút bắt đầu · Có app iPhone')).toBeInTheDocument()
     expect(screen.getByText('Huấn luyện phỏng vấn bằng AI cho người sang Đức làm việc')).toBeInTheDocument()
     // Chưa có app Android (owner chốt 14/11/2026): chỉ được nói Android dùng bản web, không ngụ ý có app.
     expect(container.textContent).not.toMatch(/(app|ứng dụng)[^.·]{0,20}Android|Android[^.·]{0,20}(app|ứng dụng)|Google Play/i)

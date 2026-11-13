@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Maps an Apple App Store product id (e.g. {@code com.deutschflow.app.pro.monthly}) to the internal
+ * Maps an Apple App Store product id (e.g. {@code com.cudinh.mydeutschflow.pro.monthly}) to the internal
  * subscription plan code and duration. The server trusts this mapping for entitlement — never Apple's
  * price, which is managed per-storefront in App Store Connect.
  *

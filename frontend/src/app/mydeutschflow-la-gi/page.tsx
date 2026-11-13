@@ -20,7 +20,8 @@ import { DESCRIPTION, FAQS, FOUNDER, H1, PATH, PATHWAYS, TITLE } from '@/data/wh
  * Luật nội dung (sổ lời hứa): mọi khẳng định về sản phẩm lấy từ catalog trang chủ
  * (`messages/v2/landing.vi.json`: hero, report, exam, learn, pathways, partners, faq, app) và giữ đủ
  * các lưu ý của trang chủ (chấm Nói Beta, B2 đang xây dựng, chưa có C1, đề thi nghề nghiệp đang biên
- * soạn, tính năng nhà tuyển dụng sắp có). Không hứa đỗ visa, không số liệu người dùng, không giá.
+ * soạn, tính năng nhà tuyển dụng sắp có). Không hứa đỗ visa, không số liệu người dùng. Không chép giá vào
+ * trang này — giá nằm ở `/chi-phi/` (14/11/2026), trang này chỉ dẫn sang.
  */
 export const metadata: Metadata = {
   title: TITLE,
@@ -164,7 +165,7 @@ export default function WhatIsPage() {
           <ol className="flex list-decimal flex-col gap-2 pl-5 text-ga-body-lg text-ga-ink">
             <li>Mở mydeutschflow.com hoặc tải ứng dụng iPhone trên App Store (miễn phí tải, iOS 15.1 trở lên). Web và app dùng chung một tài khoản.</li>
             <li>Gõ tên nghề vào ô &ldquo;Bạn làm nghề gì?&rdquo; và xem câu hỏi mẫu.</li>
-            <li>Bấm Học thử miễn phí. Không cần thẻ.</li>
+            <li>Bấm Học thử miễn phí. Không cần thanh toán trước.</li>
             <li>Trả lời bằng giọng nói, đọc báo cáo sau buổi, rồi làm bài luyện được gợi ý.</li>
           </ol>
           <p className={P}>Nếu bạn mới bắt đầu: lộ trình bắt đầu từ A1, và luyện phỏng vấn theo nghề phù hợp nhất từ khoảng A2.</p>
@@ -181,7 +182,7 @@ export default function WhatIsPage() {
           <p className={P}>Với nhà tuyển dụng ở Đức, tính năng xem hồ sơ luyện nói của ứng viên đang chuẩn bị; nền tảng đang tìm đối tác chạy thử.</p>
 
           <h2 className={H2}>Chi phí và thiết bị</h2>
-          <p className={P}>Bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng; thông tin gói trả phí có trong ứng dụng. Dùng trên trình duyệt web (máy tính và điện thoại) và ứng dụng iPhone (iOS 15.1 trở lên); máy Android dùng bản web. Trang web có giao diện tiếng Việt, tiếng Anh và tiếng Đức.</p>
+          <p className={P}>Bắt đầu miễn phí, không cần thanh toán trước, có 7 ngày Pro khi đăng ký; giá các gói ở trang <Link href="/chi-phi/" className={A}>Chi phí</Link>. Dùng trên trình duyệt web (máy tính và điện thoại) và ứng dụng iPhone (iOS 15.1 trở lên); máy Android dùng bản web. Trang web có giao diện tiếng Việt, tiếng Anh và tiếng Đức.</p>
 
           <h2 className={H2}>Câu hỏi thường gặp</h2>
           <div className="border-t border-ga-border">

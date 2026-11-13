@@ -33,7 +33,7 @@ const PLANS: Plan[] = [
   {
     code: 'PRO',
     nameKey: 'planProName',
-    priceVnd: 299000,
+    priceVnd: 249000,
     periodKey: 'planProPeriod',
     accent: 'var(--ga-violet)',
     highlight: true,

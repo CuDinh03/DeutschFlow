@@ -120,7 +120,7 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
       },
       {
         q: 'Luyện phỏng vấn nghề bếp trên myDeutschFlow có mất phí không?',
-        a: 'Bạn luyện thử miễn phí, không cần thẻ.',
+        a: 'Bạn luyện thử miễn phí, không cần thanh toán trước.',
       },
       {
         q: 'Sau buổi luyện tôi nhận được gì?',

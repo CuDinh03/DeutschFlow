@@ -170,7 +170,7 @@
       "title": "Das passende Paket wählen",
       "plans": [
         { "name": "Kostenlos", "price": "0₫", "sub": "", "features": ["Wortschatz & Grammatik A1–B1", "Tägliche Wiederholung (SRS)", "KI-Gespräche mit Tageslimit"], "cta": "Jetzt starten" },
-        { "name": "Pro", "price": "299.000₫", "sub": "/Monat", "features": ["Hohes Tageslimit für KI-Gespräche", "Detailliertes Feedback zu Grammatik & Inhalt", "Alle Berufe im Gesprächstraining", "Probeprüfungen telc B1"], "cta": "7 Tage kostenlos testen" },
+        { "name": "Pro", "price": "249.000₫", "sub": "/Monat", "features": ["Hohes Tageslimit für KI-Gespräche", "Detailliertes Feedback zu Grammatik & Inhalt", "Alle Berufe im Gesprächstraining", "Probeprüfungen telc B1"], "cta": "7 Tage kostenlos testen" },
         { "name": "Lehrkräfte", "price": "Auf Anfrage", "sub": "", "features": ["Klassenverwaltung", "KI-Materialien", "Sprechbewertung", "Fortschrittsberichte der Lernenden"], "cta": "Beratung anfragen" }
       ]
     },
@@ -192,7 +192,7 @@
         { "q": "Was passiert mit meinen Aufnahmen?", "a": "Aufnahmen werden in Text umgewandelt, damit sie bewertet und kommentiert werden können. Speicherdauer und Löschung stehen in der Datenschutzerklärung." },
         { "q": "Ist eine Probeprüfung ein Zertifikat?", "a": "Nein. Probeprüfungen simulieren das Format telc B1, stehen in keiner Verbindung zu telc und ersetzen kein Zertifikat." },
         { "q": "Ich lerne an einer Sprachschule. Können wir es gemeinsam nutzen?", "a": "Ja. Die Sprachschule legt Klassen an und gibt Aufgaben; Sie bearbeiten sie in der App, die Lehrkraft verfolgt und bewertet sie." },
-        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos mit einem täglichen KI-Kontingent, ohne Kreditkarte. Bezahlpakete werden in der App angezeigt." }
+        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos, ohne Kreditkarte, mit 7 Tagen Pro nach der Registrierung. Danach bleiben Lektionen und Vokabelwiederholung kostenlos; KI-Sprechtraining, Interviewtraining und KI-Korrektur brauchen Pro, ab 249.000₫ im Monat in der iPhone-App." }
       ]
     },
     "founder": {
@@ -372,12 +372,13 @@
         "faqLevelQ": "Welches Deutschniveau brauche ich für ein Vorstellungsgespräch als {name}?",
         "faqLevelA": "Das hängt vom Arbeitgeber und vom Programm ab. Viele Ausbildungsprogramme verlangen B1, manche B2. Prüfen Sie die Anforderungen der Stelle, auf die Sie sich bewerben.",
         "faqCostQ": "Kostet das Üben des Vorstellungsgesprächs als {name} etwas?",
-        "faqCostA": "Sie starten kostenlos, mit einem täglichen Kontingent für KI-Übungen und ohne Kreditkarte. Kostenpflichtige Tarife finden Sie in der App."
+        "faqCostA": "Sie starten kostenlos, ohne Kreditkarte, mit 7 Tagen Pro für das Interviewtraining mit der KI. Danach braucht das Interviewtraining Pro, ab 249.000₫ im Monat in der iPhone-App."
       }
     },
     "footer": {
       "guide": "Ratgeber",
       "whatIs": "Was ist myDeutschFlow?",
+      "pricing": "Preise",
       "about": "Über uns",
       "privacy": "Datenschutz",
       "terms": "Nutzungsbedingungen",

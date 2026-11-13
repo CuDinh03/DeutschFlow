@@ -28,7 +28,7 @@ You must provide accurate registration information and keep your login credentia
 
 ### 4. Free access and premium features
 
-DeutschFlow is **free to download and use**. Advanced features (such as unlimited AI speaking practice and mock exams) are part of the optional **PRO** and **ULTRA** plans, offered as **auto-renewable subscriptions** (monthly or yearly).
+DeutschFlow is **free to download and use**. AI features (such as AI speaking and interview practice, AI grading and the telc B1 mock exam) are part of the optional paid plans **Pro** and **Tăng tốc** (Boost), each with a daily AI usage allowance and offered as **auto-renewable subscriptions** (Pro: every month or every two months; Tăng tốc: every two months).
 
 - **Purchases on iOS** are made through Apple In-App Purchase and charged to your Apple account. The price is shown in the App before you confirm. Your subscription **renews automatically** unless you cancel at least 24 hours before the end of the current period; you can manage or cancel it any time in **App Store → Settings → Subscriptions**. Refunds for iOS purchases are handled by Apple under App Store terms.
 - **Purchases on our website** are processed by our web payment provider under the terms shown at checkout. A plan purchased on the web unlocks the same features in the App; a plan purchased in the App unlocks the same features on the web.
@@ -95,7 +95,7 @@ Bạn phải cung cấp thông tin đăng ký chính xác và giữ an toàn th�
 
 ### 4. Truy cập miễn phí và tính năng cao cấp
 
-DeutschFlow **miễn phí tải và sử dụng**. Các tính năng nâng cao (như luyện nói với AI không giới hạn và thi thử) thuộc gói tuỳ chọn **PRO** và **ULTRA**, cung cấp dưới dạng **gói đăng ký tự động gia hạn** (theo tháng hoặc theo năm).
+DeutschFlow **miễn phí tải và sử dụng**. Các tính năng dùng AI (như luyện nói và luyện phỏng vấn với AI, chấm bài bằng AI và đề thi thử telc B1) thuộc gói trả phí tuỳ chọn **Pro** và **Tăng tốc**, mỗi gói có hạn mức sử dụng AI theo ngày, cung cấp dưới dạng **gói đăng ký tự động gia hạn** (Pro: mỗi tháng hoặc mỗi 2 tháng; Tăng tốc: mỗi 2 tháng).
 
 - **Mua trên iOS** thực hiện qua Mua trong ứng dụng của Apple và tính phí vào tài khoản Apple của bạn. Giá hiển thị trong Ứng dụng trước khi bạn xác nhận. Gói **tự động gia hạn** trừ khi bạn huỷ ít nhất 24 giờ trước khi hết kỳ hiện tại; bạn có thể quản lý hoặc huỷ bất cứ lúc nào trong **App Store → Cài đặt → Gói đăng ký**. Hoàn tiền cho giao dịch iOS do Apple xử lý theo điều khoản App Store.
 - **Mua trên website** do nhà cung cấp thanh toán web của chúng tôi xử lý theo điều khoản hiển thị khi thanh toán. Gói mua trên web mở khoá cùng các tính năng trong Ứng dụng; gói mua trong Ứng dụng cũng mở khoá trên web.
@@ -162,7 +162,7 @@ Sie müssen korrekte Registrierungsdaten angeben und Ihre Anmeldedaten sicher au
 
 ### 4. Kostenloser Zugang und Premium-Funktionen
 
-DeutschFlow ist **kostenlos herunterzuladen und zu nutzen**. Erweiterte Funktionen (etwa unbegrenztes KI-Sprechtraining und Prüfungssimulationen) sind Teil der optionalen Tarife **PRO** und **ULTRA**, die als **automatisch verlängernde Abonnements** (monatlich oder jährlich) angeboten werden.
+DeutschFlow ist **kostenlos herunterzuladen und zu nutzen**. KI-Funktionen (etwa KI-Sprech- und Interviewtraining, KI-Korrektur und die telc-B1-Prüfungssimulation) sind Teil der optionalen kostenpflichtigen Tarife **Pro** und **Tăng tốc** (Boost), jeweils mit einem täglichen KI-Kontingent, die als **automatisch verlängernde Abonnements** angeboten werden (Pro: monatlich oder alle zwei Monate; Tăng tốc: alle zwei Monate).
 
 - **Käufe unter iOS** erfolgen über Apple In-App-Kauf und werden Ihrem Apple-Konto belastet. Der Preis wird in der App angezeigt, bevor Sie bestätigen. Ihr Abonnement **verlängert sich automatisch**, sofern Sie nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums kündigen; Sie können es jederzeit unter **App Store → Einstellungen → Abonnements** verwalten oder kündigen. Rückerstattungen für iOS-Käufe werden von Apple gemäß den App-Store-Bedingungen abgewickelt.
 - **Käufe auf unserer Website** werden von unserem Web-Zahlungsanbieter zu den beim Checkout angezeigten Bedingungen abgewickelt. Ein auf der Website gekaufter Tarif schaltet dieselben Funktionen in der App frei; ein in der App gekaufter Tarif schaltet dieselben Funktionen auf der Website frei.

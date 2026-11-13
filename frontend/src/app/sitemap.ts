@@ -79,6 +79,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl('/cam-nang/'), lastModified: laterDate(PAGE_LASTMOD['/cam-nang'], GUIDE_ARTICLES.map((g) => g.published).sort().at(-1)), changeFrequency: 'weekly', priority: 0.7 },
     // Trang giới thiệu cho truy vấn thương hiệu (13/11/2026) — chỉ tiếng Việt.
     { url: absoluteUrl('/mydeutschflow-la-gi/'), lastModified: PAGE_LASTMOD['/mydeutschflow-la-gi'], changeFrequency: 'monthly', priority: 0.7 },
+    { url: absoluteUrl('/chi-phi/'), lastModified: PAGE_LASTMOD['/chi-phi'], changeFrequency: 'monthly', priority: 0.7 },
     ...GUIDE_ARTICLES.map((g) => ({ url: absoluteUrl(`/cam-nang/${g.slug}/`), lastModified: g.published, changeFrequency: 'monthly' as const, priority: 0.7 })),
     // `/giao-vien-mien-phi/` đã gộp vào trang trung tâm (đợt 3a, 301 trong next.config) — không liệt kê.
   ]

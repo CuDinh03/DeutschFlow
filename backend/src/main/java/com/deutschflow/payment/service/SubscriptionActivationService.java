@@ -216,6 +216,13 @@ public class SubscriptionActivationService {
     @Transactional
     public void extendOrActivateApple(Long userId, String planCode, Instant startsAt, Instant endsAt,
                                       boolean notifyAdmins) {
+        // Mọi sản phẩm Apple đang bán đều là thuê bao tự gia hạn nên luôn có expiresDate. Thiếu ngày hết hạn
+        // (sản phẩm tạo nhầm loại non-renewing/non-consumable) thì KHÔNG cấp quyền: ghi ends_at NULL nghĩa là
+        // Pro vĩnh viễn, còn các nhánh gia hạn bên dưới sẽ NPE (14/11/2026).
+        if (endsAt == null) {
+            log.warn("[APPLE] Bỏ qua kích hoạt plan={} cho userId={}: giao dịch không có ngày hết hạn.", planCode, userId);
+            return;
+        }
         lockUser(userId); // serialize the COUNT-then-write critical section against concurrent notifications
 
         // Đang là thành viên trung tâm ⇒ dòng Apple nằm ở PAUSED. Gia hạn lúc này CHỈ dời `ends_at`

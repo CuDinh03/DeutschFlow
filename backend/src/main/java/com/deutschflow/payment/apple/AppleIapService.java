@@ -91,7 +91,13 @@ public class AppleIapService {
 
         String transactionId = txn.getTransactionId();
         String originalTransactionId = txn.getOriginalTransactionId();
-        Instant expiresAt = txn.getExpiresDate() != null ? Instant.ofEpochMilli(txn.getExpiresDate()) : null;
+        if (txn.getExpiresDate() == null) {
+            // Chỉ bán thuê bao tự gia hạn (luôn có expiresDate). Giao dịch không hạn = sản phẩm cấu hình sai trên
+            // App Store Connect; từ chối thay vì cấp quyền vĩnh viễn.
+            log.warn("[APPLE VERIFY] Product {} has no expiresDate for userId={} — rejecting.", txn.getProductId(), userId);
+            throw new IllegalArgumentException("Unsupported product type.");
+        }
+        Instant expiresAt = Instant.ofEpochMilli(txn.getExpiresDate());
         Instant startsAt = txn.getPurchaseDate() != null ? Instant.ofEpochMilli(txn.getPurchaseDate()) : Instant.now();
         String environment = txn.getEnvironment() != null ? txn.getEnvironment().getValue() : "Sandbox";
 

@@ -407,7 +407,7 @@
       "emptyGroup": "No characters for this mode in the selected group.",
       "pro": {
         "title": "PRO character",
-        "desc": "ADVANCED characters are only available on the PRO/ULTRA plans. Upgrade for in-depth interview practice.",
+        "desc": "ADVANCED characters are only available on the paid Pro and Boost plans. Upgrade for in-depth interview practice.",
         "upgrade": "Upgrade →"
       },
       "positionLabel": "Which position are you applying for?",

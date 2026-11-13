@@ -35,7 +35,7 @@ class AppleIapServiceTest {
     @InjectMocks AppleIapService service;
 
     private static final String JWS = "signed.jws.token";
-    private static final String PRODUCT = "com.deutschflow.app.pro.monthly";
+    private static final String PRODUCT = "com.cudinh.mydeutschflow.pro.monthly";
     private static final long USER = 2L;
 
     private JWSTransactionDecodedPayload payload(UUID appAccountToken) {
@@ -101,6 +101,24 @@ class AppleIapServiceTest {
         verify(activationService).extendOrActivateApple(eq(USER), eq("PRO"), any(), any(), eq(true));
         // Activation is metered (tagged by environment) for the Sandbox-on-prod alert.
         verify(metrics).recordActivation(any(), eq("PRO"), eq(true));
+    }
+
+    @Test
+    @DisplayName("rejects a transaction without expiresDate (misconfigured non-renewing product) — never grants permanent access")
+    void verify_noExpiresDate_rejected() throws Exception {
+        JWSTransactionDecodedPayload p = payload(null);
+        p.setExpiresDate(null);
+        when(verifier.isEnabled()).thenReturn(true);
+        when(verifier.verifyTransaction(JWS)).thenReturn(p);
+        when(productCatalog.find(PRODUCT))
+                .thenReturn(Optional.of(new AppleProductCatalog.AppleProduct(PRODUCT, "PRO", 1)));
+
+        assertThatThrownBy(() -> service.verifyAndActivate(USER, JWS))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported product");
+
+        verify(paymentTransactionRepository, never()).save(any(PaymentTransaction.class));
+        verify(activationService, never()).extendOrActivateApple(anyLong(), anyString(), any(), any(), anyBoolean());
     }
 
     @Test

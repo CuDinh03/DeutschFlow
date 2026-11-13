@@ -10,7 +10,7 @@
 
 This page is published at [[https://your-domain/privacy]] and is the Privacy Policy URL registered in App Store Connect (App Privacy + App Information).
 
-**App:** DeutschFlow — a German-language learning app (vocabulary, grammar, listening, AI speaking practice, and mock Goethe exams).
+**App:** DeutschFlow — a German-language learning app (vocabulary, grammar, listening, AI speaking practice, and telc B1 mock exams).
 
 **Bundle ID:** `com.cudinh.mydeutschflow`
 
@@ -18,7 +18,7 @@ This page is published at [[https://your-domain/privacy]] and is the Privacy Pol
 
 **Contact:** [[support@your-domain]]
 
-We built DeutschFlow to help you learn German and prepare for the Goethe exams. This policy explains what personal data we collect, why we collect it, who we share it with, and the choices and rights you have. We collect only what the app needs to work, improve, and comply with the law — and we do not sell your personal data.
+We built DeutschFlow to help you learn German and prepare for German exams. This policy explains what personal data we collect, why we collect it, who we share it with, and the choices and rights you have. We collect only what the app needs to work, improve, and comply with the law — and we do not sell your personal data.
 
 ### 1. Who we are
 
@@ -138,7 +138,7 @@ Questions, requests, or complaints: **[[support@your-domain]]**.
 
 Trang này được đăng tại [[https://your-domain/privacy]] và là URL Chính sách quyền riêng tư đã đăng ký trong App Store Connect (App Privacy + App Information).
 
-**Ứng dụng:** DeutschFlow — ứng dụng học tiếng Đức (từ vựng, ngữ pháp, luyện nghe, luyện nói với AI và thi thử Goethe).
+**Ứng dụng:** DeutschFlow — ứng dụng học tiếng Đức (từ vựng, ngữ pháp, luyện nghe, luyện nói với AI và thi thử telc B1).
 
 **Bundle ID:** `com.cudinh.mydeutschflow`
 
@@ -146,7 +146,7 @@ Trang này được đăng tại [[https://your-domain/privacy]] và là URL Ch�
 
 **Liên hệ:** [[support@your-domain]]
 
-Chúng tôi xây dựng DeutschFlow để giúp bạn học tiếng Đức và luyện thi Goethe. Chính sách này giải thích chúng tôi thu thập dữ liệu cá nhân nào, vì sao, chia sẻ với ai, cùng các lựa chọn và quyền của bạn. Chúng tôi chỉ thu thập những gì ứng dụng cần để hoạt động, cải thiện và tuân thủ pháp luật — và **không** bán dữ liệu cá nhân của bạn.
+Chúng tôi xây dựng DeutschFlow để giúp bạn học tiếng Đức và luyện thi tiếng Đức. Chính sách này giải thích chúng tôi thu thập dữ liệu cá nhân nào, vì sao, chia sẻ với ai, cùng các lựa chọn và quyền của bạn. Chúng tôi chỉ thu thập những gì ứng dụng cần để hoạt động, cải thiện và tuân thủ pháp luật — và **không** bán dữ liệu cá nhân của bạn.
 
 ### 1. Chúng tôi là ai
 
@@ -266,7 +266,7 @@ Câu hỏi, yêu cầu hoặc khiếu nại: **[[support@your-domain]]**.
 
 Diese Seite ist unter [[https://your-domain/privacy]] veröffentlicht und ist die in App Store Connect hinterlegte Datenschutz-URL (App-Datenschutz + App-Informationen).
 
-**App:** DeutschFlow — eine App zum Deutschlernen (Wortschatz, Grammatik, Hörverstehen, KI-Sprechtraining und Goethe-Prüfungssimulationen).
+**App:** DeutschFlow — eine App zum Deutschlernen (Wortschatz, Grammatik, Hörverstehen, KI-Sprechtraining und Probeprüfungen telc B1).
 
 **Bundle-ID:** `com.cudinh.mydeutschflow`
 
@@ -274,7 +274,7 @@ Diese Seite ist unter [[https://your-domain/privacy]] veröffentlicht und ist di
 
 **Kontakt:** [[support@your-domain]]
 
-Wir haben DeutschFlow entwickelt, um Ihnen beim Deutschlernen und bei der Vorbereitung auf die Goethe-Prüfungen zu helfen. Diese Erklärung beschreibt, welche personenbezogenen Daten wir erheben, warum wir sie erheben, an wen wir sie weitergeben und welche Wahlmöglichkeiten und Rechte Sie haben. Wir erheben nur, was die App zum Betrieb, zur Verbesserung und zur Einhaltung gesetzlicher Vorgaben benötigt — und wir verkaufen Ihre personenbezogenen Daten nicht.
+Wir haben DeutschFlow entwickelt, um Ihnen beim Deutschlernen und bei der Vorbereitung auf Deutschprüfungen zu helfen. Diese Erklärung beschreibt, welche personenbezogenen Daten wir erheben, warum wir sie erheben, an wen wir sie weitergeben und welche Wahlmöglichkeiten und Rechte Sie haben. Wir erheben nur, was die App zum Betrieb, zur Verbesserung und zur Einhaltung gesetzlicher Vorgaben benötigt — und wir verkaufen Ihre personenbezogenen Daten nicht.
 
 ### 1. Wer wir sind
 

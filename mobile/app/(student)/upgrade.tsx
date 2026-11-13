@@ -10,16 +10,16 @@ import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions } from '@/lib/iapManage'
 import { useAppleIap } from '@/hooks/useAppleIap'
-import { metaForProductId } from '@/lib/iapProducts'
+import { metaForProductId, periodLabel } from '@/lib/iapProducts'
 import { trialDaysLeft, usePlanStore } from '@/stores/usePlanStore'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
 const PRO_FEATURES: { glyph: GlyphName; label: string }[] = [
   // PR-A7 (07/09/2026): không hứa "không giới hạn" — hạn mức AI theo gói vẫn có (lib/upsell.ts báo hết lượt).
   { glyph: 'speaking', label: 'Luyện nói AI với hạn mức PRO mỗi ngày' },
-  { glyph: 'thithu', label: 'Thi thử Goethe chuẩn' },
+  { glyph: 'thithu', label: 'Thi thử telc B1 đủ 4 phần' },
   { glyph: 'xp', label: 'Thử thách nói theo tuần' },
-  { glyph: 'lernweg', label: 'Toàn bộ lộ trình A1 đến B2' },
+  { glyph: 'lernweg', label: 'Toàn bộ lộ trình A1 đến B1' },
   { glyph: 'sualoi', label: 'Phân tích lỗi chi tiết' },
 ]
 
@@ -132,7 +132,7 @@ function IapPaywall() {
         {succeeded ? (
           <Card style={{ marginTop: space[6], gap: space[3], borderColor: c.success }}>
             <Icon icon={Check} size={28} color="success" />
-            <ThemedText variant="title">Đã kích hoạt gói PRO!</ThemedText>
+            <ThemedText variant="title">Đã kích hoạt gói trả phí!</ThemedText>
             <ThemedText variant="body" color="muted">
               Cảm ơn bạn. Toàn bộ tính năng nâng cao đã được mở khoá.
             </ThemedText>
@@ -164,14 +164,16 @@ function IapPaywall() {
               <View style={{ gap: space[3] }}>
                 {products.map((p) => {
                   const meta = metaForProductId(p.id)
-                  const period = meta?.durationMonths === 12 ? '/năm' : meta?.durationMonths === 1 ? '/tháng' : ''
+                  const period = periodLabel(meta?.durationMonths)
                   return (
-                    <Card key={p.id} style={{ gap: space[3] }}>
+                    // Gói chính (2 tháng) nổi viền accent. Apple 3.1.2: số tiền bị trừ mỗi kỳ (displayPrice
+                    // của StoreKit) là chữ lớn nhất; không gạch giá, không đếm ngược (sổ lời hứa QLT-19).
+                    <Card key={p.id} style={{ gap: space[3], ...(meta?.badge ? { borderColor: c.accent } : null) }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
                         <ThemedText variant="title" style={{ flex: 1 }}>
-                          {p.title || p.displayName || meta?.planCode || 'PRO'}
+                          {meta?.label || p.title || p.displayName || 'Pro'}
                         </ThemedText>
-                        {meta ? <Pill label={meta.planCode} tone={meta.planCode === 'ULTRA' ? 'accent' : 'neutral'} /> : null}
+                        {meta?.badge ? <Pill label={meta.badge} tone="accent" /> : null}
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[1] }}>
                         <ThemedText variant="display">{p.displayPrice}</ThemedText>
@@ -181,6 +183,11 @@ function IapPaywall() {
                           </ThemedText>
                         ) : null}
                       </View>
+                      {meta?.note ? (
+                        <ThemedText variant="caption" color="muted">
+                          {meta.note}
+                        </ThemedText>
+                      ) : null}
                       <Button
                         label="Đăng ký"
                         onPress={() => buy(p.id)}
