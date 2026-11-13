@@ -23,6 +23,9 @@ import java.util.List;
  * @param reasoningEffort   {@code reasoning_effort} cho model reasoning (gpt-oss); null/rỗng = không gửi
  * @param sessionSticky     bật sticky routing theo session (P4 mới dùng)
  * @param includeUsage      xin OpenRouter trả cost thật trong {@code usage} ({@code usage.include})
+ * @param fallbackModels    model dự phòng CÙNG endpoint/key, theo thứ tự ưu tiên (13/11/2026): model chính
+ *                          lỗi 5xx/429/quá giờ/model không dùng được ⇒ client chuyển sang model kế
+ *                          (xem {@link ModelFailover}). Rỗng = như cũ, chỉ thử lại model chính.
  */
 public record TierSpec(
         LlmTier tier,
@@ -35,7 +38,8 @@ public record TierSpec(
         List<String> quantizations,
         String reasoningEffort,
         boolean sessionSticky,
-        boolean includeUsage
+        boolean includeUsage,
+        List<String> fallbackModels
 ) {
     public TierSpec {
         if (model == null || model.isBlank()) {
@@ -44,6 +48,24 @@ public record TierSpec(
         model = model.trim();
         providerOrder = providerOrder == null ? List.of() : List.copyOf(providerOrder);
         quantizations = quantizations == null ? List.of() : List.copyOf(quantizations);
+        fallbackModels = ModelFailover.cleanFallbacks(model, fallbackModels);
+    }
+
+    /** Tầng không có model dự phòng (giữ chữ ký cũ cho các nơi tạo tay, chủ yếu test). */
+    public TierSpec(LlmTier tier, String model, String baseUrl, String apiKey, List<String> providerOrder,
+                    Boolean requireParameters, String sort, List<String> quantizations, String reasoningEffort,
+                    boolean sessionSticky, boolean includeUsage) {
+        this(tier, model, baseUrl, apiKey, providerOrder, requireParameters, sort, quantizations,
+                reasoningEffort, sessionSticky, includeUsage, List.of());
+    }
+
+    /** Model chính rồi tới các model dự phòng, theo thứ tự ưu tiên. */
+    public List<String> candidateModels() {
+        if (fallbackModels.isEmpty()) return List.of(model);
+        List<String> all = new java.util.ArrayList<>(fallbackModels.size() + 1);
+        all.add(model);
+        all.addAll(fallbackModels);
+        return List.copyOf(all);
     }
 
     /**
@@ -55,7 +77,8 @@ public record TierSpec(
      * {@code reasoning_effort} của tầng (thiếu nó, model reasoning đốt hết ngân sách vào phần
      * "nghĩ" rồi trả JSON cụt — xem FW.7).
      *
-     * <p>{@code null}/rỗng ⇒ trả về chính tầng này.
+     * <p>{@code null}/rỗng ⇒ trả về chính tầng này. Bản sao KHÔNG mang model dự phòng: nơi gọi đã chỉ đích
+     * danh model (so sánh model), lặng lẽ chuyển sang model khác sẽ làm sai số đo.
      */
     public TierSpec withModel(String overrideModel) {
         if (overrideModel == null || overrideModel.isBlank() || overrideModel.trim().equals(model)) {
