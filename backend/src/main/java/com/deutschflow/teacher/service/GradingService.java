@@ -577,9 +577,10 @@ public class GradingService {
             userNotificationService.onSystemAlert(
                     "AI_GRADING",
                     "AI chấm bài thất bại",
-                    "Có bài không chấm được tự động (bài #" + submissionId + "): " + reason
-                            + ". Kiểm tra cấu hình LLM.",
-                    Map.of("submissionId", submissionId));
+                    "Bài nộp #" + submissionId + " không được AI chấm tự động: " + reason
+                            + ". Giáo viên vẫn chấm tay được bài này. Mở trang \"Cấu hình AI\" để kiểm tra model chấm bài và hạn mức "
+                            + "của nhà cung cấp; nếu lỗi lặp lại, báo kỹ thuật kèm số bài.",
+                    Map.of("submissionId", submissionId, "url", "/v2/admin/ai-config"));
         } catch (Exception alertErr) {
             log.warn("[AI-Grading] Could not emit admin system alert for {}: {}", submissionId, alertErr.toString());
         }

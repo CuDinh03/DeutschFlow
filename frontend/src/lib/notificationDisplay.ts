@@ -285,6 +285,12 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       return role === 'org' ? '/v2/org/billing' : '/v2/admin/organizations'
     case 'ADMIN_BROADCAST':
       return role === 'admin' ? '/v2/admin/broadcast' : null
+    case 'ADMIN_SYSTEM_ALERT': {
+      // Cảnh báo hệ thống mang sẵn trang cần mở (`url`): lượt tạo bộ đề, Cấu hình AI, Bảo trì… Chỉ nhận đường
+      // dẫn trong khu admin, để nội dung thông báo không đưa người xem ra chỗ khác.
+      const url = typeof p.url === 'string' ? p.url : ''
+      return role === 'admin' && url.startsWith('/v2/admin/') ? url : null
+    }
 
     default:
       return null
