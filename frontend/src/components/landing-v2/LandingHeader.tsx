@@ -24,10 +24,11 @@ import { START_HREF } from './links'
 
 const YellowSq = () => <span className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
 
-// [labelKey, anchor id] — nhãn đọc từ landing.nav.<labelKey>.
+// [labelKey, anchor id] — nhãn đọc từ landing.nav.<labelKey>. Neo chỉ là đường lùi khi mục chưa có trang
+// riêng ở ngôn ngữ đang xem. 14/11/2026 (đợt 1 nâng cấp trang công khai): bỏ "Hành trình" khỏi menu — nó là
+// một khối trên trang chủ, không phải trang; người đọc ở trang con bấm vào bị đưa về giữa trang chủ.
 const NAV_ANCHORS = [
   ['interview', 'interview'],
-  ['pathways', 'pathways'],
   ['exam', 'exam'],
   ['centers', 'centers'],
 ] as const
@@ -59,14 +60,17 @@ export function LandingHeader({
   const interviewHref = localizedHref(locale, '/phong-van')
   const centersHref = publicHref(locale, '/trung-tam')
   const trainingHref = AUSBILDUNG_CONTENT_REVIEWED ? publicHref(locale, AUSBILDUNG_PAGE) : null
+  // Mỗi mục trỏ CỐ ĐỊNH tới trang riêng của nó (đợt 1, 14/11/2026). Trang Luyện thi và Cẩm nang chỉ có
+  // tiếng Việt: ở bản en/de, "Luyện thi" lùi về khối trên trang chủ đúng ngôn ngữ, Cẩm nang không hiện.
   const links = [
     ...NAV_ANCHORS.map(([key, id]) => {
-      if (key === 'interview' && current === 'interview') return { key, href: interviewHref, active: true }
-      if (key === 'exam' && current === 'exam') return { key, href: '/luyen-thi/', active: true }
+      if (key === 'interview') return { key, href: interviewHref, active: current === 'interview' }
+      if (key === 'exam' && locale === 'vi') return { key, href: '/luyen-thi/', active: current === 'exam' }
       if (key === 'centers' && centersHref) return { key, href: centersHref, active: current === 'centers' }
       return { key, href: anchor(id), active: false }
     }),
     ...(trainingHref ? [{ key: 'training', href: trainingHref, active: current === 'training' }] : []),
+    ...(locale === 'vi' ? [{ key: 'guide', href: '/cam-nang/', active: current === 'guide' }] : []),
     { key: 'about', href: aboutHref, active: current === 'about' },
   ]
 

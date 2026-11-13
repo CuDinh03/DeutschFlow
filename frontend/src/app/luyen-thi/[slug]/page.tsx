@@ -10,6 +10,7 @@ import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { LandingHeader } from '@/components/landing-v2/LandingHeader'
 import { LandingFooter } from '@/components/landing-v2/LandingFooter'
+import { START_HREF } from '@/components/landing-v2/links'
 
 /**
  * Trang hướng dẫn từng kỳ thi `/luyen-thi/{slug}/` (chỉ tiếng Việt). Icon đợt B (09/11/2026): chuyển sang
@@ -70,7 +71,9 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
             <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
           </GaBtn>
           <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-            <Link href="/v2/register">Luyện thi với myDeutschFlow</Link>
+            {/* Đợt 1 (14/11/2026): CTA chung đi qua onboarding (F-13), không vào thẳng đăng ký. Chỉ telc B1 có thi
+                thử thật — trang khác mời học thử, không hứa thi thử. */}
+            <Link href={START_HREF}>{exam.slug === 'telc-b1' ? 'Thi thử telc B1 trên myDeutschFlow' : 'Học thử miễn phí'}</Link>
           </GaBtn>
         </div>
 

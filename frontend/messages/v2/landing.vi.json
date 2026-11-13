@@ -3,7 +3,7 @@
     "shotScrollHint": "Cuộn ngang để xem tiếp",
     "meta": {
       "title": "myDeutschFlow — Luyện phỏng vấn tiếng Đức với AI",
-      "description": "Luyện phỏng vấn xin việc bằng tiếng Đức với AI: câu hỏi theo ngành, nhận xét sau từng câu trả lời. Lộ trình A1–B1, thi thử theo format Goethe."
+      "description": "Luyện phỏng vấn xin việc bằng tiếng Đức với AI: câu hỏi theo ngành, nhận xét sau từng câu trả lời. Lộ trình A1–B1, thi thử telc B1."
     },
     "nav": {
       "interview": "Phỏng vấn theo nghề",
@@ -11,6 +11,7 @@
       "exam": "Luyện thi",
       "centers": "Cho trung tâm",
       "training": "Học nghề",
+      "guide": "Cẩm nang",
       "about": "Về chúng tôi",
       "mainAria": "Điều hướng chính"
     },
@@ -28,7 +29,7 @@
       "sub": "AI đóng vai nhà tuyển dụng Đức, hỏi theo nghề bạn chọn và chỉ ra chỗ cần sửa sau mỗi câu trả lời: ngữ pháp, từ dùng chưa đúng, ý còn thiếu.",
       "ctaStart": "Học thử miễn phí",
       "microcopy": "Không cần thẻ · 2 phút bắt đầu · Có app iPhone",
-      "bullets": ["Câu hỏi theo đúng nghề", "Thi thử theo format Goethe, telc"]
+      "bullets": ["Câu hỏi theo đúng nghề", "Thi thử telc B1 theo format đề thật"]
     },
     "explorer": {
       "cap": "Xem trước câu hỏi phỏng vấn",
@@ -65,7 +66,7 @@
         { "name": "Học nghề", "de": "Ausbildung", "who": "Chưa có nghề hoặc muốn học một nghề mới ở Đức.", "level": "B1, đôi khi B2", "exam": "Goethe hoặc telc B1", "interview": "Động lực, kế hoạch, hiểu biết về nghề và nước Đức", "fit": "Trên myDeutschFlow: học tiếng Đức Ausbildung theo lộ trình A1–B1, phỏng vấn theo nghề, thi thử B1." },
         { "name": "Công nhận bằng nghề", "de": "Anerkennung", "who": "Đã có bằng và kinh nghiệm: y tế, kỹ thuật, thủ công…", "level": "B1–B2, tuỳ nghề và tuỳ bang", "exam": "Kỳ thi nghề nghiệp như telc Pflege, DTB", "interview": "Chuyên môn, tình huống trong nghề, quy trình", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề. Đề thi nghề nghiệp đang được biên soạn." },
         { "name": "Tìm việc", "de": "Chancenkarte · Blaue Karte", "who": "Kỹ sư, IT, người có bằng đại học.", "level": "Từ A1, hoặc B2 tiếng Anh", "exam": "Tuỳ nhà tuyển dụng", "interview": "Chuyên môn; tiếng Đức là lợi thế", "fit": "Trên myDeutschFlow: phỏng vấn cho IT, kỹ thuật, văn phòng." },
-        { "name": "Du học đại học", "de": "Studium", "who": "Học sinh, sinh viên muốn học đại học ở Đức.", "level": "Thường B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Phỏng vấn trường, phỏng vấn visa", "fit": "Trên myDeutschFlow: luyện nói, thi thử đến B2. Chưa có lộ trình C1." },
+        { "name": "Du học đại học", "de": "Studium", "who": "Học sinh, sinh viên muốn học đại học ở Đức.", "level": "Thường B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Phỏng vấn trường, phỏng vấn visa", "fit": "Trên myDeutschFlow: luyện nói, thi thử telc B1. Chưa có lộ trình C1." },
         { "name": "Đoàn tụ, định cư", "de": "Familiennachzug", "who": "Vợ, chồng, người thân của người đang sống ở Đức.", "level": "A1 khi xin visa, B1 khi định cư lâu dài", "exam": "Start Deutsch A1, DTZ", "interview": "Phỏng vấn visa Đức, đời sống hằng ngày", "fit": "Trên myDeutschFlow: lộ trình từ A1, luyện nói đời sống hằng ngày." }
       ]
     },
@@ -119,27 +120,25 @@
       ],
       "button": "Tải trên App Store",
       "newTab": "(mở trong thẻ mới)",
-      "note": "Miễn phí tải · Dành cho iPhone, iOS 15.1 trở lên",
+      "note": "Miễn phí tải · Dành cho iPhone, iOS 15.1 trở lên · Android: dùng bản web",
       "heroLink": "Có ứng dụng cho iPhone",
       "footer": "Ứng dụng iPhone"
     },
     "exam": {
-      "shotCap": "Ảnh thật · Phòng thi Lesen, đồng hồ đang chạy",
-      "shotAlt": "Màn làm bài thi thử Goethe B1 phần Đọc hiểu: đồng hồ còn 58 phút trên tổng 65, thanh tiến độ 2 trên 4 câu, các câu richtig/falsch bằng tiếng Đức và ghi chú bài đang được lưu.",
       "clipCap": "Quay màn hình thật · 24 giây",
       "clipAlt": "Video 24 giây không tiếng, quay màn hình thật: luyện Lesen với đồng hồ đếm giờ, chọn đáp án, xem lại câu sai, rồi AI chấm bài Viết theo ba tiêu chí telc.",
       "clipPlay": "Phát video",
       "clipPause": "Dừng video",
       "cap": "Luyện thi",
-      "title": "Thi thử Goethe B1 online theo format đề thi thật",
-      "sub": "Luyện đủ 4 phần của Goethe-Zertifikat A2–B2 và telc B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm.",
+      "title": "Thi thử telc B1 online theo format đề thi thật",
+      "sub": "Luyện đủ 4 phần của telc Deutsch B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm.",
       "parts": [
-        { "name": "Đọc hiểu", "time": "65 phút", "body": "5 phần đọc với văn bản đời sống & công việc, chấm tự động ngay." },
-        { "name": "Nghe hiểu", "time": "40 phút", "body": "Hội thoại, thông báo và phỏng vấn radio ở tốc độ thi thật." },
-        { "name": "Viết", "time": "60 phút", "body": "Email và nêu ý kiến — nộp qua ảnh, AI chấm bố cục và ngữ pháp." },
+        { "name": "Đọc hiểu", "time": "90 phút", "body": "Đọc hiểu và Sprachbausteine (ngữ pháp – từ vựng) với văn bản đời sống & công việc, chấm tự động ngay." },
+        { "name": "Nghe hiểu", "time": "30 phút", "body": "Hội thoại, thông báo và phỏng vấn ngắn ở tốc độ thi thật." },
+        { "name": "Viết", "time": "30 phút", "body": "Một thư hoặc email theo tình huống — nộp qua ảnh, AI chấm bố cục và ngữ pháp." },
         { "name": "Nói", "time": "15 phút", "body": "Thi nói theo cặp, luyện với AI trước ngày thi. Phần chấm Nói đang Beta." }
       ],
-      "disclaimer": "Đề thi thử là mô phỏng theo format, không liên kết với Goethe-Institut hay telc. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo.",
+      "disclaimer": "Đề thi thử là mô phỏng theo format telc B1, không liên kết với telc. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo.",
       "guideLink": "Xem cấu trúc từng kỳ thi",
       "bannerCap": "Thi thử có chấm AI",
       "bannerTitle": "Biết mình đang ở đâu so với mức B1, trước khi đăng ký thi thật.",
@@ -153,7 +152,7 @@
         "title": "Học viên luyện nói mỗi ngày ngoài giờ học",
         "body": "Giáo viên giao bài cho cả lớp, học viên làm trên điện thoại, AI chấm nháp. Giáo viên xem lại và chốt điểm bài viết; kết quả thành phiếu gửi gia đình.",
         "points": ["Giao bài nói cho cả lớp bằng một chủ đề", "Chấm ảnh bài viết tay", "AI chấm nháp, giáo viên chốt điểm bài viết", "Phiếu gia đình đọc được bằng tiếng Việt, Anh, Đức"],
-        "ctaConsult": "Nhận tư vấn cho trung tâm",
+        "ctaConsult": "Đặt lịch demo 20 phút",
         "ctaFree": "Gói miễn phí cho giáo viên"
       },
       "employers": {
@@ -171,7 +170,7 @@
       "title": "Chọn gói phù hợp",
       "plans": [
         { "name": "Miễn phí", "price": "0₫", "sub": "", "features": ["Học từ vựng & ngữ pháp A1–B1", "Ôn tập ngắt quãng (SRS) mỗi ngày", "Trải nghiệm phỏng vấn AI có hạn mức"], "cta": "Bắt đầu ngay" },
-        { "name": "Pro", "price": "299.000₫", "sub": "/tháng", "features": ["Phỏng vấn AI hạn mức cao mỗi ngày", "Nhận xét ngữ pháp & nội dung chi tiết", "Đủ bộ ngành nghề phỏng vấn", "Luyện thi Goethe A1–B2"], "cta": "Dùng thử 7 ngày miễn phí" },
+        { "name": "Pro", "price": "299.000₫", "sub": "/tháng", "features": ["Phỏng vấn AI hạn mức cao mỗi ngày", "Nhận xét ngữ pháp & nội dung chi tiết", "Đủ bộ ngành nghề phỏng vấn", "Thi thử telc B1"], "cta": "Dùng thử 7 ngày miễn phí" },
         { "name": "Giáo viên", "price": "Liên hệ", "sub": "", "features": ["Quản lý lớp học", "Tạo tài liệu AI", "Chấm bài Speaking", "Báo cáo tiến độ học viên"], "cta": "Nhận tư vấn" }
       ]
     },
@@ -191,7 +190,7 @@
         { "q": "AI chấm có chính xác không?", "a": "AI chỉ ra lỗi ngữ pháp, từ dùng chưa đúng và ý còn thiếu, kèm câu sửa. Điểm dùng để bạn theo dõi tiến bộ, không thay cho kỳ thi thật. Nếu học ở trung tâm, giáo viên xem lại và chốt điểm bài viết." },
         { "q": "Có chấm phát âm không?", "a": "AI cho biết những từ nó nghe chưa rõ trong câu trả lời của bạn. Đây chưa phải phân tích phát âm chi tiết từng âm." },
         { "q": "Ghi âm của tôi được xử lý thế nào?", "a": "Bản ghi âm được chuyển thành chữ để chấm và nhận xét. Thời gian lưu và cách yêu cầu xoá được ghi trong Chính sách bảo mật." },
-        { "q": "Thi thử có phải chứng chỉ không?", "a": "Không. Thi thử mô phỏng format đề Goethe và telc, không liên kết với hai tổ chức này và không thay cho chứng chỉ." },
+        { "q": "Thi thử có phải chứng chỉ không?", "a": "Không. Thi thử mô phỏng format đề telc B1, không liên kết với telc và không thay cho chứng chỉ." },
         { "q": "Tôi đang học ở trung tâm, dùng chung được không?", "a": "Được. Trung tâm tạo lớp và giao bài; bạn làm trên ứng dụng, giáo viên theo dõi và chấm." },
         { "q": "Có mất phí không?", "a": "Bạn bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng. Thông tin gói trả phí có trong ứng dụng." }
       ]
@@ -246,7 +245,7 @@
       "ch2": {
         "name": "Tự xây",
         "title": "Nên mình tự xây đúng công cụ mình đang cần.",
-        "body": "AI đóng vai nhà tuyển dụng Đức, hỏi theo đúng nghề và chỉ ra chỗ cần sửa sau mỗi câu trả lời. Thêm lộ trình A1–B1 từng ngày và thi thử theo format Goethe, telc. Mỗi nghề có người phỏng vấn của đúng ngành đó."
+        "body": "AI đóng vai nhà tuyển dụng Đức, hỏi theo đúng nghề và chỉ ra chỗ cần sửa sau mỗi câu trả lời. Thêm lộ trình A1–B1 từng ngày và thi thử telc B1. Mỗi nghề có người phỏng vấn của đúng ngành đó."
       },
       "timeline": {
         "name": "Từng bước",

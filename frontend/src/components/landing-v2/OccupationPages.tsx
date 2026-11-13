@@ -168,6 +168,14 @@ export async function OccupationDetailView({
           <p className="mt-3 text-ga-body-lg text-ga-muted">
             {t('occupationPages.detail.subtitle', { name: occupationName(o, locale), workplace: t(`workplaces.${o.workplace}`) })}
           </p>
+          {/* Đợt 1 (14/11/2026): dưới md cột phải (nút luyện) rơi xuống cuối trang — hiện nút ngay dưới H1. */}
+          <div className="mt-6 md:hidden">
+            <GaBtn asChild variant="ink" size="lg" className="w-full">
+              <Link href={startHref}>
+                <span className="text-ga-body">{t('occupationPages.detail.cta')}</span>
+              </Link>
+            </GaBtn>
+          </div>
 
           <h2 className="mb-4 mt-10 text-ga-h3 text-ga-ink">{t('occupationPages.detail.questionsCap')}</h2>
           <ol className="flex flex-col gap-4">
@@ -202,9 +210,19 @@ export async function OccupationDetailView({
             </>
           )}
 
-          <h2 className="mb-4 mt-10 text-ga-h3 text-ga-ink">{t('occupationPages.detail.termsCap')}</h2>
+          {/* Đợt 1 (14/11/2026): nghề chưa có từ chuyên môn thì không để lộ mục rỗng "đang được soạn" — có bài
+              Cẩm nang cùng nghề (bản vi) thì dẫn sang đó, không thì ẩn hẳn mục. */}
+          {(detail.terms.length > 0 || guide) && (
+            <h2 className="mb-4 mt-10 text-ga-h3 text-ga-ink">{t('occupationPages.detail.termsCap')}</h2>
+          )}
           {detail.terms.length === 0 ? (
-            <p className="text-ga-body text-ga-muted">{t('occupationPages.detail.termsEmpty')}</p>
+            guide ? (
+              <p className="text-ga-body text-ga-muted">
+                <Link href={`/cam-nang/${guide.slug}/`} className="text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink">
+                  {t('occupationPages.detail.guideLink', { title: guide.title })}
+                </Link>
+              </p>
+            ) : null
           ) : (
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
               {detail.terms.map((term) => (

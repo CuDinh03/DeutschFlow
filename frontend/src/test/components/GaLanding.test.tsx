@@ -85,7 +85,7 @@ describe('GaLanding — menu mobile', () => {
     const panel = menuPanel()
     expect(panel).not.toBeNull()
 
-    fireEvent.click(within(panel as HTMLElement).getByText('Hành trình'))
+    fireEvent.click(within(panel as HTMLElement).getByText('Phỏng vấn theo nghề'))
     expect(menuPanel()).toBeNull()
   })
 
@@ -109,7 +109,8 @@ describe('GaLanding — menu mobile', () => {
     // Không có nút giả làm video ("Xem demo 90 giây" đã bị gỡ từ P0.2).
     // 24/10/2026 (đợt 3a): hai nút dẫn sang trang trung tâm — form đặt lịch demo và khối giáo viên tự
     // do (trang /giao-vien-mien-phi cũ đã gộp vào đó, 301).
-    expect(screen.getByRole('link', { name: /Nhận tư vấn cho trung tâm/ })).toHaveAttribute('href', '/trung-tam/#dat-lich')
+    // 14/11/2026: cùng lời với trang trung tâm ("Đặt lịch demo 20 phút").
+    expect(screen.getByRole('link', { name: /Đặt lịch demo 20 phút/ })).toHaveAttribute('href', '/trung-tam/#dat-lich')
     expect(screen.getByRole('link', { name: 'Gói miễn phí cho giáo viên' })).toHaveAttribute('href', '/trung-tam/#giao-vien')
     // Mục menu "Cho trung tâm" cũng sang trang riêng thay vì neo trên trang chủ.
     for (const link of screen.getAllByRole('link', { name: 'Cho trung tâm' })) {
@@ -150,7 +151,9 @@ describe('GaLanding — menu mobile', () => {
     expect(home.textContent).toBe('myDeutschFlow')
     expect(screen.getByText('Không cần thẻ · 2 phút bắt đầu · Có app iPhone')).toBeInTheDocument()
     expect(screen.getByText('Huấn luyện phỏng vấn bằng AI cho người sang Đức làm việc')).toBeInTheDocument()
-    expect(container.textContent).not.toMatch(/Android/i)
+    // Chưa có app Android (owner chốt 14/11/2026): chỉ được nói Android dùng bản web, không ngụ ý có app.
+    expect(container.textContent).not.toMatch(/(app|ứng dụng)[^.·]{0,20}Android|Android[^.·]{0,20}(app|ứng dụng)|Google Play/i)
+    expect(container.textContent).toContain('Android: dùng bản web')
   })
 })
 

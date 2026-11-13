@@ -58,7 +58,7 @@ export function SchoolsPage() {
       <main>
         {/* Mở đầu */}
         <section className={SECTION}>
-          <GaCap className="mb-[18px] text-ga-violet">{t('hero.cap')}</GaCap>
+          <GaCap className="mb-[18px]">{t('hero.cap')}</GaCap>
           <h1 className="max-w-[860px] font-ga-display text-ga-display-m text-ga-ink md:text-ga-display">
             {t('hero.title')}
             <br />
@@ -160,7 +160,7 @@ export function SchoolsPage() {
         <section id={TEACHER_ANCHOR} className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
           <div className={`${SECTION} grid gap-8 md:grid-cols-[1.2fr_1fr] md:gap-14`}>
             <div>
-              <GaCap className="mb-[18px] text-ga-violet">{t('teacher.cap')}</GaCap>
+              <GaCap className="mb-[18px]">{t('teacher.cap')}</GaCap>
               <h2 className={`${H2} mb-4`}>{t('teacher.title')}</h2>
               <p className="text-ga-body-lg text-ga-muted">{t('teacher.body')}</p>
               <GaBtn asChild variant="ink" size="lg" className="mt-6 w-full sm:w-auto">
@@ -202,7 +202,7 @@ export function SchoolsPage() {
         <section id={DEMO_ANCHOR} className="scroll-mt-[78px] border-t border-ga-border bg-ga-card">
           <div className={`${SECTION} grid gap-8 md:grid-cols-[1fr_1.4fr] md:gap-14`}>
             <div>
-              <GaCap className="mb-[18px] text-ga-violet">{t('form.cap')}</GaCap>
+              <GaCap className="mb-[18px]">{t('form.cap')}</GaCap>
               <h2 className={`${H2} mb-4`}>{t('form.title')}</h2>
               <p className="text-ga-body-lg text-ga-muted">{t('form.sub')}</p>
             </div>

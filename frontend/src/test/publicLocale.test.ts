@@ -61,6 +61,14 @@ describe('publicLocale — hàm thuần', () => {
 })
 
 describe('middleware — ngôn ngữ theo URL', () => {
+  it.each(['/luyen-thi/', '/luyen-thi/goethe-b1/', '/cam-nang/', '/free-grade/', '/mydeutschflow-la-gi/'])(
+    'trang chỉ có tiếng Việt %s với cookie locale=en → vẫn gắn header vi (lang không theo cookie)',
+    async (path) => {
+      const res = await middleware(req(path, { cookie: 'locale=en' }))
+      expect(res.headers.get(`x-middleware-request-${LOCALE_HEADER}`)).toBe('vi')
+    },
+  )
+
   it('/en/ rewrite về trang chủ và gắn header ngôn ngữ en', async () => {
     const res = await middleware(req('/en/'))
     expect(res.headers.get('location')).toBeNull()
