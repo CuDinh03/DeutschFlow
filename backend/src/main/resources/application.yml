@@ -913,6 +913,10 @@ app:
     # Từ điển TSV trên classpath — không gọi API; mở rộng bằng cách thêm dòng vào file.
     local-lexicon:
       resource: ${LOCAL_LEXICON_RESOURCE:wordlists/local_lexicon.tsv}
+    # Sổ từ riêng (13/11/2026): số từ cần AI tra nghĩa mỗi học viên được lưu / ngày (giờ VN). AI tra nghĩa
+    # không trừ ví học viên nên trần này là chốt chặn chi phí; từ có trong kho / bộ nhớ dùng chung không tính.
+    saved-words:
+      ai-daily-cap: ${SAVED_WORDS_AI_DAILY_CAP:40}
     # Nguồn DUY NHẤT quyết định cefr_level (CefrLevelResolver). Danh sách Goethe là cộng dồn ⇒ lemma có ở
     # nhiều danh sách lấy cấp THẤP NHẤT. Từ không nằm trong wordlist nào ⇒ cefr_level = NULL (chưa phân cấp),
     # KHÔNG đoán theo tần suất như trước 14/08/2026 (BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md).

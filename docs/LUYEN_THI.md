@@ -259,6 +259,8 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | POST | `/mock-exams/practice/attempts/{id}/teile/{key}/items/{itemId}/ask-ai` `{locale}` | 〃 cho lượt thi thử đã nộp/dừng (người khác ⇒ 404, đang làm ⇒ 409) | 〃 |
 | DELETE | `/mock-exams/practice/{examId}/teile/{key}[?keepMarks=false]` | Làm lại Teil (mặc định giữ đánh dấu bài đọc) | 〃 |
 | GET/PUT | `/mock-exams/practice/{examId}/teile/{key}/marks` | Đánh dấu bài đọc của Teil (ghi đè cả gói; sai ⇒ 400) | 〃 + `PassageMarksValidator` |
+| POST / GET | `/my-words` `{text, sentence, examId, teilKey, block, start, end}` | "Lưu từ" ở Luyện Teil (13/11/2026): 1–5 từ bôi đen ⇒ sổ từ riêng + thẻ ôn. Nghĩa: kho `words` (dạng gốc / biến cách / Partizip II) → `vocab_lookup_cache` → AI tầng EXPLAIN (không trừ ví, trần 40 từ cần AI / ngày ⇒ 429; AI lỗi ⇒ 503; chữ sai ⇒ 400). Đã có ⇒ `alreadySaved`. GET = cả sổ | STUDENT, `SavedWordService`, `SavedWordLookupService` |
+| DELETE | `/my-words/{id}` | Gỡ khỏi sổ + gỡ thẻ ôn do sổ tạo (thẻ có từ trước thì giữ); người khác ⇒ 404 | 〃 |
 | GET/PUT | `/mock-exams/attempts/{attemptId}/teile/{key}/marks` | Đánh dấu bài đọc theo lượt thi thử (đợt 2): lượt `IN_PROGRESS` ⇒ server bỏ `q`/`n`; `COMPLETED`/`PARTIAL` ⇒ xem lại sửa đủ; `CANCELLED` ⇒ 409; lượt người khác ⇒ 404. Riêng với nháp đáp án (không đụng `draft_version`) | chủ lượt, `MockExamAttemptMarksService` |
 | POST | `/mock-exams/practice/{examId}/schreiben` | Chấm Viết bằng AI (trả `jobId`) | 〃 |
 | GET | `/mock-exams/practice/attempts/{id}/analysis` | Phân tích từng câu của lượt thi thử | 〃 |
@@ -334,8 +336,9 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | **V365** | `exam_diagnostics (user_id PK, exam_id, result_json, started_at, finished_at)` |
 | **V374** | B3: `mock_exam_practice_progress.notes_json` (JSONB `{}`), `mock_exam_attempts.draft_flags_json` (JSONB), bảng `exam_item_ai_explanations` (bộ đệm "Hỏi AI", `UNIQUE (exam_id, teil_key, item_id, chosen, locale, content_hash)`) |
 | **V375** | `exam_passage_marks (user_id, exam_id, teil_key, attempt_id NULL = luyện Teil, marks_json, …)` — đánh dấu bài đọc, hai chỉ mục duy nhất một phần |
+| **V386** | `user_saved_words` (sổ từ riêng, `UNIQUE (user_id, lemma_key)`, chủ đề, câu gốc, vị trí trong bài, `srs_vocab_id`, `srs_created`, `ai_lookup`) + `vocab_lookup_cache` (nghĩa AI dùng chung, khoá = chữ bôi) — lưu từ từ bài đọc |
 
-V363–V365, V374, V375 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
+V363–V365, V374, V375, V386 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
 V374 cần V368–V372 lên trước (`out-of-order: false`).
 
 ---
@@ -380,7 +383,7 @@ V374 cần V368–V372 lên trước (`out-of-order: false`).
 
 ## 6. Vận hành
 
-- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365 (→ V368–V370 admin → V374 B3 → V375 đánh dấu bài đọc), backend deploy trước frontend.
+- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365 (→ V368–V370 admin → V374 B3 → V375 đánh dấu bài đọc → V386 sổ từ), backend deploy trước frontend.
 - Mở cho học viên: trang admin Quyền luyện đề (cờ `ALLOWLIST` thêm người, hoặc `ALL`).
 - Mobile **chưa** có giao diện mới; mobile vẫn dùng endpoint cũ — không gỡ endpoint cũ cho tới khi mobile chuyển xong.
   `/exam-plan` chỉ thêm trường mới (`days`), không phá mobile.
