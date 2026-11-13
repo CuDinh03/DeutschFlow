@@ -97,7 +97,8 @@ public class PhonemeService {
             feedbackVi = "Hãy thử lại! Nghe kỹ âm thanh trước khi nói.";
         }
 
-        log.info("[Phoneme] target='{}' transcribed='{}' score={}", target, transcribed, score);
+        log.info("[Phoneme] targetChars={} transcribedChars={} score={}",
+                target != null ? target.length() : 0, transcribed != null ? transcribed.length() : 0, score);
         return new PhonemeEvalResponse(transcribed, target, score, emoji, feedbackVi, wordResults);
     }
 

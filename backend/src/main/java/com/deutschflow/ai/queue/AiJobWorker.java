@@ -226,7 +226,8 @@ public class AiJobWorker {
                 TranscribeResult stt = groqWhisperClient.transcribe(audioBytes, filename, "de", originalText);
                 ledgerService.recordStt(job.getUserId(), "PHONEME_ASYNC", stt.modelOr(groqWhisperClient.getWhisperModel()), stt.durationSeconds());
                 transcribedText = stt.text();
-                log.info("[Worker] Whisper transcribed jobId={}: \"{}\"", job.getId(), transcribedText);
+                log.info("[Worker] Whisper transcribed jobId={} chars={}", job.getId(),
+                        transcribedText != null ? transcribedText.length() : 0);
             }
         }
 

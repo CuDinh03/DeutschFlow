@@ -72,9 +72,7 @@ public class WhisperApiClient {
                 return List.of();
             }
 
-            log.info("[Whisper] Transcribed: {} words, text='{}...'",
-                    response.words().size(),
-                    response.text() != null ? response.text().substring(0, Math.min(50, response.text().length())) : "");
+            log.info("[Whisper] Transcribed: {} words", response.words().size());
 
             return response.words().stream()
                     .map(w -> new WordTimestamp(w.word(), w.start(), w.end()))
@@ -115,7 +113,7 @@ public class WhisperApiClient {
                     .retrieve()
                     .body(String.class);
 
-            log.info("[Whisper] Text: '{}'", text != null ? text.trim() : "");
+            log.info("[Whisper] Text: {} chars", text != null ? text.trim().length() : 0);
             return text != null ? text.trim() : "";
 
         } catch (Exception e) {
