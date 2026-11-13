@@ -372,8 +372,8 @@
         "faqAskANoExample": "The practice interview opens with a request to introduce yourself, then the interviewer asks about your experience and job skills. Questions may differ or be phrased differently.",
         "faqLevelQ": "What level of German do I need for a {name} interview?",
         "faqLevelA": "It depends on the employer and the programme. Many vocational training programmes ask for B1, some ask for B2. Check the requirements of the place you are applying to.",
-        "faqCostQ": "Is practising the {name} interview free?",
-        "faqCostA": "Yes. You practise for free: the AI asks in German and shows what to improve after every answer."
+        "faqCostQ": "Does practising the {name} interview cost anything?",
+        "faqCostA": "You start for free, with a daily AI practice allowance and no credit card. Paid plans are described in the app."
       }
     },
     "footer": {

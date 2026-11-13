@@ -7,7 +7,7 @@
  */
 
 export type ExamProvider = 'Goethe' | 'telc'
-export type ExamLevel = 'A2' | 'B1' | 'B2'
+export type ExamLevel = 'A2' | 'B1' | 'B2' | 'B1·B2'
 
 export interface ExamModule {
   skill: string
@@ -64,13 +64,13 @@ export const GERMAN_EXAMS: GermanExam[] = [
     level: 'B1',
     name: 'Goethe-Zertifikat B1',
     shortName: 'Goethe B1',
-    tagline: 'Kỳ thi B1 phổ biến nhất cho du học nghề & định cư Đức',
+    tagline: 'Kỳ thi B1 cho du học nghề, điều dưỡng và định cư Đức',
     metaTitle: 'Luyện thi Goethe B1: Cấu trúc đề, cách tính điểm & checklist',
     metaDescription:
       'Luyện thi Goethe B1: cấu trúc 4 module, cách tính điểm (đạt 60%/module), checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài Schreiben B1 bằng AI miễn phí.',
     overview:
       'Goethe-Zertifikat B1 xác nhận trình độ tiếng Đức bậc trung cấp (B1 theo khung CEFR). Đây là mốc bắt buộc cho nhiều chương trình du học nghề, điều dưỡng và diện định cư Đức. Kỳ thi gồm 4 module độc lập, có thể thi và thi lại từng module riêng.',
-    whoFor: 'Người chuẩn bị du học nghề/điều dưỡng tại Đức, xin visa diện gia đình, hoặc cần kết quả thi B1 chuẩn hoá.',
+    whoFor: 'Người chuẩn bị du học nghề/điều dưỡng tại Đức, định cư lâu dài, hoặc cần kết quả thi B1 chuẩn hoá.',
     modules: GOETHE_MODULES([65, 40, 60, 15]),
     scoring: 'Mỗi module tính trên thang 100 điểm; cần đạt tối thiểu 60 điểm (60%) để qua module đó. Vì là kỳ thi module hoá, bạn có thể thi lại riêng module chưa đạt.',
     modular: true,
@@ -277,7 +277,7 @@ export const GERMAN_EXAMS: GermanExam[] = [
   {
     slug: 'telc-pflege-b1-b2',
     provider: 'telc',
-    level: 'B2',
+    level: 'B1·B2',
     name: 'telc Deutsch B1·B2 Pflege',
     shortName: 'telc Pflege',
     tagline: 'Tiếng Đức chuyên ngành điều dưỡng cho lộ trình sang Đức',

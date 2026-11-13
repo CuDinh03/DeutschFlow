@@ -373,7 +373,7 @@
         "faqLevelQ": "Cần trình độ tiếng Đức nào để phỏng vấn nghề {name}?",
         "faqLevelA": "Tuỳ nhà tuyển dụng và chương trình. Nhiều chương trình học nghề yêu cầu từ B1, có nơi yêu cầu B2. Hãy kiểm tra yêu cầu của nơi bạn ứng tuyển.",
         "faqCostQ": "Luyện phỏng vấn nghề {name} có mất phí không?",
-        "faqCostA": "Không. Bạn luyện miễn phí: AI hỏi bằng tiếng Đức và chỉ ra chỗ cần sửa sau mỗi câu trả lời."
+        "faqCostA": "Bạn bắt đầu miễn phí, có hạn mức luyện AI mỗi ngày, không cần thẻ tín dụng. Thông tin gói trả phí có trong ứng dụng."
       }
     },
     "footer": {

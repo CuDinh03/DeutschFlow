@@ -14,7 +14,7 @@ import { START_HREF } from '@/components/landing-v2/links'
  * chuyển sang hệ Galerie, dùng header/footer chung của trang công khai (ẩn nút đổi ngôn ngữ vì trang
  * chưa có bản en/de), title chứa cụm "thi thử Goethe B1 online". Nội dung các kỳ thi giữ nguyên.
  */
-const TITLE = 'Thi thử Goethe B1 online, luyện thi telc (A2–B2) — Cấu trúc đề & checklist'
+const TITLE = 'Thi thử Goethe B1 online, luyện thi telc B1 · myDeutschFlow'
 const DESCRIPTION =
   'Hướng dẫn luyện thi tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.'
 
@@ -73,10 +73,10 @@ export default function ExamHubPage() {
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-            <Link href={START_HREF}><YellowSq />Thi thử miễn phí</Link>
+            <Link href={START_HREF}><YellowSq />Học thử miễn phí</Link>
           </GaBtn>
           <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-            <Link href="/free-grade">Chấm thử bài viết B1 miễn phí</Link>
+            <Link href="/free-grade/">Chấm thử bài viết B1 miễn phí</Link>
           </GaBtn>
         </div>
         <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">

@@ -261,7 +261,7 @@
           {
             "date": "31. Mai 2026",
             "title": "Aufs Handy",
-            "body": "Start der App für iOS und Android, damit Sie überall sprechen üben können."
+            "body": "Beginn der Arbeit an der App für iOS und Android, damit Sie überall sprechen üben können."
           },
           {
             "date": "18. Oktober 2026",
@@ -372,8 +372,8 @@
         "faqAskANoExample": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen. Die Fragen können abweichen oder anders formuliert sein.",
         "faqLevelQ": "Welches Deutschniveau brauche ich für ein Vorstellungsgespräch als {name}?",
         "faqLevelA": "Das hängt vom Arbeitgeber und vom Programm ab. Viele Ausbildungsprogramme verlangen B1, manche B2. Prüfen Sie die Anforderungen der Stelle, auf die Sie sich bewerben.",
-        "faqCostQ": "Ist das Üben des Vorstellungsgesprächs als {name} kostenlos?",
-        "faqCostA": "Ja. Sie üben kostenlos: Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können."
+        "faqCostQ": "Kostet das Üben des Vorstellungsgesprächs als {name} etwas?",
+        "faqCostA": "Sie starten kostenlos, mit einem täglichen Kontingent für KI-Übungen und ohne Kreditkarte. Kostenpflichtige Tarife finden Sie in der App."
       }
     },
     "footer": {

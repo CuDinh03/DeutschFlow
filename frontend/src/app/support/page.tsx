@@ -6,16 +6,16 @@ import { GaLogo } from '@/components/ui-v2'
 import '@/components/legal/legalGa.css'
 
 export const metadata: Metadata = {
-  title: 'Support · myDeutschFlow',
-  description: 'myDeutschFlow support / Hỗ trợ.',
+  title: 'Hỗ trợ · myDeutschFlow',
+  description: 'Liên hệ hỗ trợ myDeutschFlow: tài khoản, ứng dụng iPhone, thanh toán và dữ liệu cá nhân (Support).',
   alternates: { canonical: absoluteUrl('/support/') },
 }
 
 // Footer links — mirrors the legal pages' footer (LegalFooterGa).
 const FOOTER_LINKS: [string, string][] = [
-  ['Chính sách bảo mật', '/privacy'],
-  ['Điều khoản sử dụng', '/terms'],
-  ['Về chúng tôi', '/about'],
+  ['Chính sách bảo mật', '/privacy/'],
+  ['Điều khoản sử dụng', '/terms/'],
+  ['Về chúng tôi', '/about/'],
   ['Trang chủ', '/'],
 ]
 
@@ -71,9 +71,9 @@ export default function SupportPage() {
 
             <h2>Quyền riêng tư &amp; Điều khoản / Privacy &amp; Terms</h2>
             <p>
-              Xem <a href="/privacy">Chính sách bảo mật</a> và{' '}
-              <a href="/terms">Điều khoản sử dụng</a> của chúng tôi. / See our{' '}
-              <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Use</a>.
+              Xem <a href="/privacy/">Chính sách bảo mật</a> và{' '}
+              <a href="/terms/">Điều khoản sử dụng</a> của chúng tôi. / See our{' '}
+              <a href="/privacy/">Privacy Policy</a> and <a href="/terms/">Terms of Use</a>.
             </p>
           </article>
 
