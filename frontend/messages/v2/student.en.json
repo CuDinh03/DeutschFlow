@@ -3416,7 +3416,7 @@
       "leave": "Leave the diagnostic test (finished parts are kept)",
       "runSubtitle": "Diagnostic test · part {n}/{total}",
       "progressLabel": "Part {n}/{total}",
-      "nextPart": "Next part",
+      "nextPart": "Submit this part",
       "finishing": "Putting your result together…",
       "resultTitle": "Practise {skill} first",
       "resultTitlePlain": "Diagnostic test result",
@@ -3460,7 +3460,10 @@
       "exitFailed": "The draft could not be saved. Check your connection and try again.",
       "exitRetry": "Try again",
       "exitConfirm": "Save and leave",
-      "keepGoing": "Keep going"
+      "keepGoing": "Keep going",
+      "submitTitle": "{n} questions still unanswered",
+      "submitBody": "If you submit {part} now, blank questions count as wrong, and this part cannot be redone in the diagnostic test.",
+      "submitConfirm": "Submit anyway"
     }
   }
 }

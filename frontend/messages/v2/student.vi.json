@@ -3416,7 +3416,7 @@
       "leave": "Rời bài chẩn đoán (phần đã làm được giữ)",
       "runSubtitle": "Bài chẩn đoán · phần {n}/{total}",
       "progressLabel": "Phần {n}/{total}",
-      "nextPart": "Phần tiếp",
+      "nextPart": "Nộp phần này",
       "finishing": "Đang tổng hợp kết quả…",
       "resultTitle": "{skill} cần luyện trước",
       "resultTitlePlain": "Kết quả bài chẩn đoán",
@@ -3460,7 +3460,10 @@
       "exitFailed": "Chưa lưu được nháp. Kiểm tra kết nối mạng rồi thử lại.",
       "exitRetry": "Thử lại",
       "exitConfirm": "Lưu và rời",
-      "keepGoing": "Ở lại làm tiếp"
+      "keepGoing": "Ở lại làm tiếp",
+      "submitTitle": "Còn {n} câu chưa trả lời",
+      "submitBody": "Nộp {part} bây giờ thì các câu bỏ trống bị tính sai, và phần này không làm lại được trong bài chẩn đoán.",
+      "submitConfirm": "Vẫn nộp phần này"
     }
   }
 }
