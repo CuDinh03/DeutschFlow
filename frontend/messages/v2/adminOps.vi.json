@@ -274,7 +274,8 @@
         "aiUnlimited": "Không giới hạn",
         "aiMetered": "Hạn mức",
         "aiPoolPlaceholder": "token/tháng",
-        "aiUnsetWarning": "0 token = chưa cấu hình — nhân sự bị chặn AI ngay."
+        "aiUnsetWarning": "0 token = chưa cấu hình — nhân sự bị chặn AI ngay.",
+        "errorTitle": "Chưa tạo được trung tâm"
       },
       "forceOwner": {
         "action": "Chỉ định giám đốc",
@@ -298,7 +299,8 @@
         "reasonHint": "{count}/{max} ký tự — tối thiểu {min}.",
         "confirm": "Chỉ định giám đốc",
         "cancel": "Hủy",
-        "done": "Đã chỉ định {name} làm giám đốc của {org}."
+        "done": "Đã chỉ định {name} làm giám đốc của {org}.",
+        "errorTitle": "Chưa chỉ định được giám đốc"
       },
       "perpetual": "Vô thời hạn",
       "openDetail": "Gói & hoá đơn",
@@ -321,7 +323,8 @@
           "seatsOver": "vượt giới hạn — chặn thêm mới",
           "aiPool": "AI nhân sự",
           "validUntil": "Hạn giấy phép"
-        }
+        },
+        "loadErrorTitle": "Không tải được hồ sơ trung tâm"
       },
       "licence": {
         "title": "Gói & giấy phép",
@@ -355,7 +358,8 @@
           "detailLedger": "Thay đổi ghi vào sổ hoạt động của trung tâm với tên bạn (admin).",
           "confirm": "Vẫn hạ ghế",
           "cancel": "Hủy"
-        }
+        },
+        "errorTitle": "Chưa lưu được gói và giấy phép"
       },
       "statusCard": {
         "title": "Trạng thái",
@@ -391,7 +395,8 @@
           "detail": "Cấp gói {plan} cho {count} học viên đang hoạt động (học viên đã có gói thì được làm mới).",
           "detailNoStatus": "Trung tâm đang tạm ngưng hoặc hết hạn vẫn được cấp — đây là đường khôi phục, không qua cổng chỉ-đọc.",
           "confirm": "Cấp lại"
-        }
+        },
+        "errorTitle": "Thao tác với trung tâm chưa thực hiện được"
       },
       "invoices": {
         "title": "Hoá đơn",
@@ -465,8 +470,10 @@
           "submit": "Tạo hoá đơn nháp",
           "errAmount": "Số tiền phải lớn hơn 0.",
           "errPeriod": "Ngày kết thúc kỳ phải từ ngày bắt đầu kỳ trở đi.",
-          "created": "Đã tạo hoá đơn nháp #{id} ({amount})."
-        }
+          "created": "Đã tạo hoá đơn nháp #{id} ({amount}).",
+          "errorTitle": "Chưa tạo được hoá đơn"
+        },
+        "errorTitle": "Chưa cập nhật được hoá đơn"
       }
     },
     "users": {
@@ -645,7 +652,10 @@
             "confirm": "Mở tab xem",
             "cancel": "Huỷ"
           }
-        }
+        },
+        "loadErrorTitle": "Không tải được hồ sơ người dùng",
+        "accessErrorTitle": "Chưa đổi được quyền truy cập của tài khoản",
+        "planErrorTitle": "Chưa đổi được gói của người dùng"
       },
       "create": {
         "title": "Thêm người dùng",
@@ -685,7 +695,8 @@
           "detailAudit": "Thao tác được ghi vào nhật ký audit.",
           "confirm": "Tạo tài khoản admin",
           "cancel": "Hủy"
-        }
+        },
+        "errorTitle": "Chưa tạo được tài khoản"
       },
       "openProfile": "Mở hồ sơ {name}",
       "view": {
@@ -1132,7 +1143,10 @@
       "regradeBatchDone": "Đã regrade {regraded}/{requested} phiên (lỗi {failed}) · đổi kết luận đỗ/trượt: {passFlips} · lệch điểm tổng trung bình: {avgDelta} · số band đổi: {bandChanges}.",
       "blindHint": "Chấm mù: band máy được ẩn cho tới khi bạn lưu phiếu (tài liệu gate §4.1).",
       "revealMachine": "Hiện band máy (phá chấm mù)",
-      "hideMachine": "Ẩn band máy"
+      "hideMachine": "Ẩn band máy",
+      "errorTitle": "Thao tác ở trang Golden set Nói chưa thực hiện được",
+      "detailLoadErrorTitle": "Không tải được phiên cần chấm",
+      "saveErrorTitle": "Chưa lưu được phiếu chấm"
     },
     "examBank": {
       "title": "Ngân hàng đề Luyện thi Nói",
@@ -1172,7 +1186,9 @@
       "previewNote": "Thẻ đã lọc mọi khoá partner* (như trong phòng thi thật). Kiểm cả phần chữ lẫn loại thẻ.",
       "save": "Lưu",
       "saving": "Đang lưu…",
-      "cancel": "Huỷ"
+      "cancel": "Huỷ",
+      "loadErrorTitle": "Không tải được ngân hàng đề",
+      "saveErrorTitle": "Chưa lưu được đề"
     },
     "aiUsage": {
       "title": "Chi phí AI",
@@ -1207,7 +1223,8 @@
       "colFeatures": "Feature",
       "tabsLabel": "Chế độ xem chi phí AI",
       "tabOverview": "Tổng quan",
-      "tabLedger": "Theo ledger"
+      "tabLedger": "Theo ledger",
+      "errorTitle": "Không tải được số liệu chi phí AI"
     }
   }
 }

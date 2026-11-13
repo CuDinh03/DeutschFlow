@@ -125,7 +125,7 @@ function AdminUserProfileInner() {
   if (!profile) {
     return (
       <div className="px-4 py-10 sm:px-6 lg:px-10">
-        <ErrorBanner message={error ?? t('loadError')} onRetry={() => void load()} />
+        <ErrorBanner title={t('loadErrorTitle')} message={error ?? t('loadError')} onRetry={() => void load()} />
       </div>
     )
   }
@@ -160,7 +160,7 @@ function AdminUserProfileInner() {
         }
       />
       <div className="flex-1 space-y-5 px-4 py-5 sm:px-6 lg:px-10">
-        {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+        {error && <ErrorBanner title={t('loadErrorTitle')} message={error} onRetry={() => void load()} />}
         <div className="flex flex-wrap items-center gap-2">
           <TkBadge>{profile.role}</TkBadge>
           <TkBadge tone={profile.isActive ? 'green' : 'red'}>

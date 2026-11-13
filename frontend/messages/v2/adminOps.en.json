@@ -274,7 +274,8 @@
         "aiUnlimited": "Unlimited",
         "aiMetered": "Budget",
         "aiPoolPlaceholder": "tokens/month",
-        "aiUnsetWarning": "0 tokens = not configured — staff are blocked from AI immediately."
+        "aiUnsetWarning": "0 tokens = not configured — staff are blocked from AI immediately.",
+        "errorTitle": "The centre could not be created"
       },
       "forceOwner": {
         "action": "Appoint director",
@@ -298,7 +299,8 @@
         "reasonHint": "{count}/{max} characters — at least {min}.",
         "confirm": "Appoint director",
         "cancel": "Cancel",
-        "done": "{name} is now the director of {org}."
+        "done": "{name} is now the director of {org}.",
+        "errorTitle": "The director could not be appointed"
       },
       "perpetual": "No expiry",
       "openDetail": "Plan & invoices",
@@ -321,7 +323,8 @@
           "seatsOver": "over the limit — new students blocked",
           "aiPool": "Staff AI",
           "validUntil": "Licence expiry"
-        }
+        },
+        "loadErrorTitle": "Could not load the centre profile"
       },
       "licence": {
         "title": "Plan & licence",
@@ -355,7 +358,8 @@
           "detailLedger": "The change is written to the centre's activity ledger under your name (admin).",
           "confirm": "Lower anyway",
           "cancel": "Cancel"
-        }
+        },
+        "errorTitle": "Plan and licence could not be saved"
       },
       "statusCard": {
         "title": "Status",
@@ -391,7 +395,8 @@
           "detail": "Grants plan {plan} to {count} active students (students who already have it are refreshed).",
           "detailNoStatus": "A suspended or expired centre is still granted — this is the recovery path, it bypasses the read-only gate.",
           "confirm": "Re-grant"
-        }
+        },
+        "errorTitle": "The action on this centre did not go through"
       },
       "invoices": {
         "title": "Invoices",
@@ -465,8 +470,10 @@
           "submit": "Create draft invoice",
           "errAmount": "Amount must be greater than 0.",
           "errPeriod": "Period end must be on or after period start.",
-          "created": "Draft invoice #{id} created ({amount})."
-        }
+          "created": "Draft invoice #{id} created ({amount}).",
+          "errorTitle": "The invoice could not be created"
+        },
+        "errorTitle": "The invoice could not be updated"
       }
     },
     "users": {
@@ -645,7 +652,10 @@
             "confirm": "Open view tab",
             "cancel": "Cancel"
           }
-        }
+        },
+        "loadErrorTitle": "Could not load the user profile",
+        "accessErrorTitle": "The account's access could not be changed",
+        "planErrorTitle": "The user's plan could not be changed"
       },
       "create": {
         "title": "Add user",
@@ -685,7 +695,8 @@
           "detailAudit": "The action is written to the audit log.",
           "confirm": "Create admin account",
           "cancel": "Cancel"
-        }
+        },
+        "errorTitle": "The account could not be created"
       },
       "openProfile": "Open profile of {name}",
       "view": {
@@ -1132,7 +1143,10 @@
       "regradeBatchDone": "Regraded {regraded}/{requested} sessions (failed {failed}) · pass/fail flips: {passFlips} · mean total delta: {avgDelta} · band changes: {bandChanges}.",
       "blindHint": "Blind rating: machine bands stay hidden until you save (gate doc §4.1).",
       "revealMachine": "Show machine bands (breaks blind rating)",
-      "hideMachine": "Hide machine bands"
+      "hideMachine": "Hide machine bands",
+      "errorTitle": "The action on the speaking golden set did not go through",
+      "detailLoadErrorTitle": "Could not load the session to rate",
+      "saveErrorTitle": "The ratings could not be saved"
     },
     "examBank": {
       "title": "Speaking exam task bank",
@@ -1172,7 +1186,9 @@
       "previewNote": "All partner* keys are filtered out of this card (as in the real exam room). Check both text and card type.",
       "save": "Save",
       "saving": "Saving…",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "loadErrorTitle": "Could not load the task bank",
+      "saveErrorTitle": "The task could not be saved"
     },
     "aiUsage": {
       "title": "AI costs",
@@ -1207,7 +1223,8 @@
       "colFeatures": "Features",
       "tabsLabel": "AI cost views",
       "tabOverview": "Overview",
-      "tabLedger": "By ledger"
+      "tabLedger": "By ledger",
+      "errorTitle": "Could not load AI cost data"
     }
   }
 }

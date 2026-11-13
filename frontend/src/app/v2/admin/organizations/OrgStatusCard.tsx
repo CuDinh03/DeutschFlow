@@ -91,7 +91,7 @@ export function OrgStatusCard({ org, onChanged }: OrgStatusCardProps) {
             : t('activePerpetual')}
       </p>
 
-      {error && <ErrorBanner className="mt-3" message={error} />}
+      {error && <ErrorBanner className="mt-3" title={t('errorTitle')} message={error} />}
 
       <div className="mt-4 flex flex-col gap-2">
         {suspended ? (

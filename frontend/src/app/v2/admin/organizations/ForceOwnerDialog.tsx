@@ -124,7 +124,7 @@ export function ForceOwnerDialog({ org, onClose, onDone }: ForceOwnerDialogProps
       loading={busy}
       onConfirm={() => void submit()}
     >
-      {(error || loadError) && <ErrorBanner message={error || loadError} />}
+      {(error || loadError) && <ErrorBanner title={error ? t('errorTitle') : undefined} message={error || loadError} />}
 
       <label className="block">
         <GaCap>{t('memberLabel')}</GaCap>
