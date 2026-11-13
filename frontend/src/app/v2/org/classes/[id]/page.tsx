@@ -25,6 +25,7 @@ import {
   LoadingState,
   ConfirmDialog,
 } from '@/components/ui-v2'
+import { PracticeProgramCard } from './PracticeProgramCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết lớp của tổ chức (GaOrgClassDetail) — teal, read-only org-admin (W1.4 + QA Prototype A).
@@ -201,6 +202,8 @@ export default function V2OrgClassDetailPage() {
                     <button type="button" onClick={() => router.push('/v2/org/teachers')} className="ga-ui min-h-[40px] w-full border px-3 py-3 text-[12px] font-bold lg:min-h-0" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)', borderColor: 'color-mix(in srgb, var(--ga-red) 30%, transparent)' }}>{t('assignTeacher')}</button>
                   )}
                 </div>
+
+                <PracticeProgramCard classId={id} />
 
                 <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
                   <GaCap className="mb-3.5 block">{t('skillAvgCap')}</GaCap>

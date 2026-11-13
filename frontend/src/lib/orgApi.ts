@@ -796,3 +796,38 @@ export async function listOrgAuditLogs(
     size: data?.size ?? size,
   }
 }
+
+// ─── Chương trình luyện của lớp (đặc tả luyendeu ORG-50/51/65) ──────────────
+
+export interface OrgPracticeProgram {
+  classId: number
+  /** yyyy-MM-dd, luôn là thứ Hai (giờ VN) */
+  startDate: string
+  weeks: number
+  targetPerWeek: number
+  weeksRequired: number
+  /** yyyy-MM-dd — Chủ nhật của tuần cuối */
+  endDate: string
+  /** 0 = chưa bắt đầu; 1…weeks = đang chạy; weeks+1 = đã kết thúc */
+  currentWeek: number
+  /** Tuần 1 đã qua: không đổi được ngày bắt đầu, chỉ tiêu, số tuần yêu cầu */
+  locked: boolean
+}
+
+export interface SaveOrgPracticeProgram {
+  startDate: string
+  weeks: number
+  targetPerWeek: number
+  weeksRequired: number
+}
+
+/** null khi lớp chưa khai chương trình (204). */
+export async function getOrgPracticeProgram(classId: number): Promise<OrgPracticeProgram | null> {
+  const res = await api.get<OrgPracticeProgram | ''>(`/org/classes/${classId}/practice-program`)
+  return res.status === 204 || !res.data ? null : res.data
+}
+
+export async function saveOrgPracticeProgram(classId: number, body: SaveOrgPracticeProgram): Promise<OrgPracticeProgram> {
+  const res = await api.put<OrgPracticeProgram>(`/org/classes/${classId}/practice-program`, body)
+  return res.data
+}

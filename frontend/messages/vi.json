@@ -283,6 +283,9 @@
       "confirmLeaveSession": "Rời buổi phỏng vấn? Các lượt bạn đã trả lời xong đã được lưu, nên bạn quay lại xem báo cáo được.",
       "typeInstead": "Gõ thay vì nói",
       "typeInsteadClose": "Đóng ô nhập chữ",
+      "speakOnlyHint": "Lớp của bạn luyện bằng giọng nói nên không có ô gõ. Bấm mic để trả lời.",
+      "speakOnlyMicBlocked": "Lớp của bạn luyện bằng giọng nói nên không có ô gõ. Hãy cho phép micro trong cài đặt trình duyệt rồi thử lại, hoặc báo giáo viên để kiểm thiết bị.",
+      "speakOnlyDiscard": "Bỏ câu vừa ghi",
       "feedbackTitle": "Phản hồi lượt vừa rồi",
       "dimension": {
         "pronunciation": "Phát âm",
