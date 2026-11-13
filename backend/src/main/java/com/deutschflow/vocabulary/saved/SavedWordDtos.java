@@ -35,10 +35,23 @@ public final class SavedWordDtos {
             Long examId,
             String examTitle,
             String teilKey,
+            /** Khối chữ trong bài + vị trí ký tự — để mở lại đúng chỗ (null nếu không có). */
+            String block,
+            Integer start,
+            Integer end,
             OffsetDateTime createdAt,
             /** Từ đã có trong sổ từ trước — lần lưu này không thêm gì. */
             boolean alreadySaved
     ) {}
 
     public record SavedWordList(List<SavedWord> items, int total) {}
+
+    /** Chủ đề trong bộ chủ đề sẵn của kho: {@code name} là khoá gửi lại server, {@code label} để hiện. */
+    public record Topic(String name, String label) {}
+
+    /** Đổi chủ đề. {@code topic = null} ⇒ "Chưa phân loại". */
+    public record TopicRequest(String topic) {}
+
+    /** Sửa nghĩa (1–200 ký tự). */
+    public record MeaningRequest(String meaning) {}
 }

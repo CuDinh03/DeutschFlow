@@ -409,6 +409,8 @@ html[data-ga-marking] [data-practice-foot] { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .ga-mark-flash { animation: none; outline: 2px solid var(--ga-navy); }
 }
+/* Mở từ sổ từ: tô tạm đúng chữ đã lưu (CSS Custom Highlight — không đổi DOM, không lẫn với đánh dấu). */
+::highlight(ga-spot) { background-color: var(--ga-yellow-soft); text-decoration: underline 2px var(--ga-yellow); }
 
 /* Phòng thi nói (Đợt 1 phòng thi nói, 07/11/2026). Đến lượt: vòng vàng lan ra 1,6s lặp; đang ghi:
    vòng đỏ 1,4s; người đang nói: 4 vạch nhún 0,9s; lời mới nhô lên 6px. Giảm chuyển động: chỉ đổi màu. */

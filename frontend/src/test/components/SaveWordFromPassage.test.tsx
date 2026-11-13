@@ -12,13 +12,14 @@ const h = vi.hoisted(() => ({
   saveMarks: vi.fn(),
   saveWord: vi.fn(),
   removeWord: vi.fn(),
+  search: { value: 'examId=7&teil=LESEN-2' },
 }))
 vi.mock('@/lib/api', () => ({
   default: { get: vi.fn(async () => ({ data: { seen: ['exam.teil'] } })), put: vi.fn(async () => ({ data: {} })), defaults: {} },
   apiMessage: () => 'lỗi',
 }))
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams('examId=7&teil=LESEN-2'),
+  useSearchParams: () => new URLSearchParams(h.search.value),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 vi.mock('next-intl', async () => {
@@ -92,7 +93,8 @@ function selectInPassage(phrase: string) {
 }
 
 beforeEach(() => {
-  Object.values(h).forEach((f) => f.mockReset())
+  ;[h.getMarks, h.saveMarks, h.saveWord, h.removeWord].forEach((f) => f.mockReset())
+  h.search.value = 'examId=7&teil=LESEN-2'
   h.getMarks.mockResolvedValue({ marks: {}, updatedAt: null })
   h.saveMarks.mockImplementation(async (_e: number, _k: string, marks: unknown) => ({ marks, updatedAt: null }))
   h.saveWord.mockResolvedValue(SAVED)
@@ -112,6 +114,7 @@ beforeEach(() => {
     return { left: 0, right: 10, top: 100, bottom: 120, width: 10, height: 20, x: 0, y: 100, toJSON: () => ({}) } as DOMRect
   }
   Element.prototype.scrollIntoView = () => undefined
+  Element.prototype.scrollTo = (() => undefined) as typeof Element.prototype.scrollTo
 })
 
 async function ready() {
@@ -138,7 +141,7 @@ describe('Lưu từ từ bài đọc — luyện Teil', () => {
       block: 'ctx',
       start: at,
       end: at + 'Zeitaufwand'.length,
-    })
+    }, 'vi')
     const card = await screen.findByTestId('save-word-card')
     await within(card).findByText('Đã lưu vào sổ từ')
     expect(card).toHaveTextContent('der Zeitaufwand')
@@ -186,5 +189,27 @@ describe('Lưu từ từ bài đọc — luyện Teil', () => {
     selectInPassage('Frau Özdemir leitet seit acht Jahren')
     const toolbar = await screen.findByRole('toolbar')
     expect(within(toolbar).queryByRole('button', { name: /Lưu vào sổ từ/ })).toBeNull()
+  })
+})
+
+describe('Mở lại chỗ đã lưu từ sổ từ', () => {
+  it('?at=…&w=… ⇒ đoạn chứa chữ được làm nổi (EXAM-236)', async () => {
+    const at = CONTEXT.indexOf('Zeitaufwand')
+    h.search.value = `examId=7&teil=LESEN-2&at=ctx:${at}:${at + 11}&w=Zeitaufwand`
+    await ready()
+    await waitFor(
+      () => {
+        const flashed = Array.from(document.querySelectorAll<HTMLElement>('[data-seg].ga-mark-flash'))
+        expect(flashed.map((el) => el.textContent).join('')).toContain('Zeitaufwand')
+      },
+      { timeout: 2000 },
+    )
+  })
+
+  it('đề đã sửa, chữ không còn ⇒ không làm nổi gì', async () => {
+    h.search.value = 'examId=7&teil=LESEN-2&at=ctx:0:6&w=Urlaubsreise'
+    await ready()
+    await new Promise((r) => setTimeout(r, 600))
+    expect(document.querySelector('[data-seg].ga-mark-flash')).toBeNull()
   })
 })

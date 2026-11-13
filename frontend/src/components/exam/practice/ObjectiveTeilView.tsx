@@ -12,6 +12,7 @@ import { MarkLayerContext, MarkedText, type MarkLayer } from '@/components/exam/
 import { MarkDiagnosis } from '@/components/exam/marks/MarkDiagnosis'
 import { MarksBar } from '@/components/exam/marks/MarksBar'
 import { PassageMarker } from '@/components/exam/marks/PassageMarker'
+import { resolveSpot, spotRange, type PassageSpot } from '@/components/exam/marks/passageSpot'
 import { diagnose, groupSelector, groupsForItem, isStruck, lastPieces, setStruck, type Mark, type Piece } from '@/components/exam/marks/marksModel'
 import { blockOrderOf, evidenceBlocks, evidencePieces, gapPieces, marksSupported } from '@/components/exam/marks/marksBlocks'
 import type { PassageMarks } from '@/components/exam/marks/usePassageMarks'
@@ -64,6 +65,8 @@ interface Props {
    * chân, tẩy, gạch bỏ đáp án; không gắn số câu, không ghi chú (owner chốt 09/11/2026; server cũng bỏ).
    */
   marksMode?: 'full' | 'exam'
+  /** Chỗ cần cuộn tới và tô tạm khi mở từ sổ từ (`?at=…&w=…`). */
+  spot?: PassageSpot | null
 }
 
 export { marksTexts } from '@/components/exam/marks/marksBlocks'
@@ -86,7 +89,7 @@ type Req<T> = { n: number } & T
  * dạng nối/chỗ trống/rao vặt cạnh câu đang chọn, phím F) + hàng "Câu đã đánh dấu" để nhảy tới; trang cấp
  * `flags` thì cờ do trang giữ (thi thử lưu cùng nháp). Ô "Vì sao tôi chọn" khi trang cấp `onNote` (luyện Teil).
  */
-export function ObjectiveTeilView({ teil: rawTeil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks, marksMode = 'full' }: Props) {
+export function ObjectiveTeilView({ teil: rawTeil, kind, answers, onAnswer, result, wide, tips, intro, itemExtra, answersOverride, focusId, answersTop, marks, marksMode = 'full', spot }: Props) {
   const t = useTranslations('v2.student.practice')
   const tf = useTranslations('v2.student.practice.frame')
   // telc A2 Lesen Teil 2 (TRUE_FALSE): câu không khai options — gắn richtig/falsch như Hören.
@@ -336,6 +339,38 @@ export function ObjectiveTeilView({ teil: rawTeil, kind, answers, onAnswer, resu
     else reveal(sel)
     window.setTimeout(() => flashEls(marksRoot.current?.querySelectorAll<HTMLElement>(sel)), 300)
   }
+
+  // Mở từ sổ từ: khi đánh dấu đã tải (chữ đã vẽ thành đoạn có vị trí) ⇒ cuộn tới + tô tạm 4 s. Trang giữ
+  // `spot` ổn định (useMemo theo URL) nên hiệu ứng chạy một lần / lần mở.
+  const spotReady = !marks || marks.ready
+  React.useEffect(() => {
+    if (!spot || !spotReady) return
+    const pos = resolveSpot(spot, marks?.texts[spot.b] ?? undefined)
+    const root = marksRoot.current
+    if (!pos || !root) return
+    const hit = spotRange(root, spot.b, pos.s, pos.e)
+    if (!hit) return
+    const first = hit.segs[0]
+    if (spot.b.startsWith('q:') && isMc) first.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    else reveal(`[data-seg][data-b="${spot.b}"][data-s="${first.dataset.s}"]`)
+    const hl = (globalThis as unknown as { CSS?: { highlights?: Map<string, unknown> }; Highlight?: new (r: Range) => unknown })
+    let clear = () => {}
+    const timer = window.setTimeout(() => {
+      if (hl.CSS?.highlights && hl.Highlight) {
+        hl.CSS.highlights.set('ga-spot', new hl.Highlight(hit.range))
+        clear = () => hl.CSS?.highlights?.delete('ga-spot')
+      } else {
+        flashEls(hit.segs as unknown as NodeListOf<HTMLElement>)
+      }
+    }, 350)
+    const off = window.setTimeout(() => clear(), 4350)
+    return () => {
+      window.clearTimeout(timer)
+      window.clearTimeout(off)
+      clear()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spot, spotReady])
 
   const struck = (id: string, opt: string) => !!pack && marksOn && isStruck(pack, id, opt)
   const toggleStrike = (id: string, opt: string) => {
