@@ -20,8 +20,11 @@ import java.util.Map;
  *       {@code action}, {@code url}, {@code where}) và {@code next} (việc làm sau khi sửa xong). Web dựng khung
  *       lỗi có nút "đi tới chỗ sửa" từ phần này.</li>
  * </ul>
+ *
+ * <p>Kế thừa {@link BadRequestException} để mã cũ đang bắt hoặc khẳng định lỗi nghiệp vụ 4xx không phải đổi; mã HTTP
+ * thật lấy từ {@link #getStatus()} (400 hoặc 409) — {@code GlobalExceptionHandler} có handler riêng cho lớp này.
  */
-public class GuidedException extends RuntimeException {
+public class GuidedException extends BadRequestException {
 
     /**
      * Một mục chưa đạt.
@@ -42,7 +45,7 @@ public class GuidedException extends RuntimeException {
     private final String next;
 
     private GuidedException(Builder b) {
-        super(text(b));
+        super(text(b), b.code);
         this.status = b.status;
         this.code = b.code;
         this.title = b.title;
@@ -60,6 +63,7 @@ public class GuidedException extends RuntimeException {
     }
 
     public HttpStatus getStatus() { return status; }
+    @Override
     public String getCode() { return code; }
     public String getTitle() { return title; }
     public Map<String, Object> getWhere() { return where; }

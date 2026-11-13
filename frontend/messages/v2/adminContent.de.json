@@ -575,6 +575,7 @@
         },
         "approve": "Ganzen Satz freigeben",
         "approved": "Freigegeben. Der Satz steht unten in der Liste als „Demnächst“.",
+        "loadError": "Die Liste der Durchläufe konnte nicht geladen werden",
         "approveBlocked": "Durchlauf #{id} konnte nicht freigegeben werden: {count} Teil nicht bereit. Liste und Lösung stehen in der Karte des Durchlaufs.",
         "approveTitle": "Ganzen Satz von Lauf #{id} freigeben?",
         "approveBody": "Alle Teile dieses Laufs kommen in den Bestand und werden zu einem Prüfungssatz mit dem Status „Demnächst“ zusammengestellt. Lernende sehen ihn erst, wenn Sie in der Liste auf Veröffentlichen klicken. Der Hörteil des Satzes besteht aus den drei Hörteilen, die in diesem Lauf erzeugt wurden.",
@@ -621,15 +622,15 @@
           "ROUTER": "9Router"
         },
         "recheck": "Satz erneut prüfen",
-        "recheckedReady": "Der Satz erfüllt jetzt die Bedingungen. „Ganzen Satz freigeben“ drücken, wenn Sie ihn geprüft haben.",
-        "recheckedStill": "Der Satz hat noch offene Punkte. Siehe die neue Liste unten.",
+        "recheckedReady": "Lauf #{id} erfüllt jetzt die Bedingungen. Teile durchsehen, dann „Ganzen Satz freigeben“ drücken.",
+        "recheckedStill": "Lauf #{id} kann noch nicht freigegeben werden: {stuck, plural, =0 {kein Teil hängt mehr} other {# Teil nicht fertig ({teile})}}, Satzprüfung {red, plural, =0 {ohne rote Punkte} other {mit # roten Punkten}}. Siehe „Bedingungen für die Freigabe des ganzen Satzes“ in der Karte des Laufs, beheben und erneut „Satz erneut prüfen“ drücken.",
         "gate": {
           "title": "Bedingungen für die Freigabe des ganzen Satzes",
           "ok": "Erfüllt",
           "missing": "Offen",
           "teile": "{ready}/{total} Teile fertig (keiner hängt)",
           "checks": "Keine rote Prüfung auf Satzebene (aktuell {red} rot)",
-          "next": "Nach der Korrektur der hängenden Teile „Satz erneut prüfen“ drücken. Ein Teil ohne rotes Licht gilt als fertig, die Prüfungen auf Satzebene laufen erneut; sind beide Bedingungen erfüllt, wechselt der Lauf zu „Wartet auf Freigabe“ und der Knopf „Ganzen Satz freigeben“ erscheint. Gelbe Punkte blockieren nicht."
+          "next": "Nach der Korrektur der hängenden Teile „Satz erneut prüfen“ drücken. Ein Teil ohne rotes Licht gilt als fertig, die Prüfungen auf Satzebene laufen erneut; sind beide Bedingungen erfüllt, wechselt der Lauf zu „Bereit zur Prüfung“ und der Knopf „Ganzen Satz freigeben“ erscheint. Gelbe Punkte blockieren nicht."
         },
         "fix": {
           "title": "Warum es hängt und wie man es behebt",
@@ -640,7 +641,7 @@
           "howTitle": "So beheben",
           "step1": "„Entwurf öffnen“ für diesen Teil drücken.",
           "step2": "Rote Aufgabe: Frage, Optionen oder Lösung von Hand ändern oder nur diese Aufgabe neu erzeugen. Rotes Licht zum Text: den genannten Abschnitt ändern oder neu schreiben lassen.",
-          "step3": "Zum Schritt Prüfung gehen und die Selbstprüfung erneut starten. Die Maschine hat alle Reparaturrunden verbraucht, jetzt entscheiden Sie.",
+          "step3": "Zum Schritt „Prüfen & freigeben“ gehen und „Selbstprüfung starten“ drücken. Die Maschine hat alle Reparaturrunden verbraucht, jetzt entscheiden Sie.",
           "step4": "Hierher zurückkehren und „Satz erneut prüfen“ drücken.",
           "doneTitle": "Wann gilt es als behoben",
           "done": "Nach der letzten Selbstprüfung hat der Entwurf kein rotes Licht mehr: weder auf Teil-Ebene noch bei einer Aufgabe. Gelbe Lichter dürfen bleiben."
