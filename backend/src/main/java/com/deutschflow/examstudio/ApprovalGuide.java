@@ -35,7 +35,7 @@ final class ApprovalGuide {
     static List<Blocker> blockers(Facts f) {
         List<Blocker> out = new ArrayList<>();
         if ("DISCARDED".equals(f.status())) {
-            out.add(new Blocker("DRAFT_DISCARDED", "Bản nháp đã bị bỏ nên không duyệt được",
+            out.add(new Blocker("DRAFT_DISCARDED", "Bản nháp đã bị huỷ nên không duyệt được",
                     "Tạo bản nháp mới cho Teil này; trong lượt tạo bộ đề thì bấm \"Làm lại Teil này\""));
             return out;
         }

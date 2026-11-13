@@ -112,22 +112,25 @@ class ExamAssemblyServiceTest {
         stubBaseAndBlock("LESEN", 1, "MATCH_HEADLINE", "APPROVED");
         assertThatThrownBy(() -> service.assemble(new ExamAssemblyService.AssembleRequest(4L, "x",
                 List.of(new ExamAssemblyService.Replacement("LESEN", 2, 7L)))))
-                .isInstanceOf(BadRequestException.class).hasMessageContaining("không khớp");
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("không khớp")
+                // Nêu Teil kho nào, ô nào và việc cần làm (owner yêu cầu 13/11/2026).
+                .hasMessageContaining("Teil kho #7").hasMessageContaining("ô LESEN Teil 2").hasMessageContaining("Chọn lại");
 
         stubBaseAndBlock("LESEN", 2, "MULTIPLE_CHOICE", "RETIRED");
         assertThatThrownBy(() -> service.assemble(new ExamAssemblyService.AssembleRequest(4L, "x",
                 List.of(new ExamAssemblyService.Replacement("LESEN", 2, 7L)))))
-                .isInstanceOf(BadRequestException.class).hasMessageContaining("đã gỡ");
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("đã gỡ")
+                .hasMessageContaining("Teil kho #7").hasMessageContaining("Chọn Teil khác cho ô LESEN Teil 2");
     }
 
     @Test
     void needsBaseTitleAndAtLeastOneReplacement() {
         assertThatThrownBy(() -> service.assemble(new ExamAssemblyService.AssembleRequest(null, "x", List.of())))
-                .hasMessageContaining("đề nền");
+                .hasMessageContaining("đề nền").hasMessageContaining("Ghép");
         assertThatThrownBy(() -> service.assemble(new ExamAssemblyService.AssembleRequest(4L, " ", List.of())))
-                .hasMessageContaining("tên");
+                .hasMessageContaining("tên").hasMessageContaining("Tên bộ đề");
         assertThatThrownBy(() -> service.assemble(new ExamAssemblyService.AssembleRequest(4L, "x", List.of())))
-                .hasMessageContaining("ít nhất một");
+                .hasMessageContaining("ít nhất một").hasMessageContaining("Ghép");
     }
 
     @Test
