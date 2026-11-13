@@ -467,6 +467,10 @@ public class ExamStudioAi {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new AiServiceException("Yêu cầu AI bị gián đoạn, vui lòng thử lại.", e);
+            } catch (CapacityException e) {
+                // Không được rơi xuống nhánh "lỗi kết nối" bên dưới: nhánh đó nuốt lỗi rồi thử lại ngay, làm mất bước
+                // chờ và đổi bản ở withCapacityFallback (thấy trên production 13/11/2026, ngay sau khi lên #900).
+                throw e;
             } catch (java.net.http.HttpTimeoutException e) {
                 failure = "quá " + callTimeoutSeconds + " giây";
                 log.warn("[ExamStudio] {} model {} quá {} giây", op, spec.model(), callTimeoutSeconds);
