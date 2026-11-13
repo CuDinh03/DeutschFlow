@@ -238,7 +238,7 @@
       "phonemeAnalyzing": "Aussprache wird analysiert…",
       "sessionMission": "Thema: {topic}",
       "summaryViewHistory": "Sprechverlauf ansehen",
-      "quotaRemaining": "KI ~{n} übrig",
+      "quotaRemaining": "KI: noch etwa {n}",
       "quotaHint": "Verbleibendes KI-Sprech-Kontingent heute",
       "autoTtsOn": "Auto-Vorlesen für KI-Antworten einschalten",
       "autoTtsOff": "Auto-Vorlesen für KI-Antworten ausschalten",
