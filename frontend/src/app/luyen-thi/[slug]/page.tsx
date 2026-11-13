@@ -67,10 +67,10 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
         <p className="mt-5 text-ga-body-lg text-ga-muted">{exam.tagline}</p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-            <Link href="/free-grade"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
+            <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
           </GaBtn>
           <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-            <Link href="/v2/register">Luyện thi với DeutschFlow</Link>
+            <Link href="/v2/register">Luyện thi với myDeutschFlow</Link>
           </GaBtn>
         </div>
 
@@ -150,12 +150,15 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
           <div className="flex items-center gap-3">
             <GaGlyph icon={PenLine} />
             <div>
-              <p className="text-ga-h3 text-ga-ink">Bài viết {exam.level} của bạn được mấy điểm?</p>
-              <p className="text-ga-small text-ga-muted">Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.</p>
+              {/* Công cụ chấm thử chỉ chấm mức B1 — trang kỳ thi khác không hứa chấm đúng trình độ của trang. */}
+              <p className="text-ga-h3 text-ga-ink">{exam.level === 'B1' ? 'Bài viết B1 của bạn được mấy điểm?' : 'Thử chấm một bài Schreiben B1'}</p>
+              <p className="text-ga-small text-ga-muted">
+                {exam.level === 'B1' ? 'Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.' : 'Công cụ chấm thử hiện chấm theo mức B1. Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.'}
+              </p>
             </div>
           </div>
           <GaBtn asChild variant="ink" size="lg" className="w-full shrink-0 sm:w-auto">
-            <Link href="/free-grade"><Sparkles size={16} aria-hidden /> Chấm thử ngay</Link>
+            <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử ngay</Link>
           </GaBtn>
         </div>
 

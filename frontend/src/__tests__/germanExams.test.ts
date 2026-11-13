@@ -25,7 +25,7 @@ describe('germanExams data', () => {
       expect(e.whoFor.trim()).not.toBe('')
       expect(e.scoring.trim()).not.toBe('')
       expect(['Goethe', 'telc']).toContain(e.provider)
-      expect(['A2', 'B1', 'B2']).toContain(e.level)
+      expect(['A2', 'B1', 'B2', 'B1·B2']).toContain(e.level)
       expect(e.officialUrl).toMatch(/^https:\/\//)
     }
   })

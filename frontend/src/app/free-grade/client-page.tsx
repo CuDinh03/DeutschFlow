@@ -94,7 +94,7 @@ export default function FreeGradeClientPage() {
         Không cần đăng ký.
       </p>
       <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ga-small text-ga-muted">
-        <li className="inline-flex items-center gap-2"><Clock size={16} aria-hidden className="text-ga-ink" /> Kết quả tức thì</li>
+        <li className="inline-flex items-center gap-2"><Clock size={16} aria-hidden className="text-ga-ink" /> Kết quả sau khoảng 15 giây</li>
         <li className="inline-flex items-center gap-2"><ShieldCheck size={16} aria-hidden className="text-ga-ink" /> Theo tiêu chí Goethe/telc</li>
         <li className="inline-flex items-center gap-2"><Check size={16} aria-hidden className="text-ga-ink" /> Miễn phí, không cần tài khoản</li>
       </ul>
