@@ -1,5 +1,6 @@
 package com.deutschflow.interview.controller;
 
+import com.deutschflow.interview.dto.IndexableOccupationDto;
 import com.deutschflow.interview.dto.OccupationDetailDto;
 import com.deutschflow.interview.dto.OccupationDto;
 import com.deutschflow.interview.service.OccupationCatalogService;
@@ -51,6 +52,17 @@ class PublicOccupationControllerTest {
                 .andExpect(header().string("Cache-Control", containsString("max-age=600")))
                 .andExpect(jsonPath("$[0].code").value("kellner"))
                 .andExpect(jsonPath("$[0].questionSet").value("CURATED"));
+    }
+
+    @Test
+    void indexable_isNotTreatedAsOccupationCode() throws Exception {
+        when(publicService.indexable()).thenReturn(List.of(new IndexableOccupationDto("kellner", "2026-11-01")));
+
+        mvc.perform(get("/api/public/occupations/indexable"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", containsString("max-age=600")))
+                .andExpect(jsonPath("$[0].code").value("kellner"))
+                .andExpect(jsonPath("$[0].lastModified").value("2026-11-01"));
     }
 
     @Test

@@ -47,6 +47,36 @@ export function homeStructuredData(locale: keyof typeof IN_LANGUAGE, description
   }
 }
 
+/**
+ * `WebSite` cho layout gốc (SEO 3d, 13/11/2026): tên trang web Google hiện trên kết quả tìm kiếm,
+ * nối về `Organization` của trang chủ qua `@id`. Không khai `SearchAction` — trang chưa có ô tìm kiếm.
+ */
+export function websiteStructuredData(locale: string) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
+    url: absoluteUrl('/'),
+    name: 'myDeutschFlow',
+    inLanguage: IN_LANGUAGE[locale as keyof typeof IN_LANGUAGE] ?? IN_LANGUAGE.vi,
+    publisher: { '@id': ORG_ID },
+  }
+}
+
+/** `BreadcrumbList` từ các mục [tên, đường dẫn] theo thứ tự từ gốc; URL tuyệt đối. */
+export function breadcrumbStructuredData(items: readonly (readonly [name: string, path: string])[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map(([name, path], i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name,
+      item: absoluteUrl(path),
+    })),
+  }
+}
+
 /** Chuỗi JSON để nhét vào `<script type="application/ld+json">`; thoát "<" để không đóng nhầm thẻ. */
 export function toJsonLd(data: unknown): string {
   return JSON.stringify(data).replace(/</g, '\\u003c')

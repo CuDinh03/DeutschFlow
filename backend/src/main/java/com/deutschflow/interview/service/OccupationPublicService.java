@@ -4,6 +4,7 @@ import com.deutschflow.interview.dto.OccupationDetailDto;
 import com.deutschflow.interview.dto.OccupationDetailDto.LayerQuestion;
 import com.deutschflow.interview.dto.OccupationDetailDto.SampleQuestion;
 import com.deutschflow.interview.dto.OccupationDetailDto.Term;
+import com.deutschflow.interview.dto.IndexableOccupationDto;
 import com.deutschflow.interview.dto.OccupationDto;
 import com.deutschflow.interview.entity.OccupationContentStatus;
 import com.deutschflow.interview.entity.OccupationQuestion;
@@ -14,9 +15,12 @@ import com.deutschflow.speaking.interview.InterviewPhase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -43,6 +47,39 @@ public class OccupationPublicService {
 
     public Optional<OccupationDetailDto> detail(String code) {
         return catalogService.detail(code).map(this::withLayer);
+    }
+
+    /**
+     * Trang nghề được lập chỉ mục — CÙNG điều kiện {@code reviewed} của {@link #withLayer}: bộ viết tay,
+     * hoặc ≥{@value #MIN_APPROVED_FOR_REVIEWED} câu HARD_SKILLS đã duyệt. Một truy vấn gộp cho cả danh
+     * mục, để sitemap không phải gọi chi tiết từng nghề (bot quét làm backend 429, nghiệm thu 21/10/2026).
+     */
+    public List<IndexableOccupationDto> indexable() {
+        Map<String, Object[]> stats = new HashMap<>();
+        for (Object[] row : questionRepository.statsByOccupation(
+                OccupationContentStatus.APPROVED, InterviewPhase.HARD_SKILLS.name())) {
+            stats.put((String) row[0], row);
+        }
+        Map<String, Boolean> curated = new HashMap<>();
+        catalogService.list().forEach(o -> curated.put(o.code(), OccupationDto.CURATED.equals(o.questionSet())));
+
+        List<IndexableOccupationDto> out = new ArrayList<>();
+        catalogService.updatedAtByCode().forEach((code, catalogUpdated) -> {
+            Object[] row = stats.get(code);
+            long approved = row == null ? 0 : ((Number) row[1]).longValue();
+            if (!Boolean.TRUE.equals(curated.get(code)) && approved < MIN_APPROVED_FOR_REVIEWED) {
+                return;
+            }
+            LocalDateTime last = latest(catalogUpdated, row == null ? null : (LocalDateTime) row[2]);
+            out.add(new IndexableOccupationDto(code, last == null ? null : last.toLocalDate().toString()));
+        });
+        return List.copyOf(out);
+    }
+
+    private static LocalDateTime latest(LocalDateTime a, LocalDateTime b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.isAfter(b) ? a : b;
     }
 
     OccupationDetailDto withLayer(OccupationDetailDto base) {

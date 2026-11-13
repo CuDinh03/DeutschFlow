@@ -1,5 +1,6 @@
 import '@/styles/galerie.css'
 import type { Metadata } from 'next'
+import { ogImage } from '@/lib/ogImage'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronDown, ExternalLink, PenLine, Sparkles } from 'lucide-react'
@@ -32,6 +33,9 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
       description: exam.metaDescription,
       url,
       type: 'article',
+      locale: 'vi_VN',
+      // SEO 3e (13/11/2026): ảnh chung của nhóm luyện thi (route `og/luyen-thi`).
+      images: [ogImage('luyen-thi', 'vi', exam.metaTitle)],
     },
     robots: { index: true, follow: true },
   }

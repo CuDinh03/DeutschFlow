@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Newsreader, Be_Vietnam_Pro } from 'next/font/google'
+import { toJsonLd, websiteStructuredData } from '@/lib/homeStructuredData'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { messagesForV2Areas } from '@/i18n/pickV2Messages'
@@ -41,11 +42,18 @@ const inter = Inter({
 // CHỈ cho cây legacy trong thời gian migration (D1 approved 26/08/2026).
 // Italic được tải thật vì landing (GaLanding) dùng emphasis italic cho trích dẫn/nhãn Đức —
 // trước đây trình duyệt phải synthesize (faux italic) do chỉ tải style normal.
+//
+// SEO 3f (13/11/2026, CLS): bỏ `latin-ext` (tiếng Đức và tiếng Việt chỉ cần `latin` + `vietnamese`);
+// khai rõ fallback Georgia/serif để `adjustFontFallback` chỉnh metric theo đúng font dự phòng mà
+// `--ga-display` dùng. Giữ font biến thiên (không liệt kê weight): một tệp phủ 400–700 — liệt kê
+// weight sẽ tách thành nhiều tệp tĩnh, tải nhiều hơn.
 const newsreader = Newsreader({
-  subsets: ['latin', 'latin-ext', 'vietnamese'],
+  subsets: ['latin', 'vietnamese'],
   style: ['normal', 'italic'],
   display: 'swap',
   preload: false,
+  adjustFontFallback: true,
+  fallback: ['Georgia', 'serif'],
   variable: '--font-newsreader',
 })
 // Be Vietnam Pro — UI sans DUY NHẤT của Galerie (D1: thay Instrument Sans vốn không có subset
@@ -131,6 +139,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${inter.variable} ${newsreader.variable} ${beVietnamPro.variable}`}
     >
       <body className={inter.className}>
+        {/* SEO 3d: tên trang web trên Google, nối Organization của trang chủ. */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(websiteStructuredData(locale)) }} />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <PostHogProvider>
             <NativeAuthProvider>

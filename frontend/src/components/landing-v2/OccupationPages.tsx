@@ -6,6 +6,7 @@ import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref, type PublicLocale
 import {
   WORKPLACES,
   occupationName,
+  occupationTitleName,
   questionLabel,
   type OccupationDetail,
   type OccupationSummary,
@@ -126,7 +127,7 @@ export async function OccupationDetailView({ detail, showTraining = false }: { d
             <YellowSq />{t('occupationPages.index.cap')}
           </div>
           <h1 className="font-ga-display text-ga-h1-m font-medium leading-[1.08] sm:text-ga-h1">
-            {t('occupationPages.detail.title', { nameDe: o.nameDe })}
+            {t('occupationPages.detail.title', { nameDe: o.nameDe, name: occupationTitleName(o, locale) })}
           </h1>
           <p className="mt-3 text-ga-body-lg text-ga-muted">
             {t('occupationPages.detail.subtitle', { name: occupationName(o, locale), workplace: t(`workplaces.${o.workplace}`) })}

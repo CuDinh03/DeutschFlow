@@ -1,5 +1,6 @@
 package com.deutschflow.interview.controller;
 
+import com.deutschflow.interview.dto.IndexableOccupationDto;
 import com.deutschflow.interview.dto.OccupationDetailDto;
 import com.deutschflow.interview.dto.OccupationDto;
 import com.deutschflow.interview.service.OccupationCatalogService;
@@ -35,6 +36,12 @@ public class PublicOccupationController {
     @GetMapping
     public ResponseEntity<List<OccupationDto>> list() {
         return ResponseEntity.ok().cacheControl(CACHE).body(catalogService.list());
+    }
+
+    /** Trang nghề được lập chỉ mục + ngày sửa nội dung — cho sitemap (đường cố định thắng {@code /{code}}). */
+    @GetMapping("/indexable")
+    public ResponseEntity<List<IndexableOccupationDto>> indexable() {
+        return ResponseEntity.ok().cacheControl(CACHE).body(publicService.indexable());
     }
 
     @GetMapping("/{code}")

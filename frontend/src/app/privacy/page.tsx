@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
+import { absoluteUrl } from '@/lib/siteUrl'
 import '@/styles/galerie.css'
 import { LegalDocGa } from '@/components/legal/LegalDocGa'
 import { PRIVACY } from '@/content/legal/privacy'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy · myDeutschFlow',
+  title: 'Chính sách quyền riêng tư · myDeutschFlow',
   description: 'DeutschFlow Privacy Policy / Chính sách quyền riêng tư / Datenschutzerklärung.',
+  alternates: { canonical: absoluteUrl('/privacy/') },
 }
 
 /**
