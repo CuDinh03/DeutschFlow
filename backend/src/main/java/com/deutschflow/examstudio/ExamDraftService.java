@@ -1463,7 +1463,8 @@ public class ExamDraftService {
             throw new BadRequestException("Chưa có bài và câu hỏi.");
         }
         if (r.checks().isEmpty() || r.verifiedHash() == null
-                || !r.verifiedHash().equals(contentHash(r.text().text(), r.items()))) {
+                || !(r.verifiedHash().equals(contentHash(r.text().text(), r.items()))
+                        || r.verifiedHash().equals(contentHashWithNullAudioFields(r.text().text(), r.items())))) {
             throw new ConflictException("Nội dung đã đổi sau lần tự kiểm cuối — hãy chạy tự kiểm lại.");
         }
         if (r.checks().stream().anyMatch(c -> "RED".equals(c.light()))
@@ -1859,6 +1860,35 @@ public class ExamDraftService {
     }
 
     String contentHash(Text t, List<Item> items) {
+        List<Map<String, Object>> core = items.stream().map(i -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", i.id());
+            m.put("q", i.question());
+            m.put("o", new TreeMap<>(i.options() == null ? Map.of() : i.options()));
+            m.put("c", i.correct());
+            m.put("e", i.explanationVi());
+            m.put("ev", i.evidence());
+            m.put("d", i.difficultyTarget());
+            return m;
+        }).toList();
+        return TextChecks.sha256(textJsonForHash(json(t)) + json(core));
+    }
+
+    /**
+     * JSON của bài dùng để tính dấu vân tay. Đợt Nghe (13/11/2026) thêm hai trường {@code audioTurns}, {@code framingDe}
+     * vào {@link Text}; với bài không phải Nghe hai trường này là null nhưng vẫn được ghi ra JSON, nên dấu vân tay của
+     * MỌI bản nháp đã tự kiểm trước đó đổi theo và bước duyệt báo oan "Nội dung đã đổi sau lần tự kiểm cuối" (lượt #11).
+     * Bỏ hai trường null đó khỏi chuỗi băm để dấu vân tay của bài cũ giữ nguyên như trước; bài Nghe (trường có giá trị)
+     * không đổi.
+     */
+    static String textJsonForHash(String textJson) {
+        String tail = ",\"audioTurns\":null,\"framingDe\":null}";
+        return textJson != null && textJson.endsWith(tail)
+                ? textJson.substring(0, textJson.length() - tail.length()) + "}" : textJson;
+    }
+
+    /** Dấu vân tay theo cách tính trong vài giờ sau đợt Nghe (còn hai trường null): bản nháp tự kiểm lúc đó vẫn hợp lệ. */
+    String contentHashWithNullAudioFields(Text t, List<Item> items) {
         List<Map<String, Object>> core = items.stream().map(i -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", i.id());
