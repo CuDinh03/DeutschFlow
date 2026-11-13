@@ -19,6 +19,8 @@ import java.util.regex.Pattern;
  * <p>Sprachbausteine: AI viết bức thư NGUYÊN VẸN trước, rồi mới chọn từ để đục lỗ. Mỗi lỗ định vị bằng
  * {@code before + target} (cụm đứng trước + từ gốc) chứ không bằng số thứ tự ký tự — AI đếm ký tự rất kém. Số ô
  * (21–30, 31–40) đánh theo thứ tự xuất hiện trong thư, như đề thật.
+ *
+ * <p>Phần Nghe (đợt 5, ba dạng {@code HOEREN_*}) nằm ở {@link HoerenTeile}; mọi nhánh theo dạng Teil ở đây gọi sang đó.
  */
 @Component
 @RequiredArgsConstructor
@@ -106,6 +108,7 @@ public class SituationalTeile {
                 + (note == null || note.isBlank() ? "" : "\nHinweis: " + note)
                 + avoidBlock(avoid);
         String lv = spec.cefrLevel();
+        if (spec.listening()) return HoerenTeile.writeText(ai, userId, spec, user);
         return switch (spec.teilType()) {
             case "MATCH_AD_X" -> {
                 int n = spec.textCount();
@@ -255,6 +258,7 @@ public class SituationalTeile {
 
     ItemsResult generateItems(long userId, TeilSpec spec, Text text, List<Item> current, List<Integer> slots,
                               List<String> levels, List<String> avoid, Random rnd) {
+        if (spec.listening()) return HoerenTeile.generateItems(ai, userId, spec, text, current, slots, levels, avoid, rnd);
         return switch (spec.teilType()) {
             case "MATCH_AD_X" -> situations(userId, spec, text, current, slots, levels, avoid);
             case "GAP_MC" -> gaps(userId, spec, text, current, slots, levels, rnd);
@@ -602,6 +606,7 @@ public class SituationalTeile {
 
     /** Đề đưa AI giải (không đáp án) hoặc chấm thang (kèm đáp án). */
     String solverBlock(TeilSpec spec, Text text, List<Item> items, boolean withKey) {
+        if (spec.listening()) return HoerenTeile.solverBlock(spec, text, items, withKey);
         StringBuilder sb = new StringBuilder();
         switch (spec.teilType()) {
             case "MATCH_AD_X" -> {
@@ -696,6 +701,7 @@ public class SituationalTeile {
 
     boolean formatOk(TeilSpec spec, Text text, Item i) {
         if (i.question() == null || i.question().isBlank()) return false;
+        if (spec.listening()) return HoerenTeile.formatOk(spec, text, i);
         return switch (spec.teilType()) {
             case "MATCH_AD_X" -> "x".equals(i.correct()) || (text.ads() != null && text.ads().containsKey(i.correct()));
             case "GAP_MC" -> i.options() != null && i.options().size() == 3 && ItemRules.LETTERS.contains(i.correct())
@@ -713,6 +719,7 @@ public class SituationalTeile {
 
     List<Check> checks(TeilSpec spec, Text text, List<Item> items, JsonNode writingReview) {
         List<Check> out = new ArrayList<>();
+        if (spec.listening()) return HoerenTeile.checks(spec, text, items);
         switch (spec.teilType()) {
             case "MATCH_AD_X" -> {
                 long x = items.stream().filter(i -> "x".equals(i.correct())).count();
@@ -835,6 +842,7 @@ public class SituationalTeile {
     // ── Đầu ra đúng khuôn đề telc (V343) ────────────────────────────────────────────────────
 
     Map<String, Object> content(TeilSpec spec, Text text, List<Item> items) {
+        if (spec.listening()) return HoerenTeile.content(spec, text, items);
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("teil", spec.teil());
         if (!spec.writing()) {

@@ -24,7 +24,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Xưởng đề: bản nháp một Teil đi qua 5 bước Khung → Nguồn → Bài đọc → Câu hỏi → Kiểm & duyệt.
+ * Xưởng đề: bản nháp một Teil đi qua 5 bước Khung → Nguồn → Bài đọc → Câu hỏi → Kiểm & duyệt. Với phần Nghe
+ * (đợt 5) "bài đọc" là lời thoại — xem {@link HoerenTeile}.
  *
  * <p>Thao tác AI không chạy trong request: {@link #enqueue} đặt {@code busy_op} (chỉ khi đang rảnh) rồi xếp một
  * {@link AiJob} kiểu {@link ExamStudioJobHandler#JOB_TYPE}; job gọi các hàm {@code run*} ở dưới rồi gỡ
@@ -67,6 +68,8 @@ public class ExamDraftService {
 
         int itemCount() {
             if (spec().writing()) return 0;
+            // Phần Nghe: số câu gắn với số đoạn lời thoại (5) hoặc khuôn phỏng vấn (10) — không co giãn theo ma trận.
+            if (spec().listening()) return spec().itemCount();
             if ("PRACTICE".equals(mode)) {
                 int sum = plan.values().stream().mapToInt(Integer::intValue).sum();
                 return Math.max(1, Math.min(10, sum));
@@ -216,8 +219,8 @@ public class ExamDraftService {
     public Draft create(CreateDraftRequest req, long userId) {
         TeilSpec spec = TeilSpec.find(req.examFormat(), req.cefrLevel(), req.section(), req.teil())
                 .orElseThrow(() -> new BadRequestException(
-                        "Xưởng đề hiện làm telc B1 (Lesen 1–3, Sprachbausteine 1–2, Schreiben) và telc A2 / Start Deutsch 2 "
-                                + "(Lesen 1–3, Schreiben 1–2). Hören làm ở đợt sau."));
+                        "Xưởng đề hiện làm telc B1 (Lesen 1–3, Sprachbausteine 1–2, Hören 1–3, Schreiben) và telc A2 / "
+                                + "Start Deutsch 2 (Lesen 1–3, Schreiben 1–2)."));
         String mode = normalizeMode(req.mode());
         Map<String, Integer> plan = validatePlan(req.difficultyPlan(), mode, spec);
         Long id = jdbc.queryForObject("""
@@ -247,7 +250,12 @@ public class ExamDraftService {
                     mode, json(plan), id);
         }
         if (req.text() != null) {
-            Text t = sanitizeText(req.text());
+            Text incoming = req.text();
+            // Phần Nghe: client cũ không biết khoá audioTurns sẽ gửi thiếu — giữ lời thoại đang có, không xoá oan.
+            if (r.spec().listening() && incoming.audioTurns() == null && r.text() != null) {
+                incoming = incoming.withAudio(r.text().text().audioTurns(), incoming.context());
+            }
+            Text t = sanitizeText(incoming, r.spec());
             List<String> used = r.text() == null ? List.of() : r.text().usedFactIds();
             saveText(id, new StoredText(t, used));
         }
@@ -551,12 +559,12 @@ public class ExamDraftService {
             String repl = text(out, "replacement");
             if (repl == null) throw new IllegalStateException("AI không trả đoạn viết lại.");
             Text t = r.text().text();
-            Text nt = t.withContext(t.context().replace(selection, repl.trim()));
+            // Phần Nghe: thay trong từng lượt lời rồi ghép lại context, để lời thoại và context luôn khớp.
+            Text nt = HoerenTeile.replaced(t, selection, repl.trim());
             if (t.ads() != null) {
                 Map<String, String> ads = new LinkedHashMap<>();
                 t.ads().forEach((k, v) -> ads.put(k, v.replace(selection, repl.trim())));
-                nt = new Text(nt.titleDe(), nt.vorspannDe(), nt.context(), nt.glossary(), ads, nt.examples(),
-                        nt.stimulusAd(), nt.wordBank(), nt.stimulus(), nt.writingPoints());
+                nt = nt.withAds(ads);
             }
             saveText(draftId, new StoredText(nt, r.text().usedFactIds()));
             return;
@@ -1884,11 +1892,13 @@ public class ExamDraftService {
         return out;
     }
 
-    private Text sanitizeText(Text t) {
+    private Text sanitizeText(Text t, TeilSpec spec) {
         List<GlossaryEntry> g = t.glossary() == null ? List.of() : t.glossary().stream()
                 .filter(e -> e.term() != null && !e.term().isBlank()).toList();
-        return new Text(nz(t.titleDe()), nz(t.vorspannDe()), nz(t.context()), g, t.ads(), t.examples(), t.stimulusAd(),
-                t.wordBank(), t.stimulus(), t.writingPoints());
+        Text out = new Text(nz(t.titleDe()), nz(t.vorspannDe()), nz(t.context()), g, t.ads(), t.examples(), t.stimulusAd(),
+                t.wordBank(), t.stimulus(), t.writingPoints(), t.audioTurns(), t.framingDe());
+        // Phần Nghe: lời thoại là gốc, context ghép lại từ các lượt lời.
+        return spec.listening() ? HoerenTeile.sanitized(spec, out) : out;
     }
 
     private List<Item> sanitizeItems(List<Item> in, Row r) {
@@ -1911,6 +1921,9 @@ public class ExamDraftService {
         int sum = p.values().stream().mapToInt(Integer::intValue).sum();
         if ("EXAM".equals(mode) && sum != spec.itemCount()) {
             throw new BadRequestException("Chế độ Đề thi thử cần đúng " + spec.itemCount() + " câu (đang " + sum + ").");
+        }
+        if (spec.listening() && sum != spec.itemCount()) {
+            throw new BadRequestException("Teil Nghe này luôn có đúng " + spec.itemCount() + " câu (đang " + sum + ").");
         }
         if (sum < 1 || sum > 10) throw new BadRequestException("Số câu phải từ 1 đến 10.");
         return p;

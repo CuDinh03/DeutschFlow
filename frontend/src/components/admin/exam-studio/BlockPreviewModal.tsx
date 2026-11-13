@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
-import { getBlock, type StudioText } from '@/lib/adminExamStudioApi'
+import { getBlock, type StudioAudioTurn, type StudioText } from '@/lib/adminExamStudioApi'
 import { isMatchHeadline, teilKind, type TeilKind } from '@/lib/examStudioLogic'
 import { ErrorBanner, LoadingState, TkModal, GaBtn } from '@/components/ui-v2'
 import { TeilPreview, type PreviewItem, type PreviewLayout } from './TeilPreview'
@@ -91,6 +91,8 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
   const source = rec(content.source)
   const isMatch = isMatchHeadline(str(content.type)) || (Number(content.teil) === 1 && content.headlines != null)
   // Schreiben không ghi `type` trong content — nhận ra qua `stimulus` + `writing_points`.
+  // Phần Nghe cũng không ghi `type` (đúng khuôn đề viết tay) — nhận ra qua `ansage_de` / `max_plays`.
+  if (content.ansage_de != null || content.max_plays != null) return hoerenBlockPreview(content)
   const kind = content.writing_points != null && content.stimulus != null ? 'WRITE_EMAIL' : teilKind(str(content.type))
   if (kind === 'FILL_FORM') return formBlockPreview(content)
   if (kind === 'WRITE_NOTE') return noteBlockPreview(content)
@@ -155,6 +157,45 @@ export function blockContentToPreview(content: Record<string, unknown>): BlockPr
   return {
     layout: trueFalse ? 'TRUE_FALSE' : 'ARTICLE', text, items, quelle, headlines: null, gappedText: null,
     startNumber: Number(content.teil) === 2 || content.teil == null ? 6 : 1,
+  }
+}
+
+/**
+ * Phần Nghe (content kho, khuôn phần HOEREN của đề viết tay): T2 có `audio_script` cấp Teil là mảng lượt lời
+ * `{speaker, name, text}`; T1/T3 mỗi câu mang `speaker` + `audio_script` (T3 thêm `lead_in_de`), T1 có `framing_de`.
+ */
+function hoerenBlockPreview(content: Record<string, unknown>): BlockPreview {
+  const itemsRaw = Array.isArray(content.items) ? content.items : []
+  const voice = (v: unknown): StudioAudioTurn['speaker'] => (str(v) === 'PARTNER' ? 'PARTNER' : 'PRUEFER')
+  const interview = Array.isArray(content.audio_script)
+  const layout: PreviewLayout = interview ? 'HOEREN_INTERVIEW'
+    : itemsRaw.some((raw) => rec(raw).lead_in_de != null) ? 'HOEREN_ANNOUNCEMENTS' : 'HOEREN_STATEMENTS'
+  const audioTurns: StudioAudioTurn[] = interview
+    ? (content.audio_script as unknown[]).map((raw) => {
+      const r = rec(raw)
+      return { speaker: voice(r.speaker), name: str(r.name) || null, text: str(r.text), leadInDe: null }
+    })
+    : itemsRaw.map((raw) => {
+      const r = rec(raw)
+      return { speaker: voice(r.speaker), name: null, text: str(r.audio_script), leadInDe: str(r.lead_in_de) || null }
+    })
+  const items: PreviewItem[] = itemsRaw.map((raw, i) => {
+    const r = rec(raw)
+    return {
+      id: str(r.id) || String(i),
+      question: str(r.question),
+      options: { richtig: 'richtig', falsch: 'falsch' },
+      correct: str(r.correct) || null,
+      explanationVi: str(r.explanation_vi ?? r.explanationVi) || null,
+    }
+  })
+  const first = { HOEREN_STATEMENTS: 41, HOEREN_INTERVIEW: 46, HOEREN_ANNOUNCEMENTS: 56 } as Partial<Record<TeilKind, number>>
+  return {
+    layout, items, headlines: null, gappedText: null, quelle: null, startNumber: first[layout] ?? 1,
+    text: {
+      titleDe: '', vorspannDe: '', context: audioTurns.map((x) => x.text).join('\n\n'), glossary: [],
+      audioTurns, framingDe: str(content.framing_de) || null,
+    },
   }
 }
 

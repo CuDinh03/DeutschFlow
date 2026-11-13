@@ -7,7 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
-  approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns, recheckSetRun, redoSetRunTeil,
+  addSetRunHoeren, approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns, recheckSetRun, redoSetRunTeil,
   type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
@@ -22,6 +22,12 @@ const TEIL_TONE: Record<SetRunTeil['status'], 'blue' | 'green' | 'red' | 'neutra
   PENDING: 'neutral', RUNNING: 'blue', READY: 'green', STUCK: 'red',
 }
 const REFRESH_MS = 10_000
+
+/** Lượt có Teil Nghe do máy soạn không. Lượt tạo trước 13/11/2026 chỉ có 6 Teil, không có phần Nghe. */
+const hasHoeren = (r: SetRun) => r.teile.some((x) => x.section.toUpperCase() === 'HOEREN')
+/** Lượt cũ đã chạy xong, chưa duyệt, là telc B1 (cấp duy nhất máy soạn được phần Nghe) ⇒ hiện nút "Tạo phần Nghe". */
+const canAddHoeren = (r: SetRun) => (r.status === 'REVIEW' || r.status === 'NEEDS_ATTENTION')
+  && r.examFormat.toUpperCase() === 'TELC' && r.cefrLevel === 'B1' && !hasHoeren(r)
 
 function fmtDate(iso: string | null): string {
   if (!iso) return ''
@@ -42,6 +48,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const [discarding, setDiscarding] = useState<SetRun | null>(null)
   const [approving, setApproving] = useState<SetRun | null>(null)
   const [redoing, setRedoing] = useState<{ run: SetRun; teil: SetRunTeil } | null>(null)
+  const [addingHoeren, setAddingHoeren] = useState<SetRun | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
@@ -121,6 +128,22 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     }
   }
 
+  const addHoeren = async () => {
+    if (!addingHoeren) return
+    setBusy(true)
+    try {
+      // Như "Làm lại Teil": dùng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
+      await addSetRunHoeren(addingHoeren.id, getStudioChannel())
+      setAddingHoeren(null)
+      toast.success(t('addHoerenStarted'))
+      await load()
+    } catch (e) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const discard = async () => {
     if (!discarding) return
     setBusy(true)
@@ -169,6 +192,9 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
               )}
               {r.status === 'NEEDS_ATTENTION' && (
                 <GaBtn size="sm" variant="ghost" disabled={busy} onClick={() => void recheck(r)}>{t('recheck')}</GaBtn>
+              )}
+              {canAddHoeren(r) && (
+                <GaBtn size="sm" variant="ghost" disabled={busy || anyActive} onClick={() => setAddingHoeren(r)}>{t('addHoeren')}</GaBtn>
               )}
               {r.status !== 'APPROVED' && (
                 <button type="button" className={studioMiniBtn} disabled={busy} onClick={() => setDiscarding(r)}>
@@ -292,7 +318,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
         onOpenChange={(o) => { if (!o) setApproving(null) }}
         tone="caution"
         title={t('approveTitle', { id: approving?.id ?? 0 })}
-        description={t('approveBody')}
+        description={t(approving && !hasHoeren(approving) ? 'approveBodyNoHoeren' : 'approveBody')}
         confirmLabel={t('approve')}
         cancelLabel={t('keep')}
         loading={busy}
@@ -309,6 +335,18 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
         cancelLabel={t('keep')}
         loading={busy}
         onConfirm={() => void redo()}
+      />
+
+      <ConfirmDialog
+        open={addingHoeren != null}
+        onOpenChange={(o) => { if (!o) setAddingHoeren(null) }}
+        tone="caution"
+        title={t('addHoerenTitle', { id: addingHoeren?.id ?? 0 })}
+        description={t('addHoerenBody')}
+        confirmLabel={t('addHoeren')}
+        cancelLabel={t('keep')}
+        loading={busy}
+        onConfirm={() => void addHoeren()}
       />
 
       <ConfirmDialog

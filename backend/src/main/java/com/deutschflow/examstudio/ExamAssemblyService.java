@@ -288,9 +288,7 @@ public class ExamAssemblyService {
             ObjectNode target = findTeil(sections, r.section(), r.teil());
             if (target == null) throw new BadRequestException("Đề nền không có " + slotKey + ".");
             String baseType = target.path("type").asText("");
-            // Phần Viết của đề nền không khai "type" — coi như khớp WRITE_EMAIL.
-            boolean typeOk = baseType.isBlank() ? "WRITE_EMAIL".equals(k.get("teil_type"))
-                    : baseType.equals(String.valueOf(k.get("teil_type")));
+            boolean typeOk = typeMatches(baseType, String.valueOf(k.get("teil_type")));
             if (!typeOk) {
                 throw new BadRequestException("Dạng Teil kho (" + k.get("teil_type") + ") khác dạng của đề nền ("
                         + target.path("type").asText() + ").");
@@ -385,6 +383,18 @@ public class ExamAssemblyService {
     }
 
     // ── phụ ────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Dạng Teil kho có khớp ô của đề nền không. Phần Viết và phần Nghe của đề viết tay không khai {@code type}:
+     * ô Viết nhận {@code WRITE_EMAIL}; ô Nghe nhận các dạng {@code HOEREN_*} (ô đã khớp phần + số Teil từ trước,
+     * nên Teil kho Nghe 2 không thể rơi vào ô Nghe 1).
+     */
+    static boolean typeMatches(String baseType, String blockType) {
+        if (baseType == null || baseType.isBlank()) {
+            return "WRITE_EMAIL".equals(blockType) || (blockType != null && blockType.startsWith("HOEREN_"));
+        }
+        return baseType.equals(blockType);
+    }
 
     static List<Slot> slotsOf(JsonNode sections) {
         List<Slot> out = new ArrayList<>();

@@ -196,12 +196,14 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("mọi Teil xanh: 6 Teil telc B1 chạy tới REVIEW, chủ đề không lặp, bài dùng một lần, báo admin một lần")
+    @DisplayName("mọi Teil xanh: 9 Teil telc B1 (có 3 Teil Nghe) chạy tới REVIEW, chủ đề không lặp, bài dùng một lần, báo admin một lần")
     void happyPath() {
         RunView created = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin);
         assertThat(created.status()).isEqualTo("PLANNING");
         assertThat(created.channel()).isEqualTo("FIREWORKS");
-        assertThat(created.teile()).hasSize(6);
+        assertThat(created.teile()).hasSize(9);
+        assertThat(created.teile()).filteredOn(t -> t.section().equals("HOEREN")).extracting(TeilView::teil)
+                .containsExactly(1, 2, 3);
         assertThatThrownBy(() -> runs.create(new CreateRunRequest("TELC", "B1", null, null), admin))
                 .isInstanceOf(BadRequestException.class).hasMessageContaining("Đang có một lượt");
 
@@ -211,7 +213,7 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(done.teile()).allSatisfy(t -> assertThat(t.status()).isEqualTo("READY"));
         Set<String> themes = new HashSet<>();
         for (TeilView t : done.teile()) themes.add(t.theme());
-        assertThat(themes).hasSize(6).doesNotContainNull();
+        assertThat(themes).hasSize(9).doesNotContainNull();
 
         Fake lesen1 = live("LESEN", 1);
         Fake lesen2 = live("LESEN", 2);
@@ -229,6 +231,13 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(live("LESEN", 3).sources).isEmpty();        // Teil theo tình huống: không lấy nguồn
         assertThat(live("SCHREIBEN", 1).items).isEmpty();      // Teil Viết: không sinh câu trắc nghiệm
         assertThat(live("SCHREIBEN", 1).verifies).isEqualTo(1);
+        // Ba Teil Nghe: soạn theo tình huống (không nguồn), 5 / 10 / 5 câu, ma trận theo số câu.
+        assertThat(live("HOEREN", 1).sources).isEmpty();
+        assertThat(live("HOEREN", 1).items).hasSize(5);
+        assertThat(live("HOEREN", 2).items).hasSize(10);
+        assertThat(live("HOEREN", 2).req.difficultyPlan()).containsEntry("EASY", 4).containsEntry("MEDIUM", 4)
+                .containsEntry("HARD", 2).containsEntry("EXPERT", 0);
+        assertThat(live("HOEREN", 3).items).hasSize(5);
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM exam_source_articles WHERE status = 'USED'", Integer.class))
                 .isEqualTo(6);
@@ -239,7 +248,7 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(urls).hasSize(6);
 
         verify(notifications, times(1)).onSystemAlert(eq("EXAM_STUDIO_SET"), anyString(), anyString(), any());
-        verify(drafts, times(6)).create(any(), eq(admin));
+        verify(drafts, times(9)).create(any(), eq(admin));
 
         // Kiểm cấp bộ đã chạy và lưu kèm lượt: 7 mục, không mục nào đỏ.
         assertThat(done.setChecks()).extracting(ExamStudioDtos.Check::key).contains("SET_THEMES", "SET_UNIQUE_TEXT",
@@ -286,7 +295,7 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         // Chủ đề thay thế không trùng chủ đề của Teil khác trong bộ.
         Set<String> all = new HashSet<>();
         for (TeilView t : done.teile()) all.add(t.theme());
-        assertThat(all).hasSize(6);
+        assertThat(all).hasSize(9);
     }
 
     @Test
@@ -344,8 +353,61 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(after.req.theme()).isNotEqualTo(oldTheme);
         Set<String> all = new HashSet<>();
         for (TeilView t : again.teile()) all.addAll(ExamSetPlanner.split(t.theme()));
-        assertThat(all).hasSize(9);   // Lesen 1 bốn chủ đề + năm Teil còn lại, không chủ đề nào lặp
+        assertThat(all).hasSize(12);  // Lesen 1 bốn chủ đề + tám Teil còn lại, không chủ đề nào lặp
         assertThat(again.setChecks()).isNotEmpty().noneMatch(c -> "RED".equals(c.light()));
+    }
+
+    @Test
+    @DisplayName("lượt cũ không có phần Nghe: thêm ba Teil Nghe với chủ đề chưa dùng, lượt chạy lại rồi về REVIEW đủ 9 Teil")
+    void addHoerenToOldRun() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        assertThat(done.status()).isEqualTo("REVIEW");
+        // Lượt đã có phần Nghe thì không thêm nữa.
+        assertThatThrownBy(() -> runs.addHoeren(done.id(), null)).isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đã có phần Nghe");
+
+        // Dựng lại hình dạng lượt cũ (tạo trước khi máy soạn được Hören): chỉ còn 6 Teil.
+        jdbc.update("DELETE FROM exam_set_run_teile WHERE run_id = ? AND section = 'HOEREN'", done.id());
+        fakes.values().removeIf(f -> f.req.section().equals("HOEREN"));
+        Set<String> before = new HashSet<>();
+        for (TeilView t : runs.get(done.id()).teile()) before.addAll(ExamSetPlanner.split(t.theme()));
+        assertThat(runs.get(done.id()).teile()).hasSize(6);
+        Fake lesen2 = live("LESEN", 2);
+
+        RunView started = runs.addHoeren(done.id(), "FIREWORKS");
+        assertThat(started.status()).isEqualTo("RUNNING");
+        assertThat(started.teile()).hasSize(9);
+        List<TeilView> hoeren = started.teile().stream().filter(t -> t.section().equals("HOEREN")).toList();
+        assertThat(hoeren).extracting(TeilView::teil).containsExactly(1, 2, 3);
+        assertThat(hoeren).allSatisfy(t -> {
+            assertThat(t.status()).isEqualTo("RUNNING");
+            assertThat(t.draftId()).isNull();
+            assertThat(before).doesNotContain(t.theme());
+        });
+        assertThat(hoeren).extracting(TeilView::theme).doesNotHaveDuplicates().doesNotContainNull();
+        // Đang dựng phần Nghe thì không tạo được lượt mới, cũng không thêm lần hai.
+        assertThatThrownBy(() -> runs.create(new CreateRunRequest("TELC", "B1", null, null), admin))
+                .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> runs.addHoeren(done.id(), null)).isInstanceOf(BadRequestException.class);
+
+        RunView again = runToEnd(done.id());
+        assertThat(again.status()).isEqualTo("REVIEW");
+        assertThat(again.teile()).hasSize(9).allSatisfy(t -> assertThat(t.status()).isEqualTo("READY"));
+        // Các Teil đã xong giữ nguyên bản nháp cũ.
+        assertThat(live("LESEN", 2).id).isEqualTo(lesen2.id);
+        assertThat(lesen2.discarded).isFalse();
+        assertThat(live("HOEREN", 2).items).hasSize(10);
+        assertThat(again.setChecks()).isNotEmpty().noneMatch(c -> "RED".equals(c.light()));
+    }
+
+    @Test
+    @DisplayName("thêm phần Nghe: lượt đang chạy hoặc đã bỏ thì từ chối")
+    void addHoerenNeedsFinishedRun() {
+        long id = runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id();
+        assertThatThrownBy(() -> runs.addHoeren(id, null)).isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đã chạy xong");
+        runs.discard(id);
+        assertThatThrownBy(() -> runs.addHoeren(id, null)).isInstanceOf(BadRequestException.class);
     }
 
     @Test
