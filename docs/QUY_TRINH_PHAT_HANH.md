@@ -5,7 +5,7 @@
 >
 > Repo PUBLIC (công khai lại từ 11/2026; từng private từ 08/11/2026, có thể đổi lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
 >
-> Cập nhật lần cuối: 13/11/2026 (deploy backend từ chối khi Xưởng đề đang chạy, §6.1).
+> Cập nhật lần cuối: 13/11/2026 (frontend gọi backend qua mạng nội bộ `deutschflow-api-net`, §1, §5, §6.1; deploy backend từ chối khi Xưởng đề đang chạy, §6.1).
 
 ---
 
@@ -35,6 +35,8 @@ Người dùng ──HTTPS──► Cloudflare (DNS, TLS, proxy)
                      └─ api.mydeutschflow.com  → backend  :8080 | :8081  (Spring Boot, container)
                    mạng docker `deutschflow-net` (mọi cổng chỉ bind 127.0.0.1):
                      deutschflow-postgres (pgvector pg16) · deutschflow-redis · deutschflow-edge-tts
+                   mạng docker `deutschflow-api-net`: frontend → backend nội bộ qua alias `deutschflow-api:8080`
+                     (alias chỉ nằm trên màu backend đang nhận traffic; xem dưới bảng)
                    Lưu file: Cloudflare R2 (bucket media; bucket backup cho bản sao lưu DB)
 Mobile (Expo/EAS) ──► gọi api.mydeutschflow.com; bản build qua EAS → TestFlight; vá JS qua EAS Update (OTA)
 GitHub ──► CI (frontend-ci, backend-ci, mobile-ci, security-ci); KHÔNG tự deploy.
@@ -50,6 +52,7 @@ GitHub Actions "Deploy production" (chạy tay + owner duyệt) ──► Cloudf
 | Secret | `/home/deploy/secrets/` | Không bao giờ rời máy chủ (trừ bản sao khoá backup owner tự cất) |
 | Upstream nginx hiện hành | `/etc/nginx/deutschflow-upstreams/*.conf` | Cho biết màu nào đang phục vụ |
 | Backup DB | `/backup/db` (14 bản) + R2 (30 ngày), timer 03:00 giờ VN | Mã hoá `age`, §8.3 |
+| Frontend gọi backend nội bộ | Mạng `deutschflow-api-net`, alias `deutschflow-api` | Từ 13/11/2026. Trang server (trang nghề, sitemap, phiếu/báo cáo/chứng nhận theo token) gọi `BACKEND_INTERNAL_URL=http://deutschflow-api:8080` (biến lúc chạy, `deploy-frontend-vm.sh` đặt) thay vì vòng qua Cloudflare (đo: 92 ms so với 784 ms, và hết lỗi "fetch failed" → 500). Lỗi mạng nội bộ ⇒ code tự lùi về `NEXT_PUBLIC_BACKEND_URL` (`frontend/src/lib/serverBackend.ts`). Code chạy trên trình duyệt luôn dùng địa chỉ công khai |
 
 Kết nối SSH, IP, đường dẫn khoá: xem tài liệu vận hành local (`docs/DEPLOY_TU_HOST.md` §1, §7). Nên đặt alias `Host deutschflow-srv` trong `~/.ssh/config` để lệnh trong tài liệu này dùng thẳng `ssh deutschflow-srv`.
 
@@ -182,7 +185,7 @@ deploy/self-host/deploy-frontend-vm.sh                 # nhánh hiện tại c�
 DEPLOY_BRANCH=main deploy/self-host/deploy-frontend-vm.sh
 ```
 
-Script làm: kiểm `frontend-build.env` đủ biến → `fetch` + `reset --hard` → `docker build` (Next.js standalone, ~1,5–2 GB RAM, vài phút) với build args từ máy chủ + JWT public key → chạy màu kia (3000 ↔ 3001) → kiểm trang `/v2/login/` = 200 và **cổng vai trò middleware bật** → đổi upstream nginx → gỡ màu cũ → tag `:prev`/`:latest`.
+Script làm: kiểm `frontend-build.env` đủ biến → `fetch` + `reset --hard` → `docker build` (Next.js standalone, ~1,5–2 GB RAM, vài phút) với build args từ máy chủ + JWT public key → chạy màu kia (3000 ↔ 3001) với `BACKEND_INTERNAL_URL` và nối vào `deutschflow-api-net` → kiểm trang `/v2/login/` = 200 và **cổng vai trò middleware bật** → đổi upstream nginx → gỡ màu cũ → tag `:prev`/`:latest`.
 
 Điều phải nhớ:
 - `JWT_RSA_PUBLIC_KEY` và `CSP_ENFORCE` **nhúng lúc build**. Thiếu public key ⇒ middleware không chặn được `/v2/admin/` (script đã kiểm). **Xoay cặp khoá JWT ⇒ phải build lại frontend cùng lúc restart backend.**
@@ -205,7 +208,7 @@ DEPLOY_BRANCH=main deploy/self-host/deploy-backend-vm.sh   # sau khi máy chủ 
 deploy/self-host/deploy-backend-vm.sh --rollback       # quay về :prev
 ```
 
-Script: preflight (`backend.env` đủ biến, không còn `AWS_*`/placeholder, disk < 90 %, Postgres `pg_isready`, Redis `PONG`, **Xưởng đề không có việc AI đang chạy**) → build image tag theo commit → chạy màu kia → health 300 s + warm-up → đổi upstream nginx → kiểm `https://api.mydeutschflow.com/actuator/health` = UP → xả màu cũ sau 30 s → tag `:prev`/`:latest` → dọn an toàn.
+Script: preflight (`backend.env` đủ biến, không còn `AWS_*`/placeholder, disk < 90 %, Postgres `pg_isready`, Redis `PONG`, **Xưởng đề không có việc AI đang chạy**) → build image tag theo commit → chạy màu kia → health 300 s + warm-up → đổi upstream nginx → kiểm `https://api.mydeutschflow.com/actuator/health` = UP → chuyển alias nội bộ `deutschflow-api` sang màu mới (gắn mới trước, tháo cũ sau) → xả màu cũ sau 30 s → tag `:prev`/`:latest` → dọn an toàn.
 
 **Xưởng đề đang chạy thì script từ chối deploy.** Lượt "Tạo bộ đề tự động" và các bước AI của bản nháp chạy nền trong tiến trình backend; đổi màu là cắt ngang chúng (13/11/2026: một lần deploy làm lượt #9 treo 25 phút). Preflight đếm lượt đang `PLANNING`/`RUNNING` và bản nháp đang gọi AI trong 30 phút gần nhất; khác 0 thì dừng, production không bị đụng. Chờ chúng xong (admin → Xưởng đề → Bộ đề) rồi chạy lại. Chỉ khi buộc phải lên ngay (vá khẩn): `ALLOW_DEPLOY_DURING_EXAM_RUN=1 deploy/self-host/deploy-backend-vm.sh` — các việc đang chạy sẽ hỏng và phải bấm làm lại. `--rollback` không bị chặn. Deploy frontend không ảnh hưởng.
 
