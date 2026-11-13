@@ -8,7 +8,7 @@
  * kiểm chứng.
  */
 
-import { COMMON_FOUND_ROLE_QUESTION, COMMON_INTRO_QUESTION, COMMON_MOTIVATION_QUESTION, fillPosition } from '@/data/interviewSamples'
+import { COMMON_QUESTIONS, COMMON_FOUND_ROLE_QUESTION, COMMON_INTRO_QUESTION, COMMON_MOTIVATION_QUESTION, fillPosition } from '@/data/interviewSamples'
 
 export interface GuideQuestion {
   de: string
@@ -347,6 +347,204 @@ export const ALL_GUIDE_ARTICLES: GuideArticle[] = [
       },
       {
         q: 'Luyện phần giới thiệu trên myDeutschFlow có mất phí không?',
+        a: 'Bạn luyện thử miễn phí, không cần thẻ.',
+      },
+    ],
+  },
+  {
+    slug: 'phong-van-du-hoc-nghe-duc',
+    title: 'Phỏng vấn du học nghề Đức: câu hỏi thường gặp, cách trả lời',
+    description:
+      'Chuẩn bị phỏng vấn du học nghề Đức (Ausbildung): 6 câu hỏi thường gặp kèm cách trả lời, câu nên hỏi lại nhà tuyển dụng, từ vựng, lỗi hay gặp. Luyện thử với AI.',
+    h1: 'Phỏng vấn du học nghề Đức: câu hỏi thường gặp và cách trả lời',
+    lead:
+      'Dành cho người Việt đang xin chỗ học nghề (Ausbildung) ở Đức và chuẩn bị phỏng vấn với nơi đào tạo. Bài đi từ cách chuẩn bị, sáu câu hỏi hay gặp kèm cách trả lời và câu mẫu tiếng Đức, đến những câu bạn nên hỏi lại nhà tuyển dụng.',
+    published: '2026-11-13',
+    topic: 'Du học nghề',
+    draft: true,
+    intro:
+      'Trên hành trình du học nghề, bạn có thể gặp nhiều buổi phỏng vấn khác nhau: với doanh nghiệp hoặc cơ sở nhận bạn học nghề (Ausbildungsbetrieb), có khi với chương trình hay đơn vị giới thiệu, và có thể cả ở bước xin thị thực. Bài này tập trung vào buổi phỏng vấn với nơi đào tạo, vì đó là buổi quyết định bạn có nhận được hợp đồng học nghề (Ausbildungsvertrag) hay không. Buổi này thường bằng tiếng Đức, nhiều nơi phỏng vấn qua video. Người phỏng vấn muốn biết ba điều: bạn có hiểu nghề mình chọn không, bạn có đủ tiếng Đức để học và làm việc không, và bạn có phải người họ muốn làm cùng trong ba năm tới không.',
+    steps: [
+      {
+        title: 'Hiểu rõ mô hình học nghề kép',
+        body: 'Phần lớn chương trình học nghề ở Đức là học nghề kép (duale Ausbildung): bạn vừa học lý thuyết ở trường nghề (Berufsschule), vừa làm việc thật ở nơi đào tạo, và được trả phụ cấp học nghề. Người phỏng vấn đánh giá cao ứng viên nói được điều này bằng lời của mình, vì nó cho thấy bạn hiểu mình sẽ làm gì mỗi ngày, không chỉ "muốn sang Đức".',
+        phrases: ['Die Ausbildung ist dual: Ich lerne in der Berufsschule und arbeite im Betrieb.', 'Ich weiß, dass die Ausbildung meistens drei Jahre dauert.'],
+      },
+      {
+        title: 'Tìm hiểu nơi đào tạo',
+        body: 'Đọc kỹ trang web và tin tuyển dụng của nơi bạn phỏng vấn: họ làm gì, ở thành phố nào, học viên làm ở bộ phận nào. Chọn một chi tiết cụ thể để nhắc lại trong buổi phỏng vấn. Một câu như "Tôi đọc trên trang web của quý vị rằng…" làm câu trả lời của bạn khác hẳn một câu học thuộc.',
+        phrases: ['Auf Ihrer Webseite habe ich gelesen, dass …', 'Mir gefällt besonders, dass Ihr Betrieb …'],
+      },
+      {
+        title: 'Chuẩn bị phần giới thiệu bản thân',
+        body: 'Gần như buổi phỏng vấn nào cũng mở đầu bằng lời mời giới thiệu bản thân. Chuẩn bị một bản khoảng một phút theo khung: tên và quê, học vấn, kinh nghiệm liên quan, trình độ tiếng Đức, mục tiêu. Đừng học thuộc từng chữ; hãy thuộc khung để nói lại được bằng lời của mình.',
+        phrases: ['Guten Tag, mein Name ist …', 'Ich möchte eine Ausbildung zur/zum … machen, weil …'],
+      },
+      {
+        title: 'Chuẩn bị ba câu chuyện có thật',
+        body: 'Các câu hỏi về mâu thuẫn, áp lực và sai sót đều đòi một ví dụ cụ thể. Chuẩn bị trước ba câu chuyện thật từ việc làm thêm, thực tập, việc nhà hoặc việc học, rồi kể theo trình tự: tình huống, nhiệm vụ của bạn, việc bạn làm, kết quả (cách kể STAR). Chưa đi làm cũng không sao: người phỏng vấn biết bạn đang xin học nghề, họ cần thấy cách bạn suy nghĩ và hành động.',
+        phrases: ['Die Situation war so: …', 'Meine Aufgabe war …', 'Ich habe dann …', 'Am Ende …'],
+      },
+      {
+        title: 'Chuẩn bị câu hỏi để hỏi lại',
+        body: 'Cuối buổi, người phỏng vấn gần như luôn hỏi bạn có câu hỏi gì không. Trả lời "không" làm bạn trông thiếu quan tâm. Chuẩn bị sẵn hai đến ba câu về việc học và làm trong những tuần đầu (gợi ý ở phần dưới).',
+        phrases: ['Ja, ich habe noch eine Frage: …', 'Darf ich noch etwas fragen?'],
+      },
+    ],
+    templateGroups: [
+      {
+        heading: 'Trả lời câu "Vì sao bạn chọn học nghề ở Đức?"',
+        intro: 'Người phỏng vấn muốn nghe lý do thật và cụ thể. Tránh trả lời chỉ bằng thu nhập hay "nước Đức phát triển". Gắn lý do với nghề, với trải nghiệm của bạn và với kế hoạch sau khi học xong. Ba mẫu dưới đây là minh hoạ; hãy thay bằng câu chuyện của bạn.',
+        items: [
+          {
+            label: 'Vì sao chọn học nghề (Ausbildung)',
+            de: 'Ich möchte einen Beruf richtig lernen, mit Theorie und Praxis. In der dualen Ausbildung arbeite ich vom ersten Tag an im Betrieb und lerne gleichzeitig in der Berufsschule. Das passt zu mir, weil ich am besten lerne, wenn ich etwas selbst mache.',
+            vi: 'Tôi muốn học một nghề cho bài bản, có cả lý thuyết và thực hành. Trong học nghề kép, tôi làm việc ở doanh nghiệp ngay từ ngày đầu và đồng thời học ở trường nghề. Cách này hợp với tôi, vì tôi học tốt nhất khi được tự tay làm.',
+          },
+          {
+            label: 'Vì sao chọn nghề này (ví dụ điều dưỡng)',
+            href: '/phong-van/pflegefachkraft/',
+            de: 'Ich habe meine Großmutter zwei Jahre lang zu Hause gepflegt. Dabei habe ich gemerkt, dass mir die Arbeit mit Menschen Freude macht, auch wenn sie anstrengend ist. Deshalb möchte ich die Pflege professionell lernen.',
+            vi: 'Tôi đã chăm bà tôi ở nhà hai năm. Qua đó tôi nhận ra mình thích làm việc với con người, dù công việc vất vả. Vì vậy tôi muốn học điều dưỡng một cách chuyên nghiệp.',
+          },
+          {
+            label: 'Kế hoạch sau khi học xong',
+            de: 'Nach der Ausbildung möchte ich in meinem Beruf weiterarbeiten, am liebsten in Ihrem Betrieb. Später kann ich mir auch eine Weiterbildung vorstellen.',
+            vi: 'Sau khi học xong, tôi muốn tiếp tục làm nghề, tốt nhất là ở chính nơi của quý vị. Sau này tôi cũng nghĩ đến việc học nâng cao.',
+          },
+        ],
+      },
+      {
+        heading: 'Câu nên hỏi lại nhà tuyển dụng',
+        intro: 'Câu hỏi tốt cho thấy bạn đã nghĩ đến việc học và làm thật sự. Chọn hai đến ba câu, đừng hỏi những gì tin tuyển dụng đã ghi rõ.',
+        items: [
+          { label: 'Về những tuần đầu', de: 'Wie sieht die Einarbeitung in den ersten Wochen aus?', vi: 'Những tuần đầu, học viên được hướng dẫn như thế nào?' },
+          { label: 'Về người hướng dẫn', de: 'Wer ist während der Ausbildung mein Ansprechpartner im Betrieb?', vi: 'Trong thời gian học nghề, ai là người tôi liên hệ ở doanh nghiệp?' },
+          { label: 'Về lịch học', de: 'An welchen Tagen bin ich in der Berufsschule?', vi: 'Tôi học ở trường nghề vào những ngày nào?' },
+          { label: 'Về chỗ ở', de: 'Unterstützen Sie Auszubildende bei der Wohnungssuche?', vi: 'Quý vị có hỗ trợ học viên tìm chỗ ở không?' },
+        ],
+      },
+    ],
+    questionsHeading: 'Sáu câu hỏi thường gặp và cách trả lời',
+    questions: [
+      {
+        de: fillPosition(COMMON_MOTIVATION_QUESTION, 'Koch/Köchin'),
+        vi: 'Điều gì ở vị trí Koch/Köchin (đầu bếp) khiến bạn đặc biệt quan tâm?',
+        tip: 'Nêu một lý do cụ thể gắn với nghề, không phải với nước Đức nói chung. Nếu có, nhắc một điều bạn đọc được về nơi đào tạo. Hai đến ba câu là đủ.',
+        sample:
+          'Mich interessiert, dass ich in der Ausbildung alles von Grund auf lerne: Techniken, Hygiene und die Organisation in der Küche. In Vietnam habe ich in einem Restaurant ausgeholfen und gesehen, wie wichtig gute Abläufe sind.',
+      },
+      {
+        de: COMMON_QUESTIONS.typicalDay,
+        vi: 'Hãy mô tả một ngày làm việc điển hình ở chỗ làm gần nhất của bạn — cụ thể và theo trình tự thời gian.',
+        tip: 'Chưa đi làm chính thức thì kể về đợt thực tập, việc làm thêm hoặc một ngày phụ giúp cửa hàng của gia đình. Kể theo giờ: bắt đầu lúc mấy giờ, làm gì trước, làm gì sau. Dùng thì quá khứ (Perfekt) và các từ nối zuerst, danach, am Nachmittag.',
+        sample:
+          'In meinem Praktikum im Pflegeheim habe ich um sechs Uhr angefangen. Zuerst gab es die Übergabe, danach habe ich bei der Grundpflege geholfen und das Frühstück verteilt. Am Nachmittag habe ich mit den Bewohnern Zeit verbracht und bei der Dokumentation geholfen.',
+      },
+      {
+        de: COMMON_QUESTIONS.conflict,
+        vi: 'Hãy kể về một mâu thuẫn trong nhóm: tình huống, nhiệm vụ của bạn, việc bạn đã làm và kết quả.',
+        tip: 'Câu hỏi đã chỉ sẵn trình tự STAR, hãy kể đúng theo đó. Chọn mâu thuẫn nhỏ và đã giải quyết được. Đừng đổ lỗi cho người khác; nói rõ bạn đã lắng nghe và đề xuất gì.',
+        sample:
+          'In meinem Nebenjob wollten zwei Kollegen am Wochenende nicht arbeiten. Ich sollte den Plan mit dem Schichtleiter klären. Ich habe mit beiden gesprochen und einen Tausch vorgeschlagen. Am Ende waren beide einverstanden, und der Plan war rechtzeitig fertig.',
+      },
+      {
+        de: COMMON_QUESTIONS.stress,
+        vi: 'Hãy mô tả một tình huống căng thẳng vì gấp thời gian — chính xác bạn đã làm gì và kết quả ra sao?',
+        tip: 'Người phỏng vấn muốn nghe bạn giữ bình tĩnh và sắp xếp việc thế nào. Nói rõ bạn ưu tiên việc gì trước, phối hợp với ai, và kết quả cuối cùng.',
+        sample:
+          'Bei einer Hochzeit im Restaurant kamen plötzlich zwanzig Gäste mehr als geplant. Ich habe zuerst die Getränke vorbereitet und mit der Küche abgesprochen, welche Gerichte zuerst kommen. Am Ende wurden alle Gäste pünktlich bedient.',
+      },
+      {
+        de: COMMON_QUESTIONS.mistake,
+        vi: 'Hãy kể về một lỗi trong công việc: phát hiện ra thế nào, khắc phục ra sao, bạn rút ra bài học gì?',
+        tip: 'Chọn một lỗi thật nhưng không nghiêm trọng, và dành nhiều thời gian nhất cho phần bài học. Câu trả lời "tôi chưa bao giờ mắc lỗi" luôn bị đánh giá thấp.',
+        sample:
+          'Einmal habe ich eine Bestellung falsch notiert. Der Gast hat es beim Servieren bemerkt. Ich habe mich entschuldigt und das richtige Gericht sofort nachbestellt. Seitdem lese ich jede Bestellung noch einmal vor.',
+      },
+      {
+        de: COMMON_QUESTIONS.closing,
+        vi: 'Bạn có câu hỏi nào cho chúng tôi không?',
+        tip: 'Luôn có sẵn hai câu. Hỏi về việc học và làm (hướng dẫn những tuần đầu, lịch trường nghề), không hỏi những điều tin tuyển dụng đã ghi rõ.',
+        sample: 'Ja, gern. Wie sieht die Einarbeitung in den ersten Wochen aus? Und an welchen Tagen bin ich in der Berufsschule?',
+      },
+    ],
+    vocabHeading: 'Từ vựng du học nghề nên thuộc',
+    vocab: [
+      { de: 'die duale Ausbildung', vi: 'học nghề kép (trường nghề + doanh nghiệp)' },
+      { de: 'der Ausbildungsbetrieb', vi: 'doanh nghiệp, cơ sở đào tạo nghề' },
+      { de: 'die Berufsschule', vi: 'trường nghề' },
+      { de: 'der/die Auszubildende (Azubi)', vi: 'học viên học nghề' },
+      { de: 'der Ausbilder / die Ausbilderin', vi: 'người hướng dẫn nghề' },
+      { de: 'der Ausbildungsvertrag', vi: 'hợp đồng học nghề' },
+      { de: 'die Ausbildungsvergütung', vi: 'phụ cấp học nghề' },
+      { de: 'die Probezeit', vi: 'thời gian thử việc' },
+      { de: 'die Einarbeitung', vi: 'giai đoạn hướng dẫn khi mới vào' },
+      { de: 'die Bewerbung', vi: 'hồ sơ xin học, xin việc' },
+      { de: 'das Anschreiben', vi: 'thư xin việc' },
+      { de: 'das Praktikum', vi: 'thực tập' },
+      { de: 'der Nebenjob', vi: 'việc làm thêm' },
+      { de: 'die Schicht', vi: 'ca làm' },
+      { de: 'das Visum', vi: 'thị thực' },
+      { de: 'die Unterkunft', vi: 'chỗ ở' },
+    ],
+    mistakes: [
+      {
+        wrong: 'Ich interessiere mich an der Pflege.',
+        right: 'Ich interessiere mich für die Pflege.',
+        why: 'Động từ sich interessieren đi với giới từ für, không đi với an.',
+      },
+      {
+        wrong: 'Ich freue mich für die Ausbildung.',
+        right: 'Ich freue mich auf die Ausbildung.',
+        why: 'Mong chờ điều sắp đến dùng sich freuen auf; sich freuen für là mừng cho người khác.',
+      },
+      {
+        wrong: 'Wann ich in Deutschland bin, möchte ich viel lernen.',
+        right: 'Wenn ich in Deutschland bin, möchte ich viel lernen.',
+        why: 'Wann dùng để hỏi thời gian; mệnh đề "khi…" nói về điều kiện hoặc thời điểm trong tương lai dùng wenn.',
+      },
+      {
+        wrong: 'Ich habe 2023 die Schule fertig.',
+        right: 'Ich habe die Schule 2023 abgeschlossen.',
+        why: 'Fertig là tính từ, không làm động từ được. Nói học xong dùng abschließen (abgeschlossen) hoặc mit der Schule fertig sein.',
+      },
+    ],
+    practiceHeading: 'Luyện phỏng vấn học nghề với người phỏng vấn AI',
+    practice:
+      'Trên myDeutschFlow, bạn chọn nghề muốn học, và người phỏng vấn AI hỏi bạn bằng giọng nói như một buổi phỏng vấn thật: giới thiệu bản thân, lý do chọn nghề, các câu kể chuyện như trên, rồi đến câu hỏi chuyên môn của nghề. Câu hỏi có thể khác hoặc được hỏi theo cách khác. Bạn trả lời bằng tiếng Đức, rồi nhận báo cáo chấm từng phần của buổi: câu bạn đã nói, câu nên nói và bài luyện tiếp.',
+    related: [
+      { href: '/cam-nang/gioi-thieu-ban-than-bang-tieng-duc/', label: 'Giới thiệu bản thân bằng tiếng Đức khi phỏng vấn: khung 5 bước và mẫu A1–B1' },
+      { href: '/cam-nang/phong-van-tieng-duc-nghe-bep/', label: 'Cẩm nang phỏng vấn tiếng Đức nghề bếp' },
+      { href: '/phong-van/pflegefachkraft/', label: 'Phỏng vấn tiếng Đức nghề điều dưỡng (Pflegefachkraft)' },
+      { href: '/phong-van/koch/', label: 'Phỏng vấn tiếng Đức nghề đầu bếp (Koch/Köchin)' },
+      { href: '/luyen-thi/telc-pflege-b1-b2/', label: 'Luyện thi telc Deutsch B1·B2 Pflege' },
+      { href: '/luyen-thi/goethe-b1/', label: 'Luyện thi Goethe-Zertifikat B1' },
+      { href: '/phong-van/', label: 'Xem tất cả nghề có luyện phỏng vấn' },
+    ],
+    faqs: [
+      {
+        q: 'Phỏng vấn du học nghề Đức cần trình độ tiếng Đức nào?',
+        a: 'Tuỳ nghề, chương trình và nơi đào tạo. Nhiều nơi yêu cầu từ B1, có nơi yêu cầu B2. Hãy xem yêu cầu trong tin tuyển dụng hoặc hỏi trực tiếp nơi bạn ứng tuyển.',
+      },
+      {
+        q: 'Phỏng vấn xin thị thực ở Đại sứ quán hỏi những gì?',
+        a: 'Bài này không liệt kê bộ câu hỏi xin thị thực, vì quy trình và giấy tờ do cơ quan đại diện Đức quy định và có thể thay đổi. Hãy xem thông tin chính thức trên trang của Đại sứ quán Đức tại Việt Nam (vietnam.diplo.de) và cổng Make it in Germany (make-it-in-germany.com). Nguyên tắc chung: trả lời đúng sự thật và khớp với hồ sơ của bạn.',
+      },
+      {
+        q: 'Không hiểu câu hỏi thì nói thế nào?',
+        a: 'Hỏi lại một cách lịch sự là hoàn toàn bình thường: Könnten Sie die Frage bitte wiederholen? hoặc Entschuldigung, meinen Sie …? Hỏi lại tốt hơn nhiều so với trả lời sai ý.',
+      },
+      {
+        q: 'Phỏng vấn qua video cần chuẩn bị gì?',
+        a: 'Thử trước camera, micro và đường truyền; ngồi chỗ yên tĩnh, đủ sáng; ăn mặc như đi phỏng vấn trực tiếp; để sẵn giấy bút và ghi chú ngắn. Nhìn vào camera khi nói để người phỏng vấn thấy bạn đang nhìn họ.',
+      },
+      {
+        q: 'Có nên hỏi về phụ cấp học nghề trong buổi phỏng vấn không?',
+        a: 'Có thể hỏi nếu tin tuyển dụng chưa ghi, nhưng nên để sau các câu về việc học và làm. Phụ cấp và điều kiện cụ thể sẽ ghi trong hợp đồng học nghề.',
+      },
+      {
+        q: 'Luyện phỏng vấn trên myDeutschFlow có mất phí không?',
         a: 'Bạn luyện thử miễn phí, không cần thẻ.',
       },
     ],
