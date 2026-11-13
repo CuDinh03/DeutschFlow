@@ -3,6 +3,7 @@ package com.deutschflow.examstudio;
 import com.deutschflow.ai.queue.AiJob;
 import com.deutschflow.ai.queue.AiJobRepository;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.GuidedException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.examstudio.ExamStudioDtos.*;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
@@ -289,7 +290,9 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         long draftId = d.id();
         Map<String, Boolean> all = new java.util.HashMap<>();
         TeilSpec.CHECKLIST_KEYS.forEach(k -> all.put(k, true));
-        assertThatThrownBy(() -> service.approve(draftId, all, admin)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.approve(draftId, all, admin)).isInstanceOf(GuidedException.class)
+                .hasMessageContaining("bản nháp #" + draftId).hasMessageContaining("chưa chạy tự kiểm")
+                .hasMessageContaining("Chạy tự kiểm");
 
         // Tự kiểm
         service.verify(d.id(), admin);
@@ -404,7 +407,8 @@ class ExamStudioFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         Map<String, Boolean> all = new java.util.HashMap<>();
         TeilSpec.CHECKLIST_KEYS.forEach(k -> all.put(k, true));
         long id = d.id();
-        assertThatThrownBy(() -> service.approve(id, all, admin)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.approve(id, all, admin)).isInstanceOf(GuidedException.class)
+                .hasMessageContaining("chưa chạy tự kiểm");
 
         assertThatThrownBy(() -> service.importTeil("{\"format\": \"khac\"}".getBytes(), admin))
                 .hasMessageContaining("deutschflow-teil-v1");

@@ -554,6 +554,13 @@
       "removeOne": "Gỡ {name}",
       "unknownCap": "Mục không khớp tài khoản nào"
     },
+    "problemNotice": {
+      "fallbackTitle": "Thao tác chưa thực hiện được",
+      "todo": "Cần làm:",
+      "openDraft": "Mở bản nháp",
+      "open": "Mở chỗ cần sửa",
+      "dismiss": "Đóng thông báo"
+    },
     "examStudio": {
       "title": "Xưởng đề",
       "subtitle": "Tạo Teil đề thi từ nguồn báo Đức: AI viết bài, ra câu theo ma trận độ khó, owner duyệt vào kho.",
@@ -568,6 +575,7 @@
         },
         "approve": "Duyệt cả bộ",
         "approved": "Đã duyệt. Bộ đề được đánh số tiếp theo và nằm ở danh sách bên dưới, trạng thái \"Sắp có\".",
+        "approveBlocked": "Chưa duyệt được lượt #{id}: {count} Teil chưa đạt. Danh sách và cách sửa nằm ngay trong thẻ của lượt.",
         "approveTitle": "Duyệt cả bộ của lượt #{id}?",
         "approveBody": "Mọi Teil của lượt này vào kho và được ghép thành một bộ đề ở trạng thái \"Sắp có\". Học viên chưa thấy cho tới khi bạn bấm Phát hành ở danh sách bộ đề. Phần Nghe của bộ đề là ba Teil Nghe do máy soạn trong lượt này.",
         "title": "Tạo bộ đề tự động",

@@ -7,6 +7,8 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
+import { apiProblem, isGuided, type ApiProblem } from '@/lib/apiProblem'
+import { ProblemNotice } from '@/components/admin/ProblemNotice'
 import { getDraft, type StudioDraft } from '@/lib/adminExamStudioApi'
 import { WIZARD_STEPS, maxReachableStep, stepIndex } from '@/lib/examStudioLogic'
 import { ErrorBanner, GaPageHdr, LoadingState, TkBadge } from '@/components/ui-v2'
@@ -35,6 +37,7 @@ export default function AdminExamStudioDraftPage() {
   const [loadError, setLoadError] = useState('')
   const [pending, setPending] = useState(false)
   const [view, setView] = useState<number | null>(null)
+  const [problem, setProblem] = useState<ApiProblem | null>(null)
   const pollFails = useRef(0)
 
   const load = useCallback(async () => {
@@ -69,13 +72,17 @@ export default function AdminExamStudioDraftPage() {
 
   const run = useCallback(async (fn: () => Promise<StudioDraft>, okMessage?: string) => {
     setPending(true)
+    setProblem(null)
     try {
       const d = await fn()
       setDraft(d)
       if (okMessage) toast.success(okMessage)
       return true
     } catch (e: unknown) {
-      toast.error(apiMessage(e))
+      const p = apiProblem(e)
+      // Lỗi có chỉ dẫn (vd. chưa duyệt được): hiện khung không tự tắt ngay trên trang; lỗi thường vẫn là toast.
+      if (isGuided(p)) setProblem(p)
+      toast.error(isGuided(p) ? (p.title ?? p.message) : p.message)
       return false
     } finally {
       setPending(false)
@@ -134,6 +141,7 @@ export default function AdminExamStudioDraftPage() {
 
         {busy && <BusyBanner op={busy} />}
         {draft.lastError && !busy && <LastErrorBanner message={draft.lastError} />}
+        {problem && <ProblemNotice problem={problem} hideLinks onDismiss={() => setProblem(null)} />}
         {draft.status === 'DISCARDED' && (
           <p className="ga-ui rounded-ga bg-ga-side-active px-4 py-3 text-ga-small text-ga-muted">{t('wizard.discarded')}</p>
         )}

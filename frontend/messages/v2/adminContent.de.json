@@ -554,6 +554,13 @@
       "removeOne": "{name} entfernen",
       "unknownCap": "Einträge ohne passendes Konto"
     },
+    "problemNotice": {
+      "fallbackTitle": "Die Aktion konnte nicht ausgeführt werden",
+      "todo": "Zu tun:",
+      "openDraft": "Entwurf öffnen",
+      "open": "Zur Korrektur öffnen",
+      "dismiss": "Hinweis schließen"
+    },
     "examStudio": {
       "title": "Prüfungswerkstatt",
       "subtitle": "Prüfungsteile aus deutschen Nachrichtenquellen erstellen: KI schreibt Text und Aufgaben nach Schwierigkeitsmatrix, der Owner gibt sie für den Pool frei.",
@@ -568,6 +575,7 @@
         },
         "approve": "Ganzen Satz freigeben",
         "approved": "Freigegeben. Der Satz steht unten in der Liste als „Demnächst“.",
+        "approveBlocked": "Durchlauf #{id} konnte nicht freigegeben werden: {count} Teil nicht bereit. Liste und Lösung stehen in der Karte des Durchlaufs.",
         "approveTitle": "Ganzen Satz von Lauf #{id} freigeben?",
         "approveBody": "Alle Teile dieses Laufs kommen in den Bestand und werden zu einem Prüfungssatz mit dem Status „Demnächst“ zusammengestellt. Lernende sehen ihn erst, wenn Sie in der Liste auf Veröffentlichen klicken. Der Hörteil des Satzes besteht aus den drei Hörteilen, die in diesem Lauf erzeugt wurden.",
         "title": "Prüfungssatz automatisch erstellen",
