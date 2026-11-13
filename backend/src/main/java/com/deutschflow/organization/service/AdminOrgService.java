@@ -86,14 +86,14 @@ public class AdminOrgService {
     @Transactional
     public OrgDto createOrganization(CreateOrgRequest request, AuditActor actor) {
         if (request.name() == null || request.name().isBlank()) {
-            throw new BadRequestException("Tên tổ chức là bắt buộc");
+            throw new BadRequestException("Chưa điền tên trung tâm. Điền ô tên rồi bấm \"Tạo trung tâm\" lại.");
         }
         if (request.slug() == null || request.slug().isBlank()) {
-            throw new BadRequestException("Slug tổ chức là bắt buộc");
+            throw new BadRequestException("Chưa điền mã định danh (slug) của trung tâm. Điền ô slug, ví dụ ten-trung-tam, rồi bấm \"Tạo trung tâm\" lại.");
         }
         String slug = request.slug().trim();
         if (organizationRepository.existsBySlug(slug)) {
-            throw new ConflictException("Slug đã tồn tại: " + slug);
+            throw new ConflictException("Mã định danh (slug) \"" + slug + "\" đã có trung tâm khác dùng. Đổi sang slug khác rồi bấm \"Tạo trung tâm\" lại.");
         }
 
         // T-03: ghế âm không có nghĩa — 0 là "không giới hạn", nên clamp về 0 thay vì lưu số âm
@@ -148,7 +148,7 @@ public class AdminOrgService {
     @Transactional(readOnly = true)
     public OrgDetailDto getOrganization(Long id) {
         Organization org = organizationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + id));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trung tâm #" + id + " (có thể đã bị xoá). Tải lại trang \"Trung tâm\" để xem danh sách hiện có."));
         long teacherCount = orgMembershipService.countByRole(id, ROLE_TEACHER);
         long studentCount = orgMembershipService.countByRole(id, ROLE_STUDENT);
         long pendingInvites = orgInvitationService.listPending(id).size();
@@ -184,13 +184,13 @@ public class AdminOrgService {
     @Transactional
     public OrgDto updateOrganization(Long id, UpdateOrgRequest request, AuditActor actor) {
         Organization org = organizationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + id));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trung tâm #" + id + " (có thể đã bị xoá). Tải lại trang \"Trung tâm\" để xem danh sách hiện có."));
         if (request.status() != null && !VALID_ORG_STATUSES.contains(request.status())) {
-            throw new BadRequestException("Trạng thái tổ chức không hợp lệ: " + request.status());
+            throw new BadRequestException("Trạng thái trung tâm gửi lên không hợp lệ (" + request.status() + "). Tải lại trang rồi dùng nút \"Tạm ngưng trung tâm\" hoặc \"Mở lại trung tâm\".");
         }
         boolean clearValidUntil = Boolean.TRUE.equals(request.clearValidUntil());
         if (clearValidUntil && request.validUntil() != null) {
-            throw new BadRequestException("Không thể vừa đặt hạn vừa xoá hạn giấy phép trong cùng một yêu cầu");
+            throw new BadRequestException("Không thể vừa đặt hạn vừa xoá hạn giấy phép trong cùng một lần lưu. Chọn một trong hai: điền ngày hết hạn, hoặc để vô thời hạn; rồi bấm \"Lưu thay đổi\".");
         }
         String previousStatus = org.getStatus();
         // T-03: từng trường đổi được ghi kèm giá trị cũ/mới — vết "admin đã sửa trung tâm" mà không
@@ -315,7 +315,7 @@ public class AdminOrgService {
     @Transactional(readOnly = true)
     public List<OrgMemberDto> listMembers(Long orgId) {
         if (!organizationRepository.existsById(orgId)) {
-            throw new NotFoundException("Không tìm thấy tổ chức: " + orgId);
+            throw new NotFoundException("Không tìm thấy trung tâm #" + orgId + " (có thể đã bị xoá). Tải lại trang \"Trung tâm\" để xem danh sách hiện có.");
         }
         List<OrgMember> members = orgMemberRepository.findByIdOrgIdAndStatus(orgId, STATUS_ACTIVE);
         Map<Long, User> usersById = userRepository
@@ -351,9 +351,9 @@ public class AdminOrgService {
     @Transactional
     public OrgMemberDto addMember(Long orgId, String email, String role, AuditActor actor) {
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trung tâm #" + orgId + " (có thể đã bị xoá). Tải lại trang \"Trung tâm\" để xem danh sách hiện có."));
         if (email == null || email.isBlank()) {
-            throw new BadRequestException("Email là bắt buộc");
+            throw new BadRequestException("Chưa điền email của người cần thêm vào trung tâm. Điền email rồi bấm lại.");
         }
         String normalizedRole = normalizeRole(role);
         String normalizedEmail = email.trim();
@@ -362,7 +362,7 @@ public class AdminOrgService {
         // are canonical lowercase. Matches the login/register lookup so a capital letter no longer
         // makes an existing user "not found".
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + normalizedEmail));
+                .orElseThrow(() -> new NotFoundException("Chưa có tài khoản nào dùng email " + normalizedEmail + ". Kiểm tra lại email, hoặc tạo tài khoản ở trang \"Người dùng\" trước rồi thêm lại."));
 
         // DEC-13: admin nền tảng không bao giờ là thành viên trung tâm. Chốt chặn thật nằm ở
         // OrgMembershipService.upsertMember; guard ở đây thêm hai thứ upsertMember không có —
@@ -409,7 +409,7 @@ public class AdminOrgService {
         orgMembershipService.upsertMember(org.getId(), user.getId(), normalizedRole);
 
         OrgMember member = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
-                .orElseThrow(() -> new NotFoundException("Không tạo được thành viên tổ chức"));
+                .orElseThrow(() -> new NotFoundException("Chưa thêm được thành viên vào trung tâm #" + org.getId() + ". Tải lại trang rồi thử lại; nếu vẫn lỗi, báo kỹ thuật."));
 
         // Gán vai trò trong tổ chức là thao tác đặc quyền — trước đây không để lại vết nào.
         // DEC-13: gán vai trò TRONG một trung tâm cụ thể ⇒ vết thuộc về trung tâm đó, không phải
@@ -472,14 +472,14 @@ public class AdminOrgService {
     @Transactional
     public OrgMemberDto forceOwner(AuditActor admin, Long orgId, Long newOwnerUserId, String reason) {
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trung tâm #" + orgId + " (có thể đã bị xoá). Tải lại trang \"Trung tâm\" để xem danh sách hiện có."));
         if (newOwnerUserId == null) {
-            throw new BadRequestException("Phải chọn người được chỉ định làm giám đốc.");
+            throw new BadRequestException("Chưa chọn người làm giám đốc. Chọn một thành viên trong danh sách của hộp \"Chỉ định giám đốc\" rồi bấm lại.");
         }
         String cleanReason = reason == null ? "" : reason.trim();
         if (cleanReason.length() < FORCE_OWNER_REASON_MIN || cleanReason.length() > FORCE_OWNER_REASON_MAX) {
             throw new BadRequestException("Lý do là bắt buộc, từ " + FORCE_OWNER_REASON_MIN
-                    + " đến " + FORCE_OWNER_REASON_MAX + " ký tự.");
+                    + " đến " + FORCE_OWNER_REASON_MAX + " ký tự. Điền ô lý do trong hộp \"Chỉ định giám đốc\" rồi bấm lại.");
         }
 
         // DEC-13: admin nền tảng không bao giờ là thành viên trung tâm — càng không là giám đốc.
@@ -513,7 +513,7 @@ public class AdminOrgService {
     @Transactional
     public int activateEntitlements(Long orgId, AuditActor actor) {
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trung tâm #" + orgId + " (có thể đã bị xoá). Tải lại trang \"Trung tâm\" để xem danh sách hiện có."));
         List<OrgMember> students =
                 orgMemberRepository.findByIdOrgIdAndRoleAndStatus(orgId, ROLE_STUDENT, STATUS_ACTIVE);
         int granted = 0;
@@ -683,7 +683,7 @@ public class AdminOrgService {
     private String normalizeRole(String role) {
         String normalized = role == null ? "" : role.trim().toUpperCase();
         if (!MEMBER_ROLES.contains(normalized)) {
-            throw new BadRequestException("Vai trò không hợp lệ: " + role);
+            throw new BadRequestException("Vai trò trong trung tâm gửi lên không hợp lệ (" + role + "). Tải lại trang rồi chọn lại vai trò trong danh sách.");
         }
         return normalized;
     }
