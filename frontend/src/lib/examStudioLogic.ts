@@ -790,3 +790,19 @@ export function blueprintSelection(
   }
   return { replacements, missing }
 }
+
+/**
+ * Loại lỗi của thao tác AI gần nhất, để hiện kèm việc cần làm (owner yêu cầu 13/11/2026: lỗi phải nói làm gì tiếp).
+ * Backend chỉ lưu một câu chữ (`lastError`) và lượt tạo bộ đề phân loại theo chính tiền tố của câu đó, nên ở đây
+ * cũng đọc theo câu. Câu lạ ⇒ `OTHER` (lời chỉ dẫn chung), không bao giờ sai hướng.
+ */
+export type LastErrorKind = 'CHANNEL' | 'INCOMPLETE' | 'TIMEOUT' | 'SOURCE' | 'OTHER'
+
+export function lastErrorKind(message: string): LastErrorKind {
+  const m = message.trim()
+  if (/chạy quá \d+ phút/.test(m)) return 'TIMEOUT'
+  if (/^Model soạn đề|^AI không trả về|Yêu cầu AI|Dịch vụ AI|9Router|Chưa cấu hình|JSON hỏng/.test(m)) return 'CHANNEL'
+  if (/^AI (chỉ trả|không trả|trả)/.test(m)) return 'INCOMPLETE'
+  if (/Không tải được trang|Tải trang|^Trang |Đường dẫn|Chỉ đọc được|Không đọc được (trang|tệp)|PDF/.test(m)) return 'SOURCE'
+  return 'OTHER'
+}

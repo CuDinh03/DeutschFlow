@@ -576,6 +576,10 @@
         "approve": "Ganzen Satz freigeben",
         "approved": "Freigegeben. Der Satz steht unten in der Liste als „Demnächst“.",
         "loadError": "Die Liste der Durchläufe konnte nicht geladen werden",
+        "lastErrorWhen": {
+          "RUNNING": "Der letzte Versuch schlug fehl, die Maschine wiederholt ihn selbst (noch nichts zu tun):",
+          "STUCK": "Warum die Maschine bei diesem Teil gestoppt hat:"
+        },
         "approveBlocked": "Durchlauf #{id} konnte nicht freigegeben werden: {count} Teil nicht bereit. Liste und Lösung stehen in der Karte des Durchlaufs.",
         "approveTitle": "Ganzen Satz von Lauf #{id} freigeben?",
         "approveBody": "Alle Teile dieses Laufs kommen in den Bestand und werden zu einem Prüfungssatz mit dem Status „Demnächst“ zusammengestellt. Lernende sehen ihn erst, wenn Sie in der Liste auf Veröffentlichen klicken. Der Hörteil des Satzes besteht aus den drei Hörteilen, die in diesem Lauf erzeugt wurden.",
@@ -712,6 +716,14 @@
       "saved": "Gespeichert",
       "unsaved": "Ungespeicherte Änderungen",
       "later": "Spätere Phase",
+      "lastErrorTodo": "Zu tun:",
+      "lastErrorHelp": {
+        "CHANNEL": "Das ist ein Fehler des KI-Kanals, nicht des Entwurfs. Dieselbe Schaltfläche erneut drücken. Tritt der Fehler wieder auf, den Kanal unter „Erstellen mit“ wechseln und erneut versuchen.",
+        "INCOMPLETE": "Die KI-Antwort war unvollständig oder fehlerhaft. Dieselbe Schaltfläche erneut drücken, damit die KI es neu macht. Nach drei Fehlversuchen den Kanal unter „Erstellen mit“ wechseln.",
+        "TIMEOUT": "Der Vorgang wurde gestoppt, weil er zu lange lief. Dieselbe Schaltfläche erneut drücken.",
+        "SOURCE": "Das Problem liegt an der Quelle. Im Schritt „Quellen“ den Artikeltext einfügen statt eines Links, oder eine andere Quelle wählen.",
+        "OTHER": "Dieselbe Schaltfläche erneut drücken. Tritt der Fehler wieder auf, der Technik mit Entwurfsnummer #{id} melden."
+      },
       "lastErrorTitle": "Der letzte KI-Vorgang ist fehlgeschlagen",
       "busyHint": "Die Ansicht aktualisiert sich automatisch.",
       "busy": {

@@ -140,7 +140,7 @@ export default function AdminExamStudioDraftPage() {
         {draft.status === 'DRAFT' && <ChannelSwitch disabled={busy != null || pending} />}
 
         {busy && <BusyBanner op={busy} />}
-        {draft.lastError && !busy && <LastErrorBanner message={draft.lastError} />}
+        {draft.lastError && !busy && <LastErrorBanner message={draft.lastError} draftId={draft.id} />}
         {problem && <ProblemNotice problem={problem} hideLinks onDismiss={() => setProblem(null)} />}
         {draft.status === 'DISCARDED' && (
           <p className="ga-ui rounded-ga bg-ga-side-active px-4 py-3 text-ga-small text-ga-muted">{t('wizard.discarded')}</p>

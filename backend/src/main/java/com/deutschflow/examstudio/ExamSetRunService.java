@@ -845,7 +845,7 @@ public class ExamSetRunService {
     private void expireIfHung(TeilRow t, Draft d) {
         if (d.updatedAt() != null && Duration.between(d.updatedAt(), Instant.now()).compareTo(BUSY_TIMEOUT) > 0) {
             log.warn("[ExamSet] bản nháp #{} bận quá {} phút ở bước {} — coi là hỏng", d.id(), BUSY_TIMEOUT.toMinutes(), d.busyOp());
-            drafts.finishBusy(d.id(), "Thao tác " + d.busyOp() + " chạy quá " + BUSY_TIMEOUT.toMinutes() + " phút.");
+            drafts.finishBusy(d.id(), RunGuide.timedOut(d.busyOp(), BUSY_TIMEOUT.toMinutes()));
         }
     }
 

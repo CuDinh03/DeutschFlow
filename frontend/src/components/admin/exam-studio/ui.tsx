@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useTranslations } from 'next-intl'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import type { BusyOp, Light, StudioDraft } from '@/lib/adminExamStudioApi'
+import { lastErrorKind } from '@/lib/examStudioLogic'
 import { cn } from '@/lib/utils'
 
 // Mảnh giao diện dùng chung của Xưởng đề.
@@ -51,7 +52,7 @@ export function BusyBanner({ op }: { op: BusyOp }) {
 }
 
 /** Lỗi của job AI gần nhất — hiện nguyên văn, xuống dòng được (ErrorBanner chung cắt một dòng). */
-export function LastErrorBanner({ message }: { message: string }) {
+export function LastErrorBanner({ message, draftId }: { message: string; draftId: number }) {
   const t = useTranslations('v2.adminContent.examStudio')
   return (
     <div role="alert" className="flex items-start gap-2.5 rounded-ga border border-ga-red bg-ga-red-soft px-4 py-3">
@@ -59,6 +60,9 @@ export function LastErrorBanner({ message }: { message: string }) {
       <div className="min-w-0">
         <p className="ga-ui text-ga-small font-semibold text-ga-ink">{t('lastErrorTitle')}</p>
         <p className="ga-ui whitespace-pre-wrap break-words text-ga-caption text-ga-muted">{message}</p>
+        <p className="ga-ui mt-1 break-words text-ga-caption text-ga-ink">
+          <span className="font-semibold">{t('lastErrorTodo')}</span> {t(`lastErrorHelp.${lastErrorKind(message)}`, { id: draftId })}
+        </p>
       </div>
     </div>
   )

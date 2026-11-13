@@ -60,6 +60,18 @@ class RunGuideTest {
     }
 
     @Test
+    @DisplayName("thao tác treo quá hạn: gọi tên thao tác như trên giao diện, không lộ mã nội bộ")
+    void timedOut() {
+        assertThat(RunGuide.timedOut("TEXT", 20)).isEqualTo("Thao tác \"Viết bài\" chạy quá 20 phút nên máy đã dừng.");
+        assertThat(RunGuide.timedOut("VERIFY", 20)).contains("Tự kiểm");
+        for (String op : List.of("FACTS", "TEXT", "ITEMS", "ITEM", "VERIFY")) {
+            assertThat(RunGuide.timedOut(op, 20)).doesNotContain(op);
+        }
+        // Lời này không được bị coi là lỗi của model (lượt dùng tiền tố câu để phân loại).
+        assertThat(ExamSetRunService.isModelError(RunGuide.timedOut("TEXT", 20))).isFalse();
+    }
+
+    @Test
     @DisplayName("chuông khi lượt xong: sẵn sàng duyệt thì nói bấm gì")
     void alertReady() {
         RunGuide.Alert a = RunGuide.finished(11, "telc B1", 9, List.of(), List.of());

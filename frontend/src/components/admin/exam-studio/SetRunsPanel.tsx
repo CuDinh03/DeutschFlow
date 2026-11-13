@@ -314,7 +314,13 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
                     </span>
                   </div>
                   {x.lastError && x.status !== 'READY' && (
-                    <p className="ga-ui break-words text-ga-caption text-ga-muted">{x.lastError}</p>
+                    <p className="ga-ui break-words text-ga-caption text-ga-muted">
+                      {/* Câu của máy đứng riêng thì không biết có phải làm gì không: nói rõ theo trạng thái Teil. */}
+                      {(x.status === 'RUNNING' || x.status === 'STUCK') && (
+                        <span className="font-semibold text-ga-ink">{t(`lastErrorWhen.${x.status}`)} </span>
+                      )}
+                      {x.lastError}
+                    </p>
                   )}
                   {x.status === 'STUCK' && (
                     <details className="rounded-ga bg-ga-surface px-3 py-2" open>
