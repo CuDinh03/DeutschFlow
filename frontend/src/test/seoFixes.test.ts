@@ -55,6 +55,11 @@ describe('schema', () => {
 })
 
 describe('sitemap trang nghề', () => {
+  it('dựng lúc có request, không dựng sẵn lúc build (build không gọi được backend)', async () => {
+    const mod = await import('@/app/sitemap')
+    expect(mod.dynamic).toBe('force-dynamic')
+  })
+
   async function sitemapWith(routes: Record<string, unknown>) {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       const key = Object.keys(routes).find((k) => url.endsWith(k))
