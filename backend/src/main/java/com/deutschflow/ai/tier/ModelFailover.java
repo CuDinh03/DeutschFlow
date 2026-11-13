@@ -38,6 +38,7 @@ public class ModelFailover {
     private final long cooldownNanos;
     private final LongSupplier nanoClock;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public ModelFailover(LlmProperties properties) {
         this(properties.getFallbackModels(), properties.getFailoverCooldownSeconds(), System::nanoTime);
     }
