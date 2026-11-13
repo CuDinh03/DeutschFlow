@@ -179,7 +179,7 @@ public class ExamStudioAi {
         String model = role == Role.JUDGE && set(routerJudgeModel) ? routerJudgeModel : routerWriterModel;
         Endpoint e = new Endpoint("9ROUTER", chatUrl(routerBaseUrl), routerApiKey, model.trim(), routerSendTemperature,
                 routerJsonMode);
-        return withTruncationRetry(userId, op, e, system, user, temperature, Math.max(maxTokens, minOutputTokens));
+        return withCapacityFallback(userId, op, e, system, user, temperature, Math.max(maxTokens, minOutputTokens));
     }
 
     JsonNode call(long userId, String op, LlmTier tier, String system, String user, double temperature,
@@ -245,6 +245,116 @@ public class ExamStudioAi {
      */
     /** Trần hạn mức đầu ra khi thử lại một lượt bị cắt. */
     static final int MAX_OUTPUT_TOKENS = 48_000;
+
+    // ── Model hết chỗ phía nhà cung cấp (owner chốt 13/11/2026) ────────────────────────────────────
+    // Gemini qua kết nối Antigravity của 9Router trả 503 "No capacity available for model …" (MODEL_CAPACITY_EXHAUSTED)
+    // khi bể máy chủ dùng chung hết chỗ; 9Router khoá model đó 30–50 giây ("reset after 32s"). Không phải lỗi của
+    // lượt gọi: chờ đúng thời gian được báo rồi thử lại, vẫn hết chỗ thì sang bản kế tiếp trong danh sách owner duyệt
+    // (AI_CAPACITY_FALLBACK_MODELS). Chỉ model có tên trong danh sách mới được thay; model ngoài danh sách (vd. Claude
+    // viết bài) giữ nguyên hành vi cũ.
+
+    @org.springframework.beans.factory.annotation.Value("${app.ai.capacity-fallback-models:}")
+    private String capacityFallbackModels = "";
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.beans.factory.ObjectProvider<com.deutschflow.notification.service.UserNotificationService> notifications;
+
+    static final int CAPACITY_WAIT_DEFAULT_SECONDS = 30;
+    static final int CAPACITY_WAIT_MAX_SECONDS = 90;
+    private static final long CAPACITY_ALERT_EVERY_MILLIS = 30 * 60_000L;
+    private static final java.util.concurrent.atomic.AtomicLong LAST_CAPACITY_ALERT = new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.regex.Pattern RESET_AFTER =
+            java.util.regex.Pattern.compile("reset after\\s+(?:(\\d+)\\s*m)?\\s*(?:(\\d+)\\s*s)?", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** Nhà cung cấp báo hết chỗ cho model (khác với lỗi của chính lượt gọi). */
+    static final class CapacityException extends AiServiceException {
+        final int waitSeconds;
+
+        CapacityException(String model, int code, int waitSeconds) {
+            super("Model " + model + " đang hết chỗ phía nhà cung cấp (HTTP " + code + "), vui lòng thử lại sau.");
+            this.waitSeconds = waitSeconds;
+        }
+    }
+
+    static boolean isCapacityError(int code, String body) {
+        if (code != 503 && code != 429) return false;
+        String b = body == null ? "" : body.toLowerCase(java.util.Locale.ROOT);
+        return b.contains("capacity") || b.contains("reset after") || b.contains("unavailable") || b.contains("overloaded");
+    }
+
+    /** Số giây nhà cung cấp bảo chờ ("reset after 32s", "reset after 2m"); không nói thì 30; không quá 90. */
+    static int resetSeconds(String body) {
+        java.util.regex.Matcher m = RESET_AFTER.matcher(body == null ? "" : body);
+        int best = -1;
+        while (m.find()) {
+            int v = (m.group(1) == null ? 0 : Integer.parseInt(m.group(1)) * 60) + (m.group(2) == null ? 0 : Integer.parseInt(m.group(2)));
+            if (v > 0) best = Math.max(best, v);
+        }
+        return Math.min(best > 0 ? best : CAPACITY_WAIT_DEFAULT_SECONDS, CAPACITY_WAIT_MAX_SECONDS);
+    }
+
+    /** Các bản thay thế đứng SAU model hiện tại trong danh sách; model không có trong danh sách ⇒ không thay. */
+    static List<String> fallbackChain(String current, String csv) {
+        List<String> all = new java.util.ArrayList<>();
+        for (String m : (csv == null ? "" : csv).split(",")) if (!m.isBlank() && !all.contains(m.trim())) all.add(m.trim());
+        int at = all.indexOf(current == null ? "" : current.trim());
+        return at < 0 ? List.of() : List.copyOf(all.subList(at + 1, all.size()));
+    }
+
+    private JsonNode withCapacityFallback(long userId, String op, Endpoint e, String system, String user,
+                                          double temperature, int maxTokens) {
+        try {
+            return withTruncationRetry(userId, op, e, system, user, temperature, maxTokens);
+        } catch (CapacityException first) {
+            log.warn("[ExamStudio] {} model {} hết chỗ — chờ {} giây rồi thử lại", op, e.model(), first.waitSeconds);
+            sleepSeconds(first.waitSeconds + 1);
+            CapacityException last;
+            try {
+                return withTruncationRetry(userId, op, e, system, user, temperature, maxTokens);
+            } catch (CapacityException again) {
+                last = again;
+            }
+            for (String next : fallbackChain(e.model(), capacityFallbackModels)) {
+                log.warn("[ExamStudio] {} model {} vẫn hết chỗ — chuyển sang {}", op, e.model(), next);
+                Endpoint alt = new Endpoint(e.name(), e.url(), e.key(), next, e.sendTemperature(), e.jsonMode());
+                try {
+                    JsonNode out = withTruncationRetry(userId, op, alt, system, user, temperature, maxTokens);
+                    alertCapacity(e.model(), next);
+                    return out;
+                } catch (CapacityException c) {
+                    last = c;
+                }
+            }
+            alertCapacity(e.model(), null);
+            throw last;
+        }
+    }
+
+    private static void sleepSeconds(int seconds) {
+        try {
+            Thread.sleep(seconds * 1000L);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new AiServiceException("Yêu cầu AI bị gián đoạn, vui lòng thử lại.", ie);
+        }
+    }
+
+    /** Báo chuông admin, nhiều nhất 30 phút một lần: model nào hết chỗ, máy đã chuyển sang bản nào (hoặc không còn bản nào). */
+    private void alertCapacity(String model, String usedInstead) {
+        long now = System.currentTimeMillis();
+        long prev = LAST_CAPACITY_ALERT.get();
+        if (now - prev < CAPACITY_ALERT_EVERY_MILLIS || !LAST_CAPACITY_ALERT.compareAndSet(prev, now)) return;
+        try {
+            com.deutschflow.notification.service.UserNotificationService n = notifications == null ? null : notifications.getIfAvailable();
+            if (n == null) return;
+            n.onSystemAlert("AI_CAPACITY", "Model AI đang hết chỗ phía nhà cung cấp",
+                    usedInstead == null
+                            ? "Model " + model + " và các bản thay thế đều báo hết chỗ. Việc đang chạy sẽ lỗi cho tới khi nhà cung cấp có chỗ lại."
+                            : "Model " + model + " báo hết chỗ; máy đã tạm dùng " + usedInstead + " cho lượt này.",
+                    java.util.Map.of("model", model, "usedInstead", usedInstead == null ? "" : usedInstead));
+        } catch (RuntimeException ex) {
+            log.warn("[ExamStudio] Không gửi được thông báo hết chỗ: {}", ex.getMessage());
+        }
+    }
 
     /** Lượt bị cắt vì model "nghĩ" hết hạn mức: báo riêng để thử lại với hạn mức lớn hơn. */
     static final class TruncatedException extends AiServiceException {
@@ -346,6 +456,10 @@ public class ExamStudioAi {
                 } else {
                     failure = "HTTP " + code;
                     log.warn("[ExamStudio] {} model {} trả {} (lượt {})", op, spec.model(), code, attempt);
+                    // Hết chỗ phía nhà cung cấp: thử lại ngay vô ích (cổng đang khoá model) — để lớp ngoài chờ và đổi bản.
+                    if (isCapacityError(code, http.body())) {
+                        throw new CapacityException(spec.model(), code, resetSeconds(http.body()));
+                    }
                     // Lỗi phía mình (400/401/404) thử lại cũng vậy; quá tải hay lỗi máy chủ thì thử thêm một lần.
                     if (code != 429 && code < 500) break;
                     Thread.sleep(3_000L);
