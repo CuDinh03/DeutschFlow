@@ -362,7 +362,18 @@
         "termsEmpty": "Die Fachbegriffe zu diesem Beruf werden gerade erstellt.",
         "labelsNote": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Der „allgemeine Fragenkatalog“ gilt für alle Berufe, mit Ihrer Berufsbezeichnung.",
         "cta": "Dieses Gespräch üben",
-        "ctaNote": "Kostenlos. Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können."
+        "ctaNote": "Kostenlos. Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können.",
+        "relatedCap": "Verwandte Berufe",
+        "guideLink": "Ratgeber: {title}",
+        "examLink": "Prüfungsvorbereitung: {name}",
+        "faqCap": "Häufige Fragen",
+        "faqAskQ": "Was wird im Vorstellungsgespräch als {name} gefragt?",
+        "faqAskA": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen, zum Beispiel: „{example}“. Die Fragen können abweichen oder anders formuliert sein.",
+        "faqAskANoExample": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen. Die Fragen können abweichen oder anders formuliert sein.",
+        "faqLevelQ": "Welches Deutschniveau brauche ich für ein Vorstellungsgespräch als {name}?",
+        "faqLevelA": "Das hängt vom Arbeitgeber und vom Programm ab. Viele Ausbildungsprogramme verlangen B1, manche B2. Prüfen Sie die Anforderungen der Stelle, auf die Sie sich bewerben.",
+        "faqCostQ": "Ist das Üben des Vorstellungsgesprächs als {name} kostenlos?",
+        "faqCostA": "Ja. Sie üben kostenlos: Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können."
       }
     },
     "footer": {

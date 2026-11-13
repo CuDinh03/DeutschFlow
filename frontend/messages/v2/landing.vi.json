@@ -362,7 +362,18 @@
         "termsEmpty": "Từ chuyên môn của nghề này đang được soạn.",
         "labelsNote": "Câu “Đã duyệt” đã qua người kiểm. Câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. “Bộ câu hỏi chung” dùng cho mọi nghề, kèm tên nghề của bạn.",
         "cta": "Luyện phỏng vấn nghề này",
-        "ctaNote": "Miễn phí. AI hỏi bằng tiếng Đức và chỉ ra chỗ cần sửa sau mỗi câu trả lời."
+        "ctaNote": "Miễn phí. AI hỏi bằng tiếng Đức và chỉ ra chỗ cần sửa sau mỗi câu trả lời.",
+        "relatedCap": "Nghề liên quan",
+        "guideLink": "Cẩm nang: {title}",
+        "examLink": "Luyện thi {name}",
+        "faqCap": "Câu hỏi thường gặp",
+        "faqAskQ": "Phỏng vấn tiếng Đức nghề {name} thường hỏi gì?",
+        "faqAskA": "Buổi luyện mở đầu bằng lời mời giới thiệu bản thân, sau đó người phỏng vấn hỏi về kinh nghiệm và chuyên môn của nghề, ví dụ: „{example}“. Câu hỏi có thể khác hoặc được hỏi theo cách khác.",
+        "faqAskANoExample": "Buổi luyện mở đầu bằng lời mời giới thiệu bản thân, sau đó người phỏng vấn hỏi về kinh nghiệm và chuyên môn của nghề. Câu hỏi có thể khác hoặc được hỏi theo cách khác.",
+        "faqLevelQ": "Cần trình độ tiếng Đức nào để phỏng vấn nghề {name}?",
+        "faqLevelA": "Tuỳ nhà tuyển dụng và chương trình. Nhiều chương trình học nghề yêu cầu từ B1, có nơi yêu cầu B2. Hãy kiểm tra yêu cầu của nơi bạn ứng tuyển.",
+        "faqCostQ": "Luyện phỏng vấn nghề {name} có mất phí không?",
+        "faqCostA": "Không. Bạn luyện miễn phí: AI hỏi bằng tiếng Đức và chỉ ra chỗ cần sửa sau mỗi câu trả lời."
       }
     },
     "footer": {
