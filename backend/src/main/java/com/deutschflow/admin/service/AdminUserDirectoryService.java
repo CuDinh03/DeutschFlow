@@ -215,7 +215,7 @@ public class AdminUserDirectoryService {
                 WHERE u.id = ?
                 """, userId);
         if (rows.isEmpty()) {
-            throw new NotFoundException("User not found");
+            throw new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại.");
         }
         Map<String, Object> r = rows.get(0);
         QuotaSnapshot snap = quotaService.getSnapshotReadOnly(userId, Instant.now());
@@ -248,7 +248,7 @@ public class AdminUserDirectoryService {
         if (c.role() != null && !c.role().isBlank()) {
             String role = c.role().trim().toUpperCase(Locale.ROOT);
             if (!ROLES.contains(role)) {
-                throw new BadRequestException("Invalid role filter: " + c.role());
+                throw new BadRequestException("Bộ lọc vai trò \"" + c.role() + "\" không hợp lệ. Bỏ bộ lọc hoặc tải lại trang \"Người dùng\" rồi chọn lại.");
             }
             where.append(" AND u.role = ?");
             args.add(role);
@@ -257,13 +257,13 @@ public class AdminUserDirectoryService {
             switch (c.status().trim().toLowerCase(Locale.ROOT)) {
                 case "active" -> where.append(" AND u.is_active");
                 case "locked" -> where.append(" AND NOT u.is_active");
-                default -> throw new BadRequestException("Invalid status filter: " + c.status());
+                default -> throw new BadRequestException("Bộ lọc trạng thái \"" + c.status() + "\" không hợp lệ. Bỏ bộ lọc hoặc tải lại trang \"Người dùng\" rồi chọn lại.");
             }
         }
         if (c.plan() != null && !c.plan().isBlank()) {
             String plan = c.plan().trim().toUpperCase(Locale.ROOT);
             if (!PLAN_CODE.matcher(plan).matches()) {
-                throw new BadRequestException("Invalid plan filter: " + c.plan());
+                throw new BadRequestException("Bộ lọc gói \"" + c.plan() + "\" không hợp lệ. Bỏ bộ lọc hoặc tải lại trang \"Người dùng\" rồi chọn lại.");
             }
             where.append(" AND COALESCE(sub.plan_code, 'DEFAULT') = ?");
             args.add(plan);
@@ -277,7 +277,7 @@ public class AdminUserDirectoryService {
                     try {
                         args.add(Long.parseLong(org));
                     } catch (NumberFormatException e) {
-                        throw new BadRequestException("Invalid org filter: " + c.org());
+                        throw new BadRequestException("Bộ lọc trung tâm \"" + c.org() + "\" không hợp lệ. Bỏ bộ lọc hoặc tải lại trang \"Người dùng\" rồi chọn lại.");
                     }
                     where.append(" AND u.org_id = ?");
                 }
@@ -292,7 +292,7 @@ public class AdminUserDirectoryService {
         String field = parts[0].trim();
         String dir = parts.length > 1 ? parts[1].trim().toLowerCase(Locale.ROOT) : "asc";
         if (!SORT_COLUMNS.containsKey(field) || !(dir.equals("asc") || dir.equals("desc")) || parts.length > 2) {
-            throw new BadRequestException("Invalid sort: " + raw);
+            throw new BadRequestException("Cách sắp xếp \"" + raw + "\" không hợp lệ. Tải lại trang \"Người dùng\" rồi bấm lại tiêu đề cột muốn sắp xếp.");
         }
         return new String[]{field, dir};
     }

@@ -245,23 +245,23 @@ public class AdminManagementService {
                                               String startsAtIso,
                                               String endsAtIso) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         String code = planCode == null ? "" : planCode.trim().toUpperCase();
         if (code.isBlank()) {
-            throw new BadRequestException("planCode is required");
+            throw new BadRequestException("Chưa chọn gói cho người dùng #" + userId + ". Chọn một gói trong ô \"Gói\" rồi bấm lưu lại.");
         }
         Integer exists = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM subscription_plans WHERE code = ?",
                 Integer.class, code);
         if (exists == null || exists <= 0) {
-            throw new BadRequestException("Invalid planCode");
+            throw new BadRequestException("Không có gói mang mã " + code + ". Tải lại trang để lấy danh sách gói hiện hành rồi chọn lại.");
         }
 
         Instant now = Instant.now();
         Instant startsAt = parseInstantOrDefault(startsAtIso, now);
         Instant endsAt = endsAtIso == null || endsAtIso.isBlank() ? null : parseInstantOrDefault(endsAtIso, null);
         if (endsAt != null && !endsAt.isAfter(startsAt)) {
-            throw new BadRequestException("endsAtUtc must be after startsAtUtc");
+            throw new BadRequestException("Ngày kết thúc gói phải sau ngày bắt đầu. Sửa lại hai ô ngày rồi bấm lưu.");
         }
 
         // Đợt 1 admin (09/11/2026): chụp trạng thái TRƯỚC khi ghi đè — gói đang ACTIVE và số dư ví
@@ -333,7 +333,7 @@ public class AdminManagementService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> userQuota(Long userId) {
-        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         var snap = quotaService.getSnapshot(userId, Instant.now());
         Instant thirtyDaysAgo = Instant.now().minus(30, ChronoUnit.DAYS);
 
@@ -362,7 +362,7 @@ public class AdminManagementService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> userUsage(Long userId, String fromIso, String toIso, Integer limit) {
-        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         Instant now = Instant.now();
         Instant from = parseInstantOrDefault(fromIso, now.minusSeconds(7L * 86400L));
         Instant to = parseInstantOrDefault(toIso, now);
@@ -739,10 +739,10 @@ public class AdminManagementService {
     @Transactional
     public Map<String, Object> updateUserRole(Long userId, String role) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         String normalized = role == null ? "" : role.trim().toUpperCase();
         if (!List.of("ADMIN", "TEACHER", "STUDENT").contains(normalized)) {
-            throw new BadRequestException("Invalid role");
+            throw new BadRequestException("Vai trò gửi lên không hợp lệ; ở đây chỉ đổi được sang Quản trị, Giáo viên hoặc Học viên. Tải lại trang rồi chọn lại vai trò.");
         }
         // Overwriting users.role here bypasses OrgMembershipService, which is the only writer that
         // keeps org_members.role in lock-step. For an org member that silently desyncs the two, so
@@ -853,7 +853,7 @@ public class AdminManagementService {
     @Transactional
     public Map<String, Object> setUserActive(Long userId, boolean active) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         if (!active && user.getRole() == User.Role.ADMIN) {
             requireNotLastActiveAdmin(user, "Không thể khóa quản trị viên hoạt động cuối cùng.", "deactivate");
         }
@@ -886,7 +886,7 @@ public class AdminManagementService {
     @Transactional
     public Map<String, Object> setUserPassword(Long userId, String rawPassword) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         // Đợt 2 admin (09/11/2026): đặt lại mật khẩu của một ADMIN (kể cả CHÍNH MÌNH) là leo thang
         // ngang — một admin chiếm được phiên của admin khác mà không để lại dấu ở phía nạn nhân. Admin
         // tự đặt lại qua "Quên mật khẩu" (OTP về chính hộp thư của họ). Chặn TRƯỚC mọi kiểm tra khác
@@ -921,7 +921,7 @@ public class AdminManagementService {
     @Transactional
     public Map<String, Object> adminUpdateProfile(Long userId, AdminUpdateProfileRequest req) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
 
         if (req.displayName() != null && !req.displayName().isBlank()) {
             user.setDisplayName(req.displayName().trim());
@@ -1336,7 +1336,7 @@ public class AdminManagementService {
     @Transactional(readOnly = true)
     public Map<String, Object> userLearningDetail(Long userId) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
 
         Map<String, Object> out = new LinkedHashMap<>();
 
@@ -1540,7 +1540,7 @@ public class AdminManagementService {
     @Transactional
     public Map<String, Object> adminUpdateLearningProfile(Long userId, AdminUpdateLearningProfileRequest req) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
 
         UserLearningProfile profile = learningProfileRepository.findByUserId(userId)
                 .orElseGet(() -> {
@@ -1592,7 +1592,7 @@ public class AdminManagementService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> userInterviewSessions(Long userId) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         var sessions = speakingSessionRepository
                 .findByUserIdAndSessionModeOrderByStartedAtDesc(userId, "INTERVIEW");
         List<Map<String, Object>> result = new ArrayList<>();
@@ -1619,11 +1619,11 @@ public class AdminManagementService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> userInterviewMessages(Long userId, Long sessionId) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng #" + userId + " (có thể tài khoản đã bị xoá). Tải lại trang \"Người dùng\" để xem danh sách hiện tại."));
         var session = speakingSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new NotFoundException("Session not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy phiên nói #" + sessionId + " của người dùng #" + userId + ". Tải lại hồ sơ người dùng để xem các phiên hiện có."));
         if (!session.getUserId().equals(userId)) {
-            throw new BadRequestException("Session does not belong to user");
+            throw new BadRequestException("Phiên nói #" + sessionId + " không thuộc người dùng #" + userId + ". Mở phiên từ danh sách phiên trong hồ sơ của đúng người dùng.");
         }
         var messages = speakingMessageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
         List<Map<String, Object>> result = new ArrayList<>();

@@ -93,16 +93,16 @@ public class AiConfigHistoryService {
     /** Kiểm biên — dùng chung cho PUT và cho dòng lịch sử sắp được áp lại. */
     public static void validate(AiConfigValues v) {
         if (v.prompt() != null && v.prompt().length() > MAX_PROMPT_LENGTH) {
-            throw new BadRequestException("System prompt tối đa " + MAX_PROMPT_LENGTH + " ký tự.");
+            throw new BadRequestException("Lời dặn hệ thống (system prompt) dài quá " + MAX_PROMPT_LENGTH + " ký tự. Rút ngắn rồi lưu lại.");
         }
         if (v.temperature() != null && (v.temperature() < MIN_TEMPERATURE || v.temperature() > MAX_TEMPERATURE)) {
-            throw new BadRequestException("temperature phải trong khoảng [" + MIN_TEMPERATURE + ", " + MAX_TEMPERATURE + "]");
+            throw new BadRequestException("Ô temperature phải từ " + MIN_TEMPERATURE + " đến " + MAX_TEMPERATURE + ". Sửa lại rồi lưu.");
         }
         if (v.topP() != null && (v.topP() < MIN_TOP_P || v.topP() > MAX_TOP_P)) {
-            throw new BadRequestException("topP phải trong khoảng [" + MIN_TOP_P + ", " + MAX_TOP_P + "]");
+            throw new BadRequestException("Ô topP phải từ " + MIN_TOP_P + " đến " + MAX_TOP_P + ". Sửa lại rồi lưu.");
         }
         if (v.maxTokens() != null && (v.maxTokens() < MIN_MAX_TOKENS || v.maxTokens() > MAX_MAX_TOKENS)) {
-            throw new BadRequestException("maxTokens phải trong khoảng [" + MIN_MAX_TOKENS + ", " + MAX_MAX_TOKENS + "]");
+            throw new BadRequestException("Ô maxTokens phải từ " + MIN_MAX_TOKENS + " đến " + MAX_MAX_TOKENS + ". Sửa lại rồi lưu.");
         }
     }
 
