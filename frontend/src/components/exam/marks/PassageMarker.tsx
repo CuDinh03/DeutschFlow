@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Eraser, Hash, MapPin, MessageSquareText, Trash2, Underline } from 'lucide-react'
+import { BookmarkPlus, Eraser, Hash, MapPin, MessageSquareText, Trash2, Underline } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   addMark,
@@ -25,6 +25,8 @@ import {
 } from './marksModel'
 import { rangeToPiece } from './selection'
 import type { PassageMarks } from './usePassageMarks'
+import { saveableText, sentenceAround } from './saveWord'
+import { SaveWordCard, type SaveWordJob } from './SaveWordCard'
 
 export interface MarkerItem {
   id: string
@@ -83,6 +85,15 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
   const { pack, texts, apply } = marks
   const live = React.useRef({ bar, noteFor, canEdit, pack, docked })
   live.current = { bar, noteFor, canEdit, pack, docked }
+
+  // "Lưu từ" (13/11/2026): chế độ đủ công cụ — Luyện Teil (gói luyện) và xem lại lượt thi thử đã nộp (đợt 3,
+  // server lấy đề từ lượt và chặn lượt chưa nộp). Đang thi thử và bài chẩn đoán chạy chế độ thi (`full = false`)
+  // ⇒ không có.
+  const saveSource = marks.source ?? null
+  const canSaveWord = full && saveSource != null
+  const [wordJob, setWordJob] = React.useState<SaveWordJob | null>(null)
+  const wordSeq = React.useRef(0)
+  const closeWord = React.useCallback(() => setWordJob(null), [])
 
   const close = React.useCallback(() => {
     setBar(null)
@@ -292,6 +303,41 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
     say(t('announceDelete'))
   }
 
+  /** Chữ đang chọn lưu được vào sổ (1–5 từ) — `null` nếu không. */
+  const wordOf = (piece: Piece): string | null => {
+    const text = texts[piece.b]
+    return text ? saveableText(text.slice(piece.s, piece.e)) : null
+  }
+  const selWord = canSaveWord && bar?.mode === 'select' ? wordOf(bar.piece) : null
+  /** Phím S đọc qua ref (trình nghe phím gắn một lần). */
+  const saveRef = React.useRef(false)
+  saveRef.current = selWord != null
+
+  const onSaveWord = () => {
+    if (bar?.mode !== 'select' || !saveSource) return
+    const word = wordOf(bar.piece)
+    if (!word) return
+    const { b, s, e } = bar.piece
+    const box = barRef.current?.getBoundingClientRect()
+    const sel = bar.range.getBoundingClientRect()
+    setWordJob({
+      key: ++wordSeq.current,
+      request: {
+        text: word,
+        sentence: sentenceAround(texts[b] ?? '', s, e),
+        examId: saveSource.kind === 'practice' ? saveSource.examId : null,
+        attemptId: saveSource.kind === 'attempt' ? saveSource.attemptId : null,
+        teilKey: saveSource.teilKey,
+        block: b,
+        start: s,
+        end: e,
+      },
+      anchor: { left: box?.left ?? sel.left, top: Math.min(box?.top ?? sel.top, sel.top), bottom: Math.max(box?.bottom ?? sel.bottom, sel.bottom) },
+    })
+    clearSelection()
+    close()
+  }
+
   // Mở ghi chú từ dấu ghi chú trong bài (MarkedText gọi qua sự kiện).
   React.useEffect(() => {
     const onOpen = (e: Event) => {
@@ -306,8 +352,8 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
   }, [])
 
   // ── phím tắt khi thanh đang mở ──────────────────────────────────────────────
-  const act = React.useRef({ onColor, onUnderline, onQuick, onNote, onErase, onDelete, close })
-  act.current = { onColor, onUnderline, onQuick, onNote, onErase, onDelete, close }
+  const act = React.useRef({ onColor, onUnderline, onQuick, onNote, onErase, onDelete, close, onSaveWord })
+  act.current = { onColor, onUnderline, onQuick, onNote, onErase, onDelete, close, onSaveWord }
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const l = live.current
@@ -321,6 +367,7 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
       else if (k === 'q' && full && l.bar.mode === 'select') act.current.onQuick()
       else if (k === 't' && full) setTagsOpen((v) => !v)
       else if (k === 'n' && full) act.current.onNote()
+      else if (k === 's' && l.bar.mode === 'select' && saveRef.current) act.current.onSaveWord()
       else if (k === 'delete' || k === 'backspace') {
         if (l.bar.mode === 'edit') act.current.onDelete()
         else act.current.onErase()
@@ -474,6 +521,12 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
               <MessageSquareText size={17} aria-hidden />
               {hasNote && <span aria-hidden className="absolute right-1.5 top-1.5 h-2 w-2 rounded-ga-pill bg-ga-orange" />}
             </button>
+            {selWord && (
+              <button type="button" className={cn(btn, tap)} onClick={onSaveWord} aria-label={t('saveWordHint')} title={t('saveWordHint')}>
+                <BookmarkPlus size={17} aria-hidden />
+                {t('saveWord')}
+              </button>
+            )}
           </>
         )}
         {(overlap || bar.mode === 'edit') && sep}
@@ -574,6 +627,7 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
     <div className="ga-scope">
       {toolbar}
       {note}
+      {wordJob && <SaveWordCard key={wordJob.key} job={wordJob} docked={docked} onClose={closeWord} onAnnounce={say} />}
       <span className="sr-only" aria-live="polite">
         {announce}
       </span>

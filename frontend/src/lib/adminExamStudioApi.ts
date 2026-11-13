@@ -49,6 +49,18 @@ export interface StudioSource {
   facts: StudioFact[]
 }
 
+/**
+ * Một lượt lời của phần Nghe (đợt 5). `speaker`: PRUEFER = giọng nữ, PARTNER = giọng nam (khoá của đề viết tay).
+ * Hören T1/T3: mỗi lượt là một đoạn rời ứng với một câu (`leadInDe` = câu dẫn tình huống của T3, không kèm số câu);
+ * Hören T2: các lượt của một cuộc phỏng vấn, `name` = tên hiện cho người nói.
+ */
+export interface StudioAudioTurn {
+  speaker: 'PRUEFER' | 'PARTNER'
+  name?: string | null
+  text: string
+  leadInDe?: string | null
+}
+
 export interface StudioText {
   titleDe: string
   vorspannDe: string
@@ -68,6 +80,11 @@ export interface StudioText {
   stimulus?: { type: string; from: string; subject: string; body: string } | null
   /** Schreiben: đúng 4 Leitpunkte. */
   writingPoints?: string[] | null
+  // ── Đợt 5: phần Nghe. Không lưu audio — app đọc lời thoại bằng TTS lúc bấm. ──
+  /** Lời thoại gốc; `context` do máy chủ ghép lại từ các lượt lời mỗi lần lưu. */
+  audioTurns?: StudioAudioTurn[] | null
+  /** Hören T1: câu khung (câu hỏi chung đặt cho năm người). */
+  framingDe?: string | null
 }
 
 export interface TextMetrics {
@@ -569,6 +586,15 @@ export async function approveSetRun(id: number): Promise<SetRun> {
 export async function recheckSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/recheck`, {})).data
 }
+/** Máy tạo lại riêng một Teil của lượt đã chạy xong: bỏ bản nháp cũ, chủ đề mới, chạy lại từ đầu. */
+export async function redoSetRunTeil(id: number, section: string, teil: number, channel?: StudioChannelId): Promise<SetRun> {
+  return (await api.post<SetRun>(`${BASE}/sets/${id}/teile/${encodeURIComponent(section)}/${teil}/redo`, channel ? { channel } : {})).data
+}
+/** Lượt cũ chỉ có 6 Teil: thêm ba Teil Nghe rồi cho lượt chạy tiếp, trên kênh AI đang chọn. */
+export async function addSetRunHoeren(id: number, channel?: StudioChannelId): Promise<SetRun> {
+  return (await api.post<SetRun>(`${BASE}/sets/${id}/add-hoeren`, channel ? { channel } : {})).data
+}
+
 export async function discardSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/discard`, {})).data
 }

@@ -7,8 +7,9 @@ import { patchDraft, writeText, type StudioDraft, type StudioText } from '@/lib/
 import { GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import {
-  A2_TEXT_WORD_RANGE, MATCH_TEXT_WORD_RANGE, NOTE_WORD_RANGE, adLettersFor, adWordRange, countWords, isGapKind, joinMatchTexts, matchTextInRange, splitMatchTexts, teilKind,
+  A2_TEXT_WORD_RANGE, MATCH_TEXT_WORD_RANGE, NOTE_WORD_RANGE, adLettersFor, adWordRange, countWords, isGapKind, isHoerenKind, joinMatchTexts, matchTextInRange, splitMatchTexts, teilKind,
 } from '@/lib/examStudioLogic'
+import { HoerenEditor } from './HoerenParts'
 import { TeilPreview } from './TeilPreview'
 import { AdsEditor, EmailEditor, LetterEditor, NoteEditor, TitledTextEditor } from './TextEditors'
 import { Note, studioField, studioMiniBtn, type StudioStepProps } from './ui'
@@ -106,6 +107,9 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
               ) : kind === 'GAP_MC' || kind === 'GAP_WORDBANK' ? (
                 <LetterEditor text={text} locked={locked} edit={edit} onSelect={readSelection}
                   withAd={kind === 'GAP_WORDBANK'} hasItems={draft.items.length > 0} />
+              ) : kind === 'HOEREN_STATEMENTS' || kind === 'HOEREN_INTERVIEW' || kind === 'HOEREN_ANNOUNCEMENTS' ? (
+                <HoerenEditor kind={kind} text={text} locked={locked} edit={edit} onSelect={readSelection}
+                  hasItems={draft.items.length > 0} />
               ) : kind === 'WRITE_EMAIL' ? (
                 <EmailEditor text={text} locked={locked} edit={edit} onSelect={readSelection} />
               ) : kind === 'WRITE_NOTE' ? (
@@ -188,7 +192,7 @@ export function StepText({ draft, locked, run, onNext }: StudioStepProps & { onN
         {draft.text && (
           <section aria-labelledby="text-preview-h">
             <h3 id="text-preview-h" className="mb-2"><GaCap>{t('text.preview')}</GaCap></h3>
-            <TeilPreview text={draft.text} items={isGapKind(kind) ? draft.items : []} quelle={draft.quelle}
+            <TeilPreview text={draft.text} items={isGapKind(kind) || isHoerenKind(kind) ? draft.items : []} quelle={draft.quelle}
               showAnswers={false} layout={kind}
               highlightSnippets={draft.textMetrics?.overlapSnippets ?? []} />
           </section>

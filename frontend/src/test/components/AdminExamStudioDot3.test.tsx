@@ -3,7 +3,7 @@
  *   1. Thư có ô (SB1) dựng từ meta, bấm ô gọi onGapClick; chế độ admin hiện đáp án trong ô.
  *   2. Lesen T3 xem trước: tình huống x, mẩu đáp án.
  *   3. Kiểm & duyệt: DUPLICATE đỏ → "Trùng Teil kho #123" + nút xem; Schreiben ghi chú mục SINGLE_ANSWER; warnings.
- *   4. Form tạo mới: Schreiben ẩn ma trận, gửi plan toàn 0 + situation; Hören còn "Đợt sau".
+ *   4. Form tạo mới: Schreiben ẩn ma trận, gửi plan toàn 0 + situation; Hören B1 đã mở (đợt 5).
  *   5. Bước Tình huống lưu situation.
  */
 import React from 'react'
@@ -107,10 +107,11 @@ describe('StepReview — chống trùng + Schreiben', () => {
 })
 
 describe('CreateDraftModal — Teil theo tình huống', () => {
-  it('Schreiben ẩn ma trận, gửi plan 0 + situation; Hören còn Đợt sau', async () => {
+  it('Schreiben ẩn ma trận, gửi plan 0 + situation; Hören B1 chọn được', async () => {
     m.createDraft.mockResolvedValue(draft({}))
     wrap(<CreateDraftModal open onOpenChange={vi.fn()} onCreated={vi.fn()} />)
-    expect(screen.getByRole('option', { name: /Nghe \(Hören\) — Đợt sau/ })).toBeDisabled()
+    expect(screen.queryByRole('option', { name: /Nghe \(Hören\) — Đợt sau/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Nghe \(Hören\)/ })).toBeEnabled()
     await userEvent.selectOptions(screen.getByLabelText('Phần'), 'SCHREIBEN')
     expect(screen.queryByText('Ma trận độ khó')).not.toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Tình huống'), 'Konzert')

@@ -130,6 +130,12 @@ public final class AiCallTrace {
         return this;
     }
 
+    /** Đổi model sẽ gọi trước lần gọi đầu (ví dụ model chính đang nghỉ nên đi thẳng dự phòng); không tính lần gọi. */
+    public AiCallTrace model(String model) {
+        this.model = model == null || model.isBlank() ? "-" : clean(model);
+        return this;
+    }
+
     /** Chuyển sang đích dự phòng (host/model khác). Dòng log ghi đích CUỐI CÙNG đã gọi. */
     public AiCallTrace fallback(String url, String model) {
         attempts++;

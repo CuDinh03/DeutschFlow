@@ -12,7 +12,7 @@ import type { SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
 
 const m = vi.hoisted(() => ({
   listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), approveSetRun: vi.fn(), getStudioChannel: vi.fn(),
-  recheckSetRun: vi.fn(),
+  recheckSetRun: vi.fn(), redoSetRunTeil: vi.fn(), addSetRunHoeren: vi.fn(),
 }))
 vi.mock('@/lib/adminExamStudioApi', async (orig) => ({ ...(await orig<object>()), ...m }))
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), message: vi.fn() }))
@@ -105,6 +105,43 @@ describe('SetRunsPanel', () => {
     await waitFor(() => expect(onApproved).toHaveBeenCalled())
   })
 
+  it('lượt có phần Nghe do máy soạn: hộp duyệt KHÔNG nói phần Nghe lấy từ đề viết tay, không có nút "Tạo phần Nghe"', async () => {
+    m.listSetRuns.mockResolvedValue([run({ status: 'REVIEW', teile: [
+      teil({ status: 'READY', stage: 'DONE' }),
+      teil({ section: 'HOEREN', teil: 1, status: 'READY', stage: 'DONE', theme: 'Medien', draftId: 51 }),
+    ] })])
+    show()
+    expect(await screen.findByText('Hören T1')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tạo phần Nghe' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Duyệt cả bộ' }))
+    const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
+    expect(within(dialog).getByText(/ba Teil Nghe do máy soạn trong lượt này/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Phần Nghe lấy nguyên từ một đề viết tay/)).not.toBeInTheDocument()
+  })
+
+  it('lượt cũ chưa có phần Nghe: "Tạo phần Nghe" xác nhận rồi gọi API trên kênh đang chọn; lượt đang chạy thì không có nút', async () => {
+    const old = run({ id: 5, status: 'REVIEW', teile: [teil({ status: 'READY', stage: 'DONE' })] })
+    m.listSetRuns.mockResolvedValue([old])
+    m.addSetRunHoeren.mockResolvedValue({ ...old, status: 'RUNNING' })
+    show()
+    await userEvent.click(await screen.findByRole('button', { name: 'Tạo phần Nghe' }))
+    const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
+    expect(within(dialog).getByText(/Máy thêm ba Teil Nghe/)).toBeInTheDocument()
+    expect(m.addSetRunHoeren).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Tạo phần Nghe' }))
+    await waitFor(() => expect(m.addSetRunHoeren).toHaveBeenCalledWith(5, 'ROUTER'))
+    expect(toast.success).toHaveBeenCalledWith('Đã bắt đầu tạo phần Nghe. Bảng tự cập nhật.')
+  })
+
+  it('lượt đang chạy, đã duyệt hoặc không phải telc B1 thì không có nút "Tạo phần Nghe"', async () => {
+    m.listSetRuns.mockResolvedValue([
+      run({}), run({ id: 8, status: 'APPROVED' }), run({ id: 9, status: 'REVIEW', cefrLevel: 'A2' }),
+    ])
+    show()
+    expect(await screen.findByText('Lượt #9 · telc A2')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tạo phần Nghe' })).not.toBeInTheDocument()
+  })
+
   it('lượt đang chạy hoặc cần xem thì không có nút duyệt', async () => {
     m.listSetRuns.mockResolvedValue([run({}), run({ id: 8, status: 'NEEDS_ATTENTION' })])
     show()
@@ -141,6 +178,19 @@ describe('SetRunsPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Kiểm lại bộ' }))
     await waitFor(() => expect(m.recheckSetRun).toHaveBeenCalledWith(9))
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('đủ điều kiện')))
+  })
+
+  it('"Làm lại Teil này": xác nhận rồi gọi API cho đúng Teil; lượt đang chạy thì không có nút', async () => {
+    const r = run({ id: 6, status: 'NEEDS_ATTENTION', teile: [teil({ status: 'READY', stage: 'DONE' })] })
+    m.listSetRuns.mockResolvedValue([r])
+    m.redoSetRunTeil.mockResolvedValue({ ...r, status: 'RUNNING' })
+    show()
+    await userEvent.click(await screen.findByRole('button', { name: 'Làm lại Teil này' }))
+    const dialog = await screen.findByRole('alertdialog').catch(() => screen.findByRole('dialog'))
+    expect(within(dialog).getByText(/chọn chủ đề mới không trùng/)).toBeInTheDocument()
+    expect(m.redoSetRunTeil).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Làm lại Teil này' }))
+    await waitFor(() => expect(m.redoSetRunTeil).toHaveBeenCalledWith(6, 'LESEN', 1, 'ROUTER'))
   })
 
   it('lượt đã bỏ không hiện; ba ngôn ngữ đủ khoá', async () => {

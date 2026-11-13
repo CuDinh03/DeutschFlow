@@ -22,7 +22,13 @@ final class ExamSetPlanner {
     /** {@code stems}: gốc từ (viết thường) khớp tiêu đề bài — xem {@link SourceCatalog#score}. */
     record Theme(String name, List<String> stems) {}
 
-    /** Chủ đề trung lập (luật cứng 09/11): không chính trị, di cư, chiến tranh, tôn giáo. */
+    /**
+     * Chủ đề trung lập (luật cứng 09/11): không chính trị, di cư, chiến tranh, tôn giáo.
+     *
+     * <p>Sáu chủ đề cuối thêm 13/11/2026 cùng phần Nghe: bộ telc B1 nay có 9 Teil, riêng Lesen 1 lấy 4 chủ đề, tức 12
+     * trên 13 chủ đề cũ — một Teil phải đổi chủ đề là hết chỗ. Gốc từ khoá tránh các gốc quá chung ("amt" khớp
+     * "gesamt", "fest" khớp "feststellen").
+     */
     static final List<Theme> THEMES = List.of(
             new Theme("Wohnen", List.of("wohn", "miet", "umzug", "heiz", "haushalt", "nachbar")),
             new Theme("Arbeit", List.of("arbeit", "beruf", "ausbildung", "lehre", "erwerb", "gehalt", "lohn", "teilzeit")),
@@ -36,7 +42,13 @@ final class ExamSetPlanner {
             new Theme("Essen und Trinken", List.of("essen", "ernähr", "gastro", "restaurant", "koch", "trink", "obst", "gemüse")),
             new Theme("Umwelt", List.of("umwelt", "klima", "müll", "recycl", "energie", "wetter", "natur", "wasser")),
             new Theme("Familie", List.of("famil", "kind", "eltern", "geburt", "betreu", "jugend", "senior")),
-            new Theme("Freizeit", List.of("freizeit", "kultur", "museum", "ehrenamt", "hobby", "kino", "musik")));
+            new Theme("Freizeit", List.of("freizeit", "kultur", "museum", "ehrenamt", "hobby", "kino", "musik")),
+            new Theme("Wetter und Jahreszeiten", List.of("wetter", "regen", "schnee", "hitze", "sturm", "temperatur", "jahreszeit")),
+            new Theme("Nachbarschaft", List.of("nachbarschaft", "hausgemeinschaft", "stadtteil", "quartier", "zusammenleben")),
+            new Theme("Behörden und Ämter", List.of("behörd", "bürgeramt", "ausweis", "antrag", "rathaus", "verwaltung", "formular")),
+            new Theme("Medien", List.of("zeitung", "fernseh", "radio", "podcast", "bibliothek", "buch", "nachrichten")),
+            new Theme("Feste und Feiern", List.of("feier", "geburtstag", "hochzeit", "stadtfest", "jubiläum", "party")),
+            new Theme("Kleidung", List.of("kleid", "mode", "textil", "schuh", "secondhand")));
 
     static Theme theme(String name) {
         return THEMES.stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
@@ -88,7 +100,7 @@ final class ExamSetPlanner {
     static final int MIX_THEMES = 4;
     static final int MIX_THEMES_MIN = 3;
     /** Mỗi chủ đề của ô nhiều chủ đề phải còn ít nhất bấy nhiêu bài (một bài hỏng vẫn còn bài thay). */
-    static final int MIX_ARTICLES_PER_THEME = 2;
+    static final int MIX_ARTICLES_PER_THEME = 4; // lượt #11: ngưỡng 2 thì một bài hỏng là chủ đề hết bài
     static final String SEP = " / ";
 
     /** "Wohnen / Sport" ⇒ [Wohnen, Sport]; chủ đề đơn ⇒ một phần tử; null ⇒ rỗng. */

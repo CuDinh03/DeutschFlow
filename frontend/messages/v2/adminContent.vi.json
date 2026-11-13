@@ -569,7 +569,7 @@
         "approve": "Duyệt cả bộ",
         "approved": "Đã duyệt. Bộ đề được đánh số tiếp theo và nằm ở danh sách bên dưới, trạng thái \"Sắp có\".",
         "approveTitle": "Duyệt cả bộ của lượt #{id}?",
-        "approveBody": "Mọi Teil của lượt này vào kho và được ghép thành một bộ đề ở trạng thái \"Sắp có\". Học viên chưa thấy cho tới khi bạn bấm Phát hành ở danh sách bộ đề. Phần Nghe lấy nguyên từ một đề viết tay đang chạy, vì máy chưa tạo được phần Nghe.",
+        "approveBody": "Mọi Teil của lượt này vào kho và được ghép thành một bộ đề ở trạng thái \"Sắp có\". Học viên chưa thấy cho tới khi bạn bấm Phát hành ở danh sách bộ đề. Phần Nghe của bộ đề là ba Teil Nghe do máy soạn trong lượt này.",
         "title": "Tạo bộ đề tự động",
         "body": "Máy tự chọn chủ đề, lấy nguồn, viết bài, ra câu hỏi, tự kiểm và tự sửa cho mọi Teil của bộ telc B1. Lượt chạy dùng kênh AI đang chọn ở nút \"Tạo đề bằng\" và mất khoảng một giờ. Bạn chỉ duyệt khi cả bộ đã xong.",
         "start": "Tạo bộ đề telc B1",
@@ -636,7 +636,16 @@
           "step4": "Quay lại đây, bấm „Kiểm lại bộ“.",
           "doneTitle": "Thế nào là sửa xong",
           "done": "Sau lần tự kiểm mới nhất, bản nháp không còn đèn đỏ nào: cả các đèn cấp Teil lẫn từng câu. Đèn vàng được phép còn."
-        }
+        },
+        "redo": "Làm lại Teil này",
+        "redoTitle": "Làm lại {teil} của lượt #{id}?",
+        "redoBody": "Máy bỏ bản nháp hiện tại của Teil này, chọn chủ đề mới không trùng các Teil còn lại và tạo lại từ đầu theo luật hiện hành (khoảng 10–20 phút). Các Teil khác giữ nguyên. Trong lúc đó không tạo được lượt mới.",
+        "redoStarted": "Đã bắt đầu làm lại Teil. Bảng tự cập nhật.",
+        "approveBodyNoHoeren": "Mọi Teil của lượt này vào kho và được ghép thành một bộ đề ở trạng thái \"Sắp có\". Học viên chưa thấy cho tới khi bạn bấm Phát hành ở danh sách bộ đề. Phần Nghe lấy nguyên từ một đề viết tay đang chạy, vì lượt này chưa có phần Nghe. Muốn bộ đề có phần Nghe riêng thì bấm „Tạo phần Nghe“ trước khi duyệt.",
+        "addHoeren": "Tạo phần Nghe",
+        "addHoerenTitle": "Tạo phần Nghe cho lượt #{id}?",
+        "addHoerenBody": "Máy thêm ba Teil Nghe (Hören 1–3) vào lượt này, với chủ đề chưa dùng ở các Teil khác, rồi viết lời thoại, ra câu richtig/falsch, tự kiểm và tự sửa (khoảng 20–30 phút). Các Teil đã xong giữ nguyên. Không lưu audio: học viên nghe bằng giọng đọc máy lúc bấm. Trong lúc đó không tạo được lượt mới.",
+        "addHoerenStarted": "Đã bắt đầu tạo phần Nghe. Bảng tự cập nhật."
       },
       "sources": {
         "intro": "Danh mục nơi đăng mà dây chuyền tạo bộ đề được dùng. \"Đọc bài mới\" chỉ lấy danh sách bài (tiêu đề, đường dẫn), không tải bài. Mỗi bài chỉ được dùng một lần.",
@@ -781,7 +790,10 @@
           "TRUE_FALSE": "Lesen Teil 2 A2: một E-Mail hoặc bài ngắn và {itemCount} mệnh đề richtig/falsch (6–10).",
           "MATCH_AD_X_A2": "Lesen Teil 3 A2: {itemCount} tình huống (11–15) và 8 mẩu rao vặt a–h (10–35 từ mỗi mẩu); đúng 1 tình huống x, 1 ví dụ.",
           "FILL_FORM": "Schreiben Teil 1 A2: đoạn văn về một người và form {itemCount} ô, 1 điểm mỗi ô.",
-          "WRITE_NOTE": "Schreiben Teil 2 A2: tình huống + 4 ý, học viên chọn 3 ý, khoảng 40 từ, 10 điểm; không có câu hỏi."
+          "WRITE_NOTE": "Schreiben Teil 2 A2: tình huống + 4 ý, học viên chọn 3 ý, khoảng 40 từ, 10 điểm; không có câu hỏi.",
+          "HOEREN_STATEMENTS": "Hören Teil 1 B1: năm người trả lời một câu hỏi chung (60–110 từ mỗi người), nghe một lần, {itemCount} mệnh đề richtig/falsch (41–45).",
+          "HOEREN_INTERVIEW": "Hören Teil 2 B1: một cuộc phỏng vấn radio 400–650 từ, nghe hai lần, {itemCount} mệnh đề richtig/falsch theo thứ tự bài (46–55).",
+          "HOEREN_ANNOUNCEMENTS": "Hören Teil 3 B1: năm thông báo hoặc tin nhắn ngắn (40–95 từ mỗi bài), mỗi bài một câu dẫn tình huống, nghe hai lần, {itemCount} mệnh đề richtig/falsch (56–60)."
         }
       },
       "matrix": {
@@ -895,7 +907,31 @@
           "FILL_FORM": "Đoạn văn phải chứa đủ thông tin cho 5 ô của form."
         },
         "noteSituation": "Tình huống",
-        "notePoints": "4 ý (học viên chọn 3)"
+        "notePoints": "4 ý (học viên chọn 3)",
+        "hoerenHint": {
+          "HOEREN_STATEMENTS": "Năm người trả lời cùng một câu hỏi; mỗi đoạn {lo}–{hi} từ, văn nói tự nhiên. Đoạn thứ n đi với câu thứ n. Không lưu audio: học viên nghe bằng giọng đọc máy.",
+          "HOEREN_INTERVIEW": "Một cuộc phỏng vấn radio, tổng {lo}–{hi} từ, hỏi đáp rõ từng lượt, hai giọng khác nhau. Không lưu audio: học viên nghe bằng giọng đọc máy.",
+          "HOEREN_ANNOUNCEMENTS": "Năm thông báo hoặc tin nhắn ngắn, mỗi đoạn {lo}–{hi} từ và có một câu dẫn tình huống. Đoạn thứ n đi với câu thứ n. Không lưu audio: học viên nghe bằng giọng đọc máy."
+        },
+        "hoerenFraming": "Câu khung (đọc trước năm đoạn)",
+        "hoerenInterview": "Các lượt lời",
+        "hoerenNoTurns": "Chưa có lời thoại. Bấm \"AI viết lại cả bài\" để máy viết.",
+        "hoerenTurnN": "Lượt {n}",
+        "hoerenSegmentN": "Đoạn {n} · câu {no}",
+        "hoerenVoice": "Giọng",
+        "hoerenVoiceName": {
+          "PRUEFER": "Giọng nữ",
+          "PARTNER": "Giọng nam"
+        },
+        "hoerenNameN": "Tên người nói của lượt {n}",
+        "hoerenNamePh": "Moderatorin, Herr Vogel…",
+        "hoerenRemoveTurn": "Xoá lượt {n}",
+        "hoerenLeadIn": "Câu dẫn tình huống",
+        "hoerenLeadInHint": "Chỉ viết phần tình huống. Khi vào kho máy tự thêm \"Lesen Sie jetzt die Aufgabe {no}.\" ở trước.",
+        "hoerenTurnText": "Lời của lượt {n}",
+        "hoerenSegmentText": "Lời thoại đoạn {n}",
+        "hoerenAddTurn": "Thêm lượt lời",
+        "hoerenEditWarning": "Đã có câu hỏi: sửa lời thoại xong hãy kiểm câu bằng chứng của từng câu, hoặc sinh lại câu của đoạn vừa sửa."
       },
       "metrics": {
         "none": "Bảng đo hiện sau khi có bài.",
@@ -989,7 +1025,9 @@
         "tfCount": "richtig {richtig} · falsch {falsch}",
         "tfUnbalanced": "Đề thật có 2–3 câu mỗi loại — đổi đáp án hoặc sinh lại cho cân.",
         "formPreview": "Form như học viên thấy (kèm đáp án)",
-        "formRule": "Sai chính tả nhẹ vẫn được tính, ô có số phải đúng tuyệt đối. Sửa đáp án và cách viết khác trong thẻ từng ô."
+        "formRule": "Sai chính tả nhẹ vẫn được tính, ô có số phải đúng tuyệt đối. Sửa đáp án và cách viết khác trong thẻ từng ô.",
+        "hoerenUnbalanced": "Mỗi loại nên chiếm 40–60 % số câu. Đổi đáp án kèm sửa mệnh đề, hoặc sinh lại câu cho cân.",
+        "hoerenOneSided": "Mọi câu cùng một đáp án: tự kiểm sẽ báo đỏ và chặn duyệt. Sinh lại vài câu."
       },
       "score": {
         "phrasing": "Diễn đạt đáp án",
@@ -1056,7 +1094,8 @@
         "writingPoints": "Bốn ý cần viết",
         "adsN": "{n} mẩu rao vặt",
         "notePoints": "Chọn 3 trong 4 ý, khoảng 40 từ",
-        "formAccept": "cũng được: {list}"
+        "formAccept": "cũng được: {list}",
+        "hoerenTts": "Lúc thi học viên chỉ nghe (giọng đọc máy) và đọc các mệnh đề; lời thoại dưới đây chỉ hiện cho người duyệt."
       },
       "wizard": {
         "back": "Về danh sách Xưởng đề",
@@ -1162,7 +1201,10 @@
           "MC_INFO": "Bảng chỉ dẫn tầng ở một trung tâm thương mại",
           "TRUE_FALSE": "E-Mail của bạn kể về chuyến đi cuối tuần",
           "FILL_FORM": "Đăng ký khoá học bơi ở trung tâm thể thao",
-          "WRITE_NOTE": "Nhắn cô giáo: hôm nay bạn không đến lớp được"
+          "WRITE_NOTE": "Nhắn cô giáo: hôm nay bạn không đến lớp được",
+          "HOEREN_STATEMENTS": "Năm người kể họ đi làm bằng gì và vì sao",
+          "HOEREN_INTERVIEW": "Phỏng vấn người mở tiệm sửa xe đạp trong khu phố",
+          "HOEREN_ANNOUNCEMENTS": "Tin nhắn thoại của phòng khám, thông báo ở nhà ga, dự báo thời tiết"
         }
       },
       "levelName": {
