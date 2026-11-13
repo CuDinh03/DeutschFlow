@@ -15,7 +15,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Cờ "chỉ nói" (đặc tả luyendeu ORG-65, AC-ORG-46) trên Postgres thật: native query + migration V387.
+ * Cờ "chỉ nói" (đặc tả luyendeu ORG-65, AC-ORG-46) trên Postgres thật: native query + migration V388.
  * Đặt tên {@code *DbTest} để chạy ở stage unit của CI như {@code PlacementTestServiceDbTest}.
  */
 @SpringBootTest
@@ -71,7 +71,7 @@ class ClassPracticeProgramRepositoryDbTest extends AbstractPostgresIntegrationTe
     }
 
     @Test
-    @DisplayName("CHECK của V387: ngày bắt đầu phải là thứ Hai")
+    @DisplayName("CHECK của V388: ngày bắt đầu phải là thứ Hai")
     void ngayBatDauPhaiLaThuHai() {
         long lopId = lop(user(User.Role.TEACHER));
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbc.update("""

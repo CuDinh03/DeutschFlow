@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 /**
- * Chương trình luyện của một lớp (V387, đặc tả luyendeu ORG-50): tuần 1 bắt đầu thứ Hai {@link #startDate}
+ * Chương trình luyện của một lớp (V388, đặc tả luyendeu ORG-50): tuần 1 bắt đầu thứ Hai {@link #startDate}
  * (giờ VN), kéo dài {@link #weeks} tuần. Lớp có chương trình chưa kết thúc ⇒ học viên ACTIVE chỉ luyện
  * bằng giọng nói (ORG-65).
  */
