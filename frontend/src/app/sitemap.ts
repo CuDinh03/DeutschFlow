@@ -41,6 +41,14 @@ function slugEntries(page: string, priority: number): MetadataRoute.Sitemap {
 }
 
 /**
+ * Dựng lúc có request, không dựng lúc build (13/11/2026): bước build trên máy chủ không gọi được backend,
+ * nên bản dựng sẵn chỉ có nghề bộ viết tay (168 thay vì 180 URL) và giữ nguyên tới lần làm mới 600 s
+ * đầu tiên — mỗi lần deploy frontend có ~10 phút sitemap thiếu trang nghề. Crawler gọi sitemap ít, mỗi
+ * lần chỉ thêm 1–2 request GET công khai tới backend.
+ */
+export const dynamic = 'force-dynamic'
+
+/**
  * Sitemap — chỉ liệt kê các trang công khai, có thể index (marketing/SEO).
  * Trang sau đăng nhập (admin/teacher/student/org) cố ý KHÔNG đưa vào.
  */
