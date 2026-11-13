@@ -32,7 +32,13 @@ public class EdgeTtsService {
     private String edgeTtsUrl;
 
     // 3s connect, 10s read — TTS sits on the speaking hot path; a hung sidecar must not pin the thread.
-    private final RestTemplate restTemplate = RestTemplates.withTimeouts(3000, 10000);
+    private final RestTemplate restTemplate = withTrace(RestTemplates.withTimeouts(3000, 10000));
+
+    /** Nhật ký gọi AI: một dòng mỗi lần gọi sidecar Edge TTS (chỉ host, mã, thời gian — không ghi câu đọc). */
+    private static RestTemplate withTrace(RestTemplate rt) {
+        rt.getInterceptors().add(new com.deutschflow.ai.trace.AiTraceInterceptor("tts", "edge-tts"));
+        return rt;
+    }
 
     // ─── Usage tracking (in-memory, resets on restart) ────────────────────
     private final AtomicLong totalRequests   = new AtomicLong(0);

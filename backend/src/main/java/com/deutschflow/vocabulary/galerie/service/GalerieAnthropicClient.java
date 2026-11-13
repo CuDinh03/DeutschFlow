@@ -81,9 +81,23 @@ public class GalerieAnthropicClient {
                 .addUserMessage(userMessage)
                 .build();
 
-        BetaMessage response = clientInstance().beta().messages().create(params);
+        com.deutschflow.ai.trace.AiCallTrace trace = com.deutschflow.ai.trace.AiCallTrace.start(
+                "galerie-svg", "https://api.anthropic.com", model);
+        BetaMessage response;
+        try {
+            response = clientInstance().beta().messages().create(params);
+        } catch (com.anthropic.errors.AnthropicServiceException e) {
+            trace.failHttp(e.statusCode());
+            throw e;
+        } catch (RuntimeException e) {
+            trace.fail(e);
+            throw e;
+        }
 
         boolean refused = BetaStopReason.REFUSAL.equals(response.stopReason());
+        trace.tokens((int) response.usage().inputTokens(), (int) response.usage().outputTokens());
+        if (refused) trace.outcome("refused");
+        else trace.ok();
         String text = refused ? "" : response.content().stream()
                 .flatMap(block -> block.text().stream())
                 .map(BetaTextBlock::text)

@@ -313,16 +313,30 @@ public class GroqWhisperClient {
     }
 
     /** {@link AiServiceException} kèm phân loại nội bộ; nơi gọi chỉ thấy mã/câu chữ như trước. */
-    static final class AttemptFailure extends AiServiceException {
+    static final class AttemptFailure extends AiServiceException
+            implements com.deutschflow.ai.trace.AiCallTrace.HttpStatusCarrier {
         private final transient FailureKind kind;
         /** {@code retry-after} của upstream tính bằng ms; null nếu không có/không đọc được. */
         private final transient Long retryAfterMillis;
+        /** Mã HTTP upstream trả (null = không có phản hồi HTTP: timeout, lỗi kết nối, thân rỗng) — cho nhật ký gọi AI. */
+        private final transient Integer httpStatus;
 
         AttemptFailure(FailureKind kind, Long retryAfterMillis, AiErrorCode code, String message,
+                       Integer retryAfterSeconds, Throwable cause) {
+            this(kind, retryAfterMillis, null, code, message, retryAfterSeconds, cause);
+        }
+
+        AttemptFailure(FailureKind kind, Long retryAfterMillis, Integer httpStatus, AiErrorCode code, String message,
                        Integer retryAfterSeconds, Throwable cause) {
             super(code, message, retryAfterSeconds, cause);
             this.kind = kind;
             this.retryAfterMillis = retryAfterMillis;
+            this.httpStatus = httpStatus;
+        }
+
+        @Override
+        public Integer httpStatus() {
+            return httpStatus;
         }
     }
 
@@ -369,7 +383,8 @@ public class GroqWhisperClient {
      * Chuỗi gọi của một lượt nhận diện (xem javadoc lớp): chính → dự phòng (ngay, không chờ) →
      * chờ {@code retry-after} ngắn rồi chính lần nữa. Tối đa 3 lời gọi HTTP.
      */
-    private <T> T withFallback(java.util.function.Function<Target, T> send) {
+    private <T> T withFallback(java.util.function.Function<Target, T> send,
+                               com.deutschflow.ai.trace.AiCallTrace trace) {
         java.util.List<AiServiceException> failures = new java.util.ArrayList<>(3);
         AiServiceException first;
         long primaryFailedAtNanos;
@@ -391,6 +406,7 @@ public class GroqWhisperClient {
         if (tryFallback) {
             log.warn("[Whisper] model chính {} hỏng ({}) — thử dự phòng {} @ {}",
                     primary.model(), firstKind, fallback.model(), fallback.url());
+            trace.fallback(fallback.url(), fallback.model());
             try {
                 T result = attempt(send, fallback);
                 count("speaking.stt.fallback", fallback, "outcome", "success");
@@ -417,6 +433,7 @@ public class GroqWhisperClient {
                 throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
                         "Yêu cầu nhận diện giọng nói bị gián đoạn, vui lòng thử lại.", null, ie);
             }
+            trace.retry(primary.url(), primary.model());
             try {
                 return attempt(send, primary);
             } catch (AiServiceException e) {
@@ -472,7 +489,7 @@ public class GroqWhisperClient {
         // chỉ khác phân loại nội bộ để chuỗi dự phòng xử lý riêng. Mã ngoài 2xx còn lại (3xx, 404…)
         // coi như tạm thời — đúng hành vi cũ (mọi mã khác 200 đều chuyển dự phòng).
         FailureKind kind = (statusCode == 401 || statusCode == 403) ? FailureKind.AUTH : FailureKind.TRANSIENT;
-        return new AttemptFailure(kind, null, AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
+        return new AttemptFailure(kind, null, statusCode, AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
                 "Dịch vụ nhận diện giọng nói tạm thời không khả dụng, vui lòng thử lại sau.", null, null);
     }
 
@@ -485,7 +502,7 @@ public class GroqWhisperClient {
         String body = response.body() == null ? "" : response.body();
         log.warn("[Whisper] {} audio không đọc được: HTTP {} {}", phase, response.statusCode(),
                 body.length() > 300 ? body.substring(0, 300) : body);
-        return new AttemptFailure(FailureKind.AUDIO, null, AiErrorCode.STT_FAILED,
+        return new AttemptFailure(FailureKind.AUDIO, null, response.statusCode(), AiErrorCode.STT_FAILED,
                 "Không đọc được bản ghi âm — bạn thử ghi lại nhé.", null, null);
     }
 
@@ -509,7 +526,7 @@ public class GroqWhisperClient {
                         .filter(e -> e.getKey().toLowerCase(java.util.Locale.ROOT).startsWith("x-ratelimit"))
                         .map(e -> e.getKey() + "=" + String.join(",", e.getValue()))
                         .collect(java.util.stream.Collectors.joining(" ")));
-        return new AttemptFailure(FailureKind.RATE_LIMITED, parseRetryAfterMillis(rawRetryAfter),
+        return new AttemptFailure(FailureKind.RATE_LIMITED, parseRetryAfterMillis(rawRetryAfter), 429,
                 AiErrorCode.RATE_LIMITED,
                 "Hệ thống đang nhận quá nhiều bản ghi âm, vui lòng thử lại sau ít phút.",
                 retryAfter != null ? retryAfter : DEFAULT_RATE_LIMIT_RETRY_AFTER_SECONDS, null);
@@ -525,6 +542,32 @@ public class GroqWhisperClient {
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    /**
+     * Bọc một lượt nhận diện bằng nhật ký gọi AI: một dòng cho cả chuỗi chính → dự phòng → thử lại, ghi đích
+     * cuối cùng đã gọi, số lần gọi HTTP và số lần chuyển dự phòng.
+     */
+    private <T> T traced(String feature,
+                         java.util.function.Function<com.deutschflow.ai.trace.AiCallTrace, T> body) {
+        com.deutschflow.ai.trace.AiCallTrace trace =
+                com.deutschflow.ai.trace.AiCallTrace.start(feature, primary.url(), primary.model());
+        try {
+            T result = body.apply(trace);
+            trace.ok();
+            return result;
+        } catch (RuntimeException e) {
+            trace.fail(e);
+            throw e;
+        }
+    }
+
+    /** Hàng chờ STT đầy (chưa gọi ra ngoài): vẫn ghi một dòng nhật ký {@code result=ai_busy} để thấy quá tải. */
+    private AiServiceException busy(String feature) {
+        AiServiceException e = new AiServiceException(AiErrorCode.AI_BUSY,
+                "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
+        com.deutschflow.ai.trace.AiCallTrace.start(feature, primary.url(), primary.model()).fail(e);
+        return e;
     }
 
     /** Model CHÍNH theo cấu hình. Model thực sự trả lời một lượt nằm ở {@code model()} của kết quả. */
@@ -579,16 +622,15 @@ public class GroqWhisperClient {
         boolean acquired = false;
         try {
             acquired = concurrencyLimiter.tryAcquireWhisper();
-            if (!acquired) throw new AiServiceException(AiErrorCode.AI_BUSY,
-                    "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
+            if (!acquired) throw busy("stt-verbose");
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
-            return circuitBreakers.call(
+            return traced("stt-verbose", trace -> circuitBreakers.call(
                     "groqWhisper",
                     () -> withFallback(t -> sendAndParseVerbose(
-                            buildRequest(t, audioBytes, filename, language, prompt), t.model())),
+                            buildRequest(t, audioBytes, filename, language, prompt), t.model()), trace),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
-                    AiServiceException::isRateLimited);
+                    AiServiceException::isRateLimited));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
@@ -685,17 +727,17 @@ public class GroqWhisperClient {
             acquired = concurrencyLimiter.tryAcquireWhisper();
             if (!acquired) {
                 log.warn("[Whisper] Semaphore timeout — too many concurrent STT requests");
-                throw new AiServiceException(AiErrorCode.AI_BUSY,
-                        "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
+                throw busy("stt");
             }
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
-            return circuitBreakers.call(
+            return traced("stt", trace -> circuitBreakers.call(
                     "groqWhisper",
                     () -> withFallback(t -> sendAndParseTranscribe(
-                            buildRequest(t, audioBytes, filename, language, prompt), prompt, audioBytes.length, t.model())),
+                            buildRequest(t, audioBytes, filename, language, prompt), prompt, audioBytes.length, t.model()),
+                            trace),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
-                    AiServiceException::isRateLimited);
+                    AiServiceException::isRateLimited));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
