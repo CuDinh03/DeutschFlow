@@ -345,8 +345,22 @@ function DiagnosticRun({
     } else router.push(HUB)
   }
 
+  // Nộp một phần là chấm luôn và KHÔNG làm lại được trong bài chẩn đoán. Còn câu bỏ trống thì hỏi lại trước
+  // (13/11/2026: bấm "Phần tiếp" liên tiếp để xem trước các phần đã chấm 0 điểm bảy phần của một tài khoản thử).
+  const [submitOpen, setSubmitOpen] = React.useState(false)
+  const unanswered = React.useMemo(() => {
+    if (!part || part === ORAL_PART || part === WRITING_KEY) return 0
+    const items = findTeil(overview.sectionsJson, part)?.items ?? []
+    return items.filter((it) => !(answers[it.id] ?? '').trim()).length
+  }, [part, overview.sectionsJson, answers])
+  const requestNext = () => {
+    if (unanswered > 0) setSubmitOpen(true)
+    else void next()
+  }
+
   const next = async () => {
     if (!part) return
+    setSubmitOpen(false)
     setBusy(true)
     setError(null)
     try {
@@ -471,7 +485,7 @@ function DiagnosticRun({
       <button
         type="button"
         disabled={busy || !part || (part === WRITING_KEY && wordCount(text) === 0)}
-        onClick={() => void next()}
+        onClick={requestNext}
         className="ga-ui inline-flex min-h-11 items-center justify-center gap-1.5 rounded-ga-touch bg-ga-yellow px-4 text-ga-body font-semibold text-ga-ink hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:opacity-50"
       >
         {label} <ArrowRight size={16} aria-hidden />
@@ -492,6 +506,18 @@ function DiagnosticRun({
     >
       {body}
     </PracticeShell>
+    <ConfirmDialog
+      open={submitOpen}
+      onOpenChange={setSubmitOpen}
+      tone="caution"
+      title={t('submitTitle', { n: unanswered })}
+      description={t('submitBody', { part: partName })}
+      confirmLabel={t('submitConfirm')}
+      cancelLabel={t('keepGoing')}
+      destructive={false}
+      loading={busy}
+      onConfirm={() => void next()}
+    />
     <ConfirmDialog
       open={exitOpen}
       onOpenChange={setExitOpen}

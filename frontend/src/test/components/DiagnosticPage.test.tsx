@@ -91,6 +91,16 @@ beforeEach(() => {
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener: () => undefined, removeEventListener: () => undefined, addListener: () => undefined, removeListener: () => undefined, onchange: null, dispatchEvent: () => false })) as unknown as typeof window.matchMedia
 })
 
+
+/**
+ * Bấm "Nộp phần này". Còn câu bỏ trống thì trang hỏi lại — bấm "Vẫn nộp phần này" để đi tiếp như ý của ca kiểm.
+ */
+async function submitPart(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /Nộp phần này/ }))
+  const confirm = screen.queryByRole('button', { name: 'Vẫn nộp phần này' })
+  if (confirm) await user.click(confirm)
+}
+
 describe('Bài chẩn đoán', () => {
   it('khai thông tin: ngày đã qua báo lỗi tại chỗ; ngày hợp lệ ⇒ bắt đầu với số phút đã chọn', async () => {
     h.get.mockResolvedValue(view({ status: 'NONE', examId: null }))
@@ -128,6 +138,31 @@ describe('Bài chẩn đoán', () => {
     ])
   })
 
+  it('còn câu bỏ trống: bấm nộp phần thì hỏi lại; "Làm tiếp" không chấm, "Vẫn nộp phần này" mới chấm', async () => {
+    h.get.mockResolvedValue(view({}))
+    // Đang ở Hören Teil 1 (đề giả có 2 câu), chưa trả lời câu nào.
+    h.overview.mockResolvedValue(overview(BEFORE_HOEREN, TEILE, HOEREN))
+    h.check.mockResolvedValue(checked)
+    const user = userEvent.setup()
+    render(<DiagnosticPage />)
+    expect(await screen.findByText('Bài chẩn đoán · phần 6/10')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Nộp phần này/ }))
+    expect(await screen.findByText('Còn 2 câu chưa trả lời')).toBeInTheDocument()
+    expect(screen.getByText(/không làm lại được trong bài chẩn đoán/)).toBeInTheDocument()
+    expect(h.check).not.toHaveBeenCalled()
+
+    // Quay lại làm tiếp: không chấm, vẫn ở phần 1.
+    await user.click(screen.getByRole('button', { name: /làm tiếp/i }))
+    expect(h.check).not.toHaveBeenCalled()
+    expect(screen.getByText('Bài chẩn đoán · phần 6/10')).toBeInTheDocument()
+
+    // Xác nhận nộp: lúc này mới chấm.
+    await user.click(screen.getByRole('button', { name: /Nộp phần này/ }))
+    await user.click(await screen.findByRole('button', { name: 'Vẫn nộp phần này' }))
+    await waitFor(() => expect(h.check).toHaveBeenCalledTimes(1))
+  })
+
   it('thứ tự phần như thi thật: Lesen 1–3 → Sprachbausteine 1–2 → Hören 1–3 → Schreiben → Sprechen', async () => {
     h.get.mockResolvedValue(view({}))
     h.overview.mockResolvedValue(overview([]))
@@ -143,7 +178,7 @@ describe('Bài chẩn đoán', () => {
     for (let i = 0; i < titles.length; i++) {
       expect(await screen.findByText(`Bài chẩn đoán · phần ${i + 1}/10`)).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: titles[i] })).toBeInTheDocument()
-      await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+      await submitPart(user)
     }
     expect(h.check.mock.calls.map((c) => c[1])).toEqual(TEILE.slice(0, 8))
     expect(await screen.findByText('Bài chẩn đoán · phần 9/10')).toBeInTheDocument()
@@ -170,13 +205,13 @@ describe('Bài chẩn đoán', () => {
     expect(state('HOEREN-1')).toBe('todo')
 
     // Lesen 2, Lesen 3 → nhảy qua Sprachbausteine 1 (đã xong) sang Sprachbausteine 2 → Hören 1 với nháp cũ
-    await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+    await submitPart(user)
     expect(await screen.findByText('Bài chẩn đoán · phần 3/10')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+    await submitPart(user)
     expect(await screen.findByText('Bài chẩn đoán · phần 5/10')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+    await submitPart(user)
     expect(await screen.findByText('Bài chẩn đoán · phần 6/10')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+    await submitPart(user)
     await waitFor(() => expect(h.check).toHaveBeenCalledTimes(4))
     expect(h.check.mock.calls.map((c) => c[1])).toEqual(['LESEN-2', 'LESEN-3', 'SPRACHBAUSTEINE-2', 'HOEREN-1'])
     expect(h.check.mock.calls[3][2]).toEqual({ 'H1-1': 'richtig' })
@@ -202,10 +237,10 @@ describe('Bài chẩn đoán', () => {
     expect(screen.getByText('Nghe 1 lần')).toBeInTheDocument()
     // bài chẩn đoán không có "Luyện thoải mái"
     expect(screen.queryByText('Nghe không giới hạn')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+    await submitPart(user)
     expect(await screen.findByRole('heading', { name: 'Hören · Teil 2' })).toBeInTheDocument()
     expect(screen.getByText('Nghe 2 lần')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+    await submitPart(user)
     expect(await screen.findByRole('heading', { name: 'Hören · Teil 3' })).toBeInTheDocument()
     expect(screen.getByText('Nghe 2 lần')).toBeInTheDocument()
   })
@@ -242,7 +277,7 @@ describe('Bài chẩn đoán', () => {
 
     // Lesen, Bausteine, Hören 1–2 đã xong ⇒ vào thẳng Hören Teil 3 (phần 8)
     expect(await screen.findByText('Bài chẩn đoán · phần 8/10')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Phần tiếp/ }))
+    await submitPart(user)
     expect(h.check).toHaveBeenCalledWith(9, 'HOEREN-3', {}, expect.any(Number))
 
     // Viết: đề thật, nộp thì AI chấm

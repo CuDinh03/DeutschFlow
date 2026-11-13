@@ -3416,7 +3416,7 @@
       "leave": "Einstufungstest verlassen (erledigte Teile bleiben)",
       "runSubtitle": "Einstufungstest · Teil {n}/{total}",
       "progressLabel": "Teil {n}/{total}",
-      "nextPart": "Nächster Teil",
+      "nextPart": "Diesen Teil abgeben",
       "finishing": "Ergebnis wird zusammengestellt…",
       "resultTitle": "Zuerst {skill} üben",
       "resultTitlePlain": "Ergebnis des Einstufungstests",
@@ -3460,7 +3460,10 @@
       "exitFailed": "Der Entwurf konnte nicht gespeichert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       "exitRetry": "Erneut versuchen",
       "exitConfirm": "Speichern und verlassen",
-      "keepGoing": "Weitermachen"
+      "keepGoing": "Weitermachen",
+      "submitTitle": "Noch {n} Aufgaben ohne Antwort",
+      "submitBody": "Wenn Sie {part} jetzt abgeben, zählen leere Aufgaben als falsch, und dieser Teil kann im Einstufungstest nicht wiederholt werden.",
+      "submitConfirm": "Trotzdem abgeben"
     }
   }
 }
