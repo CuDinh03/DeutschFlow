@@ -10,15 +10,13 @@ import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { LandingHeader } from '@/components/landing-v2/LandingHeader'
 import { LandingFooter } from '@/components/landing-v2/LandingFooter'
+import { serverBackendFetch } from '@/lib/serverBackend'
 
-const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
-  .replace(/\/+$/, '')
-  .replace(/\/api$/, '')
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://mydeutschflow.com').replace(/\/+$/, '')
 
 async function fetchReport(token: string): Promise<GradeReport | null> {
   try {
-    const res = await fetch(`${backendOrigin}/api/public/grade-report/${encodeURIComponent(token)}`, {
+    const res = await serverBackendFetch(`/api/public/grade-report/${encodeURIComponent(token)}`, {
       cache: 'no-store',
     })
     if (!res.ok) return null

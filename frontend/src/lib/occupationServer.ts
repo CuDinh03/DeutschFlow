@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import type { IndexableOccupation, OccupationDetail, OccupationSummary } from '@/lib/occupationTypes'
 import { isOccupationCode } from '@/lib/occupationTypes'
+import { serverBackendFetch } from '@/lib/serverBackend'
 
 /**
  * Đọc danh mục nghề công khai từ trang server (`/phong-van`, sitemap). Giữ bản sao 10 phút — cùng
@@ -14,9 +15,6 @@ import { isOccupationCode } from '@/lib/occupationTypes'
  * thu prod 21/10/2026: frontend gọi backend từ một IP cho mọi khách, bot quét sitemap làm backend 429
  * và trước đây hàng loạt trang nghề thành 404.
  */
-const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
-  .replace(/\/+$/, '')
-  .replace(/\/api$/, '')
 
 const REVALIDATE_SECONDS = 600
 
@@ -29,7 +27,7 @@ export class OccupationUnavailableError extends Error {
 }
 
 function request(path: string): Promise<Response> {
-  return fetch(`${backendOrigin}/api/public/occupations${path}`, {
+  return serverBackendFetch(`/api/public/occupations${path}`, {
     next: { revalidate: REVALIDATE_SECONDS },
   })
 }

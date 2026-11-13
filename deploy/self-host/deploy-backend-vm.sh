@@ -142,6 +142,8 @@ if ! wait_http "$PUBLIC_HEALTH" '"UP"' 60; then
   exit 1
 fi
 success "traffic đã ở $NEW — $PUBLIC_HEALTH UP"
+# Tên nội bộ cho frontend: chỉ chuyển sang màu mới khi màu mới đã healthy và nhận traffic.
+api_alias_move "$NEW" "$OLD"
 
 # ── Xả màu cũ ─────────────────────────────────────────────────
 if container_running "$OLD"; then
