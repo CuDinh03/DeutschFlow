@@ -27,6 +27,14 @@ public interface OccupationQuestionRepository extends JpaRepository<OccupationQu
     List<OccupationQuestion> findUntranslated(@Param("rejected") OccupationContentStatus rejected);
 
     /**
+     * Mỗi nghề: số câu đã duyệt ở một phase và lần sửa mới nhất của các câu đó — sitemap trang nghề.
+     * Mỗi phần tử: {@code [occupation_code, count, max(updated_at)]}.
+     */
+    @Query("SELECT q.occupationCode, COUNT(q), MAX(q.updatedAt) FROM OccupationQuestion q "
+            + "WHERE q.status = :status AND q.phase = :phase GROUP BY q.occupationCode")
+    List<Object[]> statsByOccupation(@Param("status") OccupationContentStatus status, @Param("phase") String phase);
+
+    /**
      * Số phiên phỏng vấn theo từng nghề — nghề được chọn nhiều duyệt trước (quyết định 6).
      * Mỗi phần tử: {@code [occupation_code, count]}.
      */

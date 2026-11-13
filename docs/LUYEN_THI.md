@@ -23,10 +23,11 @@ Bài chẩn đoán ──► Hôm nay ──► Đề ──► Làm bài (luy�
 
 | Bước | Route | Mục đích |
 |---|---|---|
-| Bài chẩn đoán | `/v2/student/exam/diagnostic` | Khai ngày thi, phút mỗi ngày; 5 phần chấm theo chuẩn telc B1; sinh lịch ôn |
+| Bài chẩn đoán | `/v2/student/exam/diagnostic` | Khai ngày thi, phút mỗi ngày; đủ mọi Teil như đề thật (9 Teil phần viết + thi nói) chấm theo chuẩn telc B1; sinh lịch ôn |
 | Hôm nay | `/v2/student/exam` | Thẻ Hôm nay, bốn kỹ năng, lịch tuần đổi chỗ được, danh sách đề |
 | Đề | `/v2/student/mock-exam/practice?examId=` | Một đề: Teil theo phần thi, ngăn Chiến thuật, lịch sử thi thử |
-| Làm bài | `/v2/student/mock-exam/practice/teil?examId=&teil=` | Luyện một Teil, không ép giờ, nộp xong có phân tích |
+| Làm bài | `/v2/student/mock-exam/practice/teil?examId=&teil=` | Luyện một Teil, không ép giờ, nộp xong có phân tích. `&at=<khối>:<đầu>:<cuối>&w=<chữ>` (mở từ sổ từ) ⇒ cuộn tới và tô tạm chữ đã lưu 4 s; chữ ở vị trí cũ lệch (đề đã sửa) ⇒ tìm lại chữ trong khối, không thấy thì thôi |
+| Sổ từ | `/v2/student/vocabulary/my-words` | Từ đã lưu khi luyện đọc: theo chủ đề / theo bài đọc, tìm, "Mở trong bài", chuyển chủ đề, sửa nghĩa, gỡ (xác nhận); lối vào đầu dải bài luyện của trang Từ vựng |
 | Thi thử | `/v2/student/mock-exam/full?examId=` | Màn trước khi thi → làm bài có đồng hồ tổng của server |
 | Kết quả | `/v2/student/mock-exam/full?attemptId=` | Kết luận, điểm "Ước tính", lấy lại điểm, xem lại từng Teil |
 | Phòng thi nói — lối vào | `/v2/student/mock-exam/oral?provider=&level=&mode=MOCK\|DRILL&teil=&return=` | Thi thử: Kiểm tra micro (lần đầu hoặc micro chưa cho phép) rồi tạo phiên; luyện Teil: tạo phiên ngay |
@@ -185,16 +186,32 @@ nút "Xem chiến thuật". Đồng hồ dừng khi tab ẩn, khi luyện thoả
 
 - Khai thông tin: kỳ thi telc Deutsch B1 (chỉ hiện), ngày thi ("Còn N ngày", ngày đã qua báo lỗi dưới ô), phút mỗi ngày
   20/30/45/60. Bắt đầu **đặt mục tiêu học của hồ sơ thành telc B1** (ghi rõ trên form).
-- Năm phần (~85 phút, lưu từng phần, làm dở được — lần sau vào thẳng phần đang dở):
+- **Đủ mọi Teil như đề thật** (owner chốt 13/11/2026; trước đó chỉ Teil 1 mỗi phần), theo thứ tự thi thật — mười
+  phần: Lesen 1, 2, 3 → Sprachbausteine 1, 2 → Hören 1, 2, 3 → Schreiben → Sprechen. Khoảng 170 phút
+  (`ABOUT_MINUTES` = phần viết 150' như thi thật + thi nói ~20'); mỗi Teil lưu riêng, làm dở được, chia nhiều buổi được
+  — lần sau vào thẳng phần đầu tiên chưa xong:
 
 | Phần | Nguồn | Chấm |
 |---|---|---|
-| Lesen T1, Sprachbausteine T1, Hören T1 | Một đề telc B1 học viên mở được, ít luyện nhất trong các Teil chẩn đoán | Theo đáp án, qua luyện đề (`check`) |
+| Lesen T1–T3, Sprachbausteine T1–T2, Hören T1–T3 | Một đề telc B1 học viên mở được: đề đủ cả chín Teil trước, rồi tới đề ít Teil chẩn đoán đã luyện nhất, bằng nhau thì đề mới nhất | Theo đáp án, qua luyện đề (`check`) |
 | Schreiben | Đề Viết thật của đề đó (30') | AI theo phiếu telc B1 (`schreiben`) |
 | Sprechen | Một lượt **thi thử phần nói** telc B1 làm sau khi bắt đầu bài chẩn đoán | AI theo rubric telc của phòng thi nói |
 
   Phòng thi nói chỉ chấm theo phiếu ở chế độ thi thử trọn phần (chế độ luyện từng Teil chỉ nhận xét từng lượt), nên
   phần Nói là thi thử trọn phần. Teil đã luyện trước đó trong đề được chọn tính là đã làm (dùng điểm cũ).
+- Danh sách phần do server trả (`teile` của `GET /exam-diagnostic` = `ExamDiagnosticScoring.TEILE`); màn làm bài bỏ
+  Teil mà đề đã chọn không có. Tiêu đề ghi "Lesen · Teil 2" với phần thi có nhiều Teil; thanh tiến độ gom năm nhóm
+  phần thi, mỗi Teil một vạch (`data-part`, `data-state`).
+- Hören luôn như thi thật (không có "Luyện thoải mái"): mỗi Teil một lần Chuẩn bị → Ansage → đọc câu hỏi → nghe; lượt
+  nghe theo `max_plays` của đề (Teil 1 một lần, Teil 2 và 3 hai lần). Đề không khai `max_plays` thì bài chẩn đoán bù
+  theo đề thật (`withExamPlays`: 1/2/2) thay vì để nghe không giới hạn. Object Teil được memo theo (đề, khoá Teil) —
+  dựng lại ở mỗi lần render sẽ làm màn Nghe chạy lại hướng dẫn mỗi khi chọn đáp án.
+- **Lượt bắt đầu từ bản ngắn** (đang dở lúc phát hành bản đủ Teil): bài chẩn đoán không lưu "danh sách phần đã làm" —
+  phần nào xong là đọc từ tiến độ luyện (`mock_exam_practice_progress`) của đề đã chọn. Vì vậy Teil 1 đã chấm, nháp đang
+  viết và lượt thi nói đã có đều được giữ; học viên làm tiếp phần đầu tiên chưa xong theo thứ tự mới (ví dụ đã xong
+  Lesen 1 + Sprachbausteine 1 ⇒ vào Lesen 2) và chỉ chốt khi đủ mọi Teil. Đề đã chọn mà thiếu Teil 2/3 thì chỉ làm các
+  Teil đề có (bắt buộc bốn Teil lõi `CORE_TEILE`). Bài bản ngắn **đã chốt** giữ nguyên kết quả và lịch ôn; `shortForm =
+  true` ⇒ màn kết quả thêm dòng mời làm lại để đo đủ Teil. Không có migration.
 - Kết quả: "<kỹ năng thấp nhất> cần luyện trước", 4 thanh (Viết/Nói ghi "AI chấm theo tiêu chí telc · ước tính"),
   thẻ "Lịch ôn N tuần đã sẵn sàng · M phút mỗi ngày · K lần thi thử", "Làm lại bài chẩn đoán".
 
@@ -259,6 +276,11 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | POST | `/mock-exams/practice/attempts/{id}/teile/{key}/items/{itemId}/ask-ai` `{locale}` | 〃 cho lượt thi thử đã nộp/dừng (người khác ⇒ 404, đang làm ⇒ 409) | 〃 |
 | DELETE | `/mock-exams/practice/{examId}/teile/{key}[?keepMarks=false]` | Làm lại Teil (mặc định giữ đánh dấu bài đọc) | 〃 |
 | GET/PUT | `/mock-exams/practice/{examId}/teile/{key}/marks` | Đánh dấu bài đọc của Teil (ghi đè cả gói; sai ⇒ 400) | 〃 + `PassageMarksValidator` |
+| POST / GET | `/my-words` `{text, sentence, examId, teilKey, block, start, end, attemptId?}` | "Lưu từ" ở Luyện Teil và xem lại thi thử (13/11/2026; `attemptId` ⇒ server lấy đề từ lượt, lượt người khác ⇒ 404, chưa nộp / đã huỷ ⇒ 409): 1–5 từ bôi đen ⇒ sổ từ riêng + thẻ ôn. Nghĩa: kho `words` (dạng gốc / biến cách / Partizip II) → `vocab_lookup_cache` → AI tầng EXPLAIN (không trừ ví, trần 40 từ cần AI / ngày ⇒ 429; AI lỗi ⇒ 503; chữ sai ⇒ 400). Đã có ⇒ `alreadySaved`. GET = cả sổ | STUDENT, `SavedWordService`, `SavedWordLookupService` |
+| DELETE | `/my-words/{id}` | Gỡ khỏi sổ + gỡ thẻ ôn do sổ tạo (thẻ có từ trước thì giữ); người khác ⇒ 404 | 〃 |
+| GET | `/my-words/topics[?locale=]` | Bộ chủ đề sẵn của kho `{name, label}` cho ô chuyển chủ đề (đợt 2) | 〃 |
+| PUT | `/my-words/{id}/topic` `{topic}` | Chuyển chủ đề (`null` = chưa phân loại; tên ngoài bộ sẵn ⇒ 400; `topic_source = USER`) | 〃 |
+| PUT | `/my-words/{id}/meaning` `{meaning}` | Sửa nghĩa 1–200 ký tự; thẻ ôn do sổ tạo đổi theo | 〃 |
 | GET/PUT | `/mock-exams/attempts/{attemptId}/teile/{key}/marks` | Đánh dấu bài đọc theo lượt thi thử (đợt 2): lượt `IN_PROGRESS` ⇒ server bỏ `q`/`n`; `COMPLETED`/`PARTIAL` ⇒ xem lại sửa đủ; `CANCELLED` ⇒ 409; lượt người khác ⇒ 404. Riêng với nháp đáp án (không đụng `draft_version`) | chủ lượt, `MockExamAttemptMarksService` |
 | POST | `/mock-exams/practice/{examId}/schreiben` | Chấm Viết bằng AI (trả `jobId`) | 〃 |
 | GET | `/mock-exams/practice/attempts/{id}/analysis` | Phân tích từng câu của lượt thi thử | 〃 |
@@ -272,9 +294,9 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | GET | `/exam-plan` | Lộ trình đếm ngược; tuần hiện tại có `days` | `ExamPlanController` |
 | PUT | `/exam-plan/target-date` | Đặt ngày thi | 〃 |
 | PUT | `/exam-plan/days/swap` `{weekNo, from, to}` | Đổi chỗ hai buổi của tuần hiện tại | 〃 |
-| GET | `/exam-diagnostic` | Trạng thái bài chẩn đoán (`NONE`/`IN_PROGRESS`/`DONE`) + lượt thi nói đã dùng | `ExamDiagnosticController` |
+| GET | `/exam-diagnostic` | Trạng thái bài chẩn đoán (`NONE`/`IN_PROGRESS`/`DONE`) + danh sách Teil theo thứ tự làm + lượt thi nói đã dùng + `shortForm`; chỉ đọc (QLT-21) | `ExamDiagnosticController` |
 | POST | `/exam-diagnostic/start` `{targetDate, dailyMinutes}` | Ghi hồ sơ + chọn đề | 〃 |
-| POST | `/exam-diagnostic/finish` | Chốt kết quả (đủ 4 Teil + lượt thi nói) | 〃 |
+| POST | `/exam-diagnostic/finish` | Chốt kết quả (đủ mọi Teil chẩn đoán đề có — 9 Teil với đề đủ — + lượt thi nói) | 〃 |
 | GET | `/auth/me/tours` | Khoá hướng dẫn đã xem | `UiTourController` |
 | PUT | `/auth/me/tours/{key}` | Đánh dấu đã xem | 〃 |
 | GET | `/speaking/exam/sessions/{id}/transcript` | Hội thoại đã lưu của phiên (chủ phiên; người khác 404) | `ExamSpeakingController` |
@@ -287,16 +309,26 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
   quả gần nhất; `exam_plan_state` chỉ giữ ngày bắt đầu, trọng tâm các tuần đã chốt (`locked_weeks_json`) và thứ tự buổi
   học viên đã đổi (`day_order_json`, V363).
 - Xếp Teil ưu tiên (`ExamPlanGenerator.rank`): điểm mất của bài thi thử telc B1 gần nhất; **chưa thi thử lần nào thì
-  dùng tỉ lệ đạt của bài chẩn đoán** (`ExamDiagnosticScoring.losses`); không có gì thì theo trọng số điểm.
+  dùng tỉ lệ đạt của bài chẩn đoán** (`ExamDiagnosticScoring.losses`: tỉ lệ của chính Teil đó nếu bài chẩn đoán đã đo,
+  không thì tỉ lệ cả phần — ba Teil Nói và kết quả bản ngắn); không có gì thì theo trọng số điểm.
 - `ExamPlanDays` (hàm thuần): chia tuần hiện tại thành buổi theo ngày — luyện Teil trọng tâm, thi thử phần viết (150')
   cuối tuần, thi nói, luyện nói, bài lộ trình, nghỉ, ngày thi. Số buổi = phút/tuần ÷ 30, kẹp 3–6, luôn ≥ 1 ngày nghỉ.
   Buổi "đã làm" khi có hoạt động khớp trong tuần (Teil đã kiểm tra, đề đã nộp, phiên Nói…), ghép theo thứ tự ngày.
 
 ### 3.3 Bài chẩn đoán
 
-`ExamDiagnosticService` + `ExamDiagnosticScoring` (hàm thuần). Bốn Teil đọc tiến độ luyện đề của đề đã chọn; phần Nói đọc
-`speaking_exam_results` (TELC B1, có điểm, `created_at ≥ started_at`). `finish` ghi `result_json` =
-`{ratios, skills, oralSessionId}`; tỉ lệ của mỗi phần áp cho mọi Teil cùng phần khi xếp ưu tiên.
+`ExamDiagnosticService` + `ExamDiagnosticScoring` (hàm thuần). Chín Teil (`TEILE`) đọc tiến độ luyện đề của đề đã chọn;
+phần Nói đọc `speaking_exam_results` (TELC B1, có điểm, `created_at ≥ started_at`). `finish` ghi `result_json` =
+`{ratios, teile, skills, oralSessionId}`:
+
+- Điểm và điểm tối đa từng Teil là của chính đề (điểm từng câu / `point_per_item`, cùng trọng số thi thử dùng ở
+  `ExamBudgetService`; Viết 45, Nói 75). Đề telc B1: Lesen 25+25+25, Sprachbausteine 15+15, Hören 25+25+25 — khớp
+  `ExamPlanBlueprints`.
+- `ratios` (theo phần) và `skills` (bốn kỹ năng, Lesen gồm Sprachbausteine) = tổng điểm ÷ tổng điểm tối đa của mọi Teil
+  thuộc phần/kỹ năng đó — không phải trung bình cộng các tỉ lệ Teil.
+- `teile` = tỉ lệ từng Teil (`LESEN-2` → 0,4), có từ bản đủ Teil; lộ trình dùng nó để xếp đúng Teil yếu. Kết quả không có
+  khoá này là của bài bản ngắn (`View.shortForm`), lộ trình dùng tỉ lệ phần cho mọi Teil cùng phần như trước.
+- `GET` không gọi đường luyện đề, không ghi DB.
 
 ### 3.4 Chấm điểm
 
@@ -334,8 +366,9 @@ giờ lúc đang ngồi thi (tab mở) vẫn tự nộp cả đề như cũ.
 | **V365** | `exam_diagnostics (user_id PK, exam_id, result_json, started_at, finished_at)` |
 | **V374** | B3: `mock_exam_practice_progress.notes_json` (JSONB `{}`), `mock_exam_attempts.draft_flags_json` (JSONB), bảng `exam_item_ai_explanations` (bộ đệm "Hỏi AI", `UNIQUE (exam_id, teil_key, item_id, chosen, locale, content_hash)`) |
 | **V375** | `exam_passage_marks (user_id, exam_id, teil_key, attempt_id NULL = luyện Teil, marks_json, …)` — đánh dấu bài đọc, hai chỉ mục duy nhất một phần |
+| **V386** | `user_saved_words` (sổ từ riêng, `UNIQUE (user_id, lemma_key)`, chủ đề, câu gốc, vị trí trong bài, `srs_vocab_id`, `srs_created`, `ai_lookup`) + `vocab_lookup_cache` (nghĩa AI dùng chung, khoá = chữ bôi) — lưu từ từ bài đọc |
 
-V363–V365, V374, V375 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
+V363–V365, V374, V375, V386 chỉ thêm cột/bảng (tương thích ngược khi blue-green). Xoá người dùng ⇒ xoá theo (`ON DELETE CASCADE`).
 V374 cần V368–V372 lên trước (`out-of-order: false`).
 
 ---
@@ -380,7 +413,7 @@ V374 cần V368–V372 lên trước (`out-of-order: false`).
 
 ## 6. Vận hành
 
-- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365 (→ V368–V370 admin → V374 B3 → V375 đánh dấu bài đọc), backend deploy trước frontend.
+- Phát hành: `docs/QUY_TRINH_PHAT_HANH.md`. Thứ tự migration: V363 → V364 → V365 (→ V368–V370 admin → V374 B3 → V375 đánh dấu bài đọc → V386 sổ từ), backend deploy trước frontend.
 - Mở cho học viên: trang admin Quyền luyện đề (cờ `ALLOWLIST` thêm người, hoặc `ALL`).
 - Mobile **chưa** có giao diện mới; mobile vẫn dùng endpoint cũ — không gỡ endpoint cũ cho tới khi mobile chuyển xong.
   `/exam-plan` chỉ thêm trường mới (`days`), không phá mobile.
@@ -390,5 +423,5 @@ V374 cần V368–V372 lên trước (`out-of-order: false`).
 | Học viên báo không vào được Luyện thi | Cờ `practice.telc.access` / allowlist; bộ đề có bị khoá theo gói |
 | Lịch tuần trống | Hồ sơ thiếu `exam_type`/`target_level` khác TELC B1 (⇒ `UNAVAILABLE`) hoặc chưa có ngày thi (`NEEDS_DATE`) |
 | Viết "đang chờ chấm" mãi | Job AI (`/async-jobs`), quota AI của học viên |
-| Bài chẩn đoán không chốt được | Còn Teil chưa chấm, hoặc chưa có lượt thi nói telc B1 có điểm **sau** lúc bắt đầu |
+| Bài chẩn đoán không chốt được | Còn Teil chưa chấm (chín Teil với đề đủ; lượt bắt đầu từ bản ngắn phải làm thêm Teil 2/3), hoặc chưa có lượt thi nói telc B1 có điểm **sau** lúc bắt đầu |
 | Hướng dẫn tự mở lại | Bảng `user_ui_tours` không ghi được (xem log `PUT /auth/me/tours`) |

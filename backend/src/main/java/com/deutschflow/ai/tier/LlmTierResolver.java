@@ -51,7 +51,8 @@ public class LlmTierResolver {
                     cfg.getQuantizations(),
                     blankToNull(cfg.getReasoningEffort()),
                     cfg.isSessionSticky(),
-                    cfg.isIncludeUsage()));
+                    cfg.isIncludeUsage(),
+                    cfg.getFallbackModels() != null ? cfg.getFallbackModels() : properties.getFallbackModels()));
         }
 
         if (!missing.isEmpty()) {
@@ -61,8 +62,9 @@ public class LlmTierResolver {
         }
 
         specs.forEach((tier, spec) -> log.info(
-                "[LlmTier] {} → model={}{}{}{}",
+                "[LlmTier] {} → model={}{}{}{}{}",
                 tier.configKey(), spec.model(),
+                spec.fallbackModels().isEmpty() ? "" : ", dự phòng=" + spec.fallbackModels(),
                 spec.baseUrl() != null ? ", baseUrl=" + spec.baseUrl() : "",
                 spec.reasoningEffort() != null ? ", effort=" + spec.reasoningEffort() : "",
                 spec.hasProviderPreferences() ? ", provider=" + describeProvider(spec) : ""));

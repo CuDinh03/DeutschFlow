@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
+import { absoluteUrl } from '@/lib/siteUrl'
 import '@/styles/galerie.css'
 import { LegalDocGa } from '@/components/legal/LegalDocGa'
 import { TERMS } from '@/content/legal/terms'
 
 export const metadata: Metadata = {
-  title: 'Terms of Use · myDeutschFlow',
-  description: 'DeutschFlow Terms of Use / Điều khoản sử dụng / Nutzungsbedingungen.',
+  title: 'Điều khoản sử dụng · myDeutschFlow',
+  description: 'Điều khoản sử dụng myDeutschFlow: tài khoản, gói trả phí, quy tắc sử dụng, quyền sở hữu nội dung (Terms of Use / Nutzungsbedingungen).',
+  alternates: { canonical: absoluteUrl('/terms/') },
 }
 
 /**

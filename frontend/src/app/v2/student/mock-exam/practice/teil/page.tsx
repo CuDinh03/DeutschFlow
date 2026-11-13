@@ -35,6 +35,7 @@ import { SPLIT_MIN_WIDTH, useWide } from '@/components/exam/practice/useWide'
 import { REWRITE_KEY } from '@/components/exam/mock/mockModel'
 import { useScreenTour, type TourStep } from '@/components/exam/tour/ScreenTour'
 import { ItemAssist, useCachedAsk, type ItemAssistValue } from '@/components/exam/practice/itemAssist'
+import { parseSpot } from '@/components/exam/marks/passageSpot'
 
 export default function PracticeTeilRoute() {
   return (
@@ -52,6 +53,10 @@ function PracticeTeilPage() {
   const examId = Number(params.get('examId'))
   const teilKey = params.get('teil') ?? ''
   const rewrite = params.get('rewrite') === '1'
+  // Mở từ sổ từ: cuộn tới + tô tạm chỗ đã lưu từ (13/11/2026).
+  const spotAt = params.get('at')
+  const spotWord = params.get('w')
+  const spot = React.useMemo(() => parseSpot(spotAt, spotWord), [spotAt, spotWord])
   const tf = useTranslations('v2.student.practice.frame')
   const tm = useTranslations('v2.student.practice.marks')
   // Khung làm bài chia hai cột từ 760px; màn kết quả Viết giữ mốc 1024px như cũ.
@@ -557,6 +562,7 @@ function PracticeTeilPage() {
             wide={wide}
             tips={tips}
             marks={marksEnabled ? marks : null}
+            spot={spot}
           />
         )}
       </ItemAssist.Provider>

@@ -131,7 +131,7 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
 
   return (
     <section className="space-y-5" data-testid="user-access-panel">
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner title={t('accessErrorTitle')} message={error} />}
 
       <div className="space-y-2 border-b border-ga-line pb-5">
         <GaCap>{t('roleCap')}</GaCap>

@@ -554,6 +554,13 @@
       "removeOne": "{name} entfernen",
       "unknownCap": "Einträge ohne passendes Konto"
     },
+    "problemNotice": {
+      "fallbackTitle": "Die Aktion konnte nicht ausgeführt werden",
+      "todo": "Zu tun:",
+      "openDraft": "Entwurf öffnen",
+      "open": "Zur Korrektur öffnen",
+      "dismiss": "Hinweis schließen"
+    },
     "examStudio": {
       "title": "Prüfungswerkstatt",
       "subtitle": "Prüfungsteile aus deutschen Nachrichtenquellen erstellen: KI schreibt Text und Aufgaben nach Schwierigkeitsmatrix, der Owner gibt sie für den Pool frei.",
@@ -568,8 +575,14 @@
         },
         "approve": "Ganzen Satz freigeben",
         "approved": "Freigegeben. Der Satz steht unten in der Liste als „Demnächst“.",
+        "loadError": "Die Liste der Durchläufe konnte nicht geladen werden",
+        "lastErrorWhen": {
+          "RUNNING": "Der letzte Versuch schlug fehl, die Maschine wiederholt ihn selbst (noch nichts zu tun):",
+          "STUCK": "Warum die Maschine bei diesem Teil gestoppt hat:"
+        },
+        "approveBlocked": "Durchlauf #{id} konnte nicht freigegeben werden: {count} Teil nicht bereit. Liste und Lösung stehen in der Karte des Durchlaufs.",
         "approveTitle": "Ganzen Satz von Lauf #{id} freigeben?",
-        "approveBody": "Alle Teile dieses Laufs kommen in den Bestand und werden zu einem Prüfungssatz mit dem Status „Demnächst“ zusammengestellt. Lernende sehen ihn erst, wenn Sie in der Liste auf Veröffentlichen klicken. Der Hörteil wird unverändert aus einem aktiven handgeschriebenen Satz übernommen, weil Hörteile noch nicht erzeugt werden können.",
+        "approveBody": "Alle Teile dieses Laufs kommen in den Bestand und werden zu einem Prüfungssatz mit dem Status „Demnächst“ zusammengestellt. Lernende sehen ihn erst, wenn Sie in der Liste auf Veröffentlichen klicken. Der Hörteil des Satzes besteht aus den drei Hörteilen, die in diesem Lauf erzeugt wurden.",
         "title": "Prüfungssatz automatisch erstellen",
         "body": "Das System wählt Themen, holt Quellen, schreibt Texte, erstellt Aufgaben, prüft und korrigiert jeden Teil eines telc-B1-Satzes selbst. Der Lauf nutzt den unter „Erstellen mit“ gewählten KI-Kanal und dauert etwa eine Stunde. Sie prüfen erst, wenn der ganze Satz fertig ist.",
         "start": "telc-B1-Satz erstellen",
@@ -619,15 +632,15 @@
           "ROUTER": "9Router"
         },
         "recheck": "Satz erneut prüfen",
-        "recheckedReady": "Der Satz erfüllt jetzt die Bedingungen. „Ganzen Satz freigeben“ drücken, wenn Sie ihn geprüft haben.",
-        "recheckedStill": "Der Satz hat noch offene Punkte. Siehe die neue Liste unten.",
+        "recheckedReady": "Lauf #{id} erfüllt jetzt die Bedingungen. Teile durchsehen, dann „Ganzen Satz freigeben“ drücken.",
+        "recheckedStill": "Lauf #{id} kann noch nicht freigegeben werden: {stuck, plural, =0 {kein Teil hängt mehr} other {# Teil nicht fertig ({teile})}}, Satzprüfung {red, plural, =0 {ohne rote Punkte} other {mit # roten Punkten}}. Siehe „Bedingungen für die Freigabe des ganzen Satzes“ in der Karte des Laufs, beheben und erneut „Satz erneut prüfen“ drücken.",
         "gate": {
           "title": "Bedingungen für die Freigabe des ganzen Satzes",
           "ok": "Erfüllt",
           "missing": "Offen",
           "teile": "{ready}/{total} Teile fertig (keiner hängt)",
           "checks": "Keine rote Prüfung auf Satzebene (aktuell {red} rot)",
-          "next": "Nach der Korrektur der hängenden Teile „Satz erneut prüfen“ drücken. Ein Teil ohne rotes Licht gilt als fertig, die Prüfungen auf Satzebene laufen erneut; sind beide Bedingungen erfüllt, wechselt der Lauf zu „Wartet auf Freigabe“ und der Knopf „Ganzen Satz freigeben“ erscheint. Gelbe Punkte blockieren nicht."
+          "next": "Nach der Korrektur der hängenden Teile „Satz erneut prüfen“ drücken. Ein Teil ohne rotes Licht gilt als fertig, die Prüfungen auf Satzebene laufen erneut; sind beide Bedingungen erfüllt, wechselt der Lauf zu „Bereit zur Prüfung“ und der Knopf „Ganzen Satz freigeben“ erscheint. Gelbe Punkte blockieren nicht."
         },
         "fix": {
           "title": "Warum es hängt und wie man es behebt",
@@ -638,13 +651,23 @@
           "howTitle": "So beheben",
           "step1": "„Entwurf öffnen“ für diesen Teil drücken.",
           "step2": "Rote Aufgabe: Frage, Optionen oder Lösung von Hand ändern oder nur diese Aufgabe neu erzeugen. Rotes Licht zum Text: den genannten Abschnitt ändern oder neu schreiben lassen.",
-          "step3": "Zum Schritt Prüfung gehen und die Selbstprüfung erneut starten. Die Maschine hat alle Reparaturrunden verbraucht, jetzt entscheiden Sie.",
+          "step3": "Zum Schritt „Prüfen & freigeben“ gehen und „Selbstprüfung starten“ drücken. Die Maschine hat alle Reparaturrunden verbraucht, jetzt entscheiden Sie.",
           "step4": "Hierher zurückkehren und „Satz erneut prüfen“ drücken.",
           "doneTitle": "Wann gilt es als behoben",
           "done": "Nach der letzten Selbstprüfung hat der Entwurf kein rotes Licht mehr: weder auf Teil-Ebene noch bei einer Aufgabe. Gelbe Lichter dürfen bleiben."
-        }
+        },
+        "redo": "Diesen Teil neu erstellen",
+        "redoTitle": "{teil} von Lauf #{id} neu erstellen?",
+        "redoBody": "Die Maschine verwirft den aktuellen Entwurf dieses Teils, wählt ein neues Thema, das kein anderer Teil nutzt, und erstellt ihn nach den aktuellen Regeln neu (etwa 10–20 Minuten). Die anderen Teile bleiben unverändert. Währenddessen kann kein neuer Lauf starten.",
+        "redoStarted": "Neuerstellung gestartet. Die Tabelle aktualisiert sich selbst.",
+        "approveBodyNoHoeren": "Alle Teile dieses Laufs kommen in den Bestand und werden zu einem Prüfungssatz mit dem Status „Demnächst“ zusammengestellt. Lernende sehen ihn erst, wenn Sie in der Liste auf Veröffentlichen klicken. Der Hörteil wird unverändert aus einem aktiven handgeschriebenen Satz übernommen, weil dieser Lauf keinen Hörteil hat. Für einen eigenen Hörteil klicken Sie vor der Freigabe auf „Hörteil erzeugen“.",
+        "addHoeren": "Hörteil erzeugen",
+        "addHoerenTitle": "Hörteil für Lauf #{id} erzeugen?",
+        "addHoerenBody": "Die Maschine ergänzt diesen Lauf um drei Hörteile (Hören 1–3) mit Themen, die kein anderer Teil nutzt, schreibt die Hörtexte, erstellt die Richtig/Falsch-Aufgaben, prüft und korrigiert sie selbst (etwa 20–30 Minuten). Fertige Teile bleiben unverändert. Es wird kein Audio gespeichert: Lernende hören beim Abspielen eine Sprachausgabe. Währenddessen kann kein neuer Lauf starten.",
+        "addHoerenStarted": "Hörteil gestartet. Die Tabelle aktualisiert sich selbst."
       },
       "sources": {
+        "loadError": "Der Quellenkatalog konnte nicht geladen werden",
         "intro": "Herausgeber, die die Prüfungssatz-Pipeline nutzen darf. „Neue Artikel lesen“ holt nur die Artikelliste (Titel, Link) und lädt keine Artikel. Jeder Artikel wird nur einmal verwendet.",
         "empty": "Der Quellenkatalog ist leer.",
         "class": {
@@ -699,6 +722,14 @@
       "saved": "Gespeichert",
       "unsaved": "Ungespeicherte Änderungen",
       "later": "Spätere Phase",
+      "lastErrorTodo": "Zu tun:",
+      "lastErrorHelp": {
+        "CHANNEL": "Das ist ein Fehler des KI-Kanals, nicht des Entwurfs. Dieselbe Schaltfläche erneut drücken. Tritt der Fehler wieder auf, den Kanal unter „Erstellen mit“ wechseln und erneut versuchen.",
+        "INCOMPLETE": "Die KI-Antwort war unvollständig oder fehlerhaft. Dieselbe Schaltfläche erneut drücken, damit die KI es neu macht. Nach drei Fehlversuchen den Kanal unter „Erstellen mit“ wechseln.",
+        "TIMEOUT": "Der Vorgang wurde gestoppt, weil er zu lange lief. Dieselbe Schaltfläche erneut drücken.",
+        "SOURCE": "Das Problem liegt an der Quelle. Im Schritt „Quellen“ den Artikeltext einfügen statt eines Links, oder eine andere Quelle wählen.",
+        "OTHER": "Dieselbe Schaltfläche erneut drücken. Tritt der Fehler wieder auf, der Technik mit Entwurfsnummer #{id} melden."
+      },
       "lastErrorTitle": "Der letzte KI-Vorgang ist fehlgeschlagen",
       "busyHint": "Die Ansicht aktualisiert sich automatisch.",
       "busy": {
@@ -787,7 +818,10 @@
           "TRUE_FALSE": "Lesen Teil 2 A2: eine E-Mail oder ein kurzer Text und {itemCount} Aussagen richtig/falsch (6–10).",
           "MATCH_AD_X_A2": "Lesen Teil 3 A2: {itemCount} Situationen (11–15) und 8 Anzeigen a–h (je 10–35 Wörter); genau 1 Situation x, 1 Beispiel.",
           "FILL_FORM": "Schreiben Teil 1 A2: ein Text über eine Person und ein Formular mit {itemCount} Feldern, je 1 Punkt.",
-          "WRITE_NOTE": "Schreiben Teil 2 A2: Situation + 4 Punkte, 3 davon wählen, ca. 40 Wörter, 10 Punkte; keine Aufgaben."
+          "WRITE_NOTE": "Schreiben Teil 2 A2: Situation + 4 Punkte, 3 davon wählen, ca. 40 Wörter, 10 Punkte; keine Aufgaben.",
+          "HOEREN_STATEMENTS": "Hören Teil 1 B1: fünf Personen antworten auf eine gemeinsame Frage (je 60–110 Wörter), einmal hören, {itemCount} Richtig/Falsch-Aussagen (41–45).",
+          "HOEREN_INTERVIEW": "Hören Teil 2 B1: ein Radiointerview mit 400–650 Wörtern, zweimal hören, {itemCount} Richtig/Falsch-Aussagen in der Reihenfolge des Gesprächs (46–55).",
+          "HOEREN_ANNOUNCEMENTS": "Hören Teil 3 B1: fünf kurze Durchsagen oder Nachrichten (je 40–95 Wörter), jeweils mit Situationssatz, zweimal hören, {itemCount} Richtig/Falsch-Aussagen (56–60)."
         }
       },
       "matrix": {
@@ -901,7 +935,31 @@
           "FILL_FORM": "Der Text muss die Angaben für alle 5 Formularfelder enthalten."
         },
         "noteSituation": "Situation",
-        "notePoints": "4 Punkte (3 davon wählen)"
+        "notePoints": "4 Punkte (3 davon wählen)",
+        "hoerenHint": {
+          "HOEREN_STATEMENTS": "Fünf Personen antworten auf dieselbe Frage; je {lo}–{hi} Wörter, natürliche gesprochene Sprache. Abschnitt n gehört zu Aufgabe n. Es wird kein Audio gespeichert: Lernende hören eine Sprachausgabe.",
+          "HOEREN_INTERVIEW": "Ein Radiointerview mit insgesamt {lo}–{hi} Wörtern, klare Frage-Antwort-Wechsel, zwei verschiedene Stimmen. Es wird kein Audio gespeichert: Lernende hören eine Sprachausgabe.",
+          "HOEREN_ANNOUNCEMENTS": "Fünf kurze Durchsagen oder Nachrichten, je {lo}–{hi} Wörter, jeweils mit Situationssatz. Abschnitt n gehört zu Aufgabe n. Es wird kein Audio gespeichert: Lernende hören eine Sprachausgabe."
+        },
+        "hoerenFraming": "Rahmensatz (wird vor den fünf Abschnitten gelesen)",
+        "hoerenInterview": "Redebeiträge",
+        "hoerenNoTurns": "Noch kein Hörtext. Klicken Sie auf „KI schreibt den ganzen Text neu“.",
+        "hoerenTurnN": "Beitrag {n}",
+        "hoerenSegmentN": "Abschnitt {n} · Aufgabe {no}",
+        "hoerenVoice": "Stimme",
+        "hoerenVoiceName": {
+          "PRUEFER": "Frauenstimme",
+          "PARTNER": "Männerstimme"
+        },
+        "hoerenNameN": "Name der sprechenden Person in Beitrag {n}",
+        "hoerenNamePh": "Moderatorin, Herr Vogel…",
+        "hoerenRemoveTurn": "Beitrag {n} löschen",
+        "hoerenLeadIn": "Situationssatz",
+        "hoerenLeadInHint": "Nur die Situation schreiben. Bei der Freigabe setzt die Maschine „Lesen Sie jetzt die Aufgabe {no}.“ davor.",
+        "hoerenTurnText": "Text von Beitrag {n}",
+        "hoerenSegmentText": "Hörtext von Abschnitt {n}",
+        "hoerenAddTurn": "Beitrag hinzufügen",
+        "hoerenEditWarning": "Es gibt schon Aufgaben: Prüfen Sie nach einer Änderung am Hörtext den Belegsatz jeder Aufgabe oder erzeugen Sie die Aufgabe des geänderten Abschnitts neu."
       },
       "metrics": {
         "none": "Messwerte erscheinen, sobald ein Text vorliegt.",
@@ -995,7 +1053,9 @@
         "tfCount": "richtig {richtig} · falsch {falsch}",
         "tfUnbalanced": "Die echte Prüfung hat je 2–3 — Lösungen ändern oder neu erstellen.",
         "formPreview": "Formular wie für Lernende (mit Lösungen)",
-        "formRule": "Kleine Rechtschreibfehler zählen trotzdem; Felder mit Zahlen müssen genau stimmen. Lösungen und Schreibweisen in der Karte des Feldes bearbeiten."
+        "formRule": "Kleine Rechtschreibfehler zählen trotzdem; Felder mit Zahlen müssen genau stimmen. Lösungen und Schreibweisen in der Karte des Feldes bearbeiten.",
+        "hoerenUnbalanced": "Jede Lösung sollte 40–60 % der Aufgaben ausmachen. Ändern Sie eine Lösung zusammen mit der Aussage oder erzeugen Sie Aufgaben neu.",
+        "hoerenOneSided": "Alle Aufgaben haben dieselbe Lösung: Die Selbstprüfung wird rot und blockiert die Freigabe. Erzeugen Sie einige Aufgaben neu."
       },
       "score": {
         "phrasing": "Formulierung der Lösung",
@@ -1062,7 +1122,8 @@
         "writingPoints": "Vier Punkte",
         "adsN": "{n} Anzeigen",
         "notePoints": "3 der 4 Punkte wählen, ca. 40 Wörter",
-        "formAccept": "auch richtig: {list}"
+        "formAccept": "auch richtig: {list}",
+        "hoerenTts": "In der Prüfung hören die Lernenden nur zu (Sprachausgabe) und lesen die Aussagen; der Hörtext unten ist nur für die Prüfenden sichtbar."
       },
       "wizard": {
         "back": "Zurück zur Prüfungswerkstatt",
@@ -1168,7 +1229,10 @@
           "MC_INFO": "Etagenübersicht in einem Kaufhaus",
           "TRUE_FALSE": "E-Mail über einen Wochenendausflug",
           "FILL_FORM": "Anmeldung zu einem Schwimmkurs im Sportzentrum",
-          "WRITE_NOTE": "Nachricht an die Lehrerin: Sie können heute nicht zum Kurs kommen"
+          "WRITE_NOTE": "Nachricht an die Lehrerin: Sie können heute nicht zum Kurs kommen",
+          "HOEREN_STATEMENTS": "Fünf Personen erzählen, wie sie zur Arbeit kommen und warum",
+          "HOEREN_INTERVIEW": "Interview mit dem Gründer einer Fahrradwerkstatt im Stadtteil",
+          "HOEREN_ANNOUNCEMENTS": "Nachricht einer Arztpraxis, Durchsage am Bahnhof, Wetterbericht"
         }
       },
       "levelName": {

@@ -108,7 +108,7 @@ public class SourceFetcher {
                         .ignoreContentType(true)
                         .execute();
             } catch (Exception e) {
-                throw new BadRequestException("Không tải được trang (" + e.getClass().getSimpleName() + ")." + hint);
+                throw new BadRequestException("Không tải được trang: " + connectionReason(e) + "." + hint);
             }
             int code = res.statusCode();
             if (code >= 300 && code < 400 && res.header("Location") != null) {
@@ -116,7 +116,7 @@ public class SourceFetcher {
                 continue;
             }
             if (code != 200) {
-                throw new BadRequestException("Trang trả mã " + code + "." + hint);
+                throw new BadRequestException(statusReason(code) + "." + hint);
             }
             break;
         }
@@ -127,7 +127,7 @@ public class SourceFetcher {
             // Đọc hết thân trang ngay tại đây: đứt mạng hay hết giờ giữa chừng phải thành lời báo rõ, không thành lỗi 500.
             res.bufferUp();
         } catch (Exception e) {
-            throw new BadRequestException("Tải trang bị gián đoạn (" + rootName(e) + ")." + hint);
+            throw new BadRequestException("Tải trang bị gián đoạn: " + connectionReason(e) + "." + hint);
         }
         return res;
     }
@@ -312,10 +312,27 @@ public class SourceFetcher {
         return bestAllow;
     }
 
-    private static String rootName(Throwable e) {
+    /**
+     * Vì sao không nối được tới trang, nói bằng lời thường (owner yêu cầu 13/11/2026: thông báo không lộ tên lớp lỗi
+     * như "SocketTimeoutException").
+     */
+    static String connectionReason(Throwable e) {
         Throwable t = e;
         while (t.getCause() != null && t.getCause() != t) t = t.getCause();
-        return t.getClass().getSimpleName();
+        if (t instanceof java.net.SocketTimeoutException) return "trang phản hồi quá chậm";
+        if (t instanceof java.net.UnknownHostException) return "không tìm thấy máy chủ của trang (kiểm tra lại đường dẫn)";
+        if (t instanceof javax.net.ssl.SSLException) return "kết nối bảo mật tới trang bị lỗi";
+        if (t instanceof java.net.ConnectException) return "máy chủ của trang từ chối kết nối";
+        return "kết nối tới trang bị lỗi";
+    }
+
+    /** Trang trả mã khác 200: nói mã đó nghĩa là gì và nên làm gì. Luôn mở đầu bằng "Trang". */
+    static String statusReason(int code) {
+        if (code == 401 || code == 403) return "Trang từ chối cho máy tải bài (mã " + code + ")";
+        if (code == 404 || code == 410) return "Trang không còn ở đường dẫn này (mã " + code + "); kiểm tra lại đường dẫn";
+        if (code == 429) return "Trang báo đang bị gọi quá nhiều (mã 429); thử lại sau vài phút";
+        if (code >= 500) return "Trang đang lỗi phía máy chủ của họ (mã " + code + "); thử lại sau";
+        return "Trang trả mã " + code + " thay vì nội dung bài";
     }
 
     private static String meta(Document doc, String name) {

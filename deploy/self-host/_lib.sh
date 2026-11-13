@@ -14,6 +14,12 @@ readonly DF_ENV=$DF_ROOT/env
 readonly DF_SECRETS=/home/deploy/secrets
 readonly DF_UPSTREAMS=/etc/nginx/deutschflow-upstreams
 readonly DF_NET=deutschflow-net
+# Mạng riêng cho frontend gọi backend nội bộ (13/11/2026). Backend chỉ mang alias DF_API_ALIAS trên mạng
+# này SAU khi đã healthy và nhận traffic (api_alias_move), nên tên nội bộ không bao giờ trỏ vào màu đang
+# boot. Frontend đặt BACKEND_INTERNAL_URL=http://$DF_API_ALIAS:8080; lỗi mạng thì code tự lùi về địa chỉ
+# công khai (frontend/src/lib/serverBackend.ts).
+readonly DF_API_NET=deutschflow-api-net
+readonly DF_API_ALIAS=deutschflow-api
 
 # Script nằm trong repo mà bước "lấy code" lại `git reset --hard` repo ⇒ bash đang đọc dở file
 # có thể đọc phải nội dung mới giữa chừng. Chạy từ bản sao trong /tmp cho chắc.
@@ -23,6 +29,22 @@ reexec_from_tmp() {
     cp "$DF_REPO/deploy/self-host/"*.sh "$tmpdir/"
     DF_REEXEC=1 exec bash "$tmpdir/$(basename "$1")" "${@:2}"
   fi
+  acquire_deploy_lock "$(basename "$1")" "${@:2}"
+}
+
+# Khoá chung cho MỌI lần deploy/rollback (tay qua SSH, workflow, backend hay frontend): cả hai script
+# cùng `git reset --hard` một repo và cùng đổi upstream nginx ⇒ chạy chồng là hỏng. Khoá nhả khi
+# tiến trình kết thúc (kể cả bị kill). Lần chạy thứ hai từ chối ngay và in ra ai đang giữ khoá.
+readonly DF_DEPLOY_LOCK=$DF_ROOT/deploy.lock
+acquire_deploy_lock() {
+  exec 8<>"$DF_DEPLOY_LOCK"
+  if ! flock -n 8; then
+    error "Đang có một lần deploy khác chạy — không chạy chồng. Người giữ khoá:"
+    sed 's/^/        /' "$DF_DEPLOY_LOCK" >&2
+    error "Chờ lần đó xong rồi chạy lại (kiểm: ps -eo pid,etime,args | grep '[d]eutschflow-deploy')"
+    exit 75
+  fi
+  printf 'pid=%s  bắt đầu=%s  lệnh=%s\n' "$$" "$(date '+%F %T')" "$*" > "$DF_DEPLOY_LOCK"
 }
 
 # Cổng đang phục vụ của một upstream (df_backend → 8080|8081).
@@ -80,6 +102,29 @@ fetch_code() {
 }
 
 current_branch() { git -C "$DF_REPO" rev-parse --abbrev-ref HEAD; }
+
+ensure_api_net() {
+  docker network inspect "$DF_API_NET" >/dev/null 2>&1 || docker network create "$DF_API_NET" >/dev/null
+}
+
+# api_alias_move NEW [OLD]: gắn alias nội bộ cho NEW trước, rồi mới tháo OLD — không có lúc nào thiếu tên.
+# Lỗi ở đây không làm hỏng deploy (frontend vẫn lùi về địa chỉ công khai), chỉ cảnh báo.
+api_alias_move() {
+  local new=$1 old=${2:-}
+  ensure_api_net || { warn "không tạo được $DF_API_NET — frontend sẽ gọi backend qua địa chỉ công khai"; return 0; }
+  if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$new" 2>/dev/null | grep -q "\"$DF_API_NET\""; then
+    docker network connect --alias "$DF_API_ALIAS" "$DF_API_NET" "$new"       || { warn "không gắn được $DF_API_ALIAS cho $new"; return 0; }
+  fi
+  if [ -n "$old" ] && container_running "$old"; then
+    docker network disconnect "$DF_API_NET" "$old" >/dev/null 2>&1 || true
+  fi
+  success "$DF_API_ALIAS (mạng $DF_API_NET) → $new"
+}
+
+# Nối container frontend vào mạng nội bộ để gọi được $DF_API_ALIAS (không cần alias).
+api_net_join() {
+  ensure_api_net && docker network connect "$DF_API_NET" "$1" 2>/dev/null     || warn "$1 chưa vào được $DF_API_NET — sẽ gọi backend qua địa chỉ công khai"
+}
 
 disk_guard() {
   local pct; pct=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')

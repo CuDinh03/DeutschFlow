@@ -13,8 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -57,6 +59,14 @@ public class OccupationCatalogService {
 
     public List<OccupationDto> list() {
         return current().dtos();
+    }
+
+    /** Lần sửa dòng danh mục của từng nghề đang bật, theo thứ tự danh mục (giá trị có thể null). */
+    public Map<String, LocalDateTime> updatedAtByCode() {
+        Snapshot s = current();
+        Map<String, LocalDateTime> out = new LinkedHashMap<>();
+        s.dtos().forEach(d -> out.put(d.code(), s.byCode().get(d.code()).getUpdatedAt()));
+        return out;
     }
 
     public Optional<OccupationDetailDto> detail(String code) {

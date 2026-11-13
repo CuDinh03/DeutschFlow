@@ -118,7 +118,7 @@ export function LicenceForm({ org, plans, onSaved }: LicenceFormProps) {
         </div>
       </div>
 
-      {error && <ErrorBanner className="mt-4" message={error} />}
+      {error && <ErrorBanner className="mt-4" title={t('errorTitle')} message={error} />}
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="block">

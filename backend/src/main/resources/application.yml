@@ -791,9 +791,19 @@ app:
     # 8/8 tier lấy default qua ${GROQ_MODEL}/${GROQ_GRADING_MODEL} (nói/chấm) ⇒ đổi nhà cung cấp là
     # sửa 2 env gốc, không phải nhớ tier nào hardcode (bài học FW.c: `batch` + `error-verify` từng
     # ghim cứng slug Groq nên sau flip sẽ 404 âm thầm cho vocab tagging).
+    # Model hết chỗ phía nhà cung cấp (vd. Gemini qua Antigravity trả 503 "No capacity available"): danh sách bản thay
+    # thế owner duyệt, theo thứ tự, cách nhau bằng dấu phẩy. Model đang dùng phải có trong danh sách thì mới được thay
+    # bằng các bản đứng sau nó. Trống ⇒ chỉ chờ rồi thử lại đúng model đó.
+    capacity-fallback-models: "${AI_CAPACITY_FALLBACK_MODELS:}"
     llm:
       base-url: ${AI_LLM_BASE_URL:}
       api-key: ${AI_LLM_API_KEY:}
+      # Model dự phòng (13/11/2026): model chính lỗi 5xx/429/quá giờ/không dùng được ⇒ chuyển ngay sang
+      # model kế theo thứ tự; model lỗi bị bỏ qua failover-cooldown-seconds giây. Cùng endpoint/key với
+      # model chính, áp cho mọi tầng (tầng nào khai `fallback-models` riêng thì dùng của tầng). Rỗng = tắt.
+      # Ví dụ: AI_LLM_FALLBACK_MODELS=ag/gpt-oss-120b-medium,gcli/grok-4.7-build-fast,cx/gpt-6-luna
+      fallback-models: ${AI_LLM_FALLBACK_MODELS:}
+      failover-cooldown-seconds: ${AI_LLM_FAILOVER_COOLDOWN_SECONDS:120}
       tiers:
         # Chat nói real-time — FREE. Model + effort gương env cũ để không ai phải đổi env.
         chat-free:
@@ -913,6 +923,10 @@ app:
     # Từ điển TSV trên classpath — không gọi API; mở rộng bằng cách thêm dòng vào file.
     local-lexicon:
       resource: ${LOCAL_LEXICON_RESOURCE:wordlists/local_lexicon.tsv}
+    # Sổ từ riêng (13/11/2026): số từ cần AI tra nghĩa mỗi học viên được lưu / ngày (giờ VN). AI tra nghĩa
+    # không trừ ví học viên nên trần này là chốt chặn chi phí; từ có trong kho / bộ nhớ dùng chung không tính.
+    saved-words:
+      ai-daily-cap: ${SAVED_WORDS_AI_DAILY_CAP:40}
     # Nguồn DUY NHẤT quyết định cefr_level (CefrLevelResolver). Danh sách Goethe là cộng dồn ⇒ lemma có ở
     # nhiều danh sách lấy cấp THẤP NHẤT. Từ không nằm trong wordlist nào ⇒ cefr_level = NULL (chưa phân cấp),
     # KHÔNG đoán theo tần suất như trước 14/08/2026 (BAO_CAO_PHAN_CAP_TU_VUNG_2026-08-14.md).

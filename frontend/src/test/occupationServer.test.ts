@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { unstable_cache } from 'next/cache'
 import { OccupationUnavailableError, fetchOccupationDetail, fetchOccupations } from '@/lib/occupationServer'
 
 /**
@@ -46,5 +47,11 @@ describe('fetchOccupations', () => {
   it('lỗi tạm → null (trang tổng hiện "chưa tải được", sitemap bỏ qua trang nghề)', async () => {
     mockFetch(async () => new Response('{}', { status: 429 }))
     await expect(fetchOccupations()).resolves.toBeNull()
+  })
+})
+
+describe('giữ dữ liệu nghề 10 phút (13/11/2026)', () => {
+  it('dùng data cache của Next (unstable_cache) — trang force-dynamic bỏ qua revalidate của fetch', () => {
+    expect(vi.mocked(unstable_cache)).toHaveBeenCalledWith(expect.any(Function), ['public-occupations-v1'], { revalidate: 600 })
   })
 })

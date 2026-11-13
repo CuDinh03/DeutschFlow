@@ -37,23 +37,54 @@ public final class ExamStudioDtos {
     public record Stimulus(String type, String from, String subject, String body) {}
 
     /**
+     * Một lượt lời của phần Nghe. {@code speaker}: {@code PRUEFER} = giọng nữ, {@code PARTNER} = giọng nam (đúng khoá
+     * của đề viết tay). Teil 1 và 3: mỗi lượt là một đoạn rời ứng với một câu hỏi ({@code leadInDe} = câu dẫn tình
+     * huống của Teil 3, không kèm "Lesen Sie jetzt die Aufgabe NN."); Teil 2: các lượt của một cuộc phỏng vấn,
+     * {@code name} = tên hiện cho người nói ("Moderatorin", "Herr Vogel").
+     */
+    public record AudioTurn(String speaker, String name, String text, String leadInDe) {}
+
+    /**
      * Nội dung chung của Teil. Teil 1/2 dùng 4 khoá đầu; các Teil soạn theo tình huống (đợt 3) dùng thêm:
      * Lesen T3 {@code ads} a–l + {@code examples}; Sprachbausteine thư nguyên văn ở {@code context} (+ {@code stimulusAd},
-     * {@code wordBank} a–o cho Teil 2); Schreiben {@code stimulus} + {@code writingPoints}.
+     * {@code wordBank} a–o cho Teil 2); Schreiben {@code stimulus} + {@code writingPoints}. Phần Nghe (đợt 5):
+     * {@code audioTurns} là lời thoại gốc, {@code context} là bản ghép các lượt lời (để đo từ, dò bằng chứng),
+     * {@code framingDe} là câu khung của Teil 1. Hai khoá cuối không có ở các dòng cũ ⇒ {@code null}.
      */
     public record Text(String titleDe, String vorspannDe, String context, List<GlossaryEntry> glossary,
                        Map<String, String> ads, List<Example> examples, String stimulusAd,
-                       Map<String, String> wordBank, Stimulus stimulus, List<String> writingPoints) {
+                       Map<String, String> wordBank, Stimulus stimulus, List<String> writingPoints,
+                       List<AudioTurn> audioTurns, String framingDe) {
         public Text(String titleDe, String vorspannDe, String context, List<GlossaryEntry> glossary) {
-            this(titleDe, vorspannDe, context, glossary, null, null, null, null, null, null);
+            this(titleDe, vorspannDe, context, glossary, null, null, null, null, null, null, null, null);
+        }
+
+        public Text(String titleDe, String vorspannDe, String context, List<GlossaryEntry> glossary,
+                    Map<String, String> ads, List<Example> examples, String stimulusAd,
+                    Map<String, String> wordBank, Stimulus stimulus, List<String> writingPoints) {
+            this(titleDe, vorspannDe, context, glossary, ads, examples, stimulusAd, wordBank, stimulus, writingPoints,
+                    null, null);
         }
 
         public Text withWordBank(Map<String, String> bank) {
-            return new Text(titleDe, vorspannDe, context, glossary, ads, examples, stimulusAd, bank, stimulus, writingPoints);
+            return new Text(titleDe, vorspannDe, context, glossary, ads, examples, stimulusAd, bank, stimulus,
+                    writingPoints, audioTurns, framingDe);
         }
 
         public Text withContext(String newContext) {
-            return new Text(titleDe, vorspannDe, newContext, glossary, ads, examples, stimulusAd, wordBank, stimulus, writingPoints);
+            return new Text(titleDe, vorspannDe, newContext, glossary, ads, examples, stimulusAd, wordBank, stimulus,
+                    writingPoints, audioTurns, framingDe);
+        }
+
+        public Text withAds(Map<String, String> newAds) {
+            return new Text(titleDe, vorspannDe, context, glossary, newAds, examples, stimulusAd, wordBank, stimulus,
+                    writingPoints, audioTurns, framingDe);
+        }
+
+        /** Lời thoại phần Nghe; {@code context} được ghép lại từ các lượt lời để hai nơi luôn khớp nhau. */
+        public Text withAudio(List<AudioTurn> turns, String newContext) {
+            return new Text(titleDe, vorspannDe, newContext, glossary, ads, examples, stimulusAd, wordBank, stimulus,
+                    writingPoints, turns, framingDe);
         }
     }
 

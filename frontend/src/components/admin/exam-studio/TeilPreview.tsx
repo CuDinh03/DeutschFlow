@@ -7,6 +7,7 @@ import {
   headlineTable, markSnippets, matchTextIndex, optionKeys, splitMatchTexts, splitParagraphs, type TeilKind,
 } from '@/lib/examStudioLogic'
 import { EmailPreview, FormPreview, GapPreview, MatchAdPreview } from './TeilPreviewSituational'
+import { HoerenPreview } from './HoerenParts'
 import { cn } from '@/lib/utils'
 
 export interface PreviewItem {
@@ -67,6 +68,9 @@ export function TeilPreview(props: Props) {
     case 'WRITE_EMAIL':
     case 'WRITE_NOTE': return <EmailPreview {...props} />
     case 'FILL_FORM': return <FormPreview {...props} />
+    case 'HOEREN_STATEMENTS':
+    case 'HOEREN_INTERVIEW':
+    case 'HOEREN_ANNOUNCEMENTS': return <HoerenPreview {...props} />
     // MC_INFO (bảng thông tin a/b/c), TRUE_FALSE (richtig/falsch): tiêu đề + bài + câu, như bài đọc.
     default: return <ArticlePreview {...props} />
   }

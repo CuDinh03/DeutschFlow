@@ -71,7 +71,7 @@ export default function V2AdminOrgDetailPage() {
     return <ErrorBanner variant="page" message={t('detail.notFound')} />
   }
   if (error && !org) {
-    return <ErrorBanner variant="page" message={error} onRetry={() => void reload({ silent: false })} />
+    return <ErrorBanner variant="page" title={t('detail.loadErrorTitle')} message={error} onRetry={() => void reload({ silent: false })} />
   }
   if (loading && !org) {
     return <LoadingState label={t('detail.loading')} />
@@ -116,7 +116,7 @@ export default function V2AdminOrgDetailPage() {
           <p className="ga-ui text-ga-small text-ga-ink">{t('detail.privacy')}</p>
         </div>
 
-        {error && <ErrorBanner message={error} onRetry={() => void reload({ silent: false })} />}
+        {error && <ErrorBanner title={t('detail.loadErrorTitle')} message={error} onRetry={() => void reload({ silent: false })} />}
 
         <GaStatStrip
           items={[

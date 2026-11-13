@@ -76,7 +76,7 @@ public class SourceCatalogService {
     @Transactional
     public void setActive(long feedId, boolean active) {
         if (jdbc.update("UPDATE exam_source_feeds SET active = ? WHERE id = ?", active, feedId) == 0) {
-            throw new NotFoundException("Không có nguồn #" + feedId + " trong danh mục.");
+            throw new NotFoundException("Không có nguồn #" + feedId + " trong danh mục. Tải lại tab \"Nguồn\" để xem danh mục hiện tại.");
         }
     }
 
@@ -90,11 +90,11 @@ public class SourceCatalogService {
     public PollResult poll(long feedId) {
         FeedRow f = feed(feedId);
         if ("NONE".equals(f.listingKind()) || f.listingUrl() == null) {
-            throw new BadRequestException("Nguồn này chưa có cách lấy danh sách bài tự động.");
+            throw new BadRequestException("Nguồn này chưa có cách lấy danh sách bài tự động, nên nút \"Đọc bài mới\" không dùng được. Muốn dùng bài của nguồn này thì thêm bằng tay ở bước \"Nguồn\" của một bản nháp (dán đường dẫn hoặc văn bản).");
         }
         if (f.lastPolledAt() != null
                 && Duration.between(f.lastPolledAt(), Instant.now()).getSeconds() < f.minDelaySeconds()) {
-            throw new BadRequestException("Vừa đọc nguồn này xong. Chờ " + f.minDelaySeconds() + " giây rồi thử lại.");
+            throw new BadRequestException("Vừa đọc nguồn này xong. Nơi đăng yêu cầu cách nhau ít nhất " + f.minDelaySeconds() + " giây; chờ rồi bấm lại \"Đọc bài mới\".");
         }
         List<Entry> entries;
         try {
@@ -179,7 +179,7 @@ public class SourceCatalogService {
                         rs.getString("usage_class"), rs.getInt("min_delay_seconds"),
                         rs.getTimestamp("last_polled_at") == null ? null : rs.getTimestamp("last_polled_at").toInstant()),
                 feedId).stream().findFirst()
-                .orElseThrow(() -> new NotFoundException("Không có nguồn #" + feedId + " trong danh mục."));
+                .orElseThrow(() -> new NotFoundException("Không có nguồn #" + feedId + " trong danh mục. Tải lại tab \"Nguồn\" để xem danh mục hiện tại."));
     }
 
     // ── Chọn bài ─────────────────────────────────────────────────────────────────────────────────────────
@@ -205,6 +205,19 @@ public class SourceCatalogService {
     }
 
     private static final int SITEMAP_POOL = 5_000;
+
+    /**
+     * Nơi đăng mà bài hay hỏng (không tải được, quá ngắn): đã loại từ 3 bài trở lên và số bài loại nhiều hơn gấp đôi
+     * số bài dùng được. Bộ điều phối để các nơi này xuống cuối khi chọn bài (lượt #11, 13/11/2026: bốn trang liền
+     * nhau của một nơi đăng đều quá ngắn, đốt hết lượt thử nguồn của Lesen 1).
+     */
+    public java.util.Set<Long> unreliableFeeds() {
+        return new java.util.HashSet<>(jdbc.queryForList("""
+                SELECT feed_id FROM exam_source_articles GROUP BY feed_id
+                HAVING count(*) FILTER (WHERE status = 'REJECTED') >= 3
+                   AND count(*) FILTER (WHERE status = 'REJECTED') > 2 * count(*) FILTER (WHERE status = 'USED')
+                """, Long.class));
+    }
 
     private static List<ArticleView> score(Collection<String> keywords, List<ArticleView> pool) {
         List<ArticleView> scored = new ArrayList<>();

@@ -10,9 +10,9 @@ import type { PublicLocale } from '@/lib/publicLocale'
 export const OG_SIZE = { width: 1200, height: 630 } as const
 export const OG_VERSION = '2'
 
-export type OgPage = 'home' | 'luyen-thi' | 'trung-tam' | 'phong-van'
+export type OgPage = 'home' | 'luyen-thi' | 'trung-tam' | 'phong-van' | 'free-grade'
 
-export const OG_PAGES: readonly OgPage[] = ['home', 'luyen-thi', 'trung-tam', 'phong-van']
+export const OG_PAGES: readonly OgPage[] = ['home', 'luyen-thi', 'trung-tam', 'phong-van', 'free-grade']
 
 export function ogImage(page: OgPage, locale: PublicLocale, alt: string) {
   return { url: `/og/${page}.png?l=${locale}&v=${OG_VERSION}`, ...OG_SIZE, alt, type: 'image/png' }

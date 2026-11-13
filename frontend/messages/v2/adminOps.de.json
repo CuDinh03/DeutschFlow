@@ -274,7 +274,8 @@
         "aiUnlimited": "Unbegrenzt",
         "aiMetered": "Budget",
         "aiPoolPlaceholder": "Token/Monat",
-        "aiUnsetWarning": "0 Token = nicht konfiguriert — Personal ist sofort für KI gesperrt."
+        "aiUnsetWarning": "0 Token = nicht konfiguriert — Personal ist sofort für KI gesperrt.",
+        "errorTitle": "Zentrum konnte nicht angelegt werden"
       },
       "forceOwner": {
         "action": "Leitung bestimmen",
@@ -298,7 +299,8 @@
         "reasonHint": "{count}/{max} Zeichen — mindestens {min}.",
         "confirm": "Leitung bestimmen",
         "cancel": "Abbrechen",
-        "done": "{name} ist jetzt Leitung von {org}."
+        "done": "{name} ist jetzt Leitung von {org}.",
+        "errorTitle": "Leitung konnte nicht bestimmt werden"
       },
       "perpetual": "Unbefristet",
       "openDetail": "Paket & Rechnungen",
@@ -321,7 +323,8 @@
           "seatsOver": "über dem Limit — neue Lernende gesperrt",
           "aiPool": "KI für Personal",
           "validUntil": "Lizenz gültig bis"
-        }
+        },
+        "loadErrorTitle": "Zentrumsprofil konnte nicht geladen werden"
       },
       "licence": {
         "title": "Paket & Lizenz",
@@ -355,7 +358,8 @@
           "detailLedger": "Die Änderung wird unter Ihrem Namen (Admin) ins Aktivitätsprotokoll des Zentrums geschrieben.",
           "confirm": "Trotzdem senken",
           "cancel": "Abbrechen"
-        }
+        },
+        "errorTitle": "Paket und Lizenz konnten nicht gespeichert werden"
       },
       "statusCard": {
         "title": "Status",
@@ -391,7 +395,8 @@
           "detail": "Vergibt Paket {plan} an {count} aktive Lernende (wer es schon hat, wird aufgefrischt).",
           "detailNoStatus": "Auch ein ausgesetztes oder abgelaufenes Zentrum wird bedient — dies ist der Wiederherstellungspfad, er umgeht die Lesemodus-Sperre.",
           "confirm": "Neu vergeben"
-        }
+        },
+        "errorTitle": "Die Aktion für dieses Zentrum wurde nicht ausgeführt"
       },
       "invoices": {
         "title": "Rechnungen",
@@ -465,8 +470,10 @@
           "submit": "Rechnungsentwurf anlegen",
           "errAmount": "Der Betrag muss größer als 0 sein.",
           "errPeriod": "Das Zeitraumende darf nicht vor dem Zeitraumbeginn liegen.",
-          "created": "Rechnungsentwurf #{id} angelegt ({amount})."
-        }
+          "created": "Rechnungsentwurf #{id} angelegt ({amount}).",
+          "errorTitle": "Rechnung konnte nicht angelegt werden"
+        },
+        "errorTitle": "Rechnung konnte nicht aktualisiert werden"
       }
     },
     "users": {
@@ -645,7 +652,10 @@
             "confirm": "Ansicht öffnen",
             "cancel": "Abbrechen"
           }
-        }
+        },
+        "loadErrorTitle": "Nutzerprofil konnte nicht geladen werden",
+        "accessErrorTitle": "Der Zugriff des Kontos konnte nicht geändert werden",
+        "planErrorTitle": "Das Paket des Nutzers konnte nicht geändert werden"
       },
       "create": {
         "title": "Benutzer hinzufügen",
@@ -685,7 +695,8 @@
           "detailAudit": "Die Aktion wird im Audit-Log erfasst.",
           "confirm": "Adminkonto anlegen",
           "cancel": "Abbrechen"
-        }
+        },
+        "errorTitle": "Konto konnte nicht angelegt werden"
       },
       "openProfile": "Profil von {name} öffnen",
       "view": {
@@ -1132,7 +1143,10 @@
       "regradeBatchDone": "{regraded}/{requested} Sitzungen neu bewertet (Fehler {failed}) · Bestehen gewechselt: {passFlips} · mittlere Gesamtdifferenz: {avgDelta} · Band-Änderungen: {bandChanges}.",
       "blindHint": "Blindbewertung: Maschinen-Bands bleiben bis zum Speichern verborgen (Gate-Dokument §4.1).",
       "revealMachine": "Maschinen-Bands zeigen (Blindbewertung aufheben)",
-      "hideMachine": "Maschinen-Bands verbergen"
+      "hideMachine": "Maschinen-Bands verbergen",
+      "errorTitle": "Die Aktion im Golden-Set Sprechen wurde nicht ausgeführt",
+      "detailLoadErrorTitle": "Die zu bewertende Session konnte nicht geladen werden",
+      "saveErrorTitle": "Bewertung konnte nicht gespeichert werden"
     },
     "examBank": {
       "title": "Aufgabenbank Sprechprüfung",
@@ -1172,7 +1186,9 @@
       "previewNote": "Alle partner*-Schlüssel sind hier herausgefiltert (wie im echten Prüfungsraum). Text und Kartentyp prüfen.",
       "save": "Speichern",
       "saving": "Speichert…",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "loadErrorTitle": "Aufgabenbank konnte nicht geladen werden",
+      "saveErrorTitle": "Aufgabe konnte nicht gespeichert werden"
     },
     "aiUsage": {
       "title": "KI-Kosten",
@@ -1207,7 +1223,8 @@
       "colFeatures": "Features",
       "tabsLabel": "Ansichten der KI-Kosten",
       "tabOverview": "Überblick",
-      "tabLedger": "Nach Ledger"
+      "tabLedger": "Nach Ledger",
+      "errorTitle": "KI-Kostendaten konnten nicht geladen werden"
     }
   }
 }

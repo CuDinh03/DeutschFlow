@@ -46,7 +46,7 @@ public class ExamSourceCatalogController {
     @PatchMapping("/feeds/{id}")
     public List<FeedView> setActive(@PathVariable long id, @RequestBody ActiveRequest req,
                                     @AuthenticationPrincipal User actor) {
-        if (req == null || req.active() == null) throw new BadRequestException("Thiếu trường active.");
+        if (req == null || req.active() == null) throw new BadRequestException("Yêu cầu bật/tắt nguồn gửi lên thiếu thông tin. Tải lại tab \"Nguồn\" rồi bấm lại.");
         catalog.setActive(id, req.active());
         audit.log(req.active() ? "admin.exam_studio.source_feed_enabled" : "admin.exam_studio.source_feed_disabled",
                 AuditActor.of(actor), "EXAM_SOURCE_FEED", String.valueOf(id), Map.of());

@@ -5,7 +5,7 @@
 >
 > Repo PUBLIC (công khai lại từ 11/2026; từng private từ 08/11/2026, có thể đổi lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
 >
-> Cập nhật lần cuối: 11/11/2026 (repo công khai lại; máy chủ vẫn lấy code bằng deploy key chỉ đọc, §8.5).
+> Cập nhật lần cuối: 13/11/2026 (frontend gọi backend qua mạng nội bộ `deutschflow-api-net`, §1, §5, §6.1; deploy backend từ chối khi Xưởng đề đang chạy, §6.1).
 
 ---
 
@@ -19,6 +19,7 @@
 6. **Migration Flyway chạy theo thứ tự, không cho chạy lệch** (`out-of-order: false`). Số migration phải lớn hơn mọi số đang có trên `main` **và trên mọi nhánh đang mở**; nhánh có số nhỏ hơn phải lên prod trước (§6.2).
 7. **Env và secret chỉ sống trên máy chủ.** Không bao giờ chép `.env` từ máy dev lên, không commit, không in giá trị ra log hay chat.
 8. **Sửa code thì cập nhật SRS cùng đợt** (`TAI_LIEU_DAC_TA_SAN_PHAM/chi-tiet/` + ca nghiệm thu, ca mới để NOT_RUN).
+9. **Không deploy chồng.** `deploy-backend-vm.sh` và `deploy-frontend-vm.sh` (kể cả `--rollback`, kể cả chạy tay qua SSH hay qua workflow) đều lấy chung khoá `/srv/deutschflow/deploy.lock`. Lần chạy thứ hai thoát ngay với mã **75** và in ra pid, giờ bắt đầu, lệnh của lần đang giữ khoá. Gặp mã 75 thì **chờ**, không xoá file khoá, không tìm cách lách: khoá tự nhả khi tiến trình kia kết thúc (kể cả bị kill).
 
 ---
 
@@ -34,6 +35,8 @@ Người dùng ──HTTPS──► Cloudflare (DNS, TLS, proxy)
                      └─ api.mydeutschflow.com  → backend  :8080 | :8081  (Spring Boot, container)
                    mạng docker `deutschflow-net` (mọi cổng chỉ bind 127.0.0.1):
                      deutschflow-postgres (pgvector pg16) · deutschflow-redis · deutschflow-edge-tts
+                   mạng docker `deutschflow-api-net`: frontend → backend nội bộ qua alias `deutschflow-api:8080`
+                     (alias chỉ nằm trên màu backend đang nhận traffic; xem dưới bảng)
                    Lưu file: Cloudflare R2 (bucket media; bucket backup cho bản sao lưu DB)
 Mobile (Expo/EAS) ──► gọi api.mydeutschflow.com; bản build qua EAS → TestFlight; vá JS qua EAS Update (OTA)
 GitHub ──► CI (frontend-ci, backend-ci, mobile-ci, security-ci); KHÔNG tự deploy.
@@ -49,6 +52,7 @@ GitHub Actions "Deploy production" (chạy tay + owner duyệt) ──► Cloudf
 | Secret | `/home/deploy/secrets/` | Không bao giờ rời máy chủ (trừ bản sao khoá backup owner tự cất) |
 | Upstream nginx hiện hành | `/etc/nginx/deutschflow-upstreams/*.conf` | Cho biết màu nào đang phục vụ |
 | Backup DB | `/backup/db` (14 bản) + R2 (30 ngày), timer 03:00 giờ VN | Mã hoá `age`, §8.3 |
+| Frontend gọi backend nội bộ | Mạng `deutschflow-api-net`, alias `deutschflow-api` | Từ 13/11/2026. Trang server (trang nghề, sitemap, phiếu/báo cáo/chứng nhận theo token) gọi `BACKEND_INTERNAL_URL=http://deutschflow-api:8080` (biến lúc chạy, `deploy-frontend-vm.sh` đặt) thay vì vòng qua Cloudflare (đo: 92 ms so với 784 ms, và hết lỗi "fetch failed" → 500). Lỗi mạng nội bộ ⇒ code tự lùi về `NEXT_PUBLIC_BACKEND_URL` (`frontend/src/lib/serverBackend.ts`). Code chạy trên trình duyệt luôn dùng địa chỉ công khai |
 
 Kết nối SSH, IP, đường dẫn khoá: xem tài liệu vận hành local (`docs/DEPLOY_TU_HOST.md` §1, §7). Nên đặt alias `Host deutschflow-srv` trong `~/.ssh/config` để lệnh trong tài liệu này dùng thẳng `ssh deutschflow-srv`.
 
@@ -181,7 +185,7 @@ deploy/self-host/deploy-frontend-vm.sh                 # nhánh hiện tại c�
 DEPLOY_BRANCH=main deploy/self-host/deploy-frontend-vm.sh
 ```
 
-Script làm: kiểm `frontend-build.env` đủ biến → `fetch` + `reset --hard` → `docker build` (Next.js standalone, ~1,5–2 GB RAM, vài phút) với build args từ máy chủ + JWT public key → chạy màu kia (3000 ↔ 3001) → kiểm trang `/v2/login/` = 200 và **cổng vai trò middleware bật** → đổi upstream nginx → gỡ màu cũ → tag `:prev`/`:latest`.
+Script làm: kiểm `frontend-build.env` đủ biến → `fetch` + `reset --hard` → `docker build` (Next.js standalone, ~1,5–2 GB RAM, vài phút) với build args từ máy chủ + JWT public key → chạy màu kia (3000 ↔ 3001) với `BACKEND_INTERNAL_URL` và nối vào `deutschflow-api-net` → kiểm trang `/v2/login/` = 200 và **cổng vai trò middleware bật** → đổi upstream nginx → gỡ màu cũ → tag `:prev`/`:latest`.
 
 Điều phải nhớ:
 - `JWT_RSA_PUBLIC_KEY` và `CSP_ENFORCE` **nhúng lúc build**. Thiếu public key ⇒ middleware không chặn được `/v2/admin/` (script đã kiểm). **Xoay cặp khoá JWT ⇒ phải build lại frontend cùng lúc restart backend.**
@@ -204,7 +208,9 @@ DEPLOY_BRANCH=main deploy/self-host/deploy-backend-vm.sh   # sau khi máy chủ 
 deploy/self-host/deploy-backend-vm.sh --rollback       # quay về :prev
 ```
 
-Script: preflight (`backend.env` đủ biến, không còn `AWS_*`/placeholder, disk < 90 %, Postgres `pg_isready`, Redis `PONG`) → build image tag theo commit → chạy màu kia → health 300 s + warm-up → đổi upstream nginx → kiểm `https://api.mydeutschflow.com/actuator/health` = UP → xả màu cũ sau 30 s → tag `:prev`/`:latest` → dọn an toàn.
+Script: preflight (`backend.env` đủ biến, không còn `AWS_*`/placeholder, disk < 90 %, Postgres `pg_isready`, Redis `PONG`, **Xưởng đề không có việc AI đang chạy**) → build image tag theo commit → chạy màu kia → health 300 s + warm-up → đổi upstream nginx → kiểm `https://api.mydeutschflow.com/actuator/health` = UP → chuyển alias nội bộ `deutschflow-api` sang màu mới (gắn mới trước, tháo cũ sau) → xả màu cũ sau 30 s → tag `:prev`/`:latest` → dọn an toàn.
+
+**Xưởng đề đang chạy thì script từ chối deploy.** Lượt "Tạo bộ đề tự động" và các bước AI của bản nháp chạy nền trong tiến trình backend; đổi màu là cắt ngang chúng (13/11/2026: một lần deploy làm lượt #9 treo 25 phút). Preflight đếm lượt đang `PLANNING`/`RUNNING` và bản nháp đang gọi AI trong 30 phút gần nhất; khác 0 thì dừng, production không bị đụng. Chờ chúng xong (admin → Xưởng đề → Bộ đề) rồi chạy lại. Chỉ khi buộc phải lên ngay (vá khẩn): `ALLOW_DEPLOY_DURING_EXAM_RUN=1 deploy/self-host/deploy-backend-vm.sh` — các việc đang chạy sẽ hỏng và phải bấm làm lại. `--rollback` không bị chặn. Deploy frontend không ảnh hưởng.
 
 ### 6.2 Migration (Flyway)
 
@@ -229,7 +235,23 @@ Runbook đầy đủ: `mobile/DEPLOYMENT.md` (local). Tóm tắt luật:
 
 - Policy `runtimeVersion: fingerprint`: OTA chỉ tới bản build có fingerprint trùng. Sau mỗi lần publish kiểm `npx eas-cli@latest update:list --branch production` — `runtimeVersion` phải trùng build đích.
 - Không thêm `.fingerprintignore` giữa vòng đời một build.
+- OTA **không** đổi `version` trong `app.json` (fingerprint mặc định hash cả version ⇒ OTA lệch build). Việc cần sửa trên App Store Connect cho từng đường (OTA: không gì; bản mới: version, What's New, ảnh, build, review): `mobile/docs/APP_STORE_CONNECT_KHI_PHAT_HANH.md`.
 - Mobile gọi `api.mydeutschflow.com`: thay đổi API phá tương thích phải deploy backend theo kiểu tương thích ngược, vì bản app cũ còn trên máy người dùng.
+
+### 7.1 Tự đổi version khi phát hành bản mới (bắt buộc với phiên Claude)
+
+Khi owner ra lệnh build bản mới lên store, phiên làm việc **tự tính và tự sửa** `mobile/app.json` → `expo.version`, không hỏi lại số, rồi mới build. Không ai gõ số bằng tay.
+
+1. Lấy `X.Y.Z` = version đang trên App Store: dòng "store" mới nhất trong nhật ký §4 của `mobile/docs/APP_STORE_CONNECT_KHI_PHAT_HANH.md` (đối chiếu `app.json`).
+2. Gom **mọi** thay đổi mobile kể từ `X.Y.Z`, gồm cả các bản OTA `X.Y.Z-ota.K` đã ra (`git log` trên `mobile/` từ commit build `X.Y.Z` + nhật ký).
+3. Xét theo thứ tự, gặp điều nào đúng trước thì lấy điều đó:
+   - **MAJOR** `(X+1).0.0`: đổi mô hình sản phẩm, làm lại toàn bộ giao diện, hoặc backend ngừng hỗ trợ bản app cũ.
+   - **MINOR** `X.(Y+1).0`: có tính năng hoặc màn hình mới mà người dùng nhìn thấy, hoặc thêm gói mua trong app.
+   - **PATCH** `X.Y.(Z+1)`: chỉ sửa lỗi, nâng thư viện hay SDK, đổi quyền, icon, hiệu năng.
+4. Sửa `expo.version` thành số mới, commit cùng đợt (`release(mobile): vA.B.C`), ghi dòng mới vào nhật ký, rồi build/submit như bảng trên. Báo owner số mới và lý do chọn mức tăng trong một câu.
+5. Không sửa build number (EAS tự tăng). Trên App Store Connect gõ đúng chuỗi `A.B.C` khi tạo version (xem tài liệu ASC ở trên).
+
+**OTA không bao giờ đổi `expo.version`** (đổi là lệch fingerprint, OTA không tới máy nào). Bản OTA chỉ mang nhãn `X.Y.Z-ota.K` trong `--message` của `eas update` và trong nhật ký; K đếm từ 1, quay về 1 khi có version store mới.
 
 ---
 

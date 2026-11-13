@@ -346,10 +346,11 @@ public class MaintenanceWindowService {
             userNotificationService.onSystemAlert(
                     "maintenance",
                     "Bảo trì quá giờ dự kiến",
-                    "Window #" + window.getId() + " (" + window.getTitle() + ") dự kiến xong lúc "
+                    "Đợt bảo trì #" + window.getId() + " (" + window.getTitle() + ") dự kiến xong lúc "
                             + MaintenanceStateService.displayVn(window.getEndsAt())
-                            + " nhưng vẫn đang ACTIVE. Vào Admin → Bảo trì để kết thúc hoặc gia hạn.",
-                    Map.of("windowId", window.getId()));
+                            + " nhưng vẫn đang chạy, nên chế độ bảo trì vẫn bật với người dùng. Mở trang \"Bảo trì\" để "
+                            + "kết thúc đợt này hoặc gia hạn giờ xong.",
+                    Map.of("windowId", window.getId(), "url", "/v2/admin/maintenance"));
             alerted++;
         }
         return alerted;

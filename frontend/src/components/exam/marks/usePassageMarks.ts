@@ -35,6 +35,8 @@ export interface PassageMarks {
   canUndo: boolean
   /** Sau "Làm lại" bỏ đánh dấu: xoá trên máy, không gửi (server đã xoá). */
   clearLocal: () => void
+  /** Nơi lưu gói — thanh công cụ dùng để biết đang luyện Teil (có "Lưu từ") hay trong lượt thi. */
+  source?: MarksSource | null
 }
 
 /** Nơi lưu: luyện Teil (một gói / người × đề × Teil) hoặc một lượt thi thử (một gói / lượt × Teil). */
@@ -219,6 +221,7 @@ export function usePassageMarks({ source, texts }: Options): PassageMarks {
     undo,
     canUndo: undoDepth > 0,
     clearLocal,
+    source,
   }
 }
 

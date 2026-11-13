@@ -261,7 +261,7 @@
           {
             "date": "31. Mai 2026",
             "title": "Aufs Handy",
-            "body": "Start der App für iOS und Android, damit Sie überall sprechen üben können."
+            "body": "Beginn der Arbeit an der App für iOS und Android, damit Sie überall sprechen üben können."
           },
           {
             "date": "18. Oktober 2026",
@@ -349,6 +349,7 @@
       "detail": {
         "meta": {
           "title": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
+          "titleShort": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
           "description": "Typische Fragen im Vorstellungsgespräch als {nameDe}, Fachbegriffe und Ihr Interviewer. Antworten kostenlos mit KI üben."
         },
         "back": "Alle Berufe",
@@ -361,11 +362,23 @@
         "termsEmpty": "Die Fachbegriffe zu diesem Beruf werden gerade erstellt.",
         "labelsNote": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Der „allgemeine Fragenkatalog“ gilt für alle Berufe, mit Ihrer Berufsbezeichnung.",
         "cta": "Dieses Gespräch üben",
-        "ctaNote": "Kostenlos. Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können."
+        "ctaNote": "Kostenlos. Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können.",
+        "relatedCap": "Verwandte Berufe",
+        "guideLink": "Ratgeber: {title}",
+        "examLink": "Prüfungsvorbereitung: {name}",
+        "faqCap": "Häufige Fragen",
+        "faqAskQ": "Was wird im Vorstellungsgespräch als {name} gefragt?",
+        "faqAskA": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen, zum Beispiel: „{example}“. Die Fragen können abweichen oder anders formuliert sein.",
+        "faqAskANoExample": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen. Die Fragen können abweichen oder anders formuliert sein.",
+        "faqLevelQ": "Welches Deutschniveau brauche ich für ein Vorstellungsgespräch als {name}?",
+        "faqLevelA": "Das hängt vom Arbeitgeber und vom Programm ab. Viele Ausbildungsprogramme verlangen B1, manche B2. Prüfen Sie die Anforderungen der Stelle, auf die Sie sich bewerben.",
+        "faqCostQ": "Kostet das Üben des Vorstellungsgesprächs als {name} etwas?",
+        "faqCostA": "Sie starten kostenlos, mit einem täglichen Kontingent für KI-Übungen und ohne Kreditkarte. Kostenpflichtige Tarife finden Sie in der App."
       }
     },
     "footer": {
       "guide": "Ratgeber",
+      "whatIs": "Was ist myDeutschFlow?",
       "about": "Über uns",
       "privacy": "Datenschutz",
       "terms": "Nutzungsbedingungen",

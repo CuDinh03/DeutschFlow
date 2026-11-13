@@ -554,6 +554,13 @@
       "removeOne": "Remove {name}",
       "unknownCap": "Entries that match no account"
     },
+    "problemNotice": {
+      "fallbackTitle": "This action could not be completed",
+      "todo": "What to do:",
+      "openDraft": "Open draft",
+      "open": "Open to fix",
+      "dismiss": "Dismiss notice"
+    },
     "examStudio": {
       "title": "Exam studio",
       "subtitle": "Build an exam Teil from German news sources: AI drafts the text and items by difficulty matrix, the owner approves into the bank.",
@@ -568,8 +575,14 @@
         },
         "approve": "Approve whole set",
         "approved": "Approved. The exam is in the list below as \"Coming soon\".",
+        "loadError": "Could not load the list of exam-set runs",
+        "lastErrorWhen": {
+          "RUNNING": "The previous attempt failed and the machine is retrying on its own (nothing for you to do yet):",
+          "STUCK": "Why the machine stopped on this Teil:"
+        },
+        "approveBlocked": "Run #{id} could not be approved: {count} Teil not ready. The list and how to fix it are shown in the run card.",
         "approveTitle": "Approve the whole set of run #{id}?",
-        "approveBody": "Every Teil of this run goes into the bank and is assembled into one exam marked \"Coming soon\". Students do not see it until you press Publish in the exam list. The listening part is taken unchanged from a live hand-written exam, because listening cannot be generated yet.",
+        "approveBody": "Every Teil of this run goes into the bank and is assembled into one exam marked \"Coming soon\". Students do not see it until you press Publish in the exam list. The listening part of the exam is the three listening Teile generated in this run.",
         "title": "Generate an exam set automatically",
         "body": "The system picks topics, fetches sources, writes texts, creates items, self-checks and self-repairs every Teil of a telc B1 set. The run uses the AI channel selected under \"Generate with\" and takes about an hour. You only review once the whole set is done.",
         "start": "Generate telc B1 set",
@@ -619,15 +632,15 @@
           "ROUTER": "9Router"
         },
         "recheck": "Re-check set",
-        "recheckedReady": "The set now meets the conditions. Press “Approve whole set” once you have reviewed it.",
-        "recheckedStill": "The set still has failing items. See the updated list below.",
+        "recheckedReady": "Run #{id} now meets the conditions. Review the Teile, then press \"Approve whole set\".",
+        "recheckedStill": "Run #{id} still cannot be approved: {stuck, plural, =0 {no stuck Teil left} other {# Teil not done ({teile})}}, set-level checks {red, plural, =0 {have no red items} other {have # red items}}. See \"Conditions to approve the whole set\" in the run card, fix them, then press \"Re-check set\" again.",
         "gate": {
           "title": "Conditions to approve the whole set",
           "ok": "Met",
           "missing": "Not yet",
           "teile": "{ready}/{total} Teile done (none stuck)",
           "checks": "No red set-level check ({red} red now)",
-          "next": "After fixing the stuck Teile, press “Re-check set”. A Teil with no red light counts as done and the set-level checks run again; when both conditions hold the run moves to “Awaiting approval” and the “Approve whole set” button appears. Yellow items do not block approval."
+          "next": "After fixing the stuck Teile, press “Re-check set”. A Teil with no red light counts as done and the set-level checks run again; when both conditions hold the run moves to “Ready for review” and the “Approve whole set” button appears. Yellow items do not block approval."
         },
         "fix": {
           "title": "Why it is stuck and how to fix it",
@@ -638,13 +651,23 @@
           "howTitle": "How to fix",
           "step1": "Press “Open draft” for this Teil.",
           "step2": "Red item: edit the question, options or answer by hand, or regenerate just that item. Red light on the text: edit the passage named or have it rewritten.",
-          "step3": "Go to the Check step and run the self-check again. The machine has used all its repair rounds, so this time you decide.",
+          "step3": "Go to the “Check & approve” step and press “Run self-check”. The machine has used all its repair rounds, so this time you decide.",
           "step4": "Come back here and press “Re-check set”.",
           "doneTitle": "What counts as fixed",
           "done": "After the latest self-check the draft has no red light at all: neither Teil-level lights nor any item. Yellow lights may remain."
-        }
+        },
+        "redo": "Redo this Teil",
+        "redoTitle": "Redo {teil} of run #{id}?",
+        "redoBody": "The machine discards this Teil’s current draft, picks a new theme that no other Teil uses and builds it again under the current rules (about 10–20 minutes). The other Teile stay as they are. No new run can start meanwhile.",
+        "redoStarted": "Redo started. The table updates by itself.",
+        "approveBodyNoHoeren": "Every Teil of this run goes into the bank and is assembled into one exam marked \"Coming soon\". Students do not see it until you press Publish in the exam list. The listening part is taken unchanged from a live hand-written exam, because this run has no listening part. To give the exam its own listening part, press \"Generate listening part\" before approving.",
+        "addHoeren": "Generate listening part",
+        "addHoerenTitle": "Generate the listening part for run #{id}?",
+        "addHoerenBody": "The machine adds three listening Teile (Hören 1–3) to this run, with themes no other Teil uses, then writes the scripts, creates the richtig/falsch items, self-checks and self-repairs (about 20–30 minutes). Finished Teile stay as they are. No audio is stored: students hear a text-to-speech voice at play time. No new run can start meanwhile.",
+        "addHoerenStarted": "Listening part started. The table updates by itself."
       },
       "sources": {
+        "loadError": "Could not load the source catalogue",
         "intro": "Publishers the exam-set pipeline may use. \"Read new articles\" only collects the article list (title, link); it does not download articles. Each article is used once.",
         "empty": "The source catalogue is empty.",
         "class": {
@@ -699,6 +722,14 @@
       "saved": "Saved",
       "unsaved": "Unsaved changes",
       "later": "Later phase",
+      "lastErrorTodo": "What to do:",
+      "lastErrorHelp": {
+        "CHANNEL": "This is an AI channel error, not a problem with the draft. Press the same button again. If it keeps failing, switch the channel under \"Generate with\" and retry.",
+        "INCOMPLETE": "The AI answer was incomplete or malformed. Press the same button again so the AI redoes it. If it fails three times, switch the channel under \"Generate with\".",
+        "TIMEOUT": "The operation was stopped because it ran too long. Press the same button again.",
+        "SOURCE": "The problem is with the source article. In the \"Sources\" step, paste the article text instead of a link, or pick another source.",
+        "OTHER": "Press the same button again. If it keeps failing, report it to engineering with draft number #{id}."
+      },
       "lastErrorTitle": "The last AI operation failed",
       "busyHint": "This screen updates itself when done.",
       "busy": {
@@ -787,7 +818,10 @@
           "TRUE_FALSE": "Lesen Teil 2 A2: an e-mail or short text and {itemCount} richtig/falsch statements (6–10).",
           "MATCH_AD_X_A2": "Lesen Teil 3 A2: {itemCount} situations (11–15) and 8 ads a–h (10–35 words each); exactly 1 situation is x, 1 example.",
           "FILL_FORM": "Schreiben Teil 1 A2: a text about a person and a form with {itemCount} fields, 1 point each.",
-          "WRITE_NOTE": "Schreiben Teil 2 A2: a situation + 4 points, students pick 3, about 40 words, 10 points; no items."
+          "WRITE_NOTE": "Schreiben Teil 2 A2: a situation + 4 points, students pick 3, about 40 words, 10 points; no items.",
+          "HOEREN_STATEMENTS": "Hören Teil 1 B1: five people answer one common question (60–110 words each), heard once, {itemCount} richtig/falsch statements (41–45).",
+          "HOEREN_INTERVIEW": "Hören Teil 2 B1: one radio interview of 400–650 words, heard twice, {itemCount} richtig/falsch statements in script order (46–55).",
+          "HOEREN_ANNOUNCEMENTS": "Hören Teil 3 B1: five short announcements or messages (40–95 words each), each with a lead-in sentence, heard twice, {itemCount} richtig/falsch statements (56–60)."
         }
       },
       "matrix": {
@@ -901,7 +935,31 @@
           "FILL_FORM": "The text must contain the information for all 5 form fields."
         },
         "noteSituation": "Situation",
-        "notePoints": "4 points (students pick 3)"
+        "notePoints": "4 points (students pick 3)",
+        "hoerenHint": {
+          "HOEREN_STATEMENTS": "Five people answer the same question; {lo}–{hi} words per segment, natural spoken language. Segment n belongs to item n. No audio is stored: students hear a text-to-speech voice.",
+          "HOEREN_INTERVIEW": "One radio interview, {lo}–{hi} words in total, clear question-and-answer turns, two different voices. No audio is stored: students hear a text-to-speech voice.",
+          "HOEREN_ANNOUNCEMENTS": "Five short announcements or messages, {lo}–{hi} words each, each with a lead-in sentence. Segment n belongs to item n. No audio is stored: students hear a text-to-speech voice."
+        },
+        "hoerenFraming": "Framing sentence (read before the five segments)",
+        "hoerenInterview": "Turns",
+        "hoerenNoTurns": "No script yet. Press \"AI rewrite whole text\" to have it written.",
+        "hoerenTurnN": "Turn {n}",
+        "hoerenSegmentN": "Segment {n} · item {no}",
+        "hoerenVoice": "Voice",
+        "hoerenVoiceName": {
+          "PRUEFER": "Female voice",
+          "PARTNER": "Male voice"
+        },
+        "hoerenNameN": "Speaker name of turn {n}",
+        "hoerenNamePh": "Moderatorin, Herr Vogel…",
+        "hoerenRemoveTurn": "Remove turn {n}",
+        "hoerenLeadIn": "Lead-in sentence",
+        "hoerenLeadInHint": "Write only the situation. On approval the machine puts \"Lesen Sie jetzt die Aufgabe {no}.\" in front.",
+        "hoerenTurnText": "Text of turn {n}",
+        "hoerenSegmentText": "Script of segment {n}",
+        "hoerenAddTurn": "Add turn",
+        "hoerenEditWarning": "Items already exist: after editing the script, check each item’s evidence sentence or regenerate the item of the edited segment."
       },
       "metrics": {
         "none": "Metrics appear once there is a text.",
@@ -995,7 +1053,9 @@
         "tfCount": "richtig {richtig} · falsch {falsch}",
         "tfUnbalanced": "The real exam has 2–3 of each — change answers or regenerate to balance.",
         "formPreview": "Form as students see it (with answers)",
-        "formRule": "Small spelling mistakes still count; fields with numbers must be exactly right. Edit answers and other spellings in each field's card."
+        "formRule": "Small spelling mistakes still count; fields with numbers must be exactly right. Edit answers and other spellings in each field's card.",
+        "hoerenUnbalanced": "Each answer should cover 40–60 % of the items. Change an answer together with its statement, or regenerate items to balance.",
+        "hoerenOneSided": "Every item has the same answer: the self-check will turn red and block approval. Regenerate a few items."
       },
       "score": {
         "phrasing": "Answer phrasing",
@@ -1062,7 +1122,8 @@
         "writingPoints": "Four points to cover",
         "adsN": "{n} ads",
         "notePoints": "Pick 3 of the 4 points, about 40 words",
-        "formAccept": "also accepted: {list}"
+        "formAccept": "also accepted: {list}",
+        "hoerenTts": "In the exam students only listen (text-to-speech voice) and read the statements; the script below is shown to reviewers only."
       },
       "wizard": {
         "back": "Back to exam studio",
@@ -1168,7 +1229,10 @@
           "MC_INFO": "Floor directory in a department store",
           "TRUE_FALSE": "A friend's e-mail about a weekend trip",
           "FILL_FORM": "Signing up for a swimming course at a sports centre",
-          "WRITE_NOTE": "Message to your teacher: you cannot come to class today"
+          "WRITE_NOTE": "Message to your teacher: you cannot come to class today",
+          "HOEREN_STATEMENTS": "Five people say how they get to work and why",
+          "HOEREN_INTERVIEW": "Interview with someone who opened a bike repair shop in the neighbourhood",
+          "HOEREN_ANNOUNCEMENTS": "Voicemail from a doctor’s office, station announcement, weather report"
         }
       },
       "levelName": {

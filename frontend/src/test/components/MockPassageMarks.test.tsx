@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   saveMarks: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
+  saveWord: vi.fn(),
 }))
 
 vi.mock('@/lib/api', () => ({
@@ -56,6 +57,8 @@ vi.mock('@/lib/telcPracticeApi', async (orig) => ({
   saveAttemptMarks: h.saveMarks,
 }))
 
+vi.mock('@/lib/myWordsApi', () => ({ myWordsApi: { save: h.saveWord, remove: vi.fn(), list: vi.fn() } }))
+
 import FullExamRoute from '@/app/v2/student/mock-exam/full/page'
 import { fnv1a } from '@/components/exam/marks/marksModel'
 
@@ -88,7 +91,7 @@ function selectInPassage(phrase: string) {
 }
 
 beforeEach(() => {
-  ;[h.start, h.save, h.result, h.analysis, h.getMarks, h.saveMarks, h.push, h.replace].forEach((f) => f.mockReset())
+  ;[h.start, h.save, h.result, h.analysis, h.getMarks, h.saveMarks, h.push, h.replace, h.saveWord].forEach((f) => f.mockReset())
   h.search = 'examId=7&start=1'
   h.start.mockResolvedValue({
     attemptId: 55, examId: 7, sectionsJson: SECTIONS, remainingSeconds: 3600, answers: {}, sectionIndex: 0,
@@ -129,6 +132,8 @@ describe('Đánh dấu bài đọc — thi thử', () => {
     expect(within(toolbar).queryByRole('button', { name: 'Gắn vào câu' })).toBeNull()
     expect(within(toolbar).queryByRole('button', { name: 'Ghi chú' })).toBeNull()
     expect(within(toolbar).queryByRole('button', { name: /Câu \d/ })).toBeNull()
+    // đang thi: không lưu từ (EXAM-237)
+    expect(within(toolbar).queryByRole('button', { name: /Lưu vào sổ từ/ })).toBeNull()
     await user.click(within(toolbar).getByRole('button', { name: 'Vàng · từ khoá' }))
 
     await waitFor(() => expect(h.saveMarks).toHaveBeenCalled(), { timeout: 4000 })
@@ -207,5 +212,19 @@ describe('Đánh dấu bài đọc — thi thử', () => {
     const toolbar = await screen.findByRole('toolbar', { name: 'Công cụ đánh dấu' })
     expect(within(toolbar).getByRole('button', { name: 'Gắn vào câu' })).toBeInTheDocument()
     expect(within(toolbar).getByRole('button', { name: 'Ghi chú' })).toBeInTheDocument()
+
+    // xem lại: lưu từ theo lượt — server lấy đề từ lượt (EXAM-237)
+    h.saveWord.mockResolvedValue({
+      id: 9, lemma: 'Projekt', article: 'das', pos: 'NOUN', meaning: 'dự án', topic: 'Beruf', topicLabel: 'Nghề nghiệp',
+      surface: 'Projekt', sentence: null, examId: 7, examTitle: 'Modelltest 1', teilKey: 'LESEN-2', block: 'ctx',
+      start: 0, end: 7, createdAt: '2026-11-13T10:00:00Z', alreadySaved: false,
+    })
+    await user.click(within(toolbar).getByRole('button', { name: /Lưu vào sổ từ/ }))
+    const at = CONTEXT.indexOf('Projekt')
+    expect(h.saveWord).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Projekt', examId: null, attemptId: 55, teilKey: 'LESEN-2', block: 'ctx', start: at, end: at + 7 }),
+      'vi',
+    )
+    expect(await within(await screen.findByTestId('save-word-card')).findByText('Đã lưu vào sổ từ')).toBeInTheDocument()
   }, 10_000)
 })

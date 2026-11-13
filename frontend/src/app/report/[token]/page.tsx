@@ -10,15 +10,13 @@ import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { GaGlyph } from '@/components/ui-v2/GaGlyph'
 import { LandingHeader } from '@/components/landing-v2/LandingHeader'
 import { LandingFooter } from '@/components/landing-v2/LandingFooter'
+import { serverBackendFetch } from '@/lib/serverBackend'
 
-const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
-  .replace(/\/+$/, '')
-  .replace(/\/api$/, '')
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://mydeutschflow.com').replace(/\/+$/, '')
 
 async function fetchReport(token: string): Promise<GradeReport | null> {
   try {
-    const res = await fetch(`${backendOrigin}/api/public/grade-report/${encodeURIComponent(token)}`, {
+    const res = await serverBackendFetch(`/api/public/grade-report/${encodeURIComponent(token)}`, {
       cache: 'no-store',
     })
     if (!res.ok) return null
@@ -32,9 +30,9 @@ export async function generateMetadata({ params }: { params: { token: string } }
   const report = await fetchReport(params.token)
   const url = `${SITE_URL}/report/${params.token}/`
   if (!report) {
-    return { title: 'Báo cáo chấm bài | DeutschFlow', robots: { index: false, follow: false } }
+    return { title: 'Báo cáo chấm bài | myDeutschFlow', robots: { index: false, follow: false } }
   }
-  const title = `Bài viết tiếng Đức được ${report.score}/100 — Chấm bởi DeutschFlow`
+  const title = `Bài viết tiếng Đức được ${report.score}/100 — Chấm bởi myDeutschFlow`
   const description = 'Báo cáo chấm bài tiếng Đức bằng AI: điểm số + nhận xét chi tiết. Chấm thử bài của bạn miễn phí.'
   return {
     title,
@@ -58,7 +56,7 @@ export default async function GradeReportPage({ params }: { params: { token: str
       <LandingHeader current="exam" showLanguage={false} />
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-10 sm:px-8 md:pt-14">
         {/* Dấu "chấm bởi" (watermark) — chữ trơn kiểu eyebrow, không icon (ICON_WEB §2). */}
-        <p className="mb-6 text-center text-ga-eyebrow uppercase text-ga-muted">Chấm bởi DeutschFlow</p>
+        <p className="mb-6 text-center text-ga-eyebrow uppercase text-ga-muted">Chấm bởi myDeutschFlow</p>
 
         <GradeScore score={report.score} topic={report.topic} center />
 
@@ -81,7 +79,7 @@ export default async function GradeReportPage({ params }: { params: { token: str
           </p>
           <div className="mt-4 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
             <GaBtn asChild variant="ink" size="lg">
-              <Link href="/free-grade"><Sparkles size={16} aria-hidden /> Chấm bài của bạn miễn phí</Link>
+              <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm bài của bạn miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg">
               <Link href="/v2/register">Luyện thi với DeutschFlow</Link>

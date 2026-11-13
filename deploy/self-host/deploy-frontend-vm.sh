@@ -62,7 +62,9 @@ fi
 step "Khởi động $NEW (:$NEW_PORT)"
 remove_container "$NEW" 5
 docker run -d --name "$NEW" --restart unless-stopped --network "$DF_NET" --memory 512m \
+  -e "BACKEND_INTERNAL_URL=http://$DF_API_ALIAS:8080" \
   -p "127.0.0.1:$NEW_PORT:3000" "$RUN_IMAGE" >/dev/null
+api_net_join "$NEW"
 if ! wait_http "http://127.0.0.1:$NEW_PORT/v2/login/" 200 120 mydeutschflow.com; then
   error "$NEW không trả 200 cho /v2/login/ — $OLD VẪN phục vụ."
   docker logs "$NEW" --tail 100 2>&1 || true

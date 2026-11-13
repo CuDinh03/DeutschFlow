@@ -269,9 +269,10 @@ public class TeacherAiGradingService {
             userNotificationService.onSystemAlert(
                     "AI_GRADING",
                     "AI chấm Sprechen thất bại",
-                    "Có phiên nói không chấm được tự động (session #" + sessionId + "): " + reason
-                            + ". Kiểm tra cấu hình LLM.",
-                    Map.of("sessionId", sessionId));
+                    "Phiên nói #" + sessionId + " không được AI chấm tự động: " + reason
+                            + ". Mở trang \"Cấu hình AI\" để kiểm tra model chấm nói và hạn mức của nhà cung cấp; "
+                            + "nếu lỗi lặp lại, báo kỹ thuật kèm số phiên.",
+                    Map.of("sessionId", sessionId, "url", "/v2/admin/ai-config"));
         } catch (Exception alertErr) {
             log.warn("[Auto-Grading] Could not emit admin system alert for session {}: {}", sessionId, alertErr.toString());
         }

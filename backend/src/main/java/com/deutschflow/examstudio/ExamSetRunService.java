@@ -96,10 +96,12 @@ public class ExamSetRunService {
         return createRun(req, userId);
     }
 
-    private static String normProfile(String raw) {
+    /** Hồ sơ độ khó REAL (mặc định) hoặc SPRINT; lạ thì báo kèm nút cần bấm lại. */
+    private static String normProfile(String raw, String button) {
         String profile = raw == null || raw.isBlank() ? "REAL" : raw.trim().toUpperCase();
         if (!profile.equals("REAL") && !profile.equals("SPRINT")) {
-            throw new BadRequestException("Hồ sơ độ khó không hợp lệ (REAL hoặc SPRINT).");
+            throw new BadRequestException("Yêu cầu tạo lượt gửi lên không đúng mẫu (hồ sơ độ khó lạ). Tải lại trang rồi bấm lại \""
+                    + button + "\"; nếu vẫn lỗi, báo kỹ thuật.");
         }
         return profile;
     }
@@ -107,15 +109,12 @@ public class ExamSetRunService {
     private RunView createRun(CreateRunRequest req, Long userId) {
         List<TeilSpec> specs = TeilSpec.forExam(req.examFormat(), req.cefrLevel());
         if (specs.isEmpty()) {
-            throw new BadRequestException("Chưa có khuôn Teil nào cho kỳ thi và cấp này trong Xưởng đề.");
+            throw new BadRequestException("Xưởng đề chưa tạo được bộ đề tự động cho " + req.examFormat() + " " + req.cefrLevel()
+                    + ". Hiện chỉ tạo được bộ telc B1 bằng nút \"" + RunGuide.BTN_START + "\".");
         }
-        String profile = normProfile(req.profile());
+        String profile = normProfile(req.profile(), RunGuide.BTN_START);
         String channel = ai.requireChannel(req.channel()).name();
-        Integer running = jdbc.queryForObject(
-                "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
-        if (running != null && running > 0) {
-            throw new BadRequestException("Đang có một lượt tạo bộ đề chạy. Đợi lượt đó xong rồi bấm lại.");
-        }
+        requireNoActiveRun(RunGuide.BTN_START);
         TeilSpec first = specs.get(0);
         Long id = jdbc.queryForObject("""
                 INSERT INTO exam_set_runs (exam_format, cefr_level, status, channel, profile, created_by)
@@ -181,13 +180,13 @@ public class ExamSetRunService {
     public RunView recheck(long id) {
         RunRow run = run(id);
         if (!run.status().equals("NEEDS_ATTENTION")) {
-            throw new BadRequestException("Chỉ kiểm lại được lượt đang „Cần bạn xem“.");
+            throw RunGuide.wrongStatus(id, run.status(), RunGuide.BTN_RECHECK, "đang \"Cần bạn xem\"");
         }
         for (TeilRow t : teile(id)) {
             if (!t.status().equals("STUCK") || t.draftId() == null) continue;
             Draft d = drafts.get(t.draftId());
             if (d.busyOp() != null && !d.busyOp().isBlank()) {
-                throw new BadRequestException("Bản nháp " + t.section() + " " + t.teil() + " đang chạy AI. Đợi xong rồi kiểm lại.");
+                throw RunGuide.draftBusy(id, t.section(), t.teil(), t.draftId(), RunGuide.BTN_RECHECK);
             }
             boolean verified = !d.checks().isEmpty();
             if (verified && problemsOf(d).isEmpty() && (specOf(run, t).writing() || !d.items().isEmpty())) {
@@ -204,14 +203,138 @@ public class ExamSetRunService {
         return get(id);
     }
 
+    /**
+     * "Làm lại Teil này" (owner chốt 13/11/2026): máy tạo lại RIÊNG một Teil của lượt đã chạy xong — bỏ bản nháp cũ,
+     * chọn chủ đề mới không trùng các Teil còn lại, chạy lại từ đầu theo luật hiện hành (vd. Lesen 1 trải 4 chủ đề).
+     * Lượt quay về RUNNING cho tới khi Teil đó xong hoặc kẹt, rồi kiểm cấp bộ chạy lại. Mỗi lúc chỉ một lượt chạy.
+     */
+    public RunView redoTeil(long id, String section, int teil) {
+        return redoTeil(id, section, teil, null);
+    }
+
+    /**
+     * @param channel kênh AI cho lần làm lại (kênh admin đang chọn). Lượt tạo từ hồi dùng kênh khác vẫn làm lại được:
+     *                lượt #1 tạo trên Fireworks, 13/11/2026 tài khoản đó bị khoá nên làm lại trên kênh cũ hỏng ngay.
+     *                Trống ⇒ giữ kênh của lượt.
+     */
+    public RunView redoTeil(long id, String section, int teil, String channel) {
+        if (channel != null && !channel.isBlank()) {
+            String ch = ai.requireChannel(channel).name();
+            jdbc.update("UPDATE exam_set_runs SET channel = ? WHERE id = ? AND status IN ('NEEDS_ATTENTION', 'REVIEW')", ch, id);
+        }
+        RunRow run = run(id);
+        if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
+            throw RunGuide.wrongStatus(id, run.status(), RunGuide.BTN_REDO,
+                    "đã chạy xong và chưa duyệt (\"Cần bạn xem\" hoặc \"Sẵn sàng duyệt\")");
+        }
+        requireNoActiveRun(RunGuide.BTN_REDO);
+        List<TeilRow> rows = teile(id);
+        TeilRow t = rows.stream().filter(x -> x.section().equalsIgnoreCase(section) && x.teil() == teil).findFirst()
+                .orElseThrow(() -> new NotFoundException("Lượt #" + id + " không có " + ApprovalGuide.slotLabel(section, teil)
+                        + ". Tải lại trang để xem danh sách Teil hiện tại của lượt."));
+        if (t.draftId() != null) {
+            Draft d = drafts.get(t.draftId());
+            if ("APPROVED".equals(d.status())) {
+                throw RunGuide.teilAlreadyApproved(id, t.section(), t.teil(), t.draftId());
+            }
+            if (d.busyOp() != null && !d.busyOp().isBlank()) {
+                throw RunGuide.draftBusy(id, t.section(), t.teil(), t.draftId(), RunGuide.BTN_REDO);
+            }
+        }
+        Set<String> banned = new HashSet<>();
+        for (TeilRow other : rows) if (other.id() != t.id()) banned.addAll(ExamSetPlanner.split(other.theme()));
+        String theme = assignThemes(run, List.of(t), banned).get(t.section() + "#" + t.teil());
+        if (theme == null) {
+            throw new BadRequestException("Chưa làm lại được " + ApprovalGuide.slotLabel(t.section(), t.teil()) + " của lượt #" + id
+                    + ": sổ nguồn không còn đủ bài cho các chủ đề chưa dùng trong bộ này. Sang tab \"Nguồn\", đọc thêm bài ở vài nguồn, "
+                    + "rồi quay lại bấm \"" + RunGuide.BTN_REDO + "\".");
+        }
+        discardDraftQuietly(t.draftId());
+        jdbc.update("""
+                UPDATE exam_set_run_teile SET draft_id = NULL, status = 'RUNNING', stage = 'NEW', theme = ?, theme_try = 0,
+                       repair_round = 0, errors = 0, source_tries = 0, pending_article_id = NULL,
+                       repair_queue = '[]'::jsonb, source_themes = '{}'::jsonb, last_error = NULL, updated_at = now()
+                WHERE id = ?
+                """, theme, t.id());
+        jdbc.update("""
+                UPDATE exam_set_runs SET status = 'RUNNING', report_json = '{}'::jsonb, finished_at = NULL, updated_at = now()
+                WHERE id = ?
+                """, id);
+        log.info("[ExamSet] lượt #{} {} {}: owner cho làm lại, chủ đề mới „{}“", id, t.section(), t.teil(), theme);
+        return get(id);
+    }
+
     private TeilSpec specOf(RunRow run, TeilRow t) {
         return spec(run, t);
     }
 
+    /**
+     * "Tạo phần Nghe" cho lượt cũ (tạo trước khi Xưởng đề soạn được Hören, chỉ có 6 Teil): thêm ba Teil HOEREN với
+     * chủ đề chưa dùng trong bộ, rồi đưa lượt về RUNNING để nhịp nền dựng tiếp. Các Teil đã xong giữ nguyên. Cùng luật
+     * với {@link #redoTeil}: chỉ lượt đã chạy xong và chưa duyệt, mỗi lúc một lượt chạy, kênh AI là kênh admin đang
+     * chọn (trống ⇒ giữ kênh của lượt). Không đủ chủ đề thì không thêm dòng nào.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public RunView addHoeren(long id, String channel) {
+        RunRow run = run(id);
+        if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
+            throw RunGuide.wrongStatus(id, run.status(), RunGuide.BTN_ADD_HOEREN,
+                    "đã chạy xong và chưa duyệt (\"Cần bạn xem\" hoặc \"Sẵn sàng duyệt\")");
+        }
+        String ch = channel == null || channel.isBlank() ? null : ai.requireChannel(channel).name();
+        requireNoActiveRun(RunGuide.BTN_ADD_HOEREN);
+        List<TeilRow> rows = teile(id);
+        if (rows.stream().anyMatch(t -> HOEREN.equalsIgnoreCase(t.section()))) {
+            throw new BadRequestException("Lượt #" + id + " đã có phần Nghe. Muốn soạn lại một Teil Nghe thì bấm \""
+                    + RunGuide.BTN_REDO + "\" ở đúng Teil Hören đó.");
+        }
+        List<TeilSpec> specs = TeilSpec.forExam(run.examFormat(), run.cefrLevel()).stream().filter(TeilSpec::listening).toList();
+        if (specs.isEmpty()) {
+            throw new BadRequestException("Máy chưa soạn được phần Nghe cho " + run.examFormat().toLowerCase() + " " + run.cefrLevel()
+                    + " (hiện chỉ có telc B1). Lượt #" + id + " vẫn duyệt được: khi bấm \"" + RunGuide.BTN_APPROVE
+                    + "\", phần Nghe lấy nguyên từ đề nền.");
+        }
+        Set<String> banned = new HashSet<>();
+        for (TeilRow other : rows) banned.addAll(ExamSetPlanner.split(other.theme()));
+        for (TeilSpec s : specs) {
+            jdbc.update("INSERT INTO exam_set_run_teile (run_id, section, teil) VALUES (?, ?, ?)", id, s.section(), s.teil());
+        }
+        List<TeilRow> added = teile(id).stream().filter(t -> HOEREN.equalsIgnoreCase(t.section())).toList();
+        Map<String, String> themes = assignThemes(run, added, banned);
+        for (TeilRow t : added) {
+            String theme = themes.get(t.section() + "#" + t.teil());
+            if (theme == null) {
+                // Ngoại lệ ⇒ giao dịch hoàn lại, ba dòng vừa thêm biến mất.
+                throw new BadRequestException("Chưa tạo được phần Nghe cho lượt #" + id
+                        + ": không còn đủ chủ đề chưa dùng trong bộ này. Lượt vẫn duyệt được: khi bấm \"" + RunGuide.BTN_APPROVE
+                        + "\", phần Nghe lấy nguyên từ đề nền.");
+            }
+            jdbc.update("UPDATE exam_set_run_teile SET theme = ?, status = 'RUNNING', stage = 'NEW', updated_at = now() WHERE id = ?",
+                    theme, t.id());
+        }
+        jdbc.update("""
+                UPDATE exam_set_runs SET status = 'RUNNING', channel = COALESCE(?, channel), report_json = '{}'::jsonb,
+                       finished_at = NULL, updated_at = now()
+                WHERE id = ?
+                """, ch, id);
+        log.info("[ExamSet] lượt #{}: owner cho tạo thêm phần Nghe, chủ đề {}", id, themes.values());
+        return get(id);
+    }
+
+    /** Lượt có Teil Nghe do máy soạn không (lượt tạo trước 13/11/2026 thì không). */
+    private static boolean hasHoeren(List<TeilRow> rows) {
+        return rows.stream().anyMatch(t -> HOEREN.equalsIgnoreCase(t.section()));
+    }
+
+    private static final String HOEREN = "HOEREN";
+
     /** Bỏ cả lượt: các bản nháp chưa duyệt của nó bị bỏ theo. Bài báo đã dùng KHÔNG được trả lại sổ. */
     public RunView discard(long id) {
         RunRow run = run(id);
-        if (run.status().equals("APPROVED")) throw new BadRequestException("Lượt đã duyệt không bỏ được.");
+        if (run.status().equals("APPROVED")) {
+            throw new BadRequestException("Không bỏ được lượt #" + id + ": lượt đã duyệt và đã thành một bộ đề. "
+                    + "Muốn ẩn bộ đề khỏi học viên thì bấm \"Gỡ\" ở danh sách \"Bộ đề đã ghép\" bên dưới.");
+        }
         for (TeilRow t : teile(id)) discardDraftQuietly(t.draftId());
         jdbc.update("UPDATE exam_set_runs SET status = 'DISCARDED', finished_at = now(), updated_at = now() WHERE id = ?", id);
         return get(id);
@@ -249,7 +372,7 @@ public class ExamSetRunService {
                 throw new BadRequestException("Chưa có khuôn Teil nào cho kỳ thi và cấp này trong Xưởng đề.");
             }
             TeilSpec first = TeilSpec.forExam(req.examFormat(), req.cefrLevel()).get(0);
-            String profile = normProfile(req.profile());
+            String profile = normProfile(req.profile(), RunGuide.BTN_AUTO_ON);
             String channel = ai.requireChannel(req.channel()).name();
             jdbc.update("""
                     INSERT INTO exam_set_auto (id, enabled, exam_format, cefr_level, profile, channel, created_by, note, updated_at)
@@ -292,7 +415,7 @@ public class ExamSetRunService {
             jdbc.update("UPDATE exam_set_auto SET enabled = false, note = ? WHERE id = 1", why);
             try {
                 notifications.onSystemAlert("EXAM_STUDIO_SET", "Tự nối lượt đã tắt", why,
-                        Map.of("runId", deadRuns.get(0), "url", "/v2/admin/exam-studio?tab=sets&run=" + deadRuns.get(0)));
+                        Map.of("runId", deadRuns.get(0), "url", RunGuide.runUrl(deadRuns.get(0))));
             } catch (RuntimeException e) {
                 log.warn("[ExamSet] không gửi được thông báo tự nối lượt tắt: {}", e.getMessage());
             }
@@ -318,35 +441,66 @@ public class ExamSetRunService {
         }
     }
 
+    /** Mỗi lúc chỉ một lượt chạy. Có lượt đang chạy ⇒ báo rõ lượt nào và nút vừa bấm. */
+    private void requireNoActiveRun(String button) {
+        jdbc.query("SELECT id, status FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING') ORDER BY id LIMIT 1",
+                (rs, n) -> RunGuide.anotherRunActive(rs.getLong("id"), rs.getString("status"), button))
+                .stream().findFirst().ifPresent(e -> { throw e; });
+    }
+
     // ── Duyệt cả bộ ──────────────────────────────────────────────────────────────────────────────────────
 
     public record ApproveRunRequest(String title, Long baseExamId) {}
 
     /**
      * Owner duyệt cả bộ bằng MỘT lần bấm (thay cho 8 mục tích của từng Teil): mọi bản nháp của lượt vào kho Teil,
-     * rồi ghép thành một bộ đề "Sắp có" trên một đề nền viết tay — các Teil lượt chưa làm được (hiện là phần Nghe)
-     * lấy nguyên từ đề nền. Phát hành cho học viên vẫn là bước riêng ở danh sách bộ đề. Hỏng ở Teil nào thì cả lượt
+     * rồi ghép thành một bộ đề "Sắp có" trên một đề nền viết tay — các phần lượt không có (phần Nói; và phần Nghe
+     * với lượt cũ tạo trước khi máy soạn được Hören) lấy nguyên từ đề nền. Dòng ghi chú của lượt nói rõ phần Nghe
+     * lấy từ đâu. Phát hành cho học viên vẫn là bước riêng ở danh sách bộ đề. Hỏng ở Teil nào thì cả lượt
      * duyệt được hoàn lại, không có trạng thái duyệt dở.
      */
     @org.springframework.transaction.annotation.Transactional
     public RunView approve(long id, ApproveRunRequest req, long userId) {
         RunRow run = run(id);
         if (!run.status().equals("REVIEW")) {
-            throw new BadRequestException("Chỉ duyệt được lượt đã chạy xong mọi Teil (trạng thái \"Sẵn sàng duyệt\").");
+            throw RunGuide.wrongStatus(id, run.status(), RunGuide.BTN_APPROVE, "đang \"Sẵn sàng duyệt\"");
         }
         List<ExamAssemblyService.BaseExam> bases = assembly.bases(run.examFormat(), run.cefrLevel());
         ExamAssemblyService.BaseExam base = req != null && req.baseExamId() != null
                 ? bases.stream().filter(b -> b.id() == req.baseExamId()).findFirst()
-                        .orElseThrow(() -> new BadRequestException("Đề nền không hợp lệ cho kỳ thi và cấp này."))
+                        .orElseThrow(() -> new BadRequestException("Chưa duyệt được lượt #" + id
+                                + ": đề nền được chọn không phải đề viết tay đang chạy của " + run.examFormat().toLowerCase() + " "
+                                + run.cefrLevel() + ". Tải lại trang rồi bấm lại \"" + RunGuide.BTN_APPROVE + "\"."))
                 : bases.stream().filter(ExamAssemblyService.BaseExam::reviewed).findFirst()
                         .orElseThrow(() -> new BadRequestException(
-                                "Chưa có đề viết tay đang chạy nào của kỳ thi này để làm nền cho các phần lượt chưa tạo được."));
+                                "Chưa duyệt được lượt #" + id + ": cần một đề viết tay của " + run.examFormat().toLowerCase() + " "
+                                        + run.cefrLevel() + " đang chạy và đã được rà soát để làm nền cho các phần lượt không tạo. "
+                                        + "Bật một đề viết tay như vậy rồi bấm lại \"" + RunGuide.BTN_APPROVE + "\"."));
         Map<String, Boolean> checklist = new LinkedHashMap<>();
         for (String k : TeilSpec.CHECKLIST_KEYS) checklist.put(k, true);
         List<ExamAssemblyService.Replacement> reps = new ArrayList<>();
-        for (TeilRow t : teile(id)) {
-            if (t.draftId() == null) throw new BadRequestException("Teil " + t.section() + " " + t.teil() + " chưa có bản nháp.");
-            Draft approved = drafts.approve(t.draftId(), checklist, userId);
+        List<TeilRow> runTeile = teile(id);
+        // Kiểm TRƯỚC mọi Teil rồi mới đưa Teil đầu tiên vào kho (owner chốt 13/11/2026 sau lượt #11): báo một lần
+        // đủ danh sách Teil chưa đạt, mỗi Teil kèm lý do, việc cần làm và đường dẫn mở bản nháp.
+        Map<Long, Draft> current = new HashMap<>();
+        List<ApprovalGuide.TeilBlockers> failing = new ArrayList<>();
+        for (TeilRow t : runTeile) {
+            if (t.draftId() == null) {
+                failing.add(new ApprovalGuide.TeilBlockers(t.section(), t.teil(), null, List.of(ApprovalGuide.noDraft())));
+                continue;
+            }
+            Draft d = drafts.get(t.draftId());
+            current.put(t.draftId(), d);
+            // Owner có thể đã duyệt riêng một Teil của lượt vào kho từ trước (lượt #6): dùng luôn Teil kho đó.
+            if ("APPROVED".equals(d.status()) && d.blockId() != null) continue;
+            List<ApprovalGuide.Blocker> why = drafts.approvalBlockers(t.draftId());
+            if (!why.isEmpty()) failing.add(new ApprovalGuide.TeilBlockers(t.section(), t.teil(), t.draftId(), why));
+        }
+        if (!failing.isEmpty()) throw ApprovalGuide.runNotApprovable(id, runTeile.size(), failing);
+        for (TeilRow t : runTeile) {
+            Draft before = current.get(t.draftId());
+            Draft approved = "APPROVED".equals(before.status()) && before.blockId() != null
+                    ? before : drafts.approve(t.draftId(), checklist, userId);
             if (approved.blockId() == null) {
                 throw new IllegalStateException("Duyệt bản nháp #" + t.draftId() + " không trả mã Teil kho.");
             }
@@ -359,8 +513,13 @@ public class ExamSetRunService {
         ExamAssemblyService.Assembled exam = assembly.assemble(new ExamAssemblyService.AssembleRequest(base.id(), title, reps));
         jdbc.update("""
                 UPDATE exam_set_runs SET status = 'APPROVED', mock_exam_id = ?, note = ?, updated_at = now() WHERE id = ?
-                """, exam.id(), "Đề nền: " + base.title(), id);
+                """, exam.id(), approvalNote(base.title(), hasHoeren(runTeile)), id);
         return get(id);
+    }
+
+    /** Ghi chú của lượt đã duyệt: chỉ nói phần Nghe lấy từ đề nền khi lượt KHÔNG có Teil Nghe (lượt cũ). */
+    static String approvalNote(String baseTitle, boolean runHasHoeren) {
+        return "Đề nền: " + baseTitle + (runHasHoeren ? "" : " · phần Nghe lấy nguyên từ đề nền này");
     }
 
     private static final java.util.regex.Pattern NUMBERED = java.util.regex.Pattern.compile("^(.*?Đề số)\\s*(\\d+)\\s*$");
@@ -517,8 +676,11 @@ public class ExamSetRunService {
             usage.put(t.section() + "#" + t.teil(), used);
         }
         Map<String, Integer> avail = new HashMap<>();
+        Set<Long> unreliable = catalog.unreliableFeeds();
+        // Chỉ đếm bài của nơi đăng đáng tin: chủ đề mà sổ chỉ còn bài của nơi hay hỏng thì coi như hết bài.
         return ExamSetPlanner.assign(slots, usage,
-                th -> avail.computeIfAbsent(th.name(), k -> catalog.candidates(th.stems(), 12).size()), banned, run.id());
+                th -> avail.computeIfAbsent(th.name(), k -> (int) catalog.candidates(th.stems(), 40).stream()
+                        .filter(a -> !unreliable.contains(a.feedId())).limit(12).count()), banned, run.id());
     }
 
     // ── Đẩy một Teil thêm một bước. Trả true nếu vừa xếp một job AI (bản nháp bận) ───────────────────────
@@ -628,7 +790,8 @@ public class ExamSetRunService {
         }
         int need = sourcesNeeded(spec);
         if (d.sources().size() < need) {
-            if (t.sourceTries() >= MAX_SOURCE_TRIES) {
+            // Teil nhiều nguồn (Lesen 1: 5 bài) được thử nhiều hơn: mỗi nguồn thêm hai lượt.
+            if (t.sourceTries() >= MAX_SOURCE_TRIES + 2 * (need - 1)) {
                 roundFailed(run, t, "Không tìm được đủ bài dùng được cho chủ đề „" + t.theme() + "“.", true);
                 return false;
             }
@@ -670,7 +833,11 @@ public class ExamSetRunService {
         if (theme == null) return null;
         Set<String> usedPublishers = new HashSet<>();
         for (Source s : d.sources()) if (s.publisher() != null) usedPublishers.add(s.publisher());
-        List<ArticleView> cands = catalog.candidates(theme.stems(), 40);
+        List<ArticleView> all = catalog.candidates(theme.stems(), 60);
+        Set<Long> unreliable = catalog.unreliableFeeds();
+        // Nơi đăng hay hỏng xuống cuối (vẫn dùng khi không còn gì khác).
+        List<ArticleView> cands = new ArrayList<>(all.stream().filter(a -> !unreliable.contains(a.feedId())).toList());
+        cands.addAll(all.stream().filter(a -> unreliable.contains(a.feedId())).toList());
         return cands.stream().filter(a -> !usedPublishers.contains(a.publisher())).findFirst()
                 .orElse(cands.isEmpty() ? null : cands.get(0));
     }
@@ -794,7 +961,7 @@ public class ExamSetRunService {
     private void expireIfHung(TeilRow t, Draft d) {
         if (d.updatedAt() != null && Duration.between(d.updatedAt(), Instant.now()).compareTo(BUSY_TIMEOUT) > 0) {
             log.warn("[ExamSet] bản nháp #{} bận quá {} phút ở bước {} — coi là hỏng", d.id(), BUSY_TIMEOUT.toMinutes(), d.busyOp());
-            drafts.finishBusy(d.id(), "Thao tác " + d.busyOp() + " chạy quá " + BUSY_TIMEOUT.toMinutes() + " phút.");
+            drafts.finishBusy(d.id(), RunGuide.timedOut(d.busyOp(), BUSY_TIMEOUT.toMinutes()));
         }
     }
 
@@ -820,11 +987,14 @@ public class ExamSetRunService {
                 .filter(c -> "RED".equals(c.light())).map(c -> c.label() + " (" + c.detail() + ")").toList());
         String name = run.examFormat().toLowerCase() + " " + run.cefrLevel();
         try {
-            notifications.onSystemAlert("EXAM_STUDIO_SET",
-                    stuck == 0 ? "Bộ đề " + name + " sẵn sàng duyệt" : "Bộ đề " + name + " cần bạn xem",
-                    stuck == 0 ? "Lượt tạo bộ đề #" + run.id() + " đã chạy xong " + rows.size() + " Teil."
-                            : "Lượt tạo bộ đề #" + run.id() + ": " + stuck + "/" + rows.size() + " Teil kẹt sau khi máy tự sửa.",
-                    Map.of("runId", run.id(), "url", "/v2/admin/exam-studio?tab=sets&run=" + run.id()));
+            // Nêu đích danh Teil kẹt và mục kiểm cấp bộ còn đỏ, kèm việc cần làm (owner yêu cầu 13/11/2026). Trước đây
+            // lượt không kẹt Teil nào nhưng kiểm cấp bộ đỏ vẫn báo "sẵn sàng duyệt", và đường dẫn trỏ một tab không có.
+            RunGuide.Alert alert = RunGuide.finished(run.id(), name, rows.size(),
+                    rows.stream().filter(t -> t.status().equals("STUCK"))
+                            .map(t -> ApprovalGuide.slotLabel(t.section(), t.teil())).toList(),
+                    setChecks.stream().filter(c -> "RED".equals(c.light())).map(Check::label).toList());
+            notifications.onSystemAlert("EXAM_STUDIO_SET", alert.title(), alert.message(),
+                    Map.of("runId", run.id(), "url", RunGuide.runUrl(run.id())));
         } catch (RuntimeException e) {
             log.warn("[ExamSet] không gửi được thông báo cho lượt #{}: {}", run.id(), e.getMessage());
         }
@@ -836,9 +1006,14 @@ public class ExamSetRunService {
     List<Check> setChecks(RunRow run, List<TeilRow> rows) {
         List<ExamSetChecks.TeilDoc> set = new ArrayList<>();
         List<Check> mix = new ArrayList<>();
+        // Teil kho sinh ra từ chính các bản nháp của lượt này (owner duyệt riêng trước khi kiểm lại bộ): không so
+        // bộ với chính nó, nếu không Teil đó bị báo "giống 100 % Teil kho".
+        Set<Long> ownBlocks = new HashSet<>();
         for (TeilRow t : rows) {
             if (!t.status().equals("READY") || t.draftId() == null) continue;
-            set.add(doc(drafts.get(t.draftId()), t));
+            Draft own = drafts.get(t.draftId());
+            if (own.blockId() != null) ownBlocks.add(own.blockId());
+            set.add(doc(own, t));
             if (spec(run, t).headlines()) mix.add(ExamSetChecks.themeMix(t.section() + " " + t.teil(), t.theme()));
         }
         List<ExamSetChecks.Other> corpus = new ArrayList<>();
@@ -846,6 +1021,7 @@ public class ExamSetRunService {
                 SELECT id, section, teil, content_json::text AS c FROM exam_teil_blocks
                 WHERE UPPER(exam_format) = UPPER(?) AND cefr_level = ? AND status = 'APPROVED' ORDER BY id DESC LIMIT 600
                 """, rs -> {
+            if (ownBlocks.contains(rs.getLong("id"))) return;
             corpus.add(other("Teil kho #" + rs.getLong("id"), rs.getString("section"), rs.getInt("teil"), readMap(rs.getString("c"))));
         }, run.examFormat(), run.cefrLevel());
         jdbc.query("""
@@ -905,7 +1081,11 @@ public class ExamSetRunService {
             if (i.options() != null) i.options().values().forEach(v -> sb.append(v).append('\n'));
             String q = i.question() != null && i.question().contains("___") && i.evidence() != null && !i.evidence().isBlank()
                     ? i.evidence() : i.question();
-            cores.add(ExamDedupService.itemCore(q, i.options() == null || i.correct() == null ? null : i.options().get(i.correct())));
+            // Câu richtig/falsch: lõi chỉ là mệnh đề (đáp án "richtig" không phải nội dung), khớp cách tính lõi của
+            // Teil kho và đề viết tay ở other() — nếu không, câu trùng hẳn giữa hai bộ sẽ không bao giờ khớp.
+            boolean trueFalse = "richtig".equals(i.correct()) || "falsch".equals(i.correct());
+            cores.add(ExamDedupService.itemCore(q, trueFalse || i.options() == null || i.correct() == null
+                    ? null : i.options().get(i.correct())));
             if (i.correct() != null) key.append(i.correct());
             if (i.difficultyMeasured() != null && i.difficultyMeasured().level() != null) {
                 measured.merge(i.difficultyMeasured().level(), 1, Integer::sum);

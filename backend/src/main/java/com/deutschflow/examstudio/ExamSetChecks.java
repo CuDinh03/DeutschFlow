@@ -138,6 +138,9 @@ final class ExamSetChecks {
         List<String> same = new ArrayList<>();
         for (TeilDoc t : set) {
             if (t.answerKey() == null || t.answerKey().length() < 5) continue;
+            // Teil richtig/falsch 5 câu (Hören 1 và 3) chỉ có vài chục chuỗi đáp án cân được: trùng chuỗi với một
+            // đề khác là chuyện thường, không phải dấu hiệu chép đề. Teil 10 câu (Hören 2) vẫn so.
+            if (shortTrueFalseKey(t.answerKey())) continue;
             for (Other o : corpus) {
                 if (t.cell().equals(o.cell()) && t.answerKey().equalsIgnoreCase(o.answerKey())) {
                     same.add(t.label() + " có chuỗi đáp án " + t.answerKey() + " giống " + o.label());
@@ -147,6 +150,13 @@ final class ExamSetChecks {
         }
         return new Check("SET_ANSWER_KEYS", "Chuỗi đáp án không lặp lại bộ khác", same.isEmpty() ? "GREEN" : "YELLOW",
                 same.isEmpty() ? null : String.join("; ", same));
+    }
+
+    /** Chuỗi đáp án chỉ gồm richtig/falsch và không quá 5 câu. */
+    static boolean shortTrueFalseKey(String key) {
+        String k = key == null ? "" : key.toLowerCase(Locale.ROOT);
+        if (!k.matches("(richtig|falsch)+")) return false;
+        return k.replace("richtig", "r").replace("falsch", "f").length() <= 5;
     }
 
     /** Chỉ tính các Teil trắc nghiệm a/b/c (chuỗi đáp án chỉ gồm a, b, c). */

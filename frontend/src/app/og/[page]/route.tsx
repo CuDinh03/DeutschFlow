@@ -25,6 +25,9 @@ export async function GET(req: Request, { params }: { params: { page: string } }
       const s = OG_CATALOG[locale === 'de' ? 'en' : locale].schools.hero
       return renderOg(<TextCard eyebrow={s.cap} lead={s.title} em={s.titleEm} />)
     }
+    case 'free-grade':
+      // Trang chấm thử chỉ có tiếng Việt (SEO 3e, 13/11/2026).
+      return renderOg(<TextCard eyebrow="Schreiben B1 · Miễn phí" lead="Chấm thử bài viết tiếng Đức" em="bằng AI." sub="Điểm và nhận xét theo tiêu chí Goethe/telc trong 15 giây, không cần đăng ký." />)
     case 'phong-van': {
       const o = t.occupationPages.index
       return renderOg(<TextCard eyebrow={o.cap} lead={o.title} sub={o.intro} />)

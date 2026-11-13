@@ -4,6 +4,7 @@ import com.deutschflow.ai.queue.AiJob;
 import com.deutschflow.ai.queue.AiJobRepository;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.GuidedException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.examspeaking.metrics.GoetheWordlist;
 import com.deutschflow.examstudio.ExamStudioDtos.*;
@@ -24,7 +25,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Xưởng đề: bản nháp một Teil đi qua 5 bước Khung → Nguồn → Bài đọc → Câu hỏi → Kiểm & duyệt.
+ * Xưởng đề: bản nháp một Teil đi qua 5 bước Khung → Nguồn → Bài đọc → Câu hỏi → Kiểm & duyệt. Với phần Nghe
+ * (đợt 5) "bài đọc" là lời thoại — xem {@link HoerenTeile}.
  *
  * <p>Thao tác AI không chạy trong request: {@link #enqueue} đặt {@code busy_op} (chỉ khi đang rảnh) rồi xếp một
  * {@link AiJob} kiểu {@link ExamStudioJobHandler#JOB_TYPE}; job gọi các hàm {@code run*} ở dưới rồi gỡ
@@ -67,6 +69,8 @@ public class ExamDraftService {
 
         int itemCount() {
             if (spec().writing()) return 0;
+            // Phần Nghe: số câu gắn với số đoạn lời thoại (5) hoặc khuôn phỏng vấn (10) — không co giãn theo ma trận.
+            if (spec().listening()) return spec().itemCount();
             if ("PRACTICE".equals(mode)) {
                 int sum = plan.values().stream().mapToInt(Integer::intValue).sum();
                 return Math.max(1, Math.min(10, sum));
@@ -125,7 +129,7 @@ public class ExamDraftService {
                        situation
                 FROM exam_drafts WHERE id = ?
                 """, (rs, n) -> mapRow(rs), id);
-        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy bản nháp " + id + ".");
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy bản nháp #" + id + ". Có thể bản nháp đã bị xoá; quay lại tab \"Bản nháp\" của Xưởng đề để xem danh sách hiện có.");
         return rows.get(0);
     }
 
@@ -216,8 +220,8 @@ public class ExamDraftService {
     public Draft create(CreateDraftRequest req, long userId) {
         TeilSpec spec = TeilSpec.find(req.examFormat(), req.cefrLevel(), req.section(), req.teil())
                 .orElseThrow(() -> new BadRequestException(
-                        "Xưởng đề hiện làm telc B1 (Lesen 1–3, Sprachbausteine 1–2, Schreiben) và telc A2 / Start Deutsch 2 "
-                                + "(Lesen 1–3, Schreiben 1–2). Hören làm ở đợt sau."));
+                        "Xưởng đề hiện làm telc B1 (Lesen 1–3, Sprachbausteine 1–2, Hören 1–3, Schreiben) và telc A2 / "
+                                + "Start Deutsch 2 (Lesen 1–3, Schreiben 1–2)."));
         String mode = normalizeMode(req.mode());
         Map<String, Integer> plan = validatePlan(req.difficultyPlan(), mode, spec);
         Long id = jdbc.queryForObject("""
@@ -247,7 +251,12 @@ public class ExamDraftService {
                     mode, json(plan), id);
         }
         if (req.text() != null) {
-            Text t = sanitizeText(req.text());
+            Text incoming = req.text();
+            // Phần Nghe: client cũ không biết khoá audioTurns sẽ gửi thiếu — giữ lời thoại đang có, không xoá oan.
+            if (r.spec().listening() && incoming.audioTurns() == null && r.text() != null) {
+                incoming = incoming.withAudio(r.text().text().audioTurns(), incoming.context());
+            }
+            Text t = sanitizeText(incoming, r.spec());
             List<String> used = r.text() == null ? List.of() : r.text().usedFactIds();
             saveText(id, new StoredText(t, used));
         }
@@ -265,7 +274,7 @@ public class ExamDraftService {
     @Transactional
     public void discard(long id) {
         Row r = load(id);
-        if ("APPROVED".equals(r.status())) throw new ConflictException("Bản nháp đã duyệt vào kho, không bỏ được.");
+        if ("APPROVED".equals(r.status())) throw new ConflictException("Không huỷ được bản nháp #" + id + ": bản nháp đã duyệt và Teil của nó đang nằm trong kho. Không cần làm gì thêm; Teil kho chỉ tới học viên khi được ghép vào một bộ đề.");
         jdbc.update("UPDATE exam_drafts SET status = 'DISCARDED', updated_at = now() WHERE id = ?", id);
     }
 
@@ -430,10 +439,10 @@ public class ExamDraftService {
     public Draft patchSource(long id, long sourceId, PatchSourceRequest req) {
         requireEditable(id);
         SourceRow s = sources(id).stream().filter(x -> x.source().id() == sourceId).findFirst()
-                .orElseThrow(() -> new NotFoundException("Nguồn không thuộc bản nháp này."));
+                .orElseThrow(() -> new NotFoundException("Nguồn vừa chọn không còn thuộc bản nháp này (có thể đã bị xoá ở cửa sổ khác). Tải lại trang để xem danh sách nguồn hiện tại."));
         if (req.usageMode() != null) {
             String m = req.usageMode().trim().toUpperCase(Locale.ROOT);
-            if (!m.equals("ADAPT") && !m.equals("FACTS_ONLY")) throw new BadRequestException("Loại dùng không hợp lệ.");
+            if (!m.equals("ADAPT") && !m.equals("FACTS_ONLY")) throw new BadRequestException("Loại dùng nguồn gửi lên không đúng mẫu. Tải lại trang, rồi ở bước \"Nguồn\" chọn lại \"Chuyển thể\" hoặc \"Chỉ dữ kiện\".");
             jdbc.update("UPDATE exam_sources SET usage_mode = ?, usage_mode_confirmed = TRUE WHERE id = ?", m, sourceId);
         }
         if (req.selectedFactIds() != null) {
@@ -495,7 +504,7 @@ public class ExamDraftService {
                     n.hasNonNull("paragraph") ? n.path("paragraph").asInt() : null, sameAs != null, false));
             if (k >= 20) break;
         }
-        if (facts.isEmpty()) throw new BadRequestException("AI không rút được dữ kiện nào từ nguồn này.");
+        if (facts.isEmpty()) throw new BadRequestException("AI không rút được dữ kiện nào từ nguồn này (bài quá ngắn hoặc không có số liệu, sự việc cụ thể). Ở bước \"Nguồn\", xoá nguồn này và thêm một bài khác, hoặc dán nguyên văn bài báo.");
 
         String usage = f.ccBy() ? "ADAPT" : "FACTS_ONLY";
         List<Long> shingles = TextChecks.shingleHashes(f.text(), TeilSpec.OVERLAP_LIMIT);
@@ -525,17 +534,17 @@ public class ExamDraftService {
         Row r = requireEditable(id);
         Map<String, Object> payload = new HashMap<>();
         if (req != null && req.selection() != null && !req.selection().isBlank()) {
-            if (r.text() == null) throw new BadRequestException("Chưa có bài để viết lại.");
+            if (r.text() == null) throw new BadRequestException("Bản nháp chưa có bài nên chưa viết lại một đoạn được. Ở bước \"Bài đọc\", bấm \"AI viết bài\" trước.");
             if (!r.text().text().context().contains(req.selection())) {
-                throw new BadRequestException("Đoạn bôi đen không còn nằm trong bài (bài đã đổi?).");
+                throw new BadRequestException("Đoạn bạn bôi đen không còn nằm nguyên văn trong bài (bài đã được sửa sau khi bôi). Tải lại trang, bôi đen lại đúng đoạn cần viết lại rồi bấm lại.");
             }
             payload.put("selection", req.selection());
             payload.put("mode", "SIMPLIFY".equalsIgnoreCase(req.mode()) ? "SIMPLIFY" : "REWRITE");
         } else if (!r.spec().situational() && selectedFacts(sources(id)).isEmpty()) {
-            throw new BadRequestException("Hãy tích ít nhất một dữ kiện ở bước Nguồn.");
+            throw new BadRequestException("Chưa viết bài được: chưa có dữ kiện nào được tích. Quay lại bước \"Nguồn\", tích ít nhất một dữ kiện, rồi bấm lại \"AI viết bài\".");
         } else if (sources(id).stream().anyMatch(s -> "FLAGGED".equals(s.source().neutrality())
                 && s.source().facts().stream().anyMatch(Fact::selected))) {
-            throw new BadRequestException("Có nguồn bị cờ chủ đề nhạy cảm — bỏ dữ kiện của nguồn đó trước.");
+            throw new BadRequestException("Chưa viết bài được: có nguồn bị gắn cờ chủ đề nhạy cảm (ở bước \"Nguồn\", nguồn đó có nhãn cảnh báo). Bỏ tích mọi dữ kiện của nguồn đó hoặc xoá nguồn, rồi bấm lại \"AI viết bài\".");
         }
         if (req != null && req.note() != null) payload.put("note", req.note());
         enqueue(id, "TEXT", userId, payload);
@@ -551,12 +560,12 @@ public class ExamDraftService {
             String repl = text(out, "replacement");
             if (repl == null) throw new IllegalStateException("AI không trả đoạn viết lại.");
             Text t = r.text().text();
-            Text nt = t.withContext(t.context().replace(selection, repl.trim()));
+            // Phần Nghe: thay trong từng lượt lời rồi ghép lại context, để lời thoại và context luôn khớp.
+            Text nt = HoerenTeile.replaced(t, selection, repl.trim());
             if (t.ads() != null) {
                 Map<String, String> ads = new LinkedHashMap<>();
                 t.ads().forEach((k, v) -> ads.put(k, v.replace(selection, repl.trim())));
-                nt = new Text(nt.titleDe(), nt.vorspannDe(), nt.context(), nt.glossary(), ads, nt.examples(),
-                        nt.stimulusAd(), nt.wordBank(), nt.stimulus(), nt.writingPoints());
+                nt = nt.withAds(ads);
             }
             saveText(draftId, new StoredText(nt, r.text().usedFactIds()));
             return;
@@ -695,8 +704,8 @@ public class ExamDraftService {
 
     public Draft generateItems(long id, long userId) {
         Row r = requireEditable(id);
-        if (r.text() == null) throw new BadRequestException("Chưa có bài đọc.");
-        if (r.spec().writing()) throw new BadRequestException("Phần Viết không có câu hỏi trắc nghiệm — sang thẳng bước Kiểm & duyệt.");
+        if (r.text() == null) throw new BadRequestException("Chưa sinh câu hỏi được: bản nháp chưa có bài. Ở bước \"Bài đọc\", bấm \"AI viết bài\" và lưu bài trước.");
+        if (r.spec().writing()) throw new BadRequestException("Teil Viết không có câu hỏi trắc nghiệm nên không cần sinh câu. Sang thẳng bước \"Kiểm & duyệt\".");
         requireLongEnough(r);
         enqueue(id, "ITEMS", userId, new HashMap<>());
         return get(id);
@@ -722,8 +731,8 @@ public class ExamDraftService {
 
     public Draft regenerateItem(long id, String itemId, String difficulty, long userId) {
         Row r = requireEditable(id);
-        if (r.items().stream().noneMatch(i -> i.id().equals(itemId))) throw new NotFoundException("Không có câu " + itemId + ".");
-        if (difficulty != null && !TeilSpec.isLevel(difficulty)) throw new BadRequestException("Bậc không hợp lệ.");
+        if (r.items().stream().noneMatch(i -> i.id().equals(itemId))) throw new NotFoundException("Câu vừa chọn không còn trong bản nháp (có thể đã được sinh lại). Tải lại trang để xem các câu hiện tại.");
+        if (difficulty != null && !TeilSpec.isLevel(difficulty)) throw new BadRequestException("Bậc độ khó gửi lên không đúng mẫu. Tải lại trang rồi chọn lại bậc (Dễ, Vừa, Khó, Siêu khó).");
         requireLongEnough(r);
         Map<String, Object> payload = new HashMap<>();
         payload.put("itemId", itemId);
@@ -760,7 +769,7 @@ public class ExamDraftService {
             todo.add(new int[]{s});
             todoLevels.add(level);
         }
-        if (todo.isEmpty()) throw new BadRequestException("Mọi câu đều đang khoá.");
+        if (todo.isEmpty()) throw new BadRequestException("Không có câu nào để sinh lại: mọi câu đều đang khoá. Ở bước \"Câu hỏi\", bấm \"Mở khoá\" ở những câu muốn AI làm lại, rồi bấm lại.");
         List<Item> keep = new ArrayList<>();
         for (int s = 0; s < count; s++) {
             int fs = s;
@@ -1043,7 +1052,7 @@ public class ExamDraftService {
     public Draft verify(long id, long userId) {
         Row r = requireEditable(id);
         if (r.text() == null || (r.items().isEmpty() && !r.spec().writing())) {
-            throw new BadRequestException("Cần có bài đọc và câu hỏi trước.");
+            throw new BadRequestException("Chưa chạy tự kiểm được: bản nháp cần có bài (bước \"Bài đọc\") và câu hỏi (bước \"Câu hỏi\") trước.");
         }
         enqueue(id, "VERIFY", userId, new HashMap<>());
         return get(id);
@@ -1448,35 +1457,62 @@ public class ExamDraftService {
 
     // ── Duyệt ───────────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Vì sao bản nháp này CHƯA duyệt vào kho được (rỗng = duyệt được, chưa tính danh sách duyệt owner tích tay).
+     * Chỉ đọc. "Duyệt cả bộ" gọi cho MỌI Teil trước khi đưa Teil nào vào kho, để báo một lần đủ danh sách.
+     */
+    public List<ApprovalGuide.Blocker> approvalBlockers(long id) {
+        return approvalBlockers(load(id), sources(id));
+    }
+
+    List<ApprovalGuide.Blocker> approvalBlockers(Row r, List<SourceRow> srcs) {
+        TeilSpec spec = r.spec();
+        boolean draft = "DRAFT".equals(r.status());
+        boolean hasContent = r.text() != null && (!r.items().isEmpty() || spec.writing());
+        boolean everVerified = !r.checks().isEmpty() && r.verifiedHash() != null;
+        // Dấu kiểm khớp theo cách tính hiện tại HOẶC cách tính cũ của bản nháp Nghe (trường audio còn trống) — cùng
+        // điều kiện với bản vá lượt #11 ("bản nháp tự kiểm trước đợt Nghe không còn bị báo oan nội dung đã đổi").
+        boolean current = hasContent && everVerified
+                && (r.verifiedHash().equals(contentHash(r.text().text(), r.items()))
+                        || r.verifiedHash().equals(contentHashWithNullAudioFields(r.text().text(), r.items())));
+        List<String> red = new ArrayList<>();
+        for (Check c : r.checks()) if ("RED".equals(c.light())) red.add(c.label());
+        for (int i = 0; i < r.items().size(); i++) if ("RED".equals(r.items().get(i).light())) red.add("câu " + (i + 1));
+        List<SourceRow> used = usedSources(srcs);
+        boolean confirmed = used.stream().allMatch(s -> s.source().usageModeConfirmed());
+        Long dup = null;
+        // Chỉ so kho khi bản nháp đã qua các cửa trên: nội dung dở dang thì chưa dựng được Teil kho để so.
+        if (draft && r.busyOp() == null && current && red.isEmpty() && confirmed && (!used.isEmpty() || spec.situational())) {
+            String hash = TextChecks.sha256(ExamDedupService.contentText(blockContent(r, used)));
+            dup = jdbc.query("SELECT id FROM exam_teil_blocks WHERE content_hash = ? ORDER BY id LIMIT 1",
+                    (rs, n) -> rs.getLong(1), hash).stream().findFirst().orElse(null);
+        }
+        return ApprovalGuide.blockers(new ApprovalGuide.Facts(r.status(), r.busyOp() != null, hasContent, everVerified,
+                current, red, !used.isEmpty(), !spec.situational(), confirmed, dup));
+    }
+
     @Transactional
     public Draft approve(long id, Map<String, Boolean> checklist, long userId) {
-        Row r = requireEditable(id);
-        if (r.text() == null || (r.items().isEmpty() && !r.spec().writing())) {
-            throw new BadRequestException("Chưa có bài và câu hỏi.");
+        Row r = load(id);
+        List<SourceRow> srcs = sources(id);
+        List<ApprovalGuide.Blocker> blockers = approvalBlockers(r, srcs);
+        if (!blockers.isEmpty()) throw ApprovalGuide.draftNotApprovable(id, r.section(), r.teil(), blockers);
+        long unticked = TeilSpec.CHECKLIST_KEYS.stream()
+                .filter(k -> checklist == null || !Boolean.TRUE.equals(checklist.get(k))).count();
+        if (unticked > 0) {
+            throw GuidedException.badRequest("EXAM_DRAFT_CHECKLIST_INCOMPLETE",
+                            "Chưa duyệt được bản nháp #" + id + " (" + ApprovalGuide.slotLabel(r.section(), r.teil()) + ")")
+                    .where("draftId", id)
+                    .issue("CHECKLIST_INCOMPLETE", null,
+                            "Danh sách duyệt còn " + unticked + " trong " + TeilSpec.CHECKLIST_KEYS.size() + " mục chưa tích",
+                            "Ở " + ApprovalGuide.REVIEW_STEP + ", đọc và tích hết các mục trong \"Danh sách duyệt\", rồi bấm \"Duyệt và đưa vào kho\"",
+                            ApprovalGuide.draftUrl(id), Map.of("draftId", id))
+                    .build();
         }
-        if (r.checks().isEmpty() || r.verifiedHash() == null
-                || !r.verifiedHash().equals(contentHash(r.text().text(), r.items()))) {
-            throw new ConflictException("Nội dung đã đổi sau lần tự kiểm cuối — hãy chạy tự kiểm lại.");
-        }
-        if (r.checks().stream().anyMatch(c -> "RED".equals(c.light()))
-                || r.items().stream().anyMatch(i -> "RED".equals(i.light()))) {
-            throw new ConflictException("Còn đèn đỏ — sửa trước khi duyệt.");
-        }
-        List<String> missing = TeilSpec.CHECKLIST_KEYS.stream()
-                .filter(k -> checklist == null || !Boolean.TRUE.equals(checklist.get(k))).toList();
-        if (!missing.isEmpty()) throw new BadRequestException("Chưa tích đủ danh sách duyệt: " + String.join(", ", missing));
-        List<SourceRow> used = usedSources(sources(id));
-        if (used.isEmpty() && !r.spec().situational()) {
-            throw new BadRequestException("Teil phải có ít nhất một nguồn có dữ kiện đã tích.");
-        }
-        if (used.stream().anyMatch(s -> !s.source().usageModeConfirmed())) {
-            throw new BadRequestException("Hãy xác nhận loại dùng (Chuyển thể / Chỉ dữ kiện) cho mọi nguồn đã dùng.");
-        }
+        List<SourceRow> used = usedSources(srcs);
 
         Map<String, Object> content = blockContent(r, used);
         String hash = TextChecks.sha256(ExamDedupService.contentText(content));
-        Integer dup = jdbc.queryForObject("SELECT COUNT(*) FROM exam_teil_blocks WHERE content_hash = ?", Integer.class, hash);
-        if (dup != null && dup > 0) throw new ConflictException("Teil này đã có y hệt trong kho.");
         Long blockId = jdbc.queryForObject("""
                 INSERT INTO exam_teil_blocks (exam_format, cefr_level, section, teil, teil_type, theme, content_json,
                                               content_hash, reviewed_by)
@@ -1621,7 +1657,7 @@ public class ExamDraftService {
                     counts(json(content.getOrDefault("items", List.of()))), rs.getString("reviewer"),
                     instant(rs.getTimestamp("reviewed_at")), content);
         }, id);
-        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy Teil " + id + ".");
+        if (rows.isEmpty()) throw new NotFoundException("Không tìm thấy Teil #" + id + " trong kho. Tải lại tab \"Kho Teil\" để xem danh sách hiện có.");
         return rows.get(0);
     }
 
@@ -1644,7 +1680,7 @@ public class ExamDraftService {
                 UPDATE exam_drafts SET busy_op = ?, busy_job_id = NULL, last_error = NULL, updated_at = now()
                 WHERE id = ? AND busy_op IS NULL AND status = 'DRAFT'
                 """, op, draftId);
-        if (n == 0) throw new ConflictException("Đang có một thao tác AI chạy trên bản nháp này, đợi xong rồi thử lại.");
+        if (n == 0) throw new ConflictException("Máy đang chạy một thao tác AI trên bản nháp #" + draftId + ". Đợi dải báo đang chạy ở đầu trang biến mất (màn hình tự cập nhật) rồi bấm lại.");
         Map<String, Object> payload = new HashMap<>(extra);
         payload.put("draftId", draftId);
         payload.put("op", op);
@@ -1690,9 +1726,10 @@ public class ExamDraftService {
 
     private Row requireEditable(long id) {
         Row r = load(id);
-        if (!"DRAFT".equals(r.status())) throw new ConflictException("Bản nháp đã " + ("APPROVED".equals(r.status())
-                ? "duyệt vào kho" : "bị bỏ") + ", không sửa được.");
-        if (r.busyOp() != null) throw new ConflictException("Đang có thao tác AI chạy, đợi xong rồi thử lại.");
+        if (!"DRAFT".equals(r.status())) throw new ConflictException("APPROVED".equals(r.status())
+                ? "Bản nháp #" + id + " đã duyệt vào kho nên không sửa được nữa. Cần bản khác thì bấm \"Tạo Teil mới\" ở tab \"Bản nháp\"."
+                : "Bản nháp #" + id + " đã bị huỷ nên chỉ xem được. Cần làm tiếp thì bấm \"Tạo Teil mới\" ở tab \"Bản nháp\".");
+        if (r.busyOp() != null) throw new ConflictException("Máy đang chạy một thao tác AI trên bản nháp #" + id + " nên chưa sửa được. Đợi dải báo đang chạy ở đầu trang biến mất (màn hình tự cập nhật) rồi làm lại.");
         return r;
     }
 
@@ -1862,6 +1899,35 @@ public class ExamDraftService {
             m.put("d", i.difficultyTarget());
             return m;
         }).toList();
+        return TextChecks.sha256(textJsonForHash(json(t)) + json(core));
+    }
+
+    /**
+     * JSON của bài dùng để tính dấu vân tay. Đợt Nghe (13/11/2026) thêm hai trường {@code audioTurns}, {@code framingDe}
+     * vào {@link Text}; với bài không phải Nghe hai trường này là null nhưng vẫn được ghi ra JSON, nên dấu vân tay của
+     * MỌI bản nháp đã tự kiểm trước đó đổi theo và bước duyệt báo oan "Nội dung đã đổi sau lần tự kiểm cuối" (lượt #11).
+     * Bỏ hai trường null đó khỏi chuỗi băm để dấu vân tay của bài cũ giữ nguyên như trước; bài Nghe (trường có giá trị)
+     * không đổi.
+     */
+    static String textJsonForHash(String textJson) {
+        String tail = ",\"audioTurns\":null,\"framingDe\":null}";
+        return textJson != null && textJson.endsWith(tail)
+                ? textJson.substring(0, textJson.length() - tail.length()) + "}" : textJson;
+    }
+
+    /** Dấu vân tay theo cách tính trong vài giờ sau đợt Nghe (còn hai trường null): bản nháp tự kiểm lúc đó vẫn hợp lệ. */
+    String contentHashWithNullAudioFields(Text t, List<Item> items) {
+        List<Map<String, Object>> core = items.stream().map(i -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", i.id());
+            m.put("q", i.question());
+            m.put("o", new TreeMap<>(i.options() == null ? Map.of() : i.options()));
+            m.put("c", i.correct());
+            m.put("e", i.explanationVi());
+            m.put("ev", i.evidence());
+            m.put("d", i.difficultyTarget());
+            return m;
+        }).toList();
         return TextChecks.sha256(json(t) + json(core));
     }
 
@@ -1884,11 +1950,13 @@ public class ExamDraftService {
         return out;
     }
 
-    private Text sanitizeText(Text t) {
+    private Text sanitizeText(Text t, TeilSpec spec) {
         List<GlossaryEntry> g = t.glossary() == null ? List.of() : t.glossary().stream()
                 .filter(e -> e.term() != null && !e.term().isBlank()).toList();
-        return new Text(nz(t.titleDe()), nz(t.vorspannDe()), nz(t.context()), g, t.ads(), t.examples(), t.stimulusAd(),
-                t.wordBank(), t.stimulus(), t.writingPoints());
+        Text out = new Text(nz(t.titleDe()), nz(t.vorspannDe()), nz(t.context()), g, t.ads(), t.examples(), t.stimulusAd(),
+                t.wordBank(), t.stimulus(), t.writingPoints(), t.audioTurns(), t.framingDe());
+        // Phần Nghe: lời thoại là gốc, context ghép lại từ các lượt lời.
+        return spec.listening() ? HoerenTeile.sanitized(spec, out) : out;
     }
 
     private List<Item> sanitizeItems(List<Item> in, Row r) {
@@ -1896,7 +1964,7 @@ public class ExamDraftService {
         for (int s = 0; s < r.itemCount(); s++) valid.add(r.spec().itemId(s));
         List<Item> out = new ArrayList<>();
         for (Item i : in) {
-            if (!valid.contains(i.id())) throw new BadRequestException("Mã câu không hợp lệ: " + i.id());
+            if (!valid.contains(i.id())) throw new BadRequestException("Danh sách câu gửi lên không khớp bản nháp (câu " + i.id() + " không có). Tải lại trang rồi lưu lại.");
             String target = TeilSpec.isLevel(i.difficultyTarget()) ? i.difficultyTarget().toUpperCase(Locale.ROOT) : "MEDIUM";
             out.add(new Item(i.id(), nz(i.question()), i.options() == null ? Map.of() : i.options(), i.correct(),
                     nz(i.explanationVi()), nz(i.evidence()), i.traps() == null ? List.of() : i.traps(), target,
@@ -1912,7 +1980,10 @@ public class ExamDraftService {
         if ("EXAM".equals(mode) && sum != spec.itemCount()) {
             throw new BadRequestException("Chế độ Đề thi thử cần đúng " + spec.itemCount() + " câu (đang " + sum + ").");
         }
-        if (sum < 1 || sum > 10) throw new BadRequestException("Số câu phải từ 1 đến 10.");
+        if (spec.listening() && sum != spec.itemCount()) {
+            throw new BadRequestException("Teil Nghe này luôn có đúng " + spec.itemCount() + " câu (đang " + sum + ").");
+        }
+        if (sum < 1 || sum > 10) throw new BadRequestException("Tổng số câu trong ma trận độ khó đang là " + sum + "; bài luyện lẻ cần từ 1 đến 10 câu. Sửa các ô ở bước \"Khung\".");
         return p;
     }
 

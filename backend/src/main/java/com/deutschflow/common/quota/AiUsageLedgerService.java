@@ -112,6 +112,40 @@ public class AiUsageLedgerService {
                        String requestId,
                        Long sessionId) {
         com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("usage-ledger");
+        insertEvent(userId, provider, model, promptTokens, cachedPromptTokens, completionTokens, totalTokens,
+                feature, requestId, sessionId);
+        chargeOrgPoolAndWallet(userId, totalTokens);
+    }
+
+    /**
+     * Ghi ledger (COGS, báo cáo) nhưng KHÔNG trừ ví / pool của người dùng — cho tính năng nền mà sản
+     * phẩm quyết định không tính vào hạn mức AI của học viên (vd. tra nghĩa khi lưu từ, có trần riêng).
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void recordWithoutCharge(long userId,
+                                    String provider,
+                                    String model,
+                                    TokenUsage usage,
+                                    String feature,
+                                    String requestId) {
+        com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("usage-ledger");
+        if (usage == null) {
+            return;
+        }
+        insertEvent(userId, provider, model, usage.promptTokens(), usage.cachedPromptTokens(),
+                usage.completionTokens(), usage.totalTokens(), feature, requestId, null);
+    }
+
+    private void insertEvent(long userId,
+                             String provider,
+                             String model,
+                             int promptTokens,
+                             int cachedPromptTokens,
+                             int completionTokens,
+                             int totalTokens,
+                             String feature,
+                             String requestId,
+                             Long sessionId) {
         // Capture org_id at event time via subquery (D-2) — single round-trip, no separate lookup.
         // M-5: org đọc từ org_members ACTIVE (cùng nguồn với gate tryReserve) thay vì users.org_id —
         // hết cảnh charge và gate nhìn hai nguồn tenant khác nhau rồi drift. ORDER BY khớp
@@ -137,8 +171,6 @@ public class AiUsageLedgerService {
                 feature, requestId, sessionId,
                 userId
         );
-
-        chargeOrgPoolAndWallet(userId, totalTokens);
     }
 
     /**

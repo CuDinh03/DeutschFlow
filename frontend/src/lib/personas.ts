@@ -153,7 +153,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
     ],
   },
   petra: {
-    id: "petra", name: "Petra", role: "Metzger", tag: "Metzgerei · A1-A2",
+    id: "petra", name: "Petra", role: "Metzgerin", tag: "Metzgerei · A1-A2",
     desc: "Chuyên nghiệp, am hiểu về các loại thịt, thẳng thắn.",
     group: "verkauf",
     accent: "#DC2626", glow: "rgba(220,38,38,0.4)", bubble: "#450A0A",

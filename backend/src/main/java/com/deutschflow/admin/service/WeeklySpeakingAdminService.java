@@ -86,7 +86,7 @@ public class WeeklySpeakingAdminService {
         Integer cnt = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM weekly_speaking_prompts WHERE id = ?", Integer.class, id);
         if (cnt == null || cnt == 0) {
-            throw new NotFoundException("Weekly prompt not found");
+            throw new NotFoundException("Không tìm thấy đề nói hằng tuần #" + id + " (có thể đã bị xoá). Tải lại trang để xem danh sách đề hiện có.");
         }
         String mandatory = objectMapper.writeValueAsString(r.mandatoryPoints());
         String optional = (r.optionalPoints() == null || r.optionalPoints().isEmpty())
@@ -122,7 +122,7 @@ public class WeeklySpeakingAdminService {
                         UPDATE weekly_speaking_prompts SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?
                         """, id);
         if (u == 0) {
-            throw new NotFoundException("Weekly prompt not found");
+            throw new NotFoundException("Không tìm thấy đề nói hằng tuần #" + id + " (có thể đã bị xoá). Tải lại trang để xem danh sách đề hiện có.");
         }
     }
 
@@ -131,7 +131,7 @@ public class WeeklySpeakingAdminService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT * FROM weekly_speaking_prompts WHERE id = ?", id);
         if (rows.isEmpty()) {
-            throw new NotFoundException("Weekly prompt not found");
+            throw new NotFoundException("Không tìm thấy đề nói hằng tuần #" + id + " (có thể đã bị xoá). Tải lại trang để xem danh sách đề hiện có.");
         }
         return new LinkedHashMap<>(rows.get(0));
     }

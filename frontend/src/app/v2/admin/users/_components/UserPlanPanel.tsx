@@ -82,7 +82,7 @@ export function UserPlanPanel({ userId, userName, currentPlan, quota, plans, onC
 
   return (
     <section className="space-y-4" data-testid="user-plan-panel">
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner title={t('planErrorTitle')} message={error} />}
       <GaCap>{t('planCap')}</GaCap>
       <p className="ga-ui text-ga-small text-ga-muted">
         {t('planCurrent')} <span className="font-semibold text-ga-ink">{currentPlan || '—'}</span>

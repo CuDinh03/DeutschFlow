@@ -8,6 +8,7 @@ Repo PUBLIC (công khai lại từ 11/2026; từng private từ 08/11/2026) — 
 
 | Việc | Đọc |
 |---|---|
+| Mở phiên mới, chưa rõ dự án đang ở đâu, hoặc cần biết việc nào đọc gì và giao agent nào | `TAI_LIEU_DAC_TA_SAN_PHAM/bo-nao/README.md` (LOCAL, repo tài liệu riêng tư; chỉ có ở checkout chính) |
 | **Merge vào `main`, deploy frontend/backend/mobile, đổi hạ tầng (env, nginx, backup, migration)** | **`docs/QUY_TRINH_PHAT_HANH.md`** (đọc hết, mỗi lần) |
 | Luyện thi telc trên web (Hôm nay, luyện Teil, thi thử, kết quả, lịch ôn, hướng dẫn lần đầu, bài chẩn đoán) | `docs/LUYEN_THI.md` |
 | Thêm/đổi icon trên web (ô `GaGlyph`, nét 1,9, glyph tự vẽ, màu token, eyebrow trơn) | `frontend/ICON_WEB.md` |

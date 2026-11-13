@@ -367,6 +367,18 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null, ext);
     }
 
+    /**
+     * Lỗi có chỉ dẫn (xem {@link GuidedException}): {@code detail} là đoạn chữ đủ ý cho client cũ,
+     * {@code extensions} mang mã lỗi, đối tượng liên quan và từng mục chưa đạt cho khung lỗi có nút của web.
+     */
+    @ExceptionHandler(GuidedException.class)
+    public ResponseEntity<ProblemDetail> handleGuided(GuidedException ex, HttpServletRequest request) {
+        HttpStatus status = ex.getStatus();
+        String slug = status == HttpStatus.CONFLICT ? "conflict" : "bad-request";
+        return problem(status, slug, status.getReasonPhrase(), ex.getMessage(), request.getRequestURI(),
+                null, ex.extensions());
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ProblemDetail> handleConflict(ConflictException ex,
                                                         HttpServletRequest request) {

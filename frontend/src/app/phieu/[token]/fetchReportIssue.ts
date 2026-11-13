@@ -1,4 +1,5 @@
 import type { PublicReportIssue } from '@/lib/reportIssueApi'
+import { serverBackendFetch } from '@/lib/serverBackend'
 
 /**
  * Đọc phiếu công khai từ backend cho trang `/phieu/[token]` (server-side).
@@ -15,13 +16,10 @@ import type { PublicReportIssue } from '@/lib/reportIssueApi'
  * không thông điệp riêng: token sai và token đã thu hồi phải nhìn giống hệt nhau, nếu không trang trở
  * thành máy dò token.
  */
-const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
-  .replace(/\/+$/, '')
-  .replace(/\/api$/, '')
 
 export async function fetchPublicReportIssue(token: string): Promise<PublicReportIssue | null> {
   try {
-    const res = await fetch(`${backendOrigin}/api/public/report-issues/${encodeURIComponent(token)}`, {
+    const res = await serverBackendFetch(`/api/public/report-issues/${encodeURIComponent(token)}`, {
       cache: 'no-store',
     })
     if (!res.ok) return null

@@ -6,7 +6,9 @@ import { DEFAULT_PUBLIC_LOCALE, isPublicLocale, localizedHref, type PublicLocale
 import {
   WORKPLACES,
   occupationName,
+  occupationTitleName,
   questionLabel,
+  type IndexableOccupation,
   type OccupationDetail,
   type OccupationSummary,
   type QuestionSource,
@@ -21,6 +23,8 @@ import { QualityLabel } from './QualityLabel'
 import { QuestionTranslation } from './QuestionTranslation'
 import { interviewerInfo } from './interviewerInfo'
 import { START_HREF } from './links'
+import { examForWorkplace, exampleQuestion, guideForOccupation, relatedOccupations } from '@/lib/occupationRelated'
+import { toJsonLd } from '@/lib/homeStructuredData'
 
 /**
  * Trang phỏng vấn theo nghề (đợt 2d A+B+E): trang tổng `/phong-van/` và trang từng nghề
@@ -100,7 +104,18 @@ export async function OccupationIndex({ occupations }: { occupations: Occupation
   )
 }
 
-export async function OccupationDetailView({ detail, showTraining = false }: { detail: OccupationDetail; showTraining?: boolean }) {
+export async function OccupationDetailView({
+  detail,
+  showTraining = false,
+  catalog = null,
+  indexable = null,
+}: {
+  detail: OccupationDetail
+  showTraining?: boolean
+  /** Danh mục nghề + danh sách lập chỉ mục cho khối "Nghề liên quan" (SEO cụm chủ đề); `null` = ẩn khối. */
+  catalog?: OccupationSummary[] | null
+  indexable?: IndexableOccupation[] | null
+}) {
   const t = await getTranslations('v2.landing')
   const locale = await publicLocale()
   const o = detail.occupation
@@ -110,6 +125,28 @@ export async function OccupationDetailView({ detail, showTraining = false }: { d
   const more = detail.occupationQuestions.filter((q) => !sampleTexts.has(q.questionDe))
   const startHref = `${START_HREF}/?occupation=${encodeURIComponent(o.code)}`
   const training = showTraining ? ausbildungOccupation(o.code) : null
+  const related = relatedOccupations(o, catalog, indexable)
+  // Cẩm nang và trang luyện thi chỉ có tiếng Việt.
+  const guide = locale === 'vi' ? guideForOccupation(o.code) : undefined
+  const exam = locale === 'vi' ? examForWorkplace(o.workplace) : undefined
+  // Câu trả lời ngắn ngay dưới câu hỏi (SEO 13/11/2026): lấy từ dữ liệu thật của trang, không bịa.
+  const faqName = locale === 'de' ? o.nameDe : occupationTitleName(o, locale)
+  const example = exampleQuestion(detail)
+  const faqs = [
+    {
+      q: t('occupationPages.detail.faqAskQ', { name: faqName }),
+      a: example
+        ? t('occupationPages.detail.faqAskA', { example })
+        : t('occupationPages.detail.faqAskANoExample'),
+    },
+    { q: t('occupationPages.detail.faqLevelQ', { name: faqName }), a: t('occupationPages.detail.faqLevelA') },
+    { q: t('occupationPages.detail.faqCostQ', { name: faqName }), a: t('occupationPages.detail.faqCostA') },
+  ]
+  const faqLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  }
 
   return (
     <Shell>
@@ -126,7 +163,7 @@ export async function OccupationDetailView({ detail, showTraining = false }: { d
             <YellowSq />{t('occupationPages.index.cap')}
           </div>
           <h1 className="font-ga-display text-ga-h1-m font-medium leading-[1.08] sm:text-ga-h1">
-            {t('occupationPages.detail.title', { nameDe: o.nameDe })}
+            {t('occupationPages.detail.title', { nameDe: o.nameDe, name: occupationTitleName(o, locale) })}
           </h1>
           <p className="mt-3 text-ga-body-lg text-ga-muted">
             {t('occupationPages.detail.subtitle', { name: occupationName(o, locale), workplace: t(`workplaces.${o.workplace}`) })}
@@ -187,6 +224,55 @@ export async function OccupationDetailView({ detail, showTraining = false }: { d
           <p className="mt-10 border-l-2 border-ga-yellow pl-3 text-ga-small text-ga-muted">
             {t('occupationPages.detail.labelsNote')}
           </p>
+
+          <section aria-labelledby="occ-faq">
+            <h2 id="occ-faq" className="mb-4 mt-10 text-ga-h3 text-ga-ink">{t('occupationPages.detail.faqCap')}</h2>
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(faqLd) }} />
+            <div className="border-t border-ga-border">
+              {faqs.map((f) => (
+                <div key={f.q} className="border-b border-ga-border py-4">
+                  <h3 className="text-ga-body font-semibold text-ga-ink">{f.q}</h3>
+                  <p className="mt-1.5 text-ga-body text-ga-muted">{f.a}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {(related.length > 0 || guide || exam) && (
+            <section aria-labelledby="occ-related" className="mt-10">
+              <h2 id="occ-related" className="mb-4 text-ga-h3 text-ga-ink">{t('occupationPages.detail.relatedCap')}</h2>
+              {related.length > 0 && (
+                <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                  {related.map((r) => (
+                    <li key={r.code}>
+                      <Link href={localizedHref(locale, `/phong-van/${r.code}`)} className="block min-h-11 py-2 hover:text-ga-navy">
+                        <span className="block text-ga-body font-semibold">{r.nameDe}</span>
+                        {locale !== 'de' && <span className="block text-ga-caption text-ga-muted">{occupationName(r, locale)}</span>}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {(guide || exam) && (
+                <ul className="mt-4 flex flex-col gap-2">
+                  {guide && (
+                    <li>
+                      <Link href={`/cam-nang/${guide.slug}/`} className="text-ga-body text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink">
+                        {t('occupationPages.detail.guideLink', { title: guide.title })}
+                      </Link>
+                    </li>
+                  )}
+                  {exam && (
+                    <li>
+                      <Link href={`/luyen-thi/${exam.slug}/`} className="text-ga-body text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink">
+                        {t('occupationPages.detail.examLink', { name: exam.name })}
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </section>
+          )}
 
           {training && isAusbildungLocale(locale) && (
             <AusbildungOccupationBlock training={training} locale={locale} />

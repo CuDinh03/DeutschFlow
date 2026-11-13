@@ -16,6 +16,7 @@ import {
   type CertificateLang,
 } from '@/lib/certificateDict'
 import { HTML_LANG } from '@/lib/reportSheetDict'
+import { serverBackendFetch } from '@/lib/serverBackend'
 
 /**
  * Trang xác thực công khai `/certificate/{token}?lang=vi|en|de` (đợt 4A A+B+E).
@@ -32,9 +33,6 @@ import { HTML_LANG } from '@/lib/reportSheetDict'
  * nút ngôn ngữ của header tiếng Việt.
  */
 
-const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080')
-  .replace(/\/+$/, '')
-  .replace(/\/api$/, '')
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://mydeutschflow.com').replace(/\/+$/, '')
 
 /** Khung trang chung của mọi trạng thái (còn hiệu lực, thu hồi, đã xoá). */
@@ -49,7 +47,7 @@ type PageProps = {
 
 async function fetchCertificate(token: string): Promise<Certificate | null> {
   try {
-    const res = await fetch(`${backendOrigin}/api/public/certificate/${encodeURIComponent(token)}`, {
+    const res = await serverBackendFetch(`/api/public/certificate/${encodeURIComponent(token)}`, {
       cache: 'no-store',
     })
     if (!res.ok) return null
