@@ -1470,7 +1470,11 @@ public class ExamDraftService {
         boolean draft = "DRAFT".equals(r.status());
         boolean hasContent = r.text() != null && (!r.items().isEmpty() || spec.writing());
         boolean everVerified = !r.checks().isEmpty() && r.verifiedHash() != null;
-        boolean current = hasContent && everVerified && r.verifiedHash().equals(contentHash(r.text().text(), r.items()));
+        // Dấu kiểm khớp theo cách tính hiện tại HOẶC cách tính cũ của bản nháp Nghe (trường audio còn trống) — cùng
+        // điều kiện với bản vá lượt #11 ("bản nháp tự kiểm trước đợt Nghe không còn bị báo oan nội dung đã đổi").
+        boolean current = hasContent && everVerified
+                && (r.verifiedHash().equals(contentHash(r.text().text(), r.items()))
+                        || r.verifiedHash().equals(contentHashWithNullAudioFields(r.text().text(), r.items())));
         List<String> red = new ArrayList<>();
         for (Check c : r.checks()) if ("RED".equals(c.light())) red.add(c.label());
         for (int i = 0; i < r.items().size(); i++) if ("RED".equals(r.items().get(i).light())) red.add("câu " + (i + 1));
@@ -1883,6 +1887,35 @@ public class ExamDraftService {
     }
 
     String contentHash(Text t, List<Item> items) {
+        List<Map<String, Object>> core = items.stream().map(i -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", i.id());
+            m.put("q", i.question());
+            m.put("o", new TreeMap<>(i.options() == null ? Map.of() : i.options()));
+            m.put("c", i.correct());
+            m.put("e", i.explanationVi());
+            m.put("ev", i.evidence());
+            m.put("d", i.difficultyTarget());
+            return m;
+        }).toList();
+        return TextChecks.sha256(textJsonForHash(json(t)) + json(core));
+    }
+
+    /**
+     * JSON của bài dùng để tính dấu vân tay. Đợt Nghe (13/11/2026) thêm hai trường {@code audioTurns}, {@code framingDe}
+     * vào {@link Text}; với bài không phải Nghe hai trường này là null nhưng vẫn được ghi ra JSON, nên dấu vân tay của
+     * MỌI bản nháp đã tự kiểm trước đó đổi theo và bước duyệt báo oan "Nội dung đã đổi sau lần tự kiểm cuối" (lượt #11).
+     * Bỏ hai trường null đó khỏi chuỗi băm để dấu vân tay của bài cũ giữ nguyên như trước; bài Nghe (trường có giá trị)
+     * không đổi.
+     */
+    static String textJsonForHash(String textJson) {
+        String tail = ",\"audioTurns\":null,\"framingDe\":null}";
+        return textJson != null && textJson.endsWith(tail)
+                ? textJson.substring(0, textJson.length() - tail.length()) + "}" : textJson;
+    }
+
+    /** Dấu vân tay theo cách tính trong vài giờ sau đợt Nghe (còn hai trường null): bản nháp tự kiểm lúc đó vẫn hợp lệ. */
+    String contentHashWithNullAudioFields(Text t, List<Item> items) {
         List<Map<String, Object>> core = items.stream().map(i -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", i.id());
