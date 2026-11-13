@@ -73,6 +73,17 @@ describe('SourcesTab', () => {
     await waitFor(() => expect(m.setSourceFeedActive).toHaveBeenCalledWith(1, false))
   })
 
+  it('không tải được danh mục: nói rõ đang tải gì hỏng và có nút thử lại', async () => {
+    m.listSourceFeeds.mockReset()
+    m.listSourceFeeds.mockRejectedValueOnce(new Error('mất mạng')).mockResolvedValue(FEEDS)
+    show()
+    const banner = await screen.findByRole('alert')
+    expect(within(banner).getByText('Không tải được danh mục nguồn')).toBeInTheDocument()
+    await userEvent.click(within(banner).getByRole('button'))
+    expect(await screen.findByText('Được chuyển thể')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('ba ngôn ngữ đủ khoá của tab Nguồn', () => {
     const keys = (o: unknown, p = ''): string[] => o && typeof o === 'object'
       ? Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => keys(v, p ? `${p}.${k}` : k)) : [p]

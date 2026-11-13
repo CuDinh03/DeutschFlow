@@ -656,6 +656,7 @@
         "addHoerenStarted": "Hörteil gestartet. Die Tabelle aktualisiert sich selbst."
       },
       "sources": {
+        "loadError": "Der Quellenkatalog konnte nicht geladen werden",
         "intro": "Herausgeber, die die Prüfungssatz-Pipeline nutzen darf. „Neue Artikel lesen“ holt nur die Artikelliste (Titel, Link) und lädt keine Artikel. Jeder Artikel wird nur einmal verwendet.",
         "empty": "Der Quellenkatalog ist leer.",
         "class": {

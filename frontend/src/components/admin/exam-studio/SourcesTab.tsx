@@ -58,7 +58,7 @@ export function SourcesTab({ active }: { active: boolean }) {
     }
   }
 
-  if (error) return <ErrorBanner message={error} />
+  if (error) return <ErrorBanner title={t('loadError')} message={error} onRetry={() => void load()} />
   if (!feeds) return <LoadingState />
   if (feeds.length === 0) return <EmptyState title={t('empty')} />
 

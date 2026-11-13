@@ -76,7 +76,7 @@ public class SourceCatalogService {
     @Transactional
     public void setActive(long feedId, boolean active) {
         if (jdbc.update("UPDATE exam_source_feeds SET active = ? WHERE id = ?", active, feedId) == 0) {
-            throw new NotFoundException("Không có nguồn #" + feedId + " trong danh mục.");
+            throw new NotFoundException("Không có nguồn #" + feedId + " trong danh mục. Tải lại tab \"Nguồn\" để xem danh mục hiện tại.");
         }
     }
 
@@ -90,11 +90,11 @@ public class SourceCatalogService {
     public PollResult poll(long feedId) {
         FeedRow f = feed(feedId);
         if ("NONE".equals(f.listingKind()) || f.listingUrl() == null) {
-            throw new BadRequestException("Nguồn này chưa có cách lấy danh sách bài tự động.");
+            throw new BadRequestException("Nguồn này chưa có cách lấy danh sách bài tự động, nên nút \"Đọc bài mới\" không dùng được. Muốn dùng bài của nguồn này thì thêm bằng tay ở bước \"Nguồn\" của một bản nháp (dán đường dẫn hoặc văn bản).");
         }
         if (f.lastPolledAt() != null
                 && Duration.between(f.lastPolledAt(), Instant.now()).getSeconds() < f.minDelaySeconds()) {
-            throw new BadRequestException("Vừa đọc nguồn này xong. Chờ " + f.minDelaySeconds() + " giây rồi thử lại.");
+            throw new BadRequestException("Vừa đọc nguồn này xong. Nơi đăng yêu cầu cách nhau ít nhất " + f.minDelaySeconds() + " giây; chờ rồi bấm lại \"Đọc bài mới\".");
         }
         List<Entry> entries;
         try {
@@ -179,7 +179,7 @@ public class SourceCatalogService {
                         rs.getString("usage_class"), rs.getInt("min_delay_seconds"),
                         rs.getTimestamp("last_polled_at") == null ? null : rs.getTimestamp("last_polled_at").toInstant()),
                 feedId).stream().findFirst()
-                .orElseThrow(() -> new NotFoundException("Không có nguồn #" + feedId + " trong danh mục."));
+                .orElseThrow(() -> new NotFoundException("Không có nguồn #" + feedId + " trong danh mục. Tải lại tab \"Nguồn\" để xem danh mục hiện tại."));
     }
 
     // ── Chọn bài ─────────────────────────────────────────────────────────────────────────────────────────
