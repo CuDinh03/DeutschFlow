@@ -260,6 +260,7 @@ Khi owner ra lệnh build bản mới lên store, phiên làm việc **tự tín
 ### 8.1 Env và secret
 - Sửa env backend: sửa `/srv/deutschflow/env/backend.env` trên máy chủ rồi deploy lại backend. Sửa build args frontend: `frontend-build.env` rồi deploy lại frontend.
 - Không ghi giá trị secret vào repo, log, PR, chat. Preflight chỉ in **tên** biến.
+- STT dự phòng khác nhà cung cấp (Cloudflare Workers AI), mặc định tắt: `CF_AI_ACCOUNT_ID`, `CF_AI_API_TOKEN` (secret), `CF_AI_MODEL`; thiếu một trong hai biến đầu = không gọi.
 
 ### 8.2 nginx, Cloudflare Tunnel
 - nginx chỉ nghe `127.0.0.1:80`; site cấu hình bằng `deploy/self-host/install-nginx.sh` (`deutschflow.nginx.conf`). Đổi cấu hình: `nginx -t` rồi `systemctl reload nginx` (reload êm, request đang chạy vẫn xong).
