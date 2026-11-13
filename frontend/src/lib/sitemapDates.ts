@@ -14,6 +14,7 @@ export const PAGE_LASTMOD: Readonly<Record<string, string>> = {
   '/luyen-thi': '2026-11-08',
   '/free-grade': '2026-11-09',
   '/cam-nang': '2026-11-08',
+  '/mydeutschflow-la-gi': '2026-11-13',
 }
 
 /** Trang nghề luyện thi `/luyen-thi/[slug]/` — nội dung ở `@/data/germanExams`. */
