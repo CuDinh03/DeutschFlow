@@ -91,6 +91,15 @@ class SubscriptionActivationServiceTest {
     }
 
     @Test
+    @DisplayName("extendOrActivateApple bỏ qua giao dịch không có ngày hết hạn — không ghi ends_at NULL (Pro vĩnh viễn)")
+    void extendOrActivateApple_nullEnd_noWrite() {
+        service.extendOrActivateApple(USER, "PRO", START, null, true);
+
+        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(userNotificationService);
+    }
+
+    @Test
     @DisplayName("endAppleSubscription ends only Apple-sourced rows")
     void endAppleSubscription_targetsAppleRowsOnly() {
         service.endAppleSubscription(USER);

@@ -10,6 +10,7 @@ import { gamificationApi } from '@/lib/gamificationApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
+import { planDisplayName } from '@/lib/iapProducts'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance, GaGlyph } from '@/components/ui'
 import * as Application from 'expo-application'
@@ -183,7 +184,7 @@ export default function ProfileScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: space[1] }}>
                 {/* Commercial tier label — hidden on the iOS free build (App Store 2.1(b)). */}
                 {!PRO_UNLOCKED_FREE ? (
-                  <Pill label={plan?.tier ?? 'FREE'} tone={isPro ? 'accent' : 'neutral'} solid={isPro} />
+                  <Pill label={planDisplayName(plan?.tier)} tone={isPro ? 'accent' : 'neutral'} solid={isPro} />
                 ) : null}
                 {xp ? (
                   <Pressable
@@ -255,7 +256,7 @@ export default function ProfileScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <ThemedText variant="bodyStrong">
-                    {plan?.isTrial ? 'Đang dùng thử PRO' : `Gói ${plan?.tier ?? 'PRO'} đang hoạt động`}
+                    {plan?.isTrial ? 'Đang dùng thử Pro' : `Gói ${planDisplayName(plan?.tier ?? 'PRO')} đang hoạt động`}
                   </ThemedText>
                   {trialLabel ? (
                     <ThemedText variant="caption" color="muted">
@@ -267,7 +268,7 @@ export default function ProfileScreen() {
                     </ThemedText>
                   ) : null}
                 </View>
-                <Pill label={plan?.isTrial ? 'DÙNG THỬ' : plan?.tier ?? 'PRO'} tone="accent" solid />
+                <Pill label={plan?.isTrial ? 'DÙNG THỬ' : planDisplayName(plan?.tier ?? 'PRO')} tone="accent" solid />
               </View>
             </Card>
             {/* V-06: gói do TRUNG TÂM cấp thì học viên không mua gì ở Apple — "Quản lý & huỷ gói"
@@ -293,7 +294,7 @@ export default function ProfileScreen() {
                   <ListRow
                     glyph="goipro"
                     title={isUltra ? 'Xem & đổi gói' : 'Nâng cấp / đổi gói'}
-                    subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên ULTRA hoặc đổi kỳ hạn'}
+                    subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên gói Tăng tốc hoặc đổi kỳ hạn'}
                     onPress={() => router.push('/(student)/upgrade')}
                   />
                   <Divider />

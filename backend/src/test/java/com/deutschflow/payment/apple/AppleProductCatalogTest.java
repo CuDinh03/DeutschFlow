@@ -21,7 +21,7 @@ class AppleProductCatalogTest {
     @Mock
     JdbcTemplate jdbcTemplate;
 
-    private static final String PRODUCT_ID = "com.deutschflow.app.pro.monthly";
+    private static final String PRODUCT_ID = "com.cudinh.mydeutschflow.pro.monthly";
 
     @Test
     @DisplayName("resolves a known product and caches it (single DB hit across repeated lookups)")
