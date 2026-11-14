@@ -78,7 +78,7 @@ class OccupationCatalogServiceTest {
         assertThat(detail.personaCode()).isEqualTo("KRUEGER");
         assertThat(detail.occupation().questionSet()).isEqualTo(OccupationDto.GENERAL);
         assertThat(detail.interviewPosition()).isEqualTo("Pflegefachmann/-frau");
-        assertThat(detail.sampleQuestions().get(0).questionDe()).contains("relevante Erfahrung für Pflegefachmann/-frau");
+        assertThat(detail.sampleQuestions().get(0).questionDe()).contains("Ihre Erfahrung als Pflegefachmann/-frau und");
         assertThat(detail.sampleQuestions().get(1).questionDe())
                 .isEqualTo("Welche Verantwortung hatten Sie zuletzt für Pflegefachmann/-frau — messbares Ergebnis?");
     }
