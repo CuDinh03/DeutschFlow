@@ -207,10 +207,10 @@ public class RoadmapService {
                 FROM skill_tree_user_progress p
                 JOIN skill_tree_nodes n ON n.id = p.node_id
                 WHERE p.user_id = ?
-                  AND p.status = 'COMPLETED'
+                  AND %s
                   AND %s
                   AND n.day_number >= ?
-                """.formatted(RoadmapRules.PUBLISHED), Long.class, userId, entryDay);
+                """.formatted(RoadmapRules.DONE, RoadmapRules.PUBLISHED), Long.class, userId, entryDay);
         return count == null ? 0L : count;
     }
 

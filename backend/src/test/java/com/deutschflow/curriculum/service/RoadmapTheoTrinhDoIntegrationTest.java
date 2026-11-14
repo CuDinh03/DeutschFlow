@@ -181,4 +181,25 @@ class RoadmapTheoTrinhDoIntegrationTest extends AbstractPostgresIntegrationTest 
                 """.formatted(RoadmapRules.PUBLISHED, RoadmapRules.SCORED_ITEM_COUNT), String.class);
         assertThat(ketBai).isEmpty();
     }
+
+    @Test
+    @DisplayName("ROUTE-01: mọi bài đã phát hành, trừ bài đầu chuỗi, có tiền đề là một bài đã phát hành đứng trước")
+    void chuoiTienDeLienMach() {
+        // Thiếu dòng dependency thì bài đó mở song song với bài đang học (nhiều "nụ").
+        List<Integer> hoBai = jdbcTemplate.queryForList("""
+                SELECT n.day_number FROM skill_tree_nodes n
+                WHERE %s
+                  AND n.day_number > (SELECT MIN(m.day_number) FROM skill_tree_nodes m
+                                      WHERE m.is_active = TRUE
+                                        AND m.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT'))
+                  AND NOT EXISTS (
+                      SELECT 1 FROM skill_tree_node_dependencies d
+                      JOIN skill_tree_nodes dn ON dn.id = d.depends_on_node_id
+                      WHERE d.node_id = n.id
+                        AND dn.is_active = TRUE
+                        AND dn.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                        AND dn.day_number < n.day_number)
+                """.formatted(RoadmapRules.PUBLISHED), Integer.class);
+        assertThat(hoBai).isEmpty();
+    }
 }

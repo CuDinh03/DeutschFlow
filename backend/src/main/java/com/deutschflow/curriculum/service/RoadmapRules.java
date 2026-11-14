@@ -48,6 +48,16 @@ public final class RoadmapRules {
                                   ELSE 70 END)
             )""";
 
+    /**
+     * Biểu thức boolean "bài đã xong" trên dòng tiến độ {@code p} của bài {@code n}, cùng định nghĩa với
+     * {@link #status} (dùng cho phép đếm, ví dụ meta). Không có tham số.
+     */
+    public static final String DONE = """
+            (COALESCE(p.status, '') = 'COMPLETED'
+             OR COALESCE(p.best_score, 0) >= CASE
+                    WHEN n.mastery_threshold BETWEEN 1 AND 100 THEN n.mastery_threshold
+                    ELSE 70 END)""";
+
     /** ROUTE-08: số mục chấm điểm thật của bài (đọc {@code content_json} trong SQL). Không có tham số. */
     public static final String SCORED_ITEM_COUNT = """
             (

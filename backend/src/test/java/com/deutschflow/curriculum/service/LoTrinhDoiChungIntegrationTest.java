@@ -106,6 +106,12 @@ class LoTrinhDoiChungIntegrationTest extends AbstractPostgresIntegrationTest {
                 assertThat(roadmap.keySet()).as("%s, %d bài xong: tập bài", level, done)
                         .containsExactlyInAnyOrderElementsOf(skill.keySet());
                 assertThat(roadmap).as("%s, %d bài xong: trạng thái", level, done).isEqualTo(skill);
+                // Hai đường giờ cùng một hàm nên so nhau không đủ: chuỗi tiền đề thật phải để đúng
+                // MỘT bài được mời khi học viên đi tuần tự (luật "một nụ" cũ từng che lỗi nối chuỗi).
+                if (done < order.size()) {
+                    assertThat(roadmap.values().stream().filter(s -> s.equals("AVAILABLE") || s.equals("IN_PROGRESS")))
+                            .as("%s, %d bài xong: số bài đang mời", level, done).hasSize(1);
+                }
                 learners++;
             }
         }
