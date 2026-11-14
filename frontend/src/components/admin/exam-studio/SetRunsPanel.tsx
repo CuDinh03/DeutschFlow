@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Sparkles } from 'lucide-react'
+import { Repeat, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import { apiProblem, isGuided, type ApiProblem } from '@/lib/apiProblem'
 import {
-  addSetRunHoeren, approveSetRun, createSetRun, discardSetRun, getStudioChannel, listSetRuns, recheckSetRun, redoSetRunTeil,
-  type SetRun, type SetRunStatus, type SetRunTeil,
+  addSetRunHoeren, approveSetRun, createSetRun, discardSetRun, getSetAuto, getStudioChannel, listSetRuns, putSetAuto,
+  recheckSetRun, redoSetRunTeil,
+  type SetAuto, type SetAutoJob, type SetRun, type SetRunStatus, type SetRunTeil,
 } from '@/lib/adminExamStudioApi'
 import { ConfirmDialog, ErrorBanner, GaBtn, GaCap, GaCard, TkBadge } from '@/components/ui-v2'
 import { ProblemNotice } from '@/components/admin/ProblemNotice'
@@ -31,6 +32,9 @@ const hasHoeren = (r: SetRun) => r.teile.some((x) => x.section.toUpperCase() ===
 const canAddHoeren = (r: SetRun) => (r.status === 'REVIEW' || r.status === 'NEEDS_ATTENTION')
   && r.examFormat.toUpperCase() === 'TELC' && r.cefrLevel === 'B1' && !hasHoeren(r)
 
+/** Nhãn việc đứng đầu dòng lịch sử thì viết hoa chữ đầu ("phần Nghe…" ⇒ "Phần Nghe…"). */
+const capitalize = (s: string) => (s ? s.charAt(0).toLocaleUpperCase('vi') + s.slice(1) : s)
+
 function fmtDate(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -49,6 +53,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
   const [busy, setBusy] = useState(false)
   const [discarding, setDiscarding] = useState<SetRun | null>(null)
   const [approving, setApproving] = useState<SetRun | null>(null)
+  const [auto, setAuto] = useState<SetAuto | null>(null)
   const [redoing, setRedoing] = useState<{ run: SetRun; teil: SetRunTeil } | null>(null)
   const [addingHoeren, setAddingHoeren] = useState<SetRun | null>(null)
   // Lỗi có chỉ dẫn của một lượt (vd. duyệt cả bộ bị chặn): hiện ngay trong thẻ lượt đó, không tự tắt.
@@ -58,7 +63,9 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
 
   const load = useCallback(async () => {
     try {
-      setRuns(await listSetRuns())
+      const [list, a] = await Promise.all([listSetRuns(), getSetAuto().catch(() => null)])
+      setRuns(list)
+      setAuto(a)
       setError('')
     } catch (e) {
       setError(apiMessage(e))
@@ -67,12 +74,37 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
 
   useEffect(() => { if (active) void load() }, [active, load])
 
-  const anyActive = (runs ?? []).some((r) => ACTIVE.includes(r.status))
+  const activeRun = (runs ?? []).find((r) => ACTIVE.includes(r.status)) ?? null
+  const anyActive = activeRun != null
+  // Tự nối đang bật: "Làm lại Teil" / "Tạo phần Nghe" vẫn bấm được lúc máy chạy — backend xếp hàng (owner chốt 13/11/2026).
+  const canQueue = auto?.enabled === true
+  const jobLabel = (p: SetAutoJob) => (p.kind === 'REDO'
+    ? t('pendingRedo', { teil: slotLabel(p.section ?? '', p.teil ?? 0), id: p.runId })
+    : t('pendingAddHoeren', { id: p.runId }))
+  // Giao diện có thể chưa thấy lượt máy vừa tự tạo (nạp lại 10 giây một lần): khi đó báo câu không kèm số lượt.
+  const queuedMsg = () => (activeRun ? t('queued', { id: activeRun.id }) : t('queuedNoRun'))
+  const pendingItems = (auto?.pending ?? []).map(jobLabel)
+  const history = auto?.history ?? []
   useEffect(() => {
-    if (!active || !anyActive) return
+    if (!active || (!anyActive && !auto?.enabled)) return
     timer.current = setTimeout(() => void load(), REFRESH_MS)
     return () => { if (timer.current) clearTimeout(timer.current) }
-  }, [active, anyActive, runs, load])
+  }, [active, anyActive, auto?.enabled, runs, load])
+
+  const toggleAuto = async () => {
+    setBusy(true)
+    try {
+      const on = !auto?.enabled
+      setAuto(await putSetAuto(on
+        ? { enabled: true, examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: getStudioChannel() }
+        : { enabled: false }))
+      toast.success(t(on ? 'autoEnabled' : 'autoDisabled'))
+    } catch (e) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   /**
    * Lỗi của một thao tác: có chỉ dẫn (chuyện gì – ở đâu – làm gì) thì hiện khung không tự tắt ngay tại lượt liên
@@ -158,10 +190,11 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     setBusy(true)
     try {
       // Làm lại bằng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
-      await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil, getStudioChannel())
+      const next = await redoSetRunTeil(redoing.run.id, redoing.teil.section, redoing.teil.teil, getStudioChannel())
       setRedoing(null)
       setProblem(null)
-      toast.success(t('redoStarted'))
+      // Lượt chưa chuyển sang chạy ⇒ backend đã xếp hàng chờ lượt đang chạy xong.
+      toast.success(ACTIVE.includes(next.status) ? t('redoStarted') : queuedMsg())
       await load()
     } catch (e) {
       setRedoing(null)
@@ -176,10 +209,10 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
     setBusy(true)
     try {
       // Như "Làm lại Teil": dùng kênh đang chọn ở nút "Tạo đề bằng", không phải kênh lúc tạo lượt.
-      await addSetRunHoeren(addingHoeren.id, getStudioChannel())
+      const next = await addSetRunHoeren(addingHoeren.id, getStudioChannel())
       setAddingHoeren(null)
       setProblem(null)
-      toast.success(t('addHoerenStarted'))
+      toast.success(ACTIVE.includes(next.status) ? t('addHoerenStarted') : queuedMsg())
       await load()
     } catch (e) {
       setAddingHoeren(null)
@@ -211,10 +244,47 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
           <h2 id="set-runs-h" className="ga-ui text-ga-h3 text-ga-ink">{t('title')}</h2>
           <p className="ga-ui mt-1 text-ga-small text-ga-muted">{t('body')}</p>
         </div>
-        <GaBtn onClick={() => void start()} disabled={busy || anyActive}>
-          <Sparkles className="h-4 w-4" aria-hidden /> {t('start')}
-        </GaBtn>
-        {anyActive && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('oneAtATime')}</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          <GaBtn variant="ghost" onClick={() => void toggleAuto()} disabled={busy || auto == null}
+            aria-pressed={auto?.enabled ?? false}>
+            <Repeat className="h-4 w-4" aria-hidden /> {t(auto?.enabled ? 'autoOff' : 'autoOn')}
+          </GaBtn>
+          <GaBtn onClick={() => void start()} disabled={busy || anyActive}>
+            <Sparkles className="h-4 w-4" aria-hidden /> {t('start')}
+          </GaBtn>
+        </div>
+        {auto?.enabled ? (
+          <p className="ga-ui basis-full text-ga-caption font-semibold text-ga-ink">
+            {t('autoRunning', { waiting: auto.waiting, max: auto.maxWaiting })}
+          </p>
+        ) : (
+          <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('autoHint', { max: auto?.maxWaiting ?? 5 })}</p>
+        )}
+        {auto?.note && <p className="ga-ui basis-full break-words text-ga-caption text-ga-muted">{auto.note}</p>}
+        {anyActive && !auto?.enabled && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('oneAtATime')}</p>}
+        {anyActive && canQueue && <p className="ga-ui basis-full text-ga-caption text-ga-muted">{t('autoQueueHint')}</p>}
+        {pendingItems.length > 0 && (
+          <p className="ga-ui basis-full break-words text-ga-caption font-semibold text-ga-ink">
+            {t('autoPending', { items: pendingItems.join('; ') })}
+          </p>
+        )}
+        {history.length > 0 && (
+          <details className="basis-full">
+            <summary className="ga-ui cursor-pointer text-ga-caption font-semibold text-ga-ink">
+              {t('historyTitle', { count: history.length })}
+            </summary>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {history.map((h) => (
+                <li key={h.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <TkBadge tone={h.status === 'DONE' ? 'green' : 'red'}>{t(h.status === 'DONE' ? 'jobDone' : 'jobFailed')}</TkBadge>
+                  <span className="ga-ui text-ga-small text-ga-ink">{capitalize(jobLabel(h))}</span>
+                  <span className="ga-ui text-ga-caption text-ga-muted">{fmtDate(h.finishedAt ?? h.createdAt)}</span>
+                  {h.error && <span className="ga-ui basis-full break-words text-ga-caption text-ga-muted">{h.error}</span>}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </GaCard>
 
       {error && <ErrorBanner title={t('loadError')} message={error} onRetry={() => void load()} />}
@@ -243,7 +313,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
                 <GaBtn size="sm" variant="ghost" disabled={busy} onClick={() => void recheck(r)}>{t('recheck')}</GaBtn>
               )}
               {canAddHoeren(r) && (
-                <GaBtn size="sm" variant="ghost" disabled={busy || anyActive} onClick={() => setAddingHoeren(r)}>{t('addHoeren')}</GaBtn>
+                <GaBtn size="sm" variant="ghost" disabled={busy || (anyActive && !canQueue)} onClick={() => setAddingHoeren(r)}>{t('addHoeren')}</GaBtn>
               )}
               {r.status !== 'APPROVED' && (
                 <button type="button" className={studioMiniBtn} disabled={busy} onClick={() => setDiscarding(r)}>
@@ -301,7 +371,7 @@ export function SetRunsPanel({ active, onApproved }: { active: boolean; onApprov
                     )}
                     <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
                       {(r.status === 'NEEDS_ATTENTION' || r.status === 'REVIEW') && (
-                        <button type="button" className={studioMiniBtn} disabled={busy || anyActive}
+                        <button type="button" className={studioMiniBtn} disabled={busy || (anyActive && !canQueue)}
                           onClick={() => setRedoing({ run: r, teil: x })}>
                           {t('redo')}
                         </button>

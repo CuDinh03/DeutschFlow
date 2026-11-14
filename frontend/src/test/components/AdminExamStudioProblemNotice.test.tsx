@@ -13,6 +13,7 @@ import type { SetRun, SetRunTeil } from '@/lib/adminExamStudioApi'
 const m = vi.hoisted(() => ({
   listSetRuns: vi.fn(), createSetRun: vi.fn(), discardSetRun: vi.fn(), approveSetRun: vi.fn(), getStudioChannel: vi.fn(),
   recheckSetRun: vi.fn(), redoSetRunTeil: vi.fn(), addSetRunHoeren: vi.fn(),
+  getSetAuto: vi.fn(), putSetAuto: vi.fn(),
 }))
 vi.mock('@/lib/adminExamStudioApi', async (orig) => ({ ...(await orig<object>()), ...m }))
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), message: vi.fn() }))
@@ -73,6 +74,11 @@ const wrap = (ui: React.ReactNode) => render(
 describe('Thông báo lỗi có chỉ dẫn', () => {
   beforeEach(() => {
     Object.values(m).forEach((f) => f.mockReset())
+    // Thẻ "Tự nối lượt" của panel đọc cấu hình khi mở; không mock thì gọi mạng thật.
+    m.getSetAuto.mockResolvedValue({
+      enabled: false, examFormat: 'TELC', cefrLevel: 'B1', profile: 'REAL', channel: 'FIREWORKS', note: null,
+      waiting: 0, maxWaiting: 5,
+    })
     Object.values(toast).forEach((f) => f.mockReset())
     m.getStudioChannel.mockReturnValue('ROUTER')
   })

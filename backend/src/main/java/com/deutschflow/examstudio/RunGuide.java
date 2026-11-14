@@ -18,6 +18,7 @@ final class RunGuide {
     private RunGuide() {}
 
     static final String BTN_START = "Tạo bộ đề telc B1";
+    static final String BTN_AUTO_ON = "Bật tự nối lượt";
     static final String BTN_RECHECK = "Kiểm lại bộ";
     static final String BTN_REDO = "Làm lại Teil này";
     static final String BTN_ADD_HOEREN = "Tạo phần Nghe";
