@@ -132,11 +132,11 @@ Questions, requests, or complaints: **[[support@your-domain]]**.
 
 <!--LANG:VI-->
 
-# DeutschFlow — Chính sách quyền riêng tư
+# DeutschFlow — Chính sách bảo mật
 
 **Ngày hiệu lực:** [[EFFECTIVE-DATE]] · **Cập nhật lần cuối:** [[LAST-UPDATED]]
 
-Trang này được đăng tại [[https://your-domain/privacy]] và là URL Chính sách quyền riêng tư đã đăng ký trong App Store Connect (App Privacy + App Information).
+Trang này được đăng tại [[https://your-domain/privacy]] và là URL Chính sách bảo mật đã đăng ký trong App Store Connect (App Privacy + App Information).
 
 **Ứng dụng:** DeutschFlow — ứng dụng học tiếng Đức (từ vựng, ngữ pháp, luyện nghe, luyện nói với AI và thi thử telc B1).
 

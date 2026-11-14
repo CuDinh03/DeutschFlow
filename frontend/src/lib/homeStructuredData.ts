@@ -25,6 +25,7 @@ export function homeStructuredData(locale: keyof typeof IN_LANGUAGE, description
         url: absoluteUrl('/'),
         logo: { '@type': 'ImageObject', url: absoluteUrl('/icon-512.png'), width: 512, height: 512 },
         email: SUPPORT_EMAIL,
+        founder: { '@type': 'Person', name: 'Đinh Huy Cự' },
         sameAs: [APP_STORE_URL, FACEBOOK_URL],
       },
       {

@@ -7,7 +7,8 @@ import '@/components/legal/legalGa.css'
 
 export const metadata: Metadata = {
   title: 'Hỗ trợ · myDeutschFlow',
-  description: 'Liên hệ hỗ trợ myDeutschFlow: tài khoản, ứng dụng iPhone, thanh toán và dữ liệu cá nhân (Support).',
+  description:
+    'Cần giúp về tài khoản, ứng dụng iPhone, thanh toán hoặc dữ liệu cá nhân? Liên hệ myDeutschFlow qua email support@mydeutschflow.com (Support).',
   alternates: { canonical: absoluteUrl('/support/') },
 }
 
@@ -45,35 +46,48 @@ export default function SupportPage() {
           <article className="ga-legal">
             <h1>Hỗ trợ / Support</h1>
             <p>
-              Cần trợ giúp với myDeutschFlow? / Need help with myDeutschFlow? Email cho chúng tôi và
-              bạn sẽ nhận phản hồi trong vòng 2 ngày làm việc. / Email us and we&apos;ll get back to
-              you within 2 business days.
+              Cần hỗ trợ khi dùng myDeutschFlow? Bạn email cho chúng tôi, chúng tôi trả lời trong vòng
+              2 ngày làm việc.
             </p>
             <p>
               <strong>Email:</strong>{' '}
               <a href="mailto:support@mydeutschflow.com">support@mydeutschflow.com</a>
             </p>
+            <p>Bạn ghi kèm email tài khoản và mô tả ngắn vấn đề, có ảnh chụp màn hình càng tốt.</p>
+
+            <h2>Xoá tài khoản</h2>
             <p>
-              Vui lòng kèm email tài khoản và mô tả ngắn gọn vấn đề (kèm ảnh chụp màn hình nếu có). /
-              Please include your account email and a short description of the issue (and a screenshot
-              if relevant).
+              Bạn có thể xoá vĩnh viễn tài khoản và dữ liệu trong app iPhone hoặc trên web, ở mục{' '}
+              <strong>Hồ sơ</strong>, chọn <strong>Xoá tài khoản</strong>. Nếu không đăng nhập được, hãy
+              email cho chúng tôi từ chính địa chỉ email của tài khoản, chúng tôi sẽ xoá giúp bạn.
             </p>
 
-            <h2>Xoá tài khoản / Account deletion</h2>
+            <h2>Thanh toán và hoàn tiền</h2>
             <p>
-              Bạn có thể xoá vĩnh viễn tài khoản và dữ liệu ngay trong ứng dụng:{' '}
-              <strong>Hồ sơ (Profile) → Xoá tài khoản (Delete account)</strong>. Nếu không đăng nhập
-              được, hãy email từ chính địa chỉ email tài khoản của bạn và chúng tôi sẽ xử lý việc
-              xoá. / You can permanently delete your account and its data directly in the app:{' '}
-              <strong>Profile → Delete account</strong>. If you can&apos;t sign in, email the address
-              above from your account email and we&apos;ll process the deletion.
+              Gói mua trong app iPhone do Apple thu tiền và xử lý hoàn tiền. Bạn gửi yêu cầu tại{' '}
+              <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener noreferrer">reportaproblem.apple.com</a>.
+              Huỷ gia hạn trong Cài đặt, chạm vào tên của bạn, chọn Đăng ký.
             </p>
 
-            <h2>Quyền riêng tư &amp; Điều khoản / Privacy &amp; Terms</h2>
+            <h2>Chính sách bảo mật và Điều khoản sử dụng</h2>
             <p>
-              Xem <a href="/privacy/">Chính sách bảo mật</a> và{' '}
-              <a href="/terms/">Điều khoản sử dụng</a> của chúng tôi. / See our{' '}
-              <a href="/privacy/">Privacy Policy</a> and <a href="/terms/">Terms of Use</a>.
+              Xem <a href="/privacy/">Chính sách bảo mật</a> và <a href="/terms/">Điều khoản sử dụng</a>{' '}
+              của chúng tôi.
+            </p>
+
+            <h2 lang="en">English</h2>
+            <p lang="en">
+              Need help with myDeutschFlow? Email us at{' '}
+              <a href="mailto:support@mydeutschflow.com">support@mydeutschflow.com</a> and we&apos;ll get
+              back to you within 2 business days. Please include your account email and a short
+              description of the issue (and a screenshot if relevant).
+            </p>
+            <p lang="en">
+              You can permanently delete your account and its data in the iPhone app or on the web:{' '}
+              <strong>Profile → Delete account</strong>. If you can&apos;t sign in, email us from your
+              account email and we&apos;ll process the deletion. Purchases made in the iPhone app are
+              billed and refunded by Apple. See our <a href="/privacy/">Privacy Policy</a> and{' '}
+              <a href="/terms/">Terms of Use</a>.
             </p>
           </article>
 

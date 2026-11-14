@@ -167,7 +167,7 @@ export default function ChiPhiPage() {
           <table className="w-full min-w-[720px] border-collapse text-left text-ga-small">
             <thead>
               <tr className="bg-ga-card">
-                <th scope="col" className="p-3 font-semibold text-ga-muted">Quyền</th>
+                <th scope="col" className="p-3 font-semibold text-ga-muted">Bạn được gì</th>
                 {COMPARE_COLUMNS.map((c) => (
                   <th key={c} scope="col" className="p-3 font-semibold text-ga-ink">{c}</th>
                 ))}
@@ -223,8 +223,8 @@ export default function ChiPhiPage() {
           <p className="mt-8 text-ga-small text-ga-muted">
             Xem thêm: <Link href="/luyen-thi/telc-b1/" className={A}>cấu trúc đề telc B1</Link>,{' '}
             <Link href="/phong-van/" className={A}>phỏng vấn theo nghề</Link>,{' '}
-            <Link href="/free-grade/" className={A}>chấm thử Schreiben B1</Link>,{' '}
-            <Link href="/terms/" className={A}>Điều khoản</Link>, <Link href="/privacy/" className={A}>Chính sách bảo mật</Link>.
+            <Link href="/free-grade/" className={A}>chấm thử bài viết</Link>,{' '}
+            <Link href="/terms/" className={A}>Điều khoản sử dụng</Link>, <Link href="/privacy/" className={A}>Chính sách bảo mật</Link>.
           </p>
         </div>
       </main>

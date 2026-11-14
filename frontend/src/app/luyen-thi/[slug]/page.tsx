@@ -4,7 +4,7 @@ import { ogImage } from '@/lib/ogImage'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronDown, ExternalLink } from 'lucide-react'
-import { GERMAN_EXAMS, getExamBySlug, totalDurationMin, type GermanExam } from '@/data/germanExams'
+import { GERMAN_EXAMS, OFFICIAL_DURATION_NOTE, getExamBySlug, totalDurationMin, type GermanExam } from '@/data/germanExams'
 import { absoluteUrl } from '@/lib/siteUrl'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
@@ -23,7 +23,7 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const exam = getExamBySlug(params.slug)
-  if (!exam) return { title: 'Không tìm thấy kỳ thi | DeutschFlow' }
+  if (!exam) return { title: 'Không tìm thấy kỳ thi · myDeutschFlow' }
   const url = absoluteUrl(`/luyen-thi/${exam.slug}/`)
   return {
     title: exam.metaTitle,
@@ -78,9 +78,9 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
                 <Link href="/free-grade/">Chấm thử bài viết miễn phí</Link>
               </GaBtn>
             </div>
-            <p className="mt-3 text-ga-small text-ga-muted">7 ngày Pro gồm thi thử telc B1 đủ 4 phần · không cần thanh toán trước</p>
+            <p className="mt-3 text-ga-small text-ga-muted">Học viên mới có 7 ngày Pro, gồm thi thử telc B1 đủ 4 kỹ năng. Không cần thanh toán trước.</p>
             <p className="mt-6 border-l-2 border-ga-yellow bg-ga-card px-4 py-3 text-ga-small text-ga-ink">
-              Đề thi thử mô phỏng format telc B1, không liên kết với telc và không thay cho chứng chỉ. Phần chấm Nói đang Beta, điểm chỉ để tham khảo.
+              Đề thi thử mô phỏng định dạng telc B1, không liên kết với telc và không thay cho chứng chỉ. Phần chấm Nói đang Beta, điểm chỉ để tham khảo.
             </p>
           </>
         ) : (
@@ -121,17 +121,17 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
                   <tr key={m.skill}>
                     <td className="px-5 py-3 font-semibold text-ga-ink">{m.name}</td>
                     <td className="hidden px-5 py-3 text-ga-muted sm:table-cell">{m.description}</td>
-                    <td className="whitespace-nowrap px-5 py-3 tabular-nums text-ga-muted">~{m.durationMin} phút</td>
+                    <td className="whitespace-nowrap px-5 py-3 tabular-nums text-ga-muted">{m.durationMin ? `~${m.durationMin} phút` : 'Xem trang telc'}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t border-ga-border bg-ga-surface">
                   <td className="px-5 py-2.5 text-ga-small font-semibold text-ga-ink" colSpan={2}>
-                    Tổng (tham khảo){exam.modular ? ' · thi/thi lại từng phần' : ''}
+                    Tổng (tham khảo){exam.modular ? ' · thi và thi lại được từng module' : ''}
                   </td>
                   <td className="whitespace-nowrap px-5 py-2.5 text-ga-small font-semibold tabular-nums text-ga-ink">
-                    ~{totalDurationMin(exam)} phút
+                    {totalDurationMin(exam) ? `~${totalDurationMin(exam)} phút` : '—'}
                   </td>
                 </tr>
               </tfoot>
@@ -139,7 +139,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
           </div>
           <p className="mt-4 text-ga-body text-ga-ink"><span className="font-semibold">Cách tính điểm:</span> {exam.scoring}</p>
           <p className="mt-2 text-ga-caption text-ga-muted">
-            Thời lượng & cấu trúc mang tính tham khảo — xác nhận tại nguồn chính thức trước khi đăng ký.
+            {totalDurationMin(exam) ? '' : `${OFFICIAL_DURATION_NOTE} `}Thời lượng và cấu trúc chỉ để tham khảo. Hãy kiểm tra lại ở trang chính thức trước khi đăng ký.
           </p>
         </section>
 
@@ -147,7 +147,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
         <section className="mt-14">
           <h2 className={H2}>Checklist sẵn sàng thi</h2>
           <p className="mb-5 text-ga-body text-ga-muted">
-            Tự đánh giá theo từng kỹ năng — nếu còn mục chưa chắc, đó là chỗ cần luyện thêm.
+            Tự đánh giá từng kỹ năng. Mục nào bạn chưa chắc là chỗ cần luyện thêm.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             {exam.readiness.map((g) => (
@@ -173,10 +173,11 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
             {/* Nhận diện bằng bộ glyph Galerie (chung mobile), không dùng icon thư viện (owner 14/11/2026). */}
             <GaGlyphMark name="viet" size={32} className="shrink-0 text-ga-ink" />
             <div>
-              {/* Công cụ chấm thử chỉ chấm mức B1 — trang kỳ thi khác không hứa chấm đúng trình độ của trang. */}
-              <p className="text-ga-h3 text-ga-ink">{exam.level === 'B1' ? 'Bài viết B1 của bạn được mấy điểm?' : 'Thử chấm một bài Schreiben B1'}</p>
+              {/* Công cụ chấm thử chấm chung theo thang 100 (ngữ pháp, từ vựng, nội dung, bố cục), không theo tiêu
+                  chí của từng kỳ thi — owner chốt 14/11/2026: chữ khớp công cụ, không hứa tiêu chí B1. */}
+              <p className="text-ga-h3 text-ga-ink">Thử chấm một bài viết tiếng Đức</p>
               <p className="text-ga-small text-ga-muted">
-                {exam.level === 'B1' ? 'Dán bài Schreiben, AI chấm theo thang 100 và chỉ ra chỗ cần sửa. Miễn phí.' : 'Công cụ chấm thử hiện chấm theo mức B1. Dán bài Schreiben, AI chấm theo thang 100 và chỉ ra chỗ cần sửa. Miễn phí.'}
+                Dán bài viết tiếng Đức, AI chấm theo thang 100 và chỉ ra chỗ cần sửa. Miễn phí.
               </p>
             </div>
           </div>
@@ -218,7 +219,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
             rel="noopener noreferrer"
             className="mt-5 inline-flex items-center gap-1.5 text-ga-small font-semibold text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink"
           >
-            Lịch thi, lệ phí & đăng ký tại nguồn chính thức <ExternalLink size={14} aria-hidden />
+            Xem lịch thi, lệ phí và cách đăng ký ở trang chính thức <ExternalLink size={14} aria-hidden />
           </a>
         </section>
 
@@ -262,7 +263,7 @@ function JsonLd({ exam }: { exam: GermanExam }) {
         name: exam.metaTitle,
         description: exam.metaDescription,
         url,
-        provider: { '@type': 'Organization', name: 'DeutschFlow', url: absoluteUrl('/') },
+        provider: { '@type': 'Organization', name: 'myDeutschFlow', url: absoluteUrl('/') },
         about: exam.name,
         inLanguage: 'vi',
       },

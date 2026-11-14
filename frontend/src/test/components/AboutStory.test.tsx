@@ -71,15 +71,17 @@ describe('AboutStory — Về chúng tôi', () => {
     for (const n of ['01', '02', '03', '04']) {
       expect(screen.getAllByText(`Chương ${n}`).length).toBeGreaterThan(0)
     }
-    expect(screen.getByAltText('Đinh Huy Cự, người phát triển myDeutschFlow, mặc vest xám')).toBeTruthy()
+    expect(screen.getByAltText('Đinh Huy Cự, người sáng lập myDeutschFlow, mặc vest xám')).toBeTruthy()
     expect(screen.getByAltText('Ảnh chân dung Đinh Huy Cự')).toBeTruthy()
   })
 
-  it('dòng thời gian: commit đầu tiên 12/04/2026, một mình làm', () => {
+  it('dòng thời gian: dòng code đầu tiên 12/04/2026, một mình làm, không nêu số commit', () => {
     renderAbout()
     expect(screen.getByText('12/04/2026')).toBeTruthy()
     expect(screen.getByText('Dòng code đầu tiên')).toBeTruthy()
-    expect(screen.getByText(/do một mình mình làm/)).toBeTruthy()
+    expect(screen.getByText(/Chỉ có mình, vừa học tiếng Đức/)).toBeTruthy()
+    // Owner 14/11/2026: không nêu số commit.
+    expect(screen.queryByText(/commit/i)).toBeNull()
   })
 
   it('nhà tuyển dụng ghi Sắp có — đúng sổ lời hứa', () => {

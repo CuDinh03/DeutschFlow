@@ -83,7 +83,7 @@ export const AUSBILDUNG_SOURCES: readonly { label: string; url: string }[] = [
 export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
   vi: {
     meta: {
-      title: 'Học nghề ở Đức: chọn nghề, tìm chỗ học, thủ tục visa | myDeutschFlow',
+      title: 'Học nghề ở Đức: chọn nghề, tìm chỗ học, visa | myDeutschFlow',
       description:
         'Ausbildung là gì, cần B1 hay B2, chứng minh tài chính ra sao và cần giấy tờ gì. Hướng dẫn từng bước bằng tiếng Việt, có nguồn chính thức.',
     },
@@ -275,7 +275,7 @@ export const AUSBILDUNG_COPY: Record<AusbildungLocale, AusbildungCopy> = {
   },
   en: {
     meta: {
-      title: 'Vocational training in Germany: trades, finding a place, visa steps | myDeutschFlow',
+      title: 'Vocational training in Germany: a step-by-step guide',
       description:
         'What an Ausbildung is, whether you need B1 or B2, how to prove your finances and which documents to prepare. A step-by-step guide with official sources.',
     },

@@ -85,7 +85,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
         <nav aria-label="Đường dẫn" className="mb-6 text-ga-small text-ga-muted">
           <Link href="/cam-nang/" className="underline underline-offset-4 hover:text-ga-ink">Cẩm nang</Link>
           <span aria-hidden> / </span>
-          <span>Nghề bếp</span>
+          <span>{a.crumb}</span>
         </nav>
         <article>
           <div className="mb-[18px] inline-flex items-center gap-2 text-ga-eyebrow uppercase text-ga-muted">
@@ -115,7 +115,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
             ))}
           </ol>
 
-          <h2 className={H2}>Từ vựng trong bếp nên thuộc</h2>
+          <h2 className={H2}>{a.vocabTitle}</h2>
           <dl className="grid gap-x-8 border-t border-ga-border sm:grid-cols-2">
             {a.vocab.map((v) => (
               <div key={v.de} className="border-b border-ga-border py-3">
@@ -140,7 +140,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
           <p className="text-ga-body-lg text-ga-ink">{a.practice}</p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-              <Link href={startHref}><YellowSq />Luyện thử miễn phí</Link>
+              <Link href={startHref}><YellowSq />Học thử miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
               <Link href={`/phong-van/${a.occupationCode}/`}>Xem trang nghề {a.occupationNameDe}</Link>

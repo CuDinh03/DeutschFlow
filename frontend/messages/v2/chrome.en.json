@@ -167,7 +167,7 @@
   },
   "error": {
     "title": "This page hit an error",
-    "desc": "The page stopped part-way through rendering. Retrying usually clears it; if it doesn't, send the details below to the team.",
+    "desc": "The page stopped part-way. Reloading usually fixes it. If it doesn't, send the details below to support@mydeutschflow.com.",
     "staleTitle": "Your browser is holding an old build",
     "staleDesc": "Files from the previous deploy are no longer on the server. Reload the page to pick up the latest build.",
     "detailsCap": "Technical details",

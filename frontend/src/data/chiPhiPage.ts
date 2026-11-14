@@ -14,7 +14,7 @@
 export const PATH = '/chi-phi/'
 export const TITLE = 'Chi phí myDeutschFlow: gói Miễn phí, Pro và Tăng tốc'
 export const DESCRIPTION =
-  'Bảng giá myDeutschFlow: Pro 249.000₫ một tháng hoặc 399.000₫ hai tháng, mua trong app iPhone. Học thử 7 ngày Pro, không cần thanh toán trước.'
+  'Pro 249.000₫ một tháng, 399.000₫ hai tháng; Tăng tốc 599.000₫ hai tháng. Mua trong app iPhone. Học viên mới có 7 ngày Pro, không cần thanh toán trước.'
 export const H1 = 'Chi phí myDeutschFlow'
 export const INTRO =
   'Bạn bắt đầu miễn phí, không cần thanh toán trước, và học viên mới có ngay 7 ngày Pro để dùng thử mọi phần luyện AI. Gói Pro giá 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone và tự gia hạn.'
@@ -39,8 +39,8 @@ export interface PricePlan {
 }
 
 const PRO_FEATURES = [
-  'Hạn mức AI mỗi ngày đủ khoảng 4–5 phiên nói 10 lượt',
-  'Hạn mức chưa dùng được cộng dồn, tối đa 30 ngày',
+  'Hạn mức AI mỗi ngày đủ cho khoảng 4–5 phiên nói',
+  'Hạn mức ngày nào chưa dùng hết được cộng dồn, tối đa bằng 30 ngày',
   'Luyện phỏng vấn tiếng Đức theo nghề, có nhận xét sau từng câu',
   'Đề thi thử telc B1 đủ 4 phần',
   'Chấm bài viết, chấm Nói (Beta)',
@@ -53,9 +53,9 @@ export const PLANS: readonly PricePlan[] = [
     price: '0₫',
     features: [
       'Bài học từ vựng và ngữ pháp A1–B1',
-      'Ôn tập từ vựng ngắt quãng mỗi ngày',
+      'Ôn từ vựng mỗi ngày, nhắc lại đúng lúc sắp quên',
       '7 ngày Pro khi đăng ký: luyện nói, phỏng vấn theo nghề, thi thử telc B1',
-      'Chấm thử một bài viết Schreiben B1 ở trang Chấm thử miễn phí',
+      'Chấm thử một bài viết tiếng Đức ở trang Chấm thử miễn phí',
     ],
     limit:
       'Hết 7 ngày dùng thử, các phần dùng AI (luyện nói, phỏng vấn, chấm bài) và đề thi thử telc B1 tạm khoá cho tới khi bạn nâng cấp.',
@@ -79,7 +79,7 @@ export const PLANS: readonly PricePlan[] = [
     period: 'mỗi 2 tháng',
     perMonthNote: '≈ 199.500₫ mỗi tháng · ít hơn 99.000₫ so với hai kỳ gói tháng (498.000₫)',
     badge: 'Gói chính',
-    features: ['Mọi quyền của Pro tháng', ...PRO_FEATURES.slice(0, 2), 'Hợp với một đợt ôn phỏng vấn hoặc ôn thi telc B1'],
+    features: ['Mọi quyền của Pro tháng', 'Hợp với một đợt ôn phỏng vấn hoặc ôn thi telc B1 khoảng 8 tuần'],
     renew: 'Tự gia hạn mỗi 2 tháng · Huỷ trong Cài đặt Apple ID',
     cta: 'appStore',
     ctaLabel: 'Mua trong app iPhone',
@@ -90,8 +90,8 @@ export const PLANS: readonly PricePlan[] = [
     price: '599.000₫',
     period: 'mỗi 2 tháng',
     perMonthNote: '≈ 299.500₫ mỗi tháng',
-    features: ['Mọi quyền của Pro', 'Hạn mức AI mỗi ngày gấp đôi gói Pro', 'Hạn mức chưa dùng được cộng dồn, tối đa 30 ngày'],
-    limit: 'Dành cho người luyện hơn 4–5 phiên nói mỗi ngày. Nếu bạn luyện ít hơn, gói Pro là đủ.',
+    features: ['Mọi quyền của Pro', 'Hạn mức AI mỗi ngày gấp đôi gói Pro', 'Hạn mức ngày nào chưa dùng hết được cộng dồn, tối đa bằng 30 ngày'],
+    limit: 'Dành cho người luyện nói trên 5 phiên mỗi ngày. Luyện ít hơn thì gói Pro là đủ.',
     renew: 'Tự gia hạn mỗi 2 tháng · Huỷ trong Cài đặt Apple ID',
     cta: 'appStore',
     ctaLabel: 'Mua trong app iPhone',
@@ -99,7 +99,7 @@ export const PLANS: readonly PricePlan[] = [
 ]
 
 export const PLANS_FOOTNOTE =
-  'Thời gian dùng thử 7 ngày do myDeutschFlow cấp, không qua App Store: không cần thanh toán trước, không tự trừ tiền, hết hạn tự về gói Miễn phí. Phần chấm Nói đang Beta, điểm chỉ để tham khảo. Số phiên nói là ước tính, tính theo phiên 10 lượt, mỗi lượt khoảng 15 giây.'
+  '7 ngày dùng thử do myDeutschFlow cấp, không qua App Store. Bạn không cần thanh toán trước, không bị tự trừ tiền, hết hạn thì tự về gói Miễn phí. Phần chấm Nói đang Beta, điểm chỉ để tham khảo. Số phiên nói là ước tính, mỗi phiên 10 lượt nói, mỗi lượt khoảng 15 giây.'
 
 export const ANDROID_NOTE = {
   title: 'Bạn dùng Android?',
@@ -110,23 +110,23 @@ export const WHICH_PLAN: readonly { who: string; plan: string }[] = [
   { who: 'Mới học A1, muốn xem cách học trước', plan: 'Gói Miễn phí và 7 ngày Pro, chưa cần mua gì.' },
   { who: 'Có buổi phỏng vấn hoặc kỳ thi telc B1 trong khoảng 8 tuần tới', plan: 'Pro 2 tháng.' },
   { who: 'Chỉ cần một tháng, hoặc muốn trả từng tháng', plan: 'Pro tháng.' },
-  { who: 'Ngày nào cũng luyện nói nhiều hơn 4–5 phiên', plan: 'Tăng tốc 2 tháng.' },
+  { who: 'Ngày nào cũng luyện nói trên 5 phiên', plan: 'Tăng tốc 2 tháng.' },
   { who: 'Đang học ở trung tâm có dùng myDeutschFlow', plan: 'Hỏi trung tâm trước, có thể bạn đã được cấp quyền.' },
 ]
 
-export const COMPARE_COLUMNS = ['Miễn phí (sau dùng thử)', 'Pro tháng', 'Pro 2 tháng', 'Tăng tốc'] as const
+export const COMPARE_COLUMNS = ['Miễn phí (sau dùng thử)', 'Pro tháng', 'Pro 2 tháng', 'Tăng tốc 2 tháng'] as const
 
 export const COMPARE_ROWS: readonly { label: string; cells: readonly [string, string, string, string] }[] = [
   { label: 'Giá mỗi kỳ', cells: ['0₫', '249.000₫ / tháng', '399.000₫ / 2 tháng', '599.000₫ / 2 tháng'] },
   { label: 'Bài học từ vựng, ngữ pháp A1–B1', cells: ['Có', 'Có', 'Có', 'Có'] },
-  { label: 'Ôn tập từ vựng ngắt quãng', cells: ['Có', 'Có', 'Có', 'Có'] },
+  { label: 'Ôn từ vựng mỗi ngày', cells: ['Có', 'Có', 'Có', 'Có'] },
   { label: 'Hạn mức AI mỗi ngày', cells: ['Không có', 'Khoảng 4–5 phiên nói', 'Khoảng 4–5 phiên nói', 'Gấp đôi Pro'] },
   { label: 'Cộng dồn hạn mức chưa dùng', cells: ['—', 'Tối đa 30 ngày', 'Tối đa 30 ngày', 'Tối đa 30 ngày'] },
   { label: 'Luyện phỏng vấn theo nghề', cells: ['7 ngày dùng thử', 'Có', 'Có', 'Có'] },
   { label: 'Luyện nói với AI', cells: ['7 ngày dùng thử', 'Có', 'Có', 'Có'] },
   { label: 'Đề thi thử telc B1', cells: ['7 ngày dùng thử', 'Có', 'Có', 'Có'] },
-  { label: 'Chấm Nói', cells: ['7 ngày dùng thử', 'Beta', 'Beta', 'Beta'] },
-  { label: 'Chấm thử Schreiben B1 (trang công khai)', cells: ['Có', 'Có', 'Có', 'Có'] },
+  { label: 'Chấm Nói', cells: ['7 ngày dùng thử (Beta)', 'Beta', 'Beta', 'Beta'] },
+  { label: 'Chấm thử bài viết (trang công khai)', cells: ['Có', 'Có', 'Có', 'Có'] },
   { label: 'Web và iPhone, chung tài khoản', cells: ['Có', 'Có', 'Có', 'Có'] },
   { label: 'Tự gia hạn', cells: ['—', 'Mỗi tháng', 'Mỗi 2 tháng', 'Mỗi 2 tháng'] },
 ]
@@ -156,7 +156,7 @@ export const FAQS: readonly { q: string; a: string }[] = [
   },
   {
     q: 'Huỷ gia hạn thế nào?',
-    a: 'Trên iPhone, vào Cài đặt > Apple ID > Đăng ký, chọn myDeutschFlow rồi huỷ. Bạn vẫn dùng gói tới hết kỳ đã trả.',
+    a: 'Trên iPhone, mở Cài đặt, chạm vào tên của bạn, chọn Đăng ký, rồi chọn myDeutschFlow và huỷ. Bạn vẫn dùng gói tới hết kỳ đã trả.',
   },
   {
     q: 'Tôi muốn hoàn tiền thì làm sao?',
@@ -176,6 +176,6 @@ export const FAQS: readonly { q: string; a: string }[] = [
   },
   {
     q: 'Mua gói có giúp tôi đỗ telc B1 không?',
-    a: 'Không gói nào bảo đảm kết quả thi. Đề thi thử mô phỏng format telc B1, không liên kết với telc và không thay cho chứng chỉ.',
+    a: 'Không gói nào bảo đảm kết quả thi. Đề thi thử mô phỏng cấu trúc đề telc B1, không liên kết với telc và không thay cho chứng chỉ.',
   },
 ]

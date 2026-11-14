@@ -71,7 +71,8 @@ export default function FreeGradeClientPage() {
       if (status === 429) {
         setError(errorMessage(err, 'Bạn đã dùng hết lượt chấm thử miễn phí hôm nay. Vui lòng quay lại sau.'))
       } else if (status === 503) {
-        setError(errorMessage(err, 'Hệ thống AI đang bận. Chúng tôi đã lưu thông tin của bạn — vui lòng thử lại sau ít phút.'))
+        // Không hiện câu của backend (có "đã lưu thông tin"): câu cố định, ngắn (rà câu chữ 14/11/2026).
+        setError('AI đang bận. Bạn thử lại sau vài phút nhé.')
       } else if (status === 400) {
         setError(errorMessage(err, 'Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại bài viết và thông tin liên hệ.'))
       } else {
@@ -91,13 +92,13 @@ export default function FreeGradeClientPage() {
         Bài Schreiben B1 của bạn được mấy điểm?
       </h1>
       <p className="mt-5 max-w-[680px] text-ga-body-lg text-ga-muted">
-        Dán bài viết tiếng Đức vào ô bên dưới. AI chấm theo thang 100 và chỉ ra lỗi ngữ pháp, từ vựng,
-        cấu trúc câu, kèm câu sửa. Không cần tạo tài khoản.
+        Dán bài viết tiếng Đức vào ô bên dưới. AI chấm theo thang 100 và nhận xét ngữ pháp, từ vựng, nội
+        dung, bố cục. Không cần tạo tài khoản.
       </p>
       <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ga-small text-ga-muted">
         <li className="inline-flex items-center gap-2"><GaGlyphMark name="thoigian" size={20} className="shrink-0 text-ga-ink" /> Kết quả hiện ngay trên trang này</li>
-        <li className="inline-flex items-center gap-2"><GaGlyphMark name="viet" size={20} className="shrink-0 text-ga-ink" /> Tham chiếu tiêu chí bài viết B1</li>
-        <li className="inline-flex items-center gap-2"><GaGlyphMark name="hoso" size={20} className="shrink-0 text-ga-ink" /> Không cần tạo tài khoản, chỉ cần email hoặc Zalo để nhận kết quả</li>
+        <li className="inline-flex items-center gap-2"><GaGlyphMark name="viet" size={20} className="shrink-0 text-ga-ink" /> Chấm theo ngữ pháp, từ vựng, nội dung, bố cục</li>
+        <li className="inline-flex items-center gap-2"><GaGlyphMark name="hoso" size={20} className="shrink-0 text-ga-ink" /> Không cần tạo tài khoản</li>
       </ul>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-5">
@@ -160,7 +161,7 @@ export default function FreeGradeClientPage() {
             </div>
             <div>
               <label htmlFor="contact" className="mb-1.5 block text-ga-small font-semibold text-ga-ink">
-                Email / Zalo nhận kết quả <span className="font-normal text-ga-muted">(bắt buộc)</span>
+                Email hoặc Zalo của bạn <span className="font-normal text-ga-muted">(bắt buộc)</span>
                 <span className="sr-only"> (bắt buộc)</span>
               </label>
               <div className="flex min-h-11 overflow-hidden rounded-ga-touch border border-ga-line bg-ga-card focus-within:ring-2 focus-within:ring-ga-focus lg:min-h-9">
@@ -199,7 +200,7 @@ export default function FreeGradeClientPage() {
             )}
           </GaBtn>
           <p className="text-center text-ga-caption text-ga-muted">
-            Chúng tôi chỉ dùng email/Zalo để gửi kết quả và tài liệu luyện thi. Không spam.
+            Kết quả hiện ngay trên trang. Email hoặc Zalo chỉ dùng để gửi bạn tài liệu luyện thi khi cần. Không spam.
           </p>
         </form>
 
@@ -211,13 +212,13 @@ export default function FreeGradeClientPage() {
             <div className="border border-ga-border bg-ga-card p-6">
               <h2 className="text-ga-h3 text-ga-ink">Bạn sẽ nhận được gì?</h2>
               <ul className="mt-4 space-y-3 text-ga-small text-ga-muted">
-                <Bullet>Điểm số theo thang 100, mô phỏng tiêu chí bài viết B1 (không liên kết với Goethe-Institut hay telc).</Bullet>
-                <Bullet>Nhận xét cụ thể về ngữ pháp, từ vựng, cấu trúc câu.</Bullet>
-                <Bullet>Gợi ý sửa để bài sau tốt hơn.</Bullet>
+                <Bullet>Điểm theo thang 100, không phải điểm thi chính thức (không liên kết với Goethe-Institut hay telc).</Bullet>
+                <Bullet>Nhận xét về ngữ pháp, từ vựng, nội dung và bố cục.</Bullet>
+                <Bullet>Chỉ ra chỗ cần sửa để bài sau tốt hơn.</Bullet>
               </ul>
               <div className="mt-5 bg-ga-surface p-4 text-ga-small text-ga-muted">
-                <span className="font-semibold text-ga-ink">Là giáo viên?</span> myDeutschFlow chấm nháp cả lớp
-                để bạn chốt điểm, theo dõi tiến độ và mức sẵn sàng thi của từng học viên.
+                <span className="font-semibold text-ga-ink">Là giáo viên?</span> Ở trung tâm dùng myDeutschFlow, AI
+                chấm nháp bài cả lớp, giáo viên xem lại và chốt điểm, theo dõi tiến độ từng học viên.
               </div>
             </div>
           )}
@@ -226,6 +227,10 @@ export default function FreeGradeClientPage() {
     </main>
   )
 }
+
+/** Câu dưới kết quả chấm thử — thay chuỗi `message` của backend. */
+export const RESULT_NOTE =
+  'Đây là bản chấm thử bằng AI, điểm để tham khảo. Muốn luyện đủ 4 phần thi telc B1, bạn học thử 7 ngày Pro, không cần thanh toán trước.'
 
 function ResultCard({ result }: { result: FreeGradeResult }) {
   return (
@@ -245,10 +250,12 @@ function ResultCard({ result }: { result: FreeGradeResult }) {
       </div>
       <GaBtn asChild variant="ink" size="lg" className="w-full">
         <Link href={START_HREF}>
-          Luyện tiếp với myDeutschFlow <ArrowRight size={16} aria-hidden />
+          Học thử miễn phí <ArrowRight size={16} aria-hidden />
         </Link>
       </GaBtn>
-      <p className="px-1 text-center text-ga-caption text-ga-muted">{result.message}</p>
+      {/* Không hiện `result.message` của backend (câu cũ hứa "chấm không giới hạn", "luyện thi Goethe"): câu cố
+          định theo sổ lời hứa (rà câu chữ 14/11/2026). */}
+      <p className="px-1 text-center text-ga-caption text-ga-muted">{RESULT_NOTE}</p>
     </div>
   )
 }

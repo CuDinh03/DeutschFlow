@@ -5,8 +5,9 @@ import { LegalDocGa } from '@/components/legal/LegalDocGa'
 import { PRIVACY } from '@/content/legal/privacy'
 
 export const metadata: Metadata = {
-  title: 'Chính sách quyền riêng tư · myDeutschFlow',
-  description: 'DeutschFlow Privacy Policy / Chính sách quyền riêng tư / Datenschutzerklärung.',
+  title: 'Chính sách bảo mật · myDeutschFlow',
+  description:
+    'Chính sách bảo mật của myDeutschFlow: dữ liệu nào được thu thập, dùng vào việc gì và quyền của bạn với dữ liệu cá nhân (Privacy Policy, Datenschutz).',
   alternates: { canonical: absoluteUrl('/privacy/') },
 }
 

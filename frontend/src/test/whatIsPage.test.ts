@@ -29,7 +29,7 @@ describe('trang myDeutschFlow là gì', () => {
   })
 
   it('giữ đủ lưu ý trung thực của trang chủ', () => {
-    for (const note of ['đang ở giai đoạn Beta', 'B2 đang được xây dựng', 'Chưa có lộ trình C1', 'Đề thi nghề nghiệp đang được biên soạn', 'không liên kết với telc']) {
+    for (const note of ['đang ở giai đoạn Beta', 'B2 đang được xây dựng', 'Chưa có lộ trình C1', 'Chưa có đề thi tiếng Đức nghề nghiệp', 'không liên kết với telc']) {
       expect(ALL_TEXT, note).toContain(note)
     }
   })

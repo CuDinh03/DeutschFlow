@@ -103,6 +103,8 @@ const GERMAN_ON_PURPOSE: readonly string[] = [
   'v2.student.personas.thomas.role',
   'v2.student.personas.thomas.tag',
   'v2.student.personas.oliver.role',
+  // Rà câu chữ 14/11/2026: "Head Chef" (tiếng Anh) → "Küchenchef", như các nhân vật khác.
+  'v2.student.personas.klaus.tag',
 ]
 
 const EXEMPT = new Set(GERMAN_ON_PURPOSE)

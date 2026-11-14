@@ -16,7 +16,7 @@ import { START_HREF } from '@/components/landing-v2/links'
  */
 const TITLE = 'Thi thử telc B1 online, cấu trúc đề Goethe · myDeutschFlow'
 const DESCRIPTION =
-  'Hướng dẫn luyện thi tiếng Đức Goethe và telc (A2, B1, B2, Pflege): cấu trúc đề, cách tính điểm, checklist sẵn-sàng-thi theo kỹ năng. Chấm thử bài viết bằng AI miễn phí.'
+  'Cấu trúc đề, cách tính điểm và checklist ôn thi Goethe, telc (A2, B1, B2, Pflege). Thi thử telc B1 online và chấm thử bài viết miễn phí.'
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -68,20 +68,20 @@ export default function ExamHubPage() {
           Luyện thi tiếng Đức Goethe và telc
         </h1>
         <p className="mt-5 max-w-[680px] text-ga-body-lg text-ga-muted">
-          Cấu trúc đề, cách tính điểm và checklist sẵn sàng thi cho các kỳ thi Goethe và telc. Thi thử telc B1
-          online ngay trên myDeutschFlow, đúng thời gian và cấu trúc đề. Chọn kỳ thi của bạn bên dưới.
+          Cấu trúc đề, cách tính điểm và checklist ôn thi Goethe, telc. Riêng telc B1 có thi thử online, mô
+          phỏng thời gian và cấu trúc đề thật.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
             <Link href={START_HREF}><YellowSq />Học thử miễn phí</Link>
           </GaBtn>
           <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-            <Link href="/free-grade/">Chấm thử bài viết B1 miễn phí</Link>
+            <Link href="/free-grade/">Chấm thử bài viết miễn phí</Link>
           </GaBtn>
         </div>
         <p className="mt-4 flex items-start gap-2.5 text-ga-small text-ga-muted">
           <span className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
-          Thi thử trên myDeutschFlow hiện có cho telc B1 (mô phỏng theo format). Các trang Goethe là hướng dẫn cấu trúc đề. myDeutschFlow không liên kết với Goethe-Institut hay telc.
+          Thi thử hiện chỉ có cho telc B1, mô phỏng định dạng đề. Các trang Goethe chỉ hướng dẫn cấu trúc đề. myDeutschFlow không liên kết với Goethe-Institut hay telc.
         </p>
 
         <div className="mt-14 flex flex-col gap-12">

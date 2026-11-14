@@ -20,7 +20,7 @@
     "login": {
       "cap": "Welcome back",
       "title": "Login",
-      "subtitle": "Continue your German learning journey.",
+      "subtitle": "Sign in to keep practising.",
       "emailLabel": "Email",
       "emailPlaceholder": "jane@example.com",
       "passwordLabel": "Password",
@@ -39,7 +39,7 @@
     "register": {
       "cap": "Create a free account",
       "title": "Start learning German",
-      "subtitle": "No credit card required · Start free, with 7 days of Pro to practise with the AI.",
+      "subtitle": "Start free, with 7 days of Pro to practise with the AI. No upfront payment.",
       "familyNameLabel": "Family name",
       "familyNamePlaceholder": "Doe",
       "givenNameLabel": "Given name",

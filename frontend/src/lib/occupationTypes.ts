@@ -79,6 +79,9 @@ export function occupationName(o: Pick<OccupationSummary, 'nameDe' | 'nameEn' | 
  * Tên tiếng Việt dùng trong tiêu đề và H1 trang nghề (SEO 3b, 13/11/2026) — đúng cụm người Việt gõ
  * tìm ("phỏng vấn tiếng Đức nghề điều dưỡng"). Nghề ưu tiên có tên ngắn hơn tên danh mục; nghề khác
  * dùng tên danh mục, viết thường chữ đầu vì đứng giữa câu. Không đổi tên danh mục ở backend.
+ *
+ * 14/11/2026 (rà câu chữ): thêm tên cho nghề mà tên danh mục đã có ngoặc (tiêu đề "nghề X (MFA) (Medizinische…)"
+ * lặp hai cặp ngoặc) hoặc quá dài cho tiêu đề ≤ 60 ký tự.
  */
 const SEO_NAME_VI: Readonly<Record<string, string>> = {
   pflegefachkraft: 'điều dưỡng',
@@ -88,6 +91,11 @@ const SEO_NAME_VI: Readonly<Record<string, string>> = {
   hotelfachkraft: 'nhân viên khách sạn',
   kfz_mechatroniker: 'cơ điện tử ô tô',
   fachkraft_lagerlogistik: 'kho vận',
+  mfa: 'trợ lý y khoa',
+  werkstudent: 'sinh viên làm thêm',
+  hilfskraft: 'sinh viên trợ lý nghiên cứu',
+  bundesfreiwilligendienst: 'tình nguyện viên',
+  industriekaufmann: 'nhân viên kinh doanh công nghiệp',
 }
 
 export function occupationSeoNameVi(o: Pick<OccupationSummary, 'code' | 'nameVi'>): string {

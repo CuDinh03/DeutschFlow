@@ -28,20 +28,20 @@
       "titleEm": "for your profession.",
       "sub": "An AI plays the German employer, asks questions for your trade and shows you what to fix after every answer: grammar, word choice, missing points.",
       "ctaStart": "Try it for free",
-      "microcopy": "No card needed · Start in 2 minutes · iPhone app available",
+      "microcopy": "No upfront payment · Start in 2 minutes · iPhone app available",
       "bullets": ["Questions for your own trade", "telc B1 mock exams in the real format"]
     },
     "explorer": {
       "cap": "Preview the interview questions",
       "label": "What is your job?",
       "placeholder": "e.g. cook, Kellner…",
-      "popular": "Popular roles",
+      "popular": "Quick picks",
       "interviewer": "Interviewer: {name} · {tag}",
       "questionsCap": "Sample questions for this role",
       "sourceNote": "Sample questions, taken from the question set for this role. In the session, the AI asks in German, may ask other questions or phrase them differently, and follows up on your answers.",
       "cta": "Practise an interview for this role",
       "noMatchTitle": "No dedicated question set for “{query}” yet",
-      "noMatchBody": "The AI can still interview you with the general question set (introduction, situations, job skills), adapted to the role you enter. Dedicated sets for more trades, including nursing and construction, are being written.",
+      "noMatchBody": "The AI can still interview you with the general question set (introduction, situations, job skills), adapted to the role you enter.",
       "ctaGeneral": "Practise with the general question set",
       "labels": {
         "approved": "Reviewed",
@@ -63,8 +63,8 @@
       "examLabel": "Exam",
       "interviewLabel": "Interviews focus on",
       "items": [
-        { "name": "Vocational training", "de": "Ausbildung", "who": "Starting a trade in Germany or switching to a new one.", "level": "B1, sometimes B2", "exam": "Goethe or telc B1", "interview": "Motivation, plans, knowledge of the trade and of Germany", "fit": "On myDeutschFlow: interviews by trade, A1–B1 path, B1 mock exams." },
-        { "name": "Recognised qualifications", "de": "Anerkennung", "who": "Qualified and experienced: healthcare, engineering, crafts…", "level": "B1–B2, depending on the job and the state", "exam": "Job-specific exams such as telc Pflege, DTB", "interview": "Expertise, workplace situations, procedures", "fit": "On myDeutschFlow: interviews by trade. Job-specific exam papers are being written." },
+        { "name": "Vocational training", "de": "Ausbildung", "who": "Starting a trade in Germany or switching to a new one.", "level": "B1, sometimes B2", "exam": "Goethe or telc B1", "interview": "Motivation, plans, knowledge of the trade and of Germany", "fit": "On myDeutschFlow: interviews by trade, A1–B1 path, telc B1 mock exams." },
+        { "name": "Recognised qualifications", "de": "Anerkennung", "who": "Qualified and experienced: healthcare, engineering, crafts…", "level": "B1–B2, depending on the job and the state", "exam": "Job-specific exams such as telc Pflege, DTB", "interview": "Expertise, workplace situations, procedures", "fit": "On myDeutschFlow: interviews by trade. No job-specific German exam papers yet." },
         { "name": "Job search", "de": "Chancenkarte · Blaue Karte", "who": "Engineers, IT specialists, university graduates.", "level": "From A1, or B2 English", "exam": "Depends on the employer", "interview": "Expertise; German is an advantage", "fit": "On myDeutschFlow: interviews for IT, engineering and office roles." },
         { "name": "University", "de": "Studium", "who": "Students planning to study at a German university.", "level": "Usually B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "University and visa interviews", "fit": "On myDeutschFlow: speaking practice, telc B1 mock exams. No C1 path yet." },
         { "name": "Family reunion, settling", "de": "Familiennachzug", "who": "Spouses and relatives of people living in Germany.", "level": "A1 for the visa, B1 to settle long-term", "exam": "Start Deutsch A1, DTZ", "interview": "Visa interviews, everyday life", "fit": "On myDeutschFlow: path from A1, everyday speaking practice." }
@@ -103,7 +103,7 @@
       "items": [
         { "name": "A1–B1 path, day by day", "desc": "One stage a day covering listening, reading, speaking and writing. B2 is in progress." },
         { "name": "Vocabulary at the right moment", "desc": "Word cards come back on a spaced-repetition schedule so they stick." },
-        { "name": "Video lessons", "desc": "In the mobile app: visuals, German voice-over, bilingual subtitles." },
+        { "name": "Video lessons", "desc": "In the iPhone app: visuals, German voice-over, bilingual subtitles." },
         { "name": "Progress tracking", "desc": "Study streaks, strong and weak skills, and your practice history." }
       ],
       "shotCap": "Real screen · A learner’s roadmap tree",
@@ -130,12 +130,12 @@
       "clipPlay": "Play video",
       "clipPause": "Pause video",
       "cap": "Exam practice",
-      "title": "Mock exams in the real exam format",
+      "title": "telc B1 mock exams in the real exam format",
       "sub": "Practise all four parts of telc Deutsch B1 with the real timing and structure, with a weakness analysis after every attempt.",
       "parts": [
         { "name": "Reading", "time": "90 min", "body": "Reading and Sprachbausteine (grammar and vocabulary) with everyday and workplace texts, auto-scored instantly." },
         { "name": "Listening", "time": "30 min", "body": "Dialogues, announcements and short interviews at real exam speed." },
-        { "name": "Writing", "time": "30 min", "body": "A letter or email for a given situation — submit a photo, the AI scores structure and grammar." },
+        { "name": "Writing", "time": "30 min", "body": "A letter or email for a given situation. You type your text and the AI scores it against the three telc criteria." },
         { "name": "Speaking", "time": "15 min", "body": "Paired speaking, practised with the AI before exam day. Speaking scoring is in beta." }
       ],
       "disclaimer": "Mock exams simulate the telc B1 format and are not affiliated with telc. Speaking scoring is in beta; scores are for guidance only.",
@@ -146,11 +146,11 @@
     },
     "partners": {
       "cap": "Schools and employers",
-      "title": "Use it with your school or employer",
+      "title": "Use it with your language school",
       "centers": {
         "cap": "Language schools, teachers",
         "title": "Students practise speaking every day between classes",
-        "body": "Teachers assign work to the whole class, students do it on their phones and the AI drafts the grade. Teachers review and confirm grades for written work; results become a report for families.",
+        "body": "Teachers assign work to the whole class, the AI drafts a grade, and the teacher reads the work or listens to the recording before confirming it.",
         "points": ["Assign a speaking task to a whole class with one topic", "Grade photos of handwritten work", "AI drafts, the teacher confirms grades for written work", "Family reports in Vietnamese, English and German"],
         "ctaConsult": "Book a 20-minute demo",
         "ctaFree": "Free plan for teachers"
@@ -165,15 +165,6 @@
       "shotGradingCap": "Real screen · Grading with an AI first pass",
       "shotGradingAlt": "The grading center: the queue of work waiting to be marked on the left, a learner’s German essay in the middle, and on the right the AI grading button next to the teacher’s score confirmation box."
     },
-    "pricing": {
-      "cap": "Plans",
-      "title": "Pick the plan that fits",
-      "plans": [
-        { "name": "Free", "price": "0₫", "sub": "", "features": ["A1–B1 vocabulary & grammar", "Daily spaced repetition (SRS)", "AI interviews with a daily limit"], "cta": "Start now" },
-        { "name": "Pro", "price": "249,000₫", "sub": "/month", "features": ["High daily AI interview limit", "Detailed grammar & content feedback", "Every interview trade", "telc B1 mock exams"], "cta": "Try 7 days free" },
-        { "name": "Teachers", "price": "Contact us", "sub": "", "features": ["Class management", "AI materials", "Speaking grading", "Student progress reports"], "cta": "Get a consultation" }
-      ]
-    },
     "socialProof": {
       "cap": "What learners say",
       "title": "Results from people who practised",
@@ -187,12 +178,12 @@
       "items": [
         { "q": "Can I start from zero?", "a": "Yes. The path starts at A1: the alphabet, greetings, introducing yourself. Interview practice by trade works best from about A2." },
         { "q": "Is my job covered?", "a": "Type your job into “What is your job?” at the top of the page. Roles with a dedicated question set show sample questions right away. For other roles the AI uses the general question set, adapted to the role you enter." },
-        { "q": "How accurate is the AI feedback?", "a": "The AI points out grammar mistakes, wrong words and missing points, with a corrected sentence. Scores help you track progress and do not replace a real exam. If you study with a school, your teacher reviews and confirms grades for written work." },
+        { "q": "How accurate is the AI feedback?", "a": "The AI points out grammar mistakes, wrong words and missing points, with a corrected sentence. Scores help you track progress and do not replace a real exam. If you study with a school, your teacher reads or listens to your work and confirms the grade." },
         { "q": "Does it score pronunciation?", "a": "The AI shows which words it could not hear clearly in your answer. This is not yet a detailed sound-by-sound pronunciation analysis." },
         { "q": "What happens to my recordings?", "a": "Recordings are turned into text so they can be scored and reviewed. How long they are kept and how to ask for deletion is described in the Privacy Policy." },
         { "q": "Is a mock exam a certificate?", "a": "No. Mock exams simulate the telc B1 format, are not affiliated with telc and do not replace a certificate." },
         { "q": "I study at a language school. Can we use it together?", "a": "Yes. The school creates classes and assigns work; you do it in the app and your teacher follows and grades it." },
-        { "q": "Does it cost anything?", "a": "You start for free, no credit card needed, with 7 days of Pro when you sign up. After that, lessons and vocabulary review stay free; AI speaking, interview practice and AI grading need Pro, from 249,000₫ a month in the iPhone app." }
+        { "q": "Does it cost anything?", "a": "You start for free with no upfront payment and get 7 days of Pro when you sign up. After that, lessons and vocabulary review stay free. AI speaking, interview practice and AI grading need Pro: 249,000₫ for 1 month or 399,000₫ for 2 months, bought in the iPhone app." }
       ]
     },
     "founder": {
@@ -250,7 +241,7 @@
       "timeline": {
         "name": "Step by step",
         "title": "One person, one step at a time.",
-        "solo": "There is no team behind this. From the first line of code until today, I have built myDeutschFlow on my own, over more than 1,600 commits.",
+        "solo": "There is no team behind myDeutschFlow. Just me, learning German and building each feature I need along the way.",
         "items": [
           {
             "date": "12 April 2026",
@@ -265,7 +256,7 @@
           {
             "date": "18 October 2026",
             "title": "For every job, every country",
-            "body": "Opened up to learners from every country, to German language schools and to employers in Germany."
+            "body": "Opened up to learners from every country and to German language schools. Features for employers in Germany are coming soon."
           }
         ]
       },
@@ -280,7 +271,7 @@
           },
           {
             "name": "German language schools",
-            "body": "Assign speaking tasks to a whole class, AI drafts the marking, teachers confirm the grades for writing."
+            "body": "Assign speaking and writing tasks to a whole class. The AI drafts a grade; teachers read or listen, then confirm it."
           },
           {
             "name": "Employers in Germany",
@@ -310,7 +301,7 @@
         "line": "If you are on your way to Germany too, I hope myDeutschFlow helps you the way it helps me.",
         "contact": "Write to me:",
         "photoAlt": "Portrait of Đinh Huy Cự",
-        "cta": "Try it free"
+        "cta": "Try it for free"
       }
     },
     "workplaces": {
@@ -337,9 +328,9 @@
       "index": {
         "meta": {
           "title": "German job interview questions by occupation | myDeutschFlow",
-          "description": "See German interview questions for {count} occupations, then practise your answers with an AI interviewer for your job."
+          "description": "See German job interview questions for {count} occupations, with key terms. Then practise your answers with an AI interviewer for your job."
         },
-        "cap": "Interview by trade",
+        "cap": "Interviews by occupation",
         "title": "German interview questions for your job",
         "intro": "Pick your occupation to see sample interview questions. Every question is labelled: reviewed, AI-generated or general question set. A real session may ask other questions too.",
         "count": "{count} occupations",
@@ -348,8 +339,10 @@
       "detail": {
         "meta": {
           "title": "{nameDe} interview questions in German | myDeutschFlow",
-          "titleShort": "{nameDe} interview questions in German | myDeutschFlow",
-          "description": "German job interview questions for {name} ({nameDe}), key terms and your interviewer. Practise your answers with AI, with 7 days of Pro free."
+          "titleShort": "{name}: German job interview questions",
+          "titleMin": "{name} job interview in German",
+          "description": "German job interview questions and key terms for {nameDe}. Practise your answers with an AI interviewer, with 7 days of Pro free.",
+          "descriptionShort": "{name}: German job interview questions and key terms. Practise your answers with an AI interviewer, with 7 days of Pro free."
         },
         "back": "All occupations",
         "title": "Job interview: {nameDe}",
@@ -359,20 +352,21 @@
         "moreCap": "More questions for this job",
         "termsCap": "Key terms",
         "termsEmpty": "Key terms for this job are being prepared.",
+        "termsGuide": "The key terms for this job are in the guide <link>“{title}”</link>.",
         "labelsNote": "“Reviewed” questions have been checked by a person. “AI-generated” questions were written by AI for this job and are awaiting review. The “general question set” is used for every job, with your job title.",
         "cta": "Practise this interview",
         "ctaNote": "Try it free: 7 days of Pro, no upfront payment. After that, interview practice needs Pro.",
         "relatedCap": "Related jobs",
         "guideLink": "Guide: {title}",
-        "examLink": "Exam prep: {name}",
+        "examLink": "About the {name} exam",
         "faqCap": "Frequently asked questions",
-        "faqAskQ": "What do German job interviews for {name} ask?",
-        "faqAskA": "The practice interview opens with a request to introduce yourself, then the interviewer asks about your experience and job skills, for example: „{example}“. Questions may differ or be phrased differently.",
+        "faqAskQ": "What questions come up in a German job interview for {name}?",
+        "faqAskA": "The practice interview opens with a request to introduce yourself. Then the interviewer asks about your experience and job skills, and may ask other questions or phrase them differently. One example: “{example}”",
         "faqAskANoExample": "The practice interview opens with a request to introduce yourself, then the interviewer asks about your experience and job skills. Questions may differ or be phrased differently.",
         "faqLevelQ": "What level of German do I need for a {name} interview?",
-        "faqLevelA": "It depends on the employer and the programme. Many vocational training programmes ask for B1, some ask for B2. Check the requirements of the place you are applying to.",
+        "faqLevelA": "It depends on the job and the employer. Many vocational training programmes ask for B1, some for B2; doctors and pharmacists usually need a higher level. Check the requirements of the place you are applying to.",
         "faqCostQ": "Does practising the {name} interview cost anything?",
-        "faqCostA": "You start for free, with no credit card and 7 days of Pro to practise interviews with the AI. After that, interview practice needs Pro, from 249,000₫ a month in the iPhone app."
+        "faqCostA": "You start for free, with no upfront payment, and get 7 days of Pro to practise interviews with the AI. After that, interview practice needs Pro: 249,000₫ for 1 month or 399,000₫ for 2 months, bought in the iPhone app."
       }
     },
     "footer": {
@@ -389,13 +383,13 @@
     "schools": {
       "meta": {
         "title": "For language schools and training providers · myDeutschFlow",
-        "description": "Students practise speaking German every day between classes, the AI drafts a grade, teachers read and confirm. For language schools, vocational schools and agencies that prepare people for Germany."
+        "description": "Students practise speaking German daily, AI drafts a grade, teachers listen back and confirm it. For language schools, vocational schools and agencies."
       },
       "hero": {
         "cap": "For schools · Training providers",
         "title": "Students practise speaking every day between classes.",
         "titleEm": "Teachers just listen and confirm.",
-        "sub": "One place for language schools, vocational schools and agencies that prepare people for Germany to assign speaking and writing tasks, let the AI draft a grade, and have teachers read and confirm it.",
+        "sub": "Language schools, vocational schools and agencies assign speaking and writing tasks. The AI drafts a grade, and teachers listen back and confirm it.",
         "cta": "Book a 20-minute demo",
         "ctaTeacher": "I'm an independent teacher"
       },
@@ -439,7 +433,7 @@
             "state": "ready"
           },
           {
-            "name": "The teacher reads and confirms",
+            "name": "The teacher listens, reads and confirms",
             "body": "Writing: the teacher reads the work and confirms the grade. Assigned speaking tasks: the teacher listens to the recording and checks what the student said before confirming.",
             "state": "ready"
           },
@@ -471,7 +465,7 @@
       "pricing": {
         "cap": "Cost",
         "title": "Priced per active student.",
-        "body": "Schools pay per active student per month. Start with a free 2-week pilot; the pilot fee after that is credited to the contract if the school continues. Pricing is discussed in the demo."
+        "body": "Schools pay per active student per month. Start with a free 2-week pilot. We give you a quote in the demo."
       },
       "data": {
         "cap": "Student data",
