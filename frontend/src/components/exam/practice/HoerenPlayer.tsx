@@ -6,6 +6,7 @@ import { Captions, Lock, Play, Repeat1, Repeat2, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { prepareExamLine, speakExamLine, stopExamTts } from '@/components/features/exam-speaking/examTts'
 import { canPlayAgain, NARRATOR_ROLE, normalizeTurns, playsLeft, type AudioTurn } from '@/components/exam/audioScript'
+import type { SegmentVoices } from '@/components/exam/hoerenVoices'
 import { MarkLayerContext, MarkedText } from '@/components/exam/marks/MarkedText'
 import { blockText } from '@/components/exam/marks/marksBlocks'
 
@@ -22,6 +23,8 @@ interface PlayStep {
   speaker: string
   text: string
   pauseAfter: number
+  /** Persona tường minh của bước (bài nghe mỗi nhân vật một giọng); bỏ trống = giọng theo vai `speaker` như trước. */
+  persona?: string
 }
 
 /**
@@ -62,7 +65,7 @@ export function chunkText(text: string, max = TTS_CHUNK_MAX): string[] {
   return out
 }
 
-export function playSteps(turns: AudioTurn[]): PlayStep[] {
+export function playSteps(turns: AudioTurn[], voices?: SegmentVoices): PlayStep[] {
   const kept = turns.filter((x) => (x.text ?? '').trim())
   const lines = normalizeTurns(turns)
   const steps: PlayStep[] = []
@@ -70,10 +73,14 @@ export function playSteps(turns: AudioTurn[]): PlayStep[] {
     const leadIn = kept[i]?.kind === 'LEAD_IN'
     const announce = !leadIn ? /^(Nummer\s+\d+\.)\s+(\S[\s\S]*)$/.exec(ln.text) : null
     const body = announce ? announce[2] : ln.text
-    if (announce) steps.push({ line: i, speaker: NARRATOR_ROLE, text: announce[1], pauseAfter: LEAD_IN_PAUSE_MS })
+    // Có bảng giọng của đoạn: câu báo số câu và câu dẫn đọc bằng giọng người dẫn của Teil, lời thoại bằng giọng
+    // của nhân vật. Số dòng, cách cắt khúc và quãng nghỉ không đổi.
+    const narrator = voices ? { persona: voices.narrator } : null
+    const own = voices ? { persona: (leadIn ? voices.narrator : voices.lines[i]) ?? voices.narrator } : null
+    if (announce) steps.push({ line: i, speaker: NARRATOR_ROLE, text: announce[1], pauseAfter: LEAD_IN_PAUSE_MS, ...narrator })
     const chunks = chunkText(body)
     chunks.forEach((text, k) => {
-      steps.push({ line: i, speaker: ln.speaker, text, pauseAfter: leadIn && k === chunks.length - 1 ? LEAD_IN_PAUSE_MS : 0 })
+      steps.push({ line: i, speaker: ln.speaker, text, pauseAfter: leadIn && k === chunks.length - 1 ? LEAD_IN_PAUSE_MS : 0, ...own })
     })
   })
   for (let k = 0; k < steps.length - 1; k++) {
@@ -103,6 +110,8 @@ interface Props {
    * Chỉ có tác dụng khi Teil cấp lớp đánh dấu (`MarkLayerContext`, sau khi kiểm tra).
    */
   markScope?: string
+  /** Giọng của đoạn này (`assignHoerenVoices` ở cấp Teil). Bỏ trống = hai giọng theo vai như trước. */
+  voices?: SegmentVoices
 }
 
 /**
@@ -110,7 +119,7 @@ interface Props {
  * (`speakExamLine`: server TTS, hỏng thì giọng máy). Mỗi lượt bấm là một lượt nghe; hết lượt thì nút
  * tắt và nói rõ "đã hết lượt". Màn hình luôn cho biết AI đang nói — kể cả khi chỉ còn một giọng máy.
  */
-export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcript = false, allowStop = true, compact = false, onPlayStart, onEnded, markScope }: Props) {
+export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcript = false, allowStop = true, compact = false, onPlayStart, onEnded, markScope, voices }: Props) {
   const layer = React.useContext(MarkLayerContext)
   const t = useTranslations('v2.student.practice.hoeren')
   const ta = useTranslations('v2.student.examResult.audioPlayer')
@@ -159,13 +168,13 @@ export function HoerenPlayer({ turns, label, maxPlays, locked = false, transcrip
     setUsed(nextUsed)
     setPlaying(true)
     onPlayStart?.()
-    const steps = playSteps(turns)
+    const steps = playSteps(turns, voices)
     for (let i = 0; i < steps.length; i++) {
       if (runRef.current !== run) return
       setActive(steps[i].line)
       // Xin trước audio của vài lượt kế tiếp để đổi người nói không bị khựng.
-      for (const next of steps.slice(i + 1, i + 1 + PREPARE_AHEAD)) prepareExamLine(next.speaker, next.text)
-      const outcome = await speakExamLine(steps[i].speaker, steps[i].text)
+      for (const next of steps.slice(i + 1, i + 1 + PREPARE_AHEAD)) prepareExamLine(next.speaker, next.text, next.persona)
+      const outcome = await speakExamLine(steps[i].speaker, steps[i].text, steps[i].persona)
       // Chỉ nghỉ khi câu vừa rồi thật sự phát ra tiếng (tắt tiếng / không có audio thì không bắt chờ).
       if (outcome === 'played' && steps[i].pauseAfter > 0 && i < steps.length - 1 && runRef.current === run) {
         await wait(steps[i].pauseAfter)

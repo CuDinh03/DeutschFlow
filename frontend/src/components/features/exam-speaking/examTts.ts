@@ -139,38 +139,108 @@ export function stopExamTts(): void {
 // hồi 13/11/2026: "khựng giữa việc chuyển lời của 2 nhân vật"). Dùng một lần rồi bỏ; giữ tối đa vài câu.
 const PREPARED_MAX = 8
 const prepared = new Map<string, Promise<Blob>>()
-const lineKey = (role: string, text: string) => `${VOICE_BY_ROLE[role] ?? 'DEFAULT'}\u0000${text}`
+const legacyPersona = (role: string) => VOICE_BY_ROLE[role] ?? 'DEFAULT'
+// Khoá nhớ gồm persona được yêu cầu VÀ persona cũ theo vai: hai thứ đó quyết định persona thật sự gửi đi
+// (persona mới nếu sidecar có, không thì persona cũ), nên cùng một câu đọc bằng giọng khác không bao giờ dùng lẫn audio.
+const lineKey = (role: string, text: string, persona?: string) => `${persona || ''}\u0000${legacyPersona(role)}\u0000${text}`
 
-function fetchLine(role: string, text: string): Promise<Blob> {
-  const persona = VOICE_BY_ROLE[role] ?? 'DEFAULT'
+// Persona của bài nghe (`HOER_*`, mỗi nhân vật một giọng — 14/11/2026) chỉ có khi container sidecar đã được
+// build lại. Sidecar cũ gặp persona lạ thì KHÔNG báo lỗi mà lặng lẽ đọc bằng giọng DEFAULT, nên phải hỏi rõ
+// backend (`GET /ai-speaking/tts/personas`) trước khi gửi persona tường minh. Backend cũ (404), lỗi mạng, danh
+// sách rỗng hoặc thiếu persona đó ⇒ coi như chưa hỗ trợ ⇒ đọc bằng persona cũ theo vai (ANNA/THOMAS).
+// Chỉ hỏi khi có persona tường minh: phòng thi nói (không truyền persona) không tốn lời gọi nào.
+const PERSONAS_RECHECK_MS = 5 * 60_000
+let knownPersonas: Promise<ReadonlySet<string> | null> | null = null
+let knownPersonasUntil = 0
+
+function loadKnownPersonas(): Promise<ReadonlySet<string> | null> {
+  if (knownPersonas && Date.now() < knownPersonasUntil) return knownPersonas
+  const attempt: Promise<ReadonlySet<string> | null> = api
+    .get('/ai-speaking/tts/personas', { timeout: 6000 })
+    .then((resp) => {
+      const list: unknown = (resp.data as { personas?: unknown } | null)?.personas
+      const names = Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : []
+      return new Set(names.map((x) => x.toUpperCase()))
+    })
+    .catch(() => null)
+  knownPersonas = attempt
+  knownPersonasUntil = Date.now() + PERSONAS_RECHECK_MS
+  void attempt.then((set) => {
+    // Đã thấy persona bài nghe ⇒ nhớ tới hết phiên trang. Chưa thấy (hoặc hỏi lỗi) ⇒ 5 phút sau hỏi lại,
+    // để tab đang mở tự dùng giọng mới sau khi sidecar được build lại.
+    if (knownPersonas === attempt && set && Array.from(set).some((x) => x.startsWith('HOER_'))) knownPersonasUntil = Infinity
+  })
+  return attempt
+}
+
+/** Chỉ dùng trong test: quên câu trả lời "sidecar có persona nào" và các câu đã xin trước. */
+export function resetExamTtsPersonaSupport(): void {
+  knownPersonas = null
+  knownPersonasUntil = 0
+  prepared.clear()
+}
+
+/** Sidecar đang chạy có persona này không (hỏi backend một lần rồi nhớ). Không hỏi được ⇒ `false`. */
+export async function isExamPersonaSupported(persona: string): Promise<boolean> {
+  const known = await loadKnownPersonas()
+  return known?.has(persona.toUpperCase()) ?? false
+}
+
+const hasHttpResponse = (e: unknown) =>
+  typeof e === 'object' && e !== null && (e as { response?: unknown }).response != null
+
+function postLine(text: string, persona: string): Promise<Blob> {
   // 20s thay trần mặc định 8s: câu Prüfer dài sinh audio lâu; hụt trần là rơi xuống Web Speech oan.
   return api
     .post('/ai-speaking/tts', { text, persona }, { responseType: 'blob', timeout: 20_000 })
     .then((resp) => resp.data as Blob)
 }
 
-/** Xin trước audio của một câu sắp đọc. Lỗi thì im lặng: `speakExamLine` tự lo đường lui khi tới lượt. */
-export function prepareExamLine(role: string, text: string): void {
+async function fetchLine(role: string, text: string, persona?: string): Promise<Blob> {
+  const legacy = legacyPersona(role)
+  // Không truyền persona (phòng thi nói, kiểm tra micro…) ⇒ đúng một lời gọi như trước, persona theo vai.
+  if (!persona || persona === legacy) return postLine(text, legacy)
+  if (!(await isExamPersonaSupported(persona))) return postLine(text, legacy)
+  try {
+    return await postLine(text, persona)
+  } catch (e) {
+    // Máy chủ TỪ CHỐI persona mới (422 khi sidecar vừa bị lùi bản, 5xx…) ⇒ thử lại bằng persona cũ trước khi
+    // để caller rơi xuống giọng máy của trình duyệt. Hết giờ / mất mạng thì không thử lại (chỉ kéo dài quãng im).
+    if (!hasHttpResponse(e)) throw e
+    return postLine(text, legacy)
+  }
+}
+
+/**
+ * Xin trước audio của một câu sắp đọc. Lỗi thì im lặng: `speakExamLine` tự lo đường lui khi tới lượt.
+ * `persona` (tuỳ chọn) như ở `speakExamLine`.
+ */
+export function prepareExamLine(role: string, text: string, persona?: string): void {
   if (muted || !text?.trim()) return
-  const key = lineKey(role, text)
+  const key = lineKey(role, text, persona)
   if (prepared.has(key)) return
   if (prepared.size >= PREPARED_MAX) {
     const oldest = prepared.keys().next().value
     if (oldest !== undefined) prepared.delete(oldest)
   }
-  const p = fetchLine(role, text)
+  const p = fetchLine(role, text, persona)
   p.catch(() => undefined)
   prepared.set(key, p)
 }
 
-export async function speakExamLine(role: string, text: string): Promise<ExamSpeakOutcome> {
+/**
+ * Đọc một câu. `role` chọn giọng theo vai như trước nay (`PRUEFER` → ANNA, `PARTNER` → THOMAS).
+ * `persona` (tuỳ chọn, bài nghe): persona tường minh của sidecar (`HOER_F1`…); sidecar chưa có hoặc máy chủ
+ * từ chối thì câu đó đọc bằng persona theo `role` — không rơi thẳng xuống giọng máy.
+ */
+export async function speakExamLine(role: string, text: string, persona?: string): Promise<ExamSpeakOutcome> {
   if (muted || !text?.trim()) return 'skipped'
   stopExamTts()
   try {
-    const key = lineKey(role, text)
+    const key = lineKey(role, text, persona)
     const ready = prepared.get(key)
     prepared.delete(key)
-    const blob = await (ready ?? fetchLine(role, text))
+    const blob = await (ready ?? fetchLine(role, text, persona))
     // 2xx nhưng body rỗng = backend CHỦ Ý không trả audio (TTS tắt / e2e mock 204) → coi như đã
     // "nói xong" ngay, KHÔNG fallback Web Speech (fallback chỉ dành cho lỗi thật: network/5xx).
     if (!blob || blob.size === 0) return 'skipped'

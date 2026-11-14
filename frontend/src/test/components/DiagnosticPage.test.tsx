@@ -253,7 +253,7 @@ describe('Bài chẩn đoán', () => {
     render(<DiagnosticPage />)
 
     await user.click(await screen.findByRole('button', { name: /Bắt đầu Teil 1/ }))
-    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledWith('PRUEFER', 'Hörverstehen, Teil 1.'))
+    await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledWith('PRUEFER', 'Hörverstehen, Teil 1.', expect.any(String)))
     expect(await screen.findByText('Aussage 1-1 stimmt.')).toBeInTheDocument()
     const ansage = () => tts.speakExamLine.mock.calls.filter((c) => (c as unknown[])[1] === 'Hörverstehen, Teil 1.').length
     expect(ansage()).toBe(1)

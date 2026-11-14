@@ -1,6 +1,7 @@
 package com.deutschflow.speaking.controller;
 
 import com.deutschflow.speaking.ai.EdgeTtsService;
+import com.deutschflow.speaking.dto.TtsPersonasDto;
 import com.deutschflow.speaking.dto.TtsRequest;
 import com.deutschflow.speaking.dto.TtsStatusDto;
 import com.deutschflow.user.entity.User;
@@ -59,6 +60,13 @@ public class TtsController {
             return ResponseEntity.badRequest().build();
         }
 
+        if (ttsService.isUnsupportedHoerenPersona(persona)) {
+            // Persona bài nghe (HOER_*) mà sidecar đang chạy chưa có: sidecar cũ sẽ lặng lẽ đọc bằng giọng
+            // DEFAULT và bản audio sai giọng nằm cache 24 giờ. Từ chối để client đọc lại bằng persona cũ.
+            log.info("[TTS] Persona '{}' not known by the running sidecar - returning 422", persona);
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).build();
+        }
+
         byte[] audio = ttsService.synthesize(text, persona);
         if (audio == null || audio.length == 0) {
             // Not configured (no Edge TTS sidecar / unreachable) — clients fall back
@@ -71,6 +79,18 @@ public class TtsController {
                 .contentType(MediaType.parseMediaType("audio/mpeg"))
                 .cacheControl(CacheControl.noCache())
                 .body(audio);
+    }
+
+    /**
+     * GET /api/ai-speaking/tts/personas
+     * Tên các persona mà sidecar Edge TTS đang chạy biết (rỗng khi chưa cấu hình / không hỏi được).
+     * Trình phát bài nghe hỏi một lần để biết đã dùng được sáu giọng HOER_* chưa; chưa thì giữ
+     * ANNA/THOMAS. Không lộ URL hay số liệu sử dụng (khác /tts/status).
+     */
+    @GetMapping("/tts/personas")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<TtsPersonasDto> personas() {
+        return ResponseEntity.ok(new TtsPersonasDto(ttsService.supportedPersonas()));
     }
 
     /**

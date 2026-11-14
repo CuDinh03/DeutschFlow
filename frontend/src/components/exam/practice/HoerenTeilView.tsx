@@ -16,6 +16,7 @@ import {
   type AudioScript,
   type AudioTurn,
 } from '@/components/exam/audioScript'
+import { assignHoerenVoices } from '@/components/exam/hoerenVoices'
 import { HoerenPlayer } from './HoerenPlayer'
 import { ObjectiveTeilView } from './ObjectiveTeilView'
 import type { PassageMarks } from '@/components/exam/marks/usePassageMarks'
@@ -102,8 +103,6 @@ export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide
     onRelaxedChange?.(!checked && !strict)
   }, [checked, strict, onRelaxedChange])
 
-  const ritual = useHoerenRitual(gate, strict)
-
   const segments = React.useMemo<Segment[]>(() => {
     if (teil.audio_script) return [{ itemId: null, turns: asTurns(teil.audio_script) }]
     return items.flatMap((it): Segment[] => {
@@ -111,6 +110,11 @@ export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide
       return turns && turns.length > 0 ? [{ itemId: it.id, turns }] : []
     })
   }, [teil.audio_script, items])
+  // Chia giọng ở cấp Teil (mỗi nhân vật một giọng; người dẫn một giọng cố định cho cả đề) — tính từ nội dung nên tất định;
+  // nghi thức (Ansage, câu khung) và mọi trình phát của Teil dùng chung bảng này.
+  const voices = React.useMemo(() => assignHoerenVoices(segments.map((s) => s.turns)), [segments])
+
+  const ritual = useHoerenRitual(gate, strict, voices.narrator)
   const multi = segments.length > 1
   const maxPlays = teil.max_plays && teil.max_plays > 0 ? teil.max_plays : undefined
 
@@ -147,7 +151,7 @@ export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide
           </div>
         )}
         {checked && <p className="ga-ui text-ga-small text-ga-muted">{t('replayHint')}</p>}
-        {teil.audio_script && <HoerenPlayer turns={asTurns(teil.audio_script)} label={t('teilAudio', { n: teilNo })} transcript markScope="teil" />}
+        {teil.audio_script && <HoerenPlayer turns={asTurns(teil.audio_script)} voices={voices.segments[0]} label={t('teilAudio', { n: teilNo })} transcript markScope="teil" />}
       </div>
     )
   } else if (ritual.phase === 'prep') {
@@ -164,6 +168,7 @@ export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide
         mode={mode}
         onMode={chooseMode}
         onStart={ritual.begin}
+        narratorPersona={voices.narrator}
       />
     )
   } else if (ritual.phase === 'ansage' || ritual.phase === 'framing') {
@@ -233,6 +238,7 @@ export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide
           <HoerenPlayer
             key={`seg-${seg}`}
             turns={cur.turns}
+            voices={voices.segments[seg]}
             compact={!wide}
             label={multi ? t('segmentOf', { n: seg + 1, q: itemLabel(items.find((it) => it.id === cur.itemId) ?? { id: '' }) }) : t('teilAudio', { n: teilNo })}
             maxPlays={maxPlays}
@@ -292,7 +298,8 @@ export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide
     if (strict) return null
     const turns = itemTurns(item) ?? (item.audio_script ? asTurns(item.audio_script) : null)
     if (!turns) return null
-    return <HoerenPlayer turns={turns} compact transcript markScope={item.id} label={t('itemAudio', { n: itemLabel(item) })} />
+    const at = segments.findIndex((s) => s.itemId === item.id)
+    return <HoerenPlayer turns={turns} voices={at >= 0 ? voices.segments[at] : undefined} compact transcript markScope={item.id} label={t('itemAudio', { n: itemLabel(item) })} />
   }
 
   const lockedPane = locked ? (
@@ -359,6 +366,7 @@ function PrepCard({
   mode,
   onMode,
   onStart,
+  narratorPersona,
 }: {
   teilNo: number
   segmentCount: number
@@ -371,6 +379,8 @@ function PrepCard({
   mode: Mode
   onMode: (m: Mode) => void
   onStart: () => void
+  /** Giọng người dẫn của Teil — "Nghe thử loa" dùng đúng giọng sẽ đọc hướng dẫn. */
+  narratorPersona?: string
 }) {
   const t = useTranslations('v2.student.practice.hoeren')
   const PlaysIcon = maxPlays === 1 ? Repeat1 : Repeat2
@@ -430,7 +440,7 @@ function PrepCard({
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => void speakExamLine(NARRATOR_ROLE, 'Hallo! Können Sie mich gut hören?')}
+          onClick={() => void speakExamLine(NARRATOR_ROLE, 'Hallo! Können Sie mich gut hören?', narratorPersona)}
           className="ga-ui inline-flex min-h-11 items-center gap-1.5 rounded-ga-touch border-[1.5px] border-ga-line-strong bg-ga-card px-4 text-ga-small font-semibold text-ga-ink hover:bg-ga-side-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
         >
           <Volume2 size={16} aria-hidden /> {t('testSpeaker')}

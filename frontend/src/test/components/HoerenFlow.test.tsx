@@ -101,7 +101,8 @@ describe('Hören — như thi thật', () => {
     expect(screen.queryByText('Der Zug fährt von Gleis 7.')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Bắt đầu Teil 1/ }))
-    expect(tts.speakExamLine).toHaveBeenCalledWith('PRUEFER', teil1.ansage_de)
+    // Người dẫn có giọng riêng cho cả đề (Conrad, HOER_M1); vai vẫn là PRUEFER để lùi về ANNA khi sidecar chưa có.
+    expect(tts.speakExamLine).toHaveBeenCalledWith('PRUEFER', teil1.ansage_de, 'HOER_M1')
     // Ansage xong ⇒ đếm ngược đọc câu hỏi, câu hỏi đã hiện
     expect(await screen.findByText('Der Zug fährt von Gleis 7.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Đã đọc xong/ }))
@@ -114,7 +115,7 @@ describe('Hören — như thi thật', () => {
     await user.click(screen.getByRole('button', { name: /Bắt đầu Teil 1/ }))
     await user.click(await screen.findByRole('button', { name: /Đã đọc xong/ }))
     await user.click(screen.getByRole('button', { name: 'Phát' }))
-    expect(tts.speakExamLine).toHaveBeenLastCalledWith('M', 'Der Zug fährt heute von Gleis 9.')
+    expect(tts.speakExamLine).toHaveBeenLastCalledWith('M', 'Der Zug fährt heute von Gleis 9.', expect.stringMatching(/^HOER_M[23]$/))
     expect(await screen.findByText('Đoạn 2 · câu 42')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Phát' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Đã hết lượt nghe' })).toBeDisabled())

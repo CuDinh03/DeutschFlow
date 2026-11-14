@@ -18,8 +18,11 @@ export type RitualPhase = 'prep' | 'ansage' | 'reading' | 'framing' | 'listen'
  * Giọng đọc dùng đúng `speakExamLine` của phòng thi (server TTS, hỏng thì giọng máy, không có giọng
  * thì lời hứa vẫn resolve) ⇒ không bao giờ kẹt ở một bước. `skip` bỏ bước đang chạy và đi tiếp —
  * chỉ cho ở chế độ luyện. Rời màn giữa chừng thì dừng giọng.
+ *
+ * `narratorPersona`: giọng người dẫn của Teil (`assignHoerenVoices`) — cùng giọng với câu „Nummer NN." và câu dẫn
+ * tình huống trong trình phát; bỏ trống thì đọc bằng giọng theo vai như trước.
  */
-export function useHoerenRitual(spec: HoerenGateSpec | null, enabled: boolean) {
+export function useHoerenRitual(spec: HoerenGateSpec | null, enabled: boolean, narratorPersona?: string) {
   const [phase, setPhase] = React.useState<RitualPhase>(enabled ? 'prep' : 'listen')
   const [secondsLeft, setSecondsLeft] = React.useState(spec?.readingSeconds ?? 0)
   const runRef = React.useRef(0)
@@ -83,13 +86,13 @@ export function useHoerenRitual(spec: HoerenGateSpec | null, enabled: boolean) {
         if (runRef.current !== run) return
         const step = steps[i]
         setPhase(step)
-        if (step === 'ansage') await speakExamLine(NARRATOR_ROLE, spec?.ansage ?? '')
+        if (step === 'ansage') await speakExamLine(NARRATOR_ROLE, spec?.ansage ?? '', narratorPersona)
         else if (step === 'reading') await countdown(run)
-        else if (step === 'framing') await speakExamLine(NARRATOR_ROLE, spec?.framing ?? '')
+        else if (step === 'framing') await speakExamLine(NARRATOR_ROLE, spec?.framing ?? '', narratorPersona)
         else return
       }
     },
-    [steps, spec, countdown],
+    [steps, spec, countdown, narratorPersona],
   )
 
   const begin = React.useCallback(() => {

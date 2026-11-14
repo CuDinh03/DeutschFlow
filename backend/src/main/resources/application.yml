@@ -718,6 +718,13 @@ app:
       max-pool-size: ${AI_SPEAKING_STREAM_MAX:20}
       queue-capacity: ${AI_SPEAKING_STREAM_QUEUE:40}
 
+  # Bài nghe luyện thi: mỗi nhân vật một giọng (persona HOER_* của sidecar Edge TTS, 14/11/2026).
+  # Công tắc lùi nhanh: đặt HOEREN_VOICES_ENABLED=false rồi khởi động lại backend ⇒ GET /api/ai-speaking/tts/personas
+  # không còn liệt kê HOER_* (frontend tự đọc lại bằng ANNA/THOMAS trong ≤ 5 phút hoặc khi tải lại trang) và
+  # POST /api/ai-speaking/tts với persona HOER_* trả 422. Không cần build lại frontend hay sidecar.
+  tts:
+    hoeren-voices-enabled: ${HOEREN_VOICES_ENABLED:true}
+
   # AI: local fine-tuned model (deutschflow_model) via Python server; optional Groq for chat fallback + Whisper STT.
   ai:
     # DeutschFlow AI server (loads ./deutschflow_model)
