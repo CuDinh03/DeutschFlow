@@ -40,7 +40,7 @@ export function PathwayTabs({
 
   return (
     <div>
-      <div role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown} className="flex gap-2 overflow-x-auto pb-1">
+      <div role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown} className="mob-snap-rail flex gap-2 pb-1">
         {items.map((p, i) => (
           <button
             key={p.name}
@@ -52,11 +52,11 @@ export function PathwayTabs({
             aria-controls={`${baseId}-panel-${i}`}
             tabIndex={i === active ? 0 : -1}
             onClick={() => setActive(i)}
-            className={`inline-flex min-h-11 shrink-0 items-center gap-2 border px-4 text-ga-small font-semibold transition-colors ${
-              i === active ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-border bg-ga-bg text-ga-ink hover:border-ga-ink'
+            className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-ga-pill border px-4 text-ga-small font-semibold transition-colors ${
+              i === active ? 'border-ga-ink bg-ga-ink text-ga-bg shadow-ga-sm' : 'border-ga-border bg-ga-bg text-ga-ink hover:border-ga-ink'
             }`}
           >
-            <span aria-hidden className="inline-block h-[8px] w-[8px]" style={{ background: colors[i] }} />
+            <span aria-hidden className="inline-block h-2 w-2 rounded-ga-pill" style={{ background: colors[i] }} />
             {p.name}
           </button>
         ))}
@@ -68,7 +68,7 @@ export function PathwayTabs({
           id={`${baseId}-panel-${i}`}
           aria-labelledby={`${baseId}-tab-${i}`}
           hidden={i !== active}
-          className="mt-4 border border-ga-border bg-ga-bg p-5 sm:p-8"
+          className="mt-4 rounded-ga-lg border border-ga-border bg-ga-bg p-5 shadow-ga-sm sm:p-8"
         >
           <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] md:gap-12">
             <div>

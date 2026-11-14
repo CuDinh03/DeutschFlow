@@ -1,7 +1,10 @@
 {
   "auth": {
     "shell": {
-      "backHome": "← Trang chủ"
+      "backHome": "← Trang chủ",
+      "iosPrompt": "Đang dùng iPhone? Tải ứng dụng chính thức:",
+      "iosCta": "Mở trên App Store",
+      "newTab": "(mở trong thẻ mới)"
     },
     "field": {
       "showPassword": "Hiện mật khẩu",

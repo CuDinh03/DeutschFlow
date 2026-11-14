@@ -1,7 +1,10 @@
 {
   "auth": {
     "shell": {
-      "backHome": "← Home"
+      "backHome": "← Home",
+      "iosPrompt": "On iPhone? Get the official app:",
+      "iosCta": "Open on the App Store",
+      "newTab": "(opens in a new tab)"
     },
     "field": {
       "showPassword": "Show password",

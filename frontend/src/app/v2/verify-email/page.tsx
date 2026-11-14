@@ -9,6 +9,7 @@ import api from '@/lib/api'
 import { clearGuestSessionCache } from '@/lib/guestSessionStore'
 import { useTracking } from '@/hooks/useTracking'
 import { GaCap, GaBtn } from '@/components/ui-v2'
+import { BrandPageLoader } from '@/components/ui-v2/BrandPageLoader'
 import { GaAuthShell, GaOtpField, AuthErrorBanner, fmtCountdown, MAIL_SENDER } from '../authShared'
 import { readPendingSignup, savePendingSignup, useCompleteSignup, type PendingSignupDraft } from '../authSignup'
 
@@ -140,12 +141,13 @@ export default function V2VerifyEmailPage() {
 
   return (
     <GaAuthShell>
-      <GaCap className="mb-3 block">{t('verify.cap')}</GaCap>
-      <h1 className="m-0 mb-3 font-ga-display text-ga-h1-m text-ga-ink sm:text-ga-h1 lg:text-ga-display">
+      {loading && code.length === CODE_LEN && <BrandPageLoader label="myDeutschFlow" />}
+      <GaCap className="mb-2.5 block">{t('verify.cap')}</GaCap>
+      <h1 className="m-0 mb-3 font-ga-display text-ga-m-h1-m font-semibold text-ga-ink sm:text-ga-m-h1-t">
         {t('verify.title')}
       </h1>
       {draft && (
-        <p className="m-0 mb-7 break-words text-ga-body-lg text-ga-muted" role="status">
+        <p className="m-0 mb-6 break-words text-ga-body-lg text-ga-muted" role="status">
           {t.rich('verify.sentTo', { email: draft.email, minutes: Math.round(draft.expiresInSeconds / 60), b: bold })}
         </p>
       )}
@@ -164,7 +166,7 @@ export default function V2VerifyEmailPage() {
           disabled={loading}
           autoFocus
         />
-        <GaBtn type="submit" variant="yellow" size="lg" className="w-full" loading={loading} disabled={loading}>
+        <GaBtn type="submit" variant="yellow" size="lg" className="ga-btn-gleam w-full" loading={loading} disabled={loading}>
           {loading ? t('verify.submitting') : t('verify.submit')}
         </GaBtn>
 

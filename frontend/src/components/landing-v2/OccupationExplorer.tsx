@@ -183,8 +183,11 @@ export function OccupationExplorer({
   const showList = open && suggestions.length > 0
 
   return (
-    <div className="border border-ga-border bg-ga-card p-5 sm:p-7">
-      <GaCap className="mb-3">{t('cap')}</GaCap>
+    <div className="min-w-0 max-w-full rounded-ga-xl border border-ga-border-strong bg-ga-card p-5 shadow-ga-lg sm:p-7">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <GaCap>{t('cap')}</GaCap>
+        <span aria-hidden className="df-pulse-dot inline-block h-2 w-2 rounded-ga-pill bg-ga-red" />
+      </div>
       <label htmlFor={inputId} className="mb-2 block text-ga-h3 text-ga-ink">
         {t('label')}
       </label>
@@ -204,13 +207,13 @@ export function OccupationExplorer({
           onFocus={() => setOpen(true)}
           onBlur={() => window.setTimeout(() => setOpen(false), 120)}
           onKeyDown={onKeyDown}
-          className="block min-h-11 w-full rounded-ga border border-ga-line bg-ga-bg px-4 py-3 text-ga-body-lg text-ga-ink outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
+          className="block min-h-11 w-full rounded-ga-md border border-ga-line bg-ga-bg px-4 py-3 text-ga-body-lg text-ga-ink outline-none focus-visible:ring-2 focus-visible:ring-ga-focus"
         />
         {showList && (
           <ul
             id={listId}
             role="listbox"
-            className="absolute inset-x-0 top-full z-10 mt-1 border border-ga-border bg-ga-card"
+            className="absolute inset-x-0 top-full z-10 mt-1.5 overflow-hidden rounded-ga-md border border-ga-border-strong bg-ga-card shadow-ga-md"
           >
             {suggestions.map((c, i) => (
               <li
@@ -233,7 +236,7 @@ export function OccupationExplorer({
           và bản backend, để lúc danh mục tải xong nền không trượt khi khách chưa bấm gì. */}
       <LandingMotion>
         <LayoutGroup id={remote ? 'occ-remote' : 'occ-static'}>
-          <div className="mt-3 flex flex-wrap gap-2" aria-label={t('popular')}>
+          <div className="mob-snap-rail mt-3 flex gap-2 pb-1 sm:flex-wrap sm:pb-0" aria-label={t('popular')}>
             {popular.map((c) => {
               const on = c.key === selectedChoice?.key
               return (
@@ -242,13 +245,13 @@ export function OccupationExplorer({
                   type="button"
                   onClick={() => choose(c)}
                   aria-pressed={on}
-                  className={`relative min-h-9 border px-3 py-1.5 text-ga-small transition-colors ${on ? 'border-ga-ink text-ga-bg' : 'border-ga-border bg-ga-bg text-ga-ink hover:border-ga-ink'}`}
+                  className={`relative min-h-9 shrink-0 overflow-hidden rounded-ga-pill border px-3.5 py-1.5 text-ga-small font-medium transition-colors ${on ? 'border-ga-ink text-ga-bg' : 'border-ga-border bg-ga-bg text-ga-ink hover:border-ga-ink'}`}
                 >
                   {on && (
                     <m.span
                       layoutId="ga-occ-chip"
                       aria-hidden
-                      className="absolute -inset-px z-[1] bg-ga-ink"
+                      className="absolute -inset-px z-[1] rounded-ga-pill bg-ga-ink"
                       transition={CHIP_SPRING}
                     />
                   )}

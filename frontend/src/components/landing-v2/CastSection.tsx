@@ -88,7 +88,7 @@ function CastSpeech({
 
   const visible = animate ? typed : line.length
   return (
-    <div ref={stageRef} className="sticky top-16 z-10 mb-4 border border-ga-border bg-ga-card px-4 py-3 sm:px-5 md:top-[78px]">
+    <div ref={stageRef} className="sticky top-16 z-10 mb-5 rounded-ga-lg border border-ga-border-strong bg-ga-card px-4 py-3.5 shadow-ga-sm sm:px-5 md:top-[78px]">
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4">
         <div className="flex min-w-0 items-center gap-2 text-ga-small">
           <span aria-hidden className="inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
@@ -126,7 +126,7 @@ const CastCard = React.memo(function CastCard({
   onPick: (id: PersonaId) => void
 }) {
   return (
-    <li className={`border bg-ga-card transition-shadow duration-150 hover:shadow-ga-card-hover ${active ? 'border-ga-ink' : 'border-ga-border'}`}>
+    <li className={`w-36 shrink-0 overflow-hidden rounded-ga-md border bg-ga-card transition-shadow duration-150 hover:shadow-ga-md sm:w-auto ${active ? 'border-ga-ink shadow-ga-sm' : 'border-ga-border'}`}>
       <button
         type="button"
         aria-pressed={active}
@@ -215,7 +215,7 @@ export function CastSection({ className = '' }: { className?: string }) {
           onDone={stopTalking}
           stageRef={stageRef}
         />
-        <ul className="grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-6">
+        <ul className="mob-snap-rail -mx-5 flex gap-3 px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0 sm:pb-0 lg:grid-cols-6">
           {JOB_CAST.map(renderCard)}
         </ul>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -224,19 +224,19 @@ export function CastSection({ className = '' }: { className?: string }) {
             aria-expanded={showLife}
             aria-controls="cast-life"
             onClick={() => setShowLife((v) => !v)}
-            className="inline-flex min-h-11 items-center gap-2 border border-ga-ink bg-ga-card px-4 text-ga-small font-semibold text-ga-ink transition-colors hover:bg-ga-bg"
+            className="inline-flex min-h-11 items-center gap-2 rounded-ga-pill border border-ga-ink bg-ga-card px-4 text-ga-small font-semibold text-ga-ink transition-colors hover:bg-ga-bg"
           >
             <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-yellow" />
             {showLife ? t('lifeHide') : t('lifeShow', { count: LIFE_CAST.length })}
           </button>
-          <Link href={localizedHref(locale, '/phong-van')} className="text-ga-small font-semibold text-ga-ink underline underline-offset-4">
+          <Link href={localizedHref(locale, '/phong-van')} className="text-ga-small font-semibold text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4">
             {t('allJobs')}
           </Link>
         </div>
         {showLife && (
           <div id="cast-life" className="mt-6">
             <GaCap className="mb-3 text-ga-ink">{t('lifeCap')}</GaCap>
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-4 lg:grid-cols-6">
+            <ul className="mob-snap-rail -mx-5 flex gap-3 px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:px-0 sm:pb-0 lg:grid-cols-6">
               {LIFE_CAST.map(renderCard)}
             </ul>
           </div>

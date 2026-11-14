@@ -9,18 +9,56 @@
       "interview": "Interviews nach Beruf",
       "pathways": "Wege nach Deutschland",
       "exam": "Prüfungstraining",
+      "pricing": "Preise",
       "centers": "Für Sprachschulen",
       "training": "Ausbildung",
       "guide": "Ratgeber",
       "about": "Über uns",
-      "mainAria": "Hauptnavigation"
+      "mainAria": "Hauptnavigation",
+      "sub": {
+        "interview": "12 Interviewer · Feedback nach jeder Antwort",
+        "exam": "Probeprüfung telc B1 · A2–B2 Prüfungsratgeber",
+        "pricing": "7 Tage Pro gratis · Klare Tarife",
+        "guide": "Interview-Ratgeber & Musterbriefe",
+        "centers": "Sprech-/Schreibaufgaben · KI-Vorbewertung",
+        "training": "60 Ausbildungsberufe & offizielle Quellen",
+        "about": "Entwickelt von einem Deutschlernenden"
+      }
     },
     "header": {
       "login": "Anmelden",
       "tryShort": "Testen",
       "tryFree": "Kostenlos testen",
       "openMenu": "Menü öffnen",
-      "closeMenu": "Menü schließen"
+      "closeMenu": "Menü schließen",
+      "closeSheet": "Menü einklappen",
+      "appIos": "iOS-App",
+      "quickFreeGrade": "Schreiben prüfen",
+      "quickWhatIs": "Was ist myDeutschFlow?",
+      "quickSupport": "Kontakt & Support",
+      "quickInterview": "Alle Berufe",
+      "dockTitle": "App fürs iPhone",
+      "dockSub": "Sprechen & Videos · App Store",
+      "dockAppBtn": "App Store"
+    },
+    "stickyCta": {
+      "tryFree": "Kostenlos testen",
+      "demoB2b": "Demo (20 Minuten) buchen",
+      "iosShort": "iOS-App"
+    },
+    "pillars": {
+      "items": [
+        { "title": "Effektiv", "sub": "Clever lernen" },
+        { "title": "Fortschritt", "sub": "Jeden Tag" },
+        { "title": "Kommunikation", "sub": "Sicher sprechen" },
+        { "title": "Verbindung", "sub": "Chancen in Deutschland" }
+      ]
+    },
+    "plansBand": {
+      "cap": "Klare Tarife",
+      "title": "7 Tage Pro zum Start, keine Vorauszahlung",
+      "sub": "Nach 7 Tagen wechselt Ihr Konto automatisch in den kostenlosen Tarif. Ein Upgrade ist jederzeit in der iPhone-App möglich.",
+      "detailLink": "Alle Tarife im Detail vergleichen"
     },
     "hero": {
       "eyebrow": "KI-Interviewtraining für alle, die in Deutschland arbeiten wollen",
@@ -334,7 +372,12 @@
         "title": "Fragen im Vorstellungsgespräch für Ihren Beruf",
         "intro": "Wählen Sie Ihren Beruf und sehen Sie typische Fragen im Vorstellungsgespräch. Jede Frage ist gekennzeichnet: geprüft, KI-erstellt oder allgemeiner Fragenkatalog. In der Übungssitzung können weitere Fragen kommen.",
         "count": "{count} Berufe",
-        "unavailable": "Die Berufsliste konnte nicht geladen werden. Bitte versuchen Sie es in ein paar Minuten erneut."
+        "unavailable": "Die Berufsliste konnte nicht geladen werden. Bitte versuchen Sie es in ein paar Minuten erneut.",
+        "filterAll": "Alle Bereiche",
+        "searchLabel": "Berufe filtern",
+        "searchPlaceholder": "z. B. Pflege, Koch, IT, Logistik…",
+        "curatedCap": "Geprüfte Fachfragen nach Beruf",
+        "extendedSummary": "Weitere {count} Berufe anzeigen (allgemeiner & KI-gestützter Katalog)"
       },
       "detail": {
         "meta": {
@@ -349,6 +392,7 @@
         "subtitle": "{workplace}",
         "interviewer": "Ihr Interviewer",
         "questionsCap": "Typische Fragen",
+        "moreFoldSummary": "Weitere {count} typische Fragen anzeigen",
         "moreCap": "Weitere Fragen zu diesem Beruf",
         "termsCap": "Fachbegriffe",
         "termsEmpty": "Die Fachbegriffe zu diesem Beruf werden gerade erstellt.",
@@ -378,7 +422,17 @@
       "terms": "Nutzungsbedingungen",
       "support": "Support",
       "legalAria": "Rechtliche Links",
-      "facebook": "Facebook"
+      "facebook": "Facebook",
+      "summary": "Vorstellungsgespräche nach Beruf üben, täglicher A1–B1-Pfad und Probeprüfungen telc Deutsch B1. iPhone-App · Android: Web-Version nutzen.",
+      "colPractice": "Üben & Lernpfad",
+      "colGuides": "Ratgeber & Schulen",
+      "colAbout": "Über uns & Rechtliches",
+      "colApp": "App & Kontakt",
+      "freeGrade": "Schreiben B1 testen",
+      "examTelc": "Probeprüfung telc B1",
+      "badgeTop": "Laden im",
+      "badgeMain": "App Store",
+      "deviceNote": "Für iPhone (ab iOS 15.1). Android: Web-Version nutzen."
     },
     "schools": {
       "meta": {
@@ -392,6 +446,13 @@
         "sub": "Sprachschulen, Berufsschulen und Agenturen vergeben Sprech- und Schreibaufgaben. Die KI bewertet vor, Lehrkräfte hören nach und bestätigen.",
         "cta": "Demo (20 Minuten) buchen",
         "ctaTeacher": "Ich unterrichte selbstständig"
+      },
+      "visual": {
+        "cap": "Einblick in die Plattform",
+        "title": "Lehrkräfte hören an, prüfen und bestätigen Noten auf einem Bildschirm.",
+        "sub": "Beispielklasse K30: Warteschlange links, Audio-Wiedergabe und mehrsprachige Elternberichte.",
+        "classReportCap": "Echter Screenshot · Klassenübersicht & Berichte",
+        "classReportAlt": "Klassenübersicht für Lehrkräfte mit aktiven Lernenden, erledigten Sprechübungen, Aufgabenpunkten und Berichtsexport."
       },
       "problem": {
         "cap": "Das Problem",

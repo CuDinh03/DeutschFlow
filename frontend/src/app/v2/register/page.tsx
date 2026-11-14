@@ -176,10 +176,10 @@ export default function V2RegisterPage() {
   }
 
   return (
-    <GaAuthShell>
-      <GaCap className="mb-3 block">{t('register.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">{t('register.title')}</h1>
-      <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('register.subtitle')}</p>
+    <GaAuthShell showAppStoreFooter>
+      <GaCap className="mb-2.5 block">{t('register.cap')}</GaCap>
+      <h1 className="m-0 mb-2 font-ga-display text-ga-m-h1-m font-semibold text-ga-ink sm:text-ga-m-h1-t">{t('register.title')}</h1>
+      <p className="m-0 mb-6 text-ga-body-lg text-ga-muted">{t('register.subtitle')}</p>
 
       {error && <AuthErrorBanner><strong>{error}</strong></AuthErrorBanner>}
 
@@ -249,19 +249,19 @@ export default function V2RegisterPage() {
           onLoadError={() => setError(t('register.humanCheckLoadFailed'))}
         />
 
-        <GaBtn type="submit" variant="yellow" size="lg" className="mb-3.5 mt-1.5 w-full" loading={loading} disabled={loading}>
+        <GaBtn type="submit" variant="yellow" size="lg" className="ga-btn-gleam mb-3.5 mt-1.5 w-full" loading={loading} disabled={loading}>
           {loading ? t('register.submitting') : t('register.submit')}
         </GaBtn>
       </form>
 
-      <p className="mb-4 text-center text-[12px] leading-relaxed text-ga-muted">
+      <p className="mb-4 text-center text-ga-caption leading-relaxed text-ga-muted">
         {t.rich('register.terms', {
           terms: (chunks) => <Link href="/terms" className="text-ga-ink underline">{chunks}</Link>,
           privacy: (chunks) => <Link href="/privacy" className="text-ga-ink underline">{chunks}</Link>,
         })}
       </p>
 
-      <div className="mt-6 text-center text-[14px] text-ga-muted">
+      <div className="mt-5 border-t border-ga-border pt-5 text-center text-ga-body text-ga-muted">
         {t('register.hasAccount')}{' '}
         <Link href="/v2/login" className="font-bold text-ga-ink underline">
           {t('register.loginCta')}
