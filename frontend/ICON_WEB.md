@@ -28,6 +28,11 @@ của "tờ đề in" chứ không phải nhận diện của giao diện. Chọ
 - **Màu chỉ token `ga-*`** (`text-ga-muted`, `text-ga-navy`, `text-ga-card`, `bg-ga-red-soft`…). Không hex, không `text-amber-500`,
   không `text-white` (dùng `text-ga-card`). Không ghép `${'var(--ga-x)'}1a` — đó không phải CSS hợp lệ, nền biến mất.
 - **Eyebrow/cap** (`GaCap`, `text-ga-eyebrow uppercase`): chữ xám trơn, không icon, không vàng/tím riêng.
+- **Không icon trang trí** (owner 14/11/2026): `Sparkles`, `Zap`, `Star`, `Rocket`, `Flame`, `Trophy`, `Lightbulb`, `PartyPopper`…
+  không nói gì về hành động, nên bỏ. Nút kêu gọi (CTA) chỉ có chữ; được thêm icon khi icon nói đúng hành động
+  (mũi tên khi nút đưa sang trang/khối khác, tải, sao chép, phát/dừng, spinner khi đang chạy). Nhận diện một tính năng
+  ở trang công khai dùng bộ glyph thương hiệu `GaGlyphMark` (chung mobile: `viet`, `thoigian`, `hoso`, `thithu`…),
+  không dùng icon thư viện. `src/test/publicIconPolicy.test.ts` chặn các icon trang trí ở trang công khai.
 - **Một ô = một nghĩa.** Hai mục cạnh nhau (một menu, một danh sách loại) không dùng chung một hình.
 - Icon trang trí cạnh chữ: `aria-hidden` (GaGlyph, GaIcon, glyph tự vẽ mặc định đã ẩn). Icon là thông tin duy nhất: truyền `title`.
   Nút chỉ có icon: `aria-label` trên nút.

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Sparkles, Loader2, Check, ArrowRight, Clock, ShieldCheck } from 'lucide-react'
+import { Loader2, ArrowRight } from 'lucide-react'
+import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
 import { httpStatus } from '@/lib/api'
 import { submitFreeGrade, type ContactType, type FreeGradeResult } from '@/lib/marketingApi'
 import { ShareButtons } from '@/components/marketing/ShareButtons'
@@ -95,9 +96,9 @@ export default function FreeGradeClientPage() {
         dung, bố cục. Không cần tạo tài khoản.
       </p>
       <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ga-small text-ga-muted">
-        <li className="inline-flex items-center gap-2"><Clock size={16} aria-hidden className="text-ga-ink" /> Kết quả hiện ngay trên trang này</li>
-        <li className="inline-flex items-center gap-2"><ShieldCheck size={16} aria-hidden className="text-ga-ink" /> Chấm theo ngữ pháp, từ vựng, nội dung, bố cục</li>
-        <li className="inline-flex items-center gap-2"><Check size={16} aria-hidden className="text-ga-ink" /> Không cần tạo tài khoản</li>
+        <li className="inline-flex items-center gap-2"><GaGlyphMark name="thoigian" size={20} className="shrink-0 text-ga-ink" /> Kết quả hiện ngay trên trang này</li>
+        <li className="inline-flex items-center gap-2"><GaGlyphMark name="viet" size={20} className="shrink-0 text-ga-ink" /> Chấm theo ngữ pháp, từ vựng, nội dung, bố cục</li>
+        <li className="inline-flex items-center gap-2"><GaGlyphMark name="hoso" size={20} className="shrink-0 text-ga-ink" /> Không cần tạo tài khoản</li>
       </ul>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-5">
@@ -195,7 +196,7 @@ export default function FreeGradeClientPage() {
             {submitting ? (
               <><Loader2 size={18} aria-hidden className="ga-spin" /> Đang chấm…</>
             ) : (
-              <><Sparkles size={18} aria-hidden /> Chấm bài miễn phí</>
+              <>Chấm bài miễn phí</>
             )}
           </GaBtn>
           <p className="text-center text-ga-caption text-ga-muted">
@@ -262,7 +263,7 @@ function ResultCard({ result }: { result: FreeGradeResult }) {
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2.5">
-      <Check size={16} aria-hidden className="mt-0.5 shrink-0 text-ga-ink" />
+      <span aria-hidden className="mt-[7px] inline-block h-[7px] w-[7px] shrink-0 bg-ga-yellow" />
       <span>{children}</span>
     </li>
   )
