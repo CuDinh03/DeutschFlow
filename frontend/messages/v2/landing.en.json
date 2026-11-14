@@ -46,6 +46,20 @@
       "demoB2b": "Book a 20-minute demo",
       "iosShort": "iOS App"
     },
+    "pillars": {
+      "items": [
+        { "title": "Effective", "sub": "Smart learning" },
+        { "title": "Progress", "sub": "Every day" },
+        { "title": "Communication", "sub": "Speak with confidence" },
+        { "title": "Connection", "sub": "Opportunities in Germany" }
+      ]
+    },
+    "plansBand": {
+      "cap": "Transparent plans",
+      "title": "Start with 7 days of Pro, no upfront payment",
+      "sub": "After 7 days your account returns to Free automatically. Upgrade in the iPhone app whenever you want to keep practising with AI.",
+      "detailLink": "Compare plans in detail"
+    },
     "hero": {
       "eyebrow": "AI interview coaching for people moving to Germany to work",
       "titleLead": "Practise your German job interview,",
@@ -358,7 +372,12 @@
         "title": "German interview questions for your job",
         "intro": "Pick your occupation to see sample interview questions. Every question is labelled: reviewed, AI-generated or general question set. A real session may ask other questions too.",
         "count": "{count} occupations",
-        "unavailable": "The list of occupations could not be loaded. Please try again in a few minutes."
+        "unavailable": "The list of occupations could not be loaded. Please try again in a few minutes.",
+        "filterAll": "All sectors",
+        "searchLabel": "Filter occupations (English or German)",
+        "searchPlaceholder": "e.g. nurse, Koch, IT, logistics…",
+        "curatedCap": "Curated trade question sets",
+        "extendedSummary": "Show {count} additional occupations (general & AI-assisted sets)"
       },
       "detail": {
         "meta": {
@@ -373,6 +392,7 @@
         "subtitle": "{name} · {workplace}",
         "interviewer": "Your interviewer",
         "questionsCap": "Sample questions",
+        "moreFoldSummary": "Show {count} more sample questions",
         "moreCap": "More questions for this job",
         "termsCap": "Key terms",
         "termsEmpty": "Key terms for this job are being prepared.",
@@ -426,6 +446,13 @@
         "sub": "Language schools, vocational schools and agencies assign speaking and writing tasks. The AI drafts a grade, and teachers listen back and confirm it.",
         "cta": "Book a 20-minute demo",
         "ctaTeacher": "I'm an independent teacher"
+      },
+      "visual": {
+        "cap": "Inside the platform",
+        "title": "Teachers listen, review and confirm grades on one screen.",
+        "sub": "Sample class K30: grading queue on the left, student audio playback and multilingual family progress reports.",
+        "classReportCap": "Real screen · Class progress & family report",
+        "classReportAlt": "Teacher class overview showing active students, completed speaking sessions, assignment scores and family report export."
       },
       "problem": {
         "cap": "The problem",
