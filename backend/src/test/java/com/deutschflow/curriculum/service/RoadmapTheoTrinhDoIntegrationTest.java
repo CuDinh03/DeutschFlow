@@ -162,4 +162,44 @@ class RoadmapTheoTrinhDoIntegrationTest extends AbstractPostgresIntegrationTest 
                 WHERE node_type = 'CORE_TRUNK' AND prerequisites_json::text LIKE '%"D%'
                 """, Integer.class)).isZero();
     }
+
+    @Test
+    @DisplayName("ROUTE-07: mọi bài đã phát hành có bài tập thì có ít nhất một mục máy chủ chấm được")
+    void baiPhatHanhCoBaiTapThiChamDuoc() {
+        // Mobile mở runner bài tập cho mọi bài có `exercises`; từ đợt 1 máy chủ không tin điểm client,
+        // nên bài có bài tập mà không có câu MULTIPLE_CHOICE/FILL_BLANK nào sẽ không hoàn thành được.
+        List<String> ketBai = jdbcTemplate.queryForList("""
+                SELECT COALESCE(n.node_code, n.id::text)
+                FROM skill_tree_nodes n
+                WHERE %s
+                  AND (
+                      (jsonb_typeof(n.content_json -> 'exercises' -> 'theory_gate') = 'array'
+                       AND jsonb_array_length(n.content_json -> 'exercises' -> 'theory_gate') > 0)
+                   OR (jsonb_typeof(n.content_json -> 'exercises' -> 'practice') = 'array'
+                       AND jsonb_array_length(n.content_json -> 'exercises' -> 'practice') > 0))
+                  AND %s = 0
+                """.formatted(RoadmapRules.PUBLISHED, RoadmapRules.SCORED_ITEM_COUNT), String.class);
+        assertThat(ketBai).isEmpty();
+    }
+
+    @Test
+    @DisplayName("ROUTE-01: mọi bài đã phát hành, trừ bài đầu chuỗi, có tiền đề là một bài đã phát hành đứng trước")
+    void chuoiTienDeLienMach() {
+        // Thiếu dòng dependency thì bài đó mở song song với bài đang học (nhiều "nụ").
+        List<Integer> hoBai = jdbcTemplate.queryForList("""
+                SELECT n.day_number FROM skill_tree_nodes n
+                WHERE %s
+                  AND n.day_number > (SELECT MIN(m.day_number) FROM skill_tree_nodes m
+                                      WHERE m.is_active = TRUE
+                                        AND m.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT'))
+                  AND NOT EXISTS (
+                      SELECT 1 FROM skill_tree_node_dependencies d
+                      JOIN skill_tree_nodes dn ON dn.id = d.depends_on_node_id
+                      WHERE d.node_id = n.id
+                        AND dn.is_active = TRUE
+                        AND dn.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                        AND dn.day_number < n.day_number)
+                """.formatted(RoadmapRules.PUBLISHED), Integer.class);
+        assertThat(hoBai).isEmpty();
+    }
 }

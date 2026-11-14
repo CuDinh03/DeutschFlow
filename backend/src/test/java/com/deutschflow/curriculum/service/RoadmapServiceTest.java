@@ -76,6 +76,9 @@ class RoadmapServiceTest {
         r.put("user_best_score", "COMPLETED".equals(userStatus) ? 90 : 0);
         r.put("prerequisites_json", null);
         r.put("skill_exercise_counts", null);
+        // Computed in SQL from RoadmapRules (ROUTE-01, ROUTE-08); the mock stands in for the database.
+        r.put("dependencies_met", true);
+        r.put("scored_item_count", 3);
         return r;
     }
 
@@ -153,11 +156,11 @@ class RoadmapServiceTest {
         }
 
         @Test
-        @DisplayName("a node whose prerequisites are unmet is LOCKED")
+        @DisplayName("a node whose dependencies are unmet is LOCKED")
         void blockedIsLocked() {
             Map<String, Object> entry = row("D01", 1, "COMPLETED");
             Map<String, Object> blocked = row("D13", 13, "LOCKED");
-            blocked.put("prerequisites_json", "[\"D12\"]");
+            blocked.put("dependencies_met", false);
 
             givenRows(List.of(entry, blocked));
             List<RoadmapNodeDto> nodes = service.generateRoadmapForUser(USER_ID);
@@ -172,7 +175,10 @@ class RoadmapServiceTest {
             // QA 06/09: Tesst2 finished D01 (100%) but the Lernweg kept D02 LOCKED while the Học tab
             // already offered "Ngày 2". Nothing writes D02's UNLOCKED row on completion, so the
             // service must derive availability at read time like SkillTreeService does.
-            givenRows(List.of(row("D01", 1, "COMPLETED"), row("D02", 2, "LOCKED"), row("D03", 3, "LOCKED")));
+            // D03 waits on D02 (dependencies_met=false) — what the shared SQL rule reports for a chain.
+            Map<String, Object> third = row("D03", 3, "LOCKED");
+            third.put("dependencies_met", false);
+            givenRows(List.of(row("D01", 1, "COMPLETED"), row("D02", 2, "LOCKED"), third));
             List<RoadmapNodeDto> nodes = service.generateRoadmapForUser(USER_ID);
 
             assertThat(nodes.get(0).progressStatus()).isEqualTo("COMPLETED");
@@ -182,18 +188,52 @@ class RoadmapServiceTest {
         }
 
         @Test
-        @DisplayName("a prerequisite listed in prerequisites_json counts as met once that node is COMPLETED")
-        void prerequisiteSatisfiedByCompletedNodeIsAvailable() {
+        @DisplayName("ROUTE-01: unlock follows skill_tree_node_dependencies, not prerequisites_json (AC-ROUTE-01)")
+        void unmetDependencyLocksEvenWithoutPrerequisites() {
             Map<String, Object> second = row("D02", 2, "LOCKED");
-            second.put("prerequisites_json", "[\"D01\"]");
+            second.put("prerequisites_json", null);
+            second.put("dependencies_met", false);
+
+            givenRows(List.of(row("D01", 1, "COMPLETED"), second));
+            List<RoadmapNodeDto> nodes = service.generateRoadmapForUser(USER_ID);
+
+            assertThat(nodes.get(1).progressStatus()).isEqualTo("LOCKED");
+        }
+
+        @Test
+        @DisplayName("ROUTE-01: a stale prerequisites_json code no longer locks a node forever (AC-ROUTE-02)")
+        void stalePrerequisiteCodeDoesNotLock() {
+            Map<String, Object> second = row("D02", 2, "LOCKED");
+            second.put("prerequisites_json", "[\"X99\"]");
             Map<String, Object> third = row("D03", 3, "LOCKED");
-            third.put("prerequisites_json", "[\"D02\"]");
+            third.put("dependencies_met", false);
 
             givenRows(List.of(row("D01", 1, "COMPLETED"), second, third));
             List<RoadmapNodeDto> nodes = service.generateRoadmapForUser(USER_ID);
 
             assertThat(nodes.get(1).progressStatus()).isEqualTo("AVAILABLE");
             assertThat(nodes.get(2).progressStatus()).isEqualTo("LOCKED");
+        }
+
+        @Test
+        @DisplayName("ROUTE-03: interests no longer reorder the roadmap (AC-ROUTE-04)")
+        void interestsDoNotReorder() {
+            when(profileRepository.findByUserId(anyLong())).thenReturn(Optional.of(
+                    UserLearningProfile.builder()
+                            .currentLevel(UserLearningProfile.CurrentLevel.A0)
+                            .interestsJson("[\"familie\"]")
+                            .build()));
+            Map<String, Object> first = row("D01", 1, "LOCKED");
+            Map<String, Object> second = row("D02", 2, "LOCKED");
+            second.put("title_de", "Familie");
+            second.put("dependencies_met", false);
+
+            givenRows(List.of(first, second));
+            List<RoadmapNodeDto> nodes = service.generateRoadmapForUser(USER_ID);
+
+            assertThat(nodes).extracting(RoadmapNodeDto::code).containsExactly("D01", "D02");
+            assertThat(nodes.get(0).state()).isEqualTo("current");
+            assertThat(nodes.get(1).state()).isEqualTo("locked");
         }
 
         @Test
@@ -211,7 +251,7 @@ class RoadmapServiceTest {
         @DisplayName("progressStatus never contradicts the legacy state field")
         void staysConsistentWithLegacyState() {
             Map<String, Object> blocked = row("D20", 20, "LOCKED");
-            blocked.put("prerequisites_json", "[\"D19\"]");
+            blocked.put("dependencies_met", false);
 
             givenRows(List.of(
                     row("D01", 1, "COMPLETED"),
@@ -325,10 +365,14 @@ class RoadmapServiceTest {
         private List<RoadmapNodeDto> roadmapFor(UserLearningProfile.CurrentLevel level) {
             when(profileRepository.findByUserId(anyLong())).thenReturn(Optional.of(
                     UserLearningProfile.builder().currentLevel(level).build()));
-            givenRows(List.of(
+            List<Map<String, Object>> rows = List.of(
                     at(1, 1, "A1"), at(10, 2, "A1"), at(11, 3, "A1"), at(12, 3, "A1"), at(30, 7, "A1"),
                     at(31, 8, "A2"), at(35, 9, "A2"),
-                    at(51, 13, "B1"), at(52, 13, "B1"), at(54, 14, "B1")));
+                    at(51, 13, "B1"), at(52, 13, "B1"), at(54, 14, "B1"));
+            // A linear chain: only the entry node's dependencies (all before the entry) are met.
+            int entryDay = RoadmapEntry.forLevel(level.name()).day();
+            rows.forEach(r -> r.put("dependencies_met", ((Number) r.get("day_number")).intValue() == entryDay));
+            givenRows(rows);
             return service.generateRoadmapForUser(USER_ID);
         }
 
@@ -390,6 +434,69 @@ class RoadmapServiceTest {
 
             assertThat(nodes).extracting(RoadmapNodeDto::code).containsExactly("N51", "N52", "N54");
             assertThat(nodes.get(0).state()).isEqualTo("current");
+        }
+    }
+
+    // ------------------------------------------------------------------ shared status (ROUTE-09)
+
+    @Nested
+    @DisplayName("RoadmapRules.status — one state function for /roadmap/me and /skill-tree/me")
+    class SharedStatus {
+
+        @Test
+        @DisplayName("maps every combination the same way both endpoints read it")
+        void sharedStatusTable() {
+            assertThat(RoadmapRules.status("COMPLETED", 0, 70, false)).isEqualTo("COMPLETED");
+            assertThat(RoadmapRules.status("IN_PROGRESS", 80, 70, false)).isEqualTo("COMPLETED");
+            assertThat(RoadmapRules.status("IN_PROGRESS", 50, 70, true)).isEqualTo("IN_PROGRESS");
+            assertThat(RoadmapRules.status("UNLOCKED", 0, 70, false)).isEqualTo("UNLOCKED");
+            assertThat(RoadmapRules.status("LOCKED", 0, 70, true)).isEqualTo("UNLOCKED");
+            assertThat(RoadmapRules.status(null, null, null, false)).isEqualTo("LOCKED");
+            // missing / out-of-range threshold falls back to 70 — never "0 ⇒ everything completed"
+            assertThat(RoadmapRules.status("LOCKED", 0, null, false)).isEqualTo("LOCKED");
+            assertThat(RoadmapRules.status("LOCKED", 0, 0, false)).isEqualTo("LOCKED");
+        }
+
+        @Test
+        @DisplayName("a node whose best score already meets the threshold reads completed on /roadmap/me")
+        void bestScoreAtThresholdIsCompleted() {
+            Map<String, Object> r = row("D05", 5, "IN_PROGRESS");
+            r.put("user_best_score", 70);
+
+            assertThat(onlyNode(List.of(r)).state()).isEqualTo("completed");
+        }
+    }
+
+    // ------------------------------------------------------------------ lessons (ROUTE-08)
+
+    @Nested
+    @DisplayName("lessonsTotal / lessonsCompleted — real gradable items, not minutes / 5")
+    class Lessons {
+
+        @Test
+        @DisplayName("counts the node's gradable items and the share the best score covers (AC-ROUTE-10)")
+        void countsRealItems() {
+            Map<String, Object> r = row("D13", 13, "IN_PROGRESS");
+            r.put("scored_item_count", 6);
+            r.put("estimated_minutes", 60);
+            r.put("user_best_score", 50);
+
+            RoadmapNodeDto node = onlyNode(List.of(r));
+
+            assertThat(node.lessonsTotal()).isEqualTo(6);
+            assertThat(node.lessonsCompleted()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("a theory-only node still reports one lesson, done when completed")
+        void theoryOnlyNodeIsOneLesson() {
+            Map<String, Object> r = row("D01", 1, "COMPLETED");
+            r.put("scored_item_count", 0);
+
+            RoadmapNodeDto node = onlyNode(List.of(r));
+
+            assertThat(node.lessonsTotal()).isEqualTo(1);
+            assertThat(node.lessonsCompleted()).isEqualTo(1);
         }
     }
 }

@@ -11,6 +11,7 @@ import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,7 +38,6 @@ import java.util.Map;
 public class SkillTreeController {
 
     private static final long CORRECT_WRITING_ESTIMATED_TOKENS = 2_500L;
-    private static final long SATELLITE_GEN_ESTIMATED_TOKENS   = 4_000L;
     private static final long STT_ESTIMATED_TOKENS              =   200L;
 
     private final SkillTreeService skillTreeService;
@@ -92,64 +92,27 @@ public class SkillTreeController {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // POST /api/skill-tree/{nodeId}/unlock — Mở khóa Nhánh phụ
+    // POST /api/skill-tree/{nodeId}/unlock và /node/{coreNodeId}/generate-satellite
     //
-    // Luồng:
-    //   Request → Check Cache DB → Nếu có → trả JSON ngay
-    //                             → Nếu không → gọi Async LLM
-    //                               → Bắn SSE về Client
-    //                               → Lưu Cache vào DB
+    // Nhánh phụ (satellite) do AI sinh đã gỡ ở đợt 1 thiết kế lại lộ trình (14/11/2026, ROUTE-06):
+    // nội dung AI chưa duyệt không tới học viên; chặng Nghề soạn sẵn thay thế. Không màn nào hiện
+    // tại gọi hai đường này; trả 410 có mã ổn định cho app cũ. Không gọi AI, không trừ hạn mức.
     // ─────────────────────────────────────────────────────────────
+
+    static final Map<String, String> SATELLITE_RETIRED = Map.of("code", "SATELLITE_RETIRED");
 
     @PostMapping("/{nodeId}/unlock")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> unlockNode(
-            @AuthenticationPrincipal User user,
-            @PathVariable long nodeId
-    ) {
-        quotaService.assertAllowed(user.getId(), Instant.now(), SATELLITE_GEN_ESTIMATED_TOKENS);
-        orgPoolGuard.assertOrgPoolAvailable(user.getId(), SATELLITE_GEN_ESTIMATED_TOKENS);
-        Object result = skillTreeService.unlockSatelliteNode(user.getId(), nodeId);
-
-        if (result instanceof Map<?, ?> map) {
-            if (map.containsKey("jobId")) {
-                return ResponseEntity.accepted().body(map);
-            }
-            return ResponseEntity.ok(map);
-        }
-
-        return ResponseEntity.internalServerError().build();
+    public ResponseEntity<Map<String, String>> unlockNode(@PathVariable long nodeId) {
+        return ResponseEntity.status(HttpStatus.GONE).body(SATELLITE_RETIRED);
     }
-    // ─────────────────────────────────────────────────────────────
-    // POST /api/skill-tree/node/{coreNodeId}/generate-satellite
-    // Tự động sinh nhánh phụ (Sở thích/Ngành nghề) sau khi hoàn thành Node A2
-    // ─────────────────────────────────────────────────────────────
 
     @PostMapping("/node/{coreNodeId}/generate-satellite")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> generateSatelliteNode(
-            @AuthenticationPrincipal User user,
-            @PathVariable long coreNodeId,
-            @RequestBody Map<String, String> body
-    ) {
-        String hobby = body.get("hobby");
-        if (hobby == null || hobby.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Sở thích (hobby) không được để trống"));
-        }
-        
-        quotaService.assertAllowed(user.getId(), Instant.now(), SATELLITE_GEN_ESTIMATED_TOKENS);
-        orgPoolGuard.assertOrgPoolAvailable(user.getId(), SATELLITE_GEN_ESTIMATED_TOKENS);
-        Object result = skillTreeService.generatePersonalizedSatelliteNode(user.getId(), coreNodeId, hobby);
-
-        if (result instanceof Map<?, ?> map) {
-            if (map.containsKey("jobId")) {
-                return ResponseEntity.accepted().body(map);
-            }
-            return ResponseEntity.ok(map);
-        }
-
-        return ResponseEntity.internalServerError().build();
+    public ResponseEntity<Map<String, String>> generateSatelliteNode(@PathVariable long coreNodeId) {
+        return ResponseEntity.status(HttpStatus.GONE).body(SATELLITE_RETIRED);
     }
+
     // ─────────────────────────────────────────────────────────────
     // GET /api/skill-tree/node/{nodeId}/session — Lấy nội dung bài học
     // Trả về toàn bộ content_json (all-in-one, ~30KB → Gzip ~5KB)

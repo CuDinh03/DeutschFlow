@@ -39,9 +39,7 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/today/me']").exists())
                 .andExpect(jsonPath("$.paths['/api/profile/me/learning']").exists())
                 .andExpect(jsonPath("$.paths['/api/vocabulary/words']").exists())
-                // node tree (RoadmapTree is the chosen, typed source)
-                .andExpect(jsonPath("$.paths['/api/roadmap/tree']").exists())
-                .andExpect(jsonPath("$.paths['/api/roadmap/tree/node/{id}']").exists())
+                // Manifest tree retired (lộ trình đợt 1, ROUTE-05): /api/roadmap/tree only answers 410.
                 // later batches must at least be reachable in the spec
                 .andExpect(jsonPath("$.paths['/api/mock-exams/recommend']").exists())
                 .andExpect(jsonPath("$.paths['/api/srs/schedule']").exists())
@@ -69,9 +67,7 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.AuthResponse").exists())
                 .andExpect(jsonPath("$.components.schemas.TodayPlanDto").exists())
                 .andExpect(jsonPath("$.components.schemas.LearningProfileResponse").exists())
-                .andExpect(jsonPath("$.components.schemas.WordDto").exists())
-                .andExpect(jsonPath("$.components.schemas.TreeDto").exists())
-                .andExpect(jsonPath("$.components.schemas.TreeNodeLessonDto").exists());
+                .andExpect(jsonPath("$.components.schemas.WordDto").exists());
     }
 
     @Test

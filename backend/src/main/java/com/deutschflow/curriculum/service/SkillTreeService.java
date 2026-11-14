@@ -1,9 +1,5 @@
 package com.deutschflow.curriculum.service;
 
-import com.deutschflow.common.async.AsyncJob;
-import com.deutschflow.common.async.AsyncJobDispatch;
-import com.deutschflow.speaking.exception.AiServiceException;
-import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
@@ -19,19 +15,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 
 /**
  * Core service for the Skill Tree system.
@@ -49,26 +38,14 @@ public class SkillTreeService {
     private final LlmTierResolver llmTierResolver;
     private final AiUsageLedgerService aiUsageLedgerService;
     private final ObjectMapper objectMapper;
-    private final TransactionTemplate transactionTemplate;
     private final XpService xpService;
-    private final AsyncJobService asyncJobService;
     private final PracticeNodeService practiceNodeService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
     private final com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
-    /**
-     * Bounded pool for blocking LLM content generation. Field name matches the
-     * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name among the
-     * 3 Executor beans. Replaces {@code CompletableFuture.runAsync(...)} which used
-     * {@code ForkJoinPool.commonPool()} — a 3–10s Groq call there starves all other
-     * parallel stream/CompletableFuture work app-wide.
-     */
-    private final Executor aiExecutor;
 
-    // In-memory lock to prevent duplicate LLM calls for the same cache key
-    private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
 
     private static final long PRONUNCIATION_ESTIMATED_TOKENS = 1_024L;
     private static final long INTERVIEW_REPORT_ESTIMATED_TOKENS = 1_024L;
@@ -139,27 +116,15 @@ public class SkillTreeService {
                                       ELSE '{}'::jsonb END
                              ) AS e
                     ) AS skill_exercise_counts,
-                    CASE
-                        WHEN NOT EXISTS (
-                            SELECT 1 FROM skill_tree_node_dependencies d
-                            JOIN skill_tree_nodes dn ON dn.id = d.depends_on_node_id
-                            LEFT JOIN skill_tree_user_progress dp
-                                ON dp.node_id = d.depends_on_node_id AND dp.user_id = ?
-                            WHERE d.node_id = n.id
-                              AND COALESCE(dn.day_number, 9999) >= ?
-                              AND (dp.status IS NULL OR dp.status <> 'COMPLETED')
-                        ) THEN TRUE
-                        ELSE FALSE
-                    END AS dependencies_met
+                    %s AS dependencies_met
                 FROM skill_tree_nodes n
                 LEFT JOIN skill_tree_user_progress p
                     ON p.node_id = n.id AND p.user_id = ?
-                WHERE n.is_active = TRUE
+                WHERE %s
                   AND (n.day_number IS NULL OR n.day_number >= ?)
-                  -- Node gốc chưa có node_family là vỏ chưa soạn bài (V352): chưa phát hành.
-                  AND (n.node_type <> 'CORE_TRUNK' OR n.node_family IS NOT NULL)
                 ORDER BY COALESCE(n.day_number, 9999) ASC, n.sort_order ASC
-                """, userId, entry.day(), userId, entry.day());
+                """.formatted(RoadmapRules.DEPENDENCIES_MET, RoadmapRules.PUBLISHED),
+                userId, entry.day(), userId, entry.day());
 
         // Derive-at-read unlock (bug A fix): a node whose dependencies are satisfied but has no
         // started progress row is AVAILABLE, not LOCKED. Nothing else ever writes the successor's
@@ -167,10 +132,9 @@ public class SkillTreeService {
         // one stays LOCKED forever and the UI dead-ends the learner. Only promote 'LOCKED'/no-row;
         // IN_PROGRESS / COMPLETED / UNLOCKED are left untouched. FE normalizes UNLOCKED → AVAILABLE.
         for (Map<String, Object> row : rows) {
-            if (Boolean.TRUE.equals(row.get("dependencies_met"))
-                    && "LOCKED".equals(row.get("user_status"))) {
-                row.put("user_status", "UNLOCKED");
-            }
+            // ROUTE-09: cùng một hàm trạng thái với /roadmap/me (RoadmapRules.status).
+            row.put("user_status", RoadmapRules.status(row.get("user_status"), row.get("user_best_score"),
+                    row.get("mastery_threshold"), row.get("dependencies_met")));
             // Cùng cách đếm với /roadmap/me: hai màn mobile đọc hai nguồn không được lệch số ngày.
             if (row.get("day_number") instanceof Number day) {
                 row.put("day_number", day.intValue() - entry.dayShift());
@@ -204,13 +168,12 @@ public class SkillTreeService {
 
         // Lấy node đầu tiên từ điểm vào (sort_order nhỏ nhất, CORE_TRUNK)
         List<Map<String, Object>> firstNodes = jdbcTemplate.queryForList("""
-                SELECT id FROM skill_tree_nodes
-                WHERE is_active = TRUE AND node_type = 'CORE_TRUNK'
-                  AND node_family IS NOT NULL
-                  AND day_number >= ?
-                ORDER BY day_number ASC, sort_order ASC
+                SELECT n.id FROM skill_tree_nodes n
+                WHERE %s
+                  AND n.day_number >= ?
+                ORDER BY n.day_number ASC, n.sort_order ASC
                 LIMIT 1
-                """, entry.day());
+                """.formatted(RoadmapRules.PUBLISHED), entry.day());
 
         if (firstNodes.isEmpty()) return;
 
@@ -298,302 +261,6 @@ public class SkillTreeService {
 
 
     // ─────────────────────────────────────────────────────────────
-    // 2. UNLOCK NODE — Mở khóa Nhánh phụ (SATELLITE_LEAF)
-    // ─────────────────────────────────────────────────────────────
-
-    /**
-     * Luồng chính:
-     * 1. Validate: user có đủ Vé chuyên ngành? Dependencies met?
-     * 2. Check Cache: node.content_json hoặc cached content với cùng industry+cefr
-     * 3. Nếu cache HIT → trả content ngay (< 0.1s)
-     * 4. Nếu cache MISS → gọi LLM async + bắn SSE realtime
-     * 5. Lưu kết quả vào DB (cache cho user sau)
-     *
-     * @return SseEmitter cho streaming hoặc null nếu đã có cache
-     */
-    /**
-     * Unlock SATELLITE_LEAF node. Sử dụng TransactionTemplate 2 pha:
-     * - Pha 1: Transaction ngắn — validate, upsert progress, check cache (~100ms)
-     * - Pha 2: Nếu cache MISS → chạy LLM trên thread riêng (CompletableFuture) — KHÔNG giữ DB connection
-     */
-    public Object unlockSatelliteNode(long userId, long nodeId) {
-        // ── PHA 1: Validate + check cache (transaction ngắn ~100ms) ──
-        record UnlockPrep(boolean cacheHit, Object cachedResponse, Map<String, Object> node) {}
-
-        UnlockPrep prep = Objects.requireNonNull(transactionTemplate.execute(status -> {
-            Map<String, Object> node = loadNodeOrThrow(nodeId);
-            String nodeType = (String) node.get("node_type");
-            if (!"SATELLITE_LEAF".equals(nodeType)) {
-                throw new BadRequestException("Chỉ có thể mở khóa Nhánh phụ (SATELLITE_LEAF)");
-            }
-
-            boolean depsMet = checkDependenciesMet(userId, nodeId);
-            if (!depsMet) {
-                throw new BadRequestException("Bạn cần hoàn thành các bài học trước đó trước");
-            }
-
-            upsertProgress(userId, nodeId, "UNLOCKED");
-
-            String industry = (String) node.get("industry");
-            String cefrLevel = (String) node.get("cefr_level");
-            String vocabStrategy = (String) node.get("vocab_strategy");
-            String cacheKey = SatelliteLeafPromptBuilder.cacheKey(industry, cefrLevel, nodeId, vocabStrategy);
-
-            // 4a. Check content_json trên chính node này
-            Object existingContent = node.get("content_json");
-            if (existingContent != null) {
-                log.info("[SkillTree] Cache HIT (node content) for node={}, key={}", nodeId, cacheKey);
-                upsertProgress(userId, nodeId, "IN_PROGRESS");
-                return new UnlockPrep(true, Map.of(
-                        "source", "CACHE",
-                        "nodeId", nodeId,
-                        "content", existingContent
-                ), node);
-            }
-
-            // 4b. Check cache from other nodes with same industry+cefr+vocabStrategy
-            Map<String, Object> cachedNode = findCachedContent(industry, cefrLevel, vocabStrategy, nodeId);
-            if (cachedNode != null) {
-                log.info("[SkillTree] Cache HIT (sibling) for node={}, key={}", nodeId, cacheKey);
-                jdbcTemplate.update("""
-                        UPDATE skill_tree_nodes
-                        SET content_json = ?::jsonb, content_hash = ?, content_generated_at = NOW()
-                        WHERE id = ?
-                        """,
-                        String.valueOf(cachedNode.get("content_json")),
-                        cachedNode.get("content_hash"),
-                        nodeId);
-                upsertProgress(userId, nodeId, "IN_PROGRESS");
-                return new UnlockPrep(true, Map.of(
-                        "source", "CACHE_SIBLING",
-                        "nodeId", nodeId,
-                        "content", cachedNode.get("content_json")
-                ), node);
-            }
-
-            // Cache MISS
-            log.info("[SkillTree] Cache MISS — triggering LLM generation for node={}, key={}", nodeId, cacheKey);
-            upsertProgress(userId, nodeId, "IN_PROGRESS");
-            return new UnlockPrep(false, null, node);
-        }));
-        // → Connection TRẢ VỀ pool ✅
-
-    // Cache HIT → trả ngay
-        if (prep.cacheHit()) {
-            return prep.cachedResponse();
-        }
-
-        // ── PHA 2: Cache MISS → LLM generation trên thread riêng (KHÔNG giữ DB connection) ──
-        AsyncJob job = asyncJobService.createJob("GENERATE_SATELLITE", userId);
-        AsyncJobDispatch.runOrFail(asyncJobService, job.getId(), aiExecutor, () ->
-                generateContentAsync(userId, nodeId, prep.node(), job.getId()));
-        return Map.of("jobId", job.getId().toString(), "status", "ACCEPTED");
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // 2b. GENERATE SATELLITE NODE — Tạo động node sở thích từ A2
-    // ─────────────────────────────────────────────────────────────
-    public Object generatePersonalizedSatelliteNode(long userId, long coreNodeId, String hobby) {
-        return transactionTemplate.execute(status -> {
-            Map<String, Object> coreNode = loadNodeOrThrow(coreNodeId);
-            String cefr = (String) coreNode.get("cefr_level");
-            
-            // Validate: Only A2 and above
-            if ("A1".equals(cefr) || "FOUNDATION".equals(coreNode.get("phase"))) {
-                throw new BadRequestException("Nhánh phụ cá nhân hóa chỉ mở từ trình độ A2 trở lên.");
-            }
-            
-            // Check if user completed the core node
-            Map<String, Object> progress;
-            try {
-                progress = loadProgressOrThrow(userId, coreNodeId);
-                if (!"COMPLETED".equals(progress.get("status"))) {
-                    throw new BadRequestException("Bạn phải hoàn thành bài học gốc trước khi tạo nhánh mở rộng.");
-                }
-            } catch (NotFoundException e) {
-                throw new BadRequestException("Bạn chưa bắt đầu bài học gốc này.");
-            }
-
-            // Create new SATELLITE_LEAF node
-            Long newNodeId = jdbcTemplate.queryForObject("""
-                INSERT INTO skill_tree_nodes (
-                    node_type, title_de, title_vi, description_vi, emoji,
-                    phase, cefr_level, difficulty, xp_reward, energy_cost,
-                    industry, creator_user_id, satellite_status, is_active
-                ) VALUES (
-                    'SATELLITE_LEAF', ?, ?, ?, '🌟',
-                    ?, ?, 3, 150, 1,
-                    ?, ?, 'QUEUED', TRUE
-                ) RETURNING id
-            """, Long.class, 
-                "Erweiterung: " + hobby, 
-                "Mở rộng: " + hobby,
-                "Chủ đề cá nhân hóa chuyên sâu về " + hobby,
-                coreNode.get("phase"),
-                cefr,
-                hobby,
-                userId
-            );
-
-            // Add dependency: MUST complete core node
-            jdbcTemplate.update("""
-                INSERT INTO skill_tree_node_dependencies (node_id, depends_on_node_id, dependency_type, min_score_percent)
-                VALUES (?, ?, 'HARD', 100)
-            """, newNodeId, coreNodeId);
-
-            // Trigger the generation via unlock flow
-            return unlockSatelliteNode(userId, newNodeId);
-        });
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // 3. ASYNC LLM GENERATION — Sinh bài học + bắn SSE
-    // ─────────────────────────────────────────────────────────────
-
-    @Async("speakingStreamExecutor") // Reuse existing thread pool
-    public void generateContentAsync(long userId, long nodeId, Map<String, Object> node, UUID jobId) {
-        String industry = (String) node.get("industry");
-        String cefrLevel = (String) node.get("cefr_level");
-        String vocabStrategy = (String) node.get("vocab_strategy");
-        int industryPercent = safeInt(node.get("industry_vocab_percent"), 15);
-        int dayNumber = safeInt(node.get("day_number"), 8);
-        String parentTitle = (String) node.get("title_de");
-        String grammarContext = "Allgemein";
-        Object gpRaw = node.get("grammar_points");
-        if (gpRaw instanceof String gpStr && gpStr != null && !gpStr.isBlank()) {
-            // grammar_points comes as JSON array text: ["a","b","c"]
-            grammarContext = gpStr.replaceAll("[\\[\\]\"]", "");
-        }
-
-        String cacheKey = SatelliteLeafPromptBuilder.cacheKey(industry, cefrLevel, nodeId, vocabStrategy);
-
-        // Prevent duplicate concurrent generations
-        if (generationLocks.putIfAbsent(cacheKey, true) != null) {
-            log.debug("[SkillTree] Generation already in progress for key={}", cacheKey);
-            asyncJobService.failJob(jobId, "Đang xử lý tạo bài học này. Vui lòng chờ...");
-            return;
-        }
-
-        try {
-            // Build system prompt
-            String systemPrompt = SatelliteLeafPromptBuilder.buildSystemPrompt(
-                    industry, cefrLevel, parentTitle, grammarContext,
-                    vocabStrategy, industryPercent, dayNumber
-                );
-
-            asyncJobService.updateStatus(jobId, AsyncJob.Status.PROCESSING);
-
-            // Call Groq LLM (blocking in async thread)
-            List<ChatMessage> messages = List.of(
-                    new ChatMessage("system", systemPrompt),
-                    new ChatMessage("user", "Erstelle die Lektion jetzt als JSON.")
-            );
-
-            AiChatCompletionResult result = chatClient.chatCompletionForTier(messages, llmTierResolver.spec(LlmTier.CONTENT), 0.3, 4096);
-            String rawJson = result.content();
-
-            // Validate JSON
-            JsonNode parsed = objectMapper.readTree(rawJson);
-            String cleanJson = objectMapper.writeValueAsString(parsed);
-            String contentHash = sha256(cleanJson);
-
-            // ── Save to DB (cache) ──
-            jdbcTemplate.update("""
-                    UPDATE skill_tree_nodes
-                    SET content_json = ?::jsonb,
-                        content_hash = ?,
-                        content_generated_at = NOW(),
-                        content_model = ?
-                    WHERE id = ?
-                    """,
-                    cleanJson, contentHash, result.model(), nodeId);
-
-            // ── Record token usage ──
-            if (result.usage() != null) {
-                aiUsageLedgerService.record(
-                        userId, result.provider(), result.model(),
-                        result.usage(),
-                        "SKILL_TREE_GENERATE",
-                        null, null
-                );
-            }
-
-            // ── Send "done" event with content ──
-            asyncJobService.completeJob(jobId, cleanJson);
-
-            log.info("[SkillTree] Generated + cached content for node={}, hash={}, tokens={}",
-                    nodeId, contentHash,
-                    result.usage() != null ? result.usage().totalTokens() : "N/A");
-
-        } catch (Exception ex) {
-            log.error("[SkillTree] LLM generation failed for node={}: {}", nodeId, ex.getMessage(), ex);
-            asyncJobService.failJob(jobId, "Không thể tạo bài học. Vui lòng thử lại.");
-        } finally {
-            generationLocks.remove(cacheKey);
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // 4. PRE-FETCHING — Sinh trước content khi user đạt 80%
-    // ─────────────────────────────────────────────────────────────
-
-    /**
-     * Called after each node completion to trigger pre-fetching for the next SATELLITE_LEAF.
-     * Only triggers when user reaches 80% on their current node.
-     */
-    /**
-     * Pre-fetch content khi user đạt 80%. Sử dụng TransactionTemplate 2 pha:
-     * - Pha 1: Transaction ngắn — query next leaves + upsert QUEUED (~50ms)
-     * - Pha 2: Fire-and-forget LLM generation trên thread riêng — KHÔNG giữ DB connection
-     */
-    public void checkAndTriggerPrefetch(long userId, long currentNodeId, int currentScore) {
-        if (currentScore < 80) return;
-
-        // ── PHA 1: DB prep (transaction ngắn ~50ms) ──
-        List<Map<String, Object>> leavesToGenerate = transactionTemplate.execute(status -> {
-            List<Map<String, Object>> nextLeaves = jdbcTemplate.queryForList("""
-                    SELECT n.*
-                    FROM skill_tree_nodes n
-                    JOIN skill_tree_node_dependencies d ON d.node_id = n.id
-                    WHERE d.depends_on_node_id = ?
-                      AND n.node_type = 'SATELLITE_LEAF'
-                      AND n.content_json IS NULL
-                      AND n.is_active = TRUE
-                    """, currentNodeId);
-
-            for (Map<String, Object> leaf : nextLeaves) {
-                long leafId = ((Number) leaf.get("id")).longValue();
-                jdbcTemplate.update("""
-                        INSERT INTO skill_tree_user_progress (user_id, node_id, status, prefetch_status, prefetch_triggered_at)
-                        VALUES (?, ?, 'LOCKED', 'QUEUED', NOW())
-                        ON CONFLICT (user_id, node_id)
-                        DO UPDATE SET prefetch_status = 'QUEUED', prefetch_triggered_at = NOW(), updated_at = NOW()
-                        """, userId, leafId);
-            }
-            return nextLeaves;
-        });
-        // → Connection TRẢ VỀ pool ✅
-
-        // ── PHA 2: Fire-and-forget LLM generation (KHÔNG giữ DB connection) ──
-        if (leavesToGenerate != null) {
-            for (Map<String, Object> leaf : leavesToGenerate) {
-                long leafId = ((Number) leaf.get("id")).longValue();
-                AsyncJob job = asyncJobService.createJob("PREFETCH_SATELLITE", userId);
-                try {
-                    AsyncJobDispatch.runOrFail(asyncJobService, job.getId(), aiExecutor, () ->
-                            generateContentAsync(userId, leafId, leaf, job.getId()));
-                } catch (AiServiceException busy) {
-                    // Sinh trước là việc NGẦM: executor đầy thì bỏ lượt này (job đã FAILED), không được
-                    // làm hỏng request nộp bài đang gọi tới đây.
-                    log.warn("[SkillTree] Pre-fetch skipped — aiExecutor đầy, user={}, nextLeaf={}", userId, leafId);
-                    continue;
-                }
-                log.info("[SkillTree] Pre-fetch triggered for user={}, nextLeaf={}", userId, leafId);
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
     // 5. SUBMIT EXERCISES — Nộp bài cho một node
     // ─────────────────────────────────────────────────────────────
 
@@ -631,25 +298,15 @@ public class SkillTreeService {
         // Load content & grade
         Map<String, Object> node = loadNodeOrThrow(nodeId);
 
-        // Server-authoritative grading: compute the score from the answer key in content_json
-        // instead of trusting a client-reported score_percent (which let a tampered client
-        // self-report 100% to unlock nodes / bypass paywalled content). Falls back to the
-        // supplied score only when there is nothing deterministic to grade (SPEAKING/WRITING
-        // nodes are AI-graded) or for legacy clients that don't yet send raw item answers.
+        // ROUTE-07 (đợt 1, 14/11/2026): chỉ dùng điểm máy chủ chấm theo đáp án trong content_json.
+        // `score_percent` client gửi bị bỏ qua. Bài không có mục chấm xác định (hoặc thiếu
+        // `item_answers`) không ghi gì: bài lý thuyết thuần đi đường `/complete`.
         NodeExerciseGrader.Result graded =
                 NodeExerciseGrader.grade(objectMapper, (String) node.get("content_json"), itemAnswers);
-
-        int scorePercent;
-        if (graded.gradeable()) {
-            scorePercent = graded.percent();
-        } else {
-            scorePercent = safeInt(answers.get("score_percent"), 85);
-            if (itemAnswers == null) {
-                log.warn("[SkillTree] Node {} (user {}) submitted without item_answers — trusting "
-                        + "client score {}. Update the client to send raw answers for server grading.",
-                        nodeId, userId, scorePercent);
-            }
+        if (!graded.gradeable()) {
+            return notServerGradable(nodeId, progress);
         }
+        int scorePercent = graded.percent();
 
         String sessionType = (String) node.get("session_type");
         boolean isSpeakingOrWriting = "SPEAKING".equals(sessionType) || "WRITING".equals(sessionType);
@@ -672,11 +329,6 @@ public class SkillTreeService {
         String newStatus = completed ? "COMPLETED" : "IN_PROGRESS";
 
         writeProgress(userId, nodeId, newStatus, scorePercent, bestScore, attempts, xpEarned);
-
-        // Trigger pre-fetch if score >= 80
-        if (scorePercent >= 80) {
-            checkAndTriggerPrefetch(userId, nodeId, scorePercent);
-        }
 
         // Award XP + trigger achievements/practice-nodes/SRS/phase (shared with markNodeComplete)
         if (completed) {
@@ -803,6 +455,12 @@ public class SkillTreeService {
         Map<String, Object> node = loadNodeOrThrow(nodeId);
         SkillGrade grade = gradeSkillExercises((String) node.get("content_json"), skillAnswers);
         int totalItems = grade.totalItems();
+        if (totalItems == 0) {
+            // ROUTE-07: không có mục chấm được thì không ghi tiến độ (trước đây vẫn ghi IN_PROGRESS).
+            Map<String, Object> result = notServerGradable(nodeId, progress);
+            result.put("perSkill", grade.perSkill());
+            return result;
+        }
         int scorePercent = grade.scorePercent();
         Map<String, Object> perSkill = grade.perSkill();
 
@@ -818,9 +476,6 @@ public class SkillTreeService {
         String newStatus = completed ? "COMPLETED" : "IN_PROGRESS";
 
         writeProgress(userId, nodeId, newStatus, scorePercent, bestScore, attempts, xpEarned);
-        if (scorePercent >= 80) {
-            checkAndTriggerPrefetch(userId, nodeId, scorePercent);
-        }
         if (completed) {
             awardCompletionSideEffects(userId, nodeId, node);
             // ACTIVATION (Đợt 1 17/09): chặng đầu tiên hoàn thành qua bài tập = bài đầu tiên.
@@ -910,6 +565,23 @@ public class SkillTreeService {
     // ─────────────────────────────────────────────────────────────
     // ── Helpers ──
     // ─────────────────────────────────────────────────────────────
+
+    /**
+     * ROUTE-07: bài không chấm được ở máy chủ. Trả 200 (không 4xx để client cũ không vỡ), không ghi
+     * tiến độ, không cộng XP. Giữ các khoá của phản hồi nộp bài thường cho client đang đọc chúng.
+     */
+    private Map<String, Object> notServerGradable(long nodeId, Map<String, Object> progress) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("nodeId", nodeId);
+        result.put("scorePercent", 0);
+        result.put("bestScore", safeInt(progress.get("best_score"), 0));
+        result.put("attempts", safeInt(progress.get("attempts"), 0));
+        result.put("completed", false);
+        result.put("xpEarned", 0);
+        result.put("status", progress.get("status"));
+        result.put("reason", "NOT_SERVER_GRADABLE");
+        return result;
+    }
 
     private Map<String, Object> loadNodeOrThrow(long nodeId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
@@ -1008,28 +680,14 @@ public class SkillTreeService {
         // successor locked after a legitimate pass at 70–99%. min_score_percent is now advisory.
         // Tiền đề nằm trước điểm vào theo trình độ không tính: học viên A2 không học ngày 30 nên
         // ngày 31 của họ không được chờ ngày 30.
-        Integer unmetCount = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*)
-                FROM skill_tree_node_dependencies d
-                JOIN skill_tree_nodes dn ON dn.id = d.depends_on_node_id
-                LEFT JOIN skill_tree_user_progress p
-                    ON p.node_id = d.depends_on_node_id AND p.user_id = ?
-                WHERE d.node_id = ?
-                  AND COALESCE(dn.day_number, 9999) >= ?
-                  AND (p.status IS NULL OR p.status <> 'COMPLETED')
-                """, Integer.class, userId, nodeId, entryFor(userId).day());
-        return unmetCount != null && unmetCount == 0;
-    }
-
-    private Map<String, Object> findCachedContent(String industry, String cefrLevel, String vocabStrategy, long excludeNodeId) {
-        List<Map<String, Object>> cached = jdbcTemplate.queryForList("""
-                SELECT content_json, content_hash
-                FROM skill_tree_nodes
-                WHERE industry = ? AND cefr_level = ? AND vocab_strategy = ?
-                  AND content_json IS NOT NULL AND id <> ?
-                LIMIT 1
-                """, industry, cefrLevel, vocabStrategy, excludeNodeId);
-        return cached.isEmpty() ? null : cached.get(0);
+        // ROUTE-01/02: cùng luật với /roadmap/me và /skill-tree/me; bài chưa phát hành không bao giờ mở.
+        List<Boolean> met = jdbcTemplate.queryForList("""
+                SELECT (%s) AND (%s)
+                FROM skill_tree_nodes n
+                WHERE n.id = ?
+                """.formatted(RoadmapRules.PUBLISHED, RoadmapRules.DEPENDENCIES_MET),
+                Boolean.class, userId, entryFor(userId).day(), nodeId);
+        return !met.isEmpty() && Boolean.TRUE.equals(met.get(0));
     }
 
     private void upsertProgress(long userId, long nodeId, String status) {
@@ -1057,18 +715,6 @@ public class SkillTreeService {
     private int safeInt(Object v, int fallback) {
         if (v instanceof Number n) return n.intValue();
         return fallback;
-    }
-
-    private String sha256(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hash) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (Exception e) {
-            return UUID.randomUUID().toString();
-        }
     }
 
     // ─────────────────────────────────────────────────────────────
