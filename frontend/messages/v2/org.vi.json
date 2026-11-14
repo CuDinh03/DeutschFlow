@@ -444,6 +444,32 @@
       "loadMoreError": "Không tải thêm được lớp."
     },
     "classDetail": {
+      "practiceProgram": {
+        "cap": "Chương trình luyện nói",
+        "empty": "Lớp chưa khai chương trình luyện. Khai để theo dõi ai luyện đều mỗi tuần.",
+        "create": "Khai chương trình",
+        "edit": "Sửa chương trình",
+        "save": "Lưu",
+        "saving": "Đang lưu…",
+        "cancel": "Huỷ",
+        "saved": "Đã lưu chương trình luyện",
+        "loadError": "Chưa tải được chương trình luyện.",
+        "retry": "Thử lại",
+        "field": {
+          "startDate": "Ngày bắt đầu (thứ Hai)",
+          "weeks": "Số tuần",
+          "targetPerWeek": "Phiên/tuần",
+          "weeksRequired": "Tuần cần đạt"
+        },
+        "mustBeMonday": "Ngày bắt đầu phải là thứ Hai.",
+        "lockedNote": "Tuần 1 đã qua: chỉ còn đổi được số tuần.",
+        "speakOnlyNote": "Trong thời gian chương trình, học viên của lớp chỉ luyện bằng giọng nói, không có ô gõ.",
+        "summary": "Từ {start} đến {end} ({weeks} tuần)",
+        "target": "Chỉ tiêu {target} phiên/tuần · cần đạt {required}/{weeks} tuần",
+        "notStarted": "Chưa bắt đầu",
+        "running": "Đang ở tuần {week}/{weeks}",
+        "ended": "Đã kết thúc"
+      },
       "titleFallback": "Chi tiết lớp",
       "subtitleLoading": "Đang tải…",
       "subtitle": "Mã lớp: {code} · GV: {teacher} · {count} học viên",

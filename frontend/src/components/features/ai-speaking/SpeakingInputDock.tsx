@@ -40,6 +40,11 @@ interface Props {
   onToggleMic: () => void;
   suggestionWaitSec?: number;
   showSuggestionHint?: boolean;
+  /**
+   * Lớp có chương trình luyện (đặc tả luyendeu ORG-65): không có đường gõ. Chữ từ mic vẫn hiện để gửi
+   * nhưng chỉ đọc, nút đóng thành "bỏ câu vừa ghi".
+   */
+  speakOnly?: boolean;
 }
 
 export function SpeakingInputDock({
@@ -57,6 +62,7 @@ export function SpeakingInputDock({
   inputTip,
   onToggleMic,
   showSuggestionHint,
+  speakOnly = false,
 }: Props) {
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
@@ -141,7 +147,11 @@ export function SpeakingInputDock({
 
         {/* ── Đường thứ yếu: gõ thay vì nói ────────────────────────────────── */}
         <div className="mt-3 border-t border-ga-line pt-3">
-          {!typing ? (
+          {!typing && speakOnly ? (
+            <p className="text-center text-ga-small text-ga-muted" data-testid="speak-only-hint">
+              {showMicBlocked ? tChat("speakOnlyMicBlocked") : tChat("speakOnlyHint")}
+            </p>
+          ) : !typing ? (
             <button
               type="button"
               onClick={() => setTyping(true)}
@@ -163,7 +173,8 @@ export function SpeakingInputDock({
                 <textarea
                   ref={textareaRef}
                   value={inputText}
-                  autoFocus
+                  autoFocus={!speakOnly}
+                  readOnly={speakOnly}
                   onChange={(e) => onInputChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -191,8 +202,11 @@ export function SpeakingInputDock({
               </div>
               <button
                 type="button"
-                onClick={() => setTyping(false)}
-                aria-label={tChat("typeInsteadClose")}
+                onClick={() => {
+                  if (speakOnly) onInputChange("");
+                  setTyping(false);
+                }}
+                aria-label={speakOnly ? tChat("speakOnlyDiscard") : tChat("typeInsteadClose")}
                 className="mb-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-ga text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset"
               >
                 <ChevronDown size={18} aria-hidden />

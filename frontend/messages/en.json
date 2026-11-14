@@ -283,6 +283,9 @@
       "confirmLeaveSession": "Leave the interview? The answers you have completed are saved, so you can come back for the report.",
       "typeInstead": "Type instead of speaking",
       "typeInsteadClose": "Close the text box",
+      "speakOnlyHint": "Your class practises by voice, so there is no typing box. Tap the mic to answer.",
+      "speakOnlyMicBlocked": "Your class practises by voice, so there is no typing box. Allow the microphone in your browser settings and try again, or ask your teacher to check your device.",
+      "speakOnlyDiscard": "Discard this recording",
       "feedbackTitle": "Feedback on your last turn",
       "dimension": {
         "pronunciation": "Pronunciation",
