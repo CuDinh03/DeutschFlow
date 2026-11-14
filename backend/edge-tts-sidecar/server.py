@@ -3,7 +3,8 @@ Edge TTS Sidecar — Free Microsoft Neural TTS for DeutschFlow.
 
 Provides a REST endpoint that converts text to speech using Microsoft's
 Edge Neural Voices. Maps 18 DeutschFlow AI personas to unique voice
-configurations with distinct pitch/rate adjustments.
+configurations with distinct pitch/rate adjustments, plus six HOER_* personas
+(listening exam) that use the six base voices at their natural pitch.
 
 Usage:
     pip install -r requirements.txt
@@ -71,6 +72,17 @@ PERSONA_VOICES = {
     "TUAN":      {"voice": "de-DE-ConradNeural",                "pitch": "+25Hz", "rate": "+3%"},
     "LAN":       {"voice": "de-DE-AmalaNeural",                  "pitch": "+15Hz", "rate": "-5%"},
     "MINH":      {"voice": "de-DE-FlorianMultilingualNeural",    "pitch": "+25Hz", "rate": "+5%"},
+
+    # ── Hörverstehen (bài nghe luyện thi, 14/11/2026) ──
+    # Sáu giọng gốc ở cao độ tự nhiên (+0Hz): ép pitch làm giọng neural méo/robotic (owner 25/08).
+    # Tốc độ lệch tối đa 3 %. Backend đọc GET /voices để biết sidecar đã có các persona này chưa;
+    # frontend chỉ gửi chúng khi đã có (sidecar cũ gặp persona lạ sẽ lặng lẽ dùng DEFAULT).
+    "HOER_F1":   {"voice": "de-DE-KatjaNeural",                  "pitch": "+0Hz",  "rate": "+0%"},
+    "HOER_F2":   {"voice": "de-DE-AmalaNeural",                  "pitch": "+0Hz",  "rate": "-3%"},
+    "HOER_F3":   {"voice": "de-DE-SeraphinaMultilingualNeural",  "pitch": "+0Hz",  "rate": "+0%"},
+    "HOER_M1":   {"voice": "de-DE-ConradNeural",                 "pitch": "+0Hz",  "rate": "+0%"},
+    "HOER_M2":   {"voice": "de-DE-KillianNeural",                "pitch": "+0Hz",  "rate": "+0%"},
+    "HOER_M3":   {"voice": "de-DE-FlorianMultilingualNeural",    "pitch": "+0Hz",  "rate": "+0%"},
 }
 
 # Fallback for unknown personas

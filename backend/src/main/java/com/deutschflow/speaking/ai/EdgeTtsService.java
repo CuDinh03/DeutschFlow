@@ -11,6 +11,8 @@ import com.deutschflow.common.http.RestTemplates;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -104,6 +106,64 @@ public class EdgeTtsService {
             log.warn("[Edge TTS] Synthesis failed for '{}': {}", persona, e.getMessage());
             return null;
         }
+    }
+
+    // ─── Persona sidecar hỗ trợ ───────────────────────────────────────────
+
+    /** Tiền tố persona của bài nghe luyện thi (sáu giọng gốc, cao độ tự nhiên — xem sidecar {@code server.py}). */
+    public static final String HOEREN_PERSONA_PREFIX = "HOER_";
+
+    private static final long PERSONAS_TTL_OK_MS = 60_000L;
+    private static final long PERSONAS_TTL_FAIL_MS = 15_000L;
+
+    private volatile List<String> personasCache = List.of();
+    private volatile long personasExpiresAt = 0L;
+
+    /**
+     * Tên các persona mà sidecar ĐANG CHẠY biết (đọc {@code GET /voices} của sidecar), viết hoa, xếp
+     * theo chữ cái. Rỗng khi chưa cấu hình sidecar hoặc không hỏi được.
+     *
+     * <p>Vì sao cần: sidecar gặp persona lạ thì lặng lẽ đọc bằng giọng DEFAULT chứ không báo lỗi. Bản
+     * frontend mới (bài nghe mỗi nhân vật một giọng) có thể lên trước khi container sidecar được build
+     * lại, nên client phải hỏi được "sidecar đã có persona này chưa" để lùi về giọng cũ thay vì phát
+     * nhầm giọng. Nhớ 60 giây (lần hỏi lỗi nhớ 15 giây) để không gọi sidecar ở mỗi câu.
+     */
+    @SuppressWarnings("rawtypes")
+    public List<String> supportedPersonas() {
+        if (!isConfigured()) return List.of();
+        long now = System.currentTimeMillis();
+        if (now < personasExpiresAt) return personasCache;
+        List<String> names = List.of();
+        long ttl = PERSONAS_TTL_FAIL_MS;
+        try {
+            ResponseEntity<Map> response = restTemplate.getForEntity(edgeTtsUrl + "/voices", Map.class);
+            Map<?, ?> body = response.getBody();
+            if (response.getStatusCode().is2xxSuccessful() && body != null) {
+                names = body.keySet().stream()
+                        .map(k -> String.valueOf(k).toUpperCase(Locale.ROOT))
+                        .sorted()
+                        .toList();
+                ttl = PERSONAS_TTL_OK_MS;
+            }
+        } catch (Exception e) {
+            log.warn("[Edge TTS] Could not read the sidecar persona list: {}", e.getMessage());
+        }
+        personasCache = names;
+        personasExpiresAt = now + ttl;
+        return names;
+    }
+
+    /**
+     * Persona bài nghe ({@code HOER_*}) mà sidecar đang chạy CHẮC CHẮN chưa có. Không hỏi được danh
+     * sách thì trả {@code false} (không chặn oan). Controller dùng để từ chối thay vì để sidecar cũ
+     * đọc nhầm giọng DEFAULT rồi bản audio sai đó nằm trong cache 24 giờ.
+     */
+    public boolean isUnsupportedHoerenPersona(String personaName) {
+        if (personaName == null) return false;
+        String persona = personaName.trim().toUpperCase(Locale.ROOT);
+        if (!persona.startsWith(HOEREN_PERSONA_PREFIX)) return false;
+        List<String> known = supportedPersonas();
+        return !known.isEmpty() && !known.contains(persona);
     }
 
     // ─── Usage tracking ───────────────────────────────────────────────────
