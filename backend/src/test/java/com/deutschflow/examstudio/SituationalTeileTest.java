@@ -109,6 +109,46 @@ class SituationalTeileTest {
         }
 
         @Test
+        @DisplayName("Lesen T3: mẩu rao vặt giữ quy ước dòng của áp phích; mẩu một dòng ra như cũ")
+        void adLinesKeepPosterLines() {
+            assertThat(SituationalTeile.adLines("Gitarre lernen\n  für Anfänger   jeden Alters \n\n- Erste Stunde kostenlos\r\nTel. 0341-12 34 56\n"))
+                    .isEqualTo("Gitarre lernen\nfür Anfänger jeden Alters\nErste Stunde kostenlos\nTel. 0341-12 34 56");
+            // model thoát hai lần: "\n" thành hai ký tự
+            assertThat(SituationalTeile.adLines("Nähkurs\\nfür Erwachsene\\nTel. 0341-12 34 56"))
+                    .isEqualTo("Nähkurs\nfür Erwachsene\nTel. 0341-12 34 56");
+            // kiểu cũ (một đoạn): chỉ gộp khoảng trắng, y như trước
+            assertThat(SituationalTeile.adLines("  Verkaufe   Kinderfahrrad, 20 Zoll.  60 € VB. "))
+                    .isEqualTo("Verkaufe Kinderfahrrad, 20 Zoll. 60 € VB.");
+        }
+
+        @Test
+        @DisplayName("Lesen T3: đếm từ và kiểm độ dài tính đúng trên mẩu nhiều dòng; prompt format được")
+        void multiLineAdsCountWordsAcrossLines() {
+            TeilSpec lv3 = TeilSpec.find("TELC", "B1", "LESEN", 3).orElseThrow();
+            String oneLine = "Gitarre lernen für Anfänger jeden Alters Unterricht bei Ihnen zu Hause oder in meinem Studio"
+                    + " Erste Stunde kostenlos danach zehn Euro pro Stunde Tel. 0341-12 34 56";
+            String poster = "Gitarre lernen\nfür Anfänger jeden Alters\nUnterricht bei Ihnen zu Hause oder in meinem Studio\n"
+                    + "Erste Stunde kostenlos danach zehn Euro pro Stunde\nTel. 0341-12 34 56";
+            assertThat(TextChecks.wordCount(poster)).isEqualTo(TextChecks.wordCount(oneLine));
+
+            Map<String, String> ads = new LinkedHashMap<>();
+            for (String l : TeilSpec.AD_LETTERS) {
+                ads.put(l, SituationalTeile.adLines(String.join("\n", Collections.nCopies(Math.max(1, lv3.minWords()), "Wort" + l))));
+            }
+            Text t = new Text("", "", "", List.of(), ads, List.of(), null, null, null, null);
+            assertThat(situ.checks(lv3, t, List.of(), null)).filteredOn(ch -> ch.key().equals("LENGTH")).singleElement()
+                    .satisfies(ch -> assertThat(ch.light()).isEqualTo("GREEN"));
+            // chữ người học đọc được (dùng cho chống trùng) coi xuống dòng như khoảng trắng: cùng dãy từ
+            assertThat(TextChecks.words(situ.content(lv3, t, List.of()).get("ads").toString().replaceAll("[{}=,]", " ")))
+                    .contains("Worta", "Wortl");
+
+            String prompt = SituationalTeile.ADS_SYSTEM.formatted("B1", 12, lv3.minWords(), lv3.maxWords(), "EINE Beispiel-Situation.");
+            assertThat(prompt).contains("GENAU 12").contains("Zeile 1 = kurze Überschrift").contains("Kontaktzeile")
+                    .contains("im JSON als \\n").contains("Schreibe außerdem EINE Beispiel-Situation.")
+                    .doesNotContain("%");
+        }
+
+        @Test
         @DisplayName("Lesen T3: thiếu câu x hoặc một mẩu làm đáp án hai lần ⇒ đỏ")
         void lesenTeil3Red() {
             TeilSpec lv3 = TeilSpec.find("TELC", "B1", "LESEN", 3).orElseThrow();

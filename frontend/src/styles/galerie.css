@@ -65,6 +65,14 @@
   --ga-mark-ul: var(--ga-navy);
   --ga-mark-ev: var(--ga-green);
 
+  /* Áp phích rao vặt telc Lesen Teil 3 (14/11/2026): đơn sắc như tờ đề in — mực trên giấy, MỘT tông xám,
+     MỘT màu dải tối. Trỏ về token gốc; đổi giao diện tờ đề thì chỉ sửa ở đây (kiểu dáng: ad-posters.css). */
+  --ga-poster-paper: var(--ga-card);
+  --ga-poster-ink: var(--ga-ink);
+  --ga-poster-grey: var(--ga-side-active);
+  --ga-poster-band: var(--ga-ink);
+  --ga-poster-rule: var(--ga-line-strong);
+
   /* Role accent — default (neutral). Overridden per-role below. */
   --ga-accent: var(--ga-navy);
   --ga-accent-soft: var(--ga-navy-soft);

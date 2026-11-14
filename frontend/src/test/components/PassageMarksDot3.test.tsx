@@ -198,3 +198,100 @@ describe('Đánh dấu bài đọc đợt 3 — luyện Teil', () => {
     expect(screen.getByRole('button', { name: 'Chỗ 21' })).toBeInTheDocument()
   }, 10_000)
 })
+
+/**
+ * Áp phích rao vặt (14/11/2026): mẩu được vẽ thành nhiều phần (tiêu đề / thân / liên hệ) nhưng khối `ad:<k>` và
+ * vị trí ký tự vẫn tính trên CHUỖI GỐC của mẩu — đánh dấu mới ghi đúng chỗ, đánh dấu đã lưu từ trước vẫn hiện.
+ */
+describe('Đánh dấu bài đọc — áp phích rao vặt Lesen 3', () => {
+  const AD_A = 'Nachhilfe Mathe, Klasse 5–10, bei mir zu Hause. 15 €/Stunde. Tel. 0176-44 22 10'
+  const AD_B = 'Gitarre lernen\nfür Anfänger jeden Alters\nUnterricht bei Ihnen zu Hause\nErste Stunde kostenlos\nTel. 0341-12 34 56'
+  const POSTERS = { ...LESEN3, ads: { a: AD_A, b: AD_B } }
+  const at = (text: string, phrase: string) => [text.indexOf(phrase), text.indexOf(phrase) + phrase.length]
+
+  async function open() {
+    h.search = 'examId=7&teil=LESEN-3'
+    h.overview = overview('LESEN', POSTERS, 'LESEN-3', 2)
+    render(<PracticeTeilRoute />)
+    await screen.findByText('Bút đánh dấu')
+    await waitFor(() => expect(document.querySelector('.ad-poster [data-seg]')).not.toBeNull())
+  }
+  const saved = async (count = 1) => {
+    const last = () => (h.saveMarks.mock.calls.at(-1)?.[2] as { marks: Array<{ b: string; s: number; e: number; c: string }> } | undefined)?.marks ?? []
+    await waitFor(() => expect(last()).toHaveLength(count), { timeout: 4000 })
+    return last()
+  }
+
+  it('tô trong thân của áp phích: đúng khối, đúng vị trí ký tự trên chuỗi gốc', async () => {
+    const user = userEvent.setup()
+    await open()
+    // mẩu a đã tách thành tiêu đề + ba phần thân/liên hệ, nhưng chữ vẫn nguyên
+    expect(document.querySelector('[data-ad="a"] .ad-head')).toHaveTextContent('Nachhilfe Mathe')
+    expect(document.querySelector('[data-ad="a"] .ad-poster')!.textContent).toBe(AD_A)
+
+    select('ad:a', 'bei mir zu Hause')
+    await user.click(within(await screen.findByRole('toolbar', { name: 'Công cụ đánh dấu' })).getByRole('button', { name: 'Vàng · từ khoá' }))
+    const [s1, e1] = at(AD_A, 'bei mir zu Hause')
+    expect(await saved()).toEqual([expect.objectContaining({ b: 'ad:a', s: s1, e: e1, c: 'y' })])
+  }, 10_000)
+
+  it('mẩu theo quy ước dòng: tô ở dòng thứ tư — vị trí tính cả các ký tự xuống dòng đứng trước', async () => {
+    const user = userEvent.setup()
+    await open()
+    expect(document.querySelector('[data-ad="b"] .ad-poster')).toHaveAttribute('data-mode', 'lines')
+    select('ad:b', 'kostenlos')
+    await user.click(within(await screen.findByRole('toolbar', { name: 'Công cụ đánh dấu' })).getByRole('button', { name: 'Xanh · bằng chứng' }))
+    const [s2, e2] = at(AD_B, 'kostenlos')
+    expect(await saved()).toEqual([expect.objectContaining({ b: 'ad:b', s: s2, e: e2, c: 'g' })])
+  }, 10_000)
+
+  it('bôi đen vắt từ tiêu đề sang thân (qua dấu phẩy vẽ trong suốt) thành MỘT mảnh liền trên chuỗi gốc', async () => {
+    const user = userEvent.setup()
+    await open()
+    const segs = Array.from(document.querySelectorAll<HTMLElement>('[data-seg][data-b="ad:a"]'))
+    const head = segs.find((el) => el.textContent!.includes('Mathe'))!
+    const body = segs.find((el) => el.textContent!.includes('Klasse'))!
+    expect(head.closest('.ad-head')).not.toBeNull()
+    expect(body.closest('.ad-body')).not.toBeNull()
+    const range = document.createRange()
+    range.setStart(head.firstChild!, head.textContent!.indexOf('Mathe'))
+    range.setEnd(body.firstChild!, body.textContent!.indexOf('Klasse') + 'Klasse'.length)
+    const sel = window.getSelection()!
+    sel.removeAllRanges()
+    sel.addRange(range)
+    fireEvent.pointerUp(document)
+    await user.click(within(await screen.findByRole('toolbar', { name: 'Công cụ đánh dấu' })).getByRole('button', { name: 'Hồng · chưa chắc' }))
+    expect(await saved()).toEqual([
+      expect.objectContaining({ b: 'ad:a', s: AD_A.indexOf('Mathe'), e: AD_A.indexOf('Klasse') + 'Klasse'.length, c: 'p' }),
+    ])
+  }, 10_000)
+
+  it('đánh dấu đã lưu từ trước (vị trí trên chuỗi gốc) vẫn hiện đúng chữ dù vắt qua hai phần của áp phích', async () => {
+    const { fnv1a } = await import('@/components/exam/marks/marksModel')
+    const [s] = at(AD_A, 'Mathe')
+    const e = AD_A.indexOf('Klasse') + 'Klasse'.length
+    const [bs, be] = at(AD_B, 'jeden Alters\nUnterricht')
+    h.getMarks.mockResolvedValue({
+      marks: {
+        v: 1,
+        blocks: { 'ad:a': fnv1a(AD_A), 'ad:b': fnv1a(AD_B) },
+        marks: [
+          { id: 'm1', g: 'g1', b: 'ad:a', s, e, k: 'hl', c: 'y', q: null, n: '' },
+          { id: 'm2', g: 'g2', b: 'ad:b', s: bs, e: be, k: 'ul', c: null, q: null, n: '' },
+        ],
+        struck: {},
+      },
+      updatedAt: null,
+    })
+    await open()
+    await waitFor(() => expect(document.querySelector('[data-gid="g1"]')).not.toBeNull())
+    const text = (gid: string) => Array.from(document.querySelectorAll(`[data-gid="${gid}"]`)).map((el) => el.textContent).join('')
+    expect(text('g1')).toBe('Mathe, Klasse')
+    document.querySelectorAll('[data-gid="g1"]').forEach((el) => expect(el).toHaveClass('ga-mark-y'))
+    // mảnh vắt qua hai dòng của mẩu theo quy ước dòng: giữ cả ký tự xuống dòng
+    expect(text('g2')).toBe('jeden Alters\nUnterricht')
+    document.querySelectorAll('[data-gid="g2"]').forEach((el) => expect(el).toHaveClass('ga-mark-ul'))
+    // không bị coi là đánh dấu lệch chữ ⇒ không gọi lưu lại
+    expect(h.saveMarks).not.toHaveBeenCalled()
+  }, 10_000)
+})

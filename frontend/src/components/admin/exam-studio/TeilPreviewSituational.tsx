@@ -6,6 +6,8 @@ import {
   AD_LETTERS, buildGappedText, itemNumber, optionKeys, parseGappedText, splitAccept, splitParagraphs, type GapSegment,
 } from '@/lib/examStudioLogic'
 import { cn } from '@/lib/utils'
+import { blockText } from '@/components/exam/marks/marksBlocks'
+import { AdPoster, AdPosterSheet, usePosterTemplates } from '@/components/exam/poster/AdPoster'
 import { CorrectMark, Explanation, type PreviewItem, type TeilPreviewProps } from './TeilPreview'
 
 // Xem trước như học viên cho các Teil soạn theo tình huống (đợt 3): Lesen T3 (rao vặt + x), Sprachbausteine
@@ -20,6 +22,7 @@ export function MatchAdPreview({ text, items, quelle, showAnswers = true, startN
   // B1 có 12 mẩu a–l, A2 8 mẩu a–h: lấy theo mẩu thực có (đủ dải chữ liên tục từ a).
   const present = Object.keys(ads).filter((k) => k !== 'x' && ads[k as keyof typeof ads])
   const letters = present.length > 0 ? AD_LETTERS.slice(0, Math.max(...present.map((k) => AD_LETTERS.indexOf(k as typeof AD_LETTERS[number]))) + 1) : AD_LETTERS
+  const templates = usePosterTemplates(letters.filter((k) => (ads[k] ?? '').trim() !== '').map((k) => ({ key: k, text: blockText(ads[k] ?? '') })))
   const answerOf = new Map<string, number[]>()
   items.forEach((it, i) => {
     if (it.correct && it.correct !== 'x') {
@@ -64,19 +67,27 @@ export function MatchAdPreview({ text, items, quelle, showAnswers = true, startN
         })}
       </ol>
 
-      <section className="grid grid-cols-1 gap-2 border-t border-ga-line pt-4 sm:grid-cols-2 lg:grid-cols-3" aria-label={t('preview.adsN', { n: letters.length })}>
-        {letters.map((k) => {
-          const used = showAnswers ? answerOf.get(k) : undefined
-          return (
-            <div key={k} className={cn('flex flex-col gap-1 rounded-ga border px-3 py-2', used ? 'border-ga-green bg-ga-green-soft' : 'border-ga-line')}>
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-ga-ink">{k}</span>
-                {used && <span className="ga-ui text-ga-caption font-semibold text-ga-green" lang="vi">{t('preview.adFor', { list: used.join(', ') })}</span>}
-              </span>
-              <p className="whitespace-pre-line text-ga-small text-ga-ink">{ads[k] || '—'}</p>
-            </div>
-          )
-        })}
+      {/* Cùng áp phích học viên thấy ở Lesen 3 (14/11/2026); mẩu là đáp án của câu nào thì viền xanh + nhãn. */}
+      <section className="border-t border-ga-line pt-4" aria-label={t('preview.adsN', { n: letters.length })}>
+        <AdPosterSheet>
+          {letters.map((k) => {
+            const used = showAnswers ? answerOf.get(k) : undefined
+            const adText = blockText(ads[k] ?? '')
+            return (
+              <div key={k} className={cn('ad-slot', used && 'rounded-ga bg-ga-green-soft outline outline-2 outline-ga-green')}>
+                <span className="ad-slot-head px-1">
+                  <span className="font-semibold text-ga-ink">{k}</span>
+                  {used && <span className="ga-ui ml-auto text-ga-caption font-semibold text-ga-green" lang="vi">{t('preview.adFor', { list: used.join(', ') })}</span>}
+                </span>
+                {adText.trim() ? (
+                  <AdPoster block={`ad:${k}`} text={adText} template={templates[k] ?? 'schlicht'} />
+                ) : (
+                  <p className="px-1 text-ga-small text-ga-ink">—</p>
+                )}
+              </div>
+            )
+          })}
+        </AdPosterSheet>
       </section>
       {quelle && <p className="text-ga-caption italic text-ga-muted">{quelle}</p>}
     </article>

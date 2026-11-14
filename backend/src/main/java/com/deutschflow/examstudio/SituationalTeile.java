@@ -37,8 +37,13 @@ public class SituationalTeile {
             sollen sich ähneln und nur in EINER Bedingung unterscheiden (kaufen/mieten, mit/ohne Haustier, Erfahrung
             nötig, Uhrzeit, Angebot/Gesuch), damit später feine Fallen möglich sind. Keine echten Firmennamen,
             Telefonnummern im Format 0xxx-xx xx xx, E-Mails auf example.de.
+            AUFBAU jeder Anzeige wie ein kleines Plakat, mit Zeilenumbrüchen (im JSON als \\n), ohne Leerzeilen:
+            Zeile 1 = kurze Überschrift (2–5 Wörter, ohne Punkt am Ende); danach optional EINE kurze Unterzeile
+            (höchstens 5 Wörter, ohne Punkt); dann 2–4 kurze Textzeilen mit den Bedingungen; die LETZTE Zeile ist die
+            Kontaktzeile (Tel. …, E-Mail oder Webadresse auf example.de). Nicht jede Anzeige braucht eine Unterzeile.
+            Die Wortzahl gilt für die ganze Anzeige (alle Zeilen zusammen). Kein Markdown, keine Aufzählungszeichen.
             Schreibe außerdem %s
-            Antworte NUR mit JSON: {"city": "...", "ads": ["...", "..."],
+            Antworte NUR mit JSON: {"city": "...", "ads": ["Überschrift\\nZeile\\nZeile\\nTel. 0xxx-xx xx xx", "..."],
               "examples": [{"situation": "...", "adIndex": 3}, {"situation": "...", "adIndex": null}]}
             """;
 
@@ -121,7 +126,7 @@ public class SituationalTeile {
                 List<String> ads = new ArrayList<>();
                 out.path("ads").forEach(a -> {
                     String t = a.isTextual() ? a.asText() : a.path("text").asText("");
-                    if (!t.isBlank()) ads.add(t.replaceAll("\\s+", " ").trim());
+                    if (!t.isBlank()) ads.add(adLines(t));
                 });
                 if (ads.size() < n) throw new IllegalStateException("AI chỉ trả " + ads.size() + "/" + n + " mẩu rao vặt, hãy thử lại.");
                 Map<String, String> adMap = new LinkedHashMap<>();
@@ -1034,6 +1039,21 @@ public class SituationalTeile {
             map.put(slot, n);
         }
         return map;
+    }
+
+    /**
+     * Chữ của một mẩu rao vặt do AI trả về → chuỗi lưu vào {@code ads}: GIỮ các dòng (quy ước áp phích từ 14/11/2026:
+     * dòng 1 tiêu đề, dòng phụ tuỳ chọn, các dòng thân, dòng cuối liên hệ — web vẽ theo dòng), mỗi dòng gộp khoảng
+     * trắng thừa, bỏ dòng trống và ký hiệu gạch đầu dòng. Model viết {@code \n} thành hai ký tự (thoát hai lần) cũng
+     * được hiểu là xuống dòng. Mẩu một dòng (kiểu cũ) ra đúng như trước: một dòng, khoảng trắng gộp.
+     */
+    static String adLines(String raw) {
+        List<String> lines = new ArrayList<>();
+        for (String line : raw.replace("\\n", "\n").split("\\R")) {
+            String l = line.replaceAll("\\s+", " ").trim().replaceFirst("^[-•*·]\\s+", "");
+            if (!l.isEmpty()) lines.add(l);
+        }
+        return String.join("\n", lines);
     }
 
     static String avoidBlock(List<String> avoid) {

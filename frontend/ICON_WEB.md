@@ -16,6 +16,11 @@ Mobile có bộ riêng: `mobile/GALERIE_GLYPHS.md`.
 Emoji không bao giờ là icon giao diện (QLT-16). Emoji backend (`skill_tree_nodes.emoji`, huy hiệu) đi qua
 `GaGlyph emoji=…` → `emojiIconMap`. Ký tự kiểu ✓ ✗ ▲ ● ⏱ ▾ → cũng không: dùng icon.
 
+Ngoại lệ có chủ ý (14/11/2026): **hình minh hoạ trên áp phích rao vặt** telc Lesen Teil 3
+(`components/exam/poster/AdPoster.tsx`) là Lucide trần cỡ lớn (1,9–2,8 em), KHÔNG bọc `GaGlyph` — nó là một phần
+của "tờ đề in" chứ không phải nhận diện của giao diện. Chọn theo bảng từ khoá `adIcon` (`adTemplates.ts`), màu
+`currentColor` (mực của áp phích), luôn `aria-hidden`; thêm chủ đề mới thì thêm vào bảng đó, vẫn chỉ Lucide.
+
 ## 2. Luật
 
 - **Nét 1,9 cho mọi icon.** `galerie.css` ép `.ga-scope svg.lucide, .ga-scope svg.ga-line-glyph { stroke-width: 1.9 }`, nên

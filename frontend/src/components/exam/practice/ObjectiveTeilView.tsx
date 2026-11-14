@@ -14,8 +14,9 @@ import { MarksBar } from '@/components/exam/marks/MarksBar'
 import { PassageMarker } from '@/components/exam/marks/PassageMarker'
 import { resolveSpot, spotRange, type PassageSpot } from '@/components/exam/marks/passageSpot'
 import { diagnose, groupSelector, groupsForItem, isStruck, lastPieces, setStruck, type Mark, type Piece } from '@/components/exam/marks/marksModel'
-import { blockOrderOf, evidenceBlocks, evidencePieces, gapPieces, marksSupported } from '@/components/exam/marks/marksBlocks'
+import { blockOrderOf, blockText, evidenceBlocks, evidencePieces, gapPieces, marksSupported } from '@/components/exam/marks/marksBlocks'
 import type { PassageMarks } from '@/components/exam/marks/usePassageMarks'
+import { AdPoster, AdPosterSheet, usePosterTemplates } from '@/components/exam/poster/AdPoster'
 import { parseGappedText } from '@/components/exam/telc/telcTeil'
 import { ItemAnalysis, LetterBadge } from './ItemAnalysis'
 import { FlagToggle, FlaggedList, ItemAssist, NoteField } from './itemAssist'
@@ -1092,7 +1093,13 @@ function StatusPill({ res }: { res: PracticeItemResult }) {
   )
 }
 
-/** Lesen 3: các mẩu rao vặt ở cột nguồn — bấm một mẩu để gán cho tình huống đang chọn. */
+/**
+ * Lesen 3: các mẩu rao vặt ở cột nguồn — bấm một mẩu để gán cho tình huống đang chọn.
+ *
+ * Từ 14/11/2026 mỗi mẩu vẽ thành một "áp phích" (`AdPoster`: khuôn chữ HTML/CSS, không phải ảnh) trên tờ ba cột
+ * như đề thật, chữ cái nằm trên mẩu. Chữ và id khối (`ad:<k>`) không đổi nên bút đánh dấu chạy như cũ. Không có
+ * lớp đánh dấu (chưa tải xong, trang không cấp) thì vẫn cùng ô chọn đó, chỉ là chữ không tô được.
+ */
 function AdPool({
   teil,
   items,
@@ -1109,65 +1116,50 @@ function AdPool({
   active: PracticeItem | null
   checked: boolean
   onPick: (key: string) => void
-  /** Có lớp đánh dấu (đợt 3) ⇒ mẩu rao vặt là ô chọn có chữ bôi đen được (nút `<button>` không cho bôi đen). */
+  /** Lớp đánh dấu (đợt 3): có ⇒ chữ trong mẩu tô / gạch chân được. */
   layer?: MarkLayer | null
   texts?: Record<string, string>
 }) {
   const t = useTranslations('v2.student.practice')
-  const pool = items[0] ? optionsFor(teil, items[0]) : []
+  const pool = React.useMemo(
+    () =>
+      (items[0] ? optionsFor(teil, items[0]) : []).map((o) => ({
+        key: o.key,
+        // cùng chuỗi với khối `ad:<k>` của bút đánh dấu (`marksTexts`): chỉ chuẩn hoá xuống dòng
+        text: texts?.[`ad:${o.key}`] ?? blockText(o.label),
+      })),
+    [teil, items, texts],
+  )
+  const templates = usePosterTemplates(pool)
   const last = React.useMemo(() => (layer ? lastPieces(layer.pack, layer.blockOrder) : undefined), [layer])
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2" role="radiogroup" aria-label={active ? t('pickFor', { n: itemLabel(active) }) : undefined}>
+    <AdPosterSheet role="radiogroup" aria-label={active ? t('pickFor', { n: itemLabel(active) }) : undefined}>
       {pool.map((o) => {
         const holder = ownerOf(answers, o.key, items)
         const mine = !!active && holder === active.id
         const used = !!holder && !mine
-        const adText = layer ? texts?.[`ad:${o.key}`] : undefined
-        if (layer && adText != null) {
-          return (
-            <AdCard
-              key={o.key}
-              letter={o.key}
-              mine={mine}
-              used={used}
-              usedLabel={used ? t('usedAt', { n: itemLabel(items.find((it) => it.id === holder)!) }) : undefined}
-              disabled={checked || !active}
-              onPick={() => onPick(o.key)}
-            >
-              <MarkedText block={`ad:${o.key}`} text={adText} layer={layer} lastByGroup={last} />
-            </AdCard>
-          )
-        }
         return (
-          <button
+          <AdCard
             key={o.key}
-            type="button"
-            role="radio"
-            aria-checked={mine}
+            letter={o.key}
+            mine={mine}
+            used={used}
+            usedLabel={used ? t('usedAt', { n: itemLabel(items.find((it) => it.id === holder)!) }) : undefined}
             disabled={checked || !active}
-            onClick={() => onPick(o.key)}
-            className={cn(
-              'ga-ui flex min-h-[7rem] flex-col items-start gap-2 rounded-ga border-[1.5px] bg-ga-card p-3 text-left text-ga-body transition-[border-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus disabled:cursor-default',
-              mine && 'border-ga-navy bg-ga-navy-soft',
-              used && 'border-dashed border-ga-line opacity-60',
-              !mine && !used && 'border-ga-line enabled:hover:-translate-y-px enabled:hover:border-ga-line-strong',
-            )}
+            onPick={() => onPick(o.key)}
           >
-            <span className="flex w-full items-center gap-2">
-              <LetterBadge value={o.key} tone={mine ? 'filled' : used ? 'muted' : 'outline'} />
-              {used && <span className="ml-auto text-ga-caption text-ga-muted">{t('usedAt', { n: itemLabel(items.find((it) => it.id === holder)!) })}</span>}
-            </span>
-            <span lang="de" className="whitespace-pre-wrap break-words">{o.label}</span>
-          </button>
+            <AdPoster block={`ad:${o.key}`} text={o.text} template={templates[o.key]} layer={layer} lastByGroup={last} />
+          </AdCard>
         )
       })}
-    </div>
+    </AdPosterSheet>
   )
 }
 
 /**
- * Mẩu rao vặt khi có bút đánh dấu: ô chọn (`role="radio"`) thay cho `<button>` để bôi đen được chữ bên trong.
+ * Ô chọn của một mẩu rao vặt: `role="radio"` trên `<div>` (không phải `<button>`) để bôi đen được chữ bên trong.
  * Thả chuột sau khi bôi đen, hoặc bấm vào đoạn đã tô (mở thanh sửa), thì KHÔNG tính là chọn mẩu này.
+ * Chữ cái đứng trên áp phích và được đọc trước chữ của mẩu (`LetterBadge` tự nó `aria-hidden`).
  */
 function AdCard({
   letter,
@@ -1192,6 +1184,8 @@ function AdCard({
       aria-checked={mine}
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
+      data-ad={letter}
+      data-used={used ? '' : undefined}
       onClick={(e) => {
         if (disabled) return
         const sel = window.getSelection()
@@ -1204,20 +1198,14 @@ function AdCard({
         e.preventDefault()
         onPick()
       }}
-      className={cn(
-        'ga-ui flex min-h-[7rem] flex-col items-start gap-2 rounded-ga border-[1.5px] bg-ga-card p-3 text-left text-ga-body transition-[border-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
-        !disabled && 'cursor-pointer',
-        mine && 'border-ga-navy bg-ga-navy-soft',
-        used && 'border-dashed border-ga-line opacity-60',
-        !mine && !used && 'border-ga-line',
-        !mine && !used && !disabled && 'hover:border-ga-line-strong',
-      )}
+      className="ad-slot ga-ui"
     >
-      <span className="flex w-full items-center gap-2">
-        <LetterBadge value={letter} tone={mine ? 'filled' : used ? 'muted' : 'outline'} />
+      <span className="ad-slot-head">
+        <LetterBadge value={letter} tone={mine ? 'filled' : used ? 'muted' : 'outline'} className="h-7 w-7" />
+        <span className="sr-only" lang="de">{letter}: </span>
         {usedLabel && <span className="ml-auto text-ga-caption text-ga-muted">{usedLabel}</span>}
       </span>
-      <span lang="de" className="whitespace-pre-wrap break-words">{children}</span>
+      {children}
     </div>
   )
 }
