@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { absoluteUrl } from '@/lib/siteUrl'
 import '@/styles/galerie.css'
 import { LegalDocGa } from '@/components/legal/LegalDocGa'
+import { PublicShell } from '@/components/landing-v2/PublicShell'
 import { PRIVACY } from '@/content/legal/privacy'
 
 export const metadata: Metadata = {
@@ -12,13 +13,13 @@ export const metadata: Metadata = {
 }
 
 /**
- * /privacy — the App Store Connect Privacy Policy URL. Rendered in the Galerie
- * homepage theme (`.ga-scope`) with a VN/EN/DE language switcher (LegalDocGa).
+ * `/privacy/` — đường dẫn Chính sách bảo mật đăng ký trên App Store Connect, hiển thị trên `PublicShell` v3.4
+ * kèm thanh chọn ngôn ngữ văn bản VI / EN / DE (`LegalDocGa`).
  */
 export default function PrivacyPage() {
   return (
-    <div className="ga-scope">
+    <PublicShell showLanguage={false} stickyCta={false}>
       <LegalDocGa docs={PRIVACY} />
-    </div>
+    </PublicShell>
   )
 }

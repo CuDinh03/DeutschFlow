@@ -128,10 +128,11 @@ export function LandingHeader({
         ]
 
   return (
-    <header
-      className="ga-public sticky top-0 z-50 border-b border-ga-border backdrop-blur-md"
-      style={{ backgroundColor: 'color-mix(in srgb, var(--ga-bg) 92%, transparent)' }}
-    >
+    <>
+      <header
+        className="ga-public sticky top-0 z-50 border-b border-ga-border backdrop-blur-md"
+        style={{ backgroundColor: 'color-mix(in srgb, var(--ga-bg) 92%, transparent)' }}
+      >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:px-8 md:h-20 xl:px-10">
         {/* Một logo đổi cỡ thật bằng biến CSS (26px mobile, 32px từ md) — cấm dùng transform: scale(). */}
         <Link
@@ -178,29 +179,30 @@ export function LandingHeader({
               <span className="hidden text-ga-body sm:inline">{t('header.tryFree')}</span>
             </Link>
           </GaBtn>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-expanded={menuOpen}
-            aria-controls="ga-mobile-menu"
-            aria-label={menuOpen ? t('header.closeMenu') : t('header.openMenu')}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-ga-pill border border-ga-border-strong bg-ga-card text-ga-ink transition-colors hover:bg-ga-surface-2 xl:hidden"
-          >
-            {menuOpen ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
-          </button>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-controls="ga-mobile-menu"
+              aria-label={menuOpen ? t('header.closeMenu') : t('header.openMenu')}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-ga-pill border border-ga-border-strong bg-ga-card text-ga-ink transition-colors hover:bg-ga-surface-2 xl:hidden"
+            >
+              {menuOpen ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
+            </button>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Menu thu gọn di động dạng Thẻ nổi (.md-sheet) trên kính mờ tối (.md-backdrop). */}
+      {/* Menu thu gọn di động dạng Thẻ nổi (.md-sheet) trên kính mờ tối (.md-backdrop) — tách ngoài <header> để không bị backdrop-filter giam fixed. */}
       {menuOpen && (
         <div
           id="ga-mobile-menu"
           onClick={(e) => {
             if (e.target === e.currentTarget) setMenuOpen(false)
           }}
-          className="md-backdrop fixed inset-x-0 bottom-0 top-16 z-50 overflow-y-auto px-3 pb-5 pt-2.5 md:top-20 xl:hidden"
+          className="ga-public md-backdrop fixed inset-x-0 bottom-0 top-16 z-50 overflow-y-auto px-3 pb-5 pt-2.5 md:top-20 xl:hidden"
         >
-          <div className="md-sheet-in mx-auto max-w-md rounded-ga-sheet border border-ga-border-strong bg-ga-bg p-3 shadow-ga-lg">
+          <div className="md-sheet md-sheet-in mx-auto max-w-md rounded-ga-sheet border border-ga-border-strong bg-ga-bg p-3 shadow-ga-lg">
             {/* 1. Thanh viên thuốc đầu menu (.md-head-pill) */}
             <div className="mb-2.5 flex items-center justify-between gap-2 rounded-ga-pill border border-ga-border bg-ga-card px-3.5 py-2 shadow-ga-sm">
               <span className="inline-flex items-center gap-2" aria-hidden="true">
@@ -315,6 +317,6 @@ export function LandingHeader({
           </div>
         </div>
       )}
-    </header>
+    </>
   )
 }

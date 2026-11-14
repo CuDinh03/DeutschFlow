@@ -141,11 +141,11 @@ export function GaLanding() {
           />
         </div>
 
-        <div className="mx-auto grid max-w-[1240px] items-start gap-7 px-5 pb-12 pt-7 sm:px-8 sm:pt-12 lg:grid-cols-[1.05fr_1fr] lg:gap-x-14 lg:gap-y-8 lg:px-[60px] lg:pb-16 lg:pt-20">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-[minmax(0,1fr)] items-start gap-7 px-5 pb-12 pt-7 sm:px-8 sm:pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8 lg:px-[60px] lg:pb-16 lg:pt-20">
           {/* Cột trái phần 1: Eyebrow + H1 + Sub */}
-          <div className="lg:col-start-1">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-ga-pill border border-ga-border bg-ga-card px-3.5 py-1.5 text-ga-eyebrow uppercase text-ga-ink shadow-ga-sm sm:mb-6">
-              <YellowSq />{t('hero.eyebrow')}
+          <div className="min-w-0 lg:col-start-1">
+            <div className="mb-4 inline-flex max-w-full items-center gap-2 rounded-ga-pill border border-ga-border bg-ga-card px-3.5 py-1.5 text-ga-eyebrow uppercase text-ga-ink shadow-ga-sm sm:mb-6">
+              <YellowSq /><span className="min-w-0 break-words">{t('hero.eyebrow')}</span>
             </div>
             <h1 className="font-ga-display text-ga-m-hero-m sm:text-ga-m-hero-t lg:text-ga-m-hero text-ga-ink">
               {t('hero.titleLead')}{' '}
@@ -159,9 +159,9 @@ export function GaLanding() {
           </div>
 
           {/* Cột phải (trên điện thoại đứng ngay dưới H1+Sub trong màn 1): Ô "Bạn làm nghề gì?" */}
-          <div className="relative lg:col-start-2 lg:row-span-2">
+          <div className="relative min-w-0 lg:col-start-2 lg:row-span-2">
             <div aria-hidden className="absolute -right-3 -top-3 hidden h-[78%] w-[86%] rounded-ga-xl bg-ga-yellow sm:block lg:-right-4 lg:-top-4" />
-            <div className="relative">
+            <div className="relative min-w-0">
               <OccupationExplorer
                 startHref={START_HREF}
                 onStart={() => trackCta('occupation_explorer')}
@@ -171,7 +171,7 @@ export function GaLanding() {
           </div>
 
           {/* Cột trái phần 2: Nút hành động + App Store + Microcopy + Bullets */}
-          <div className="lg:col-start-1">
+          <div className="min-w-0 lg:col-start-1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
               <GaBtn asChild variant="yellow" size="lg" className="ga-btn-gleam w-full sm:w-auto">
                 <Link href={START_HREF} onClick={() => trackCta('hero')}><YellowSq dark />{t('hero.ctaStart')}</Link>
@@ -189,7 +189,7 @@ export function GaLanding() {
           </div>
 
           {/* Dải 4 trụ cột thương hiệu phủ trọn chiều ngang cuối Hero */}
-          <div className="pt-2 lg:col-span-2 lg:pt-4">
+          <div className="min-w-0 pt-2 lg:col-span-2 lg:pt-4">
             <BrandPillars />
           </div>
         </div>
@@ -198,13 +198,13 @@ export function GaLanding() {
       {/* S5 — Báo cáo mẫu Auswertungsbogen (giữ nguyên anh em trực tiếp sau #interview) */}
       <section id="report" className="scroll-mt-[78px] border-t border-ga-border">
         <div className={SECTION}>
-          <div className="grid items-start gap-8 md:grid-cols-[1fr_1.18fr] md:gap-14">
-            <div>
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.18fr)] md:gap-14">
+            <div className="min-w-0">
               <GaCap className="mb-4">{t('report.cap')}</GaCap>
               <h2 className={`${H2} mb-3`}>{t('report.title')}</h2>
               <p className="text-ga-body-lg text-ga-muted">{t('report.sub')}</p>
             </div>
-            <div className="rounded-ga-xl border border-ga-border-strong bg-ga-card p-5 shadow-ga-md sm:p-7">
+            <div className="min-w-0 rounded-ga-xl border border-ga-border-strong bg-ga-card p-5 shadow-ga-md sm:p-7">
               <GaCap className="mb-4">{t('report.sampleCap')}</GaCap>
               <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-ga-border pb-4">
                 <span className="font-ga-display text-ga-stat text-ga-ink">{t('report.overall')}</span>

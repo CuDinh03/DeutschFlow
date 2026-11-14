@@ -1,41 +1,41 @@
 /*
- * Galerie-themed prose for the public legal pages (/privacy). Mirrors the editorial
- * homepage: Newsreader display headings, ink/muted body, 1px `--ga-border` rules, and
- * the yellow brand accent on links/blockquotes/tables. All colors come from the
- * `.ga-scope` token layer (galerie.css) so light/theme stays consistent with `/`.
+ * Galerie-themed prose for the public legal pages (/privacy, /terms, /support) — v3.4.
+ * Mirrors the warm editorial public shell: Newsreader display headings, ink/muted body,
+ * 1px `--ga-border` rules, WCAG AA navy links with yellow underline, and horizontal
+ * scroll-safe tables on 390px viewports.
  */
 
 .ga-legal {
   color: var(--ga-ink);
   font-family: var(--ga-ui);
-  font-size: 15.5px;
+  font-size: 16px;
   line-height: 1.75;
 }
 
 .ga-legal h1 {
   font-family: var(--ga-display);
-  font-size: clamp(2rem, 1.4rem + 2.2vw, 2.9rem);
+  font-size: clamp(1.9rem, 1.4rem + 2vw, 2.65rem);
   font-weight: 500;
   letter-spacing: -0.02em;
-  line-height: 1.08;
-  margin: 0 0 1.1rem;
+  line-height: 1.1;
+  margin: 0 0 1rem;
 }
 
 .ga-legal h2 {
   font-family: var(--ga-display);
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   font-weight: 500;
   letter-spacing: -0.01em;
-  line-height: 1.2;
-  margin: 2.6rem 0 0.7rem;
+  line-height: 1.22;
+  margin: 2.3rem 0 0.65rem;
 }
 
 .ga-legal h3 {
   font-family: var(--ga-display);
-  font-size: 1.28rem;
+  font-size: 1.2rem;
   font-weight: 500;
-  line-height: 1.25;
-  margin: 2.3rem 0 0.55rem;
+  line-height: 1.28;
+  margin: 1.9rem 0 0.5rem;
 }
 
 .ga-legal p {
@@ -45,7 +45,7 @@
 .ga-legal ul,
 .ga-legal ol {
   margin: 0.85rem 0;
-  padding-left: 1.3rem;
+  padding-left: 1.35rem;
 }
 
 .ga-legal li {
@@ -56,7 +56,6 @@
   color: var(--ga-gold);
 }
 
-/* 14/11/2026: link màu navy, gạch chân vàng — gold #C79A00 trên nền sáng chỉ ~2,6:1, dưới WCAG AA. */
 .ga-legal a {
   color: var(--ga-navy);
   text-decoration: underline;
@@ -78,13 +77,14 @@
 .ga-legal hr {
   border: 0;
   border-top: 1px solid var(--ga-border);
-  margin: 2.6rem 0;
+  margin: 2.2rem 0;
 }
 
 .ga-legal blockquote {
-  margin: 1.3rem 0;
-  padding: 0.7rem 1.15rem;
-  border-left: 3px solid var(--ga-yellow);
+  margin: 1.25rem 0;
+  padding: 0.85rem 1.2rem;
+  border-left: 4px solid var(--ga-yellow);
+  border-radius: 12px;
   background: var(--ga-yellow-soft);
   color: var(--ga-ink);
 }
@@ -94,24 +94,26 @@
 }
 
 .ga-legal code {
-  padding: 0.12rem 0.38rem;
-  border-radius: 2px;
-  background: var(--ga-side-active);
+  padding: 0.14rem 0.42rem;
+  border-radius: 6px;
+  background: var(--ga-bg);
+  border: 1px solid var(--ga-border);
   font-size: 0.88em;
 }
 
 .ga-legal table {
   display: block;
   width: 100%;
-  margin: 1.3rem 0;
+  margin: 1.25rem 0;
   border-collapse: collapse;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   font-size: 14px;
 }
 
 .ga-legal th,
 .ga-legal td {
-  padding: 0.55rem 0.8rem;
+  padding: 0.6rem 0.85rem;
   border: 1px solid var(--ga-border);
   text-align: left;
   vertical-align: top;
@@ -122,7 +124,6 @@
   font-weight: 600;
 }
 
-/* The lead paragraph right after the H1 (effective date · last updated) reads as meta. */
 .ga-legal > h1 + p {
   color: var(--ga-muted);
   font-size: 14px;

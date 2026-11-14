@@ -183,7 +183,7 @@ export function OccupationExplorer({
   const showList = open && suggestions.length > 0
 
   return (
-    <div className="rounded-ga-xl border border-ga-border-strong bg-ga-card p-5 shadow-ga-lg sm:p-7">
+    <div className="min-w-0 max-w-full rounded-ga-xl border border-ga-border-strong bg-ga-card p-5 shadow-ga-lg sm:p-7">
       <div className="mb-3 flex items-center justify-between gap-2">
         <GaCap>{t('cap')}</GaCap>
         <span aria-hidden className="df-pulse-dot inline-block h-2 w-2 rounded-ga-pill bg-ga-red" />
