@@ -15,8 +15,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -115,20 +113,12 @@ public class RoadmapService {
             log.debug("Generating personalized roadmap branch for user {} with type {} and level {}", userId, roadmapType, startingLevel);
         }
 
-        boolean roadmapStarted = rows.stream().anyMatch(r -> hasCompletedProgress(r) || hasInProgressProgress(r) || hasUnlockedProgress(r));
         // ROUTE-03 (đợt 1, 14/11/2026): không còn sắp lại bài theo `interests`; thứ tự cố định theo
-        // day_number, sort_order. Trước đây việc sắp lại chạy trước khi tính `prevCompleted` nên có thể
-        // đảo thứ tự mở khoá.
-        boolean firstCurrentAssigned = false;
-        boolean prevCompleted = false;
+        // day_number, sort_order.
         List<RoadmapNodeDto> nodes = new ArrayList<>(rows.size());
 
         for (Map<String, Object> row : rows) {
-            String state = computeState(row, firstCurrentAssigned, roadmapStarted, entry, prevCompleted);
-            if ("current".equals(state)) {
-                firstCurrentAssigned = true;
-            }
-            prevCompleted = "completed".equals(state);
+            String state = computeState(row);
             int lessonsTotal = resolveLessonsTotal(row);
             int lessonsCompleted = resolveLessonsCompleted(row, state, lessonsTotal);
 
@@ -269,35 +259,19 @@ public class RoadmapService {
         return profile.getCurrentLevel().name();
     }
 
-    private String computeState(Map<String, Object> row, boolean firstCurrentAssigned, boolean roadmapStarted,
-                                RoadmapEntry entry, boolean prevCompleted) {
-        String status = asString(row.get("user_status"));
-        int bestScore = asInt(row.get("user_best_score"));
-        int masteryThreshold = asInt(row.get("mastery_threshold"));
-        // ROUTE-01: cùng luật với /skill-tree/me và lúc nộp bài (RoadmapRules.DEPENDENCIES_MET).
-        boolean dependenciesMet = Boolean.TRUE.equals(row.get("dependencies_met"));
-
-        if ("COMPLETED".equals(status) || bestScore >= masteryThreshold) {
-            return "completed";
-        }
-        if ("IN_PROGRESS".equals(status) || "UNLOCKED".equals(status)) {
-            return "current";
-        }
-        if (!dependenciesMet) {
-            return "locked";
-        }
-        // Không ai ghi dòng UNLOCKED cho node kế khi node trước hoàn thành (SkillTreeService cũng
-        // suy tại lúc đọc) → node liền sau node đã xong là nụ kế tiếp; chỉ MỘT nụ được mời.
-        if (!firstCurrentAssigned && prevCompleted) {
-            return "current";
-        }
-        if (!roadmapStarted && !firstCurrentAssigned) {
-            return isEntryNode(row, entry) ? "current" : "locked";
-        }
-        if (!firstCurrentAssigned && isEntryNode(row, entry)) {
-            return "current";
-        }
-        return "locked";
+    /**
+     * ROUTE-01/09 (đợt 1, 14/11/2026): trạng thái lấy từ {@link RoadmapRules#status}, cùng hàm với
+     * /skill-tree/me. Trước đây màn này có luật riêng ("nụ duy nhất", node liền sau node đã xong,
+     * {@code prerequisites_json}) nên có ca hai màn mobile báo khác nhau cho cùng một bài.
+     */
+    private String computeState(Map<String, Object> row) {
+        String status = RoadmapRules.status(row.get("user_status"), row.get("user_best_score"),
+                row.get("mastery_threshold"), row.get("dependencies_met"));
+        return switch (status) {
+            case "COMPLETED" -> "completed";
+            case "IN_PROGRESS", "UNLOCKED" -> "current";
+            default -> "locked";
+        };
     }
 
     /**
@@ -341,23 +315,6 @@ public class RoadmapService {
             log.warn("Skipping malformed skill_exercise_counts: {}", ex.getMessage());
             return Map.of();
         }
-    }
-
-    private boolean isEntryNode(Map<String, Object> row, RoadmapEntry entry) {
-        return asInt(row.get("day_number")) == entry.day();
-    }
-
-    private boolean hasCompletedProgress(Map<String, Object> row) {
-        return "COMPLETED".equals(asString(row.get("user_status"))) || asInt(row.get("user_best_score")) >= asInt(row.get("mastery_threshold"));
-    }
-
-    private boolean hasInProgressProgress(Map<String, Object> row) {
-        String status = asString(row.get("user_status"));
-        return "IN_PROGRESS".equals(status);
-    }
-
-    private boolean hasUnlockedProgress(Map<String, Object> row) {
-        return "UNLOCKED".equals(asString(row.get("user_status")));
     }
 
     /** ROUTE-08: số mục chấm điểm thật của bài, tối thiểu 1 (trước đây suy từ estimated_minutes / 5). */

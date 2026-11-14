@@ -30,8 +30,9 @@ public final class RoadmapRules {
             "n.is_active = TRUE AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')";
 
     /**
-     * ROUTE-01: biểu thức boolean "mọi tiền đề đã xong". Hai tham số theo thứ tự: {@code userId},
-     * {@code entryDay} (tiền đề nằm trước điểm vào không tính).
+     * ROUTE-01: biểu thức boolean "mọi tiền đề đã xong" — "xong" theo đúng định nghĩa của
+     * {@link #status}: {@code COMPLETED} hoặc điểm tốt nhất đạt ngưỡng của bài đó. Hai tham số theo
+     * thứ tự: {@code userId}, {@code entryDay} (tiền đề nằm trước điểm vào không tính).
      */
     public static final String DEPENDENCIES_MET = """
             NOT EXISTS (
@@ -41,7 +42,10 @@ public final class RoadmapRules {
                     ON dp.node_id = d.depends_on_node_id AND dp.user_id = ?
                 WHERE d.node_id = n.id
                   AND COALESCE(dn.day_number, 9999) >= ?
-                  AND (dp.status IS NULL OR dp.status <> 'COMPLETED')
+                  AND NOT (COALESCE(dp.status, '') = 'COMPLETED'
+                           OR COALESCE(dp.best_score, 0) >= CASE
+                                  WHEN dn.mastery_threshold BETWEEN 1 AND 100 THEN dn.mastery_threshold
+                                  ELSE 70 END)
             )""";
 
     /** ROUTE-08: số mục chấm điểm thật của bài (đọc {@code content_json} trong SQL). Không có tham số. */
@@ -61,4 +65,36 @@ public final class RoadmapRules {
                   AND jsonb_typeof(x -> 'id') IS NOT NULL
                   AND jsonb_typeof(x -> 'id') <> 'null'
             )""";
+
+    /** Ngưỡng đạt của bài; giá trị thiếu hoặc ngoài 1–100 dùng 70 (như lúc nộp bài). */
+    public static int mastery(Object raw) {
+        int m = raw instanceof Number n ? n.intValue() : 0;
+        return m >= 1 && m <= 100 ? m : 70;
+    }
+
+    /**
+     * ROUTE-09: trạng thái MỘT bài cho học viên, dùng chung cho {@code /skill-tree/me} và
+     * {@code /roadmap/me} để hai đường không bao giờ lệch nhau.
+     *
+     * <ul>
+     *   <li>{@code COMPLETED}: dòng tiến độ COMPLETED, hoặc điểm tốt nhất đạt ngưỡng của bài;</li>
+     *   <li>{@code IN_PROGRESS}: đã bắt đầu;</li>
+     *   <li>{@code UNLOCKED}: đã có dòng mở khoá, hoặc mọi tiền đề đã xong ({@link #DEPENDENCIES_MET});</li>
+     *   <li>{@code LOCKED}: còn lại.</li>
+     * </ul>
+     */
+    public static String status(Object userStatus, Object bestScore, Object masteryThreshold, Object dependenciesMet) {
+        String st = userStatus == null ? "LOCKED" : userStatus.toString();
+        int best = bestScore instanceof Number n ? n.intValue() : 0;
+        if ("COMPLETED".equals(st) || best >= mastery(masteryThreshold)) {
+            return "COMPLETED";
+        }
+        if ("IN_PROGRESS".equals(st)) {
+            return "IN_PROGRESS";
+        }
+        if ("UNLOCKED".equals(st) || Boolean.TRUE.equals(dependenciesMet)) {
+            return "UNLOCKED";
+        }
+        return "LOCKED";
+    }
 }

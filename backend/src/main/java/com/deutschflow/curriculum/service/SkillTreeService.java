@@ -1,9 +1,5 @@
 package com.deutschflow.curriculum.service;
 
-import com.deutschflow.common.async.AsyncJob;
-import com.deutschflow.common.async.AsyncJobDispatch;
-import com.deutschflow.speaking.exception.AiServiceException;
-import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
@@ -19,19 +15,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 
 /**
  * Core service for the Skill Tree system.
@@ -49,25 +38,14 @@ public class SkillTreeService {
     private final LlmTierResolver llmTierResolver;
     private final AiUsageLedgerService aiUsageLedgerService;
     private final ObjectMapper objectMapper;
-    private final TransactionTemplate transactionTemplate;
     private final XpService xpService;
-    private final AsyncJobService asyncJobService;
     private final PracticeNodeService practiceNodeService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
     private final com.deutschflow.user.onboarding.service.OnboardingActivationService activationService;
-    /**
-     * Bounded pool for blocking LLM content generation. Field name matches the
-     * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name among the
-     * 3 Executor beans. Replaces {@code CompletableFuture.runAsync(...)} which used
-     * {@code ForkJoinPool.commonPool()} — a 3–10s Groq call there starves all other
-     * parallel stream/CompletableFuture work app-wide.
-     */
-    private final Executor aiExecutor;
 
-    // In-memory lock to prevent duplicate LLM calls for the same cache key
 
     private static final long PRONUNCIATION_ESTIMATED_TOKENS = 1_024L;
     private static final long INTERVIEW_REPORT_ESTIMATED_TOKENS = 1_024L;
@@ -154,10 +132,9 @@ public class SkillTreeService {
         // one stays LOCKED forever and the UI dead-ends the learner. Only promote 'LOCKED'/no-row;
         // IN_PROGRESS / COMPLETED / UNLOCKED are left untouched. FE normalizes UNLOCKED → AVAILABLE.
         for (Map<String, Object> row : rows) {
-            if (Boolean.TRUE.equals(row.get("dependencies_met"))
-                    && "LOCKED".equals(row.get("user_status"))) {
-                row.put("user_status", "UNLOCKED");
-            }
+            // ROUTE-09: cùng một hàm trạng thái với /roadmap/me (RoadmapRules.status).
+            row.put("user_status", RoadmapRules.status(row.get("user_status"), row.get("user_best_score"),
+                    row.get("mastery_threshold"), row.get("dependencies_met")));
             // Cùng cách đếm với /roadmap/me: hai màn mobile đọc hai nguồn không được lệch số ngày.
             if (row.get("day_number") instanceof Number day) {
                 row.put("day_number", day.intValue() - entry.dayShift());
