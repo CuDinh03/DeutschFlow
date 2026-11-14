@@ -39,7 +39,7 @@ export function PathwayTabs({
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <div role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown} className="mob-snap-rail flex gap-2 pb-1">
         {items.map((p, i) => (
           <button
@@ -70,7 +70,7 @@ export function PathwayTabs({
           hidden={i !== active}
           className="mt-4 rounded-ga-lg border border-ga-border bg-ga-bg p-5 shadow-ga-sm sm:p-8"
         >
-          <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] md:gap-12">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] md:gap-12">
             <div>
               <div className="text-ga-h2 text-ga-ink">{p.name}</div>
               {/* Bản tiếng Đức: tên lộ trình đã là thuật ngữ Đức — không lặp lại dòng phụ. */}

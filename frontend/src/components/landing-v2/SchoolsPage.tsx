@@ -120,7 +120,7 @@ export function SchoolsPage() {
             <GaCap className="mb-4">{t('visual.cap')}</GaCap>
             <h2 className={`${H2} mb-3`}>{t('visual.title')}</h2>
             <p className="mb-8 max-w-[680px] text-ga-body-lg text-ga-muted">{t('visual.sub')}</p>
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
               <GaShot
                 name="grading"
                 caption={tp('shotGradingCap')}
