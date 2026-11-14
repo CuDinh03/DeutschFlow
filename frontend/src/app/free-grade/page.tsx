@@ -9,12 +9,12 @@ import { LandingFooter } from '@/components/landing-v2/LandingFooter'
 export const metadata: Metadata = {
   title: 'Chấm thử bài Schreiben B1 bằng AI — Miễn phí | myDeutschFlow',
   description:
-    'Dán bài viết tiếng Đức (Schreiben B1) và nhận điểm + nhận xét chi tiết từ AI trong 15 giây. Miễn phí, không cần đăng ký. Chấm theo tiêu chí bài viết Goethe/telc, dành cho giáo viên và học viên.',
+    'Dán bài viết tiếng Đức (Schreiben B1), AI chấm theo thang 100 và chỉ ra lỗi ngữ pháp, từ vựng kèm câu sửa. Miễn phí, không cần tạo tài khoản.',
   alternates: { canonical: absoluteUrl('/free-grade/') },
   openGraph: {
     title: 'Chấm thử bài Schreiben B1 bằng AI — Miễn phí',
     description:
-      'Nhận điểm + nhận xét chi tiết cho bài viết tiếng Đức của bạn trong 15 giây. Miễn phí, theo tiêu chí Goethe/telc.',
+      'AI chấm bài Schreiben B1 theo thang 100, chỉ ra lỗi và câu sửa. Miễn phí, không cần tạo tài khoản.',
     type: 'website',
     url: absoluteUrl('/free-grade/'),
     locale: 'vi_VN',

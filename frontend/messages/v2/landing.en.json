@@ -260,7 +260,7 @@
           {
             "date": "31 May 2026",
             "title": "On your phone",
-            "body": "Started building the iOS and Android app, so you can practise speaking anywhere."
+            "body": "Started building the mobile app. The iPhone app is on the App Store; on Android, use the web version."
           },
           {
             "date": "18 October 2026",
@@ -349,7 +349,7 @@
         "meta": {
           "title": "{nameDe} interview questions in German | myDeutschFlow",
           "titleShort": "{nameDe} interview questions in German | myDeutschFlow",
-          "description": "German job interview questions for {name} ({nameDe}), key terms and your interviewer. Practise your answers with AI for free."
+          "description": "German job interview questions for {name} ({nameDe}), key terms and your interviewer. Practise your answers with AI, with 7 days of Pro free."
         },
         "back": "All occupations",
         "title": "Job interview: {nameDe}",
@@ -361,7 +361,7 @@
         "termsEmpty": "Key terms for this job are being prepared.",
         "labelsNote": "“Reviewed” questions have been checked by a person. “AI-generated” questions were written by AI for this job and are awaiting review. The “general question set” is used for every job, with your job title.",
         "cta": "Practise this interview",
-        "ctaNote": "Free. The AI asks in German and shows what to improve after every answer.",
+        "ctaNote": "Try it free: 7 days of Pro, no upfront payment. After that, interview practice needs Pro.",
         "relatedCap": "Related jobs",
         "guideLink": "Guide: {title}",
         "examLink": "Exam prep: {name}",
@@ -440,7 +440,7 @@
           },
           {
             "name": "The teacher reads and confirms",
-            "body": "Writing: the teacher reads the work and confirms the grade. Assigned speaking tasks: the teacher reads what the student said before confirming.",
+            "body": "Writing: the teacher reads the work and confirms the grade. Assigned speaking tasks: the teacher listens to the recording and checks what the student said before confirming.",
             "state": "ready"
           },
           {
@@ -471,7 +471,7 @@
       "pricing": {
         "cap": "Cost",
         "title": "Priced per active student.",
-        "body": "Schools pay per active student per month, with usage limits stated as numbers. A short paid pilot is available, and its fee is credited to the contract if you continue. We share exact prices in the demo."
+        "body": "Schools pay per active student per month. Start with a free 2-week pilot; the pilot fee after that is credited to the contract if the school continues. Pricing is discussed in the demo."
       },
       "data": {
         "cap": "Student data",

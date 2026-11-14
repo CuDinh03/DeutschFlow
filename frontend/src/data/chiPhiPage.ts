@@ -12,12 +12,12 @@
  */
 
 export const PATH = '/chi-phi/'
-export const TITLE = 'Chi phí myDeutschFlow: gói Miễn phí, Pro và trung tâm'
+export const TITLE = 'Chi phí myDeutschFlow: gói Miễn phí, Pro và Tăng tốc'
 export const DESCRIPTION =
-  'Bảng giá myDeutschFlow: Pro 249.000₫ một tháng hoặc 399.000₫ hai tháng, mua trong app iPhone. Trung tâm từ 65.000₫ mỗi học viên mỗi tháng.'
+  'Bảng giá myDeutschFlow: Pro 249.000₫ một tháng hoặc 399.000₫ hai tháng, mua trong app iPhone. Học thử 7 ngày Pro, không cần thanh toán trước.'
 export const H1 = 'Chi phí myDeutschFlow'
 export const INTRO =
-  'Bạn bắt đầu miễn phí, không cần thanh toán trước, và học viên mới có ngay 7 ngày Pro để dùng thử mọi phần luyện AI. Gói Pro giá 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone và tự gia hạn. Trung tâm tiếng Đức trả 75.000₫ cho mỗi học viên đang học mỗi tháng.'
+  'Bạn bắt đầu miễn phí, không cần thanh toán trước, và học viên mới có ngay 7 ngày Pro để dùng thử mọi phần luyện AI. Gói Pro giá 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone và tự gia hạn.'
 
 export type PlanCta = 'start' | 'appStore'
 
@@ -134,18 +134,13 @@ export const COMPARE_ROWS: readonly { label: string; cells: readonly [string, st
 export const COMPARE_NOTE =
   'Hết hạn mức trong ngày, các phần dùng AI tạm dừng và mở lại vào ngày hôm sau (giờ Việt Nam). Gói của bạn vẫn giữ tới hết kỳ.'
 
-/** Giá trung tâm (QĐ-QG-10, 22, 24, 25, 26). Chưa đăng bậc 100–120k. */
+/**
+ * Trung tâm (B2B): giá KHÔNG công khai trên web (owner 14/11/2026, QĐ-QG-28 thay QĐ-QG-22). Chỉ báo giá trong
+ * buổi demo. Không ghi số tiền nào ở khối này.
+ */
 export const SCHOOL = {
-  intro: 'Trung tâm trả theo số học viên đang học mỗi tháng. Giá chưa gồm VAT.',
-  tiles: [
-    { value: '75.000₫', label: 'mỗi học viên đang học mỗi tháng' },
-    { value: '65.000₫', label: 'mỗi học viên mỗi tháng khi trả trước 6 tháng' },
-    { value: '2 tuần miễn phí', label: 'chạy thử, sau đó 1.500.000₫ mỗi lớp (tối đa 30 học viên) tới hết tuần 6' },
-  ],
-  definition:
-    'Học viên đang học là học viên có nộp ít nhất một bài hoặc được điểm danh trong tháng tính phí. Tài khoản không hoạt động trong tháng không tính tiền.',
-  pilotNote: 'Phí chạy thử được trừ vào hợp đồng nếu trung tâm dùng tiếp.',
-  body: 'Giáo viên giao bài cho cả lớp, AI chấm nháp, giáo viên xác nhận điểm bài viết. Phiếu gửi gia đình đọc được bằng tiếng Việt, Anh, Đức.',
+  title: 'Cho trung tâm tiếng Đức',
+  body: 'Trung tâm có bảng giá riêng theo số học viên đang học, bắt đầu bằng 2 tuần chạy thử miễn phí. Báo giá trong buổi demo 20 phút.',
   ctaLabel: 'Đặt lịch demo 20 phút',
   ctaHref: '/trung-tam/#dat-lich',
 } as const

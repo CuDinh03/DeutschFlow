@@ -30,7 +30,7 @@ export function buildLlmsTxt(): string {
     `- [Luyện thi](${absoluteUrl('/luyen-thi/')}): cấu trúc đề, cách tính điểm, checklist sẵn sàng thi`,
     `- [Chấm thử bài Schreiben B1](${absoluteUrl('/free-grade/')}): AI chấm điểm và nhận xét bài viết, miễn phí`,
     `- [Cho trung tâm tiếng Đức](${absoluteUrl('/trung-tam/')}): giao bài, AI chấm nháp, giáo viên chốt điểm`,
-    `- [Chi phí](${absoluteUrl('/chi-phi/')}): gói Miễn phí, Pro, Tăng tốc và giá cho trung tâm`,
+    `- [Chi phí](${absoluteUrl('/chi-phi/')}): gói Miễn phí, Pro và Tăng tốc`,
     `- [Về chúng tôi](${absoluteUrl('/about/')})`,
     '',
     '## Luyện thi',

@@ -13,6 +13,8 @@ import { buildLlmsTxt } from '@/lib/llmsTxt'
 import { isVietnameseOnlyPublicPath } from '@/lib/publicLocale'
 import { COMPARE_ROWS, DESCRIPTION, FAQS, PATH, PLANS, SCHOOL, TITLE } from '@/data/chiPhiPage'
 import landingVi from '../../messages/v2/landing.vi.json'
+import landingEn from '../../messages/v2/landing.en.json'
+import landingDe from '../../messages/v2/landing.de.json'
 import authVi from '../../messages/v2/auth.vi.json'
 
 const PAGE = readFileSync(join(__dirname, '..', 'app', 'chi-phi', 'page.tsx'), 'utf8')
@@ -70,17 +72,18 @@ describe('/chi-phi/ — hiện trạng và B2B', () => {
     expect(FAQS.find((f) => f.q.includes('Android'))?.a).toContain('chỉ nâng cấp được trong app iPhone')
   })
 
-  it('B2B: 75k / 65k trả trước 6 tháng / pilot 2 tuần miễn phí; chưa gồm VAT; định nghĩa theo DEC-20', () => {
-    expect(SCHOOL.tiles.map((t) => t.value)).toEqual(['75.000₫', '65.000₫', '2 tuần miễn phí'])
-    expect(SCHOOL.intro).toContain('chưa gồm VAT')
-    expect(SCHOOL.definition).toContain('nộp ít nhất một bài hoặc được điểm danh')
-    expect(SCHOOL.pilotNote).toContain('trừ vào hợp đồng')
+  it('giá trung tâm KHÔNG công khai (QĐ-QG-28): /chi-phi/ và catalog /trung-tam/ không có số tiền B2B', () => {
+    const b2b = /75\.000|65\.000|1\.500\.000/
+    expect(JSON.stringify(SCHOOL)).not.toMatch(/₫/)
+    expect(ALL_TEXT).not.toMatch(b2b)
+    expect(PAGE).not.toMatch(b2b)
+    for (const cat of [landingVi, landingEn, landingDe]) expect(JSON.stringify(cat)).not.toMatch(/75[.,]000|65[.,]000|1[.,]500[.,]000/)
+    expect(buildLlmsTxt()).not.toMatch(/giá cho trung tâm/)
   })
 
-  it('khối giá trên /trung-tam/ khớp /chi-phi/', () => {
-    const text = JSON.stringify(landingVi)
-    expect(text).toContain('Trung tâm trả 75.000₫ cho mỗi học viên đang học mỗi tháng')
-    expect(text).not.toContain('có hạn mức luyện AI mỗi ngày')
+  it('chỉ bày gói Miễn phí, gói chính và các gói chim mồi', () => {
+    expect(PLANS.map((p) => p.id)).toEqual(['free', 'pro-month', 'pro-2m', 'boost-2m'])
+    expect(JSON.stringify(landingVi)).not.toContain('có hạn mức luyện AI mỗi ngày')
   })
 })
 

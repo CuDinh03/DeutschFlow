@@ -260,7 +260,7 @@
           {
             "date": "31/05/2026",
             "title": "Lên điện thoại",
-            "body": "Bắt đầu làm ứng dụng iOS và Android, để luyện nói ở bất cứ đâu."
+            "body": "Bắt đầu làm ứng dụng điện thoại. App iPhone đã có trên App Store; Android dùng bản web."
           },
           {
             "date": "18/10/2026",
@@ -349,7 +349,7 @@
         "meta": {
           "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe}) | myDeutschFlow",
           "titleShort": "Phỏng vấn tiếng Đức nghề {name} ({nameDe})",
-          "description": "Câu hỏi phỏng vấn xin việc tiếng Đức cho nghề {name} ({nameDe}), từ chuyên môn và người phỏng vấn của bạn. Luyện trả lời miễn phí với AI."
+          "description": "Câu hỏi phỏng vấn xin việc tiếng Đức cho nghề {name} ({nameDe}), từ chuyên môn và người phỏng vấn của bạn. Luyện trả lời với AI, học thử 7 ngày Pro."
         },
         "back": "Tất cả nghề",
         "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe})",
@@ -361,7 +361,7 @@
         "termsEmpty": "Từ chuyên môn của nghề này đang được soạn.",
         "labelsNote": "Câu “Đã duyệt” đã qua người kiểm. Câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. “Bộ câu hỏi chung” dùng cho mọi nghề, kèm tên nghề của bạn.",
         "cta": "Luyện phỏng vấn nghề này",
-        "ctaNote": "Miễn phí. AI hỏi bằng tiếng Đức và chỉ ra chỗ cần sửa sau mỗi câu trả lời.",
+        "ctaNote": "Học thử miễn phí: 7 ngày Pro, không cần thanh toán trước. Sau đó luyện phỏng vấn cần gói Pro.",
         "relatedCap": "Nghề liên quan",
         "guideLink": "Cẩm nang: {title}",
         "examLink": "Luyện thi {name}",
@@ -389,13 +389,13 @@
     "schools": {
       "meta": {
         "title": "Cho trung tâm và đơn vị đào tạo · myDeutschFlow",
-        "description": "Học viên luyện nói tiếng Đức mỗi ngày ngoài giờ, AI chấm nháp, giáo viên đọc lại và chốt điểm. Dành cho trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức."
+        "description": "Học viên luyện nói tiếng Đức mỗi ngày ngoài giờ, AI chấm nháp, giáo viên nghe lại và chốt điểm. Dành cho trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức."
       },
       "hero": {
         "cap": "Cho trung tâm · Đơn vị đào tạo",
         "title": "Học viên luyện nói mỗi ngày ngoài giờ.",
         "titleEm": "Giáo viên chỉ cần nghe và chốt.",
-        "sub": "Một chỗ để trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức giao bài nói, bài viết cho học viên, để AI chấm nháp, rồi giáo viên đọc lại và chốt điểm.",
+        "sub": "Một chỗ để trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức giao bài nói, bài viết cho học viên, để AI chấm nháp, rồi giáo viên nghe lại và chốt điểm.",
         "cta": "Đặt lịch demo 20 phút",
         "ctaTeacher": "Tôi là giáo viên tự do"
       },
@@ -440,7 +440,7 @@
           },
           {
             "name": "Giáo viên đọc và chốt",
-            "body": "Bài viết: giáo viên đọc bài và chốt điểm. Bài nói được giao: giáo viên đọc lại lời học viên trước khi chốt.",
+            "body": "Bài viết: giáo viên đọc bài và chốt điểm. Bài nói được giao: giáo viên nghe bản ghi âm, xem lời học viên rồi mới chốt.",
             "state": "ready"
           },
           {
@@ -471,7 +471,7 @@
       "pricing": {
         "cap": "Chi phí",
         "title": "Tính theo học viên đang học.",
-        "body": "Trung tâm trả 75.000₫ cho mỗi học viên đang học mỗi tháng (65.000₫ khi trả trước 6 tháng, giá chưa gồm VAT). Chạy thử 2 tuần miễn phí, sau đó 1.500.000₫ mỗi lớp tới hết tuần 6; phí chạy thử được trừ vào hợp đồng nếu trung tâm dùng tiếp. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)."
+        "body": "Trung tâm trả theo số học viên đang học mỗi tháng. Bắt đầu bằng 2 tuần chạy thử miễn phí; phí chạy thử sau đó được trừ vào hợp đồng nếu trung tâm dùng tiếp. Báo giá cụ thể trong buổi demo."
       },
       "data": {
         "cap": "Dữ liệu học viên",
