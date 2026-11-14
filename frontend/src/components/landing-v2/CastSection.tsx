@@ -215,7 +215,7 @@ export function CastSection({ className = '' }: { className?: string }) {
           onDone={stopTalking}
           stageRef={stageRef}
         />
-        <ul className="mob-snap-rail -mx-5 flex gap-3 px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0 sm:pb-0 lg:grid-cols-6">
+        <ul className="mob-snap-rail -mx-5 flex gap-3 px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-6">
           {JOB_CAST.map(renderCard)}
         </ul>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -236,7 +236,7 @@ export function CastSection({ className = '' }: { className?: string }) {
         {showLife && (
           <div id="cast-life" className="mt-6">
             <GaCap className="mb-3 text-ga-ink">{t('lifeCap')}</GaCap>
-            <ul className="mob-snap-rail -mx-5 flex gap-3 px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:px-0 sm:pb-0 lg:grid-cols-6">
+            <ul className="mob-snap-rail -mx-5 flex gap-3 px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-6">
               {LIFE_CAST.map(renderCard)}
             </ul>
           </div>

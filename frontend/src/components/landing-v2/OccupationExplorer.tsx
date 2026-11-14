@@ -236,7 +236,7 @@ export function OccupationExplorer({
           và bản backend, để lúc danh mục tải xong nền không trượt khi khách chưa bấm gì. */}
       <LandingMotion>
         <LayoutGroup id={remote ? 'occ-remote' : 'occ-static'}>
-          <div className="mob-snap-rail mt-3 flex gap-2 pb-1 sm:flex-wrap sm:pb-0" aria-label={t('popular')}>
+          <div className="mob-snap-rail mt-3 flex gap-2 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0" aria-label={t('popular')}>
             {popular.map((c) => {
               const on = c.key === selectedChoice?.key
               return (

@@ -141,7 +141,7 @@ export function OccupationIndexFilter({
           />
         </div>
 
-        <div className="mob-snap-rail mt-3.5 flex gap-2 pb-1 sm:flex-wrap sm:pb-0">
+        <div className="mob-snap-rail mt-3.5 flex gap-2 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           <button
             type="button"
             aria-pressed={activeWp === 'ALL'}
