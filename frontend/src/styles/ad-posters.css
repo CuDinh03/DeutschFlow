@@ -1,0 +1,326 @@
+/**
+ * Áp phích rao vặt — telc Deutsch B1 Leseverstehen Teil 3 (14/11/2026; owner chốt 13/11/2026: khuôn chữ HTML/CSS,
+ * không dùng ảnh). Dùng trong `.ga-scope`; màu chỉ qua token `--ga-poster-*` (galerie.css), phông trang trí qua
+ * biến `--font-poster-*` (components/exam/poster/posterFonts.ts). Cỡ chữ tính bằng `em` theo cỡ của `.ad-sheet`
+ * nên bản điện thoại chỉ cần hạ MỘT cỡ gốc.
+ *
+ * Cấu trúc: .ad-sheet-wrap > .ad-sheet > .ad-slot (chữ cái + ô chọn) > .ad-poster[data-tpl] >
+ *           .ad-head / .ad-tag / .ad-body > .ad-line / .ad-contact (+ svg.ad-icon trang trí).
+ */
+
+/* ── Tờ đề: 3 cột cao thấp không đều · điện thoại 2 cột hẹp chữ nhỏ · rất hẹp 1 cột ───────────── */
+.ad-sheet-wrap {
+  container-type: inline-size;
+}
+.ad-sheet {
+  column-count: 2;
+  column-gap: 0.625rem;
+  font-size: 0.75rem;
+}
+@container (min-width: 35rem) {
+  .ad-sheet {
+    column-count: 3;
+    column-gap: 0.875rem;
+    font-size: 0.8125rem;
+  }
+}
+@container (max-width: 17.5rem) {
+  .ad-sheet {
+    column-count: 1;
+  }
+}
+
+/* ── Ô của một mẩu: chữ cái ở trên, áp phích ở dưới ─────────────────────────────────────────── */
+.ad-slot {
+  display: block;
+  break-inside: avoid;
+  margin: 0 0 0.875rem;
+  padding: 1px; /* chừa chỗ cho viền chọn khỏi bị cột cắt */
+  text-align: left;
+  border-radius: var(--ga-radius);
+}
+.ad-slot-head {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.75rem;
+  margin-bottom: 0.25rem;
+}
+.ad-slot[role='radio']:not([aria-disabled]) {
+  cursor: pointer;
+}
+.ad-slot:focus-visible {
+  outline: 2px solid var(--ga-focus);
+  outline-offset: 2px;
+}
+.ad-slot[role='radio']:not([aria-disabled]):hover .ad-poster {
+  box-shadow: 0 0 0 1px var(--ga-poster-rule);
+}
+.ad-slot[aria-checked='true'] .ad-poster {
+  outline: 2px solid var(--ga-navy);
+  outline-offset: 2px;
+}
+.ad-slot[data-used] .ad-poster {
+  opacity: 0.6;
+}
+
+/* ── Phần chung của mọi khuôn ───────────────────────────────────────────────────────────────── */
+.ad-poster {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: 0.7em 0.8em;
+  background: var(--ga-poster-paper);
+  color: var(--ga-poster-ink);
+  font-family: var(--ga-ui);
+  line-height: 1.4;
+  text-align: left;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  transition: box-shadow var(--ga-duration-fast);
+}
+.ad-head,
+.ad-tag,
+.ad-body,
+.ad-contact {
+  display: block;
+}
+.ad-head {
+  margin-bottom: 0.35em;
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+/* Dấu ngắt sau tiêu đề tách từ mẩu viết liền (", " · ". " · " – "): còn trong DOM, vẽ trong suốt. */
+.ad-soft {
+  color: transparent;
+}
+.ad-tag {
+  margin-bottom: 0.35em;
+  font-style: italic;
+}
+.ad-line {
+  display: inline;
+}
+.ad-poster[data-mode='lines'] .ad-line {
+  display: block;
+}
+.ad-contact {
+  margin-top: 0.45em;
+  font-style: italic;
+  font-weight: 600;
+}
+.ad-icon {
+  float: right;
+  width: 1.9em;
+  height: 1.9em;
+  margin: 0 0 0.2em 0.5em;
+  pointer-events: none;
+  user-select: none;
+}
+/* Trên nền tối, gạch chân của bút đánh dấu (navy) chìm mất ⇒ đổi sang màu giấy. */
+.ad-poster [data-band] .ga-mark-ul,
+.ad-poster[data-tpl='schraeg'] .ad-head .ga-mark-ul {
+  text-decoration-color: var(--ga-poster-paper);
+}
+
+/* ── 1. rahmen — khung viền, dải xám phía trên mang tiêu đề chữ hẹp in hoa ─────────────────── */
+.ad-poster[data-tpl='rahmen'] {
+  padding: 0 0 0.7em;
+  border: 1.5px solid var(--ga-poster-ink);
+}
+.ad-poster[data-tpl='rahmen'] > * {
+  margin-inline: 0.8em;
+}
+.ad-poster[data-tpl='rahmen'] > .ad-head {
+  margin: 0 0 0.55em;
+  padding: 0.4em 0.8em;
+  border-bottom: 1.5px solid var(--ga-poster-ink);
+  background: var(--ga-poster-grey);
+  font-family: var(--font-poster-condensed), 'Arial Narrow', Arial, sans-serif;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ── 2. grau — hộp xám, các dòng nghiêng canh giữa ─────────────────────────────────────────── */
+.ad-poster[data-tpl='grau'] {
+  background: var(--ga-poster-grey);
+  font-family: var(--ga-display);
+  font-size: 1.06em;
+  font-style: italic;
+  text-align: center;
+}
+.ad-poster[data-tpl='grau'] .ad-head {
+  font-size: 1.25em;
+}
+.ad-poster[data-tpl='grau'] .ad-contact {
+  font-style: normal;
+}
+
+/* ── 3. rechts — canh phải, vạch mực dọc bên phải, tiêu đề serif đậm ───────────────────────── */
+.ad-poster[data-tpl='rechts'] {
+  border-right: 4px solid var(--ga-poster-ink);
+  text-align: right;
+}
+.ad-poster[data-tpl='rechts'] .ad-head {
+  font-family: var(--font-poster-display), Georgia, serif;
+  font-size: 1.35em;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+/* ── 4. band — dải tối vắt ngang giữa ──────────────────────────────────────────────────────── */
+.ad-poster[data-tpl='band'] {
+  border: 1px solid var(--ga-poster-rule);
+}
+.ad-poster[data-tpl='band'] .ad-head {
+  font-family: var(--font-poster-condensed), 'Arial Narrow', Arial, sans-serif;
+  font-size: 1.3em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.ad-poster[data-tpl='band'] [data-band] {
+  display: block;
+  margin: 0.45em -0.8em;
+  padding: 0.35em 0.8em;
+  background: var(--ga-poster-band);
+  color: var(--ga-poster-paper);
+  font-style: normal;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ── 5. schraeg — tiêu đề trên dải tối hơi nghiêng ─────────────────────────────────────────── */
+.ad-poster[data-tpl='schraeg'] {
+  padding-top: 1em;
+  border: 1px solid var(--ga-poster-rule);
+}
+.ad-poster[data-tpl='schraeg'] .ad-head {
+  margin: 0 -1.4em 0.8em;
+  padding: 0.4em 1.6em;
+  background: var(--ga-poster-band);
+  color: var(--ga-poster-paper);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+}
+
+/* ── 6. pixel — tiêu đề chữ điểm ảnh / máy chữ, viền đứt ───────────────────────────────────── */
+.ad-poster[data-tpl='pixel'] {
+  border: 1.5px dashed var(--ga-poster-ink);
+}
+.ad-poster[data-tpl='pixel'] .ad-head {
+  font-family: var(--font-poster-pixel), 'Courier New', monospace;
+  font-size: 2em;
+  font-weight: 400;
+  line-height: 0.95;
+}
+
+/* ── 7. liste — danh sách gạch đầu dòng (chấm là phần tử giả, không lẫn vào chữ) ───────────── */
+.ad-poster[data-tpl='liste'] {
+  border-top: 3px solid var(--ga-poster-ink);
+  border-bottom: 1px solid var(--ga-poster-ink);
+}
+.ad-poster[data-tpl='liste'] .ad-line {
+  position: relative;
+  display: block;
+  padding-left: 1em;
+}
+.ad-poster[data-tpl='liste'] .ad-line::before {
+  content: '';
+  position: absolute;
+  top: 0.52em;
+  left: 0.15em;
+  width: 0.36em;
+  height: 0.36em;
+  border-radius: 50%;
+  background: var(--ga-poster-ink);
+}
+
+/* ── 8. hand — tiêu đề chữ viết tay, gạch chân chấm ────────────────────────────────────────── */
+.ad-poster[data-tpl='hand'] {
+  border: 1px solid var(--ga-poster-rule);
+}
+.ad-poster[data-tpl='hand'] .ad-head {
+  padding-bottom: 0.15em;
+  border-bottom: 1.5px dotted var(--ga-poster-ink);
+  font-family: var(--font-poster-hand), 'Segoe Print', 'Bradley Hand', cursive;
+  font-size: 1.85em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── 9. plakat — khung kép, tiêu đề serif đậm canh giữa ────────────────────────────────────── */
+.ad-poster[data-tpl='plakat'] {
+  border: 3px double var(--ga-poster-ink);
+  text-align: center;
+}
+.ad-poster[data-tpl='plakat'] .ad-head {
+  font-family: var(--font-poster-display), Georgia, serif;
+  font-size: 1.6em;
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+/* ── 10. schmal — tiêu đề chữ hẹp in hoa giữa hai vạch đậm ─────────────────────────────────── */
+.ad-poster[data-tpl='schmal'] {
+  border-top: 4px solid var(--ga-poster-ink);
+  border-bottom: 4px solid var(--ga-poster-ink);
+}
+.ad-poster[data-tpl='schmal'] .ad-head {
+  font-family: var(--font-poster-condensed), 'Arial Narrow', Arial, sans-serif;
+  font-size: 1.5em;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+.ad-poster[data-tpl='schmal'] .ad-tag {
+  font-size: 0.92em;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── 11. bild — hình minh hoạ lớn canh giữa; không có hình thì một vạch ngắn ───────────────── */
+.ad-poster[data-tpl='bild'] {
+  border: 1px solid var(--ga-poster-ink);
+  text-align: center;
+}
+.ad-poster[data-tpl='bild']::before {
+  content: '';
+  display: block;
+  width: 2em;
+  height: 3px;
+  margin: 0 auto 0.5em;
+  background: var(--ga-poster-ink);
+}
+.ad-poster[data-tpl='bild']:has(.ad-icon)::before {
+  display: none;
+}
+.ad-poster[data-tpl='bild'] .ad-head {
+  font-size: 1.2em;
+}
+
+/* ── 12. schlicht — trơn, dùng được cho mọi mẩu ────────────────────────────────────────────── */
+.ad-poster[data-tpl='schlicht'] {
+  border: 1px solid var(--ga-poster-rule);
+}
+
+/* Hình đặt phía trên tiêu đề, canh giữa. */
+.ad-poster[data-tpl='bild'] .ad-icon,
+.ad-poster[data-tpl='plakat'] .ad-icon,
+.ad-poster[data-tpl='grau'] .ad-icon {
+  display: block;
+  float: none;
+  margin: 0 auto 0.3em;
+}
+.ad-poster[data-tpl='bild'] .ad-icon {
+  width: 2.8em;
+  height: 2.8em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ad-poster {
+    transition: none;
+  }
+}
