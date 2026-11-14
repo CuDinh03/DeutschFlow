@@ -23,7 +23,7 @@ import { QualityLabel } from './QualityLabel'
 import { QuestionTranslation } from './QuestionTranslation'
 import { interviewerInfo } from './interviewerInfo'
 import { START_HREF } from './links'
-import { examForWorkplace, exampleQuestion, guideForOccupation, relatedOccupations } from '@/lib/occupationRelated'
+import { examForWorkplace, exampleQuestion, guideForOccupation, relatedOccupations, tidyQuotedSentenceEnd } from '@/lib/occupationRelated'
 import { toJsonLd } from '@/lib/homeStructuredData'
 
 /**
@@ -136,7 +136,7 @@ export async function OccupationDetailView({
     {
       q: t('occupationPages.detail.faqAskQ', { name: faqName }),
       a: example
-        ? t('occupationPages.detail.faqAskA', { example })
+        ? tidyQuotedSentenceEnd(t('occupationPages.detail.faqAskA', { example }))
         : t('occupationPages.detail.faqAskANoExample'),
     },
     { q: t('occupationPages.detail.faqLevelQ', { name: faqName }), a: t('occupationPages.detail.faqLevelA') },

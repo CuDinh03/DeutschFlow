@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_RELATED, examForWorkplace, exampleQuestion, guideForOccupation, relatedOccupations } from '@/lib/occupationRelated'
+import { MAX_RELATED, examForWorkplace, exampleQuestion, guideForOccupation, relatedOccupations, tidyQuotedSentenceEnd } from '@/lib/occupationRelated'
 import type { OccupationSummary } from '@/lib/occupationTypes'
 
 const occ = (code: string, workplace: OccupationSummary['workplace'], questionSet: OccupationSummary['questionSet'] = 'GENERAL'): OccupationSummary => ({
@@ -67,5 +67,22 @@ describe('exampleQuestion', () => {
       ],
     })).toBe('Geprüfte Frage')
     expect(exampleQuestion({ sampleQuestions: [], occupationQuestions: [] })).toBeNull()
+  })
+})
+
+describe('tidyQuotedSentenceEnd', () => {
+  it('bỏ dấu chấm thừa sau ngoặc khi câu trích đã có dấu kết (".“." và "?“.")', () => {
+    expect(tidyQuotedSentenceEnd('zum Beispiel: „Nennen Sie einen Vorfall.“. Die Fragen können abweichen.'))
+      .toBe('zum Beispiel: „Nennen Sie einen Vorfall.“ Die Fragen können abweichen.')
+    expect(tidyQuotedSentenceEnd('ví dụ: „Wie organisieren Sie die Station?“. Câu hỏi có thể khác.'))
+      .toBe('ví dụ: „Wie organisieren Sie die Station?“ Câu hỏi có thể khác.')
+    expect(tidyQuotedSentenceEnd('for example: “How do you handle it?”. Questions may differ.'))
+      .toBe('for example: “How do you handle it?” Questions may differ.')
+  })
+
+  it('giữ nguyên khuôn không có dấu chấm sau ngoặc và câu trích không có dấu kết', () => {
+    expect(tidyQuotedSentenceEnd('Ein Beispiel: „Wie organisieren Sie die Station?“'))
+      .toBe('Ein Beispiel: „Wie organisieren Sie die Station?“')
+    expect(tidyQuotedSentenceEnd('zum Beispiel: „Stoßzeit“. Danach')).toBe('zum Beispiel: „Stoßzeit“. Danach')
   })
 })

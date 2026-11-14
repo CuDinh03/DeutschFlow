@@ -53,8 +53,8 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
       'Trong buổi luyện nghề bếp, câu hỏi thường xoay quanh ba chủ đề: bạn là ai và đã làm gì trong bếp, bạn xử lý vệ sinh an toàn thực phẩm thế nào, và bạn giữ nhịp ra sao lúc đông khách. Người phỏng vấn muốn nghe ví dụ cụ thể, không chỉ một danh sách kỹ năng.',
     questions: [
       {
-        de: 'Bitte stellen Sie sich kurz vor: Werdegang, relevante Erfahrung für Koch/Köchin, und Ihr nächster Schritt.',
-        vi: 'Mời bạn giới thiệu ngắn về bản thân: quá trình học tập và làm việc, kinh nghiệm liên quan đến vị trí Koch/Köchin, và bước tiếp theo bạn hướng tới.',
+        de: 'Bitte stellen Sie sich kurz vor: Ihr Werdegang, Ihre Erfahrung als Koch/Köchin und Ihr nächster Schritt.',
+        vi: 'Mời bạn giới thiệu ngắn về bản thân: quá trình học và làm việc, kinh nghiệm ở vị trí Koch/Köchin và dự định sắp tới.',
         tip: 'Trả lời trong khoảng một phút, theo thứ tự: bạn là ai, đã học hoặc làm gì trong bếp (vị trí, loại nhà hàng, bao lâu), rồi bước tiếp theo — ví dụ bắt đầu Ausbildung hoặc làm ở bếp một nhà hàng ở Đức.',
         sample:
           'Ich heiße Minh und komme aus Hanoi. Ich habe drei Jahre in einem Restaurant gearbeitet, zuletzt an der warmen Küche. Jetzt möchte ich in Deutschland als Koch arbeiten und mich weiterentwickeln.',

@@ -51,3 +51,13 @@ export function exampleQuestion(detail: Pick<OccupationDetail, 'sampleQuestions'
   const approved = detail.occupationQuestions.find((q) => q.status === 'APPROVED')
   return approved ? approved.questionDe : null
 }
+
+/**
+ * Bỏ dấu chấm thừa khi câu trích kết thúc câu (rà câu chữ 14/11/2026). Khuôn FAQ trong catalog đặt
+ * dấu chấm sau ngoặc („{example}“.) mà câu ví dụ đã có dấu riêng, nên trang hiện ".“." hoặc "?“.".
+ * Theo chính tả Đức, câu trích đã có dấu kết thì không thêm dấu chấm sau ngoặc. Chỉ sửa ở chỗ ghép,
+ * không đụng catalog; khuôn không có dấu chấm sau ngoặc thì chuỗi giữ nguyên.
+ */
+export function tidyQuotedSentenceEnd(text: string): string {
+  return text.replace(/([.?!])([“”"])\./g, '$1$2')
+}
