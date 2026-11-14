@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: { params: { token: string } }
   if (!report) {
     return { title: 'Báo cáo chấm bài | myDeutschFlow', robots: { index: false, follow: false } }
   }
-  const title = `Bài viết tiếng Đức được ${report.score}/100 — Chấm bởi myDeutschFlow`
+  const title = `Bài viết tiếng Đức được ${report.score}/100 · myDeutschFlow chấm thử`
   const description = 'Báo cáo chấm bài tiếng Đức bằng AI: điểm số + nhận xét chi tiết. Chấm thử bài của bạn miễn phí.'
   return {
     title,

@@ -6,6 +6,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { OccupationDetailView } from '@/components/landing-v2/OccupationPages'
 import { fetchIndexableOccupations, fetchOccupationDetail, fetchOccupations } from '@/lib/occupationServer'
 import { occupationName, occupationTitleName } from '@/lib/occupationTypes'
+import { MAX_DESCRIPTION, MAX_TITLE, fitText } from '@/lib/occupationMeta'
 import { breadcrumbStructuredData, toJsonLd } from '@/lib/homeStructuredData'
 import { DEFAULT_PUBLIC_LOCALE, hreflangAlternates, isPublicLocale, localizedHref } from '@/lib/publicLocale'
 import { AUSBILDUNG_CONTENT_REVIEWED, DRAFT_PREVIEW_PARAM, ausbildungVisible } from '@/lib/ausbildungGate'
@@ -19,9 +20,6 @@ import { AUSBILDUNG_CONTENT_REVIEWED, DRAFT_PREVIEW_PARAM, ausbildungVisible } f
  * không phải 404 (xem `occupationServer`).
  */
 export const dynamic = 'force-dynamic'
-
-/** Google cắt tiêu đề quanh 60 ký tự. */
-const MAX_TITLE = 60
 
 /** Tên hai bậc đầu của BreadcrumbList (SEO 3d): trang chủ, trang tổng nghề. */
 const CRUMBS = {
@@ -43,18 +41,19 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const o = detail.occupation
   const path = `/phong-van/${o.code}`
   const vars = { nameDe: o.nameDe, name: occupationTitleName(o, locale) }
-  // Quá 60 ký tự thì bỏ đuôi thương hiệu (SEO 3b); bản en/de có `titleShort` trùng `title` nên không đổi.
-  const fullTitle = t('title', vars)
-  const title = fullTitle.length > MAX_TITLE ? t('titleShort', vars) : fullTitle
+  // Quá giới hạn thì lùi dần: bỏ đuôi thương hiệu (`titleShort`), rồi bản tối giản (`titleMin`); mô tả
+  // quá 160 ký tự thì bỏ tên tiếng Đức (`descriptionShort`). Tính cả tên nghề dài nhất (rà câu chữ 14/11/2026).
+  const title = fitText([t('title', vars), t('titleShort', vars), t('titleMin', vars)], MAX_TITLE)
+  const description = fitText([t('description', vars), t('descriptionShort', vars)], MAX_DESCRIPTION)
   // Xem trước khối học nghề chưa duyệt: trang này không được vào chỉ mục dù nghề đã duyệt.
   const draftBlock = !AUSBILDUNG_CONTENT_REVIEWED && ausbildungVisible(searchParams?.[DRAFT_PREVIEW_PARAM])
   return {
     title,
-    description: t('description', vars),
+    description,
     alternates: { canonical: localizedHref(locale, path), languages: hreflangAlternates(path) },
     openGraph: {
       title,
-      description: t('description', vars),
+      description,
       locale: OG_LOCALE[locale],
       url: localizedHref(locale, path),
       siteName: 'myDeutschFlow',

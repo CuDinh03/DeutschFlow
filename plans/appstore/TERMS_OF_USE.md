@@ -81,7 +81,7 @@ Questions about these Terms: **[[support@your-domain]]**.
 
 ### 1. Chấp nhận
 
-Khi tải, cài đặt hoặc sử dụng DeutschFlow ("Ứng dụng"), bạn đồng ý với Điều khoản sử dụng này và [Chính sách quyền riêng tư]([[privacy-policy-url]]). Nếu không đồng ý, vui lòng không sử dụng Ứng dụng. Ứng dụng do [[Tên pháp lý / nhà phát triển]] ("chúng tôi") cung cấp.
+Khi tải, cài đặt hoặc sử dụng DeutschFlow ("Ứng dụng"), bạn đồng ý với Điều khoản sử dụng này và [Chính sách bảo mật]([[privacy-policy-url]]). Nếu không đồng ý, vui lòng không sử dụng Ứng dụng. Ứng dụng do [[Tên pháp lý / nhà phát triển]] ("chúng tôi") cung cấp.
 
 ### 2. Giấy phép và Standard EULA của Apple
 

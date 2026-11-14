@@ -41,18 +41,12 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
     expect(viaFunnel.length).toBeGreaterThanOrEqual(5)
   })
 
-  it('bảng giá lấy đích theo từng gói, không dùng chung một href cứng', () => {
-    // 06/09/2026 (i18n): nhãn gói nằm trong catalog v2.landing; đích/highlight ở PLAN_META cùng
-    // thứ tự (Miễn phí, Pro → phễu; Giáo viên → /v2/register).
-    expect(code).toMatch(/href=\{meta\.href\}/)
-    const planMeta = code.match(/const PLAN_META = \[([\s\S]*?)\]/)?.[1] ?? ''
-    expect(planMeta.match(/href: START_HREF/g)).toHaveLength(2)
-    expect(planMeta.match(/href: '\/v2\/register'/g)).toHaveLength(1)
+  it('trang chủ không còn bảng giá riêng (rà câu chữ 14/11/2026: giá ở /chi-phi/)', () => {
+    expect(code).not.toMatch(/PLAN_META|SHOW_PRICING|pricing\.plans/)
   })
 
   it('CTA B2B KHÔNG bị đẩy vào phễu học viên', () => {
-    // Gói "Giáo viên" và nút tư vấn trung tâm phục vụ trung tâm, không phải người học.
-    expect(code).toMatch(/\{ href: '\/v2\/register', highlight: false \}/)
+    // Nút tư vấn trung tâm phục vụ trung tâm, không phải người học.
     // 19/10/2026 (đợt 1 A+B+E): nút tư vấn trung tâm chuyển vào khối S7 `partners.centers`.
     // 24/10/2026 (đợt 3a): nút đó dẫn tới form đặt lịch demo trên trang trung tâm — vẫn ngoài phễu học viên.
     expect(code).toMatch(/href=\{`\$\{centersHref\}#dat-lich`\}><YellowSq \/>\{t\('partners\.centers\.ctaConsult'\)\}/)
@@ -78,8 +72,8 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
   it('mọi CTA phễu đều bắn landing_cta_clicked kèm vị trí', () => {
     const funnelLinks = code.match(/href=\{START_HREF\}/g) ?? []
     const tracked = code.match(/trackCta\(/g) ?? []
-    // 5 CTA START_HREF + CTA bảng giá (dùng meta.href) đều phải có điểm đo.
-    expect(tracked.length).toBeGreaterThanOrEqual(funnelLinks.length + 1)
+    // Mọi CTA START_HREF đều phải có điểm đo (bảng giá đã bỏ khỏi trang chủ 14/11/2026).
+    expect(tracked.length).toBeGreaterThanOrEqual(funnelLinks.length)
   })
 
   it('vị trí CTA là chỗ đứng trên trang, không phải nhãn nút', () => {
@@ -87,7 +81,6 @@ describe('trang chủ dẫn khách vào phễu onboarding', () => {
     for (const placement of ['header', 'mobile_menu', 'hero', 'exam_section', 'footer_cta']) {
       expect(code).toContain(`trackCta('${placement}')`)
     }
-    expect(code).toMatch(/trackCta\(`pricing_plan_\$\{i \+ 1\}`\)/)
   })
 
   it('tên event khớp thứ phân tích sẽ truy vấn', () => {

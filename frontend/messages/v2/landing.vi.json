@@ -3,7 +3,7 @@
     "shotScrollHint": "Cuộn ngang để xem tiếp",
     "meta": {
       "title": "myDeutschFlow — Luyện phỏng vấn tiếng Đức với AI",
-      "description": "Luyện phỏng vấn xin việc bằng tiếng Đức với AI: câu hỏi theo ngành, nhận xét sau từng câu trả lời. Lộ trình A1–B1, thi thử telc B1."
+      "description": "Luyện phỏng vấn xin việc bằng tiếng Đức với AI, câu hỏi theo đúng nghề, nhận xét sau từng câu trả lời. Lộ trình A1–B1, thi thử telc B1."
     },
     "nav": {
       "interview": "Phỏng vấn theo nghề",
@@ -26,22 +26,22 @@
       "eyebrow": "Huấn luyện phỏng vấn bằng AI cho người sang Đức làm việc",
       "titleLead": "Luyện phỏng vấn tiếng Đức,",
       "titleEm": "đúng nghề của bạn.",
-      "sub": "AI đóng vai nhà tuyển dụng Đức, hỏi theo nghề bạn chọn và chỉ ra chỗ cần sửa sau mỗi câu trả lời: ngữ pháp, từ dùng chưa đúng, ý còn thiếu.",
+      "sub": "AI đóng vai nhà tuyển dụng Đức, hỏi đúng nghề bạn chọn, và sau mỗi câu trả lời chỉ ra lỗi ngữ pháp, từ dùng sai hay ý còn thiếu.",
       "ctaStart": "Học thử miễn phí",
-      "microcopy": "Không cần thanh toán trước · 2 phút bắt đầu · Có app iPhone",
-      "bullets": ["Câu hỏi theo đúng nghề", "Thi thử telc B1 theo format đề thật"]
+      "microcopy": "Không cần thanh toán trước · Bắt đầu trong 2 phút · Có app iPhone",
+      "bullets": ["Câu hỏi theo đúng nghề", "Thi thử telc B1 đúng cấu trúc đề thi"]
     },
     "explorer": {
       "cap": "Xem trước câu hỏi phỏng vấn",
       "label": "Bạn làm nghề gì?",
       "placeholder": "Ví dụ: đầu bếp, Kellner…",
-      "popular": "Vị trí hay được chọn",
+      "popular": "Gợi ý nhanh",
       "interviewer": "Người phỏng vấn: {name} · {tag}",
       "questionsCap": "Câu hỏi tiêu biểu cho vị trí này",
-      "sourceNote": "Câu tiêu biểu, chép từ bộ câu hỏi của vị trí này. Trong buổi luyện, AI hỏi bằng tiếng Đức, có thể hỏi câu khác hoặc hỏi theo cách khác, và hỏi tiếp dựa trên câu trả lời của bạn.",
+      "sourceNote": "Câu tiêu biểu lấy từ bộ câu hỏi của vị trí này. Khi luyện, AI hỏi bằng tiếng Đức, có thể hỏi khác đi và hỏi tiếp theo câu trả lời của bạn.",
       "cta": "Luyện phỏng vấn vị trí này",
       "noMatchTitle": "Chưa có bộ câu hỏi riêng cho “{query}”",
-      "noMatchBody": "AI vẫn phỏng vấn bạn được bằng bộ câu hỏi chung (giới thiệu, tình huống, chuyên môn), điều chỉnh theo vị trí bạn nhập. Bộ câu hỏi riêng cho nhiều nghề hơn, gồm điều dưỡng và xây dựng, đang được biên soạn.",
+      "noMatchBody": "AI vẫn phỏng vấn bạn bằng bộ câu hỏi chung (giới thiệu, tình huống, chuyên môn), điều chỉnh theo vị trí bạn nhập.",
       "ctaGeneral": "Luyện với bộ câu hỏi chung",
       "labels": {
         "approved": "Đã duyệt",
@@ -52,19 +52,19 @@
       "viewPage": "Xem trang nghề",
       "loading": "Đang tải câu hỏi…",
       "interviewerWorkplace": "Người phỏng vấn: {name} · {role}",
-      "sourceNoteLayer": "Câu “Đã duyệt” đã qua người kiểm; câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. Trong buổi luyện, AI hỏi bằng tiếng Đức, có thể hỏi câu khác hoặc hỏi theo cách khác, và hỏi tiếp dựa trên câu trả lời của bạn.",
+      "sourceNoteLayer": "Câu “Đã duyệt” đã có người kiểm. Câu “AI tạo” do AI soạn riêng cho nghề này, đang chờ duyệt. Khi luyện, AI hỏi bằng tiếng Đức, có thể hỏi khác đi và hỏi tiếp theo câu trả lời của bạn.",
       "moreQuestions": "+ {count} câu tiêu biểu khác"
     },
     "pathways": {
       "cap": "Hành trình sang Đức",
       "title": "Bạn đang đi theo con đường nào?",
-      "sub": "Mỗi con đường cần trình độ, kỳ thi và kiểu phỏng vấn khác nhau. Biết mình ở đâu để luyện đúng thứ cần luyện.",
+      "sub": "Mỗi con đường cần trình độ, kỳ thi và kiểu phỏng vấn khác nhau.",
       "levelLabel": "Trình độ thường cần",
       "examLabel": "Kỳ thi",
       "interviewLabel": "Phỏng vấn xoay quanh",
       "items": [
-        { "name": "Học nghề", "de": "Ausbildung", "who": "Chưa có nghề hoặc muốn học một nghề mới ở Đức.", "level": "B1, đôi khi B2", "exam": "Goethe hoặc telc B1", "interview": "Động lực, kế hoạch, hiểu biết về nghề và nước Đức", "fit": "Trên myDeutschFlow: học tiếng Đức Ausbildung theo lộ trình A1–B1, phỏng vấn theo nghề, thi thử B1." },
-        { "name": "Công nhận bằng nghề", "de": "Anerkennung", "who": "Đã có bằng và kinh nghiệm: y tế, kỹ thuật, thủ công…", "level": "B1–B2, tuỳ nghề và tuỳ bang", "exam": "Kỳ thi nghề nghiệp như telc Pflege, DTB", "interview": "Chuyên môn, tình huống trong nghề, quy trình", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề. Đề thi nghề nghiệp đang được biên soạn." },
+        { "name": "Học nghề", "de": "Ausbildung", "who": "Chưa có nghề hoặc muốn học một nghề mới ở Đức.", "level": "B1, đôi khi B2", "exam": "Goethe hoặc telc B1", "interview": "Động lực, kế hoạch, hiểu biết về nghề và nước Đức", "fit": "Trên myDeutschFlow: lộ trình A1–B1, phỏng vấn theo nghề, thi thử telc B1." },
+        { "name": "Công nhận bằng nghề", "de": "Anerkennung", "who": "Đã có bằng và kinh nghiệm: y tế, kỹ thuật, thủ công…", "level": "B1–B2, tuỳ nghề và tuỳ bang", "exam": "Kỳ thi tiếng Đức nghề nghiệp như telc Pflege, DTB (Deutsch-Test für den Beruf)", "interview": "Chuyên môn, tình huống trong nghề, quy trình", "fit": "Trên myDeutschFlow: phỏng vấn theo nghề. Chưa có đề thi tiếng Đức nghề nghiệp." },
         { "name": "Tìm việc", "de": "Chancenkarte · Blaue Karte", "who": "Kỹ sư, IT, người có bằng đại học.", "level": "Từ A1, hoặc B2 tiếng Anh", "exam": "Tuỳ nhà tuyển dụng", "interview": "Chuyên môn; tiếng Đức là lợi thế", "fit": "Trên myDeutschFlow: phỏng vấn cho IT, kỹ thuật, văn phòng." },
         { "name": "Du học đại học", "de": "Studium", "who": "Học sinh, sinh viên muốn học đại học ở Đức.", "level": "Thường B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Phỏng vấn trường, phỏng vấn visa", "fit": "Trên myDeutschFlow: luyện nói, thi thử telc B1. Chưa có lộ trình C1." },
         { "name": "Đoàn tụ, định cư", "de": "Familiennachzug", "who": "Vợ, chồng, người thân của người đang sống ở Đức.", "level": "A1 khi xin visa, B1 khi định cư lâu dài", "exam": "Start Deutsch A1, DTZ", "interview": "Phỏng vấn visa Đức, đời sống hằng ngày", "fit": "Trên myDeutschFlow: lộ trình từ A1, luyện nói đời sống hằng ngày." }
@@ -73,7 +73,7 @@
     "report": {
       "cap": "Sau mỗi buổi",
       "title": "Bạn biết chính xác cần sửa gì",
-      "sub": "Báo cáo sau mỗi buổi phỏng vấn chấm từng phần của buổi, trích lại câu bạn đã nói, đưa câu sửa và gợi ý bài luyện tiếp theo.",
+      "sub": "Báo cáo chấm từng phần, trích lại câu bạn đã nói, đưa câu sửa và gợi ý bài luyện tiếp.",
       "sampleCap": "Minh hoạ theo đúng cấu trúc báo cáo · Vị trí: Koch/Köchin",
       "overall": "68 / 100",
       "verdict": "Gần sẵn sàng · cần luyện thêm phần tình huống",
@@ -94,16 +94,16 @@
       "gapsCap": "Cần sửa",
       "gaps": ["Ví dụ tình huống chưa nêu kết quả cụ thể", "Trật tự động từ sau trạng từ thời gian"],
       "drillsCap": "Luyện tiếp",
-      "drills": ["Trả lời lại câu tình huống theo cấu trúc STAR, kết thúc bằng kết quả", "Đặt 3 câu với die Station, die Bestellung, die Hygiene"]
+      "drills": ["Trả lời lại câu tình huống theo thứ tự tình huống, việc cần làm, cách làm, kết quả", "Đặt 3 câu với die Station, die Bestellung, die Hygiene"]
     },
     "learn": {
       "cap": "Ngoài phỏng vấn",
       "title": "App học tiếng Đức từ A1 đến B1, trên web và iPhone",
-      "sub": "Phỏng vấn cần vốn tiếng Đức vững. Lộ trình từng ngày đưa bạn từ A1 đến B1, kèm ôn từ vựng đúng lúc sắp quên.",
+      "sub": "Lộ trình từng ngày đưa bạn từ A1 lên B1, kèm ôn từ vựng đúng lúc sắp quên.",
       "items": [
         { "name": "Lộ trình A1–B1 từng ngày", "desc": "Mỗi ngày một chặng với bốn kỹ năng nghe, đọc, nói, viết. B2 đang xây dựng." },
-        { "name": "Ôn từ vựng đúng lúc", "desc": "Thẻ từ được nhắc lại theo thuật toán lặp lại ngắt quãng, giúp nhớ lâu hơn." },
-        { "name": "Video bài học", "desc": "Trên ứng dụng di động: hình ảnh, lồng tiếng Đức, phụ đề song ngữ." },
+        { "name": "Ôn từ vựng đúng lúc", "desc": "Thẻ từ quay lại đúng lúc bạn sắp quên, nên nhớ lâu hơn." },
+        { "name": "Video bài học", "desc": "Có trên app iPhone, với hình ảnh, lồng tiếng Đức và phụ đề song ngữ." },
         { "name": "Theo dõi tiến độ", "desc": "Chuỗi ngày học, kỹ năng mạnh yếu và lịch sử luyện tập." }
       ],
       "shotCap": "Ảnh thật · Cây lộ trình của học viên",
@@ -120,7 +120,7 @@
       ],
       "button": "Tải trên App Store",
       "newTab": "(mở trong thẻ mới)",
-      "note": "Miễn phí tải · Dành cho iPhone, iOS 15.1 trở lên · Android: dùng bản web",
+      "note": "Tải miễn phí · Dành cho iPhone, iOS 15.1 trở lên · Android: dùng bản web",
       "heroLink": "Có ứng dụng cho iPhone",
       "footer": "Ứng dụng iPhone"
     },
@@ -130,15 +130,15 @@
       "clipPlay": "Phát video",
       "clipPause": "Dừng video",
       "cap": "Luyện thi",
-      "title": "Thi thử telc B1 online theo format đề thi thật",
+      "title": "Thi thử telc B1 online, đúng cấu trúc và thời gian đề thi",
       "sub": "Luyện đủ 4 phần của telc Deutsch B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm.",
       "parts": [
-        { "name": "Đọc hiểu", "time": "90 phút", "body": "Đọc hiểu và Sprachbausteine (ngữ pháp – từ vựng) với văn bản đời sống & công việc, chấm tự động ngay." },
+        { "name": "Đọc hiểu", "time": "90 phút", "body": "Đọc hiểu và Sprachbausteine (ngữ pháp, từ vựng) với văn bản đời sống và công việc, chấm tự động ngay." },
         { "name": "Nghe hiểu", "time": "30 phút", "body": "Hội thoại, thông báo và phỏng vấn ngắn ở tốc độ thi thật." },
-        { "name": "Viết", "time": "30 phút", "body": "Một thư hoặc email theo tình huống — nộp qua ảnh, AI chấm bố cục và ngữ pháp." },
+        { "name": "Viết", "time": "30 phút", "body": "Một thư hoặc email theo tình huống. Bạn gõ bài, AI chấm theo ba tiêu chí của telc." },
         { "name": "Nói", "time": "15 phút", "body": "Thi nói theo cặp, luyện với AI trước ngày thi. Phần chấm Nói đang Beta." }
       ],
-      "disclaimer": "Đề thi thử là mô phỏng theo format telc B1, không liên kết với telc. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo.",
+      "disclaimer": "Đề thi thử mô phỏng cấu trúc đề telc B1, không liên kết với telc. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo.",
       "guideLink": "Xem cấu trúc từng kỳ thi",
       "bannerCap": "Thi thử có chấm AI",
       "bannerTitle": "Biết mình đang ở đâu so với mức B1, trước khi đăng ký thi thật.",
@@ -146,11 +146,11 @@
     },
     "partners": {
       "cap": "Trung tâm và nhà tuyển dụng",
-      "title": "Dùng cùng trung tâm hoặc nhà tuyển dụng",
+      "title": "Dùng cùng trung tâm tiếng Đức của bạn",
       "centers": {
         "cap": "Trung tâm, giáo viên",
         "title": "Học viên luyện nói mỗi ngày ngoài giờ học",
-        "body": "Giáo viên giao bài cho cả lớp, học viên làm trên điện thoại, AI chấm nháp. Giáo viên xem lại và chốt điểm bài viết; kết quả thành phiếu gửi gia đình.",
+        "body": "Giáo viên giao bài cho cả lớp, AI chấm nháp, giáo viên đọc bài hoặc nghe bản ghi âm rồi chốt điểm.",
         "points": ["Giao bài nói cho cả lớp bằng một chủ đề", "Chấm ảnh bài viết tay", "AI chấm nháp, giáo viên chốt điểm bài viết", "Phiếu gia đình đọc được bằng tiếng Việt, Anh, Đức"],
         "ctaConsult": "Đặt lịch demo 20 phút",
         "ctaFree": "Gói miễn phí cho giáo viên"
@@ -165,15 +165,6 @@
       "shotGradingCap": "Ảnh thật · Chấm bài có AI đề xuất",
       "shotGradingAlt": "Trung tâm chấm bài: hàng đợi bài chờ chấm bên trái, bài viết tiếng Đức của học viên ở giữa, bên phải là nút chấm bằng AI và ô giáo viên xác nhận điểm."
     },
-    "pricing": {
-      "cap": "Gói học phí",
-      "title": "Chọn gói phù hợp",
-      "plans": [
-        { "name": "Miễn phí", "price": "0₫", "sub": "", "features": ["Học từ vựng & ngữ pháp A1–B1", "Ôn tập ngắt quãng (SRS) mỗi ngày", "Trải nghiệm phỏng vấn AI có hạn mức"], "cta": "Bắt đầu ngay" },
-        { "name": "Pro", "price": "249.000₫", "sub": "/tháng", "features": ["Phỏng vấn AI hạn mức cao mỗi ngày", "Nhận xét ngữ pháp & nội dung chi tiết", "Đủ bộ ngành nghề phỏng vấn", "Thi thử telc B1"], "cta": "Dùng thử 7 ngày miễn phí" },
-        { "name": "Giáo viên", "price": "Liên hệ", "sub": "", "features": ["Quản lý lớp học", "Tạo tài liệu AI", "Chấm bài Speaking", "Báo cáo tiến độ học viên"], "cta": "Nhận tư vấn" }
-      ]
-    },
     "socialProof": {
       "cap": "Học viên nói gì",
       "title": "Kết quả từ người đã luyện",
@@ -181,36 +172,36 @@
       "stats": []
     },
     "faq": {
-      "contactLead": "Còn câu hỏi khác? Viết cho chúng mình:",
+      "contactLead": "Còn câu hỏi khác? Viết cho mình:",
       "cap": "Câu hỏi thường gặp",
       "title": "Trước khi bắt đầu",
       "items": [
         { "q": "Tôi học từ số 0 được không?", "a": "Được. Lộ trình bắt đầu từ A1: bảng chữ cái, chào hỏi, giới thiệu bản thân. Luyện phỏng vấn theo nghề phù hợp nhất từ khoảng A2." },
         { "q": "Có nghề của tôi không?", "a": "Gõ tên nghề vào ô “Bạn làm nghề gì?” ở đầu trang. Nghề đã có bộ câu hỏi riêng sẽ hiện ngay câu hỏi mẫu. Nghề chưa có thì AI dùng bộ câu hỏi chung, điều chỉnh theo vị trí bạn nhập." },
-        { "q": "AI chấm có chính xác không?", "a": "AI chỉ ra lỗi ngữ pháp, từ dùng chưa đúng và ý còn thiếu, kèm câu sửa. Điểm dùng để bạn theo dõi tiến bộ, không thay cho kỳ thi thật. Nếu học ở trung tâm, giáo viên xem lại và chốt điểm bài viết." },
+        { "q": "AI chấm có chính xác không?", "a": "AI chỉ ra lỗi ngữ pháp, từ dùng chưa đúng và ý còn thiếu, kèm câu sửa. Điểm giúp bạn theo dõi tiến bộ, không thay cho kỳ thi thật. Nếu học ở trung tâm, giáo viên đọc bài hoặc nghe bản ghi âm rồi chốt điểm." },
         { "q": "Có chấm phát âm không?", "a": "AI cho biết những từ nó nghe chưa rõ trong câu trả lời của bạn. Đây chưa phải phân tích phát âm chi tiết từng âm." },
         { "q": "Ghi âm của tôi được xử lý thế nào?", "a": "Bản ghi âm được chuyển thành chữ để chấm và nhận xét. Thời gian lưu và cách yêu cầu xoá được ghi trong Chính sách bảo mật." },
-        { "q": "Thi thử có phải chứng chỉ không?", "a": "Không. Thi thử mô phỏng format đề telc B1, không liên kết với telc và không thay cho chứng chỉ." },
+        { "q": "Thi thử có phải chứng chỉ không?", "a": "Không. Thi thử mô phỏng cấu trúc đề telc B1, không liên kết với telc và không thay cho chứng chỉ." },
         { "q": "Tôi đang học ở trung tâm, dùng chung được không?", "a": "Được. Trung tâm tạo lớp và giao bài; bạn làm trên ứng dụng, giáo viên theo dõi và chấm." },
-        { "q": "Có mất phí không?", "a": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro khi đăng ký. Hết 7 ngày, bạn vẫn học bài và ôn từ vựng miễn phí; luyện nói, phỏng vấn và chấm bài bằng AI cần gói Pro, từ 249.000₫ một tháng, mua trong app iPhone. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)." }
+        { "q": "Có mất phí không?", "a": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro khi đăng ký. Hết 7 ngày, bạn vẫn học bài và ôn từ vựng miễn phí. Luyện nói, phỏng vấn và chấm bài bằng AI cần gói Pro: 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)." }
       ]
     },
     "founder": {
       "cap": "Vì sao có myDeutschFlow",
       "quote": "Mình cũng đang học tiếng Đức và chuẩn bị phỏng vấn. Mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán.",
       "name": "Đinh Huy Cự",
-      "role": "Người phát triển myDeutschFlow",
-      "photoAlt": "Đinh Huy Cự, người phát triển myDeutschFlow",
+      "role": "Người sáng lập myDeutschFlow",
+      "photoAlt": "Đinh Huy Cự, người sáng lập myDeutschFlow",
       "link": "Đọc câu chuyện"
     },
     "cta": {
       "cap": "Bắt đầu ngay hôm nay",
-      "title": "Sẵn sàng cho phỏng vấn tiếng Đức của bạn?",
+      "title": "Luyện trước, để buổi phỏng vấn thật bớt run.",
       "button": "Học thử miễn phí"
     },
     "cast": {
       "cap": "Người phỏng vấn của bạn",
-      "title": "Mỗi nghề, một người phỏng vấn của đúng ngành đó.",
+      "title": "Mỗi ngành có người phỏng vấn riêng.",
       "sub": "Bếp, nhà hàng, khách sạn, phòng khám, xưởng máy, văn phòng. Nghề chưa có người phỏng vấn riêng thì AI vẫn hỏi theo đúng nghề bạn chọn.",
       "ask": "Xem {name} hỏi gì",
       "hint": "Chọn một người để xem một câu họ hay hỏi",
@@ -222,35 +213,35 @@
     "about": {
       "meta": {
         "title": "Về chúng tôi · myDeutschFlow",
-        "description": "myDeutschFlow là dự án của Đinh Huy Cự, một lập trình viên đang tự học tiếng Đức, xây công cụ luyện phỏng vấn tiếng Đức mà chính mình cần."
+        "description": "myDeutschFlow là dự án của Đinh Huy Cự, một lập trình viên đang tự học tiếng Đức và tự làm công cụ luyện phỏng vấn mà chính mình cần."
       },
       "hero": {
         "cap": "Về chúng tôi · Câu chuyện",
         "titleLead": "Bắt đầu từ một người",
         "titleEm": "đang học tiếng Đức.",
-        "sub": "myDeutschFlow là dự án của Đinh Huy Cự, một lập trình viên tự học tiếng Đức để tìm cơ hội ở Đức, và xây đúng công cụ mà chính mình cần.",
+        "sub": "myDeutschFlow là dự án của Đinh Huy Cự, một lập trình viên tự học tiếng Đức để tìm việc ở Đức, rồi tự làm ra công cụ mà chính mình cần.",
         "readOn": "Đọc từ đầu",
-        "photoAlt": "Đinh Huy Cự, người phát triển myDeutschFlow, mặc vest xám"
+        "photoAlt": "Đinh Huy Cự, người sáng lập myDeutschFlow, mặc vest xám"
       },
       "chapterLabel": "Chương {n}",
       "ch1": {
         "name": "Khoảng trống",
         "title": "Tài liệu thì nhiều. Chỗ để luyện phỏng vấn đúng ngành thì gần như không có.",
         "body": [
-          "Giống nhiều người khác, mình học tiếng Đức không phải để thi cho vui, mà để thật sự sống, làm việc và phỏng vấn được bằng tiếng Đức.",
-          "Trên hành trình đó, mình thấy người Việt học tiếng Đức có rất nhiều tài liệu, nhưng gần như không có chỗ nào để luyện nói và luyện phỏng vấn đúng ngành một cách an toàn, có phản hồi chuyên môn, và hiểu được văn hoá tuyển dụng của người Đức."
+          "Như nhiều người khác, mình học tiếng Đức không phải để lấy một tấm bằng, mà để thật sự sống, làm việc và qua được buổi phỏng vấn bằng tiếng Đức.",
+          "Trên đường học, mình thấy người Việt có rất nhiều tài liệu tiếng Đức. Nhưng gần như không có chỗ nào để luyện nói, luyện phỏng vấn đúng ngành mà không sợ sai, được góp ý về chuyên môn và hiểu cách người Đức tuyển người."
         ]
       },
       "quote": "Mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán.",
       "ch2": {
         "name": "Tự xây",
         "title": "Nên mình tự xây đúng công cụ mình đang cần.",
-        "body": "AI đóng vai nhà tuyển dụng Đức, hỏi theo đúng nghề và chỉ ra chỗ cần sửa sau mỗi câu trả lời. Thêm lộ trình A1–B1 từng ngày và thi thử telc B1. Mỗi nghề có người phỏng vấn của đúng ngành đó."
+        "body": "Trong myDeutschFlow, AI đóng vai nhà tuyển dụng Đức, hỏi đúng nghề của bạn và chỉ ra chỗ cần sửa sau mỗi câu trả lời. Mình làm thêm lộ trình A1–B1 từng ngày và thi thử telc B1. Mỗi nghề có người phỏng vấn của đúng ngành đó."
       },
       "timeline": {
         "name": "Từng bước",
         "title": "Một người, từng bước một.",
-        "solo": "Không có đội ngũ nào phía sau. Từ dòng code đầu tiên tới hôm nay, myDeutschFlow do một mình mình làm, qua hơn 1.600 lần commit.",
+        "solo": "Phía sau myDeutschFlow không có đội ngũ nào. Chỉ có mình, vừa học tiếng Đức vừa tự tay làm ra từng tính năng mà chính mình cần.",
         "items": [
           {
             "date": "12/04/2026",
@@ -265,22 +256,22 @@
           {
             "date": "18/10/2026",
             "title": "Cho mọi nghề, mọi nước",
-            "body": "Mở rộng cho người học ở mọi nước, cho trung tâm tiếng Đức và nhà tuyển dụng ở Đức."
+            "body": "Mở rộng cho người học ở mọi nước và cho trung tâm tiếng Đức. Phần dành cho nhà tuyển dụng ở Đức sắp có."
           }
         ]
       },
       "ch3": {
         "name": "Mở rộng",
         "title": "Bắt đầu từ người Việt. Hướng tới mọi người đang chuẩn bị sang Đức.",
-        "body": "Khoảng trống ấy không chỉ của người Việt. Ai sang Đức làm việc hay học nghề cũng cần luyện phỏng vấn đúng ngành, bằng tiếng Đức. Nên myDeutschFlow phục vụ ba nhóm, ở mọi nghề và mọi nước.",
+        "body": "Khoảng trống ấy không chỉ của người Việt. Ai sang Đức làm việc hay học nghề cũng cần luyện phỏng vấn đúng ngành, bằng tiếng Đức. Nên myDeutschFlow làm cho ba nhóm người, dù bạn làm nghề gì, ở nước nào.",
         "groups": [
           {
             "name": "Người học",
-            "body": "Luyện phỏng vấn theo nghề, luyện thi Nói, học nền tảng đến B1."
+            "body": "Luyện phỏng vấn theo nghề, thi thử telc B1, học nền tảng đến B1."
           },
           {
             "name": "Trung tâm tiếng Đức",
-            "body": "Giao bài nói cho cả lớp, AI chấm nháp, giáo viên chốt điểm bài viết."
+            "body": "Giao bài nói, bài viết cho cả lớp. AI chấm nháp, giáo viên đọc hoặc nghe lại rồi chốt điểm."
           },
           {
             "name": "Nhà tuyển dụng ở Đức",
@@ -294,7 +285,7 @@
         "items": [
           {
             "title": "Của người trong cuộc",
-            "body": "Mình cũng đang học tiếng Đức và chuẩn bị phỏng vấn. Mỗi tính năng ra đời từ một nhu cầu thật, không phải phỏng đoán."
+            "body": "Mình cũng đang học tiếng Đức và chuẩn bị phỏng vấn, nên mình làm những thứ chính mình thấy thiếu khi học."
           },
           {
             "title": "Thành thật",
@@ -302,19 +293,19 @@
           },
           {
             "title": "Lắng nghe",
-            "body": "Chỉ có một người phía sau, nên mình đọc và trả lời từng email. Góp ý của bạn trực tiếp định hình sản phẩm."
+            "body": "Chỉ có một người phía sau, nên mình đọc và trả lời từng email. Góp ý của bạn được đưa thẳng vào sản phẩm."
           }
         ]
       },
       "signoff": {
-        "line": "Nếu bạn cũng đang trên con đường sang Đức, hy vọng myDeutschFlow giúp được bạn như đang giúp chính mình.",
+        "line": "Nếu bạn cũng đang trên đường sang Đức, mình mong myDeutschFlow giúp được bạn, như nó đang giúp mình.",
         "contact": "Viết cho mình:",
         "photoAlt": "Ảnh chân dung Đinh Huy Cự",
         "cta": "Học thử miễn phí"
       }
     },
     "workplaces": {
-      "gastro": "Nhà hàng, khách sạn",
+      "gastro": "Nhà hàng, khách sạn, thực phẩm",
       "pflege": "Y tế, điều dưỡng",
       "bau": "Xây dựng, thủ công",
       "industrie": "Công nghiệp, kỹ thuật",
@@ -336,20 +327,22 @@
     "occupationPages": {
       "index": {
         "meta": {
-          "title": "Câu hỏi phỏng vấn xin việc tiếng Đức theo nghề | myDeutschFlow",
-          "description": "Xem câu hỏi phỏng vấn tiếng Đức cho {count} nghề, rồi luyện trả lời với AI phỏng vấn đúng nghề của bạn."
+          "title": "Câu hỏi phỏng vấn tiếng Đức theo nghề | myDeutschFlow",
+          "description": "Câu hỏi phỏng vấn xin việc bằng tiếng Đức cho {count} nghề, kèm từ chuyên môn. Luyện trả lời với AI đóng vai người phỏng vấn đúng nghề của bạn."
         },
         "cap": "Phỏng vấn theo nghề",
         "title": "Câu hỏi phỏng vấn tiếng Đức cho nghề của bạn",
-        "intro": "Chọn nghề để xem câu hỏi phỏng vấn tiêu biểu. Mỗi câu có nhãn rõ: đã duyệt, AI tạo hoặc bộ câu hỏi chung. Buổi luyện thật có thể hỏi thêm câu khác.",
+        "intro": "Chọn nghề để xem câu hỏi phỏng vấn tiêu biểu. Buổi luyện thật có thể hỏi thêm câu khác.",
         "count": "{count} nghề",
         "unavailable": "Chưa tải được danh sách nghề. Vui lòng thử lại sau ít phút."
       },
       "detail": {
         "meta": {
           "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe}) | myDeutschFlow",
-          "titleShort": "Phỏng vấn tiếng Đức nghề {name} ({nameDe})",
-          "description": "Câu hỏi phỏng vấn xin việc tiếng Đức cho nghề {name} ({nameDe}), từ chuyên môn và người phỏng vấn của bạn. Luyện trả lời với AI, học thử 7 ngày Pro."
+          "titleShort": "Phỏng vấn tiếng Đức nghề {name}",
+          "titleMin": "Phỏng vấn nghề {name}",
+          "description": "Câu hỏi phỏng vấn tiếng Đức nghề {name} ({nameDe}) và từ chuyên môn nên biết. Luyện trả lời với AI, học thử 7 ngày Pro.",
+          "descriptionShort": "Câu hỏi phỏng vấn tiếng Đức nghề {name} và từ chuyên môn nên biết. Luyện trả lời với AI, học thử 7 ngày Pro."
         },
         "back": "Tất cả nghề",
         "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe})",
@@ -359,20 +352,21 @@
         "moreCap": "Thêm câu hỏi riêng cho nghề này",
         "termsCap": "Từ chuyên môn",
         "termsEmpty": "Từ chuyên môn của nghề này đang được soạn.",
-        "labelsNote": "Câu “Đã duyệt” đã qua người kiểm. Câu “AI tạo” do AI soạn riêng cho nghề này và đang chờ duyệt. “Bộ câu hỏi chung” dùng cho mọi nghề, kèm tên nghề của bạn.",
+        "termsGuide": "Từ vựng của nghề này có trong bài cẩm nang <link>“{title}”</link>.",
+        "labelsNote": "Câu “Đã duyệt” đã được người kiểm tra. Câu “AI tạo” do AI soạn riêng cho nghề này, đang chờ duyệt. “Bộ câu hỏi chung” dùng cho mọi nghề, chỉ thay tên nghề cho khớp với bạn.",
         "cta": "Luyện phỏng vấn nghề này",
         "ctaNote": "Học thử miễn phí: 7 ngày Pro, không cần thanh toán trước. Sau đó luyện phỏng vấn cần gói Pro.",
         "relatedCap": "Nghề liên quan",
-        "guideLink": "Cẩm nang: {title}",
-        "examLink": "Luyện thi {name}",
+        "guideLink": "Đọc cẩm nang “{title}”",
+        "examLink": "Tìm hiểu kỳ thi {name}",
         "faqCap": "Câu hỏi thường gặp",
         "faqAskQ": "Phỏng vấn tiếng Đức nghề {name} thường hỏi gì?",
-        "faqAskA": "Buổi luyện mở đầu bằng lời mời giới thiệu bản thân, sau đó người phỏng vấn hỏi về kinh nghiệm và chuyên môn của nghề, ví dụ: „{example}“. Câu hỏi có thể khác hoặc được hỏi theo cách khác.",
+        "faqAskA": "Buổi luyện mở đầu bằng phần giới thiệu bản thân. Sau đó người phỏng vấn hỏi về kinh nghiệm và chuyên môn của nghề, có thể hỏi câu khác hoặc hỏi theo cách khác. Một câu ví dụ: „{example}“",
         "faqAskANoExample": "Buổi luyện mở đầu bằng lời mời giới thiệu bản thân, sau đó người phỏng vấn hỏi về kinh nghiệm và chuyên môn của nghề. Câu hỏi có thể khác hoặc được hỏi theo cách khác.",
         "faqLevelQ": "Cần trình độ tiếng Đức nào để phỏng vấn nghề {name}?",
-        "faqLevelA": "Tuỳ nhà tuyển dụng và chương trình. Nhiều chương trình học nghề yêu cầu từ B1, có nơi yêu cầu B2. Hãy kiểm tra yêu cầu của nơi bạn ứng tuyển.",
+        "faqLevelA": "Tuỳ nghề và nơi tuyển. Nhiều chương trình học nghề yêu cầu từ B1, có nơi yêu cầu B2; bác sĩ, dược sĩ thường cần trình độ cao hơn. Hãy kiểm tra yêu cầu của nơi bạn ứng tuyển.",
         "faqCostQ": "Luyện phỏng vấn nghề {name} có mất phí không?",
-        "faqCostA": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro để luyện phỏng vấn với AI. Sau đó luyện phỏng vấn cần gói Pro, từ 249.000₫ một tháng, mua trong app iPhone. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)."
+        "faqCostA": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro để luyện phỏng vấn với AI. Sau đó cần gói Pro, 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone. Cách nâng cấp khi dùng Android có ở trang Chi phí (mydeutschflow.com/chi-phi/)."
       }
     },
     "footer": {
@@ -389,13 +383,13 @@
     "schools": {
       "meta": {
         "title": "Cho trung tâm và đơn vị đào tạo · myDeutschFlow",
-        "description": "Học viên luyện nói tiếng Đức mỗi ngày ngoài giờ, AI chấm nháp, giáo viên nghe lại và chốt điểm. Dành cho trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức."
+        "description": "Học viên luyện nói tiếng Đức mỗi ngày, AI chấm nháp, giáo viên nghe lại và chốt điểm. Dành cho trung tâm tiếng Đức, trường nghề và đơn vị đưa người sang Đức."
       },
       "hero": {
         "cap": "Cho trung tâm · Đơn vị đào tạo",
         "title": "Học viên luyện nói mỗi ngày ngoài giờ.",
         "titleEm": "Giáo viên chỉ cần nghe và chốt.",
-        "sub": "Một chỗ để trung tâm tiếng, trường nghề và đơn vị đưa người sang Đức giao bài nói, bài viết cho học viên, để AI chấm nháp, rồi giáo viên nghe lại và chốt điểm.",
+        "sub": "Trung tâm giao bài nói, bài viết cho học viên. AI chấm nháp, giáo viên nghe lại rồi chốt điểm.",
         "cta": "Đặt lịch demo 20 phút",
         "ctaTeacher": "Tôi là giáo viên tự do"
       },
@@ -405,7 +399,7 @@
         "items": [
           {
             "title": "Trên lớp, mỗi người chỉ nói vài phút",
-            "body": "Lớp hai mươi người, buổi học chín mươi phút: phần lớn thời gian mỗi học viên là ngồi nghe người khác nói."
+            "body": "Lớp hai mươi người, buổi học chín mươi phút, mỗi học viên chủ yếu ngồi nghe người khác nói."
           },
           {
             "title": "Ngoài giờ không ai nghe",
@@ -413,7 +407,7 @@
           },
           {
             "title": "Điểm yếu lộ ra quá muộn",
-            "body": "Học viên yếu phần Nói thường chỉ lộ ra sát kỳ thi, hoặc ngay trong buổi phỏng vấn với bên tuyển dụng."
+            "body": "Điểm yếu phần Nói thường chỉ lộ ra sát kỳ thi, có khi ngay trong buổi phỏng vấn xin việc."
           }
         ]
       },
@@ -439,8 +433,8 @@
             "state": "ready"
           },
           {
-            "name": "Giáo viên đọc và chốt",
-            "body": "Bài viết: giáo viên đọc bài và chốt điểm. Bài nói được giao: giáo viên nghe bản ghi âm, xem lời học viên rồi mới chốt.",
+            "name": "Giáo viên nghe, đọc rồi chốt",
+            "body": "Bài nói: giáo viên nghe bản ghi âm và đọc bản chép lời rồi chốt điểm. Bài viết: giáo viên đọc bài rồi chốt điểm.",
             "state": "ready"
           },
           {
@@ -471,7 +465,7 @@
       "pricing": {
         "cap": "Chi phí",
         "title": "Tính theo học viên đang học.",
-        "body": "Trung tâm trả theo số học viên đang học mỗi tháng. Bắt đầu bằng 2 tuần chạy thử miễn phí; phí chạy thử sau đó được trừ vào hợp đồng nếu trung tâm dùng tiếp. Báo giá cụ thể trong buổi demo."
+        "body": "Trung tâm trả theo số học viên đang học mỗi tháng. Bắt đầu bằng 2 tuần chạy thử miễn phí. Báo giá trong buổi demo."
       },
       "data": {
         "cap": "Dữ liệu học viên",
@@ -479,9 +473,9 @@
         "items": [
           "Bài làm và bản ghi âm của học viên chưa đủ tuổi chỉ được gửi cho AI khi có đồng ý của người giám hộ. Trung tâm ghi nhận đồng ý ngay trong hệ thống.",
           "Học viên chỉ thấy điểm sau khi giáo viên chốt.",
-          "Dữ liệu nào được lưu, giữ bao lâu và xoá thế nào được nêu trong Chính sách quyền riêng tư."
+          "Dữ liệu nào được lưu, giữ bao lâu và xoá thế nào được nêu trong Chính sách bảo mật."
         ],
-        "privacyLink": "Đọc Chính sách quyền riêng tư"
+        "privacyLink": "Đọc Chính sách bảo mật"
       },
       "teacher": {
         "cap": "Giáo viên tự do",
@@ -506,7 +500,7 @@
         "steps": [
           {
             "name": "Mở trung tâm, mời giáo viên",
-            "body": "Trung tâm được mở sau buổi demo. Bạn mời giáo viên bằng email."
+            "body": "Tài khoản trung tâm được tạo sau buổi demo. Bạn mời giáo viên bằng email."
           },
           {
             "name": "Nhập danh sách học viên",

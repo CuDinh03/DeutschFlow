@@ -95,7 +95,7 @@ export const PERSONA_TOKENS: Record<PersonaId, PersonaToken> = {
     ],
   },
   klaus: {
-    id: "klaus", name: "Klaus", role: "Culinary Expert", tag: "Head Chef · München",
+    id: "klaus", name: "Klaus", role: "Culinary Expert", tag: "Küchenchef · München",
     desc: "Luyện tiếng Đức qua chủ đề ẩm thực, nhà bếp và giao tiếp nhóm.",
     group: "it",
     accent: "#991B1B", glow: "rgba(153,27,27,0.4)", bubble: "#450A0A",

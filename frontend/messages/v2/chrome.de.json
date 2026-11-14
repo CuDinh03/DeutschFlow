@@ -167,15 +167,15 @@
   },
   "error": {
     "title": "Auf dieser Seite ist ein Fehler aufgetreten",
-    "desc": "Die Seite wurde beim Aufbau abgebrochen. Meist hilft ein neuer Versuch; falls nicht, schicke die Details unten an das Team.",
+    "desc": "Die Seite wurde unterbrochen. Meist hilft Neuladen. Falls nicht, senden Sie die Details unten an support@mydeutschflow.com.",
     "staleTitle": "Der Browser hält eine alte Version",
-    "staleDesc": "Dateien des vorherigen Deployments liegen nicht mehr auf dem Server. Lade die Seite neu, um die neueste Version zu holen.",
+    "staleDesc": "Dateien der vorherigen Version liegen nicht mehr auf dem Server. Laden Sie die Seite neu, um die neueste Version zu holen.",
     "detailsCap": "Technische Details",
     "digestLabel": "Fehlercode",
     "noMessage": "Keine Fehlermeldung.",
     "reload": "Seite neu laden",
     "notFoundTitle": "Diese Seite gibt es nicht",
-    "notFoundDesc": "Der Link hat sich vielleicht geändert oder ist vertippt. Zurück zur Startseite – oder wähle einen Beruf und sieh dir die Interviewfragen an.",
+    "notFoundDesc": "Der Link hat sich vielleicht geändert oder ist vertippt. Gehen Sie zur Startseite oder wählen Sie einen Beruf, um die Interviewfragen zu sehen.",
     "notFoundHome": "Zur Startseite",
     "notFoundOccupations": "Interviews nach Beruf"
   },

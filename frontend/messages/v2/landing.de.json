@@ -2,7 +2,7 @@
   "landing": {
     "shotScrollHint": "Seitwärts scrollen für den Rest",
     "meta": {
-      "title": "myDeutschFlow — Vorstellungsgespräche auf Deutsch mit KI üben",
+      "title": "Vorstellungsgespräch auf Deutsch mit KI üben · myDeutschFlow",
       "description": "Vorstellungsgespräche auf Deutsch mit KI üben: Fragen passend zum Beruf, Feedback nach jeder Antwort. Lernpfad A1–B1, Probeprüfungen telc B1."
     },
     "nav": {
@@ -17,7 +17,7 @@
     },
     "header": {
       "login": "Anmelden",
-      "tryShort": "Kostenlos",
+      "tryShort": "Testen",
       "tryFree": "Kostenlos testen",
       "openMenu": "Menü öffnen",
       "closeMenu": "Menü schließen"
@@ -28,20 +28,20 @@
       "titleEm": "passend zu Ihrem Beruf.",
       "sub": "Eine KI spielt den deutschen Arbeitgeber, stellt Fragen zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können: Grammatik, Wortwahl, fehlende Inhalte.",
       "ctaStart": "Kostenlos testen",
-      "microcopy": "Keine Karte nötig · In 2 Minuten starten · App fürs iPhone",
+      "microcopy": "Keine Vorauszahlung · In 2 Minuten starten · App fürs iPhone",
       "bullets": ["Fragen passend zu Ihrem Beruf", "Probeprüfungen telc B1 im echten Format"]
     },
     "explorer": {
       "cap": "Fragen vorab ansehen",
       "label": "Welchen Beruf haben Sie?",
       "placeholder": "z. B. Koch, Kellner…",
-      "popular": "Häufig gewählte Positionen",
-      "interviewer": "Interview mit: {name} · {tag}",
+      "popular": "Schnellauswahl",
+      "interviewer": "Interviewer: {name} · {tag}",
       "questionsCap": "Typische Fragen für diese Position",
       "sourceNote": "Typische Fragen aus dem Fragenkatalog dieser Position. Im Gespräch fragt die KI auf Deutsch, kann auch andere Fragen stellen oder sie anders formulieren und hakt bei Ihren Antworten nach.",
       "cta": "Gespräch für diese Position üben",
       "noMatchTitle": "Noch kein eigener Fragenkatalog für „{query}“",
-      "noMatchBody": "Die KI kann Sie trotzdem interviewen: mit dem allgemeinen Fragenkatalog (Vorstellung, Situationen, Fachwissen), angepasst an die angegebene Position. Eigene Kataloge für weitere Berufe, darunter Pflege und Bau, werden gerade erstellt.",
+      "noMatchBody": "Die KI kann Sie trotzdem interviewen: mit dem allgemeinen Fragenkatalog (Vorstellung, Situationen, Fachwissen), angepasst an die angegebene Position.",
       "ctaGeneral": "Mit dem allgemeinen Katalog üben",
       "labels": {
         "approved": "Geprüft",
@@ -63,8 +63,8 @@
       "examLabel": "Prüfung",
       "interviewLabel": "Im Gespräch geht es um",
       "items": [
-        { "name": "Ausbildung", "de": "Ausbildung", "who": "Einstieg in einen Beruf in Deutschland oder Berufswechsel.", "level": "B1, manchmal B2", "exam": "Goethe oder telc B1", "interview": "Motivation, Pläne, Wissen über Beruf und Deutschland", "fit": "Bei myDeutschFlow: Interviews nach Beruf, Lernpfad A1–B1, Probeprüfung B1." },
-        { "name": "Anerkennung", "de": "Anerkennung", "who": "Mit Abschluss und Berufserfahrung: Gesundheit, Technik, Handwerk…", "level": "B1–B2, je nach Beruf und Bundesland", "exam": "Berufsbezogene Prüfungen wie telc Pflege, DTB", "interview": "Fachwissen, Situationen im Beruf, Abläufe", "fit": "Bei myDeutschFlow: Interviews nach Beruf. Berufsbezogene Prüfungen werden gerade erstellt." },
+        { "name": "Ausbildung", "de": "Ausbildung", "who": "Einstieg in einen Beruf in Deutschland oder Berufswechsel.", "level": "B1, manchmal B2", "exam": "Goethe oder telc B1", "interview": "Motivation, Pläne, Wissen über Beruf und Deutschland", "fit": "Bei myDeutschFlow: Interviews nach Beruf, Lernpfad A1–B1, Probeprüfung telc B1." },
+        { "name": "Anerkennung", "de": "Anerkennung", "who": "Mit Abschluss und Berufserfahrung: Gesundheit, Technik, Handwerk…", "level": "B1–B2, je nach Beruf und Bundesland", "exam": "Berufsbezogene Prüfungen wie telc Pflege, DTB", "interview": "Fachwissen, Situationen im Beruf, Abläufe", "fit": "Bei myDeutschFlow: Interviews nach Beruf. Noch keine berufsbezogenen Deutschprüfungen." },
         { "name": "Jobsuche", "de": "Chancenkarte · Blaue Karte", "who": "Ingenieurinnen und Ingenieure, IT-Fachkräfte, Hochschulabsolventen.", "level": "Ab A1 oder B2 Englisch", "exam": "Je nach Arbeitgeber", "interview": "Fachwissen; Deutsch ist ein Vorteil", "fit": "Bei myDeutschFlow: Interviews für IT, Technik und Büro." },
         { "name": "Studium", "de": "Studium", "who": "Schülerinnen und Schüler, Studierende mit Studienziel Deutschland.", "level": "Meist B2–C1", "exam": "TestDaF, DSH, Goethe C1", "interview": "Gespräche mit Hochschule und Visumstelle", "fit": "Bei myDeutschFlow: Sprechtraining, Probeprüfungen telc B1. Noch kein C1-Lernpfad." },
         { "name": "Familiennachzug", "de": "Familiennachzug", "who": "Ehepartner und Angehörige von Menschen, die in Deutschland leben.", "level": "A1 für das Visum, B1 für den Daueraufenthalt", "exam": "Start Deutsch A1, DTZ", "interview": "Visumgespräch, Alltag", "fit": "Bei myDeutschFlow: Lernpfad ab A1, Sprechtraining für den Alltag." }
@@ -103,7 +103,7 @@
       "items": [
         { "name": "Lernpfad A1–B1, Tag für Tag", "desc": "Jeden Tag eine Etappe mit Hören, Lesen, Sprechen und Schreiben. B2 ist in Arbeit." },
         { "name": "Wortschatz im richtigen Moment", "desc": "Wortkarten kommen per Spaced Repetition wieder, damit sie hängen bleiben." },
-        { "name": "Video-Lektionen", "desc": "In der App: Bilder, deutsche Vertonung, zweisprachige Untertitel." },
+        { "name": "Video-Lektionen", "desc": "In der iPhone-App: Bilder, deutsche Vertonung, zweisprachige Untertitel." },
         { "name": "Fortschritt im Blick", "desc": "Lernserien, starke und schwache Fertigkeiten, Übungsverlauf." }
       ],
       "shotCap": "Echter Screen · Lernpfad-Baum einer lernenden Person",
@@ -130,12 +130,12 @@
       "clipPlay": "Video abspielen",
       "clipPause": "Video anhalten",
       "cap": "Prüfungstraining",
-      "title": "Probeprüfungen im echten Prüfungsformat",
+      "title": "Probeprüfungen telc B1 im echten Prüfungsformat",
       "sub": "Alle vier Teile von telc Deutsch B1 mit echter Zeit und Struktur üben, mit Schwächenanalyse nach jedem Durchgang.",
       "parts": [
         { "name": "Leseverstehen", "time": "90 Min.", "body": "Leseverstehen und Sprachbausteine mit Alltags- und Arbeitstexten, sofort automatisch bewertet." },
         { "name": "Hörverstehen", "time": "30 Min.", "body": "Dialoge, Durchsagen und kurze Interviews im echten Prüfungstempo." },
-        { "name": "Schreiben", "time": "30 Min.", "body": "Ein Brief oder eine E-Mail zu einer Situation — als Foto einreichen, die KI bewertet Aufbau und Grammatik." },
+        { "name": "Schreiben", "time": "30 Min.", "body": "Ein Brief oder eine E-Mail zu einer Situation. Sie tippen den Text, die KI bewertet ihn nach den drei telc-Kriterien." },
         { "name": "Sprechen", "time": "15 Min.", "body": "Partnergespräch, vor dem Prüfungstag mit der KI üben. Die Sprechbewertung ist in der Beta-Phase." }
       ],
       "disclaimer": "Die Probeprüfungen sind Simulationen im Format telc B1 und stehen in keiner Verbindung zu telc. Die Sprechbewertung ist in der Beta-Phase, die Punkte dienen nur zur Orientierung.",
@@ -146,11 +146,11 @@
     },
     "partners": {
       "cap": "Sprachschulen und Arbeitgeber",
-      "title": "Gemeinsam mit Sprachschule oder Arbeitgeber nutzen",
+      "title": "Gemeinsam mit Ihrer Sprachschule nutzen",
       "centers": {
         "cap": "Sprachschulen, Lehrkräfte",
         "title": "Lernende üben jeden Tag Sprechen, auch außerhalb des Unterrichts",
-        "body": "Lehrkräfte geben der ganzen Klasse Aufgaben, Lernende bearbeiten sie auf dem Handy, die KI macht einen Bewertungsvorschlag. Lehrkräfte prüfen und bestätigen die Noten für schriftliche Aufgaben; die Ergebnisse werden zum Bericht für die Familie.",
+        "body": "Lehrkräfte geben der ganzen Klasse Aufgaben, die KI macht einen Bewertungsvorschlag, und die Lehrkraft liest den Text oder hört die Aufnahme, bevor sie die Note bestätigt.",
         "points": ["Sprechaufgabe mit einem Thema an die ganze Klasse geben", "Fotos handschriftlicher Texte bewerten", "KI-Vorschlag, Lehrkraft bestätigt die Note für schriftliche Aufgaben", "Familienbericht auf Vietnamesisch, Englisch und Deutsch"],
         "ctaConsult": "Demo (20 Minuten) buchen",
         "ctaFree": "Kostenloses Paket für Lehrkräfte"
@@ -165,15 +165,6 @@
       "shotGradingCap": "Echter Screen · Bewerten mit KI-Vorschlag",
       "shotGradingAlt": "Das Bewertungszentrum: links die Warteschlange der offenen Arbeiten, in der Mitte der deutsche Text einer lernenden Person, rechts die KI-Bewertung neben dem Feld zur Bestätigung durch die Lehrkraft."
     },
-    "pricing": {
-      "cap": "Pakete",
-      "title": "Das passende Paket wählen",
-      "plans": [
-        { "name": "Kostenlos", "price": "0₫", "sub": "", "features": ["Wortschatz & Grammatik A1–B1", "Tägliche Wiederholung (SRS)", "KI-Gespräche mit Tageslimit"], "cta": "Jetzt starten" },
-        { "name": "Pro", "price": "249.000₫", "sub": "/Monat", "features": ["Hohes Tageslimit für KI-Gespräche", "Detailliertes Feedback zu Grammatik & Inhalt", "Alle Berufe im Gesprächstraining", "Probeprüfungen telc B1"], "cta": "7 Tage kostenlos testen" },
-        { "name": "Lehrkräfte", "price": "Auf Anfrage", "sub": "", "features": ["Klassenverwaltung", "KI-Materialien", "Sprechbewertung", "Fortschrittsberichte der Lernenden"], "cta": "Beratung anfragen" }
-      ]
-    },
     "socialProof": {
       "cap": "Das sagen Lernende",
       "title": "Ergebnisse von Lernenden",
@@ -187,12 +178,12 @@
       "items": [
         { "q": "Kann ich bei null anfangen?", "a": "Ja. Der Lernpfad beginnt bei A1: Alphabet, Begrüßung, sich vorstellen. Das Interviewtraining nach Beruf passt am besten ab etwa A2." },
         { "q": "Gibt es meinen Beruf?", "a": "Geben Sie Ihren Beruf oben bei „Welchen Beruf haben Sie?“ ein. Positionen mit eigenem Fragenkatalog zeigen sofort Beispielfragen. Für andere Positionen nutzt die KI den allgemeinen Katalog, angepasst an die angegebene Position." },
-        { "q": "Wie genau ist das KI-Feedback?", "a": "Die KI zeigt Grammatikfehler, unpassende Wörter und fehlende Inhalte, mit korrigiertem Satz. Die Punkte helfen, den Fortschritt zu verfolgen, und ersetzen keine echte Prüfung. Wer mit einer Sprachschule lernt, bekommt Noten für schriftliche Aufgaben von der Lehrkraft bestätigt." },
+        { "q": "Wie genau ist das KI-Feedback?", "a": "Die KI zeigt Grammatikfehler, unpassende Wörter und fehlende Inhalte, mit korrigiertem Satz. Die Punkte helfen, den Fortschritt zu verfolgen, und ersetzen keine echte Prüfung. Wer mit einer Sprachschule lernt, bekommt die Note von der Lehrkraft, nachdem sie den Text gelesen oder die Aufnahme gehört hat." },
         { "q": "Wird die Aussprache bewertet?", "a": "Die KI zeigt, welche Wörter in Ihrer Antwort nicht klar zu verstehen waren. Eine detaillierte Analyse einzelner Laute ist das noch nicht." },
         { "q": "Was passiert mit meinen Aufnahmen?", "a": "Aufnahmen werden in Text umgewandelt, damit sie bewertet und kommentiert werden können. Speicherdauer und Löschung stehen in der Datenschutzerklärung." },
         { "q": "Ist eine Probeprüfung ein Zertifikat?", "a": "Nein. Probeprüfungen simulieren das Format telc B1, stehen in keiner Verbindung zu telc und ersetzen kein Zertifikat." },
         { "q": "Ich lerne an einer Sprachschule. Können wir es gemeinsam nutzen?", "a": "Ja. Die Sprachschule legt Klassen an und gibt Aufgaben; Sie bearbeiten sie in der App, die Lehrkraft verfolgt und bewertet sie." },
-        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos, ohne Kreditkarte, mit 7 Tagen Pro nach der Registrierung. Danach bleiben Lektionen und Vokabelwiederholung kostenlos; KI-Sprechtraining, Interviewtraining und KI-Korrektur brauchen Pro, ab 249.000₫ im Monat in der iPhone-App." }
+        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos, ohne Vorauszahlung, mit 7 Tagen Pro nach der Registrierung. Danach bleiben Lektionen und Vokabelwiederholung kostenlos. KI-Sprechtraining, Interviewtraining und KI-Korrektur brauchen Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App." }
       ]
     },
     "founder": {
@@ -210,7 +201,7 @@
     },
     "cast": {
       "cap": "Ihre Interviewer",
-      "title": "Für jeden Beruf eine Person aus der Branche.",
+      "title": "Für jede Branche eine eigene Person.",
       "sub": "Küche, Restaurant, Hotel, Arztpraxis, Werkstatt, Büro. Gibt es für Ihren Beruf noch keine eigene Person, fragt die KI trotzdem gezielt zu dem Beruf, den Sie wählen.",
       "ask": "Frage von {name} ansehen",
       "hint": "Wählen Sie eine Person, um eine typische Frage von ihr zu sehen",
@@ -222,7 +213,7 @@
     "about": {
       "meta": {
         "title": "Über uns · myDeutschFlow",
-        "description": "myDeutschFlow ist ein Projekt von Đinh Huy Cự, einem Softwareentwickler, der sich selbst Deutsch beibringt und das Trainingstool für Vorstellungsgespräche baut, das er selbst gebraucht hat."
+        "description": "myDeutschFlow ist ein Projekt von Đinh Huy Cự, Softwareentwickler und Deutschlernender. Er baut das Trainingstool, das er selbst gebraucht hat."
       },
       "hero": {
         "cap": "Über uns · Unsere Geschichte",
@@ -245,12 +236,12 @@
       "ch2": {
         "name": "Selbst gebaut",
         "title": "Also habe ich das Werkzeug gebaut, das ich gebraucht habe.",
-        "body": "Eine KI spielt eine Arbeitgeberin oder einen Arbeitgeber in Deutschland, fragt zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können. Dazu ein Tag-für-Tag-Lernweg A1–B1 und Probeprüfungen telc B1. Für jeden Beruf gibt es eine Person aus der Branche."
+        "body": "Eine KI spielt eine Arbeitgeberin oder einen Arbeitgeber in Deutschland, fragt zu Ihrem Beruf und zeigt nach jeder Antwort, was Sie verbessern können. Dazu ein Lernpfad A1–B1 Tag für Tag und Probeprüfungen telc B1. Für jeden Beruf gibt es eine Person aus der Branche."
       },
       "timeline": {
         "name": "Schritt für Schritt",
         "title": "Eine Person, ein Schritt nach dem anderen.",
-        "solo": "Hinter dem Projekt steht kein Team. Von der ersten Codezeile bis heute baue ich myDeutschFlow allein, in über 1.600 Commits.",
+        "solo": "Hinter myDeutschFlow steht kein Team. Nur ich: Ich lerne selbst Deutsch und baue jede Funktion, die ich dabei brauche.",
         "items": [
           {
             "date": "12. April 2026",
@@ -265,7 +256,7 @@
           {
             "date": "18. Oktober 2026",
             "title": "Für jeden Beruf, jedes Land",
-            "body": "Geöffnet für Lernende aus jedem Land, für Sprachschulen und für Arbeitgeber in Deutschland."
+            "body": "Geöffnet für Lernende aus jedem Land und für Sprachschulen. Funktionen für Arbeitgeber in Deutschland folgen demnächst."
           }
         ]
       },
@@ -280,7 +271,7 @@
           },
           {
             "name": "Sprachschulen",
-            "body": "Sprechaufgaben für die ganze Klasse, die KI bewertet vor, Lehrkräfte bestätigen die Noten für Schreibaufgaben."
+            "body": "Sprech- und Schreibaufgaben für die ganze Klasse. Die KI bewertet vor, Lehrkräfte lesen oder hören nach und bestätigen die Note."
           },
           {
             "name": "Arbeitgeber in Deutschland",
@@ -347,9 +338,11 @@
       },
       "detail": {
         "meta": {
-          "title": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
-          "titleShort": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
-          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe}, Fachbegriffe und Ihr Interviewer. Antworten mit KI üben, 7 Tage Pro gratis."
+          "title": "{nameDe}: Fragen im Vorstellungsgespräch | myDeutschFlow",
+          "titleShort": "{nameDe}: Fragen im Vorstellungsgespräch",
+          "titleMin": "{nameDe}",
+          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe} und wichtige Fachbegriffe. Antworten mit einem KI-Interviewer üben, 7 Tage Pro gratis.",
+          "descriptionShort": "Fragen im Vorstellungsgespräch als {nameDe}. Antworten mit einem KI-Interviewer üben, 7 Tage Pro gratis."
         },
         "back": "Alle Berufe",
         "title": "Vorstellungsgespräch: {nameDe}",
@@ -359,20 +352,21 @@
         "moreCap": "Weitere Fragen zu diesem Beruf",
         "termsCap": "Fachbegriffe",
         "termsEmpty": "Die Fachbegriffe zu diesem Beruf werden gerade erstellt.",
+        "termsGuide": "Die Fachbegriffe dieses Berufs stehen im Ratgeber <link>„{title}“</link>.",
         "labelsNote": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Der „allgemeine Fragenkatalog“ gilt für alle Berufe, mit Ihrer Berufsbezeichnung.",
         "cta": "Dieses Gespräch üben",
         "ctaNote": "Kostenlos testen: 7 Tage Pro, ohne Vorauszahlung. Danach braucht das Interviewtraining Pro.",
         "relatedCap": "Verwandte Berufe",
         "guideLink": "Ratgeber: {title}",
-        "examLink": "Prüfungsvorbereitung: {name}",
+        "examLink": "Zur Prüfung {name}",
         "faqCap": "Häufige Fragen",
         "faqAskQ": "Was wird im Vorstellungsgespräch als {name} gefragt?",
-        "faqAskA": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen, zum Beispiel: „{example}“. Die Fragen können abweichen oder anders formuliert sein.",
+        "faqAskA": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen; die Fragen können abweichen oder anders formuliert sein. Ein Beispiel: „{example}“",
         "faqAskANoExample": "Das Übungsgespräch beginnt mit der Bitte, sich vorzustellen. Danach fragt der Interviewer nach Erfahrung und Fachwissen. Die Fragen können abweichen oder anders formuliert sein.",
         "faqLevelQ": "Welches Deutschniveau brauche ich für ein Vorstellungsgespräch als {name}?",
-        "faqLevelA": "Das hängt vom Arbeitgeber und vom Programm ab. Viele Ausbildungsprogramme verlangen B1, manche B2. Prüfen Sie die Anforderungen der Stelle, auf die Sie sich bewerben.",
+        "faqLevelA": "Das hängt von Beruf und Arbeitgeber ab. Viele Ausbildungsprogramme verlangen B1, manche B2; für Ärztinnen, Ärzte und Apotheker gelten meist höhere Anforderungen. Prüfen Sie die Anforderungen der Stelle.",
         "faqCostQ": "Kostet das Üben des Vorstellungsgesprächs als {name} etwas?",
-        "faqCostA": "Sie starten kostenlos, ohne Kreditkarte, mit 7 Tagen Pro für das Interviewtraining mit der KI. Danach braucht das Interviewtraining Pro, ab 249.000₫ im Monat in der iPhone-App."
+        "faqCostA": "Sie starten kostenlos und ohne Vorauszahlung, mit 7 Tagen Pro für das Interviewtraining mit der KI. Danach braucht das Interviewtraining Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App."
       }
     },
     "footer": {
@@ -389,13 +383,13 @@
     "schools": {
       "meta": {
         "title": "Für Sprachschulen und Bildungsträger · myDeutschFlow",
-        "description": "Lernende üben jeden Tag außerhalb des Unterrichts Deutsch sprechen, die KI erstellt eine Vorbewertung, Lehrkräfte lesen nach und bestätigen. Für Sprachschulen, Berufsschulen und Vermittlungsagenturen."
+        "description": "Lernende üben täglich Deutsch sprechen, die KI bewertet vor, Lehrkräfte hören die Aufnahme an und bestätigen. Für Sprachschulen, Berufsschulen und Agenturen."
       },
       "hero": {
         "cap": "Für Schulen · Bildungsträger",
         "title": "Lernende üben jeden Tag außerhalb des Unterrichts.",
         "titleEm": "Lehrkräfte hören nur noch zu und bestätigen.",
-        "sub": "Ein Ort, an dem Sprachschulen, Berufsschulen und Agenturen, die Menschen auf Deutschland vorbereiten, Sprech- und Schreibaufgaben vergeben, die KI vorbewerten lassen und Lehrkräfte nachlesen und bestätigen.",
+        "sub": "Sprachschulen, Berufsschulen und Agenturen vergeben Sprech- und Schreibaufgaben. Die KI bewertet vor, Lehrkräfte hören nach und bestätigen.",
         "cta": "Demo (20 Minuten) buchen",
         "ctaTeacher": "Ich unterrichte selbstständig"
       },
@@ -439,7 +433,7 @@
             "state": "ready"
           },
           {
-            "name": "Die Lehrkraft liest und bestätigt",
+            "name": "Die Lehrkraft hört, liest und bestätigt",
             "body": "Schreiben: Die Lehrkraft liest den Text und bestätigt die Note. Zugewiesene Sprechaufgaben: Die Lehrkraft hört die Aufnahme an und prüft das Gesagte vor dem Bestätigen.",
             "state": "ready"
           },
@@ -471,7 +465,7 @@
       "pricing": {
         "cap": "Kosten",
         "title": "Abgerechnet pro aktivem Lernenden.",
-        "body": "Schulen zahlen pro aktivem Lernenden und Monat. Zum Start gibt es einen kostenlosen Pilot von 2 Wochen; die Pilotgebühr danach wird bei Weiterführung auf den Vertrag angerechnet. Preise besprechen wir in der Demo."
+        "body": "Schulen zahlen pro aktivem Lernenden und Monat. Zum Start gibt es einen kostenlosen Pilot von 2 Wochen. Ein Angebot erhalten Sie in der Demo."
       },
       "data": {
         "cap": "Daten der Lernenden",

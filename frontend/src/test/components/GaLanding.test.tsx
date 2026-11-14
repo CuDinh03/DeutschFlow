@@ -149,7 +149,7 @@ describe('GaLanding — menu mobile', () => {
 
     const home = screen.getByRole('link', { name: 'myDeutschFlow' })
     expect(home.textContent).toBe('myDeutschFlow')
-    expect(screen.getByText('Không cần thanh toán trước · 2 phút bắt đầu · Có app iPhone')).toBeInTheDocument()
+    expect(screen.getByText('Không cần thanh toán trước · Bắt đầu trong 2 phút · Có app iPhone')).toBeInTheDocument()
     expect(screen.getByText('Huấn luyện phỏng vấn bằng AI cho người sang Đức làm việc')).toBeInTheDocument()
     // Chưa có app Android (owner chốt 14/11/2026): chỉ được nói Android dùng bản web, không ngụ ý có app.
     expect(container.textContent).not.toMatch(/(app|ứng dụng)[^.·]{0,20}Android|Android[^.·]{0,20}(app|ứng dụng)|Google Play/i)
@@ -223,7 +223,7 @@ describe('GaLanding — làm mới hình ảnh 19/10/2026', () => {
 
   it('dải người làm sản phẩm có ảnh và lối sang Về chúng tôi', () => {
     renderLanding()
-    expect(screen.getByAltText('Đinh Huy Cự, người phát triển myDeutschFlow')).toBeTruthy()
+    expect(screen.getByAltText('Đinh Huy Cự, người sáng lập myDeutschFlow')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Đọc câu chuyện/ }).getAttribute('href')).toBe('/about/')
   })
 

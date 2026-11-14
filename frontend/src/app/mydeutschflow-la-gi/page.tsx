@@ -102,7 +102,7 @@ export default function WhatIsPage() {
 
           <h3 className={H3}>Vì sao học giỏi ngữ pháp vẫn có thể lúng túng khi phỏng vấn?</h3>
           <p className={P}>
-            Bài thi kiểm tra bạn hiểu và viết đúng. Buổi phỏng vấn kiểm tra bạn kể được việc mình đã làm, xử lý tình huống thế nào, vì sao chọn nghề này, bằng tiếng Đức và trong thời gian thực. Hai kỹ năng này cần luyện riêng, và luyện nói theo tình huống nghề nghiệp thường là phần ít được luyện nhất khi tự học.
+            Bài thi kiểm tra bạn hiểu và viết đúng. Buổi phỏng vấn kiểm tra bạn kể được việc mình đã làm, xử lý tình huống thế nào, vì sao chọn nghề này, bằng tiếng Đức và ngay tại chỗ. Hai kỹ năng này cần luyện riêng, và nói theo tình huống nghề nghiệp thường là phần ít được luyện nhất khi tự học.
           </p>
 
           <h3 className={H3}>myDeutschFlow luyện phỏng vấn như thế nào?</h3>
@@ -118,7 +118,7 @@ export default function WhatIsPage() {
           </p>
 
           <h3 className={H3}>Báo cáo sau mỗi buổi phỏng vấn</h3>
-          <p className={P}>Báo cáo chấm từng phần của buổi (giới thiệu, tình huống, chuyên môn), trích lại câu bạn đã nói, đưa câu nên nói kèm lý do, và gợi ý bài luyện tiếp theo. Ví dụ minh hoạ cho vị trí Koch/Köchin: 68/100, &ldquo;gần sẵn sàng, cần luyện thêm phần tình huống&rdquo;. Một lỗi quen thuộc báo cáo bắt được:</p>
+          <p className={P}>Báo cáo chấm từng phần của buổi (giới thiệu, tình huống, chuyên môn), trích lại câu bạn đã nói, đưa câu nên nói kèm lý do, và gợi ý bài luyện tiếp theo. Ví dụ minh hoạ cho vị trí Koch/Köchin: 68/100, &ldquo;gần sẵn sàng, cần luyện thêm phần tình huống&rdquo;. Ví dụ một lỗi hay gặp mà báo cáo chỉ ra:</p>
           <div className="mt-4 border border-ga-border bg-ga-card p-4 sm:p-5">
             <div className="text-ga-caption text-ga-muted">Bạn đã nói</div>
             <p lang="de" className="mt-1 text-ga-body text-ga-muted line-through decoration-ga-red">„Letztes Jahr ich habe in einem Restaurant in Hanoi gearbeitet …“</p>
@@ -126,14 +126,14 @@ export default function WhatIsPage() {
             <p lang="de" className="mt-1 text-ga-body font-semibold text-ga-ink">„Letztes Jahr habe ich in einem Restaurant in Hanoi gearbeitet …“</p>
             <p className="mt-2 text-ga-small text-ga-muted">Câu mở đầu bằng trạng từ thời gian thì động từ chia đứng ở vị trí thứ hai.</p>
           </div>
-          <p className={P}>AI cho biết những từ nó nghe chưa rõ trong câu trả lời của bạn; đây chưa phải phân tích phát âm chi tiết từng âm. Điểm dùng để bạn theo dõi tiến bộ, không thay cho kỳ thi thật.</p>
+          <p className={P}>AI đánh dấu những từ chưa nghe rõ trong câu trả lời của bạn. Đây chưa phải phân tích phát âm từng âm. Điểm dùng để bạn theo dõi tiến bộ, không thay cho kỳ thi thật.</p>
 
           <h3 className={H3}>Lộ trình A1–B1 và ôn từ vựng</h3>
-          <p className={P}>Lộ trình học từng ngày từ A1 đến B1, mỗi chặng có bốn kỹ năng nghe, đọc, nói, viết. Tiến độ hiện thành cây lộ trình: chặng đã xong mọc thành lá, chặng đang học là bông hoa. Từ vựng được nhắc lại theo cách lặp lại ngắt quãng, đúng lúc bạn sắp quên. B2 đang được xây dựng.</p>
+          <p className={P}>Lộ trình học từng ngày từ A1 đến B1, mỗi chặng có bốn kỹ năng nghe, đọc, nói, viết. Tiến độ hiện thành cây lộ trình: chặng đã xong mọc thành lá, chặng đang học là bông hoa. Thẻ từ vựng quay lại đúng lúc bạn sắp quên. B2 đang được xây dựng.</p>
 
           <h3 className={H3}>Thi thử telc B1</h3>
           <p className={P}>
-            Luyện đủ 4 phần thi telc Deutsch B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm. Bài Viết nộp qua ảnh để AI chấm bố cục và ngữ pháp. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo. Đề thi thử mô phỏng format telc B1, không liên kết với telc và không thay cho chứng chỉ. Xem <Link href="/luyen-thi/" className={A}>cấu trúc từng kỳ thi</Link> hoặc <Link href="/free-grade/" className={A}>chấm thử bài Schreiben B1 miễn phí</Link>.
+            Luyện đủ 4 phần thi telc Deutsch B1 theo đúng thời gian và cấu trúc đề, kèm phân tích điểm yếu sau mỗi lần làm. Bài Viết bạn gõ trực tiếp, AI chấm theo ba tiêu chí của telc. Phần chấm Nói đang ở giai đoạn Beta, điểm chỉ để tham khảo. Đề thi thử mô phỏng cấu trúc đề telc B1, không liên kết với telc và không thay cho chứng chỉ. Xem <Link href="/luyen-thi/" className={A}>cấu trúc từng kỳ thi</Link> hoặc <Link href="/free-grade/" className={A}>chấm thử một bài viết tiếng Đức miễn phí</Link>.
           </p>
 
           <h2 className={H2}>Mỗi con đường sang Đức cần luyện gì?</h2>
@@ -177,9 +177,9 @@ export default function WhatIsPage() {
 
           <h2 className={H2}>Dành cho trung tâm và giáo viên tiếng Đức</h2>
           <p className={P}>
-            Giáo viên giao bài nói cho cả lớp bằng một chủ đề, học viên làm trên điện thoại ngoài giờ học, AI chấm nháp. Giáo viên xem lại và chốt điểm bài viết, chấm được cả ảnh bài viết tay; kết quả thành phiếu gửi gia đình, đọc được bằng tiếng Việt, Anh, Đức. Có gói miễn phí cho giáo viên; trung tâm có thể <Link href="/trung-tam/" className={A}>nhận tư vấn</Link>.
+            Giáo viên giao bài nói cho cả lớp bằng một chủ đề, học viên làm trên điện thoại ngoài giờ học, AI chấm nháp. Giáo viên nghe bản ghi âm, đọc bài viết (cả ảnh bài viết tay) rồi chốt điểm. Kết quả thành phiếu gửi gia đình bằng tiếng Việt, Anh hoặc Đức. Giáo viên tự do dùng miễn phí; trung tâm có thể <Link href="/trung-tam/" className={A}>đặt lịch demo 20 phút</Link>.
           </p>
-          <p className={P}>Với nhà tuyển dụng ở Đức, tính năng xem hồ sơ luyện nói của ứng viên đang chuẩn bị; nền tảng đang tìm đối tác chạy thử.</p>
+          <p className={P}>Tính năng cho nhà tuyển dụng ở Đức (xem hồ sơ luyện nói của ứng viên) là Sắp có.</p>
 
           <h2 className={H2}>Chi phí và thiết bị</h2>
           <p className={P}>Bắt đầu miễn phí, không cần thanh toán trước, có 7 ngày Pro khi đăng ký; giá các gói ở trang <Link href="/chi-phi/" className={A}>Chi phí</Link>. Dùng trên trình duyệt web (máy tính và điện thoại) và ứng dụng iPhone (iOS 15.1 trở lên); máy Android dùng bản web. Trang web có giao diện tiếng Việt, tiếng Anh và tiếng Đức.</p>

@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { MARKETPLACE_ENABLED } from '@/lib/features';
 
 export const metadata: Metadata = {
-    title: 'Đội ngũ chuyên gia | DeutschFlow',
-    description: 'Khám phá và đặt lịch với đội ngũ chuyên gia, giáo viên luyện thi tiếng Đức hàng đầu tại DeutschFlow.',
+    title: 'Giáo viên tiếng Đức · myDeutschFlow',
+    description: 'Xem hồ sơ giáo viên tiếng Đức trên myDeutschFlow: kinh nghiệm, chuyên môn luyện thi và lịch dạy. Chọn giáo viên phù hợp rồi đặt lịch học.',
 };
 
 interface TeacherProfileDto {

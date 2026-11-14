@@ -9,8 +9,9 @@ import { LandingHeader } from '@/components/landing-v2/LandingHeader'
 import { LandingFooter } from '@/components/landing-v2/LandingFooter'
 
 /** Mục lục Cẩm nang `/cam-nang/` (đợt D, 08/11/2026) — chỉ tiếng Việt. */
-const TITLE = 'Cẩm nang phỏng vấn và luyện thi tiếng Đức · myDeutschFlow'
-const DESCRIPTION = 'Cẩm nang phỏng vấn xin việc bằng tiếng Đức theo từng nghề: câu hỏi thật, cách trả lời, từ vựng và lỗi hay gặp.'
+const TITLE = 'Cẩm nang phỏng vấn tiếng Đức theo nghề · myDeutschFlow'
+const DESCRIPTION =
+  'Cẩm nang phỏng vấn xin việc bằng tiếng Đức theo từng nghề: câu hỏi tiêu biểu, cách trả lời, từ vựng chuyên môn và lỗi ngữ pháp người Việt hay gặp.'
 
 export const metadata: Metadata = {
   title: TITLE,

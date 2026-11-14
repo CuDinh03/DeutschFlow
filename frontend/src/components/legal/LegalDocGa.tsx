@@ -35,7 +35,7 @@ const STORAGE_KEY = 'df-legal-lang'
 
 /** Nhãn 4 link chân trang theo ngôn ngữ đang chọn — trang pháp lý nằm ngoài next-intl nên bảng đặt tại đây. */
 const FOOTER_LABELS: Record<LegalLang, { privacy: string; terms: string; support: string; home: string }> = {
-  vi: { privacy: 'Quyền riêng tư', terms: 'Điều khoản', support: 'Hỗ trợ', home: 'Trang chủ' },
+  vi: { privacy: 'Chính sách bảo mật', terms: 'Điều khoản sử dụng', support: 'Hỗ trợ', home: 'Trang chủ' },
   en: { privacy: 'Privacy', terms: 'Terms', support: 'Support', home: 'Home' },
   de: { privacy: 'Datenschutz', terms: 'AGB', support: 'Support', home: 'Startseite' },
 }

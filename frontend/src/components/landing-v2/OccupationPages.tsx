@@ -218,9 +218,14 @@ export async function OccupationDetailView({
           {detail.terms.length === 0 ? (
             guide ? (
               <p className="text-ga-body text-ga-muted">
-                <Link href={`/cam-nang/${guide.slug}/`} className="text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink">
-                  {t('occupationPages.detail.guideLink', { title: guide.title })}
-                </Link>
+                {t.rich('occupationPages.detail.termsGuide', {
+                  title: guide.title,
+                  link: (chunks) => (
+                    <Link href={`/cam-nang/${guide.slug}/`} className="text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 hover:decoration-ga-ink">
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </p>
             ) : null
           ) : (

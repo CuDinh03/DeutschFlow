@@ -41,7 +41,10 @@ import { START_HREF, SUPPORT_EMAIL } from './links'
  *
  * Mọi câu chữ đọc từ catalog `v2.landing` (messages/v2/landing.{vi,en,de}.json). Mọi lời hứa phải
  * có trong sổ lời hứa (plans/2026-10-18-quyet-dinh-dinh-huong-abe.md, mục 4) — ví dụ khối trung tâm
- * chỉ nói "giáo viên chốt điểm" cho bài VIẾT vì giáo viên chưa đọc được lời học viên trong bài nói.
+ * nói giáo viên đọc bài viết hoặc nghe bản ghi âm bài nói rồi mới chốt điểm.
+ *
+ * 14/11/2026 (rà câu chữ): bỏ hẳn khối bảng giá đã ẩn (`SHOW_PRICING`, catalog `landing.pricing`) — giá ở
+ * trang /chi-phi/.
  */
 
 const YellowSq = ({ dark = false }: { dark?: boolean }) => (
@@ -53,19 +56,7 @@ const EXAM_GLYPHS: GlyphName[] = ['doc', 'nghe', 'viet', 'noi']
 // Theo đúng thứ tự `learn.items` của catalog: lộ trình, ôn từ vựng, video, tiến độ.
 const LEARN_GLYPHS: GlyphName[] = ['lernweg', 'srs', 'video', 'thongke']
 const PATHWAY_COLORS = ['var(--ga-yellow)', 'var(--ga-red)', 'var(--ga-blue)', 'var(--ga-violet)', 'var(--ga-green)']
-/**
- * Bảng giá TẠM ẨN (owner yêu cầu 17/09/2026; giá theo nước chốt ở đợt 3). Giữ nguyên JSX, catalog
- * `landing.pricing.*` và điểm đo `pricing_plan_N` để bật lại chỉ cần lật cờ này.
- */
-const SHOW_PRICING = false
-const PLAN_META = [
-  { href: START_HREF, highlight: false },
-  { href: START_HREF, highlight: true },
-  { href: '/v2/register', highlight: false },
-]
-
 type ExamPart = { name: string; time: string; body: string }
-type Plan = { name: string; price: string; sub: string; features: string[]; cta: string }
 type Phase = { name: string; score: string }
 type Learn = { name: string; desc: string }
 type Faq = { q: string; a: string }
@@ -88,7 +79,6 @@ export function GaLanding() {
   const centersHref = publicHref(locale, '/trung-tam') ?? publicHref('en', '/trung-tam') ?? '/trung-tam/'
 
   const examParts = raw<ExamPart[]>('exam.parts')
-  const plans = raw<Plan[]>('pricing.plans')
   const heroBullets = raw<string[]>('hero.bullets')
   const pathways = raw<Pathway[]>('pathways.items')
   const phases = raw<Phase[]>('report.phases')
@@ -182,7 +172,7 @@ export function GaLanding() {
             </GaBtn>
             <AppStoreHeroLink />
           </div>
-          {/* A2 (08/11/2026): gỡ ba nỗi lo trước khi bấm — thẻ, thời gian, có app. Không nhắc Android (sổ lời hứa). */}
+          {/* A2 (08/11/2026): gỡ ba nỗi lo trước khi bấm — thanh toán, thời gian, có app. */}
           <p className="mt-3 text-ga-small text-ga-muted">{t('hero.microcopy')}</p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
             {heroBullets.map((b) => (
@@ -397,37 +387,6 @@ export function GaLanding() {
           </div>
         </div>
       </section>
-
-      {/* S8 — Pricing — tạm ẩn, xem SHOW_PRICING */}
-      {SHOW_PRICING && (
-      <section className={SECTION}>
-        <GaCap className="mb-[18px]">{t('pricing.cap')}</GaCap>
-        <h2 className={`${H2} mb-12`}>{t('pricing.title')}</h2>
-        <div className="grid border border-ga-border md:grid-cols-3">
-          {plans.map((p, i) => {
-            const meta = PLAN_META[i]
-            return (
-              <div key={i} className={`relative p-7 sm:p-[36px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''} ${meta.highlight ? 'bg-ga-ink text-ga-bg' : ''}`}>
-                {meta.highlight && <div className="absolute inset-x-0 top-0 h-[3px] bg-ga-yellow" />}
-                <GaCap className={`mb-3.5 ${meta.highlight ? 'text-ga-muted' : ''}`}>{p.name}</GaCap>
-                <div className="mb-1 font-ga-display text-[40px] font-medium">{p.price}</div>
-                {p.sub && <div className="mb-5 text-[13px] text-ga-muted">{p.sub}</div>}
-                <div className="mb-7 mt-5 flex flex-col gap-2.5">
-                  {p.features.map((f, j) => (
-                    <div key={j} className="flex items-center gap-2 text-[14.5px] leading-[1.4]">
-                      <span className="inline-block h-[5px] w-[5px] shrink-0 bg-ga-yellow" />{f}
-                    </div>
-                  ))}
-                </div>
-                <GaBtn asChild variant={meta.highlight ? 'yellow' : 'ink'} size="md" className="w-full md:w-auto">
-                  <Link href={meta.href} onClick={() => trackCta(`pricing_plan_${i + 1}`)}>{p.cta}</Link>
-                </GaBtn>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-      )}
 
       {/* S9 — Câu hỏi thường gặp */}
       <section id="faq" className={`${SECTION} scroll-mt-[78px]`}>

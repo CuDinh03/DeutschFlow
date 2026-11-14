@@ -22,8 +22,13 @@ describe('Cẩm nang', () => {
     }
   })
 
-  it('tiêu đề thẻ title có tên thương hiệu', () => {
-    for (const a of GUIDE_ARTICLES) expect(guideDocumentTitle(a.title)).toMatch(/ · myDeutschFlow$/)
+  it('tiêu đề thẻ title ≤ 60 ký tự; có tên thương hiệu khi còn chỗ', () => {
+    for (const a of GUIDE_ARTICLES) {
+      const t = guideDocumentTitle(a.title)
+      expect(t.length).toBeLessThanOrEqual(60)
+      if (`${a.title} · myDeutschFlow`.length <= 60) expect(t).toMatch(/ · myDeutschFlow$/)
+    }
+    expect(guideDocumentTitle('Ngắn')).toBe('Ngắn · myDeutschFlow')
   })
 
   it('lời mở bài không khẳng định buổi luyện chỉ có ba chủ đề cố định', () => {

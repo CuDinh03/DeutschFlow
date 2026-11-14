@@ -27,6 +27,10 @@ export interface GuideArticle {
   /** Mã nghề để dẫn sang trang nghề và mở buổi luyện đúng nghề. */
   occupationCode: string
   occupationNameDe: string
+  /** Tên ngắn ở đường dẫn (breadcrumb), vd "Nghề bếp". */
+  crumb: string
+  /** Tiêu đề mục từ vựng, vd "Từ vựng trong bếp nên thuộc". */
+  vocabTitle: string
   interviewer: string
   intro: string
   questions: GuideQuestion[]
@@ -39,15 +43,17 @@ export interface GuideArticle {
 export const GUIDE_ARTICLES: GuideArticle[] = [
   {
     slug: 'phong-van-tieng-duc-nghe-bep',
-    title: 'Phỏng vấn tiếng Đức nghề bếp (Koch/Köchin): câu hỏi, từ vựng, cách trả lời',
+    title: 'Phỏng vấn tiếng Đức nghề bếp: câu hỏi và cách trả lời',
     description:
-      'Cẩm nang phỏng vấn xin việc nghề bếp bằng tiếng Đức: ba câu hỏi tiêu biểu, gợi ý cách trả lời, từ vựng trong bếp và lỗi ngữ pháp người Việt hay gặp. Luyện thử miễn phí với AI.',
+      'Ba câu hỏi phỏng vấn tiếng Đức nghề bếp (Koch/Köchin), cách trả lời, từ vựng trong bếp và lỗi ngữ pháp hay gặp. Luyện thử với AI, không cần thanh toán trước.',
     h1: 'Phỏng vấn tiếng Đức nghề bếp: câu hỏi, từ vựng và cách trả lời',
     lead:
-      'Dành cho người chuẩn bị phỏng vấn vị trí Koch/Köchin (đầu bếp) ở Đức, dù đi theo diện học nghề (Ausbildung) hay đã có kinh nghiệm. Bài này lấy ba câu hỏi tiêu biểu, chép nguyên văn từ bộ câu hỏi nghề bếp đã duyệt của myDeutschFlow.',
+      'Dành cho người chuẩn bị phỏng vấn vị trí Koch/Köchin (đầu bếp) ở Đức, dù đi theo diện học nghề (Ausbildung) hay đã có kinh nghiệm. Ba câu hỏi dưới đây lấy nguyên văn từ bộ câu hỏi nghề bếp mà người phỏng vấn trên myDeutschFlow dùng.',
     published: '2026-11-08',
     occupationCode: 'koch',
     occupationNameDe: 'Koch/Köchin',
+    crumb: 'Nghề bếp',
+    vocabTitle: 'Từ vựng trong bếp nên thuộc',
     interviewer: 'Klaus',
     intro:
       'Trong buổi luyện nghề bếp, câu hỏi thường xoay quanh ba chủ đề: bạn là ai và đã làm gì trong bếp, bạn xử lý vệ sinh an toàn thực phẩm thế nào, và bạn giữ nhịp ra sao lúc đông khách. Người phỏng vấn muốn nghe ví dụ cụ thể, không chỉ một danh sách kỹ năng.',
@@ -57,18 +63,18 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
         vi: 'Mời bạn giới thiệu ngắn về bản thân: quá trình học tập và làm việc, kinh nghiệm liên quan đến vị trí Koch/Köchin, và bước tiếp theo bạn hướng tới.',
         tip: 'Trả lời trong khoảng một phút, theo thứ tự: bạn là ai, đã học hoặc làm gì trong bếp (vị trí, loại nhà hàng, bao lâu), rồi bước tiếp theo — ví dụ bắt đầu Ausbildung hoặc làm ở bếp một nhà hàng ở Đức.',
         sample:
-          'Ich heiße Minh und komme aus Hanoi. Ich habe drei Jahre in einem Restaurant gearbeitet, zuletzt an der warmen Küche. Jetzt möchte ich in Deutschland als Koch arbeiten und mich weiterentwickeln.',
+          'Ich heiße Minh und komme aus Hanoi. Ich habe drei Jahre in einem Restaurant gearbeitet, zuletzt in der warmen Küche. Jetzt möchte ich in Deutschland als Koch arbeiten und mich weiterentwickeln.',
       },
       {
         de: 'Nennen Sie einen HACCP-/Hygiene-Vorfall in der Küche und Ihre sofortigen Maßnahmen.',
         vi: 'Hãy kể một sự cố HACCP/vệ sinh trong bếp và những việc bạn làm ngay lập tức.',
-        tip: 'Kể theo trình tự tình huống → việc bạn làm → kết quả. Chọn một sự cố có thật và nhỏ (phòng lạnh quá nhiệt độ, nguyên liệu hết hạn), nói rõ bạn tách hàng, báo bếp trưởng và ghi vào sổ kiểm tra.',
+        tip: 'Kể theo trình tự tình huống → việc bạn làm → kết quả. Chọn một sự cố có thật và nhỏ (phòng lạnh lên quá nhiệt độ cho phép, nguyên liệu hết hạn). Nói rõ bạn tách hàng ra, báo bếp trưởng và ghi vào sổ kiểm tra.',
         sample:
           'Einmal war die Temperatur im Kühlraum zu hoch. Ich habe die Ware sofort aussortiert, den Küchenchef informiert und alles im HACCP-Protokoll dokumentiert.',
       },
       {
         de: 'Wie organisieren Sie die Station in der Rush Hour für Koch/Köchin? Konkretes Beispiel.',
-        vi: 'Bạn tổ chức khu vực làm việc vào giờ cao điểm ở vị trí Koch/Köchin như thế nào? Ví dụ cụ thể.',
+        vi: 'Vào giờ cao điểm, bạn sắp xếp khu vực làm việc của mình thế nào? Hãy kể một ví dụ cụ thể.',
         tip: 'Nói về khâu chuẩn bị trước giờ phục vụ (Mise en place), thứ tự làm món theo phiếu, và cách phối hợp với các vị trí khác. Một ví dụ có con số của chính bạn (số suất, số món) làm câu trả lời đáng tin hơn.',
         sample:
           'Vor dem Service bereite ich meine Mise en place vollständig vor. In der Rush Hour arbeite ich die Bons der Reihe nach ab und spreche mich mit dem Pass ab.',
@@ -112,7 +118,7 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
       },
     ],
     practice:
-      'Trên myDeutschFlow, Klaus — người phỏng vấn nghề bếp — hỏi bạn bằng giọng nói những câu cùng chủ đề như trên; Klaus có thể hỏi thêm câu khác hoặc hỏi theo cách khác. Bạn trả lời bằng tiếng Đức, rồi nhận báo cáo chấm từng phần của buổi: câu bạn đã nói, câu nên nói và bài luyện tiếp.',
+      'Trên myDeutschFlow, Klaus là người phỏng vấn nghề bếp. Klaus hỏi bạn bằng giọng nói những câu cùng chủ đề như trên, có khi hỏi thêm câu khác hoặc hỏi theo cách khác. Bạn trả lời bằng tiếng Đức. Cuối buổi, bạn nhận báo cáo chấm từng phần: câu bạn đã nói, câu nên nói và bài luyện tiếp theo.',
     faqs: [
       {
         q: 'Phỏng vấn nghề bếp ở Đức cần trình độ tiếng Đức nào?',
@@ -120,7 +126,7 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
       },
       {
         q: 'Luyện phỏng vấn nghề bếp trên myDeutschFlow có mất phí không?',
-        a: 'Bạn luyện thử miễn phí, không cần thanh toán trước.',
+        a: 'Học viên mới có 7 ngày Pro để luyện phỏng vấn với AI, không cần thanh toán trước và không tự trừ tiền. Hết 7 ngày, muốn luyện tiếp với AI thì cần gói Pro (xem trang Chi phí).',
       },
       {
         q: 'Sau buổi luyện tôi nhận được gì?',
@@ -134,7 +140,11 @@ export function guideArticle(slug: string): GuideArticle | undefined {
   return GUIDE_ARTICLES.find((a) => a.slug === slug)
 }
 
-/** Tiêu đề thẻ `<title>` của một bài: tên bài + thương hiệu, cùng kiểu với trang mục lục `/cam-nang/`. */
+/**
+ * Tiêu đề thẻ `<title>` của một bài: tên bài + thương hiệu, cùng kiểu với trang mục lục `/cam-nang/`. Quá 60
+ * ký tự thì bỏ đuôi thương hiệu (giống trang nghề).
+ */
 export function guideDocumentTitle(title: string): string {
-  return `${title} · myDeutschFlow`
+  const full = `${title} · myDeutschFlow`
+  return full.length <= 60 ? full : title
 }

@@ -30,15 +30,21 @@ describe('germanExams data', () => {
     }
   })
 
-  it('every exam has modules with positive durations', () => {
+  it('every exam has modules; durations are positive when known', () => {
     for (const e of GERMAN_EXAMS) {
       expect(e.modules.length).toBeGreaterThan(0)
       for (const m of e.modules) {
-        expect(m.durationMin).toBeGreaterThan(0)
+        if (m.durationMin !== undefined) expect(m.durationMin).toBeGreaterThan(0)
         expect(m.name.trim()).not.toBe('')
       }
-      expect(totalDurationMin(e)).toBeGreaterThan(0)
+      const total = totalDurationMin(e)
+      if (e.modules.every((m) => m.durationMin !== undefined)) expect(total).toBeGreaterThan(0)
+      else expect(total).toBeNull()
     }
+  })
+
+  it('telc Pflege không ghi số phút chưa đối chiếu (rà câu chữ 14/11/2026)', () => {
+    expect(totalDurationMin(getExamBySlug('telc-pflege-b1-b2')!)).toBeNull()
   })
 
   it('every exam has a readiness checklist, study tips and FAQs', () => {
@@ -58,8 +64,8 @@ describe('germanExams data', () => {
 
   it('meta titles/descriptions stay within sane SEO lengths', () => {
     for (const e of GERMAN_EXAMS) {
-      expect(e.metaTitle.length).toBeLessThanOrEqual(70)
-      expect(e.metaDescription.length).toBeLessThanOrEqual(170)
+      expect(e.metaTitle.length).toBeLessThanOrEqual(60)
+      expect(e.metaDescription.length).toBeLessThanOrEqual(160)
     }
   })
 
