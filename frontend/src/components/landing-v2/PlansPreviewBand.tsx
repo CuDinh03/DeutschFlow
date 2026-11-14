@@ -50,7 +50,7 @@ export function PlansPreviewBand({
         </div>
 
         {locale === 'vi' ? (
-          <div className="mob-snap-rail -mx-5 flex gap-4 px-5 pb-2 sm:mx-0 sm:px-0 md:grid md:grid-cols-2 md:pb-0 xl:grid-cols-4">
+          <div className="mob-snap-rail -mx-5 flex gap-4 px-5 pb-2 sm:mx-0 sm:px-0 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-4">
             {PLANS.map((plan) => {
               const isMain = plan.id === 'pro-2m'
               const isExternal = plan.cta === 'appStore'
