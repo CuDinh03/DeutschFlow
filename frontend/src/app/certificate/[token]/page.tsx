@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import QRCode from 'qrcode'
-import { ShieldCheck, ShieldOff, Sparkles } from 'lucide-react'
+import { ShieldCheck, ShieldOff } from 'lucide-react'
 import type { Certificate } from '@/lib/certificateApi'
 import { CertificateActions } from '@/components/certificate/CertificateActions'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
@@ -299,7 +299,7 @@ export default async function CertificatePage({ params, searchParams }: PageProp
           <p className="text-ga-eyebrow uppercase text-ga-muted">{dict.issuedVia}</p>
           <GaBtn asChild variant="ghost" size="lg">
             <Link href="/v2/register">
-              <Sparkles size={16} aria-hidden /> {dict.cta}
+              {dict.cta}
             </Link>
           </GaBtn>
         </div>

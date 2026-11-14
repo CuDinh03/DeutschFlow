@@ -3,11 +3,11 @@ import type { Metadata } from 'next'
 import { ogImage } from '@/lib/ogImage'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronDown, ExternalLink, PenLine, Sparkles } from 'lucide-react'
+import { ChevronDown, ExternalLink } from 'lucide-react'
 import { GERMAN_EXAMS, getExamBySlug, totalDurationMin, type GermanExam } from '@/data/germanExams'
 import { absoluteUrl } from '@/lib/siteUrl'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
-import { GaGlyph } from '@/components/ui-v2/GaGlyph'
+import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
 import { LandingHeader } from '@/components/landing-v2/LandingHeader'
 import { LandingFooter } from '@/components/landing-v2/LandingFooter'
 import { START_HREF } from '@/components/landing-v2/links'
@@ -75,7 +75,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
                 <Link href={START_HREF}>Học thử miễn phí</Link>
               </GaBtn>
               <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-                <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
+                <Link href="/free-grade/">Chấm thử bài viết miễn phí</Link>
               </GaBtn>
             </div>
             <p className="mt-3 text-ga-small text-ga-muted">7 ngày Pro gồm thi thử telc B1 đủ 4 phần · không cần thanh toán trước</p>
@@ -86,7 +86,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
         ) : (
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-              <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
+              <Link href="/free-grade/">Chấm thử bài viết miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
               {/* Đợt 1 (14/11/2026): CTA chung đi qua onboarding (F-13). Trang này chỉ hướng dẫn cấu trúc đề —
@@ -170,7 +170,8 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
         {/* CTA giữa trang */}
         <div className="mt-14 flex flex-col items-start gap-4 border border-ga-border bg-ga-card p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex items-center gap-3">
-            <GaGlyph icon={PenLine} />
+            {/* Nhận diện bằng bộ glyph Galerie (chung mobile), không dùng icon thư viện (owner 14/11/2026). */}
+            <GaGlyphMark name="viet" size={32} className="shrink-0 text-ga-ink" />
             <div>
               {/* Công cụ chấm thử chỉ chấm mức B1 — trang kỳ thi khác không hứa chấm đúng trình độ của trang. */}
               <p className="text-ga-h3 text-ga-ink">{exam.level === 'B1' ? 'Bài viết B1 của bạn được mấy điểm?' : 'Thử chấm một bài Schreiben B1'}</p>
@@ -180,7 +181,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
             </div>
           </div>
           <GaBtn asChild variant="ink" size="lg" className="w-full shrink-0 sm:w-auto">
-            <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử ngay</Link>
+            <Link href="/free-grade/">Chấm thử ngay</Link>
           </GaBtn>
         </div>
 
