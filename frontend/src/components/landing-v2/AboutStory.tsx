@@ -119,7 +119,7 @@ export function AboutStory() {
 
       {/* Chương 02 — Tự xây */}
       <section className="pb-14 md:pb-24">
-        <div className="mx-auto grid max-w-[1240px] gap-5 px-5 sm:px-8 md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 lg:px-[60px]">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-[minmax(0,1fr)] gap-5 px-5 sm:px-8 md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 lg:px-[60px]">
           <ChapterLabel n="02" name={t('ch2.name')} />
           <div className="min-w-0">
             <h2 className="mb-5 max-w-[680px] font-ga-display text-ga-m-h2-m font-medium text-ga-ink sm:text-ga-m-h2-t lg:text-ga-m-h2">

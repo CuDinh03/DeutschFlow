@@ -540,6 +540,19 @@ html[data-ga-marking] [data-practice-foot] { display: none; }
   overflow-x: clip;
 }
 
+/* Chống tràn ngang trên toàn bộ 15 nhóm trang công khai trước đăng nhập:
+   - Mọi lưới đơn cột dưới breakpoint responsive dùng `minmax(0, 1fr)` thay vì `auto` (`min-content`)
+     để các khung cuộn nội bộ như `GaShot` (`min-w-[720px]`) hoặc `.mob-snap-rail` không kéo giãn trang.
+   - `overflow-x: clip` trên `html/body` chỉ khi trang có `.ga-public` (giữ nguyên `position: sticky`
+     và không chạm tới khu vực sau đăng nhập). */
+html:has(.ga-public),
+body:has(.ga-public) {
+  overflow-x: clip;
+}
+.ga-public :where(.grid) {
+  grid-auto-columns: minmax(0, 1fr);
+}
+
 /* Mọi nút GaBtn trong mặt công khai v3.4 dùng dáng pill bo tròn & hiệu ứng nhấn đàn hồi */
 .ga-public [data-slot='ga-btn'] {
   border-radius: 999px;
@@ -734,8 +747,15 @@ html[data-ga-marking] [data-practice-foot] { display: none; }
 :where(.mob-snap-rail) > * {
   scroll-snap-align: start;
 }
+html:not(.native) .ga-public .mob-snap-rail,
+.mob-snap-rail {
+  scrollbar-width: none;
+}
+html:not(.native) .ga-public .mob-snap-rail::-webkit-scrollbar,
 .mob-snap-rail::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

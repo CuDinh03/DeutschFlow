@@ -289,8 +289,8 @@ export function GaLanding() {
           <GaCap className="mb-4">{t('learn.cap')}</GaCap>
           <h2 className={`${H2} mb-3`}>{t('learn.title')}</h2>
           <p className="mb-9 max-w-[600px] text-ga-body-lg text-ga-muted">{t('learn.sub')}</p>
-          <div className="grid items-start gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14">
-            <div>
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14">
+            <div className="min-w-0">
               <ul className="grid gap-4 sm:grid-cols-2">
                 {learnItems.map((it, i) => (
                   <li key={it.name} className="flex gap-3 rounded-ga-md border border-ga-border bg-ga-card p-4 shadow-ga-sm">
@@ -321,7 +321,7 @@ export function GaLanding() {
         <h2 className={`${H2} mb-3`}>{t('exam.title')}</h2>
         <p className="mb-9 max-w-[600px] text-ga-m-lead text-ga-muted">{t('exam.sub')}</p>
         {showExamClip ? (
-          <div className="grid items-start gap-8 lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-12">
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-12">
             <div className="mx-auto w-full max-w-[420px] lg:max-w-none">
               <ExamClip
                 caption={t('exam.clipCap')}
