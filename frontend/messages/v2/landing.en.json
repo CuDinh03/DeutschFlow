@@ -9,18 +9,42 @@
       "interview": "Interview by trade",
       "pathways": "Pathways",
       "exam": "Exam practice",
+      "pricing": "Pricing",
       "centers": "For schools",
       "training": "Vocational training",
       "guide": "Guides",
       "about": "About us",
-      "mainAria": "Main navigation"
+      "mainAria": "Main navigation",
+      "sub": {
+        "interview": "12 interviewers · Feedback after every answer",
+        "exam": "telc B1 mock exam · A2–B2 exam guides",
+        "pricing": "7-day free Pro trial · Transparent plans",
+        "guide": "Interview guides & sample letters",
+        "centers": "Assign speaking & writing · AI draft grading",
+        "training": "60 occupations & official German sources",
+        "about": "Built by a self-taught German learner"
+      }
     },
     "header": {
       "login": "Log in",
       "tryShort": "Try free",
       "tryFree": "Try it for free",
       "openMenu": "Open menu",
-      "closeMenu": "Close menu"
+      "closeMenu": "Close menu",
+      "closeSheet": "Collapse menu",
+      "appIos": "iOS App",
+      "quickFreeGrade": "Writing check",
+      "quickWhatIs": "What is myDeutschFlow?",
+      "quickSupport": "Contact & Support",
+      "quickInterview": "All occupations",
+      "dockTitle": "App for iPhone",
+      "dockSub": "Speaking & video lessons · App Store",
+      "dockAppBtn": "App Store"
+    },
+    "stickyCta": {
+      "tryFree": "Try it for free",
+      "demoB2b": "Book a 20-minute demo",
+      "iosShort": "iOS App"
     },
     "hero": {
       "eyebrow": "AI interview coaching for people moving to Germany to work",
@@ -378,7 +402,17 @@
       "terms": "Terms of use",
       "support": "Support",
       "legalAria": "Legal links",
-      "facebook": "Facebook"
+      "facebook": "Facebook",
+      "summary": "Practise German job interviews by trade, follow a daily A1–B1 path and take telc Deutsch B1 mock exams. iPhone app · Android: use the web version.",
+      "colPractice": "Practice & Learning",
+      "colGuides": "Resources & Schools",
+      "colAbout": "About & Legal",
+      "colApp": "App & Contact",
+      "freeGrade": "Free B1 writing check",
+      "examTelc": "telc Deutsch B1 mock exam",
+      "badgeTop": "Download on the",
+      "badgeMain": "App Store",
+      "deviceNote": "For iPhone (iOS 15.1+). Android: use the web version."
     },
     "schools": {
       "meta": {

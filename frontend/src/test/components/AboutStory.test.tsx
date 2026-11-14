@@ -95,9 +95,11 @@ describe('AboutStory — Về chúng tôi', () => {
     const ctas = screen.getAllByRole('link', { name: /Học thử miễn phí$/ })
     expect(ctas.length).toBeGreaterThanOrEqual(2) // header + lời ký tên
     for (const a of ctas) expect(a.getAttribute('href')).toBe('/v2/onboarding')
-    expect(screen.getByRole('link', { name: 'support@mydeutschflow.com' }).getAttribute('href')).toBe(
-      'mailto:support@mydeutschflow.com',
-    )
+    const mailLinks = screen.getAllByRole('link', { name: 'support@mydeutschflow.com' })
+    expect(mailLinks.length).toBeGreaterThanOrEqual(1)
+    for (const m of mailLinks) {
+      expect(m.getAttribute('href')).toBe('mailto:support@mydeutschflow.com')
+    }
   })
 
   it('bản tiếng Anh: chữ tiếng Anh, link theo /en/', () => {

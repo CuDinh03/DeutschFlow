@@ -9,18 +9,42 @@
       "interview": "Phỏng vấn theo nghề",
       "pathways": "Hành trình",
       "exam": "Luyện thi",
+      "pricing": "Chi phí",
       "centers": "Cho trung tâm",
       "training": "Học nghề",
       "guide": "Cẩm nang",
       "about": "Về chúng tôi",
-      "mainAria": "Điều hướng chính"
+      "mainAria": "Điều hướng chính",
+      "sub": {
+        "interview": "12 người phỏng vấn · Sửa lỗi sau từng câu",
+        "exam": "Thi thử telc B1 online · Cẩm nang A2–B2",
+        "pricing": "7 ngày Pro thử miễn phí · Gói 2 tháng 399k",
+        "guide": "Kinh nghiệm phỏng vấn & đề viết mẫu",
+        "centers": "Giao bài nói, viết · AI chấm nháp cho lớp",
+        "training": "Tra cứu 60 nghề & nguồn chính thống tại Đức",
+        "about": "Câu chuyện người tự học làm ra sản phẩm"
+      }
     },
     "header": {
       "login": "Đăng nhập",
       "tryShort": "Học thử",
       "tryFree": "Học thử miễn phí",
       "openMenu": "Mở menu",
-      "closeMenu": "Đóng menu"
+      "closeMenu": "Đóng menu",
+      "closeSheet": "Thu gọn menu",
+      "appIos": "App iOS",
+      "quickFreeGrade": "Chấm thử Schreiben",
+      "quickWhatIs": "myDeutschFlow là gì?",
+      "quickSupport": "Liên hệ & Hỗ trợ",
+      "quickInterview": "Tất cả ngành nghề",
+      "dockTitle": "Ứng dụng cho iPhone",
+      "dockSub": "Luyện nói & video bài học · App Store",
+      "dockAppBtn": "App Store"
+    },
+    "stickyCta": {
+      "tryFree": "Học thử miễn phí",
+      "demoB2b": "Đặt lịch demo 20 phút",
+      "iosShort": "Tải iOS"
     },
     "hero": {
       "eyebrow": "Huấn luyện phỏng vấn bằng AI cho người sang Đức làm việc",
@@ -378,7 +402,17 @@
       "terms": "Điều khoản sử dụng",
       "support": "Hỗ trợ",
       "legalAria": "Liên kết pháp lý",
-      "facebook": "Facebook"
+      "facebook": "Facebook",
+      "summary": "Luyện phỏng vấn tiếng Đức theo nghề, lộ trình A1–B1 từng ngày và phòng thi thử telc Deutsch B1. Ứng dụng iPhone · Android: dùng bản web.",
+      "colPractice": "Luyện tập & Lộ trình",
+      "colGuides": "Tài liệu & Trung tâm",
+      "colAbout": "Về dự án & Pháp lý",
+      "colApp": "Ứng dụng & Liên hệ",
+      "freeGrade": "Chấm thử Schreiben B1",
+      "examTelc": "Thi thử telc Deutsch B1",
+      "badgeTop": "Tải miễn phí trên",
+      "badgeMain": "App Store",
+      "deviceNote": "Dành cho iPhone (iOS 15.1+). Android: dùng bản web."
     },
     "schools": {
       "meta": {

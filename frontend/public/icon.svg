@@ -1,16 +1,11 @@
 <!--
-  Favicon / app icon: dùng đúng brand mark của logo chính (components/ui-v2/GaLogo.tsx),
-  gồm chữ D Bauhaus nét mực, mũi tên đỏ "flow" và ô vuông vàng.
-
-  Khác biệt duy nhất so với GaLogo: nền giấy ấm bo góc (token ga-bg), vì nét mực #161513
-  trên nền trong suốt sẽ tàng hình trên thanh tab tối. Mark phóng 1.1x quanh tâm cho đủ
-  dày ở 16px.
+  Favicon / PWA / Apple Touch Icon — chuẩn Nhận diện Thương hiệu v3.4 (14/11/2026):
+  Nền mực đen #171615 bo góc rx="22", chữ D vát cạnh trắng #FFFFFF, ô vuông vàng #FFC900
+  và mũi tên dòng chảy đỏ #E3261D. Chạy lại `node scripts/generate-web-icons.mjs` khi sửa.
 -->
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="myDeutschFlow">
-  <rect width="100" height="100" rx="22" fill="#FBFAF7" />
-  <g transform="translate(50 50) scale(1.1) translate(-47 -50)">
-    <path d="M 20 18 L 20 82 L 52 82 L 74 62 L 74 38 L 52 18 Z" fill="none" stroke="#161513" stroke-width="6" stroke-linejoin="miter" />
-    <polygon points="52,38 74,50 52,62" fill="#DA291C" />
-    <rect x="24" y="45" width="9" height="9" fill="#FFCD00" />
-  </g>
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="myDeutschFlow" fill="none">
+  <rect width="100" height="100" rx="22" fill="#171615" />
+  <path d="M 22 19 L 55 19 L 80 39 L 80 61 L 55 81 L 22 81 Z" stroke="#FFFFFF" stroke-width="9.5" stroke-linejoin="miter" />
+  <rect x="31" y="44.5" width="11" height="11" rx="1.5" fill="#FFC900" />
+  <polygon points="50,36 70,50 50,64" fill="#E3261D" />
 </svg>

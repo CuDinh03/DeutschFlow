@@ -222,10 +222,10 @@ export default function V2LoginPage() {
   }
 
   return (
-    <GaAuthShell>
-      <GaCap className="mb-3 block">{t('login.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">{t('login.title')}</h1>
-      <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('login.subtitle')}</p>
+    <GaAuthShell showAppStoreFooter>
+      <GaCap className="mb-2.5 block">{t('login.cap')}</GaCap>
+      <h1 className="m-0 mb-2 font-ga-display text-ga-m-h1-m font-semibold text-ga-ink sm:text-ga-m-h1-t">{t('login.title')}</h1>
+      <p className="m-0 mb-6 text-ga-body-lg text-ga-muted">{t('login.subtitle')}</p>
 
       <MaintenanceBanner />
 
@@ -284,7 +284,7 @@ export default function V2LoginPage() {
         <div className="mb-5 mt-1 flex justify-end">
           <Link
             href="/v2/forgot-password"
-            className="ga-ui inline-flex min-h-[40px] items-center text-[13.5px] text-ga-muted underline transition-colors hover:text-ga-ink lg:min-h-0"
+            className="ga-ui inline-flex min-h-10 items-center text-ga-small text-ga-muted underline transition-colors hover:text-ga-ink lg:min-h-0"
           >
             {t('login.forgot')}
           </Link>
@@ -294,7 +294,7 @@ export default function V2LoginPage() {
           type="submit"
           variant="yellow"
           size="lg"
-          className="mb-4 w-full"
+          className="ga-btn-gleam mb-4 w-full"
           loading={loading}
           disabled={loading}
         >
@@ -302,7 +302,7 @@ export default function V2LoginPage() {
         </GaBtn>
       </form>
 
-      <div className="mt-7 text-center text-[14px] text-ga-muted">
+      <div className="mt-6 border-t border-ga-border pt-5 text-center text-ga-body text-ga-muted">
         {t('login.noAccount')}{' '}
         <Link href="/v2/register" className="font-bold text-ga-ink underline">
           {t('login.registerCta')}
