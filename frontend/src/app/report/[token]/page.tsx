@@ -2,12 +2,11 @@ import '@/styles/galerie.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { PenLine, Sparkles } from 'lucide-react'
 import type { GradeReport } from '@/lib/marketingApi'
 import { ShareButtons } from '@/components/marketing/ShareButtons'
 import { GradeScore } from '@/components/marketing/GradeScore'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
-import { GaGlyph } from '@/components/ui-v2/GaGlyph'
+import { GaGlyphMark } from '@/components/ui-v2/GaGlyphMark'
 import { LandingHeader } from '@/components/landing-v2/LandingHeader'
 import { LandingFooter } from '@/components/landing-v2/LandingFooter'
 import { serverBackendFetch } from '@/lib/serverBackend'
@@ -72,14 +71,14 @@ export default async function GradeReportPage({ params }: { params: { token: str
 
         {/* CTA — vòng lan truyền quay về trang chấm thử */}
         <div className="mt-6 flex flex-col items-center border border-ga-border bg-ga-card p-6 text-center">
-          <GaGlyph icon={PenLine} size="lg" className="mb-3" />
+          <GaGlyphMark name="viet" size={40} className="mb-3 block text-ga-ink" />
           <h2 className="font-ga-display text-ga-h2 font-medium text-ga-ink">Bài viết tiếng Đức của bạn được mấy điểm?</h2>
           <p className="mx-auto mt-1 max-w-md text-ga-small text-ga-muted">
             Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.
           </p>
           <div className="mt-4 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
             <GaBtn asChild variant="ink" size="lg">
-              <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm bài của bạn miễn phí</Link>
+              <Link href="/free-grade/">Chấm bài của bạn miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg">
               <Link href="/v2/register">Luyện thi với DeutschFlow</Link>
