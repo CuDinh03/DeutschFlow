@@ -46,7 +46,7 @@ export default function GuideIndexPage() {
                 href={`/cam-nang/${a.slug}/`}
                 className="group flex h-full flex-col border border-ga-border bg-ga-card p-5 transition-colors hover:border-ga-ink sm:p-6"
               >
-                <span className="text-ga-eyebrow uppercase text-ga-muted" lang="de">{a.occupationNameDe}</span>
+                {a.occupationNameDe ? <span className="text-ga-eyebrow uppercase text-ga-muted" lang="de">{a.occupationNameDe}</span> : <span className="text-ga-eyebrow uppercase text-ga-muted">{a.topic}</span>}
                 <span className="mt-2 text-ga-h3 text-ga-ink">{a.h1}</span>
                 <span className="mt-2 flex-1 text-ga-small text-ga-muted">{a.description}</span>
                 <span className="mt-4 text-ga-small font-semibold text-ga-ink underline decoration-ga-yellow decoration-2 underline-offset-4 group-hover:decoration-ga-ink">

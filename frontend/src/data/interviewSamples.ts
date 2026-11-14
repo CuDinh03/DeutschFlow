@@ -16,6 +16,19 @@ import type { PersonaId } from '@/lib/personas'
 export const COMMON_INTRO_QUESTION =
   'Bitte stellen Sie sich kurz vor: Werdegang, relevante Erfahrung für {pos}, und Ihr nächster Schritt.'
 
+/** Hai câu làm quen dùng chung (`ice_motivation`, `ice_found_role`, giai đoạn ICE_BREAKER) — bài Cẩm nang giới thiệu bản thân trích. */
+export const COMMON_MOTIVATION_QUESTION = 'Was hat Sie besonders an der Position {pos} interessiert?'
+export const COMMON_FOUND_ROLE_QUESTION = 'Wie sind Sie auf diese Stelle aufmerksam geworden, und was erwarten Sie vom Team?'
+
+/** Các câu còn lại của lớp chung (`ice_typical_day`, `star_*`, `close_ask`) — bài Cẩm nang du học nghề trích. */
+export const COMMON_QUESTIONS = {
+  typicalDay: 'Beschreiben Sie einen typischen Arbeitstag in Ihrer letzten Stelle — konkret und chronologisch.',
+  conflict: 'Nennen Sie einen Konflikt im Team: Situation, Ihre Aufgabe, Ihre Handlung und das Ergebnis.',
+  stress: 'Beschreiben Sie eine stressige Situation mit Zeitdruck — was genau haben Sie getan und was war das Ergebnis?',
+  mistake: 'Erzählen Sie von einem Fehler bei der Arbeit: wie entdeckt, wie behoben, was haben Sie daraus gelernt?',
+  closing: 'Haben Sie noch Fragen an uns?',
+} as const
+
 /** Nhân vật có bộ câu hỏi phỏng vấn riêng (supportsInterview = true trong src/lib/personas.ts). */
 export type InterviewPersonaId = Exclude<PersonaId, 'tuan' | 'lan' | 'minh'>
 
