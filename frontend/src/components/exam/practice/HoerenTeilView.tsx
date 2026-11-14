@@ -110,7 +110,7 @@ export function HoerenTeilView({ teil: teilProp, answers, onAnswer, result, wide
       return turns && turns.length > 0 ? [{ itemId: it.id, turns }] : []
     })
   }, [teil.audio_script, items])
-  // Chia giọng ở cấp Teil (mỗi nhân vật một giọng, người dẫn một giọng riêng) — tính từ nội dung nên tất định;
+  // Chia giọng ở cấp Teil (mỗi nhân vật một giọng; người dẫn một giọng cố định cho cả đề) — tính từ nội dung nên tất định;
   // nghi thức (Ansage, câu khung) và mọi trình phát của Teil dùng chung bảng này.
   const voices = React.useMemo(() => assignHoerenVoices(segments.map((s) => s.turns)), [segments])
 

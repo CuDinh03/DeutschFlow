@@ -94,6 +94,36 @@ class EdgeTtsServicePersonasTest {
         sidecar.verify();
     }
 
+    @Test
+    @DisplayName("công tắc tắt: danh sách không còn HOER_* (persona cũ vẫn còn) và mọi persona HOER_* bị từ chối")
+    void switchOffHidesAndRejectsHoerenPersonas() {
+        ReflectionTestUtils.setField(service, "hoerenVoicesEnabled", false);
+        sidecar.expect(ExpectedCount.once(), requestTo(URL + "/voices"))
+                .andRespond(withSuccess(NEW_SIDECAR, MediaType.APPLICATION_JSON));
+
+        assertThat(service.supportedPersonas()).containsExactly("ANNA", "DEFAULT", "THOMAS");
+        assertThat(service.isUnsupportedHoerenPersona("HOER_F1")).isTrue();
+        assertThat(service.isUnsupportedHoerenPersona("hoer_m3")).isTrue();
+        assertThat(service.isUnsupportedHoerenPersona("ANNA")).isFalse();
+        sidecar.verify();
+    }
+
+    @Test
+    @DisplayName("công tắc tắt mà không hỏi được sidecar: HOER_* vẫn bị từ chối, không gọi mạng thêm")
+    void switchOffRejectsEvenWhenSidecarListUnknown() {
+        ReflectionTestUtils.setField(service, "hoerenVoicesEnabled", false);
+
+        assertThat(service.isUnsupportedHoerenPersona("HOER_M2")).isTrue();
+        sidecar.verify();
+    }
+
+    @Test
+    @DisplayName("application.yml khai công tắc app.tts.hoeren-voices-enabled, mặc định bật qua HOEREN_VOICES_ENABLED")
+    void switchIsDeclaredInApplicationYml() throws Exception {
+        String yml = Files.readString(Path.of("src", "main", "resources", "application.yml"), StandardCharsets.UTF_8);
+        assertThat(yml).contains("hoeren-voices-enabled: ${HOEREN_VOICES_ENABLED:true}");
+    }
+
     /**
      * Bảng persona của sidecar (Python) không có test riêng: đọc thẳng {@code server.py} để canh sáu
      * persona bài nghe — đúng sáu giọng gốc, cao độ tự nhiên, tốc độ lệch tối đa 3 %.

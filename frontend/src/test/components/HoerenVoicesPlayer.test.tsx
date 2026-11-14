@@ -132,6 +132,7 @@ describe('HoerenTeilView — một bảng giọng cho cả Teil', () => {
     await waitFor(() => expect(tts.speakExamLine).toHaveBeenCalledTimes(8))
 
     const narrator = expected.narrator
+    expect(narrator).toBe('HOER_M1')
     const [w1, m, w2] = expected.segments.map((s) => s.lines[0])
     expect(spoken()).toEqual([
       ['PRUEFER', teil1.ansage_de, narrator],

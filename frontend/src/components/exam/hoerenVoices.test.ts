@@ -3,6 +3,7 @@ import { itemTurns, type AudioTurn } from './audioScript'
 import {
   HOEREN_FEMALE_VOICES,
   HOEREN_MALE_VOICES,
+  HOEREN_NARRATOR_VOICE,
   HOEREN_VOICES,
   assignHoerenVoices,
   nameGender,
@@ -88,7 +89,7 @@ describe('assignHoerenVoices — chia giọng cho một Teil nghe', () => {
     expect(new Set(speakers).size).toBe(5)
     expect(speakers).not.toContain(v.narrator)
     expect(new Set([...speakers, v.narrator])).toEqual(new Set(HOEREN_VOICES))
-    // Ba nữ, hai nam ⇒ người dẫn lấy giọng nam để ba người nữ đủ ba giọng.
+    // Người dẫn luôn là Conrad; ba người nữ ba giọng, hai người nam hai giọng còn lại.
     expect(v.narrator).toBe('HOER_M1')
     for (const s of v.segments) expect(s.narrator).toBe(v.narrator)
   })
@@ -100,8 +101,8 @@ describe('assignHoerenVoices — chia giọng cho một Teil nghe', () => {
     expect(speakers.every(isFemale)).toBe(true)
     for (let i = 1; i < speakers.length; i++) expect(speakers[i]).not.toBe(speakers[i - 1])
     expect(speakers).not.toContain(v.narrator)
-    // Bảy người nữ, không ai nam ⇒ người dẫn giọng nam, ba giọng nữ xoay vòng.
-    expect(isMale(v.narrator)).toBe(true)
+    // Bảy người nữ ⇒ ba giọng nữ xoay vòng; người dẫn vẫn là Conrad.
+    expect(v.narrator).toBe('HOER_M1')
     expect(new Set(speakers).size).toBe(3)
   })
 
@@ -114,8 +115,8 @@ describe('assignHoerenVoices — chia giọng cho một Teil nghe', () => {
     expect(guest2).toBe(guest)
     expect(host).not.toBe(guest)
     expect([host, guest]).not.toContain(v.narrator)
-    // Mỗi giới một nhân vật ⇒ người dẫn giọng nữ (Seraphina), không phải giọng của Moderatorin.
-    expect(v.narrator).toBe('HOER_F3')
+    // Ansage của Teil 2 cũng là Conrad — một người dẫn cho cả đề.
+    expect(v.narrator).toBe('HOER_M1')
   })
 
   it('phỏng vấn hai người cùng giới vẫn ra hai giọng khác nhau', () => {
@@ -128,7 +129,45 @@ describe('assignHoerenVoices — chia giọng cho một Teil nghe', () => {
     const [host, guest] = v.segments[0].lines
     expect(host).not.toBe(guest)
     expect(isFemale(host) && isFemale(guest)).toBe(true)
-    expect(isMale(v.narrator)).toBe(true)
+    expect(v.narrator).toBe('HOER_M1')
+  })
+
+  it('người dẫn chương trình là nam: không bao giờ dùng Conrad (giọng người dẫn băng), khách nam khác giọng', () => {
+    for (let i = 0; i < 12; i++) {
+      const v = assignHoerenVoices([
+        [
+          { speaker: 'PARTNER', name: 'Moderator', text: `Willkommen zur Sendung Nummer ${i}.` },
+          { speaker: 'PARTNER', name: 'Herr Lorenz', text: 'Danke für die Einladung.' },
+          { speaker: 'PARTNER', name: 'Moderator', text: 'Erzählen Sie bitte.' },
+        ],
+      ])
+      const [host, guest, host2] = v.segments[0].lines
+      expect(new Set([host, guest])).toEqual(new Set(['HOER_M2', 'HOER_M3']))
+      expect(host2).toBe(host)
+      expect(v.narrator).toBe(HOEREN_NARRATOR_VOICE)
+    }
+  })
+
+  it('ba người nam trong một phần: liền nhau khác giọng, người thứ nhất và thứ ba chung giọng (hai giọng nam)', () => {
+    const men = [44, 45, 46].map((n): AudioTurn[] => [{ speaker: 'PARTNER', text: `Nummer ${n}. Ich erzähle etwas.` }])
+    const [a, b, c] = assignHoerenVoices(men).segments.map((s) => s.lines[0])
+    expect(a).not.toBe(b)
+    expect(b).not.toBe(c)
+    expect(c).toBe(a)
+    expect([a, b]).not.toContain('HOER_M1')
+  })
+
+  it('một người dẫn cho cả đề: Teil nào cũng Conrad, không nhân vật nào dùng Conrad', () => {
+    for (const part of [teil1(), teil2(), teil3()]) {
+      const v = assignHoerenVoices(part)
+      expect(v.narrator).toBe('HOER_M1')
+      for (const s of v.segments) {
+        expect(s.narrator).toBe('HOER_M1')
+        s.lines.forEach((voice, i) => {
+          if (voice === 'HOER_M1') expect(part[v.segments.indexOf(s)].filter((t) => t.text.trim())[i].kind).toBe('LEAD_IN')
+        })
+      }
+    }
   })
 
   it('Teil 3: câu dẫn tình huống đọc bằng giọng người dẫn, không nhân vật nào dùng giọng đó', () => {
@@ -137,9 +176,11 @@ describe('assignHoerenVoices — chia giọng cho một Teil nghe', () => {
     for (const s of v.segments) expect(s.lines[0]).toBe(v.narrator)
     expect(speakers.map(isFemale)).toEqual([true, false, false, true, false])
     expect(speakers).not.toContain(v.narrator)
-    // Hai nữ, ba nam ⇒ người dẫn giọng nữ; ba người nam ba giọng, hai người nữ hai giọng còn lại.
-    expect(v.narrator).toBe('HOER_F3')
-    expect(new Set(speakers).size).toBe(5)
+    // Hai nữ hai giọng; ba người nam chỉ có hai giọng (Killian, Florian) ⇒ người nam thứ nhất và thứ ba chung giọng.
+    expect(v.narrator).toBe('HOER_M1')
+    expect(new Set(speakers).size).toBe(4)
+    expect(speakers[1]).not.toBe(speakers[2])
+    expect(speakers[4]).toBe(speakers[1])
   })
 
   it('không tên thì nhân vật là vai trong đoạn: cùng vai trong một đoạn giữ một giọng', () => {
@@ -172,6 +213,6 @@ describe('assignHoerenVoices — chia giọng cho một Teil nghe', () => {
     const v = assignHoerenVoices([[{ speaker: 'PRUEFER', text: '  ' }, { speaker: 'PARTNER', text: 'Hallo.' }]])
     expect(v.segments[0].lines).toHaveLength(1)
     expect(isMale(v.segments[0].lines[0])).toBe(true)
-    expect(assignHoerenVoices([])).toEqual({ narrator: 'HOER_F3', segments: [] })
+    expect(assignHoerenVoices([])).toEqual({ narrator: 'HOER_M1', segments: [] })
   })
 })

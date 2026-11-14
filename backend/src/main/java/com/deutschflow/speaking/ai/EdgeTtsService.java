@@ -33,6 +33,14 @@ public class EdgeTtsService {
     @Value("${app.ai.edge-tts.url:}")
     private String edgeTtsUrl;
 
+    /**
+     * Công tắc lùi nhanh của bài nghe mỗi nhân vật một giọng ({@code HOEREN_VOICES_ENABLED}, mặc định bật).
+     * Tắt thì backend coi như sidecar chưa có persona {@code HOER_*}: danh sách persona không còn chúng
+     * (frontend tự đọc lại bằng ANNA/THOMAS) và yêu cầu {@code HOER_*} bị từ chối — không cần build lại gì.
+     */
+    @Value("${app.tts.hoeren-voices-enabled:true}")
+    private boolean hoerenVoicesEnabled = true;
+
     // 3s connect, 10s read — TTS sits on the speaking hot path; a hung sidecar must not pin the thread.
     private final RestTemplate restTemplate = RestTemplates.withTimeouts(3000, 10000);
 
@@ -127,9 +135,17 @@ public class EdgeTtsService {
      * frontend mới (bài nghe mỗi nhân vật một giọng) có thể lên trước khi container sidecar được build
      * lại, nên client phải hỏi được "sidecar đã có persona này chưa" để lùi về giọng cũ thay vì phát
      * nhầm giọng. Nhớ 60 giây (lần hỏi lỗi nhớ 15 giây) để không gọi sidecar ở mỗi câu.
+     *
+     * <p>Công tắc {@code app.tts.hoeren-voices-enabled} tắt thì bỏ mọi persona {@code HOER_*} khỏi danh sách.
      */
-    @SuppressWarnings("rawtypes")
     public List<String> supportedPersonas() {
+        List<String> names = sidecarPersonas();
+        if (hoerenVoicesEnabled) return names;
+        return names.stream().filter(n -> !n.startsWith(HOEREN_PERSONA_PREFIX)).toList();
+    }
+
+    @SuppressWarnings("rawtypes")
+    private List<String> sidecarPersonas() {
         if (!isConfigured()) return List.of();
         long now = System.currentTimeMillis();
         if (now < personasExpiresAt) return personasCache;
@@ -154,15 +170,17 @@ public class EdgeTtsService {
     }
 
     /**
-     * Persona bài nghe ({@code HOER_*}) mà sidecar đang chạy CHẮC CHẮN chưa có. Không hỏi được danh
-     * sách thì trả {@code false} (không chặn oan). Controller dùng để từ chối thay vì để sidecar cũ
-     * đọc nhầm giọng DEFAULT rồi bản audio sai đó nằm trong cache 24 giờ.
+     * Persona bài nghe ({@code HOER_*}) mà sidecar đang chạy CHẮC CHẮN chưa có, hoặc đang bị công tắc
+     * {@code app.tts.hoeren-voices-enabled} tắt. Không hỏi được danh sách thì trả {@code false}
+     * (không chặn oan). Controller dùng để từ chối thay vì để sidecar cũ đọc nhầm giọng DEFAULT rồi bản
+     * audio sai đó nằm trong cache 24 giờ.
      */
     public boolean isUnsupportedHoerenPersona(String personaName) {
         if (personaName == null) return false;
         String persona = personaName.trim().toUpperCase(Locale.ROOT);
         if (!persona.startsWith(HOEREN_PERSONA_PREFIX)) return false;
-        List<String> known = supportedPersonas();
+        if (!hoerenVoicesEnabled) return true;
+        List<String> known = sidecarPersonas();
         return !known.isEmpty() && !known.contains(persona);
     }
 

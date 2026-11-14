@@ -11,9 +11,10 @@
  *     liền nhau luôn khác giọng);
  *   • giới tính theo vai (`PRUEFER` → nữ, còn lại → nam); `name` nói rõ giới thì tin `name`
  *     („Herr …" / „Frau …", „Moderator" / „Moderatorin", „Sprecher" / „Sprecherin");
- *   • người dẫn (câu dẫn `LEAD_IN`, „Nummer NN.", Ansage, câu khung) có MỘT giọng cố định cho cả Teil và
- *     không nhân vật nào của Teil dùng giọng đó: lấy ở giới có ÍT nhân vật hơn (bằng nhau thì nữ), để giới
- *     đông người còn đủ ba giọng;
+ *   • người dẫn (câu dẫn `LEAD_IN`, „Nummer NN.", Ansage, câu khung) có MỘT giọng cố định cho CẢ ĐỀ, như băng
+ *     đề thật (owner chốt 14/11/2026): Conrad (`HOER_M1`). Conrad không bao giờ là giọng nhân vật, nên nhân vật
+ *     nữ có ba giọng (Katja, Amala, Seraphina), nhân vật nam có hai (Killian, Florian) — phần có ba người nam
+ *     thì người thứ nhất và thứ ba chung giọng (hệ quả đã báo owner);
  *   • tất định: cùng một Teil thì máy nào, lần nào cũng ra cùng cách chia (điểm bắt đầu xoay vòng lấy từ
  *     hash nội dung lời thoại, không ngẫu nhiên lúc render).
  *
@@ -30,8 +31,8 @@ export const HOEREN_FEMALE_VOICES = ['HOER_F1', 'HOER_F2', 'HOER_F3'] as const
 export const HOEREN_MALE_VOICES = ['HOER_M1', 'HOER_M2', 'HOER_M3'] as const
 export const HOEREN_VOICES: readonly string[] = [...HOEREN_FEMALE_VOICES, ...HOEREN_MALE_VOICES]
 
-/** Giọng người dẫn theo giới: Seraphina (nữ) hoặc Conrad (nam) — luôn một trong hai, để quen tai. */
-const NARRATOR_VOICE: Record<VoiceGender, string> = { F: 'HOER_F3', M: 'HOER_M1' }
+/** Giọng người dẫn của mọi bài nghe: Conrad — một giọng cho cả đề, không nhân vật nào dùng. */
+export const HOEREN_NARRATOR_VOICE = 'HOER_M1'
 
 /** Giọng của một đoạn nghe: `lines[i]` là persona của dòng lời thoại thứ i (thứ tự của `normalizeTurns`). */
 export interface SegmentVoices {
@@ -39,7 +40,7 @@ export interface SegmentVoices {
   lines: string[]
 }
 
-/** Giọng của cả Teil: một người dẫn chung, mỗi đoạn một bảng giọng. */
+/** Giọng của cả Teil: người dẫn (cố định) và mỗi đoạn một bảng giọng. */
 export interface PartVoices {
   narrator: string
   segments: SegmentVoices[]
@@ -89,22 +90,9 @@ function segmentLines(turns: AudioTurn[]): Line[] {
  */
 export function assignHoerenVoices(segments: AudioTurn[][]): PartVoices {
   const parsed = segments.map(segmentLines)
-
-  // Đếm nhân vật theo giới (mỗi đoạn tính riêng: câu khác là người khác).
-  const count: Record<VoiceGender, number> = { F: 0, M: 0 }
-  for (const lines of parsed) {
-    const seen = new Set<string>()
-    for (const ln of lines) {
-      if (ln.key === null || seen.has(ln.key)) continue
-      seen.add(ln.key)
-      count[ln.gender] += 1
-    }
-  }
-  const narratorGender: VoiceGender = count.M < count.F ? 'M' : 'F'
-  const narrator = NARRATOR_VOICE[narratorGender]
-
+  const narrator = HOEREN_NARRATOR_VOICE
   const pool: Record<VoiceGender, string[]> = {
-    F: HOEREN_FEMALE_VOICES.filter((v) => v !== narrator),
+    F: [...HOEREN_FEMALE_VOICES],
     M: HOEREN_MALE_VOICES.filter((v) => v !== narrator),
   }
   // Điểm bắt đầu xoay vòng lấy từ nội dung Teil ⇒ cùng đề thì cùng giọng trên mọi máy, đề khác thì đổi giọng.
