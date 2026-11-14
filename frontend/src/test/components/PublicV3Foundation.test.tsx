@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -81,5 +83,13 @@ describe('PR 1 — Điểm đặt App Store mới & Lưới OTP 6 ô chống tr�
     expect(cells[1]).toHaveAttribute('data-filled', 'true')
     expect(cells[2]).not.toHaveAttribute('data-filled')
     expect(cells[0]).toHaveAttribute('data-error', 'true')
+  })
+
+  it('galerie.css không gán trực tiếp background-color/color trong .ga-scope .ga-public để không đè bg-ga-ink trên Footer & AppDownloadBand', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../../styles/galerie.css'), 'utf8')
+    const tokenBlock = css.match(/\.ga-scope\s+\.ga-public\s*\{([^}]+)\}/)
+    expect(tokenBlock).not.toBeNull()
+    expect(tokenBlock![1]).not.toMatch(/background-color\s*:/)
+    expect(tokenBlock![1]).not.toMatch(/(^|\s|;)color\s*:/)
   })
 })
