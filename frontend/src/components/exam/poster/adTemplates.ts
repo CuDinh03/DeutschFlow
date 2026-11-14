@@ -2,7 +2,7 @@
  * Khuôn áp phích cho mẩu rao vặt telc Lesen Teil 3 (14/11/2026) — chọn khuôn và hình minh hoạ. Phép thuần:
  * cùng một bộ mẩu ⇒ cùng một cách gán trên mọi máy, mọi lần vẽ (hạt giống là băm của chính chữ các mẩu).
  */
-import type { AdParts } from './adParts'
+import type { AdPart, AdParts } from './adParts'
 
 /** 12 khuôn; kiểu dáng ở `src/styles/ad-posters.css` (`.ad-poster[data-tpl="…"]`). */
 export const POSTER_TEMPLATES = [
@@ -24,14 +24,27 @@ export type PosterTemplate = (typeof POSTER_TEMPLATES)[number]
 
 /** Khuôn không cần tiêu đề (mẩu `plain`). */
 const NO_HEADLINE_OK: ReadonlySet<PosterTemplate> = new Set<PosterTemplate>(['schlicht', 'grau', 'rechts'])
-/** Khuôn cần ít nhất hai phần thân (gạch đầu dòng; dải giữa cần chữ ở trên và dưới). */
-const NEEDS_TWO_BODY: ReadonlySet<PosterTemplate> = new Set<PosterTemplate>(['liste', 'band'])
 /** Khuôn có chỗ cho hình minh hoạ. */
 export const TEMPLATES_WITH_ICON: ReadonlySet<PosterTemplate> = new Set<PosterTemplate>(['rahmen', 'grau', 'liste', 'hand', 'plakat', 'bild'])
+/** Dải tối của khuôn `band` chỉ nhận một cụm ngắn — câu dài trong dải tối trông nặng và khó đọc. */
+export const MAX_BAND_CHARS = 40
 
-export function templateFits(tpl: PosterTemplate, parsed: AdParts): boolean {
+const bodyParts = (parsed: AdParts) => parsed.parts.filter((p) => p.role === 'body' || p.role === 'tagline')
+
+/** Phần đặt vào dải tối của khuôn `band`: dòng phụ, không có thì phần thân đầu. */
+export function bandPart(parsed: AdParts): AdPart | undefined {
+  return parsed.parts.find((p) => p.role === 'tagline') ?? parsed.parts.find((p) => p.role === 'body')
+}
+
+export function templateFits(tpl: PosterTemplate, parsed: AdParts, text: string): boolean {
   if (parsed.mode === 'plain') return NO_HEADLINE_OK.has(tpl)
-  if (NEEDS_TWO_BODY.has(tpl)) return parsed.parts.filter((p) => p.role === 'body' || p.role === 'tagline').length >= 2
+  // gạch đầu dòng cần ít nhất hai dòng
+  if (tpl === 'liste') return bodyParts(parsed).length >= 2
+  if (tpl === 'band') {
+    // dải giữa cần chữ ở trên và dưới, và cụm vào dải phải ngắn
+    const band = bandPart(parsed)
+    return bodyParts(parsed).length >= 2 && !!band && text.slice(band.s, band.e).trim().length <= MAX_BAND_CHARS
+  }
   return true
 }
 
@@ -74,18 +87,24 @@ export function assignTemplates(ads: readonly AdForTemplate[]): Record<string, P
     const j = Math.floor(rnd() * (i + 1))
     ;[order[i], order[j]] = [order[j], order[i]]
   }
-  const fitting = ads.map((a) => order.filter((tpl) => templateFits(tpl, a.parsed)))
+  const fitting = ads.map((a) => order.filter((tpl) => templateFits(tpl, a.parsed, a.text)))
+  // khuôn càng ít mẩu hợp càng "hiếm": khi hoà số lần dùng thì ưu tiên khuôn hiếm, để khuôn hiếm không bị bỏ trống
+  const rarity = new Map<PosterTemplate, number>()
+  for (const list of fitting) for (const tpl of list) rarity.set(tpl, (rarity.get(tpl) ?? 0) + 1)
   const queue = ads.map((_, i) => i).sort((x, y) => fitting[x].length - fitting[y].length || x - y)
   const used = new Map<PosterTemplate, number>()
   const out: Record<string, PosterTemplate> = {}
   for (const i of queue) {
     let best: PosterTemplate = 'schlicht'
     let bestCount = Infinity
+    let bestRarity = Infinity
     for (const tpl of fitting[i]) {
       const n = used.get(tpl) ?? 0
-      if (n < bestCount) {
+      const r = rarity.get(tpl) ?? 0
+      if (n < bestCount || (n === bestCount && r < bestRarity)) {
         best = tpl
         bestCount = n
+        bestRarity = r
       }
     }
     used.set(best, (used.get(best) ?? 0) + 1)
@@ -95,30 +114,46 @@ export function assignTemplates(ads: readonly AdForTemplate[]): Record<string, P
 }
 
 export type AdIconKey =
-  | 'bike' | 'truck' | 'car' | 'plane' | 'music' | 'theater' | 'food' | 'sport' | 'pet' | 'camera' | 'sewing'
-  | 'paint' | 'course' | 'kids' | 'book' | 'tech' | 'furniture' | 'home' | 'job'
+  | 'bike' | 'truck' | 'car' | 'plane' | 'music' | 'theater' | 'food' | 'fitness' | 'swim' | 'hike' | 'dog' | 'cat'
+  | 'camera' | 'sewing' | 'paint' | 'course' | 'kids' | 'book' | 'tech' | 'bed' | 'furniture' | 'home' | 'job'
 
-/** Từ khoá (chữ thường, khớp chuỗi con trong TIÊU ĐỀ) → hình. Hàng trên thắng hàng dưới. */
-const ICON_RULES: ReadonlyArray<[AdIconKey, RegExp]> = [
-  ['bike', /fahrrad|e-bike|räder\b/],
-  ['truck', /umzug|transport/],
-  ['car', /auto|mitfahr|fahrdienst|führerschein|fahrschule|übungsfahrt|garage|taxi/],
-  ['plane', /flug|flüge|flieg|reise|urlaub/],
-  ['music', /musik|konzert|gitarre|klavier|chor\b|gesang/],
-  ['theater', /theater|kino|bühne/],
-  ['food', /essen|restaurant|koch|köch|catering|partyservice|buffet|café/],
-  ['sport', /sport|yoga|schwimm|tanz|fitness|wander|fußball|lauftreff/],
-  ['pet', /hund|katze|tier/],
-  ['camera', /foto/],
-  ['sewing', /näh|friseur|schneider/],
-  ['paint', /maler|renovier/],
-  ['course', /kurs|unterricht|nachhilfe|lernen|hausaufgaben|konversation|schule/],
-  ['kids', /kinder|baby|ferien|au-pair|spielzeug/],
-  ['book', /buch|bücher/],
-  ['tech', /computer|laptop|handy|technik|tablet|drucker/],
-  ['furniture', /möbel|sofa|bett\b|kleiderschrank|\bschrank|tisch\b/],
-  ['home', /wohnung|zimmer|\bwg\b|nachmieter|mitbewohner/],
-  ['job', /\bjob|stelle\b|aushilfe|reinigungskraft|mitarbeiter|arbeit/],
+/** `<` = đầu từ, `>` = cuối từ (tự viết vì `\b` của JS không hiểu ä ö ü ß). */
+function rule(src: string): RegExp {
+  return new RegExp(src.replace(/</g, '(?:^|[^a-zäöüß])').replace(/>/g, '(?![a-zäöüß])'))
+}
+
+/**
+ * Từ khoá (chữ thường, trong TIÊU ĐỀ) → hình. Hàng trên thắng hàng dưới. Chỉ gán khi hình thật sự đúng nghĩa
+ * (rà lại 14/11/2026): hàng `null` chặn những chủ đề không có hình hợp — Yoga, Tanz, Gymnastik không nhận quả tạ
+ * hay mũ tốt nghiệp của "…kurs"; từ khoá chung chung dễ khớp nhầm (auto trong "Automat", buch trong "buchen",
+ * essen trong "Interessen", tier trong "Quartier", ferien trong "Ferienwohnung", stelle trong "Baustelle",
+ * arbeit trong "Gartenarbeit", flug trong "Ausflug") đều buộc khớp theo ranh từ hoặc đã bỏ.
+ */
+const ICON_RULES: ReadonlyArray<[AdIconKey | null, RegExp]> = [
+  [null, rule('yoga|<tanz|<tänze|salsa|zumba|pilates|gymnastik|ballett')],
+  ['bike', rule('fahrrad|fahrräder|e-bike')],
+  ['truck', rule('umzug>|umzüge|umzugshelfer|umzugshilfe|umzugsservice|transporter')],
+  ['car', rule('<autos?>|mitfahr|fahrdienst|führerschein|fahrschule|übungsfahrt|<garage|<taxi')],
+  ['plane', rule('<flug|<flüge|<fliegen|<reisen?>|reisebüro|urlaub')],
+  ['music', rule('musik|konzert|gitarre|klavier|<chor>|gesang')],
+  ['theater', rule('theater|<bühne')],
+  ['food', rule('<essen>|restaurant|kochkurs|kochabend|<kochen>|<koch>|köchin|catering|partyservice|buffet|<café')],
+  ['swim', rule('schwimm')],
+  ['hike', rule('wander')],
+  ['fitness', rule('fitness|krafttraining|<sport')],
+  ['dog', rule('<hund')],
+  ['cat', rule('<katze')],
+  ['camera', rule('<foto')],
+  ['sewing', rule('<näh|friseur|schneiderei')],
+  ['paint', rule('<maler|renovier')],
+  ['course', rule('kurs>|kurse>|unterricht|nachhilfe|hausaufgaben|konversation')],
+  ['bed', rule('bett>|betten>')],
+  ['kids', rule('<kinder|<baby|au-pair|spielzeug')],
+  ['book', rule('<buch>|bücher')],
+  ['tech', rule('computer|laptop|<handy|<tablet|drucker')],
+  ['furniture', rule('möbel|<sofa|<sessel|<couch')],
+  ['home', rule('wohnung|zimmer|<wg>|nachmieter|mitbewohner')],
+  ['job', rule('<jobs?>|minijob|nebenjob|aushilfe|reinigungskraft|mitarbeiter|stellenangebot')],
 ]
 
 /** Hình minh hoạ theo tiêu đề của mẩu (mẩu `plain`: 60 ký tự đầu); không khớp gì ⇒ `null` (không vẽ hình). */

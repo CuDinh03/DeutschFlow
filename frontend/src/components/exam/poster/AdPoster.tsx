@@ -2,15 +2,15 @@
 
 import * as React from 'react'
 import {
-  Bike, BookOpen, Briefcase, Camera, Car, Dog, Drama, Dumbbell, GraduationCap, House, Laptop, Music, Paintbrush,
-  Plane, Scissors, Sofa, Truck, Users, UtensilsCrossed, type LucideIcon,
+  Bed, Bike, BookOpen, Briefcase, Camera, Car, Cat, Dog, Drama, Dumbbell, GraduationCap, House, Laptop, Mountain,
+  Music, Paintbrush, Plane, Scissors, Sofa, Truck, Users, UtensilsCrossed, Waves, type LucideIcon,
 } from 'lucide-react'
 import '@/styles/ad-posters.css'
 import { cn } from '@/lib/utils'
 import { MarkedText, type MarkLayer } from '@/components/exam/marks/MarkedText'
 import type { Mark } from '@/components/exam/marks/marksModel'
-import { parseAdParts, type AdPart } from './adParts'
-import { TEMPLATES_WITH_ICON, adIcon, assignTemplates, type AdIconKey, type PosterTemplate } from './adTemplates'
+import { headlineFit, linkTokens, parseAdParts, type AdPart } from './adParts'
+import { TEMPLATES_WITH_ICON, adIcon, assignTemplates, bandPart, type AdIconKey, type PosterTemplate } from './adTemplates'
 import { posterFontVars } from './posterFonts'
 
 /** Hình nét Lucide (hệ icon của web, `ICON_WEB.md`) — chỉ để trang trí, luôn `aria-hidden`. */
@@ -22,8 +22,11 @@ const ICONS: Record<AdIconKey, LucideIcon> = {
   music: Music,
   theater: Drama,
   food: UtensilsCrossed,
-  sport: Dumbbell,
-  pet: Dog,
+  fitness: Dumbbell,
+  swim: Waves,
+  hike: Mountain,
+  dog: Dog,
+  cat: Cat,
   camera: Camera,
   sewing: Scissors,
   paint: Paintbrush,
@@ -31,6 +34,7 @@ const ICONS: Record<AdIconKey, LucideIcon> = {
   kids: Users,
   book: BookOpen,
   tech: Laptop,
+  bed: Bed,
   furniture: Sofa,
   home: House,
   job: Briefcase,
@@ -85,26 +89,55 @@ export function AdPoster({
   className?: string
 }) {
   const parsed = React.useMemo(() => parseAdParts(text), [text])
+  const links = React.useMemo(() => linkTokens(text), [text])
   const iconKey = TEMPLATES_WITH_ICON.has(template) ? adIcon(text, parsed) : null
   const Icon = iconKey ? ICONS[iconKey] : null
 
-  const run = (from: number, to: number) => (
-    <MarkedText block={block} text={text} from={from} to={to} layer={layer} lastByGroup={lastByGroup} />
-  )
+  const plain = (from: number, to: number) =>
+    from < to ? <MarkedText key={from} block={block} text={text} from={from} to={to} layer={layer} lastByGroup={lastByGroup} /> : null
+  /**
+   * Vẽ `[from, to)`. E-mail / địa chỉ web nằm trong đoạn được bọc `.ad-link` (không gãy tuỳ tiện) và cắt thành
+   * nhiều lát `MarkedText` nối nhau bằng `<wbr>` ở sau `@`, `/`, `.` — điểm ngắt chỉ có trong DOM, không có
+   * trong chữ của khối, nên vị trí ký tự của bút đánh dấu không đổi.
+   */
+  const run = (from: number, to: number) => {
+    const out: React.ReactNode[] = []
+    let at = from
+    for (const link of links) {
+      if (link.s < from || link.e > to) continue
+      out.push(plain(at, link.s))
+      const cuts = [link.s, ...link.breaks, link.e]
+      out.push(
+        <span key={`l${link.s}`} className="ad-link">
+          {cuts.slice(0, -1).map((c, i) => (
+            <React.Fragment key={c}>
+              {i > 0 && <wbr />}
+              {plain(c, cuts[i + 1])}
+            </React.Fragment>
+          ))}
+        </span>,
+      )
+      at = link.e
+    }
+    out.push(plain(at, to))
+    return out
+  }
   const head = parsed.parts.find((p) => p.role === 'headline')
   const tag = parsed.parts.find((p) => p.role === 'tagline')
   const body = parsed.parts.filter((p) => p.role === 'body')
   const contact = parsed.parts.find((p) => p.role === 'contact')
   // khuôn "dải giữa": dải tối là dòng phụ, không có thì dòng thân đầu
-  const band: AdPart | undefined = template === 'band' ? tag ?? body[0] : undefined
+  const band: AdPart | undefined = template === 'band' ? bandPart(parsed) : undefined
   const icon = Icon ? <Icon className="ad-icon" aria-hidden focusable={false} /> : null
   const iconOnTop = ICON_ON_TOP.has(template)
+  // cột hẹp: tiêu đề co cỡ chữ theo từ dài nhất để từ ghép dài không gãy giữa chừng (CSS chỉ dùng ở bản hẹp)
+  const fit = head ? headlineFit(text.slice(head.s, head.soft ?? head.e)) : 1
 
   return (
     <div className={cn('ad-poster', className)} data-tpl={template} data-mode={parsed.mode} lang="de">
       {iconOnTop && icon}
       {head && (
-        <span className="ad-head">
+        <span className="ad-head" style={fit < 1 ? ({ '--ad-head-fit': fit } as React.CSSProperties) : undefined}>
           <span className="ad-head-text">
             {run(head.s, head.soft ?? head.e)}
             {head.soft != null && <span className="ad-soft">{run(head.soft, head.e)}</span>}

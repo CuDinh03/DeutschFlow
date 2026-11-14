@@ -4,7 +4,7 @@
  * Bút đánh dấu trong áp phích: `PassageMarksDot3.test.tsx`.
  */
 import React from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -174,5 +174,72 @@ describe('AdPoster — dùng rời (xem trước ở Xưởng đề)', () => {
     expect(inline.textContent).toBe(ADS.d)
     expect(inline.querySelector('[data-band]')).toHaveTextContent('Ich gehe mit Ihrem Hund, während Sie arbeiten.')
     expect(container.querySelectorAll('[data-band]')).toHaveLength(2)
+  })
+})
+
+describe('AdPoster — sửa hiển thị cột hẹp (14/11/2026)', () => {
+  const one = (text: string, template: Parameters<typeof AdPoster>[0]['template'] = 'schlicht') => {
+    const { container } = render(
+      <AdPosterSheet>
+        <AdPoster block="ad:a" text={text} template={template} />
+      </AdPosterSheet>,
+    )
+    return container.querySelector<HTMLElement>('.ad-poster')!
+  }
+  const segsOk = (el: HTMLElement, text: string) => {
+    for (const seg of Array.from(el.querySelectorAll<HTMLElement>('[data-seg]'))) {
+      const s = Number(seg.dataset.s)
+      expect(text.slice(s, s + seg.textContent!.length)).toBe(seg.textContent)
+    }
+  }
+
+  it('e-mail / địa chỉ web: bọc không cho gãy tuỳ tiện, điểm ngắt mềm <wbr> sau "@" và "." — chữ và vị trí ký tự không đổi', () => {
+    const text = 'Kinderfest im Bürgerpark\nSpiele, Musik und Kuchen\nSonntag ab 14 Uhr\nEintritt frei\nfest@buergerpark.example.de'
+    const el = one(text)
+    expect(el.textContent).toBe(text) // <wbr> không thêm ký tự nào
+    const link = el.querySelector('.ad-contact .ad-link')!
+    expect(link.textContent).toBe('fest@buergerpark.example.de')
+    expect(link.querySelectorAll('wbr')).toHaveLength(2)
+    expect(Array.from(link.querySelectorAll('[data-seg]')).map((s) => s.textContent)).toEqual(['fest@', 'buergerpark.', 'example.de'])
+    // mỗi lát vẫn mang đúng vị trí ký tự trên chuỗi gốc ⇒ bút đánh dấu ghi đúng chỗ
+    expect(link.querySelector<HTMLElement>('[data-seg]')!.dataset.s).toBe(String(text.indexOf('fest@')))
+    segsOk(el, text)
+  })
+
+  it('địa chỉ web giữa câu của mẩu viết liền cũng được bọc; dấu chấm hết câu nằm ngoài', () => {
+    const text = 'Fotograf für Feiern, auch kurzfristig. Beispiele auf www.foto-studio.example.de. Preise auf Anfrage.'
+    const el = one(text)
+    expect(el.textContent).toBe(text)
+    expect(el.querySelector('.ad-link')!.textContent).toBe('www.foto-studio.example.de')
+    segsOk(el, text)
+  })
+
+  it('tiêu đề có từ ghép dài mang hệ số co --ad-head-fit; tiêu đề thường thì không', () => {
+    const long = one('Fahrradwerkstatt mobil\nWir kommen zu Ihnen\nReparatur vor Ihrer Haustür\nTel. 0421-31 41 59', 'schmal')
+    expect(long.querySelector<HTMLElement>('.ad-head')!.style.getPropertyValue('--ad-head-fit')).toBe('0.75')
+    cleanup()
+    const short = one('Gitarre lernen\nfür Anfänger\nErste Stunde kostenlos\nTel. 0421-12 34 56', 'schmal')
+    expect(short.querySelector<HTMLElement>('.ad-head')!.style.getPropertyValue('--ad-head-fit')).toBe('')
+  })
+
+  it('Yoga / Tanz không có hình minh hoạ, kể cả ở khuôn có chỗ cho hình', () => {
+    expect(one('Yoga am Morgen\nfür alle Niveaus\nmontags 7 Uhr\nProbestunde kostenlos', 'bild').querySelector('.ad-icon')).toBeNull()
+    cleanup()
+    expect(one(ADS.f, 'bild').querySelector('.ad-icon')).not.toBeNull() // Gitarrenunterricht ⇒ nốt nhạc
+  })
+
+  it('liên hệ giữa câu cuối ngắn: cả câu vào dòng liên hệ, không còn dòng thân cụt', () => {
+    const text = 'Biete Fahrdienst zum Flughafen Bremen und Hamburg, auch nachts und am frühen Morgen. Festpreise, Tel. 0421-55 66 77.'
+    const el = one(text)
+    expect(el.querySelector('.ad-contact')).toHaveTextContent('Festpreise, Tel. 0421-55 66 77.')
+    expect(el.querySelectorAll('.ad-line')).toHaveLength(1)
+    expect(el.textContent).toBe(text)
+  })
+
+  it('trong một Teil, khuôn band chỉ rơi vào mẩu có cụm vào dải ≤ 40 ký tự', () => {
+    render(<Harness />)
+    const bands = Array.from(document.querySelectorAll<HTMLElement>('.ad-poster[data-tpl="band"]'))
+    expect(bands.length).toBeLessThanOrEqual(1)
+    for (const el of bands) expect(el.querySelector('[data-band]')!.textContent!.trim().length).toBeLessThanOrEqual(40)
   })
 })

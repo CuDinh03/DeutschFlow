@@ -35,6 +35,10 @@ export interface AdParts {
 
 /** Tiêu đề tách từ mẩu viết liền không dài quá chừng này ký tự (dài hơn thì chữ trang trí vỡ dòng xấu). */
 export const MAX_HEADLINE = 52
+/** Phần đứng trước "Tel. …" trong câu cuối ngắn hơn chừng này ⇒ không tách, cả câu là liên hệ. */
+const MIN_BEFORE_CONTACT = 15
+/** Câu cuối có "Tel. …" không dài quá chừng này ⇒ cả câu là liên hệ. */
+const MAX_CONTACT_SENTENCE = 48
 /** Dòng 2 chỉ là dòng phụ khi ngắn. */
 const MAX_TAGLINE = 40
 
@@ -142,7 +146,10 @@ function bodyAndContact(text: string, from: number, to: number): AdPart[] {
     const key = CONTACT_INLINE.exec(seg)
     if (key) {
       const at = last.s + key.index + key[0].length - key[1].length
-      if (text.slice(last.s, at).trim() === '') last.role = 'contact'
+      const before = text.slice(last.s, at).trim()
+      // "Festpreise, Tel. 0421-…": phần đứng trước quá ngắn, hoặc cả câu cuối vốn ngắn ⇒ cả câu là liên hệ —
+      // tách ra chỉ để lại một dòng cụt treo dấu phẩy ngay trên dòng liên hệ.
+      if (before.length < MIN_BEFORE_CONTACT || seg.trim().length <= MAX_CONTACT_SENTENCE) last.role = 'contact'
       else {
         last.e = at
         out.push({ role: 'contact', s: at, e: to })
@@ -196,6 +203,58 @@ export function parseAdParts(text: string): AdParts {
   // dấu ngắt mềm = phần không phải khoảng trắng nằm giữa chữ hiện và phần kế (", " · ". " · " – ")
   if (text.slice(cut.visible, cut.next).trim() !== '') head.soft = cut.visible
   return { mode: 'inline', parts: [head, ...bodyAndContact(text, cut.next, text.length)] }
+}
+
+export interface LinkToken {
+  /** `[s, e)` của một e-mail / địa chỉ web trên chuỗi gốc (không gồm dấu câu đứng sau). */
+  s: number
+  e: number
+  /** Vị trí (trên chuỗi gốc, nằm TRONG `(s, e)`) được phép xuống dòng: ngay sau `@`, `/`, `.` (trừ dấu chấm trước đuôi tên miền). */
+  breaks: number[]
+}
+
+const LINK = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+|(?:https?:\/\/|www\.)[^\s,;]+|[\w-]+(?:\.[\w-]+)*\.(?:de|at|ch|com|org|net|eu|info)(?![\w-])(?:\/[^\s,;]*)?/gi
+
+/**
+ * E-mail và địa chỉ web trong đoạn `[from, to)`. Áp phích vẽ mỗi cụm không cho gãy tuỳ tiện (không gãy ở gạch
+ * nối giữa tên miền) và chỉ chèn điểm ngắt mềm `<wbr>` tại `breaks` — chèn LÚC VẼ, chuỗi của khối không đổi.
+ */
+export function linkTokens(text: string, from = 0, to = text.length): LinkToken[] {
+  const out: LinkToken[] = []
+  const seg = text.slice(from, to)
+  LINK.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = LINK.exec(seg)) !== null) {
+    const raw = m[0].replace(/[.,;:!?)]+$/, '') // dấu câu cuối câu không thuộc địa chỉ
+    if (raw.length < 4) continue
+    const s = from + m.index
+    const e = s + raw.length
+    const breaks: number[] = []
+    for (let i = 0; i < raw.length - 1; i++) {
+      const ch = raw[i]
+      // không ngắt trước đuôi tên miền ("example." | "de" để lại hai chữ mồ côi trên một dòng)
+      if (ch === '.' && /^[a-z]{2,4}(?:$|\/)/i.test(raw.slice(i + 1))) continue
+      if (ch === '@' || ch === '.' || (ch === '/' && raw[i + 1] !== '/')) breaks.push(s + i + 1)
+    }
+    out.push({ s, e, breaks })
+  }
+  return out
+}
+
+/** Từ dài nhất trong tiêu đề từ chừng này ký tự trở lên thì cỡ chữ tiêu đề co lại ở cột hẹp. */
+const FIT_WORD = 12
+const FIT_MIN = 0.68
+
+/**
+ * Hệ số co cỡ chữ tiêu đề ở cột hẹp (điện thoại) theo TỪ DÀI NHẤT, để một từ ghép như "Fahrradwerkstatt"
+ * không gãy giữa chừng: ≤ 12 ký tự ⇒ 1; dài hơn ⇒ 12 / độ dài, không dưới 0,68. Phần ở hai bên gạch nối tính riêng
+ * (trình duyệt xuống dòng được ở gạch nối).
+ */
+export function headlineFit(headline: string): number {
+  let longest = 0
+  for (const w of headline.split(/[\s\-–—/]+/)) longest = Math.max(longest, w.length)
+  if (longest <= FIT_WORD) return 1
+  return Math.max(FIT_MIN, Math.round((FIT_WORD / longest) * 100) / 100)
 }
 
 /** Ghép các phần lại — luôn bằng chuỗi gốc (dùng trong test và để tự kiểm). */

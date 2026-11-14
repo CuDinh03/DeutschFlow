@@ -3,7 +3,7 @@
  * dự phòng cho mẩu viết liền một đoạn, nhận ra dòng liên hệ, ký tự tiếng Đức.
  */
 import { describe, expect, it } from 'vitest'
-import { MAX_HEADLINE, joinAdParts, looksLikeContact, parseAdParts, sentenceStarts, type AdParts } from './adParts'
+import { MAX_HEADLINE, headlineFit, joinAdParts, linkTokens, looksLikeContact, parseAdParts, sentenceStarts, type AdParts } from './adParts'
 
 /** `[vai, chữ hiện]` của từng phần (bỏ khoảng trắng đuôi; tiêu đề bỏ cả dấu ngắt mềm). */
 function view(text: string, parsed: AdParts = parseAdParts(text)): Array<[string, string]> {
@@ -130,11 +130,7 @@ describe('parseAdParts — dự phòng cho mẩu viết liền một đoạn (đ
     expect(view(SAMPLES[6])[0]).toEqual(['headline', 'Chor „Kölsche Stimmen“ sucht Männerstimmen!'])
   })
 
-  it('liên hệ nằm giữa câu cuối: tách từ "Tel."; câu cuối có e-mail: cả câu là liên hệ', () => {
-    expect(view(SAMPLES[5]).slice(-2)).toEqual([
-      ['body', 'Festpreise,'],
-      ['contact', 'Tel. 0421-55 66 77.'],
-    ])
+  it('câu cuối có e-mail: cả câu là liên hệ', () => {
     const mail = parseAdParts(SAMPLES[4])
     expect(mail.mode).toBe('plain')
     expect(view(SAMPLES[4], mail)).toEqual([
@@ -174,4 +170,69 @@ describe('looksLikeContact', () => {
     'Start am 05.10. um 18 Uhr',
     '8 Termine, samstags 9 Uhr',
   ])('không nhận: %s', (s) => expect(looksLikeContact(s)).toBe(false))
+})
+
+describe('liên hệ giữa câu cuối — không để dòng cụt treo dấu phẩy', () => {
+  it('phần trước "Tel." ngắn (< 15 ký tự) hoặc cả câu cuối ngắn (≤ 48 ký tự) ⇒ cả câu là liên hệ', () => {
+    expect(view(SAMPLES[5]).slice(-2)).toEqual([
+      ['body', 'auch nachts und am frühen Morgen.'],
+      ['contact', 'Festpreise, Tel. 0421-55 66 77.'],
+    ])
+    const dog = 'Kleiner Hund (Mischling, 2 Jahre) sucht neues Zuhause mit Garten. Tierschutzverein Köln, Tel. 0221-30 40 50.'
+    expect(view(dog).slice(-1)).toEqual([['contact', 'Tierschutzverein Köln, Tel. 0221-30 40 50.']])
+    expect(joinAdParts(dog, parseAdParts(dog))).toBe(dog)
+  })
+
+  it('câu cuối dài và phần trước "Tel." đủ dài thì vẫn tách: thân rồi liên hệ', () => {
+    const text = 'Suche Wohnung, 2 Zimmer. Angebote bitte an Familie Krause in der Lindenstraße 12, Tel. 0341-12 34 56.'
+    expect(view(text).slice(-2)).toEqual([
+      ['body', 'Angebote bitte an Familie Krause in der Lindenstraße 12,'],
+      ['contact', 'Tel. 0341-12 34 56.'],
+    ])
+  })
+})
+
+describe('linkTokens — điểm ngắt mềm trong e-mail / địa chỉ web, không đổi chữ', () => {
+  const cut = (text: string) =>
+    linkTokens(text).map((l) => {
+      const at = [l.s, ...l.breaks, l.e]
+      return at.slice(0, -1).map((a, i) => text.slice(a, at[i + 1]))
+    })
+
+  it('chỉ ngắt sau "@", "/" và "." (không ngắt trước đuôi tên miền); không ngắt ở gạch nối; dấu câu cuối câu không thuộc địa chỉ', () => {
+    expect(cut('Liste per E-Mail: buecher-bremen@example.de')).toEqual([['buecher-bremen@', 'example.de']])
+    expect(cut('Infos: www.yoga-morgen.example.de/kurse.')).toEqual([['www.', 'yoga-morgen.', 'example.de/', 'kurse']])
+    expect(cut('Anmeldung unter https://kochschule.example.de, Tel. 0421-12 34 56')).toEqual([['https://', 'kochschule.', 'example.de']])
+    expect(cut('Schreiben Sie an fest@stadtpark.example.de oder info@example.de!')).toEqual([
+      ['fest@', 'stadtpark.', 'example.de'],
+      ['info@', 'example.de'],
+    ])
+  })
+
+  it('các lát ghép lại đúng bằng cụm gốc; vị trí nằm trong chuỗi gốc; chữ thường không bị coi là địa chỉ', () => {
+    const text = 'Kurs ab 05.10. um 18 Uhr, z. B. montags. Mehr: sprachtreff.example.de'
+    const [link] = linkTokens(text)
+    expect(linkTokens(text)).toHaveLength(1)
+    expect(text.slice(link.s, link.e)).toBe('sprachtreff.example.de')
+    for (const b of link.breaks) {
+      expect(b).toBeGreaterThan(link.s)
+      expect(b).toBeLessThan(link.e)
+    }
+    expect(linkTokens('Zimmer frei ab 1. Oktober, 340 € warm. Tel. 0341-22 33 44')).toEqual([])
+    // chỉ xét trong đoạn [from, to)
+    expect(linkTokens(text, 0, 20)).toEqual([])
+  })
+})
+
+describe('headlineFit — tiêu đề co cỡ chữ ở cột hẹp theo từ dài nhất', () => {
+  it('từ ≤ 12 ký tự không co; từ ghép dài co theo 12 / độ dài, không dưới 0,68', () => {
+    expect(headlineFit('Gitarre lernen')).toBe(1)
+    expect(headlineFit('Nachmieter für 2-Zimmer-Wohnung gesucht')).toBe(1)
+    expect(headlineFit('Fahrradwerkstatt mobil')).toBe(0.75) // 16 ký tự
+    expect(headlineFit('Gitarrenunterricht für Anfänger')).toBe(0.68) // 18 ký tự ⇒ chạm sàn
+    expect(headlineFit('Rechtsschutzversicherungsberatung')).toBe(0.68)
+    // hai bên gạch nối tính riêng: trình duyệt xuống dòng được ở gạch nối
+    expect(headlineFit('Englisch-Konversation für Berufstätige')).toBe(1)
+    expect(headlineFit('')).toBe(1)
+  })
 })
