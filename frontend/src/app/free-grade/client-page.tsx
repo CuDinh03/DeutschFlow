@@ -90,14 +90,13 @@ export default function FreeGradeClientPage() {
         Bài Schreiben B1 của bạn được mấy điểm?
       </h1>
       <p className="mt-5 max-w-[680px] text-ga-body-lg text-ga-muted">
-        Dán bài viết tiếng Đức vào ô bên dưới — AI chấm điểm theo thang Goethe/telc kèm nhận
-        xét ngữ pháp, từ vựng, cấu trúc câu <span className="font-semibold text-ga-ink">trong ~15 giây</span>.
-        Không cần đăng ký.
+        Dán bài viết tiếng Đức vào ô bên dưới. AI chấm theo thang 100 và chỉ ra lỗi ngữ pháp, từ vựng,
+        cấu trúc câu, kèm câu sửa. Không cần tạo tài khoản.
       </p>
       <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ga-small text-ga-muted">
-        <li className="inline-flex items-center gap-2"><Clock size={16} aria-hidden className="text-ga-ink" /> Kết quả sau khoảng 15 giây</li>
-        <li className="inline-flex items-center gap-2"><ShieldCheck size={16} aria-hidden className="text-ga-ink" /> Theo tiêu chí Goethe/telc</li>
-        <li className="inline-flex items-center gap-2"><Check size={16} aria-hidden className="text-ga-ink" /> Miễn phí, không cần tài khoản — chỉ cần email hoặc Zalo để nhận kết quả</li>
+        <li className="inline-flex items-center gap-2"><Clock size={16} aria-hidden className="text-ga-ink" /> Kết quả hiện ngay trên trang này</li>
+        <li className="inline-flex items-center gap-2"><ShieldCheck size={16} aria-hidden className="text-ga-ink" /> Tham chiếu tiêu chí bài viết B1</li>
+        <li className="inline-flex items-center gap-2"><Check size={16} aria-hidden className="text-ga-ink" /> Không cần tạo tài khoản, chỉ cần email hoặc Zalo để nhận kết quả</li>
       </ul>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-5">
@@ -160,7 +159,7 @@ export default function FreeGradeClientPage() {
             </div>
             <div>
               <label htmlFor="contact" className="mb-1.5 block text-ga-small font-semibold text-ga-ink">
-                Email / Zalo nhận kết quả <span aria-hidden className="text-ga-red">*</span>
+                Email / Zalo nhận kết quả <span className="font-normal text-ga-muted">(bắt buộc)</span>
                 <span className="sr-only"> (bắt buộc)</span>
               </label>
               <div className="flex min-h-11 overflow-hidden rounded-ga-touch border border-ga-line bg-ga-card focus-within:ring-2 focus-within:ring-ga-focus lg:min-h-9">
@@ -211,9 +210,9 @@ export default function FreeGradeClientPage() {
             <div className="border border-ga-border bg-ga-card p-6">
               <h2 className="text-ga-h3 text-ga-ink">Bạn sẽ nhận được gì?</h2>
               <ul className="mt-4 space-y-3 text-ga-small text-ga-muted">
-                <Bullet>Điểm số theo thang 100, tham chiếu tiêu chí chấm Goethe/telc (mô phỏng, không liên kết với hai tổ chức này).</Bullet>
+                <Bullet>Điểm số theo thang 100, mô phỏng tiêu chí bài viết B1 (không liên kết với Goethe-Institut hay telc).</Bullet>
                 <Bullet>Nhận xét cụ thể về ngữ pháp, từ vựng, cấu trúc câu.</Bullet>
-                <Bullet>Gợi ý cách cải thiện để lên điểm bài thi thật.</Bullet>
+                <Bullet>Gợi ý sửa để bài sau tốt hơn.</Bullet>
               </ul>
               <div className="mt-5 bg-ga-surface p-4 text-ga-small text-ga-muted">
                 <span className="font-semibold text-ga-ink">Là giáo viên?</span> myDeutschFlow chấm nháp cả lớp

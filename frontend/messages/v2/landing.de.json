@@ -260,7 +260,7 @@
           {
             "date": "31. Mai 2026",
             "title": "Aufs Handy",
-            "body": "Beginn der Arbeit an der App für iOS und Android, damit Sie überall sprechen üben können."
+            "body": "Beginn der Arbeit an der Handy-App. Die iPhone-App ist im App Store; mit Android nutzen Sie die Web-Version."
           },
           {
             "date": "18. Oktober 2026",
@@ -349,7 +349,7 @@
         "meta": {
           "title": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
           "titleShort": "Vorstellungsgespräch {nameDe}: typische Fragen | myDeutschFlow",
-          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe}, Fachbegriffe und Ihr Interviewer. Antworten kostenlos mit KI üben."
+          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe}, Fachbegriffe und Ihr Interviewer. Antworten mit KI üben, 7 Tage Pro gratis."
         },
         "back": "Alle Berufe",
         "title": "Vorstellungsgespräch: {nameDe}",
@@ -361,7 +361,7 @@
         "termsEmpty": "Die Fachbegriffe zu diesem Beruf werden gerade erstellt.",
         "labelsNote": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Der „allgemeine Fragenkatalog“ gilt für alle Berufe, mit Ihrer Berufsbezeichnung.",
         "cta": "Dieses Gespräch üben",
-        "ctaNote": "Kostenlos. Die KI fragt auf Deutsch und zeigt nach jeder Antwort, was Sie verbessern können.",
+        "ctaNote": "Kostenlos testen: 7 Tage Pro, ohne Vorauszahlung. Danach braucht das Interviewtraining Pro.",
         "relatedCap": "Verwandte Berufe",
         "guideLink": "Ratgeber: {title}",
         "examLink": "Prüfungsvorbereitung: {name}",
@@ -440,7 +440,7 @@
           },
           {
             "name": "Die Lehrkraft liest und bestätigt",
-            "body": "Schreiben: Die Lehrkraft liest den Text und bestätigt die Note. Zugewiesene Sprechaufgaben: Die Lehrkraft liest vor dem Bestätigen, was gesagt wurde.",
+            "body": "Schreiben: Die Lehrkraft liest den Text und bestätigt die Note. Zugewiesene Sprechaufgaben: Die Lehrkraft hört die Aufnahme an und prüft das Gesagte vor dem Bestätigen.",
             "state": "ready"
           },
           {
@@ -471,7 +471,7 @@
       "pricing": {
         "cap": "Kosten",
         "title": "Abgerechnet pro aktivem Lernenden.",
-        "body": "Schulen zahlen pro aktivem Lernenden und Monat, mit Nutzungsgrenzen in Zahlen. Ein kurzer kostenpflichtiger Pilot ist möglich; die Gebühr wird bei Weiterführung auf den Vertrag angerechnet. Konkrete Preise nennen wir in der Demo."
+        "body": "Schulen zahlen pro aktivem Lernenden und Monat. Zum Start gibt es einen kostenlosen Pilot von 2 Wochen; die Pilotgebühr danach wird bei Weiterführung auf den Vertrag angerechnet. Preise besprechen wir in der Demo."
       },
       "data": {
         "cap": "Daten der Lernenden",

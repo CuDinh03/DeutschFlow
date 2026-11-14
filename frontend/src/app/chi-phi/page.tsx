@@ -188,24 +188,15 @@ export default function ChiPhiPage() {
         <p className="mt-4 max-w-[860px] text-ga-small text-ga-muted">{COMPARE_NOTE}</p>
 
         <div className="max-w-[860px]">
-          <h2 className={H2}>Chi phí cho trung tâm</h2>
-          <p className="text-ga-body-lg text-ga-ink">{SCHOOL.intro}</p>
-          <ul className="mt-6 grid gap-4 sm:grid-cols-3">
-            {SCHOOL.tiles.map((t) => (
-              <li key={t.value} className="border border-ga-border bg-ga-card p-4">
-                <div className="font-ga-display text-[28px] font-medium leading-tight text-ga-ink">{t.value}</div>
-                <div className="mt-2 text-ga-small text-ga-muted">{t.label}</div>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-5 text-ga-body text-ga-ink">{SCHOOL.definition}</p>
-          <p className="mt-3 text-ga-body text-ga-ink">{SCHOOL.pilotNote}</p>
-          <p className="mt-3 text-ga-body text-ga-ink">{SCHOOL.body}</p>
-          <div className="mt-6">
-            <GaBtn asChild variant="ink" size="lg" className="min-h-[44px] w-full sm:w-auto">
-              <Link href={SCHOOL.ctaHref}><YellowSq />{SCHOOL.ctaLabel}</Link>
-            </GaBtn>
-          </div>
+          <section aria-labelledby="trung-tam" className="mt-16 border border-ga-border bg-ga-card p-5 sm:p-6">
+            <h2 id="trung-tam" className="font-ga-display text-[24px] font-medium text-ga-ink sm:text-[28px]">{SCHOOL.title}</h2>
+            <p className="mt-2 text-ga-body text-ga-ink">{SCHOOL.body}</p>
+            <div className="mt-5">
+              <GaBtn asChild variant="ink" size="lg" className="min-h-[44px] w-full sm:w-auto">
+                <Link href={SCHOOL.ctaHref}><YellowSq />{SCHOOL.ctaLabel}</Link>
+              </GaBtn>
+            </div>
+          </section>
 
           <h2 className={H2}>Câu hỏi về chi phí</h2>
           <div className="border-t border-ga-border">

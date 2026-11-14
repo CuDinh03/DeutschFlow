@@ -66,16 +66,35 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
         </div>
         <h1 className="font-ga-display text-ga-h1-m font-medium leading-[1.1] sm:text-ga-h1">{exam.name}</h1>
         <p className="mt-5 text-ga-body-lg text-ga-muted">{exam.tagline}</p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
-            <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
-          </GaBtn>
-          <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-            {/* Đợt 1 (14/11/2026): CTA chung đi qua onboarding (F-13), không vào thẳng đăng ký. Chỉ telc B1 có thi
-                thử thật — trang khác mời học thử, không hứa thi thử. */}
-            <Link href={START_HREF}>{exam.slug === 'telc-b1' ? 'Thi thử telc B1 trên myDeutschFlow' : 'Học thử miễn phí'}</Link>
-          </GaBtn>
-        </div>
+        {exam.slug === 'telc-b1' ? (
+          <>
+            {/* Owner duyệt 14/11/2026: telc B1 là kỳ thi duy nhất có thi thử thật — nút chính vào phễu học thử
+                (thi thử nằm trong 7 ngày Pro), chấm thử bài viết là nút phụ. */}
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
+                <Link href={START_HREF}>Học thử miễn phí</Link>
+              </GaBtn>
+              <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+                <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
+              </GaBtn>
+            </div>
+            <p className="mt-3 text-ga-small text-ga-muted">7 ngày Pro gồm thi thử telc B1 đủ 4 phần · không cần thanh toán trước</p>
+            <p className="mt-6 border-l-2 border-ga-yellow bg-ga-card px-4 py-3 text-ga-small text-ga-ink">
+              Đề thi thử mô phỏng format telc B1, không liên kết với telc và không thay cho chứng chỉ. Phần chấm Nói đang Beta, điểm chỉ để tham khảo.
+            </p>
+          </>
+        ) : (
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
+              <Link href="/free-grade/"><Sparkles size={16} aria-hidden /> Chấm thử bài viết miễn phí</Link>
+            </GaBtn>
+            <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+              {/* Đợt 1 (14/11/2026): CTA chung đi qua onboarding (F-13). Trang này chỉ hướng dẫn cấu trúc đề —
+                  không hứa thi thử. */}
+              <Link href={START_HREF}>Học thử miễn phí</Link>
+            </GaBtn>
+          </div>
+        )}
 
         {/* Tổng quan */}
         <section className="mt-12 space-y-4">
@@ -156,7 +175,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
               {/* Công cụ chấm thử chỉ chấm mức B1 — trang kỳ thi khác không hứa chấm đúng trình độ của trang. */}
               <p className="text-ga-h3 text-ga-ink">{exam.level === 'B1' ? 'Bài viết B1 của bạn được mấy điểm?' : 'Thử chấm một bài Schreiben B1'}</p>
               <p className="text-ga-small text-ga-muted">
-                {exam.level === 'B1' ? 'Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.' : 'Công cụ chấm thử hiện chấm theo mức B1. Dán bài Schreiben — AI chấm điểm + nhận xét trong ~15 giây, miễn phí.'}
+                {exam.level === 'B1' ? 'Dán bài Schreiben, AI chấm theo thang 100 và chỉ ra chỗ cần sửa. Miễn phí.' : 'Công cụ chấm thử hiện chấm theo mức B1. Dán bài Schreiben, AI chấm theo thang 100 và chỉ ra chỗ cần sửa. Miễn phí.'}
               </p>
             </div>
           </div>
