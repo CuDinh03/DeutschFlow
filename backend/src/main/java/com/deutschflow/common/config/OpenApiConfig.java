@@ -67,9 +67,9 @@ public class OpenApiConfig {
      * {@code /v3/api-docs/ios}. Mirrors the path list in
      * {@code plans/2026-06-20-openapi-coverage-audit.md} (P0).
      *
-     * <p>Deliberately excludes {@code /api/skill-tree/**}: the node tree is served by the
-     * typed {@code RoadmapTreeController} ({@code /api/roadmap/tree}); {@code SkillTreeController}
-     * is still {@code Map}-based and would pollute codegen.
+     * <p>Deliberately excludes {@code /api/skill-tree/**}: {@code SkillTreeController} is still
+     * {@code Map}-based and would pollute codegen. The typed manifest tree ({@code /api/roadmap/tree})
+     * was retired in the roadmap redesign (đợt 1, 14/11/2026) and now only answers 410.
      */
     @Bean
     public GroupedOpenApi iosApi() {

@@ -97,14 +97,16 @@ public class RoadmapService {
                     COALESCE(p.score_percent, 0) AS user_score,
                     COALESCE(p.best_score, 0) AS user_best_score,
                     COALESCE(p.attempts, 0) AS user_attempts,
-                    COALESCE(p.xp_earned, 0) AS user_xp
+                    COALESCE(p.xp_earned, 0) AS user_xp,
+                    %s AS scored_item_count,
+                    %s AS dependencies_met
                 FROM v_skill_tree_roadmap_nodes n
                 LEFT JOIN skill_tree_user_progress p
                     ON p.node_id = n.id AND p.user_id = ?
-                WHERE n.is_active = TRUE
-                  AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                WHERE %s
                 ORDER BY COALESCE(n.day_number, 9999) ASC, COALESCE(n.sort_order, 9999) ASC, n.id ASC
-                """, userId);
+                """.formatted(RoadmapRules.SCORED_ITEM_COUNT, RoadmapRules.DEPENDENCIES_MET, RoadmapRules.PUBLISHED),
+                userId, entry.day(), userId);
         List<Map<String, Object>> rows = curriculum.stream()
                 .filter(r -> r.get("day_number") == null || asInt(r.get("day_number")) >= entry.day())
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -114,21 +116,15 @@ public class RoadmapService {
         }
 
         boolean roadmapStarted = rows.stream().anyMatch(r -> hasCompletedProgress(r) || hasInProgressProgress(r) || hasUnlockedProgress(r));
-        applyFocusAreaPriorities(rows, profile);
+        // ROUTE-03 (đợt 1, 14/11/2026): không còn sắp lại bài theo `interests`; thứ tự cố định theo
+        // day_number, sort_order. Trước đây việc sắp lại chạy trước khi tính `prevCompleted` nên có thể
+        // đảo thứ tự mở khoá.
         boolean firstCurrentAssigned = false;
-        String firstFocusNodeCode = findFirstFocusAreaNodeCode(rows, profile);
-        // Mã các node đã hoàn thành — để prerequisites_json được đối chiếu thật (06/09: trước đây
-        // prerequisites khác rỗng = khoá vĩnh viễn) và để node liền sau node đã xong được mở.
-        Set<String> completedCodes = rows.stream()
-                .filter(this::hasCompletedProgress)
-                .map(r -> asString(r.get("node_code")))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
         boolean prevCompleted = false;
         List<RoadmapNodeDto> nodes = new ArrayList<>(rows.size());
 
         for (Map<String, Object> row : rows) {
-            String state = computeState(row, firstCurrentAssigned, roadmapStarted, firstFocusNodeCode, entry, prevCompleted, completedCodes);
+            String state = computeState(row, firstCurrentAssigned, roadmapStarted, entry, prevCompleted);
             if ("current".equals(state)) {
                 firstCurrentAssigned = true;
             }
@@ -180,7 +176,7 @@ public class RoadmapService {
                 JOIN skill_tree_user_progress p ON p.node_id = n.id
                 WHERE p.user_id = ?
                   AND p.status IN ('IN_PROGRESS', 'UNLOCKED', 'COMPLETED')
-                  AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                  AND %s
                   AND n.day_number >= ?
                 ORDER BY
                     CASE p.status WHEN 'IN_PROGRESS' THEN 0 WHEN 'UNLOCKED' THEN 1 WHEN 'COMPLETED' THEN 2 ELSE 3 END,
@@ -188,7 +184,7 @@ public class RoadmapService {
                     n.day_number ASC,
                     n.sort_order ASC
                 LIMIT 1
-                """, userId, entryDay);
+                """.formatted(RoadmapRules.PUBLISHED), userId, entryDay);
 
         if (rows.isEmpty()) {
             return getEntryNodeCode(entryDay);
@@ -207,12 +203,11 @@ public class RoadmapService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT n.node_code
                 FROM v_skill_tree_roadmap_nodes n
-                WHERE n.is_active = TRUE
-                  AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                WHERE %s
                   AND n.day_number >= ?
                 ORDER BY n.day_number ASC, COALESCE(n.sort_order, 9999) ASC, n.id ASC
                 LIMIT 1
-                """, entryDay);
+                """.formatted(RoadmapRules.PUBLISHED), entryDay);
         return rows.isEmpty() ? ENTRY_NODE_CODE : nodeCodeOrEntry(rows.get(0));
     }
 
@@ -223,10 +218,9 @@ public class RoadmapService {
                 JOIN skill_tree_nodes n ON n.id = p.node_id
                 WHERE p.user_id = ?
                   AND p.status = 'COMPLETED'
-                  AND n.is_active = TRUE
-                  AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                  AND %s
                   AND n.day_number >= ?
-                """, Long.class, userId, entryDay);
+                """.formatted(RoadmapRules.PUBLISHED), Long.class, userId, entryDay);
         return count == null ? 0L : count;
     }
 
@@ -234,10 +228,9 @@ public class RoadmapService {
         Long count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM v_skill_tree_roadmap_nodes n
-                WHERE n.is_active = TRUE
-                  AND n.node_family IN ('FOUNDATION', 'CORE', 'CHECKPOINT')
+                WHERE %s
                   AND n.day_number >= ?
-                """, Long.class, entryDay);
+                """.formatted(RoadmapRules.PUBLISHED), Long.class, entryDay);
         return count == null ? 0L : count;
     }
 
@@ -276,13 +269,13 @@ public class RoadmapService {
         return profile.getCurrentLevel().name();
     }
 
-    private String computeState(Map<String, Object> row, boolean firstCurrentAssigned, boolean roadmapStarted, String firstFocusNodeCode,
-                                RoadmapEntry entry, boolean prevCompleted, Set<String> completedCodes) {
+    private String computeState(Map<String, Object> row, boolean firstCurrentAssigned, boolean roadmapStarted,
+                                RoadmapEntry entry, boolean prevCompleted) {
         String status = asString(row.get("user_status"));
         int bestScore = asInt(row.get("user_best_score"));
         int masteryThreshold = asInt(row.get("mastery_threshold"));
-        boolean dependenciesMet = dependenciesMet(row, completedCodes);
-        String nodeCode = asString(row.get("node_code"));
+        // ROUTE-01: cùng luật với /skill-tree/me và lúc nộp bài (RoadmapRules.DEPENDENCIES_MET).
+        boolean dependenciesMet = Boolean.TRUE.equals(row.get("dependencies_met"));
 
         if ("COMPLETED".equals(status) || bestScore >= masteryThreshold) {
             return "completed";
@@ -292,9 +285,6 @@ public class RoadmapService {
         }
         if (!dependenciesMet) {
             return "locked";
-        }
-        if (!firstCurrentAssigned && firstFocusNodeCode != null && firstFocusNodeCode.equals(nodeCode)) {
-            return "current";
         }
         // Không ai ghi dòng UNLOCKED cho node kế khi node trước hoàn thành (SkillTreeService cũng
         // suy tại lúc đọc) → node liền sau node đã xong là nụ kế tiếp; chỉ MỘT nụ được mời.
@@ -353,54 +343,6 @@ public class RoadmapService {
         }
     }
 
-    private String findFirstFocusAreaNodeCode(List<Map<String, Object>> rows, UserLearningProfile profile) {
-        if (profile == null || profile.getInterestsJson() == null || profile.getInterestsJson().isBlank()) {
-            return null;
-        }
-
-        String interests = profile.getInterestsJson().toLowerCase();
-        for (Map<String, Object> row : rows) {
-            String title = asString(row.get("title_de"));
-            String description = asString(row.get("description_vi"));
-            String tags = asString(row.get("tags"));
-            String category = asString(row.get("node_family"));
-
-            boolean matches = (title != null && interests.contains(title.toLowerCase()))
-                    || (description != null && interests.contains(description.toLowerCase()))
-                    || (tags != null && interests.contains(tags.toLowerCase()))
-                    || (category != null && interests.contains(category.toLowerCase()));
-
-            if (matches) {
-                return asString(row.get("node_code"));
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * prerequisites_json là mảng mã node ("[\"D01\"]"). Đạt khi rỗng, hoặc mọi mã đều thuộc tập
-     * node đã hoàn thành của chính cây này. Mã vắng mặt / JSON hỏng = chưa đạt (giữ hành vi cũ
-     * của "khác rỗng = khoá", nhưng không còn khoá vĩnh viễn node có tiền đề đã xong).
-     */
-    private boolean dependenciesMet(Map<String, Object> row, Set<String> completedCodes) {
-        Object deps = row.get("prerequisites_json");
-        if (deps == null) {
-            return true;
-        }
-        String raw = deps.toString().trim();
-        if (raw.isEmpty() || "[]".equals(raw) || "[ ]".equals(raw)) {
-            return true;
-        }
-        try {
-            List<String> codes = objectMapper.readValue(raw, new TypeReference<List<String>>() {});
-            return codes.stream().allMatch(code -> code != null && completedCodes.contains(code));
-        } catch (Exception e) {
-            log.warn("Skipping malformed prerequisites_json for node {}: {}", row.get("node_code"), e.getMessage());
-            return false;
-        }
-    }
-
     private boolean isEntryNode(Map<String, Object> row, RoadmapEntry entry) {
         return asInt(row.get("day_number")) == entry.day();
     }
@@ -418,46 +360,17 @@ public class RoadmapService {
         return "UNLOCKED".equals(asString(row.get("user_status")));
     }
 
+    /** ROUTE-08: số mục chấm điểm thật của bài, tối thiểu 1 (trước đây suy từ estimated_minutes / 5). */
     private int resolveLessonsTotal(Map<String, Object> row) {
-        Object value = row.get("estimated_minutes");
-        int minutes = value instanceof Number n ? n.intValue() : 15;
-        return Math.max(1, Math.round(minutes / 5.0f));
+        return Math.max(1, asInt(row.get("scored_item_count")));
     }
 
     private int resolveLessonsCompleted(Map<String, Object> row, String state, int lessonsTotal) {
         if ("completed".equals(state)) {
             return lessonsTotal;
         }
-        if ("current".equals(state)) {
-            int bestScore = asInt(row.get("user_best_score"));
-            int masteryThreshold = Math.max(1, asInt(row.get("mastery_threshold")));
-            return Math.min(lessonsTotal, Math.max(0, Math.round((bestScore * lessonsTotal) / (float) masteryThreshold)));
-        }
-        return 0;
-    }
-
-    private void applyFocusAreaPriorities(List<Map<String, Object>> rows, UserLearningProfile profile) {
-        if (profile == null || profile.getInterestsJson() == null || profile.getInterestsJson().isBlank()) {
-            return;
-        }
-
-        String interests = profile.getInterestsJson().toLowerCase();
-        rows.sort((a, b) -> Integer.compare(priorityScore(b, interests), priorityScore(a, interests)));
-    }
-
-    private int priorityScore(Map<String, Object> row, String interests) {
-        int score = 0;
-        String title = asString(row.get("title_de"));
-        String description = asString(row.get("description_vi"));
-        String tags = asString(row.get("tags"));
-        String category = asString(row.get("node_family"));
-
-        if (title != null && interests.contains(title.toLowerCase())) score += 3;
-        if (description != null && interests.contains(description.toLowerCase())) score += 2;
-        if (tags != null && interests.contains(tags.toLowerCase())) score += 3;
-        if (category != null && interests.contains(category.toLowerCase())) score += 1;
-
-        return score;
+        int bestScore = Math.max(0, Math.min(100, asInt(row.get("user_best_score"))));
+        return Math.min(lessonsTotal, (bestScore * lessonsTotal) / 100);
     }
 
     private String firstPrerequisiteCode(Map<String, Object> row) {

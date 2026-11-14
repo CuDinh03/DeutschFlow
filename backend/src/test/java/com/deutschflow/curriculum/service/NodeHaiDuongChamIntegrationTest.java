@@ -76,14 +76,26 @@ class NodeHaiDuongChamIntegrationTest extends AbstractPostgresIntegrationTest {
                 .build()).getId();
     }
 
+    /** Node đã phát hành (node_family CORE): đợt 1 lộ trình chỉ cho nộp bài đã phát hành (ROUTE-02). */
     private long node(String... phan) {
+        return nodeVoiFamily("CORE", phan);
+    }
+
+    private long nodeVoiFamily(String nodeFamily, String... phan) {
         Long id = jdbcTemplate.queryForObject("""
                 INSERT INTO skill_tree_nodes
-                    (node_type, title_de, title_vi, cefr_level, industry, vocab_strategy, content_json)
-                VALUES ('SATELLITE_LEAF', 'Zwei Wege', 'Hai đường', 'A2', 'Hai-Duong-Test', 'CONTEXT', ?::jsonb)
+                    (node_type, title_de, title_vi, cefr_level, industry, vocab_strategy, node_family, content_json)
+                VALUES ('SATELLITE_LEAF', 'Zwei Wege', 'Hai đường', 'A2', 'Hai-Duong-Test', 'CONTEXT', ?, ?::jsonb)
                 RETURNING id
-                """, Long.class, "{" + String.join(",", phan) + "}");
+                """, Long.class, nodeFamily, "{" + String.join(",", phan) + "}");
         return id == null ? -1L : id;
+    }
+
+    private int soDongTienDo(long userId, long nodeId) {
+        Integer n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM skill_tree_user_progress WHERE user_id = ? AND node_id = ?",
+                Integer.class, userId, nodeId);
+        return n == null ? 0 : n;
     }
 
     private Map<String, Object> tienDo(long userId, long nodeId) {
@@ -193,5 +205,70 @@ class NodeHaiDuongChamIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThatThrownBy(() -> skillTreeService.submitSkillExercises(userId, chiKyNang, DUNG_HET_KY_NANG))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("đã hoàn thành");
+    }
+
+    @Test
+    @DisplayName("ROUTE-07: bài không có mục chấm xác định thì không tin điểm client, không ghi gì (AC-ROUTE-08)")
+    void khongChamDuocOMayChu_khongGhiTienDo() {
+        long userId = hocVien();
+        long nodeId = node(SKILL_EXERCISES);
+
+        Map<String, Object> ketQua = skillTreeService.submitNodeExercises(userId, nodeId,
+                Map.of("score_percent", 100, "item_answers", Map.of()));
+
+        assertThat(ketQua.get("completed")).isEqualTo(false);
+        assertThat(ketQua.get("reason")).isEqualTo("NOT_SERVER_GRADABLE");
+        assertThat(ketQua.get("xpEarned")).isEqualTo(0);
+        assertThat(soDongTienDo(userId, nodeId)).isZero();
+    }
+
+    @Test
+    @DisplayName("ROUTE-07: điểm lưu là điểm máy chủ chấm, score_percent client bị bỏ qua (AC-ROUTE-09)")
+    void diemMayChuThangDiemClient() {
+        long userId = hocVien();
+        long nodeId = node(EXERCISES);
+
+        Map<String, Object> ketQua = skillTreeService.submitNodeExercises(userId, nodeId, Map.of(
+                "score_percent", 100,
+                "item_answers", Map.of("g1", Map.of("choice", 1), "p1", Map.of("text", "falsch"))));
+
+        assertThat(ketQua.get("scorePercent")).isEqualTo(50);
+        assertThat(ketQua.get("completed")).isEqualTo(false);
+    }
+
+    @Test
+    @DisplayName("ROUTE-07: bộ 4 kỹ năng không có mục chấm được thì không ghi tiến độ")
+    void kyNangKhongChamDuoc_khongGhiTienDo() {
+        long userId = hocVien();
+        long nodeId = node(EXERCISES);
+
+        Map<String, Object> ketQua = skillTreeService.submitSkillExercises(userId, nodeId, DUNG_HET_KY_NANG);
+
+        assertThat(ketQua.get("reason")).isEqualTo("NOT_SERVER_GRADABLE");
+        assertThat(soDongTienDo(userId, nodeId)).isZero();
+    }
+
+    @Test
+    @DisplayName("ROUTE-02: bài chưa phát hành (node_family NULL) không nộp được dù gọi đúng id")
+    void baiChuaPhatHanh_khongNopDuoc() {
+        long userId = hocVien();
+        long nhap = nodeVoiFamily(null, EXERCISES);
+
+        assertThatThrownBy(() -> skillTreeService.submitNodeExercises(userId, nhap, DUNG_HET_BAI_TAP))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("trước đó");
+        assertThat(soDongTienDo(userId, nhap)).isZero();
+    }
+
+    @Test
+    @DisplayName("ROUTE-08: số mục chấm trong SQL khớp NodeExerciseGrader.countScored")
+    void demMucChamTrongSqlKhopGrader() {
+        long nodeId = node(EXERCISES, SKILL_EXERCISES);
+
+        Long trongSql = jdbcTemplate.queryForObject(
+                "SELECT " + RoadmapRules.SCORED_ITEM_COUNT + " FROM skill_tree_nodes n WHERE n.id = ?",
+                Long.class, nodeId);
+
+        assertThat(trongSql).isEqualTo(2L);
     }
 }
