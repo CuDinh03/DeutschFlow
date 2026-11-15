@@ -69,6 +69,7 @@ We share personal data only with the service providers that help us run the app,
 **Other service providers:**
 
 - **PostHog** (United States region) — product and usage analytics.
+- **Google Analytics** (Google LLC, United States) — visit statistics for our public web pages only (home page, exam-prep, interview and guide pages). It is not loaded inside the app or on pages behind sign-in, and we do not send it your name, email or account ID.
 - **Expo / EAS** — delivers push notifications and over-the-air app updates.
 - **Cloudflare, Inc.** (United States, global network) — sits in front of our servers: every connection to the website and the app passes through Cloudflare (DNS, HTTPS encryption, protection against attacks, and a secure tunnel to our servers). Cloudflare R2 also stores the files you upload (voice recordings, photos, avatars, learning materials) and our encrypted database backups.
 
@@ -197,6 +198,7 @@ Chúng tôi chỉ chia sẻ dữ liệu cá nhân với các nhà cung cấp d�
 **Các nhà cung cấp khác:**
 
 - **PostHog** (khu vực Hoa Kỳ) — phân tích sản phẩm và sử dụng.
+- **Google Analytics** (Google LLC, Hoa Kỳ) — thống kê lượt truy cập, chỉ trên các trang web công khai (trang chủ, trang luyện thi, phỏng vấn, cẩm nang). Không chạy trong ứng dụng hay ở các trang sau khi đăng nhập, và chúng tôi không gửi tên, email hay mã tài khoản của bạn cho Google.
 - **Expo / EAS** — gửi thông báo đẩy và cập nhật ứng dụng qua mạng (OTA).
 - **Cloudflare, Inc.** (Hoa Kỳ, mạng toàn cầu) — đứng trước máy chủ của chúng tôi: mọi kết nối tới website và ứng dụng đều đi qua Cloudflare (DNS, mã hoá HTTPS, chống tấn công và đường hầm bảo mật tới máy chủ). Cloudflare R2 còn lưu các tệp bạn tải lên (ghi âm, ảnh, ảnh đại diện, tài liệu học) và bản sao lưu cơ sở dữ liệu đã mã hoá.
 
@@ -325,6 +327,7 @@ Wir geben personenbezogene Daten nur an die Dienstleister weiter, die uns beim B
 **Weitere Dienstleister:**
 
 - **PostHog** (Region USA) — Produkt- und Nutzungsanalyse.
+- **Google Analytics** (Google LLC, USA) — Besuchsstatistik ausschließlich für unsere öffentlichen Webseiten (Startseite, Prüfungsvorbereitung, Vorstellungsgespräch, Ratgeber). Es wird weder in der App noch auf Seiten nach der Anmeldung geladen, und wir übermitteln weder Ihren Namen noch Ihre E-Mail-Adresse oder Konto-ID.
 - **Expo / EAS** — liefert Push-Benachrichtigungen und Over-the-Air-App-Updates.
 - **Cloudflare, Inc.** (USA, globales Netzwerk) — steht vor unseren Servern: Jede Verbindung zur Website und zur App läuft über Cloudflare (DNS, HTTPS-Verschlüsselung, Schutz vor Angriffen und ein gesicherter Tunnel zu unseren Servern). Cloudflare R2 speichert außerdem die Dateien, die Sie hochladen (Sprachaufnahmen, Fotos, Profilbilder, Lernmaterialien), sowie unsere verschlüsselten Datenbank-Backups.
 
