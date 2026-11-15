@@ -41,8 +41,13 @@ function ensureGtag(pageLocation: string): Gtag {
       // eslint-disable-next-line prefer-rest-params
       window.dataLayer!.push(arguments)
     }
+    // THỨ TỰ QUAN TRỌNG (đo trên prod 15/11/2026): đặt `page_location` vào `config` thì gtag hiện hành
+    // VẪN tự bắn một page_view với URL thô (document.location, còn nguyên query lạ) dù `send_page_view:false`
+    // — mỗi lượt mở trang thành 2 page_view. Đặt cả hai bằng `set` TRƯỚC `config`, `config` không mang
+    // page_location ⇒ chỉ còn đúng page_view gửi tay ở dưới.
+    window.gtag('set', { send_page_view: false, page_location: pageLocation })
     window.gtag('js', new Date())
-    window.gtag('config', GA_MEASUREMENT_ID, { send_page_view: false, page_location: pageLocation })
+    window.gtag('config', GA_MEASUREMENT_ID, { send_page_view: false })
     const s = document.createElement('script')
     s.async = true
     s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_MEASUREMENT_ID)}`
