@@ -7,6 +7,7 @@ import { messagesForV2Areas } from '@/i18n/pickV2Messages'
 import { Toaster } from '@/components/ui/sonner'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import { PostHogProvider } from '@/providers/PostHogProvider'
+import { GoogleAnalytics } from '@/providers/GoogleAnalytics'
 import { NativeAuthProvider } from '@/providers/NativeAuthProvider'
 import { MotionProvider } from '@/providers/MotionProvider'
 import { AuthRecoveryDialog } from '@/components/auth/AuthRecoveryDialog'
@@ -151,6 +152,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     (interceptor bắn tín hiệu vào store, overlay render theo store). */}
                 <MaintenanceOverlay />
                 <Toaster position="top-center" />
+                {/* GA4 chỉ trang công khai trên mydeutschflow.com (owner chốt 15/11/2026). */}
+                <GoogleAnalytics />
               </MotionProvider>
             </NativeAuthProvider>
           </PostHogProvider>

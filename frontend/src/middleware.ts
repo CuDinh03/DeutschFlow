@@ -285,6 +285,12 @@ function sharedDashboardOrigin(): string {
 // thêm khi build có site key — không có key thì widget không render và CSP giữ nguyên như cũ.
 const turnstileOrigin = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? 'https://challenges.cloudflare.com' : ''
 
+// Google Analytics 4 trên trang công khai (15/11/2026, providers/GoogleAnalytics.tsx). Danh sách theo
+// hướng dẫn CSP của Google cho GA4: script từ googletagmanager (strict-dynamic đã cho qua vì bundle mang
+// nonce — nêu host làm fallback), gửi số liệu qua connect/img tới google-analytics + analytics.google.
+const GA_SCRIPT_HOSTS = ['https://*.googletagmanager.com']
+const GA_BEACON_HOSTS = ['https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com']
+
 function buildCsp(nonce: string): string {
   // E5 đường 1 (owner chọn 08/09): bỏ `https:` khỏi img/connect/frame/media và bỏ hai host font
   // Google khỏi style/font. Lý do KHÔNG phải "cho chặt hơn" mà là **để đo được**: chừng nào còn
@@ -294,16 +300,16 @@ function buildCsp(nonce: string): string {
   // dùng; cái giá là đồng hồ soak đặt lại từ ngày deploy bản này.
   const mediaHosts = MEDIA_HOSTS
   // Kho media nằm ở connect-src vì trình duyệt PUT thẳng tệp lên presigned URL (học liệu >25MB, bài nộp).
-  const connectSrc = ["'self'", backendOrigin, posthogHost, ...MEDIA_HOSTS].filter(Boolean).join(' ')
+  const connectSrc = ["'self'", backendOrigin, posthogHost, ...MEDIA_HOSTS, ...GA_BEACON_HOSTS].filter(Boolean).join(' ')
   return [
     "default-src 'self'",
     // 'strict-dynamic' + nonce is honored by modern browsers; 'unsafe-inline' + https: are
     // ignored there and act only as fallbacks for older browsers.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${[posthogHost, turnstileOrigin].filter(Boolean).join(' ')} https: 'unsafe-inline'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${[posthogHost, turnstileOrigin, ...GA_SCRIPT_HOSTS].filter(Boolean).join(' ')} https: 'unsafe-inline'`,
     // Font là self-host thật: `next/font/google` tải file lúc BUILD rồi phục vụ từ `/_next/static`,
     // runtime không gọi fonts.googleapis.com/fonts.gstatic.com lần nào (khảo sát E5 §0).
     "style-src 'self' 'unsafe-inline'",
-    `img-src ${["'self'", 'data:', 'blob:', ...mediaHosts].join(' ')}`,
+    `img-src ${["'self'", 'data:', 'blob:', ...mediaHosts, ...GA_BEACON_HOSTS].join(' ')}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     // The material reader embeds a presigned S3 object: the PDF (native, or converted from Word) in an
