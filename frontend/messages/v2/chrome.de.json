@@ -93,7 +93,11 @@
       "org-audit": "Aktivitätsprotokoll",
       "org-certificates": "Zertifikate",
       "admin-ai-usage": "KI-Kosten",
-      "admin-exam-bank": "Sprechen-Aufgabenbank"
+      "admin-exam-bank": "Sprechen-Aufgabenbank",
+      "feedback": "Feedback senden",
+      "t-feedback": "Feedback senden",
+      "org-feedback": "Feedback senden",
+      "admin-feedback": "Feedback"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",
@@ -297,7 +301,9 @@
       "MFA_RECOVERY_CODES_LOW": "Wiederherstellungscodes gehen zur Neige",
       "MFA_RESET_BY_ADMIN": "Zwei-Faktor-Authentifizierung zurückgesetzt",
       "ADMIN_SUPPORT_VIEW": "Der Support hat Ihr Konto angesehen",
-      "PASSWORD_RESET_BY_ADMIN": "Passwort wurde zurückgesetzt"
+      "PASSWORD_RESET_BY_ADMIN": "Passwort wurde zurückgesetzt",
+      "FEEDBACK_REPLIED": "Das Team hat auf dein Feedback geantwortet",
+      "FEEDBACK_SHIPPED": "Dein Feedback wurde umgesetzt"
     }
   },
   "inbox": {

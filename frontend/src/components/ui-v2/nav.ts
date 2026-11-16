@@ -33,6 +33,8 @@ export interface NavItem {
   glyph?: GlyphName
   /** Org nav: chỉ OWNER thấy (vd: tài chính/giấy phép). MANAGER (nhân sự) bị ẩn. */
   ownerOnly?: boolean
+  /** Hiện số đếm cạnh nhãn (NavCount). Ẩn khi 0, "99+" khi trên 99. */
+  countKey?: 'adminFeedbackNew'
 }
 
 /** Một nhóm item, render kèm heading nếu có `label`. */
@@ -211,6 +213,8 @@ export const adminNav: RoleNav = {
       labelKey: 'ops',
       items: [
         { id: 'admin-broadcast', label: 'Thông báo', href: '/v2/admin/broadcast', icon: 'campaign' },
+        // Góp ý về phần mềm (gopycapnhat GĐ1, FBK-15): số = góp ý chưa đọc.
+        { id: 'admin-feedback', label: 'Góp ý', href: '/v2/admin/feedback', icon: 'inbox', countKey: 'adminFeedbackNew' },
         { id: 'admin-maintenance', label: 'Bảo trì', href: '/v2/admin/maintenance', icon: 'build' },
         { id: 'admin-ai', label: 'Cấu hình AI', href: '/v2/admin/ai-config', icon: 'brain_cog' },
         { id: 'admin-training', label: 'Training data', href: '/v2/admin/training-dataset', icon: 'database' },
@@ -265,6 +269,7 @@ const ORG_ITEM = {
   // đúng cái lỗi mà /v2/org/settings từng mắc. Backend gác assertOrgOwner; ownerOnly là lớp UX.
   audit: { id: 'org-audit', label: 'Sổ hoạt động', href: '/v2/org/audit', icon: 'history', ownerOnly: true },
   profile: { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+  feedback: { id: 'org-feedback', label: 'Gửi góp ý', href: '/v2/feedback', icon: 'forum' },
 } satisfies Record<string, NavItem>
 
 /**
@@ -301,7 +306,7 @@ export const orgNav: RoleNav = {
     {
       label: 'Tài khoản',
       labelKey: 'account',
-      items: [ORG_ITEM.profile],
+      items: [ORG_ITEM.profile, ORG_ITEM.feedback],
     },
   ],
 }
@@ -340,7 +345,7 @@ export const managerNav: RoleNav = {
     {
       label: 'Tài khoản',
       labelKey: 'account',
-      items: [ORG_ITEM.profile],
+      items: [ORG_ITEM.profile, ORG_ITEM.feedback],
     },
   ],
 }
@@ -679,6 +684,7 @@ export const studentAreas: RoleAreas = {
     { id: 'profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
     { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
     { id: 'welcome', label: 'Hướng dẫn', href: '/v2/student/welcome', icon: 'help' },
+    { id: 'feedback', label: 'Gửi góp ý', href: '/v2/feedback', icon: 'forum' },
   ],
   inbox: { id: 'st-messages', label: 'Tin nhắn', href: '/v2/student/messages', icon: 'chat', glyph: 'tinnhan' },
 }
@@ -761,7 +767,10 @@ export const teacherAreas: RoleAreas = {
       ],
     },
   ],
-  utility: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' }],
+  utility: [
+    { id: 't-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+    { id: 't-feedback', label: 'Gửi góp ý', href: '/v2/feedback', icon: 'forum' },
+  ],
   inbox: { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat', glyph: 'tinnhan' },
 }
 

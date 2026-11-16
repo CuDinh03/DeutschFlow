@@ -9,6 +9,7 @@ import { useUserStore } from '@/stores/useUserStore'
 import { getOrgRole, logout } from '@/lib/authSession'
 import { GaLogo } from './GaLogo'
 import { GaIcon } from './GaIcon'
+import { NavCount } from './NavCount'
 import { GaNavIcon } from './GaNavIcon'
 import { useGaShellNav } from './GaShellNav'
 import { managerNav, ROLE_AREAS, resolveArea } from './nav'
@@ -182,6 +183,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
                     <span className="truncate">
                       {t.has(`nav.items.${item.id}`) ? t(`nav.items.${item.id}`) : item.label}
                     </span>
+                    {item.countKey && <NavCount countKey={item.countKey} active={active} />}
                   </Link>
                 )
               })}

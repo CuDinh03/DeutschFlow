@@ -1225,6 +1225,118 @@
       "tabOverview": "Überblick",
       "tabLedger": "Nach Ledger",
       "errorTitle": "KI-Kostendaten konnten nicht geladen werden"
+    },
+    "feedback": {
+      "eyebrow": "Betrieb",
+      "title": "Nutzerfeedback",
+      "subtitle": "Feedback von Lernenden, Lehrkräften und Zentren lesen, antworten und bis zum Abschluss verfolgen.",
+      "search": "Inhalt, E-Mail, Name suchen",
+      "allStatuses": "Alle",
+      "status": {
+        "NEW": "Ungelesen",
+        "READ": "Gelesen",
+        "IN_PROGRESS": "In Arbeit",
+        "SHIPPED": "Veröffentlicht",
+        "DECLINED": "Nicht geplant"
+      },
+      "statusLong": {
+        "NEW": "Gesendet",
+        "READ": "Gelesen",
+        "IN_PROGRESS": "In Arbeit",
+        "SHIPPED": "Veröffentlicht / Behoben",
+        "DECLINED": "Vorerst nicht geplant"
+      },
+      "allTypes": "Alle Arten",
+      "allAreas": "Alle Bereiche",
+      "allRoles": "Alle Rollen",
+      "roles": {
+        "STUDENT": "Lernende",
+        "TEACHER": "Lehrkraft",
+        "ORG": "Zentrum",
+        "OWNER": "Zentrumsinhaber",
+        "MANAGER": "Zentrumsleitung"
+      },
+      "sort": {
+        "NEWEST": "Neueste",
+        "LOW_SCORE": "Niedrigste Bewertung zuerst"
+      },
+      "sortLabel": "Sortierung",
+      "typeFilter": "Art",
+      "areaFilter": "Bereich",
+      "roleFilter": "Rolle",
+      "lowScore": "Niedrige Bewertung",
+      "score": "{n}/5",
+      "noScore": "Nicht bewertet",
+      "replies": "{n, plural, one {# Antwort} other {# Antworten}}",
+      "images": "{n, plural, one {# Bild} other {# Bilder}}",
+      "empty": "Kein Feedback passt zu diesen Filtern.",
+      "loadError": "Feedback konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "selected": "{n} ausgewählt",
+      "markRead": "Als gelesen markieren",
+      "clear": "Auswahl aufheben",
+      "pickOne": "Wähle ein Feedback, um die Details zu sehen.",
+      "detail": {
+        "since": "Lernt seit {date}",
+        "plan": "Tarif",
+        "level": "Niveau",
+        "org": "Zentrum",
+        "source": "Quelle",
+        "sent": "Gesendet am",
+        "contact": "E-Mail-Kontakt",
+        "contactNo": "Nicht erlaubt",
+        "tech": "Technische Angaben",
+        "noTech": "Nicht mitgesendet",
+        "images": "Angehängte Bilder",
+        "noImages": "Keine",
+        "openImage": "Bild {n} öffnen",
+        "history": "Antworten"
+      },
+      "sources": {
+        "IN_APP": "In der App",
+        "RATING_INVITE": "Bewertungs-E-Mail",
+        "AFTER_MOCK": "Nach Probeprüfung"
+      },
+      "statusField": "Status",
+      "explanation": "Erklärung für die Person (10–1000 Zeichen)",
+      "explanationHint": "Die Person kann das lesen und wird benachrichtigt.",
+      "shippedHint": "Die Person bekommt einmal eine Benachrichtigung \"umgesetzt\".",
+      "saveStatus": "Status speichern",
+      "statusSaved": "Status gespeichert.",
+      "tabReply": "Antwort an die Person",
+      "tabNote": "Interne Notiz",
+      "replyPlaceholder": "Die Person sieht das unter ihrem Feedback.",
+      "notePlaceholder": "Nur für Admins sichtbar.",
+      "sendReply": "Antwort senden",
+      "replySent": "Antwort gesendet. Die Person wurde benachrichtigt.",
+      "saveNote": "Notiz speichern",
+      "noteSaved": "Interne Notiz gespeichert.",
+      "prev": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "pageOf": "Seite {page} / {pages} · {total} Einträge",
+      "failed": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+      "types": {
+        "BUG": "Fehler melden",
+        "IDEA": "Vorschlag",
+        "USABILITY": "Schwer zu bedienen",
+        "GENERAL": "Allgemeine Rückmeldung"
+      },
+      "areas": {
+        "EXAM": "Prüfungstraining",
+        "SPEAKING": "Sprechtraining",
+        "INTERVIEW": "Bewerbungsgespräch",
+        "VOCABULARY": "Wortschatz",
+        "ROADMAP": "Lernpfad",
+        "BILLING": "Tarife und Zahlung",
+        "IOS_APP": "iPhone-App",
+        "CLASSES": "Kurse",
+        "GRADING": "Bewertung",
+        "SCHEDULE": "Stundenplan",
+        "MATERIALS": "Materialien",
+        "STUDENTS": "Lernende",
+        "REPORTS": "Berichte",
+        "OTHER": "Sonstiges"
+      }
     }
   }
 }

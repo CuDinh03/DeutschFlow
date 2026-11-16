@@ -54,6 +54,9 @@ export const TYPE_ICON: Record<string, string> = {
   ADMIN_SUPPORT_VIEW: 'visibility',
   // Đội hỗ trợ đặt lại mật khẩu (đợt 2 admin, 09/11/2026) — người nhận là CHÍNH người bị đổi.
   PASSWORD_RESET_BY_ADMIN: 'key',
+  // Góp ý về phần mềm (gopycapnhat GĐ1, 16/11/2026) — người nhận là chính người gửi góp ý.
+  FEEDBACK_REPLIED: 'chat',
+  FEEDBACK_SHIPPED: 'check_circle',
 }
 
 /**
@@ -64,7 +67,7 @@ export const TYPE_ICON: Record<string, string> = {
 export type NotifTone = 'navy' | 'red' | 'green' | 'plain'
 
 const RED: string[] = ['CLASS_SESSION_CANCELLED', 'ACCOUNT_DELETED', 'ADMIN_SYSTEM_ALERT', 'SCHEDULE_CHANGE_REJECTED', 'MFA_RECOVERY_CODE_USED', 'MFA_RECOVERY_CODES_LOW', 'MFA_RESET_BY_ADMIN', 'PASSWORD_RESET_BY_ADMIN']
-const GREEN: string[] = ['ASSIGNMENT_GRADED', 'JOIN_REQUEST_APPROVED', 'ADMIN_LEARNER_SUBSCRIBED', 'ADMIN_ORG_INVOICE_PAID', 'TIMESHEET_PERIOD_APPROVED', 'CERTIFICATE_ISSUED', 'MFA_ENABLED']
+const GREEN: string[] = ['ASSIGNMENT_GRADED', 'JOIN_REQUEST_APPROVED', 'ADMIN_LEARNER_SUBSCRIBED', 'ADMIN_ORG_INVOICE_PAID', 'TIMESHEET_PERIOD_APPROVED', 'CERTIFICATE_ISSUED', 'MFA_ENABLED', 'FEEDBACK_SHIPPED']
 const PLAIN: string[] = ['CLASS_STUDENT_REMOVED', 'JOIN_REQUEST_REJECTED', 'USER_REGISTERED']
 
 export function notifTone(type: string): NotifTone {
@@ -120,6 +123,8 @@ export const TYPE_LABEL: Record<string, string> = {
   MFA_RESET_BY_ADMIN: 'Xác thực hai lớp đã được đặt lại',
   ADMIN_SUPPORT_VIEW: 'Đội hỗ trợ đã xem tài khoản',
   PASSWORD_RESET_BY_ADMIN: 'Mật khẩu đã được đặt lại',
+  FEEDBACK_REPLIED: 'Đội ngũ đã trả lời góp ý của bạn',
+  FEEDBACK_SHIPPED: 'Góp ý của bạn đã được thực hiện',
 }
 
 
@@ -230,6 +235,10 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       return '/v2/profile?tab=security'
     case 'CERTIFICATE_ISSUED':
       return '/v2/student/certificates'
+    case 'FEEDBACK_REPLIED':
+    case 'FEEDBACK_SHIPPED':
+      // Trang Góp ý dùng chung mọi vai trò (RoleShell giữ đúng khung của người xem).
+      return `/v2/feedback?from=${role}`
     case 'REVIEW_DUE':
       return '/v2/student/review'
     case 'STREAK_REMINDER':

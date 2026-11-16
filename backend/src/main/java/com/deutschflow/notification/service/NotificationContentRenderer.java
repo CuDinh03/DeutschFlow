@@ -214,7 +214,20 @@ public class NotificationContentRenderer {
                     "Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại"
                             + (str(p, "resetAtDisplay").isBlank() ? "" : " lúc " + str(p, "resetAtDisplay"))
                             + ". Nếu bạn không yêu cầu, hãy liên hệ hỗ trợ.");
+
+            // ── Góp ý về phần mềm — thân trích tiêu đề góp ý của chính người nhận ──
+            case FEEDBACK_REPLIED -> new RenderedContent(
+                    "Đội ngũ đã trả lời góp ý của bạn",
+                    quotedFeedbackTitle(p));
+            case FEEDBACK_SHIPPED -> new RenderedContent(
+                    boolOf(p, "bug") ? "Lỗi bạn báo đã được sửa" : "Góp ý của bạn đã được thực hiện",
+                    quotedFeedbackTitle(p));
         };
+    }
+
+    private static String quotedFeedbackTitle(Map<String, Object> p) {
+        String title = str(p, "feedbackTitle");
+        return title.isBlank() ? "Mở mục Góp ý để xem chi tiết." : "“" + title + "”";
     }
 
     private static final java.time.format.DateTimeFormatter SUPPORT_VIEW_TIME =

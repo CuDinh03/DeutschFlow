@@ -345,4 +345,24 @@ class NotificationContentRendererUnitTest {
         RenderedContent noTime = renderer.render(NotificationType.PASSWORD_RESET_BY_ADMIN, Map.of());
         assertThat(noTime.body()).startsWith("Mật khẩu của bạn vừa được đội hỗ trợ DeutschFlow đặt lại.");
     }
+
+    @Test
+    @DisplayName("FEEDBACK_REPLIED / FEEDBACK_SHIPPED: thân trích tiêu đề góp ý; Báo lỗi đổi thành 'đã được sửa'")
+    void feedbackNotifications_quoteTheFeedbackTitle() {
+        RenderedContent replied = renderer.render(NotificationType.FEEDBACK_REPLIED,
+                Map.of("feedbackId", 7, "feedbackTitle", "Cho nghe lại đoạn Hören", "bug", false));
+        assertThat(replied.title()).isEqualTo("Đội ngũ đã trả lời góp ý của bạn");
+        assertThat(replied.body()).isEqualTo("“Cho nghe lại đoạn Hören”");
+
+        RenderedContent shipped = renderer.render(NotificationType.FEEDBACK_SHIPPED,
+                Map.of("feedbackTitle", "Cho nghe lại đoạn Hören", "bug", false));
+        assertThat(shipped.title()).isEqualTo("Góp ý của bạn đã được thực hiện");
+
+        RenderedContent fixed = renderer.render(NotificationType.FEEDBACK_SHIPPED,
+                Map.of("feedbackTitle", "Ghi âm tự dừng trên Safari", "bug", true));
+        assertThat(fixed.title()).isEqualTo("Lỗi bạn báo đã được sửa");
+
+        assertThat(renderer.render(NotificationType.FEEDBACK_REPLIED, Map.of()).body())
+                .isEqualTo("Mở mục Góp ý để xem chi tiết.");
+    }
 }

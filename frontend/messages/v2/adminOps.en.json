@@ -1225,6 +1225,118 @@
       "tabOverview": "Overview",
       "tabLedger": "By ledger",
       "errorTitle": "Could not load AI cost data"
+    },
+    "feedback": {
+      "eyebrow": "Operations",
+      "title": "User feedback",
+      "subtitle": "Read feedback from students, teachers and centres, reply to senders and follow it through.",
+      "search": "Search content, email, name",
+      "allStatuses": "All",
+      "status": {
+        "NEW": "Unread",
+        "READ": "Read",
+        "IN_PROGRESS": "In progress",
+        "SHIPPED": "Released",
+        "DECLINED": "Not planned"
+      },
+      "statusLong": {
+        "NEW": "Sent",
+        "READ": "Read",
+        "IN_PROGRESS": "In progress",
+        "SHIPPED": "Released / Fixed",
+        "DECLINED": "Not planned for now"
+      },
+      "allTypes": "All types",
+      "allAreas": "All areas",
+      "allRoles": "All roles",
+      "roles": {
+        "STUDENT": "Student",
+        "TEACHER": "Teacher",
+        "ORG": "Centre",
+        "OWNER": "Centre owner",
+        "MANAGER": "Centre manager"
+      },
+      "sort": {
+        "NEWEST": "Newest",
+        "LOW_SCORE": "Lowest score first"
+      },
+      "sortLabel": "Sort",
+      "typeFilter": "Type",
+      "areaFilter": "Area",
+      "roleFilter": "Role",
+      "lowScore": "Low score",
+      "score": "{n}/5",
+      "noScore": "Not rated",
+      "replies": "{n, plural, one {# reply} other {# replies}}",
+      "images": "{n, plural, one {# image} other {# images}}",
+      "empty": "No feedback matches these filters.",
+      "loadError": "Feedback could not be loaded.",
+      "retry": "Try again",
+      "selected": "{n} selected",
+      "markRead": "Mark as read",
+      "clear": "Clear selection",
+      "pickOne": "Select a feedback item to see its details.",
+      "detail": {
+        "since": "Learning since {date}",
+        "plan": "Plan",
+        "level": "Level",
+        "org": "Centre",
+        "source": "Source",
+        "sent": "Sent at",
+        "contact": "Email contact",
+        "contactNo": "Not allowed",
+        "tech": "Technical details",
+        "noTech": "Not included",
+        "images": "Attached images",
+        "noImages": "None",
+        "openImage": "Open image {n}",
+        "history": "Replies"
+      },
+      "sources": {
+        "IN_APP": "In the app",
+        "RATING_INVITE": "Rating email",
+        "AFTER_MOCK": "After mock exam"
+      },
+      "statusField": "Status",
+      "explanation": "Explanation for the user (10–1000 characters)",
+      "explanationHint": "The sender can read this and gets a notification.",
+      "shippedHint": "The sender gets a \"done\" notification once.",
+      "saveStatus": "Save status",
+      "statusSaved": "Status saved.",
+      "tabReply": "Reply to user",
+      "tabNote": "Internal note",
+      "replyPlaceholder": "The sender sees this under their feedback.",
+      "notePlaceholder": "Only admins can see this.",
+      "sendReply": "Send reply",
+      "replySent": "Reply sent. The user has been notified.",
+      "saveNote": "Save note",
+      "noteSaved": "Internal note saved.",
+      "prev": "Previous page",
+      "next": "Next page",
+      "pageOf": "Page {page} / {pages} · {total} items",
+      "failed": "Could not save. Try again.",
+      "types": {
+        "BUG": "Report a bug",
+        "IDEA": "Suggestion",
+        "USABILITY": "Hard to use",
+        "GENERAL": "General comment"
+      },
+      "areas": {
+        "EXAM": "Exam practice",
+        "SPEAKING": "Speaking practice",
+        "INTERVIEW": "Job interview",
+        "VOCABULARY": "Vocabulary",
+        "ROADMAP": "Learning path",
+        "BILLING": "Plans and payment",
+        "IOS_APP": "iPhone app",
+        "CLASSES": "Classes",
+        "GRADING": "Grading",
+        "SCHEDULE": "Schedule",
+        "MATERIALS": "Materials",
+        "STUDENTS": "Students",
+        "REPORTS": "Reports",
+        "OTHER": "Other"
+      }
     }
   }
 }
