@@ -34,6 +34,7 @@ import { SpeakingMobileCopilotSheet } from "@/components/features/ai-speaking/Sp
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useTracking } from "@/hooks/useTracking";
+import { useSpeakOnly } from "@/hooks/useSpeakOnly";
 import api, { problemCode } from "@/lib/api";
 import { useStatusBarStyle } from "@/lib/statusBar";
 import { showsRenewingQuotaCopy, usePlan } from "@/contexts/PlanContext";
@@ -96,6 +97,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   useStatusBarStyle("light");
   const router = useRouter();
   const t = useTranslations("speaking");
+  const speakOnly = useSpeakOnly();
   const tChat = useTranslations("speaking.chat");
   // Hết ví mà gói còn hạn (trả tiền / dùng thử) → "ngày mai có lượt mới", không mời nâng cấp
   // (quyết định 10/11/2026).
@@ -399,7 +401,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   // ─── Handle Suggestion Select ──────────────────────────────
   const handleSuggestionSelect = (text: string) => {
     trackSuggestionUsed(text);
-    setInputText(text);
+    // Lớp chỉ nói (ORG-65): gợi ý để đọc to, không đổ vào ô gửi — gửi chữ gợi ý là lượt gõ.
+    if (!speakOnly) setInputText(text);
     setShowSuggestions(false);
     setMobileCopilotOpen(false);
   };
@@ -756,6 +759,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         inputTip={inputTip}
         onToggleMic={handleToggleMic}
         showSuggestionHint
+        speakOnly={speakOnly}
       />
 
       <SpeakingMobileCopilotSheet

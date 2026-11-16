@@ -444,6 +444,32 @@
       "loadMoreError": "Could not load more classes."
     },
     "classDetail": {
+      "practiceProgram": {
+        "cap": "Speaking practice programme",
+        "empty": "This class has no practice programme yet. Set one up to see who practises regularly each week.",
+        "create": "Set up programme",
+        "edit": "Edit programme",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "saved": "Practice programme saved",
+        "loadError": "Could not load the practice programme.",
+        "retry": "Retry",
+        "field": {
+          "startDate": "Start date (Monday)",
+          "weeks": "Weeks",
+          "targetPerWeek": "Sessions/week",
+          "weeksRequired": "Weeks to meet"
+        },
+        "mustBeMonday": "The start date must be a Monday.",
+        "lockedNote": "Week 1 is over: only the number of weeks can change.",
+        "speakOnlyNote": "During the programme, students in this class practise by voice only, with no typing box.",
+        "summary": "From {start} to {end} ({weeks} weeks)",
+        "target": "Target {target} sessions/week · meet {required}/{weeks} weeks",
+        "notStarted": "Not started",
+        "running": "Week {week}/{weeks}",
+        "ended": "Finished"
+      },
       "titleFallback": "Class detail",
       "subtitleLoading": "Loading…",
       "subtitle": "Class code: {code} · Teacher: {teacher} · {count} students",

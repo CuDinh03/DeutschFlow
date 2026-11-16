@@ -269,6 +269,9 @@
       "confirmLeaveSession": "Interview verlassen? Deine abgeschlossenen Antworten sind gespeichert — der Bericht bleibt verfügbar.",
       "typeInstead": "Tippen statt sprechen",
       "typeInsteadClose": "Textfeld schließen",
+      "speakOnlyHint": "Deine Klasse übt mit der Stimme, daher gibt es kein Textfeld. Tippe auf das Mikrofon, um zu antworten.",
+      "speakOnlyMicBlocked": "Deine Klasse übt mit der Stimme, daher gibt es kein Textfeld. Erlaube das Mikrofon in den Browser-Einstellungen und versuche es erneut, oder bitte deine Lehrkraft, dein Gerät zu prüfen.",
+      "speakOnlyDiscard": "Aufnahme verwerfen",
       "feedbackTitle": "Rückmeldung zu deinem letzten Beitrag",
       "dimension": {
         "pronunciation": "Aussprache",

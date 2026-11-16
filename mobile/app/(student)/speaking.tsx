@@ -76,6 +76,7 @@ import { canAutoStartSpeakingIntro, probeStatus } from '@/lib/tourEligibility'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { trackFeatureAction } from '@/lib/analytics'
+import { useSpeakOnly } from '@/lib/practiceProgramApi'
 
 const PULSE_MAX = 1.2
 
@@ -101,6 +102,8 @@ export default function SpeakingScreen() {
     modeParam === 'INTERVIEW' || modeParam === 'COMMUNICATION' ? modeParam : undefined
 
   const [view, setView] = useState<ScreenView>('select')
+  // Lớp có chương trình luyện (đặc tả luyendeu ORG-65): không gõ, không tự gửi câu gợi ý.
+  const speakOnly = useSpeakOnly()
 
   // Thanh tab liquid-glass giờ NỔI ĐÈ lên nội dung (overlay) — trong phiên nói
   // (chat/tổng kết) nó sẽ đè lên dock nhập liệu/nút Xong, và giữa buổi nói cũng
@@ -523,6 +526,8 @@ export default function SpeakingScreen() {
   // dưới không bao giờ chạy: interval 26ms dội lỗi liên hồi thành RedBox (bug 04/09).
   function useSuggestion(text: string) {
     if (busy || !session || !text?.trim()) return
+    // Lớp chỉ nói: gợi ý để đọc to rồi bấm mic — gửi chữ gợi ý là một lượt gõ (BR-luyendeu-15).
+    if (speakOnly) return
     if (typingRef.current) clearInterval(typingRef.current)
     void Haptics.selectionAsync()
     setTyping(true)
@@ -989,11 +994,17 @@ export default function SpeakingScreen() {
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder={transcribing ? 'Đang nhận diện giọng nói…' : 'Nhập câu trả lời của bạn…'}
+          placeholder={
+            transcribing
+              ? 'Đang nhận diện giọng nói…'
+              : speakOnly
+                ? 'Lớp của bạn luyện bằng giọng nói — bấm mic để trả lời'
+                : 'Nhập câu trả lời của bạn…'
+          }
           placeholderTextColor={c.textFaint}
           selectionColor={c.accent}
           multiline
-          editable={!busy}
+          editable={!busy && !speakOnly}
           style={{
             flex: 1,
             maxHeight: 120,

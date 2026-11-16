@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { usePlanHelpers } from '@/contexts/PlanContext'
 import { DrillSummary } from './DrillSummary'
 import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts, unlockExamAudio } from './examTts'
+import { useSpeakOnly } from '@/hooks/useSpeakOnly'
 
 interface Props {
   sessionId: number
@@ -63,6 +64,8 @@ function isRetryableTurnError(e: unknown): boolean {
  */
 export function ExamRoom({ sessionId, returnHref }: Props) {
   const t = useTranslations('v2.student.examSpeaking.room')
+  // Lớp có chương trình luyện (đặc tả luyendeu ORG-65): không mở đường gõ ở DRILL.
+  const speakOnly = useSpeakOnly()
   const locale = useLocale()
   const micPermission = useMicPermission()
   const [micCheckPassed, setMicCheckPassed] = useState(false)
@@ -664,7 +667,7 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
             <MicBar
               disabled={busy || aiSpeaking !== null}
               busy={busy}
-              allowText={!isMock}
+              allowText={!isMock && !speakOnly}
               onAudio={submitAudio}
               onText={submitText}
               hint={statusSub}

@@ -40,6 +40,7 @@ public class ExamSpeakingController {
     private final ExamSessionService sessionService;
     private final ExamWeaknessService weaknessService;
     private final com.deutschflow.examspeaking.session.ExamTurnIdempotencyService idempotency;
+    private final com.deutschflow.organization.service.ClassPracticeProgramService practiceProgramService;
 
     @Value("${app.ai.transcribe.max-bytes:8388608}")
     private long transcribeMaxBytes;
@@ -82,6 +83,11 @@ public class ExamSpeakingController {
                                  @RequestBody Map<String, String> body,
                                  @RequestParam(value = "lang", required = false) String lang,
                                  @RequestParam(value = "clientTurnId", required = false) String clientTurnId) {
+        // ORG-65 / BR-luyendeu-15: học viên lớp có chương trình luyện chỉ được nói — chặn cả khi gọi API trực tiếp.
+        if (practiceProgramService.isSpeakOnly(user.getId())) {
+            throw new com.deutschflow.common.exception.BadRequestException(
+                    "Lớp của bạn luyện bằng giọng nói nên không nhận câu trả lời gõ.");
+        }
         String transcript = body == null ? null : body.get("transcript");
         return idempotency.execute(user.getId(), id, clientTurnId,
                 () -> sessionService.submitTextTurn(user.getId(), id, transcript, lang),

@@ -444,6 +444,32 @@
       "loadMoreError": "Weitere Kurse konnten nicht geladen werden."
     },
     "classDetail": {
+      "practiceProgram": {
+        "cap": "Sprechtrainings-Programm",
+        "empty": "Für diese Klasse gibt es noch kein Trainingsprogramm. Lege eines an, um zu sehen, wer jede Woche regelmäßig übt.",
+        "create": "Programm anlegen",
+        "edit": "Programm bearbeiten",
+        "save": "Speichern",
+        "saving": "Wird gespeichert…",
+        "cancel": "Abbrechen",
+        "saved": "Trainingsprogramm gespeichert",
+        "loadError": "Das Trainingsprogramm konnte nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "field": {
+          "startDate": "Startdatum (Montag)",
+          "weeks": "Wochen",
+          "targetPerWeek": "Einheiten/Woche",
+          "weeksRequired": "Wochen zu erfüllen"
+        },
+        "mustBeMonday": "Das Startdatum muss ein Montag sein.",
+        "lockedNote": "Woche 1 ist vorbei: Nur die Anzahl der Wochen kann noch geändert werden.",
+        "speakOnlyNote": "Während des Programms üben die Lernenden dieser Klasse nur mit der Stimme, ohne Textfeld.",
+        "summary": "Vom {start} bis {end} ({weeks} Wochen)",
+        "target": "Ziel {target} Einheiten/Woche · {required}/{weeks} Wochen erfüllen",
+        "notStarted": "Noch nicht begonnen",
+        "running": "Woche {week}/{weeks}",
+        "ended": "Beendet"
+      },
       "titleFallback": "Kursdetails",
       "subtitleLoading": "Wird geladen…",
       "subtitle": "Kurscode: {code} · Lehrkraft: {teacher} · {count} Schüler",
