@@ -303,6 +303,24 @@
     user-select: text;
   }
 
+  /* Tiêu đề chia dòng đều nhau — không để 1 từ lẻ rơi xuống dòng dưới.
+     Đoạn văn tránh chữ mồ côi ở dòng cuối. Trình duyệt cũ bỏ qua, không vỡ layout. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  blockquote,
+  figcaption {
+    text-wrap: pretty;
+  }
+
   h1 {
     @apply font-bold tracking-tight;
     line-height: 1.2;
