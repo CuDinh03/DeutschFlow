@@ -252,7 +252,7 @@
       "phonemeAnalyzing": "Analyzing pronunciation…",
       "sessionMission": "Topic: {topic}",
       "summaryViewHistory": "View speaking history",
-      "quotaRemaining": "AI ~{n} left",
+      "quotaRemaining": "AI: about {n} left",
       "quotaHint": "Remaining AI speaking quota today",
       "autoTtsOn": "Turn on auto-read for AI replies",
       "autoTtsOff": "Turn off auto-read for AI replies",
