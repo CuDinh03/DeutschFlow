@@ -1,6 +1,6 @@
-# deploy/self-host — DeutschFlow trên VM tự host (không AWS)
+# deploy/self-host — DeutschFlow trên máy chủ tự quản (không AWS)
 
-Chạy **trên VM** (`/srv/deutschflow/repo`), user `deploy`. Env + secret nằm ngoài repo:
+Chạy **trên máy chủ** (`/srv/deutschflow/repo`), user `deploy`. Từ 16/11/2026 máy chủ là VPS thuê (alias SSH `deutschflow-vps`); trước đó là VM Hyper-V tại nhà. Tên script vẫn giữ hậu tố `-vm`. Env + secret nằm ngoài repo:
 `/srv/deutschflow/env/{backend.env,frontend-build.env,backup.env,backup-age.pub}`, `/home/deploy/secrets/`.
 Không bao giờ chép `.env` từ máy dev lên server.
 
