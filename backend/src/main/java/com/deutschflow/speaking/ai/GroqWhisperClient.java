@@ -729,8 +729,9 @@ public class GroqWhisperClient {
                         "Chưa nghe rõ — bạn nói lại hoặc gõ tay nhé.", null, null);
             }
             double durationSeconds = root.path("duration").asDouble(0);
-            log.info("[Whisper] target='{}' -> transcribed='{}' ({} bytes, {}s, model {})",
-                    prompt != null ? prompt : "", text, audioLen,
+            // Không ghi nguyên văn câu mẫu / chữ học viên nói — chỉ ghi độ dài.
+            log.info("[Whisper] targetChars={} transcribedChars={} ({} bytes, {}s, model {})",
+                    prompt != null ? prompt.length() : 0, text.length(), audioLen,
                     String.format("%.2f", durationSeconds), model);
             return new TranscribeResult(text.strip(), durationSeconds, model);
         } catch (AiServiceException e) {
