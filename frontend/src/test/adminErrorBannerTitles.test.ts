@@ -18,9 +18,6 @@ const MESSAGE_ALREADY_SPECIFIC = new Set([
   'src/app/v2/admin/interviews/page.tsx',
   'src/app/v2/admin/page.tsx',
   'src/app/v2/admin/revenue/page.tsx',
-  // Xưởng đề: hai khung này được thêm tiêu đề ở PR riêng của đợt Xưởng đề.
-  'src/components/admin/exam-studio/SetRunsPanel.tsx',
-  'src/components/admin/exam-studio/SourcesTab.tsx',
 ])
 
 function walk(dir: string): string[] {
