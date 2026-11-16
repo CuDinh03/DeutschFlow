@@ -183,8 +183,8 @@ public class GroqChatClient implements OpenAiChatClient {
         com.deutschflow.common.security.support.SupportSessionContextHolder.assertNotSupportSession("chat");
         String effectiveModel = (model == null || model.isBlank()) ? defaultModel : model.trim();
         log.debug("Calling Groq API (blocking): model={}", effectiveModel);
-        return completeBlocking(restClient, apiKey, legacyCandidates(effectiveModel),
-                m -> buildRequestBody(messages, m, temperature, maxTokens, false, null, forceJson));
+        return completeBlocking(restClient, baseUrl, apiKey, legacyCandidates(effectiveModel),
+                m -> buildRequestBody(messages, m, temperature, maxTokens, false, null, forceJson), "chat");
     }
 
     /**
@@ -262,13 +262,18 @@ public class GroqChatClient implements OpenAiChatClient {
             return chatCompletion(messages, (String) null, temperature, maxTokens, forceJson);
         }
         log.debug("Calling LLM (blocking, tier {}): model={}", tier.tier(), tier.model());
-        return completeBlocking(restClientFor(tier.baseUrl()), keyFor(tier), tierCandidates(tier),
-                m -> buildRequestBody(messages, m, temperature, maxTokens, false, tier, forceJson));
+        return completeBlocking(restClientFor(tier.baseUrl()), tier.baseUrl() != null ? tier.baseUrl() : baseUrl,
+                keyFor(tier), tierCandidates(tier),
+                m -> buildRequestBody(messages, m, temperature, maxTokens, false, tier, forceJson), featureOf(tier));
     }
 
     /** Thân blocking dùng chung cho cả hai overload: semaphore → breaker → (chuyển model) → retry. */
-    private AiChatCompletionResult completeBlocking(RestClient client, String authKey, List<String> candidates,
-                                                    java.util.function.Function<String, String> bodyFor) {
+    private AiChatCompletionResult completeBlocking(RestClient client, String endpointUrl, String authKey,
+                                                    List<String> candidates,
+                                                    java.util.function.Function<String, String> bodyFor,
+                                                    String feature) {
+        com.deutschflow.ai.trace.AiCallTrace trace =
+                com.deutschflow.ai.trace.AiCallTrace.start(feature, endpointUrl, candidates.get(0));
         boolean acquired = false;
         try {
             acquired = concurrencyLimiter.tryAcquireChat();
@@ -279,16 +284,26 @@ public class GroqChatClient implements OpenAiChatClient {
             }
             // Circuit-breaker guarded (semaphore stays OUTSIDE so local backpressure isn't counted
             // as an upstream failure). When Groq is down the breaker trips and we skip the retry loop.
-            return circuitBreakers.call(
+            AiChatCompletionResult result = circuitBreakers.call(
                     "groqChat",
-                    () -> completeWithFailover(client, authKey, candidates, bodyFor),
+                    () -> completeWithFailover(client, endpointUrl, authKey, candidates, bodyFor, trace),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
                     RATE_LIMIT_IS_NOT_DOWNTIME);
+            TokenUsage usage = result == null ? null : result.usage();
+            if (usage != null && !usage.estimated()) {
+                trace.tokens(usage.promptTokens(), usage.completionTokens());
+            }
+            trace.ok();
+            return result;
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
+            trace.fail(ie);
             throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
                     "Yêu cầu AI bị gián đoạn, vui lòng thử lại.", null, ie);
+        } catch (RuntimeException e) {
+            trace.fail(e);
+            throw e;
         } finally {
             if (acquired) {
                 concurrencyLimiter.releaseChat();
@@ -301,16 +316,24 @@ public class GroqChatClient implements OpenAiChatClient {
      * model kế ngay, không chờ backoff); model cuối giữ nguyên vòng thử lại cũ. Cả chuỗi chung một trần
      * {@link #REQUEST_DEADLINE_MILLIS}: hết trần thì không mở model mới nữa.
      */
-    private AiChatCompletionResult completeWithFailover(RestClient client, String authKey, List<String> candidates,
-                                                        java.util.function.Function<String, String> bodyFor) {
+    private AiChatCompletionResult completeWithFailover(RestClient client, String endpointUrl, String authKey,
+                                                        List<String> candidates,
+                                                        java.util.function.Function<String, String> bodyFor,
+                                                        com.deutschflow.ai.trace.AiCallTrace trace) {
         List<String> order = attemptOrder(candidates);
         long deadlineNanos = System.nanoTime() + REQUEST_DEADLINE_MILLIS * 1_000_000L;
         for (int i = 0; i < order.size(); i++) {
             String model = order.get(i);
             boolean last = i == order.size() - 1;
+            // Nhật ký ghi model ĐANG gọi: model đầu hàng (có thể đã bị xếp xuống vì đang nghỉ) hoặc dự phòng.
+            if (i == 0) {
+                if (!model.equals(candidates.get(0))) trace.model(model);
+            } else {
+                trace.fallback(endpointUrl, model);
+            }
             try {
                 AiChatCompletionResult result = chatCompletionWithRetry(client, authKey, bodyFor.apply(model), model,
-                        last ? MAX_ATTEMPTS : 1, deadlineNanos);
+                        last ? MAX_ATTEMPTS : 1, deadlineNanos, trace);
                 if (order.size() > 1) {
                     failover.markHealthy(model);
                     if (!model.equals(candidates.get(0))) {
@@ -334,7 +357,8 @@ public class GroqChatClient implements OpenAiChatClient {
     }
 
     private AiChatCompletionResult chatCompletionWithRetry(RestClient client, String authKey, String requestBody,
-                                                           String effectiveModel, int maxAttempts, long deadlineNanos) {
+                                                           String effectiveModel, int maxAttempts, long deadlineNanos,
+                                                           com.deutschflow.ai.trace.AiCallTrace trace) {
         Exception lastException = null;
         // Lần hỏng GẦN NHẤT có phải 429 không — quyết định mã lỗi ném ra ở cuối vòng (một lượt gọi
         // có thể trộn 503 rồi 429 hoặc ngược lại). rateLimitRetryAfter là gợi ý Retry-After kèm theo
@@ -345,6 +369,7 @@ public class GroqChatClient implements OpenAiChatClient {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             // Mặc định là backoff cố định; nhánh 429 ghi đè bằng chính Retry-After của upstream.
             long nextDelayMillis = BACKOFF_MILLIS[Math.min(attempt - 1, BACKOFF_MILLIS.length - 1)];
+            if (attempt > 1) trace.retry();
             try {
                 // Accept tường minh: mặc định RestClient gửi "text/plain, */*" (theo bộ đọc String), cổng AI
                 // tự host đổi ngày 12/11/2026 thấy vậy thì trả SSE thay cho JSON ⇒ mọi lượt chặn hỏng
@@ -452,7 +477,7 @@ public class GroqChatClient implements OpenAiChatClient {
         log.debug("Calling Groq API (stream): model={}", effectiveModel);
         return streamGuarded(webClient, baseUrl, apiKey, legacyCandidates(effectiveModel),
                 m -> buildRequestBody(messages, m, temperature, maxTokens, true, null, true),
-                messages, onToken, onComplete, cancelled);
+                messages, onToken, onComplete, cancelled, "chat-stream");
     }
 
     /** Bản stream của đường gọi theo TẦNG — cùng semaphore + breaker với nhánh cũ. */
@@ -470,24 +495,29 @@ public class GroqChatClient implements OpenAiChatClient {
         String effectiveBaseUrl = tier.baseUrl() != null ? tier.baseUrl() : baseUrl;
         return streamGuarded(webClientFor(tier.baseUrl()), effectiveBaseUrl, keyFor(tier), tierCandidates(tier),
                 m -> buildRequestBody(messages, m, temperature, maxTokens, true, tier, true),
-                messages, onToken, onComplete, cancelled);
+                messages, onToken, onComplete, cancelled, featureOf(tier) + "-stream");
     }
 
     /** Thân stream dùng chung: semaphore → breaker → (chuyển model) → pump. */
     private boolean streamGuarded(WebClient wc, String endpointUrl, String authKey, List<String> candidates,
                                   java.util.function.Function<String, String> bodyFor, List<ChatMessage> messages,
                                   Consumer<String> onToken, Consumer<AiChatCompletionResult> onComplete,
-                                  AtomicBoolean cancelled) {
+                                  AtomicBoolean cancelled, String feature) {
+        com.deutschflow.ai.trace.AiCallTrace trace =
+                com.deutschflow.ai.trace.AiCallTrace.start(feature, endpointUrl, candidates.get(0));
         boolean acquired = false;
         try {
             acquired = concurrencyLimiter.tryAcquireChat();
             if (!acquired) {
                 log.warn("[Groq] Semaphore timeout (stream) — too many concurrent AI requests");
-                throw new AiServiceException(AiErrorCode.AI_BUSY,
+                AiServiceException busy = new AiServiceException(AiErrorCode.AI_BUSY,
                         "Trợ lý AI đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
+                trace.fail(busy);
+                throw busy;
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
+            trace.fail(ie);
             throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
                     "Yêu cầu AI bị gián đoạn, vui lòng thử lại.", null, ie);
         }
@@ -497,13 +527,19 @@ public class GroqChatClient implements OpenAiChatClient {
             // Trước đây stream gọi thẳng WebClient nên khi Groq chết, các stream fail liên tiếp
             // KHÔNG được đếm — breaker không bao giờ mở từ web /v2, mỗi user treo đủ 120s.
             // Cancel (barge-in/leave) trả false = success với breaker, đúng vì không phải lỗi upstream.
-            return circuitBreakers.call(
+            boolean completed = circuitBreakers.call(
                     "groqChat",
                     () -> streamWithFailover(wc, endpointUrl, authKey, candidates, bodyFor,
-                            messages, onToken, onComplete, cancelled),
+                            messages, onToken, onComplete, cancelled, trace),
                     () -> new AiServiceException(AiErrorCode.AI_BUSY,
                             "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS),
                     RATE_LIMIT_IS_NOT_DOWNTIME);
+            if (completed) trace.ok();
+            else trace.outcome("cancelled");
+            return completed;
+        } catch (RuntimeException e) {
+            trace.fail(e);
+            throw e;
         } finally {
             if (acquired) {
                 concurrencyLimiter.releaseChat();
@@ -518,7 +554,7 @@ public class GroqChatClient implements OpenAiChatClient {
     private boolean streamWithFailover(WebClient wc, String endpointUrl, String authKey, List<String> candidates,
                                        java.util.function.Function<String, String> bodyFor, List<ChatMessage> messages,
                                        Consumer<String> onToken, Consumer<AiChatCompletionResult> onComplete,
-                                       AtomicBoolean cancelled) {
+                                       AtomicBoolean cancelled, com.deutschflow.ai.trace.AiCallTrace trace) {
         List<String> order = attemptOrder(candidates);
         long switchDeadlineNanos = System.nanoTime() + STREAM_TOKEN_GAP_TIMEOUT.toNanos();
         AtomicBoolean emitted = new AtomicBoolean(false);
@@ -529,6 +565,11 @@ public class GroqChatClient implements OpenAiChatClient {
         for (int i = 0; i < order.size(); i++) {
             String model = order.get(i);
             boolean last = i == order.size() - 1;
+            if (i == 0) {
+                if (!model.equals(candidates.get(0))) trace.model(model);
+            } else {
+                trace.fallback(endpointUrl, model);
+            }
             try {
                 boolean ok = pumpStream(wc, endpointUrl, authKey, bodyFor.apply(model), model,
                         messages, tracking, onComplete, cancelled);
@@ -800,6 +841,11 @@ public class GroqChatClient implements OpenAiChatClient {
                 .baseUrl(url)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build());
+    }
+
+    /** Nhãn tính năng trong nhật ký gọi AI cho đường TẦNG: tên tầng, ví dụ {@code grading_exam}. */
+    private static String featureOf(TierSpec tier) {
+        return tier.tier() == null ? "chat" : String.valueOf(tier.tier()).toLowerCase(java.util.Locale.ROOT);
     }
 
     /** API key hiệu lực cho tier — tier không khai thì dùng key mặc định của client (Groq). */

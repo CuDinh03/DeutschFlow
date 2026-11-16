@@ -120,6 +120,35 @@ class GroqWhisperClientFallbackTest {
     }
 
     @Test
+    @DisplayName("nhật ký gọi AI: chính 429 → dự phòng 200 ghi ĐÚNG MỘT dòng, đích cuối là model dự phòng")
+    void traceLineForFallback() {
+        script(PRIMARY, 429, Map.of("retry-after", "1"));
+        try (com.deutschflow.ai.trace.AiTraceCapture trace = new com.deutschflow.ai.trace.AiTraceCapture()) {
+            client().transcribe(AUDIO, "a.webm", "de", "Guten Morgen");
+
+            String line = trace.single();
+            assertThat(line).contains("feature=stt provider=local model=" + FALLBACK + " host=127.0.0.1:")
+                    .contains("result=ok attempts=2 fallbacks=1");
+            // Không ghi câu mẫu (prompt) hay chữ nhận diện được.
+            assertThat(line).doesNotContain("Guten").doesNotContain("Morgen");
+        }
+    }
+
+    @Test
+    @DisplayName("nhật ký gọi AI: chính 503 + dự phòng 503 → result=http_503, 2 lần gọi")
+    void traceLineForTotalFailure() {
+        script(PRIMARY, 503, Map.of());
+        script(FALLBACK, 503, Map.of());
+        try (com.deutschflow.ai.trace.AiTraceCapture trace = new com.deutschflow.ai.trace.AiTraceCapture()) {
+            assertThatThrownBy(() -> client().transcribeVerbose(AUDIO, "a.webm", "de", null))
+                    .isInstanceOf(AiServiceException.class);
+
+            assertThat(trace.single()).contains("feature=stt-verbose")
+                    .contains("result=http_503 attempts=2 fallbacks=1");
+        }
+    }
+
+    @Test
     @DisplayName("verbose (chấm phát âm): chính 503 → dự phòng 200, giữ mốc thời gian từng từ + tên model dự phòng")
     void verbosePathFallsBackOn5xx() {
         script(PRIMARY, 503, Map.of());

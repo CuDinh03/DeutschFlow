@@ -27,6 +27,8 @@ public class EmbeddingClient {
     public EmbeddingClient() {
         // 3s connect, 15s read — bounds the OpenAI embeddings call so it can't pin a thread/connection.
         this.restTemplate = RestTemplates.withTimeouts(3000, 15000);
+        this.restTemplate.getInterceptors().add(
+                new com.deutschflow.ai.trace.AiTraceInterceptor("embedding", "text-embedding-3-small"));
     }
 
     public float[] getEmbedding(String text) {

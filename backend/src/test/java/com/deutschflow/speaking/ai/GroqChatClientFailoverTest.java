@@ -109,6 +109,22 @@ class GroqChatClientFailoverTest {
     }
 
     @Test
+    @DisplayName("nhật ký AI_CALL: chuyển model ghi một dòng với model dự phòng, fallbacks=1; lượt sau đi thẳng dự phòng, fallbacks=0")
+    void traceRecordsFailover() {
+        behaviour.put("gemini", "503");
+        GroqChatClient client = client(new ModelFailover(props(List.of(), 120)));
+        try (com.deutschflow.ai.trace.AiTraceCapture capture = new com.deutschflow.ai.trace.AiTraceCapture()) {
+            client.chatCompletionForTier(messages(), tier("gemini", "gpt-oss"), 0.2, 100);
+            assertThat(capture.single()).contains("model=gpt-oss ").contains("result=ok")
+                    .contains("attempts=2 fallbacks=1");
+        }
+        try (com.deutschflow.ai.trace.AiTraceCapture capture = new com.deutschflow.ai.trace.AiTraceCapture()) {
+            client.chatCompletionForTier(messages(), tier("gemini", "gpt-oss"), 0.2, 100);
+            assertThat(capture.single()).contains("model=gpt-oss ").contains("attempts=1 fallbacks=0");
+        }
+    }
+
+    @Test
     @DisplayName("404 model_not_found ⇒ chuyển model")
     void modelNotFoundFailsOver() {
         behaviour.put("gone", "404");

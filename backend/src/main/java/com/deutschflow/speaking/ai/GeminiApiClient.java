@@ -106,6 +106,9 @@ public class GeminiApiClient {
 
         log.info("[GeminiApiClient] Sending async request to Gemini 1.5 Flash. Document included: {}", (base64Document != null));
 
+        // Nhật ký gọi AI: chỉ ghi host (URL gốc có khoá trong query — không bao giờ đưa URL đầy đủ vào log).
+        com.deutschflow.ai.trace.AiCallTrace trace = com.deutschflow.ai.trace.AiCallTrace.start(
+                "gemini-document", GEMINI_API_URL, "gemini-2.5-flash");
         return webClient.post()
                 .uri(url)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -134,6 +137,11 @@ public class GeminiApiClient {
                     log.error("[GeminiApiClient] WebClient error: {} - Body: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
                     return new RuntimeException("Gemini API Error: " + ex.getResponseBodyAsString(), ex);
                 })
-                .toFuture();
+                .toFuture()
+                .whenComplete((result, error) -> {
+                    if (error == null) trace.ok();
+                    else trace.fail(error instanceof java.util.concurrent.CompletionException ce && ce.getCause() != null
+                            ? ce.getCause() : error);
+                });
     }
 }
