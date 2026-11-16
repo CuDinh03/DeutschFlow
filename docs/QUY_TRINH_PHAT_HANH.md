@@ -5,13 +5,13 @@
 >
 > Repo PUBLIC (công khai lại từ 11/2026; từng private từ 08/11/2026, có thể đổi lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
 >
-> Cập nhật lần cuối: 13/11/2026 (frontend gọi backend qua mạng nội bộ `deutschflow-api-net`, §1, §5, §6.1; deploy backend từ chối khi Xưởng đề đang chạy, §6.1).
+> Cập nhật lần cuối: 16/11/2026 — **production chuyển từ máy chủ tại nhà sang VPS thuê** sau khi máy nhà chết 15/11 (§0.1, §1, §5.0, §8). Trước đó 13/11/2026: frontend gọi backend qua mạng nội bộ `deutschflow-api-net`; deploy backend từ chối khi Xưởng đề đang chạy (§6.1).
 
 ---
 
 ## 0. Luật cứng (đọc kể cả khi vội)
 
-1. **Production không còn chạy trên AWS.** Frontend và backend chạy trên máy chủ tự host `deutschflow-srv` (VM Ubuntu, sau Cloudflare Tunnel). `amplify.yml` và job "Deploy to EC2" trong `backend-ci.yml` đã gỡ. `deploy-backend.sh`, `cleanup-deploy.sh` ở gốc repo là **di sản AWS — đã chặn bằng `exit 1`, không dùng, không "sửa cho chạy"** (script cũ ghi đè env của máy chủ bằng env EC2 cũ ⇒ mất DB, chết mọi phiên đăng nhập).
+1. **Production không còn chạy trên AWS, cũng không còn chạy ở máy nhà.** Từ 16/11/2026 frontend và backend chạy trên **VPS thuê** (Ubuntu 24.04, alias SSH `deutschflow-vps`, sau Cloudflare Tunnel). Máy chủ tại nhà `deutschflow-srv` (VM Hyper-V) đã chết 15/11/2026 — **không bao giờ bật lại VM đó khi có mạng** (nó mang cùng credential tunnel ⇒ Cloudflare chia traffic sang DB cũ, §8.2). `amplify.yml` và job "Deploy to EC2" trong `backend-ci.yml` đã gỡ. `deploy-backend.sh`, `cleanup-deploy.sh` ở gốc repo là **di sản AWS — đã chặn bằng `exit 1`, không dùng, không "sửa cho chạy"** (script cũ ghi đè env của máy chủ bằng env EC2 cũ ⇒ mất DB, chết mọi phiên đăng nhập).
 2. **Merge vào `main` KHÔNG tự deploy.** Không còn Amplify tự build. Muốn lên web phải chạy script deploy trên máy chủ (§5, §6), trực tiếp qua SSH hoặc qua workflow "Deploy production" chạy tay, owner duyệt từng lần (§5.0).
 3. **Deploy production (frontend, backend, OTA mobile) chỉ khi owner ra lệnh trực tiếp** trong phiên làm việc. "Merge đi" không có nghĩa là "deploy đi" — hỏi lại nếu chưa rõ.
 4. **`main` được bảo vệ**: chỉ nhận thay đổi qua Pull Request, CI phải xanh. Không push thẳng, không force-push. Tại 11/11/2026 repo đang công khai nên bật được luật bảo vệ nhánh, nhưng nhánh `main` CHƯA được bật — tới khi bật, quy tắc này vẫn chỉ là quy ước. Khi repo private trên gói GitHub miễn phí thì GitHub **không** áp luật bảo vệ nhánh (cần GitHub Pro): khi đó luật này chỉ còn do hook máy dev và kỷ luật giữ — vẫn làm đúng, không vì GitHub không chặn mà merge khi CI chưa xanh.
@@ -29,7 +29,8 @@
 Người dùng ──HTTPS──► Cloudflare (DNS, TLS, proxy)
                           │  Cloudflare Tunnel (máy chủ không mở cổng vào)
                           ▼
-                   deutschflow-srv (VM Ubuntu 24.04, user `deploy`)
+                   deutschflow-vps (VPS thuê, Ubuntu 24.04, 4 vCPU / 8 GB + swap 4 GB, user `deploy`)
+                   tường lửa ufw: chỉ mở 22 (SSH chỉ nhận khoá, cấm root); cloudflared đi ra bằng http2 (§8.2)
                    nginx 127.0.0.1:80  ── upstream blue-green ──┐
                      ├─ mydeutschflow.com      → frontend :3000 | :3001  (Next.js standalone, container)
                      └─ api.mydeutschflow.com  → backend  :8080 | :8081  (Spring Boot, container)
@@ -45,16 +46,17 @@ GitHub Actions "Deploy production" (chạy tay + owner duyệt) ──► Cloudf
 
 | Thành phần | Ở đâu | Ghi chú |
 |---|---|---|
-| Repo trên máy chủ | `/srv/deutschflow/repo` (clone nông) | Script deploy tự `fetch` + `reset --hard` về nhánh deploy. Remote `origin` = `git@github.com:…` qua deploy key chỉ đọc (§8.5) |
+| Repo trên máy chủ | `/srv/deutschflow/repo` (clone nông) | Script deploy tự `fetch` + `reset --hard` về nhánh deploy. Trên VPS hiện `origin` = HTTPS công khai (repo đang public); chuyển repo về private thì phải làm deploy key trước (§8.5) |
 | Script deploy | `deploy/self-host/` | Xem `deploy/self-host/README.md` |
 | Env backend | `/srv/deutschflow/env/backend.env` | Nguồn chân lý nằm trên máy chủ |
 | Build args frontend | `/srv/deutschflow/env/frontend-build.env` + JWT public key | Nhúng lúc build |
 | Secret | `/home/deploy/secrets/` | Không bao giờ rời máy chủ (trừ bản sao khoá backup owner tự cất) |
 | Upstream nginx hiện hành | `/etc/nginx/deutschflow-upstreams/*.conf` | Cho biết màu nào đang phục vụ |
-| Backup DB | `/backup/db` (14 bản) + R2 (30 ngày), timer 03:00 giờ VN | Mã hoá `age`, §8.3 |
+| Backup DB | `/backup/db` (14 bản, nay nằm trên đĩa gốc VPS) + R2 (30 ngày), timer 03:00 giờ VN | Mã hoá `age`, §8.3 |
+| Docker | `/etc/docker/daemon.json`: log 50 MB × 3, `registry-mirrors` = `mirror.gcr.io` | Kéo image thẳng từ Docker Hub ở VPS chỉ ~1 MB/s; qua mirror nhanh gấp nhiều lần. Docker **vượt qua ufw** với cổng publish ⇒ mọi `-p` phải là `127.0.0.1:…` |
 | Frontend gọi backend nội bộ | Mạng `deutschflow-api-net`, alias `deutschflow-api` | Từ 13/11/2026. Trang server (trang nghề, sitemap, phiếu/báo cáo/chứng nhận theo token) gọi `BACKEND_INTERNAL_URL=http://deutschflow-api:8080` (biến lúc chạy, `deploy-frontend-vm.sh` đặt) thay vì vòng qua Cloudflare (đo: 92 ms so với 784 ms, và hết lỗi "fetch failed" → 500). Lỗi mạng nội bộ ⇒ code tự lùi về `NEXT_PUBLIC_BACKEND_URL` (`frontend/src/lib/serverBackend.ts`). Code chạy trên trình duyệt luôn dùng địa chỉ công khai |
 
-Kết nối SSH, IP, đường dẫn khoá: xem tài liệu vận hành local (`docs/DEPLOY_TU_HOST.md` §1, §7). Nên đặt alias `Host deutschflow-srv` trong `~/.ssh/config` để lệnh trong tài liệu này dùng thẳng `ssh deutschflow-srv`.
+Kết nối SSH, IP, đường dẫn khoá: xem tài liệu vận hành local trên máy owner (không commit). Đặt alias `Host deutschflow-vps` (user `deploy`) trong `~/.ssh/config` để lệnh trong tài liệu này dùng thẳng `ssh deutschflow-vps`. VPS chỉ nhận đăng nhập bằng khoá, không nhận mật khẩu, không cho root; mất khoá thì vào bằng console của nhà cung cấp.
 
 ---
 
@@ -115,6 +117,8 @@ nhánh feature ──► PR vào main ──► CI xanh + tự kiểm (§4) ─�
 ---
 
 ## 5.0 Deploy từ xa bằng workflow "Deploy production"
+
+> **Trạng thái 16/11/2026: CHƯA cài lại trên VPS.** Phần cài đặt dưới đây làm trên máy nhà cũ; trên VPS chưa có khoá forced command, hostname SSH trong tunnel, `known_hosts` mới. Workflow sẽ đỏ ở bước SSH tới khi làm lại các bước 1–11 trên VPS (dùng `deutschflow-vps` thay `deutschflow-srv` ở bước 4) và cập nhật environment secrets. Tới lúc đó chỉ deploy bằng SSH tay (§5, §6).
 
 Dùng khi không ngồi ở máy có khoá SSH (ví dụ đang ở ngoài, chỉ có điện thoại). Merge vẫn **không** tự deploy (§0.2). Workflow chỉ là một đường khác để chạy đúng hai script ở §5, §6, và vẫn chỉ chạy khi owner ra lệnh (§0.3).
 
@@ -178,7 +182,7 @@ GitHub (Settings → Environments):
 Chỉ khi owner ra lệnh. Trên máy chủ, user `deploy` (hoặc từ xa: §5.0):
 
 ```bash
-ssh deutschflow-srv
+ssh deutschflow-vps
 cd /srv/deutschflow/repo
 deploy/self-host/deploy-frontend-vm.sh                 # nhánh hiện tại của repo máy chủ (§2)
 # sau khi máy chủ theo main:
@@ -264,18 +268,24 @@ Khi owner ra lệnh build bản mới lên store, phiên làm việc **tự tín
 ### 8.2 nginx, Cloudflare Tunnel
 - nginx chỉ nghe `127.0.0.1:80`; site cấu hình bằng `deploy/self-host/install-nginx.sh` (`deutschflow.nginx.conf`). Đổi cấu hình: `nginx -t` rồi `systemctl reload nginx` (reload êm, request đang chạy vẫn xong).
 - Máy chủ không mở cổng vào Internet; mọi đường vào qua Cloudflare Tunnel. Header `Server: cloudflare` trên production là bình thường.
+- Tunnel trên VPS chạy `protocol: http2` (dòng cuối `/etc/cloudflared/config.yml`): nhà cung cấp VPS chặn QUIC (UDP 7844), để mặc định thì cloudflared không nối được. Dùng lại đúng tunnel của máy nhà (credential chép từ đĩa máy cũ) nên DNS không đổi.
+- **Không chạy hai connector của cùng tunnel trên hai máy có dữ liệu khác nhau** — Cloudflare chia traffic cho cả hai. Chuyển máy chủ lần sau: tắt connector cũ trước, hoặc xoay credential tunnel.
 
 ### 8.3 Backup và restore
 - Tự chạy 03:00 giờ VN: `systemctl list-timers deutschflow-backup.timer`; bản mới nhất ghi ở `/backup/db/.last-success`.
 - Cùng lần chạy đó sao lưu cả env và khoá của máy chủ (`/srv/deutschflow/env`, `/home/deploy/secrets`) vào `/backup/secrets` và R2 `deutschflow-backup/secrets`, mã hoá bằng cùng khoá `age`. Thiếu bản này thì có dump DB cũng không dựng lại được hệ thống. Khôi phục: `age -d -i <khoá-age> secrets-<mốc>.tar.age | tar -xpf - -C /`.
 - Diễn tập restore hằng tháng vào container tạm: `deploy/self-host/restore-db.sh <file> <khoá-age> --into-scratch`. Restore đè prod (`--into-prod`) chỉ khi owner ra lệnh.
-- Khoá bí mật `age` phải có ít nhất một bản ngoài máy dev và ngoài máy chủ (owner tự cất).
+- Trên VPS: timer cài 16/11/2026 (`deutschflow-backup.timer`, `deutschflow-backup.service`, `deutschflow-alert@.service` từ `deploy/self-host/systemd/`); bản đầu tiên chạy tay cùng ngày, đã đẩy R2 và giải mã thử được. Cảnh báo Telegram khi backup hỏng **chưa chạy** tới khi có `telegram_bot_token`.
+- Khoá bí mật `age` phải có ít nhất một bản ngoài máy dev và ngoài máy chủ (owner tự cất). Bài học 15/11/2026: bản cất trên ổ hệ điều hành của PC đã cháy cùng ổ; chỉ còn bản nằm trên đĩa máy chủ cũ. Lưu trong trình quản lý mật khẩu và một USB/giấy riêng.
+- Khi dựng lại máy chủ từ đầu (lần gần nhất: lên VPS 16/11/2026): restore DB bằng file dump `pg_dump -Fc` (`pg_restore` vào DB trắng của container `pgvector/pgvector:pg16` cùng `postgres.env`), không chép thư mục dữ liệu thô khi đường truyền chậm. Kiểm số bảng, số user, `flyway_schema_history`, bản ghi mới nhất trước khi mở traffic.
 
 ### 8.4 Dọn dẹp, tài nguyên
 - `deploy/self-host/cleanup-vm.sh`: giữ `:latest`, `:prev`, 3 tag commit gần nhất; không đụng volume. **Không** dùng `docker system prune --volumes`.
 - Hai JVM cùng chạy lúc blue-green ≈ 2 × 1,1 GB; build frontend ≈ 1,5–2 GB. Không deploy frontend và backend **cùng lúc** nếu RAM trống dưới ~4 GB.
 
 ### 8.5 Máy chủ lấy code từ repo private (deploy key)
+> **Trạng thái 16/11/2026 trên VPS:** repo đang công khai nên `/srv/deutschflow/repo` clone bằng HTTPS, **chưa có deploy key**. Trước khi chuyển repo về private phải làm đủ các bước dưới trên VPS (tên deploy key mới, ví dụ `deutschflow-vps (chi doc, deploy)`), và **xoá deploy key `deutschflow-srv` cũ** trên GitHub (khoá đó nằm trên đĩa máy nhà đã chết).
+
 Từ 08/11/2026 repo private ⇒ clone HTTPS không có thông tin đăng nhập trên máy chủ không `fetch` được (`could not read
 Username for 'https://github.com'`; script dừng ở "Lấy code", production không bị đụng). Cách đang dùng:
 
@@ -320,6 +330,8 @@ curl -s -o /dev/null -w "%{http_code}\n" https://mydeutschflow.com/v2/login/ # 2
 | Web không đổi sau merge | Bình thường: merge không deploy (§0.2). Kiểm nhánh deploy (§2) rồi chạy script khi owner ra lệnh |
 | Script dừng ở preflight | Đọc tên biến bị báo thiếu, sửa env **trên máy chủ**; không chép env từ máy dev |
 | Cổng vai trò middleware tắt | Thiếu JWT public key lúc build — kiểm `~/secrets/jwt_public.pem`, deploy lại frontend |
+| Web và API trả **530** | Cloudflare không thấy connector nào của tunnel ⇒ máy chủ chết hoặc cloudflared dừng. `ssh deutschflow-vps 'systemctl status cloudflared'`. Máy chủ mất hẳn: dựng máy mới theo runbook dựng lại (local, `plans/`), lấy env + khoá từ R2 `deutschflow-backup/secrets` và DB từ `deutschflow-backup/db` bằng khoá `age` |
+| Web và API trả **502** | Tunnel nối được nhưng nginx không có app phía sau: `docker ps`, `cat /etc/nginx/deutschflow-upstreams/*.conf` |
 
 Khi không chắc: dừng, báo owner, không thử "sửa cho chạy" trên production.
 
