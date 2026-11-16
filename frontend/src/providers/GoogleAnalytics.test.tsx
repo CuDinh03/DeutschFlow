@@ -41,7 +41,15 @@ describe('GoogleAnalytics', () => {
     expect(pageViews()).toHaveLength(1)
     const config = (window.dataLayer ?? []).map((a) => Array.from(a as ArrayLike<unknown>)).find((a) => a[0] === 'config')
     expect(config?.[1]).toBe(ID)
-    expect(config?.[2]).toMatchObject({ send_page_view: false })
+    expect(config?.[2]).toEqual({ send_page_view: false })
+    // page_location + send_page_view đặt bằng `set` TRƯỚC `config` — nếu nằm trong config, gtag tự bắn
+    // thêm một page_view với URL thô (đo prod 15/11/2026).
+    const entries = (window.dataLayer ?? []).map((a) => Array.from(a as ArrayLike<unknown>))
+    const firstSet = entries.findIndex((a) => a[0] === 'set')
+    const configAt = entries.findIndex((a) => a[0] === 'config')
+    expect(firstSet).toBeGreaterThanOrEqual(0)
+    expect(firstSet).toBeLessThan(configAt)
+    expect(entries[firstSet][1]).toMatchObject({ send_page_view: false, page_location: expect.any(String) })
 
     mockPath = '/v2/student/dashboard'
     view.rerender(<GoogleAnalytics />)
