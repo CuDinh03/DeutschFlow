@@ -4,7 +4,6 @@ import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
-import com.deutschflow.common.quota.PlanBadge;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.feedback.FeedbackEnums.Area;
 import com.deutschflow.feedback.FeedbackEnums.Source;
@@ -131,10 +130,8 @@ public class AdminFeedbackService {
         return items.countByStatus(Status.NEW);
     }
 
-    /**
-     * Cố ý KHÔNG bọc giao dịch chỉ đọc: {@code resolvePlanBadge} có thể GHI (đóng gói hết hạn), nên chạy
-     * trong giao dịch read-only của ta sẽ làm hỏng cả lượt đọc.
-     */
+    /** GET không ghi DB (QLT-21): gói đọc bằng {@code getSnapshotReadOnly}, không đối soát gói hết hạn. */
+    @Transactional(readOnly = true)
     public AdminDetail detail(Long id) {
         FeedbackItem f = find(id);
         User author = users.findById(f.getUserId()).orElse(null);
@@ -295,8 +292,7 @@ public class AdminFeedbackService {
 
     private String planOf(Long userId) {
         try {
-            PlanBadge badge = quotaService.resolvePlanBadge(userId, Instant.now());
-            return badge == null ? null : badge.tier();
+            return QuotaService.publicTier(quotaService.getSnapshotReadOnly(userId, Instant.now()).planCode());
         } catch (RuntimeException e) {
             log.warn("[feedback] could not resolve plan for user {}: {}", userId, e.getMessage());
             return null;
