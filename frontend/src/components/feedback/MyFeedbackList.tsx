@@ -88,7 +88,7 @@ export function MyFeedbackList({ items, loading, error, onRetry, highlightId }: 
                           />
                         ))}
                       </div>
-                      <div className="mt-1 flex justify-between text-[10.5px] text-ga-subtle">
+                      <div className="mt-1 flex justify-between text-ga-caption text-ga-subtle">
                         <span>{t('steps.sent')}</span>
                         <span>{t('steps.read')}</span>
                         <span>{t('steps.doing')}</span>
@@ -105,7 +105,7 @@ export function MyFeedbackList({ items, loading, error, onRetry, highlightId }: 
                         item.status === 'SHIPPED' ? 'border-ga-green' : 'border-ga-navy',
                       )}
                     >
-                      <p className="mb-0.5 text-[11.5px] font-semibold text-ga-navy">
+                      <p className="mb-0.5 text-ga-caption font-semibold text-ga-navy">
                         {t('teamReply', { date: fmt.date(reply.createdAt) })}
                       </p>
                       <p className="whitespace-pre-line break-words">{reply.body}</p>

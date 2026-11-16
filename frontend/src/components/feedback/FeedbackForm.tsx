@@ -190,13 +190,13 @@ export function FeedbackForm({ audience, onSent }: FeedbackFormProps) {
                 className={cn(
                   'relative flex cursor-pointer flex-col gap-2 rounded-ga-touch border bg-ga-card p-3 transition-shadow hover:shadow-ga-card-hover',
                   'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ga-focus',
-                  on ? 'border-ga-ink shadow-[inset_0_0_0_1px_var(--ga-ink)]' : 'border-ga-line-strong',
+                  on ? 'border-ga-ink ring-1 ring-inset ring-ga-ink' : 'border-ga-line-strong',
                 )}
               >
                 <input type="radio" name="fb-type" value={value} checked={on} onChange={() => pickType(value)} className="sr-only" />
                 <GaGlyph icon={glyph.icon} tone={on ? 'ink' : glyph.tone} size="sm" />
                 <span className="text-ga-small font-semibold text-ga-ink">{t(`types.${value}`)}</span>
-                <span className="text-[11.5px] leading-snug text-ga-muted">{t(`typeHints.${value}`)}</span>
+                <span className="text-ga-caption leading-snug text-ga-muted">{t(`typeHints.${value}`)}</span>
               </label>
             )
           })}
@@ -224,7 +224,7 @@ export function FeedbackForm({ audience, onSent }: FeedbackFormProps) {
                 )}
               >
                 <span className="text-ga-body font-bold text-ga-ink">{n}</span>
-                <span className={cn('text-center text-[10.5px] leading-tight', on ? 'text-ga-ink' : 'text-ga-muted')}>
+                <span className={cn('text-center text-ga-caption leading-tight', on ? 'text-ga-ink' : 'text-ga-muted')}>
                   {t(`scale.${n}`)}
                 </span>
               </button>
@@ -339,7 +339,7 @@ export function FeedbackForm({ audience, onSent }: FeedbackFormProps) {
         {techOpen ? t('techHide') : t('techShow')}
       </button>
       {techOpen && tech && (
-        <dl className="ml-[26px] mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-ga border border-ga-line bg-ga-bg px-3 py-2.5 font-mono text-[12px] text-ga-muted">
+        <dl className="ml-[26px] mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-ga border border-ga-line bg-ga-bg px-3 py-2.5 font-mono text-ga-caption text-ga-muted">
           {(['page', 'browser', 'os', 'device', 'locale', 'screen'] as const).map((k) => (
             <div key={k} className="contents">
               <dt>{t(`techFields.${k}`)}</dt>

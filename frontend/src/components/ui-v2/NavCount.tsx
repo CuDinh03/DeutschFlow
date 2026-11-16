@@ -31,7 +31,7 @@ export function NavCount({ countKey, active }: { countKey: CountKey; active: boo
   return (
     <span
       className={
-        'ml-auto shrink-0 rounded-ga-pill px-1.5 text-[11px] font-semibold leading-[18px] tabular-nums ' +
+        'ml-auto shrink-0 rounded-ga-pill px-1.5 text-ga-caption font-semibold leading-5 tabular-nums ' +
         (active ? 'bg-ga-accent text-ga-accent-ink' : 'bg-ga-navy-soft text-ga-navy')
       }
     >

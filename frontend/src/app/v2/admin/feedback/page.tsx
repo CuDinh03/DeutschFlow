@@ -177,7 +177,7 @@ export default function AdminFeedbackPage() {
                       key={item.id}
                       className={cn(
                         'grid grid-cols-[20px_minmax(0,1fr)] gap-3 px-4 py-3.5 sm:grid-cols-[20px_28px_minmax(0,1fr)_auto]',
-                        selected ? 'bg-ga-navy-soft shadow-[inset_3px_0_0_var(--ga-navy)]' : 'hover:bg-ga-surface',
+                        selected ? 'bg-ga-navy-soft shadow-ga-selected-bar' : 'hover:bg-ga-surface',
                       )}
                     >
                       <input
@@ -194,14 +194,14 @@ export default function AdminFeedbackPage() {
                           <span className="break-words">{item.title}</span>
                         </span>
                         <span className="mt-0.5 block truncate text-ga-caption text-ga-muted">{item.excerpt}</span>
-                        <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-ga-muted">
+                        <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-ga-caption text-ga-muted">
                           <span className={cn('rounded-ga-pill px-2 py-0.5 font-semibold', STATUS_PILL[item.status])}>{t(`status.${item.status}`)}</span>
                           {item.lowScore && <span className="rounded-ga-pill bg-ga-red-soft px-2 py-0.5 font-semibold text-ga-red">{t('lowScore')}</span>}
                           <span>{t(`areas.${item.area}`)}</span>
                           <span>{[item.authorName, roleLabel, item.authorLevel].filter(Boolean).join(' · ')}</span>
                         </span>
                       </button>
-                      <span className="col-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-ga-muted sm:col-start-auto sm:flex-col sm:items-end">
+                      <span className="col-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-ga-caption text-ga-muted sm:col-start-auto sm:flex-col sm:items-end">
                         <span>{item.satisfaction != null ? t('score', { n: item.satisfaction }) : t('noScore')}</span>
                         {item.replyCount > 0 && <span>{t('replies', { n: item.replyCount })}</span>}
                         {item.attachmentCount > 0 && <span>{t('images', { n: item.attachmentCount })}</span>}

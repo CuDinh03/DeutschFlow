@@ -213,7 +213,7 @@ export function AdminFeedbackDetail({ id, onChanged }: Props) {
             <ol className="space-y-2">
               {data.replies.map((r) => (
                 <li key={r.id} className="border-l-[3px] border-ga-navy bg-ga-surface px-3 py-2 text-ga-caption text-ga-ink">
-                  <p className="mb-0.5 text-[11.5px] text-ga-muted">{fmt.dateTime(r.createdAt)}</p>
+                  <p className="mb-0.5 text-ga-caption text-ga-muted">{fmt.dateTime(r.createdAt)}</p>
                   <p className="whitespace-pre-line break-words">{r.body}</p>
                 </li>
               ))}
