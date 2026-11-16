@@ -2030,6 +2030,7 @@ Cloudflare (Flexible SSL, proxy mode)
 | `GROQ_WHISPER_BASE_URL`, `GROQ_WHISPER_MODEL`, `GROQ_WHISPER_PROMPT_ENABLED` | URL endpoint transcriptions, model và cờ gửi prompt của STT |
 | `GROQ_WHISPER_FALLBACK_MODEL`, `GROQ_WHISPER_FALLBACK_BASE_URL` | Model dự phòng cùng nhà cung cấp khi model chính lỗi tạm thời (429, 5xx, timeout). Trống = tự suy theo host (Groq: `whisper-large-v3-turbo` ↔ `whisper-large-v3`) |
 | `GROQ_WHISPER_RETRY_MAX_WAIT_MS` | Trần thời gian chờ theo `retry-after` trước khi thử lại model chính một lần (mặc định 1500; 0 = tắt) |
+| `CF_AI_ACCOUNT_ID`, `CF_AI_API_TOKEN`, `CF_AI_MODEL` | Đường STT dự phòng khác nhà cung cấp (Cloudflare Workers AI), chỉ gọi khi model chính và model dự phòng cùng hỏng. Thiếu account id hoặc token = tắt. Tuỳ chọn: `CF_AI_TIMEOUT_SECONDS`, `CF_AI_PROMPT_ENABLED` |
 
 ### 28.4 Quy trình deploy backend (sau thay đổi code)
 
