@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -53,7 +55,7 @@ public class ExamSetRunService {
     static final int MAX_THEME_TRIES = 1;        // số lần ĐỔI chủ đề (owner chốt: 1)
     static final int MAX_SOURCE_TRIES = 6;       // số bài hỏng tối đa cho một Teil trước khi coi là kẹt nguồn
     static final int MAX_STAGE_ERRORS = 2;       // job của một bước lỗi liên tiếp bấy nhiêu lần ⇒ hỏng vòng
-    static final int MAX_BUSY_DRAFTS = 3;        // số bản nháp của một lượt được chạy AI cùng lúc
+    static final int MAX_BUSY_DRAFTS = 6;        // số bản nháp của một lượt được chạy AI cùng lúc (owner nâng 3 → 6, 13/11/2026)
     static final Duration BUSY_TIMEOUT = Duration.ofMinutes(25);
     static final Duration FEED_FRESH = Duration.ofHours(6);
 
@@ -67,6 +69,20 @@ public class ExamSetRunService {
     private final ExamStudioAi ai;
     private final UserNotificationService notifications;
     private final ExamAssemblyService assembly;
+    private final PlatformTransactionManager txManager;
+
+    /**
+     * Khoá chung (pg_advisory_xact_lock) cho mọi chỗ "kiểm không có lượt chạy rồi tạo / chạy lại lượt": nút của owner
+     * và nhịp tự nối không chen nhau ra hai lượt cùng chạy. Khoá nhả khi giao dịch kết thúc.
+     */
+    private static final long RUNS_LOCK = 0x45584D5352554E53L; // "EXMSRUNS"
+
+    private <T> T locked(java.util.function.Supplier<T> body) {
+        return new TransactionTemplate(txManager).execute(status -> {
+            jdbc.query("SELECT pg_advisory_xact_lock(?)", rs -> null, RUNS_LOCK);
+            return body.get();
+        });
+    }
 
     public record CreateRunRequest(String examFormat, String cefrLevel, String profile, String channel) {}
 
@@ -93,16 +109,26 @@ public class ExamSetRunService {
     // ── Tạo lượt, xem lượt ───────────────────────────────────────────────────────────────────────────────
 
     public RunView create(CreateRunRequest req, long userId) {
+        return locked(() -> createRun(req, userId));
+    }
+
+    /** Hồ sơ độ khó REAL (mặc định) hoặc SPRINT; lạ thì báo kèm nút cần bấm lại. */
+    private static String normProfile(String raw, String button) {
+        String profile = raw == null || raw.isBlank() ? "REAL" : raw.trim().toUpperCase();
+        if (!profile.equals("REAL") && !profile.equals("SPRINT")) {
+            throw new BadRequestException("Yêu cầu tạo lượt gửi lên không đúng mẫu (hồ sơ độ khó lạ). Tải lại trang rồi bấm lại \""
+                    + button + "\"; nếu vẫn lỗi, báo kỹ thuật.");
+        }
+        return profile;
+    }
+
+    private RunView createRun(CreateRunRequest req, Long userId) {
         List<TeilSpec> specs = TeilSpec.forExam(req.examFormat(), req.cefrLevel());
         if (specs.isEmpty()) {
             throw new BadRequestException("Xưởng đề chưa tạo được bộ đề tự động cho " + req.examFormat() + " " + req.cefrLevel()
                     + ". Hiện chỉ tạo được bộ telc B1 bằng nút \"" + RunGuide.BTN_START + "\".");
         }
-        String profile = req.profile() == null || req.profile().isBlank() ? "REAL" : req.profile().trim().toUpperCase();
-        if (!profile.equals("REAL") && !profile.equals("SPRINT")) {
-            throw new BadRequestException("Yêu cầu tạo lượt gửi lên không đúng mẫu (hồ sơ độ khó lạ). Tải lại trang rồi bấm lại \""
-                    + RunGuide.BTN_START + "\"; nếu vẫn lỗi, báo kỹ thuật.");
-        }
+        String profile = normProfile(req.profile(), RunGuide.BTN_START);
         String channel = ai.requireChannel(req.channel()).name();
         requireNoActiveRun(RunGuide.BTN_START);
         TeilSpec first = specs.get(0);
@@ -199,7 +225,11 @@ public class ExamSetRunService {
      * Lượt quay về RUNNING cho tới khi Teil đó xong hoặc kẹt, rồi kiểm cấp bộ chạy lại. Mỗi lúc chỉ một lượt chạy.
      */
     public RunView redoTeil(long id, String section, int teil) {
-        return redoTeil(id, section, teil, null);
+        return redoTeil(id, section, teil, null, null);
+    }
+
+    public RunView redoTeil(long id, String section, int teil, String channel) {
+        return redoTeil(id, section, teil, channel, null);
     }
 
     /**
@@ -207,7 +237,24 @@ public class ExamSetRunService {
      *                lượt #1 tạo trên Fireworks, 13/11/2026 tài khoản đó bị khoá nên làm lại trên kênh cũ hỏng ngay.
      *                Trống ⇒ giữ kênh của lượt.
      */
-    public RunView redoTeil(long id, String section, int teil, String channel) {
+    public RunView redoTeil(long id, String section, int teil, String channel, Long userId) {
+        return locked(() -> {
+            requireFinished(id, RunGuide.BTN_REDO);
+            if (queueIfAutoBusy(JOB_REDO, id, section.toUpperCase(), teil, channel, userId)) return get(id);
+            return doRedoTeil(id, section, teil, channel);
+        });
+    }
+
+    /** Hai nút "Làm lại Teil này" / "Tạo phần Nghe" chỉ dùng cho lượt đã chạy xong và chưa duyệt. */
+    private void requireFinished(long id, String button) {
+        RunRow run = run(id);
+        if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
+            throw RunGuide.wrongStatus(id, run.status(), button,
+                    "đã chạy xong và chưa duyệt (\"Cần bạn xem\" hoặc \"Sẵn sàng duyệt\")");
+        }
+    }
+
+    private RunView doRedoTeil(long id, String section, int teil, String channel) {
         if (channel != null && !channel.isBlank()) {
             String ch = ai.requireChannel(channel).name();
             jdbc.update("UPDATE exam_set_runs SET channel = ? WHERE id = ? AND status IN ('NEEDS_ATTENTION', 'REVIEW')", ch, id);
@@ -264,8 +311,20 @@ public class ExamSetRunService {
      * với {@link #redoTeil}: chỉ lượt đã chạy xong và chưa duyệt, mỗi lúc một lượt chạy, kênh AI là kênh admin đang
      * chọn (trống ⇒ giữ kênh của lượt). Không đủ chủ đề thì không thêm dòng nào.
      */
-    @org.springframework.transaction.annotation.Transactional
     public RunView addHoeren(long id, String channel) {
+        return addHoeren(id, channel, null);
+    }
+
+    public RunView addHoeren(long id, String channel, Long userId) {
+        return locked(() -> {
+            requireFinished(id, RunGuide.BTN_ADD_HOEREN);
+            if (queueIfAutoBusy(JOB_ADD_HOEREN, id, null, null, channel, userId)) return get(id);
+            return doAddHoeren(id, channel);
+        });
+    }
+
+    /** Chạy trong {@link #locked}: hỏng giữa chừng thì cả giao dịch hoàn lại, ba dòng Teil vừa thêm biến mất. */
+    private RunView doAddHoeren(long id, String channel) {
         RunRow run = run(id);
         if (!run.status().equals("NEEDS_ATTENTION") && !run.status().equals("REVIEW")) {
             throw RunGuide.wrongStatus(id, run.status(), RunGuide.BTN_ADD_HOEREN,
@@ -328,6 +387,237 @@ public class ExamSetRunService {
         for (TeilRow t : teile(id)) discardDraftQuietly(t.draftId());
         jdbc.update("UPDATE exam_set_runs SET status = 'DISCARDED', finished_at = now(), updated_at = now() WHERE id = ?", id);
         return get(id);
+    }
+
+    // ── Tự nối lượt ──────────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Số bộ chờ owner xem (REVIEW / NEEDS_ATTENTION) tối đa trước khi chế độ tự nối TẠM DỪNG. Chặn máy đốt tiền AI
+     * ra hàng chục bộ trong lúc owner vắng; owner duyệt hoặc bỏ bớt thì máy tự chạy tiếp.
+     */
+    static final int AUTO_MAX_WAITING = 5;
+
+    public record AutoRequest(boolean enabled, String examFormat, String cefrLevel, String profile, String channel) {}
+
+    public record AutoView(boolean enabled, String examFormat, String cefrLevel, String profile, String channel,
+                           /** Lý do máy đang tạm dừng hoặc đã tự tắt; null khi chạy bình thường. */
+                           String note, int waiting, int maxWaiting,
+                           /** Việc owner đã bấm, chờ lượt đang chạy xong (cũ trước). */
+                           List<AutoJob> pending,
+                           /** {@link #AUTO_HISTORY} việc xếp hàng đã chạy hoặc hỏng gần nhất (mới trước). */
+                           List<AutoJob> history) {}
+
+    /**
+     * Một việc trong bảng {@code exam_set_pending}: {@code kind} là {@link #JOB_REDO} (kèm {@code section}, {@code teil})
+     * hoặc {@link #JOB_ADD_HOEREN}; {@code status} WAITING / DONE / FAILED; {@code error} là lý do khi FAILED.
+     */
+    public record AutoJob(long id, String kind, long runId, String section, Integer teil, String channel, String status,
+                          String error, Long createdBy, Instant createdAt, Instant finishedAt) {}
+
+    static final String JOB_REDO = "REDO";
+    static final String JOB_ADD_HOEREN = "ADD_HOEREN";
+    /** Số việc đã chạy / hỏng hiện ở mục lịch sử của thẻ tự nối. */
+    static final int AUTO_HISTORY = 10;
+
+    public AutoView auto() {
+        Integer waiting = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('REVIEW', 'NEEDS_ATTENTION')", Integer.class);
+        int w = waiting == null ? 0 : waiting;
+        List<AutoJob> pending = jobs("WHERE status = 'WAITING' ORDER BY id");
+        List<AutoJob> history = jobs("WHERE status <> 'WAITING' ORDER BY finished_at DESC NULLS LAST, id DESC LIMIT " + AUTO_HISTORY);
+        return jdbc.query("SELECT * FROM exam_set_auto WHERE id = 1", (rs, i) -> new AutoView(rs.getBoolean("enabled"),
+                        rs.getString("exam_format"), rs.getString("cefr_level"), rs.getString("profile"),
+                        rs.getString("channel"), rs.getString("note"), w, AUTO_MAX_WAITING, pending, history))
+                .stream().findFirst()
+                .orElse(new AutoView(false, "TELC", "B1", "REAL", "FIREWORKS", null, w, AUTO_MAX_WAITING, pending, history));
+    }
+
+    /** {@code tail} là đoạn WHERE … ORDER BY … cố định trong code, không nhận dữ liệu người dùng. */
+    private List<AutoJob> jobs(String tail) {
+        return jdbc.query("SELECT * FROM exam_set_pending " + tail, (rs, i) -> {
+            Number by = (Number) rs.getObject("created_by");
+            Number teil = (Number) rs.getObject("teil");
+            Timestamp fin = rs.getTimestamp("finished_at");
+            return new AutoJob(rs.getLong("id"), rs.getString("kind"), rs.getLong("run_id"), rs.getString("section"),
+                    teil == null ? null : teil.intValue(), rs.getString("channel"), rs.getString("status"),
+                    rs.getString("error"), by == null ? null : by.longValue(), rs.getTimestamp("created_at").toInstant(),
+                    fin == null ? null : fin.toInstant());
+        });
+    }
+
+    /**
+     * Owner chốt 13/11/2026 ("bấm thì tự tạm dừng"): tự nối đang bật và máy đang chạy một lượt ⇒ không báo lỗi mà xếp
+     * việc vào {@code exam_set_pending}; nhịp nền chạy việc đó ngay khi lượt đang chạy xong, trước khi tự tạo lượt mới.
+     * Tự nối tắt ⇒ giữ luật cũ (báo "đợi lượt đang chạy xong"). Bấm trùng một việc còn WAITING ⇒ không xếp thêm.
+     * Gọi trong {@link #locked}.
+     *
+     * @return true nếu đã xếp hàng (người gọi không chạy ngay)
+     */
+    private boolean queueIfAutoBusy(String kind, long runId, String section, Integer teil, String channel, Long userId) {
+        boolean autoOn = Boolean.TRUE.equals(jdbc.query("SELECT enabled FROM exam_set_auto WHERE id = 1",
+                (rs, i) -> rs.getBoolean("enabled")).stream().findFirst().orElse(false));
+        Integer active = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+        if (!autoOn || active == null || active == 0) return false;
+        // Kiểm ngay lúc bấm (owner chốt 13/11/2026): kênh AI lạ hay Teil không có trong lượt thì báo lỗi luôn, không để
+        // tới lượt chạy mới lộ ra; cũng chặn chuỗi lạ vượt cột VARCHAR.
+        if (channel != null && !channel.isBlank()) channel = ai.requireChannel(channel).name();
+        if (JOB_REDO.equals(kind) && teile(runId).stream()
+                .noneMatch(x -> x.section().equalsIgnoreCase(section) && teil != null && x.teil() == teil)) {
+            throw new NotFoundException("Lượt #" + runId + " không có " + ApprovalGuide.slotLabel(section, teil == null ? 0 : teil)
+                    + ". Tải lại trang để xem danh sách Teil hiện tại của lượt.");
+        }
+        Integer same = jdbc.queryForObject("""
+                SELECT count(*) FROM exam_set_pending
+                 WHERE status = 'WAITING' AND kind = ? AND run_id = ? AND section IS NOT DISTINCT FROM ?
+                   AND teil IS NOT DISTINCT FROM ?
+                """, Integer.class, kind, runId, section, teil);
+        if (same == null || same == 0) {
+            jdbc.update("INSERT INTO exam_set_pending (kind, run_id, section, teil, channel, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+                    kind, runId, section, teil, channel == null || channel.isBlank() ? null : channel, userId);
+            log.info("[ExamSet] tự nối đang chạy: xếp hàng {} cho lượt #{}", kind, runId);
+        }
+        return true;
+    }
+
+    /** Bật / tắt tự nối lượt. Bật thì lưu kỳ thi, cấp, hồ sơ và kênh AI cho mọi lượt máy tự tạo về sau. */
+    public AutoView setAuto(AutoRequest req, long userId) {
+        if (req.enabled()) {
+            if (TeilSpec.forExam(req.examFormat(), req.cefrLevel()).isEmpty()) {
+                throw new BadRequestException("Chưa có khuôn Teil nào cho kỳ thi và cấp này trong Xưởng đề.");
+            }
+            TeilSpec first = TeilSpec.forExam(req.examFormat(), req.cefrLevel()).get(0);
+            String profile = normProfile(req.profile(), RunGuide.BTN_AUTO_ON);
+            String channel = ai.requireChannel(req.channel()).name();
+            jdbc.update("""
+                    INSERT INTO exam_set_auto (id, enabled, exam_format, cefr_level, profile, channel, created_by, note, updated_at)
+                    VALUES (1, true, ?, ?, ?, ?, ?, NULL, now())
+                    ON CONFLICT (id) DO UPDATE SET enabled = true, exam_format = EXCLUDED.exam_format,
+                        cefr_level = EXCLUDED.cefr_level, profile = EXCLUDED.profile, channel = EXCLUDED.channel,
+                        created_by = EXCLUDED.created_by, note = NULL, updated_at = now()
+                    """, first.examFormat(), first.cefrLevel(), profile, channel, userId);
+        } else {
+            jdbc.update("""
+                    INSERT INTO exam_set_auto (id, enabled, note, updated_at) VALUES (1, false, NULL, now())
+                    ON CONFLICT (id) DO UPDATE SET enabled = false, note = NULL, updated_at = now()
+                    """);
+        }
+        return auto();
+    }
+
+    /**
+     * Gọi sau mỗi nhịp: tự nối lượt đang bật và không còn lượt nào chạy ⇒ tạo lượt kế tiếp. Tạm dừng khi đã có
+     * {@link #AUTO_MAX_WAITING} bộ chờ xem; tự TẮT khi lượt máy vừa tạo kẹt hết mọi Teil (hỏng có hệ thống — nguồn,
+     * kênh AI — chạy tiếp chỉ đốt tiền). {@code updated_at} chỉ đổi khi owner bật/tắt, để mốc "lượt tạo sau khi bật"
+     * không trôi khi máy ghi ghi chú.
+     */
+    void autoContinue() {
+        // Việc owner đã xếp hàng chạy trước, mỗi nhịp một việc. Chọn việc (giao dịch 1) rồi chạy và đánh dấu DONE
+        // (giao dịch 2): hỏng giữa chừng thì giao dịch 2 hoàn lại hết, rồi việc được đánh dấu FAILED (giao dịch 3).
+        AutoJob next = locked(() -> {
+            Integer active = jdbc.queryForObject(
+                    "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+            if (active != null && active > 0) return null;
+            return jobs("WHERE status = 'WAITING' ORDER BY id LIMIT 1").stream().findFirst().orElse(null);
+        });
+        if (next != null) {
+            runJob(next);
+            return;
+        }
+        locked(() -> {
+            autoCreateNext();
+            return null;
+        });
+    }
+
+    /**
+     * Chạy một việc đã xếp. Lúc deploy blue-green có hai bản backend cùng chạy nhịp nền và có thể cùng chọn một việc:
+     * bản nào vào khoá sau thấy việc không còn WAITING thì bỏ qua im lặng, không ghi đè DONE thành FAILED, không báo
+     * chuông giả (owner chốt cách sửa 13/11/2026). Package-private để test gọi lại như bản thứ hai.
+     */
+    void runJob(AutoJob j) {
+        int teil = j.teil() == null ? 0 : j.teil();
+        try {
+            boolean ran = Boolean.TRUE.equals(locked(() -> {
+                String st = jdbc.query("SELECT status FROM exam_set_pending WHERE id = ?", (rs, i) -> rs.getString("status"), j.id())
+                        .stream().findFirst().orElse(null);
+                if (!"WAITING".equals(st)) return false;
+                if (JOB_REDO.equals(j.kind())) doRedoTeil(j.runId(), j.section(), teil, j.channel());
+                else doAddHoeren(j.runId(), j.channel());
+                jdbc.update("UPDATE exam_set_pending SET status = 'DONE', finished_at = now() WHERE id = ? AND status = 'WAITING'", j.id());
+                return true;
+            }));
+            if (ran) log.info("[ExamSet] chạy việc owner xếp hàng #{}: {} lượt #{}", j.id(), j.kind(), j.runId());
+            else log.info("[ExamSet] việc xếp hàng #{} đã được xử lý ở nơi khác, bỏ qua", j.id());
+        } catch (RuntimeException e) {
+            String what = JOB_REDO.equals(j.kind())
+                    ? "\"" + RunGuide.BTN_REDO + "\" " + ApprovalGuide.slotLabel(j.section(), teil)
+                    : "\"" + RunGuide.BTN_ADD_HOEREN + "\"";
+            String why = "Chưa chạy được việc bạn đã xếp: " + what + " của lượt #" + j.runId() + ". " + e.getMessage();
+            int marked = locked(() -> {
+                int n = jdbc.update("""
+                        UPDATE exam_set_pending SET status = 'FAILED', error = ?, finished_at = now()
+                         WHERE id = ? AND status = 'WAITING'
+                        """, e.getMessage(), j.id());
+                if (n > 0) jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1", why);
+                return n;
+            });
+            if (marked == 0) return; // bản khác đã xử lý việc này
+            log.warn("[ExamSet] việc xếp hàng #{} ({} lượt #{}) hỏng: {}", j.id(), j.kind(), j.runId(), e.getMessage());
+            // Ghi chú bị xoá khi máy tạo lượt kế tiếp; lịch sử giữ lý do, chuông báo để owner không lỡ.
+            try {
+                notifications.onSystemAlert("EXAM_STUDIO_SET", "Việc xếp hàng chưa chạy được", why,
+                        Map.of("runId", j.runId(), "url", RunGuide.runUrl(j.runId())));
+            } catch (RuntimeException ne) {
+                log.warn("[ExamSet] không gửi được thông báo việc xếp hàng hỏng: {}", ne.getMessage());
+            }
+        }
+    }
+
+    /** Phần tự tạo lượt kế tiếp của {@link #autoContinue}; gọi trong {@link #locked}. */
+    private void autoCreateNext() {
+        Map<String, Object> cfg = jdbc.queryForList("SELECT * FROM exam_set_auto WHERE id = 1").stream().findFirst().orElse(null);
+        if (cfg == null || !Boolean.TRUE.equals(cfg.get("enabled"))) return;
+        Integer active = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('PLANNING', 'RUNNING')", Integer.class);
+        if (active != null && active > 0) return;
+
+        // Lượt gần nhất tạo sau lần bật mà kẹt hết mọi Teil ⇒ tắt hẳn, báo owner.
+        List<Long> deadRuns = jdbc.queryForList("""
+                SELECT r.id FROM exam_set_runs r, exam_set_auto a
+                 WHERE a.id = 1 AND r.created_at >= a.updated_at AND r.status = 'NEEDS_ATTENTION'
+                   AND r.id = (SELECT max(id) FROM exam_set_runs)
+                   AND NOT EXISTS (SELECT 1 FROM exam_set_run_teile t WHERE t.run_id = r.id AND t.status <> 'STUCK')
+                """, Long.class);
+        if (!deadRuns.isEmpty()) {
+            String why = "Đã tự tắt: lượt #" + deadRuns.get(0) + " kẹt hết mọi Teil. Xem lỗi của lượt đó rồi bật lại.";
+            jdbc.update("UPDATE exam_set_auto SET enabled = false, note = ? WHERE id = 1", why);
+            try {
+                notifications.onSystemAlert("EXAM_STUDIO_SET", "Tự nối lượt đã tắt", why,
+                        Map.of("runId", deadRuns.get(0), "url", RunGuide.runUrl(deadRuns.get(0))));
+            } catch (RuntimeException e) {
+                log.warn("[ExamSet] không gửi được thông báo tự nối lượt tắt: {}", e.getMessage());
+            }
+            return;
+        }
+
+        Integer waiting = jdbc.queryForObject(
+                "SELECT count(*) FROM exam_set_runs WHERE status IN ('REVIEW', 'NEEDS_ATTENTION')", Integer.class);
+        if (waiting != null && waiting >= AUTO_MAX_WAITING) {
+            String why = "Tạm dừng: đang có " + waiting + " bộ chờ bạn xem. Duyệt hoặc bỏ bớt thì máy chạy tiếp.";
+            jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1 AND note IS DISTINCT FROM ?", why, why);
+            return;
+        }
+        Number by = (Number) cfg.get("created_by");
+        try {
+            RunView r = createRun(new CreateRunRequest((String) cfg.get("exam_format"), (String) cfg.get("cefr_level"),
+                    (String) cfg.get("profile"), (String) cfg.get("channel")), by == null ? null : by.longValue());
+            jdbc.update("UPDATE exam_set_auto SET note = NULL WHERE id = 1");
+            log.info("[ExamSet] tự nối lượt: tạo lượt #{}", r.id());
+        } catch (BadRequestException e) {
+            jdbc.update("UPDATE exam_set_auto SET note = ? WHERE id = 1 AND note IS DISTINCT FROM ?",
+                    "Không tạo được lượt mới: " + e.getMessage(), "Không tạo được lượt mới: " + e.getMessage());
+        }
     }
 
     /** Mỗi lúc chỉ một lượt chạy. Có lượt đang chạy ⇒ báo rõ lượt nào và nút vừa bấm. */
@@ -449,6 +739,11 @@ public class ExamSetRunService {
             } catch (RuntimeException e) {
                 log.error("[ExamSet] lượt #{} lỗi ở nhịp điều phối: {}", id, e.getMessage(), e);
             }
+        }
+        try {
+            autoContinue();
+        } catch (RuntimeException e) {
+            log.error("[ExamSet] tự nối lượt lỗi: {}", e.getMessage(), e);
         }
     }
 

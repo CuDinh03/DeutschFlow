@@ -39,12 +39,16 @@ public class AsyncConfig {
         return exec;
     }
 
-    /** AI API calls (Groq chat, Edge TTS) — 10 threads max for 20 CCU. */
+    /**
+     * AI API calls (Groq chat, Edge TTS, job Xưởng đề). ThreadPoolExecutor chỉ mở luồng vượt core khi hàng đợi ĐẦY,
+     * nên số lời gọi chạy thật cùng lúc ≈ core. Core 12 (trước là 5): một lượt "Tạo bộ đề" chạy tối đa 6 Teil cùng
+     * lúc (13/11/2026) mà vẫn chừa ≥ 6 luồng cho job AI của học viên. Luồng chủ yếu chờ mạng nên rẻ.
+     */
     @Bean(name = "aiExecutor")
     public Executor aiExecutor() {
         var exec = new ThreadPoolTaskExecutor();
-        exec.setCorePoolSize(5);
-        exec.setMaxPoolSize(10);
+        exec.setCorePoolSize(12);
+        exec.setMaxPoolSize(16);
         exec.setQueueCapacity(30);
         exec.setThreadNamePrefix("ai-call-");
         // Phiên hỗ trợ chỉ-đọc theo sang thread AI: guard AI + READ ONLY vẫn có hiệu lực (review #805).

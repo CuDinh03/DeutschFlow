@@ -582,6 +582,50 @@ export async function createSetRun(body: {
 export async function approveSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/approve`, {})).data
 }
+
+/** Chế độ "Tự nối lượt": xong một lượt thì máy tự tạo lượt kế tiếp (chạy ở backend, đóng trình duyệt vẫn chạy). */
+export interface SetAuto {
+  enabled: boolean
+  examFormat: string
+  cefrLevel: string
+  profile: string
+  channel: string
+  /** Lý do máy đang tạm dừng hoặc đã tự tắt; null khi chạy bình thường. */
+  note: string | null
+  waiting: number
+  maxWaiting: number
+  /** Việc owner bấm lúc tự nối đang bật mà máy đang chạy lượt khác: chạy ngay khi lượt đó xong, theo thứ tự bấm. */
+  pending?: SetAutoJob[]
+  /** Mười việc xếp hàng đã chạy hoặc hỏng gần nhất (mới trước). */
+  history?: SetAutoJob[]
+}
+
+/** Một việc trong hàng chờ tự nối (bảng `exam_set_pending`). */
+export interface SetAutoJob {
+  id: number
+  kind: 'REDO' | 'ADD_HOEREN'
+  runId: number
+  section: string | null
+  teil: number | null
+  channel: string | null
+  status: 'WAITING' | 'DONE' | 'FAILED'
+  /** Lý do khi `FAILED`. */
+  error: string | null
+  createdBy: number | null
+  createdAt: string
+  finishedAt: string | null
+}
+
+export async function getSetAuto(): Promise<SetAuto> {
+  return (await api.get<SetAuto>(`${BASE}/sets/auto`)).data
+}
+
+export async function putSetAuto(body: {
+  enabled: boolean; examFormat?: string; cefrLevel?: string; profile?: string; channel?: StudioChannelId
+}): Promise<SetAuto> {
+  return (await api.put<SetAuto>(`${BASE}/sets/auto`, body)).data
+}
+
 /** Kiểm lại lượt "Cần bạn xem" sau khi sửa tay: Teil hết đỏ tính là xong, chạy lại kiểm cấp bộ. */
 export async function recheckSetRun(id: number): Promise<SetRun> {
   return (await api.post<SetRun>(`${BASE}/sets/${id}/recheck`, {})).data

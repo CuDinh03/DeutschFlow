@@ -469,4 +469,180 @@ class ExamSetRunIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThatThrownBy(() -> runs.create(new CreateRunRequest("GOETHE", "C2", null, null), admin))
                 .isInstanceOf(BadRequestException.class);
     }
+
+    private long lastRunId() {
+        return jdbc.queryForObject("SELECT coalesce(max(id), 0) FROM exam_set_runs", Long.class);
+    }
+
+    @Test
+    @DisplayName("tự nối lượt: bật thì máy tự tạo lượt; lượt xong thì tạo lượt kế; tắt thì dừng")
+    void autoContinueChainsRuns() {
+        assertThat(runs.auto().enabled()).isFalse();
+        long base = lastRunId();
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(base);                            // tắt: không tự tạo gì
+
+        var on = runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", null, "FIREWORKS"), admin);
+        assertThat(on.enabled()).isTrue();
+        assertThat(on.examFormat()).isEqualTo("TELC");
+        runs.tickAll();
+        long first = lastRunId();
+        assertThat(first).isGreaterThan(base);
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(first);                           // lượt đang chạy: không tạo thêm
+
+        assertThat(runToEnd(first).status()).isEqualTo("REVIEW");
+        runs.tickAll();
+        long second = lastRunId();
+        assertThat(second).isGreaterThan(first);
+        assertThat(runs.get(second).channel()).isEqualTo("FIREWORKS");
+
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+        assertThat(runToEnd(second).status()).isEqualTo("REVIEW");
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(second);                          // đã tắt: lượt đang chạy xong là dừng
+    }
+
+    @Test
+    @DisplayName("tự nối lượt tạm dừng khi đủ 5 bộ chờ xem, tự tắt khi lượt mới kẹt hết mọi Teil")
+    void autoContinuePausesAndStops() {
+        for (int i = 0; i < ExamSetRunService.AUTO_MAX_WAITING; i++) {
+            jdbc.update("INSERT INTO exam_set_runs (exam_format, cefr_level, status) VALUES ('TELC', 'B1', 'REVIEW')");
+        }
+        long before = lastRunId();
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(before);
+        assertThat(runs.auto().note()).contains("Tạm dừng").contains("5 bộ");
+        assertThat(runs.auto().enabled()).isTrue();
+
+        // Bỏ bớt một bộ chờ ⇒ chạy tiếp; lượt máy vừa tạo kẹt hết mọi Teil ⇒ máy tự tắt và báo owner.
+        jdbc.update("UPDATE exam_set_runs SET status = 'DISCARDED' WHERE id = ?", before);
+        runs.tickAll();
+        long created = lastRunId();
+        assertThat(created).isGreaterThan(before);
+        assertThat(runs.auto().note()).isNull();
+        jdbc.update("UPDATE exam_set_runs SET status = 'NEEDS_ATTENTION' WHERE id = ?", created);
+        jdbc.update("UPDATE exam_set_run_teile SET status = 'STUCK' WHERE run_id = ?", created);
+        runs.tickAll();
+        assertThat(lastRunId()).isEqualTo(created);
+        assertThat(runs.auto().enabled()).isFalse();
+        assertThat(runs.auto().note()).contains("Đã tự tắt").contains("#" + created);
+        verify(notifications).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Tự nối lượt đã tắt"), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("tự nối đang chạy: bấm làm lại Teil thì xếp hàng; lượt đang chạy xong thì làm việc đó trước rồi mới tạo lượt mới")
+    void autoQueuesOwnerRedo() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        long busy = lastRunId();
+        assertThat(busy).isGreaterThan(done.id());
+
+        RunView queued = runs.redoTeil(done.id(), "LESEN", 2, null, admin);
+        assertThat(queued.status()).isEqualTo("REVIEW");                    // chưa chạy: đang chờ lượt kia xong
+        runs.redoTeil(done.id(), "LESEN", 2, null, admin);                   // bấm lại: không xếp trùng
+        assertThat(runs.auto().pending()).singleElement()
+                .satisfies(p -> {
+                    assertThat(p.kind()).isEqualTo("REDO");
+                    assertThat(p.runId()).isEqualTo(done.id());
+                    assertThat(p.section()).isEqualTo("LESEN");
+                    assertThat(p.teil()).isEqualTo(2);
+                    assertThat(p.status()).isEqualTo("WAITING");
+                    assertThat(p.createdBy()).isEqualTo(admin);              // ghi người bấm
+                });
+
+        assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");
+        assertThat(runs.get(done.id()).status()).isEqualTo("RUNNING");     // việc xếp hàng chạy ngay
+        assertThat(runs.auto().pending()).isEmpty();
+        assertThat(runs.auto().history()).singleElement().satisfies(h -> {  // giữ lại làm lịch sử
+            assertThat(h.status()).isEqualTo("DONE");
+            assertThat(h.finishedAt()).isNotNull();
+            assertThat(h.error()).isNull();
+        });
+        assertThat(lastRunId()).isEqualTo(busy);                            // chưa tự tạo lượt mới
+
+        assertThat(runToEnd(done.id()).status()).isEqualTo("REVIEW");
+        runs.tickAll();
+        assertThat(lastRunId()).isGreaterThan(busy);                        // xong việc của owner mới nối lượt
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
+
+    @Test
+    @DisplayName("tự nối tắt: có lượt đang chạy thì làm lại Teil vẫn báo đợi như cũ, không xếp hàng")
+    void manualModeStillRejectsWhileBusy() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.create(new CreateRunRequest("TELC", "B1", null, null), admin);
+        assertThatThrownBy(() -> runs.redoTeil(done.id(), "LESEN", 2)).isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đang chạy");
+        assertThatThrownBy(() -> runs.addHoeren(done.id(), null)).isInstanceOf(BadRequestException.class);
+        assertThat(runs.auto().pending()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("việc xếp hàng không còn làm được (lượt đã bị bỏ): ghi chú và báo chuông, không chặn tự nối")
+    void queuedActionThatNoLongerFitsIsReported() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        long busy = lastRunId();
+        runs.addHoeren(done.id(), null, admin);
+        assertThat(runs.auto().pending()).singleElement().satisfies(p -> assertThat(p.kind()).isEqualTo("ADD_HOEREN"));
+        runs.discard(done.id());
+
+        assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");
+        assertThat(runs.auto().pending()).isEmpty();
+        assertThat(runs.auto().note()).contains("Chưa chạy được việc bạn đã xếp").contains("#" + done.id());
+        assertThat(runs.auto().history()).singleElement().satisfies(h -> {
+            assertThat(h.status()).isEqualTo("FAILED");
+            assertThat(h.error()).isNotBlank();
+            assertThat(h.createdBy()).isEqualTo(admin);
+        });
+        verify(notifications).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Việc xếp hàng chưa chạy được"), anyString(), any());
+        runs.tickAll();
+        assertThat(lastRunId()).isGreaterThan(busy);                        // tự nối vẫn chạy tiếp
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
+
+    @Test
+    @DisplayName("hai bản backend cùng chọn một việc (blue-green): bản sau bỏ qua, không ghi đè Đã chạy thành hỏng, không báo chuông giả")
+    void secondInstanceSkipsJobAlreadyRun() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+        long busy = lastRunId();
+        runs.redoTeil(done.id(), "LESEN", 2, null, admin);
+        ExamSetRunService.AutoJob picked = runs.auto().pending().get(0);   // bản thứ hai cũng đã chọn việc này
+
+        assertThat(runToEnd(busy).status()).isEqualTo("REVIEW");          // bản thứ nhất chạy việc
+        runs.runJob(picked);                                               // bản thứ hai tới sau
+
+        assertThat(runs.auto().history()).singleElement().satisfies(h -> assertThat(h.status()).isEqualTo("DONE"));
+        assertThat(runs.auto().note()).isNull();
+        verify(notifications, times(0)).onSystemAlert(eq("EXAM_STUDIO_SET"), eq("Việc xếp hàng chưa chạy được"), anyString(), any());
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
+
+    @Test
+    @DisplayName("xếp hàng kiểm ngay lúc bấm: Teil không có trong lượt hoặc kênh AI lạ thì báo lỗi luôn, không xếp")
+    void queueValidatesAtPressTime() {
+        RunView done = runToEnd(runs.create(new CreateRunRequest("TELC", "B1", null, null), admin).id());
+        runs.setAuto(new ExamSetRunService.AutoRequest(true, "TELC", "B1", "REAL", "FIREWORKS"), admin);
+        runs.tickAll();
+
+        assertThatThrownBy(() -> runs.redoTeil(done.id(), "LESEN", 9, null, admin))
+                .isInstanceOf(com.deutschflow.common.exception.NotFoundException.class).hasMessageContaining("không có");
+        assertThatThrownBy(() -> runs.redoTeil(done.id(), "LESEN", 2, "KHONG_CO_KENH_NAY_DAU", admin))
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("Kênh tạo đề không hợp lệ");
+        assertThatThrownBy(() -> runs.addHoeren(done.id(), "XYZ", admin)).isInstanceOf(BadRequestException.class);
+        assertThat(runs.auto().pending()).isEmpty();
+
+        runs.redoTeil(done.id(), "lesen", 2, "fireworks", admin);           // chữ thường vẫn nhận, lưu dạng chuẩn
+        assertThat(runs.auto().pending()).singleElement().satisfies(p -> {
+            assertThat(p.section()).isEqualTo("LESEN");
+            assertThat(p.channel()).isEqualTo("FIREWORKS");
+        });
+        runs.setAuto(new ExamSetRunService.AutoRequest(false, null, null, null, null), admin);
+    }
 }
