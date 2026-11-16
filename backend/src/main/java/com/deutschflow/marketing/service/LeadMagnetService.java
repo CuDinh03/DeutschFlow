@@ -145,7 +145,7 @@ public class LeadMagnetService {
         return new FreeGradeResponse(
                 grade.score(),
                 feedback,
-                "Đây là bản chấm thử bằng AI. Đăng ký DeutschFlow để chấm không giới hạn, theo dõi tiến độ và luyện thi Goethe/telc.",
+                "Đây là bản chấm thử bằng AI, điểm để tham khảo. Muốn luyện đủ 4 phần thi telc B1, bạn học thử 7 ngày Pro trên myDeutschFlow, không cần thanh toán trước.",
                 shareToken);
     }
 

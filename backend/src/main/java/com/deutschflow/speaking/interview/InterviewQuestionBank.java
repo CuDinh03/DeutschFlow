@@ -21,11 +21,18 @@ public final class InterviewQuestionBank {
      * cụm danh từ ("vị trí Kellner/in", "the Kellner/in position") để đứng được ở mọi chỗ trong câu.
      */
     private record Pos(String de, String vi, String en) {
+        private static final String GENERIC_DE = "diese Position";
+
         static Pos of(String position) {
             if (position == null || position.isBlank()) {
-                return new Pos("diese Position", "vị trí này", "this position");
+                return new Pos(GENERIC_DE, "vị trí này", "this position");
             }
             return new Pos(position, "vị trí " + position, "the " + position + " position");
+        }
+
+        /** Chưa có tên vị trí cụ thể (chuỗi trống, hoặc "diese Position" như seed V187 dùng). */
+        boolean isGeneric() {
+            return GENERIC_DE.equals(de);
         }
     }
 
@@ -80,11 +87,23 @@ public final class InterviewQuestionBank {
                         "Haben Sie noch Fragen an uns?",
                         "Bạn có câu hỏi nào cho chúng tôi không?",
                         "Do you have any questions for us?"),
-                q("intro_self", InterviewPhase.INTRO, "intro",
-                        "Bitte stellen Sie sich kurz vor: Werdegang, relevante Erfahrung für " + pos.de() + ", und Ihr nächster Schritt.",
-                        "Mời bạn giới thiệu ngắn về bản thân: quá trình học tập và làm việc, kinh nghiệm liên quan đến " + pos.vi() + ", và bước tiếp theo bạn hướng tới.",
-                        "Please introduce yourself briefly: your background, relevant experience for " + pos.en() + ", and your next step.")
+                introSelf(pos)
         );
+    }
+
+    /**
+     * Câu mở đầu dùng chung (14/11/2026, rà câu chữ): "Erfahrung als Koch/Köchin", không ghép máy
+     * "Erfahrung für …", không dấu phẩy trước "und". Khi chưa có vị trí thì "als diese Position" sai
+     * ngữ pháp nên dùng nhánh riêng. Chuỗi có vị trí là bản chép của {@code COMMON_INTRO_QUESTION}
+     * ở {@code frontend/src/data/interviewSamples.ts} (test đối chiếu đọc file này).
+     */
+    private static InterviewQuestionDef introSelf(Pos pos) {
+        String de = pos.isGeneric()
+                ? "Bitte stellen Sie sich kurz vor: Ihr Werdegang, Ihre Erfahrung für diese Position und Ihr nächster Schritt."
+                : "Bitte stellen Sie sich kurz vor: Ihr Werdegang, Ihre Erfahrung als " + pos.de() + " und Ihr nächster Schritt.";
+        return q("intro_self", InterviewPhase.INTRO, "intro", de,
+                "Mời bạn giới thiệu ngắn về bản thân: quá trình học và làm việc, kinh nghiệm ở " + pos.vi() + " và dự định sắp tới.",
+                "Please introduce yourself briefly: your background, your experience in " + pos.en() + " and your next step.");
     }
 
     private static List<InterviewQuestionDef> dermatologyQuestions(Pos pos) {

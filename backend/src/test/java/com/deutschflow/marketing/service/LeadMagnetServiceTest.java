@@ -65,6 +65,10 @@ class LeadMagnetServiceTest {
 
         assertThat(res.score()).isEqualTo(85);
         assertThat(res.feedback()).contains("Artikel");
+        // Rà câu chữ 14/11/2026: không hứa "chấm không giới hạn", không nhắc Goethe, đúng tên sản phẩm.
+        assertThat(res.message())
+                .contains("điểm để tham khảo", "telc B1", "7 ngày Pro", "myDeutschFlow", "không cần thanh toán trước")
+                .doesNotContain("không giới hạn", "Goethe");
         ArgumentCaptor<MarketingLead> captor = ArgumentCaptor.forClass(MarketingLead.class);
         verify(leadRepository).save(captor.capture());
         MarketingLead saved = captor.getValue();

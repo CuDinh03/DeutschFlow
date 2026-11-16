@@ -23,14 +23,17 @@ class InterviewQuestionBankTranslationTest {
     @Test
     void positionIsWrappedPerLanguage() {
         InterviewQuestionDef intro = intro(InterviewQuestionBank.forPersona(SpeakingPersona.NIKLAS, "Kellner/in"));
-        assertThat(intro.questionDe()).contains("relevante Erfahrung für Kellner/in,");
-        assertThat(intro.questionVi()).contains("liên quan đến vị trí Kellner/in,");
-        assertThat(intro.questionEn()).contains("relevant experience for the Kellner/in position,");
+        assertThat(intro.questionDe()).isEqualTo(
+                "Bitte stellen Sie sich kurz vor: Ihr Werdegang, Ihre Erfahrung als Kellner/in und Ihr nächster Schritt.");
+        assertThat(intro.questionVi()).contains("kinh nghiệm ở vị trí Kellner/in và");
+        assertThat(intro.questionEn()).contains("your experience in the Kellner/in position and");
 
+        // Chưa có vị trí: "als diese Position" sai ngữ pháp nên câu đổi sang "für diese Position".
         InterviewQuestionDef blank = intro(InterviewQuestionBank.forPersona(SpeakingPersona.DEFAULT, " "));
-        assertThat(blank.questionDe()).contains("für diese Position,");
-        assertThat(blank.questionVi()).contains("liên quan đến vị trí này,");
-        assertThat(blank.questionEn()).contains("for this position,");
+        assertThat(blank.questionDe()).isEqualTo(
+                "Bitte stellen Sie sich kurz vor: Ihr Werdegang, Ihre Erfahrung für diese Position und Ihr nächster Schritt.");
+        assertThat(blank.questionVi()).contains("kinh nghiệm ở vị trí này và");
+        assertThat(blank.questionEn()).contains("your experience in this position and");
     }
 
     private static InterviewQuestionDef intro(List<InterviewQuestionDef> bank) {

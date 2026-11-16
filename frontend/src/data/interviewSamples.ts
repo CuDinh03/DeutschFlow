@@ -14,7 +14,7 @@ import type { PersonaId } from '@/lib/personas'
 
 /** Câu mở đầu dùng chung cho MỌI vị trí (`intro_self`, giai đoạn INTRO). */
 export const COMMON_INTRO_QUESTION =
-  'Bitte stellen Sie sich kurz vor: Werdegang, relevante Erfahrung für {pos}, und Ihr nächster Schritt.'
+  'Bitte stellen Sie sich kurz vor: Ihr Werdegang, Ihre Erfahrung als {pos} und Ihr nächster Schritt.'
 
 /** Nhân vật có bộ câu hỏi phỏng vấn riêng (supportsInterview = true trong src/lib/personas.ts). */
 export type InterviewPersonaId = Exclude<PersonaId, 'tuan' | 'lan' | 'minh'>
