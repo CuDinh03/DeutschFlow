@@ -21,6 +21,7 @@ import {
   type MyFeedback,
 } from '@/lib/feedbackApi'
 import { collectTechInfo } from '@/lib/feedbackTechInfo'
+import { previousPage } from '@/lib/pageTrail'
 import { TYPE_GLYPH } from './feedbackVisual'
 import { prepareImage } from './feedbackImages'
 
@@ -41,8 +42,14 @@ function codePoints(s: string): number {
   return Array.from(s.trim()).length
 }
 
-/** Trang mà người dùng vừa ở trước khi mở Góp ý (cùng nguồn), không thì chính trang này. */
+/**
+ * Trang mà người dùng vừa ở trước khi mở Góp ý, không thì chính trang này.
+ * Ưu tiên vết chuyển trang trong tab (`pageTrail`): `document.referrer` không đổi khi chuyển trang phía
+ * client nên chỉ đúng khi Góp ý là trang nạp đầu tiên của tab.
+ */
 function sourcePage(): string {
+  const fromTrail = previousPage(window.location.pathname)
+  if (fromTrail) return fromTrail
   try {
     if (document.referrer) {
       const ref = new URL(document.referrer)
@@ -85,11 +92,22 @@ export function FeedbackForm({ audience, onSent }: FeedbackFormProps) {
   // Thu hồi object URL khi rời trang.
   useEffect(() => () => shotsRef.current.forEach((s) => URL.revokeObjectURL(s.previewUrl)), [])
 
+  // Trang nguồn chốt một lần lúc mở form; cỡ màn hình đo lại mỗi lần đổi cỡ, để bản xem trước và bản
+  // gửi đi là cỡ lúc gửi chứ không phải lúc mở form.
+  const [viewport, setViewport] = useState(() => (typeof window === 'undefined'
+    ? { width: 0, height: 0 }
+    : { width: window.innerWidth, height: window.innerHeight }))
+  useEffect(() => {
+    const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  const source = useMemo(() => (typeof window === 'undefined' ? null : sourcePage()), [])
   const tech = useMemo(
-    () => (typeof window === 'undefined'
+    () => (source == null
       ? null
-      : collectTechInfo(sourcePage(), locale, navigator.userAgent, window.innerWidth, window.innerHeight)),
-    [locale],
+      : collectTechInfo(source, locale, navigator.userAgent, viewport.width, viewport.height)),
+    [source, locale, viewport],
   )
 
   const length = codePoints(content)

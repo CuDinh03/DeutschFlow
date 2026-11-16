@@ -254,7 +254,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
                 >
                   <GaGlyph name={TYPE_ICON[n.type] ?? 'notifications'} tone={notifTone(n.type)} size="sm" className="mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold capitalize text-ga-ink">{notifTitle(n, tn)}</p>
+                    <p className="truncate text-[13px] font-semibold text-ga-ink first-letter:uppercase">{notifTitle(n, tn)}</p>
                     {body && <p className="mt-0.5 line-clamp-2 text-[12px] text-ga-muted">{body}</p>}
                     <p className="mt-1 text-[11px] text-ga-subtle">{relTime(n.createdAtUtc, tn, locale)}</p>
                   </div>

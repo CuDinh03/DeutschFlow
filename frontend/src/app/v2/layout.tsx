@@ -1,6 +1,7 @@
 import * as React from 'react'
 import '@/styles/galerie.css'
 import { V2Gate } from './V2Gate'
+import { PageTrailRecorder } from './PageTrailRecorder'
 import { PlanProvider } from '@/contexts/PlanContext'
 
 /**
@@ -25,6 +26,7 @@ export const dynamic = 'force-dynamic'
 export default function V2Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="ga-scope min-h-screen bg-ga-bg">
+      <PageTrailRecorder />
       <PlanProvider>
         <V2Gate>{children}</V2Gate>
       </PlanProvider>

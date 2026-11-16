@@ -265,6 +265,9 @@
       "mineEmpty": "Bạn chưa gửi góp ý nào.",
       "mineLoadError": "Chưa tải được góp ý của bạn.",
       "retry": "Thử lại",
+      "adminBlockedTitle": "Tài khoản quản trị không gửi góp ý",
+      "adminBlockedBody": "Góp ý chỉ dành cho học viên, giáo viên và trung tâm. Ghi chú của đội ngũ hãy viết ở ô ghi chú nội bộ trong hộp góp ý.",
+      "adminBlockedCta": "Mở hộp góp ý",
       "status": {
         "NEW": "Đã gửi",
         "READ": "Đã đọc",
