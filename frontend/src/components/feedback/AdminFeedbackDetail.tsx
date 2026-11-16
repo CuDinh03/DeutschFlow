@@ -9,6 +9,7 @@ import { apiMessage } from '@/lib/api'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { cn } from '@/lib/utils'
 import { adminFeedbackApi, type AdminFeedbackDetail as Detail, type FeedbackStatus } from '@/lib/feedbackApi'
+import { requestNavCountRefresh } from '@/lib/navCountEvents'
 import { STATUS_PILL, TYPE_GLYPH } from './feedbackVisual'
 
 /** Trạng thái đích hợp lệ từ một trạng thái (mục 9 của đặc tả); server kiểm lại. */
@@ -55,6 +56,7 @@ export function AdminFeedbackDetail({ id, onChanged }: Props) {
           await adminFeedbackApi.markRead(id).catch(() => undefined)
           d = { ...d, status: 'READ' }
           onChanged(id, { status: 'READ' })
+          requestNavCountRefresh()
         }
         setData(d)
         setTarget(d.status)
@@ -79,6 +81,7 @@ export function AdminFeedbackDetail({ id, onChanged }: Props) {
       setData(fresh)
       setExplanation('')
       onChanged(data.id, { status: fresh.status, replyCount: fresh.replies.length })
+      requestNavCountRefresh()
       toast.success(t('statusSaved'))
     } catch (e) {
       toast.error(apiMessage(e))

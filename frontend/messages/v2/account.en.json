@@ -265,6 +265,9 @@
       "mineEmpty": "You have not sent any feedback yet.",
       "mineLoadError": "Your feedback could not be loaded.",
       "retry": "Try again",
+      "adminBlockedTitle": "Admin accounts do not send feedback",
+      "adminBlockedBody": "Feedback is for students, teachers and centres. Write team notes in the internal note field of the feedback inbox.",
+      "adminBlockedCta": "Open the feedback inbox",
       "status": {
         "NEW": "Sent",
         "READ": "Read",

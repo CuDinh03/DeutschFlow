@@ -10,6 +10,7 @@ import {
 import { AdminFeedbackDetail } from '@/components/feedback/AdminFeedbackDetail'
 import { STATUS_PILL, TYPE_GLYPH } from '@/components/feedback/feedbackVisual'
 import { apiMessage } from '@/lib/api'
+import { requestNavCountRefresh } from '@/lib/navCountEvents'
 import { useFmt } from '@/lib/i18n/useFmt'
 import { cn } from '@/lib/utils'
 import {
@@ -96,6 +97,7 @@ export default function AdminFeedbackPage() {
   const markCheckedRead = async () => {
     try {
       await adminFeedbackApi.markManyRead(Array.from(checked))
+      requestNavCountRefresh()
       await load()
     } catch (e) {
       toast.error(apiMessage(e))

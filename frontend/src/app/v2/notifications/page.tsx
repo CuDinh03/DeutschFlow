@@ -125,7 +125,7 @@ function NotificationsBody() {
                         {/* Trước đây nền là `${tone}1a` với tone = `var(--ga-…)` → CSS hỏng, icon trôi không ô. */}
                         <GaGlyph name={TYPE_ICON[n.type] ?? 'notifications'} tone={notifTone(n.type)} className="mt-0.5" />
                         <div className="min-w-0 flex-1">
-                          <p className="break-words text-[14px] font-semibold capitalize text-ga-ink">{notifTitle(n, tn)}</p>
+                          <p className="break-words text-[14px] font-semibold text-ga-ink first-letter:uppercase">{notifTitle(n, tn)}</p>
                           {body && <p className="ga-ui mt-0.5 break-words text-[13px] text-ga-muted">{body}</p>}
                           <p className="ga-ui mt-1 text-[11.5px] text-ga-subtle">{relTime(n.createdAtUtc, tn, locale)}</p>
                         </div>

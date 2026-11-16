@@ -265,6 +265,9 @@
       "mineEmpty": "Du hast noch kein Feedback gesendet.",
       "mineLoadError": "Dein Feedback konnte nicht geladen werden.",
       "retry": "Erneut versuchen",
+      "adminBlockedTitle": "Admin-Konten senden kein Feedback",
+      "adminBlockedBody": "Feedback ist für Lernende, Lehrkräfte und Zentren gedacht. Notizen des Teams gehören in das interne Notizfeld im Feedback-Posteingang.",
+      "adminBlockedCta": "Feedback-Posteingang öffnen",
       "status": {
         "NEW": "Gesendet",
         "READ": "Gelesen",
