@@ -3,7 +3,8 @@ import { View, KeyboardAvoidingView, Platform, Alert, Pressable, ScrollView } fr
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import api from '@/lib/api'
+import api, { apiStatusLabel } from '@/lib/api'
+import { loginFailureKind } from '@/lib/loginFailure'
 import { fetchOnboardingContext } from '@/lib/onboardingContext'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
@@ -40,13 +41,31 @@ export default function LoginScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.replace(ctx?.hasPlan === false ? '/(auth)/onboarding' : '/(student)')
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : ''
-      captureEvent('login_failed', { reason: msg || 'unknown' })
+      // `reason` là NHÃN phân loại (credentials/timeout/network/…), không còn chuỗi axios thô —
+      // xem lib/loginFailure.ts. `status` giữ mã HTTP để đối chiếu với log máy chủ.
+      const kind = loginFailureKind(e)
+      captureEvent('login_failed', { reason: kind, status: apiStatusLabel(e) })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      if (msg === 'NON_STUDENT_ROLE') {
+      if (kind === 'wrong_role') {
         Alert.alert(t('login.wrongRoleTitle'), t('login.wrongRoleBody'), [{ text: t('common.ok') }])
+      } else if (kind === 'credentials' || kind === 'unknown') {
+        // Phần lớn người gặp lỗi này là người mới cài, chưa có tài khoản (đối chiếu 11/11/2026):
+        // chỉ đường sang đăng ký ngay trong hộp thoại thay vì để họ thử lại vô ích.
+        Alert.alert(t('login.failedTitle'), `${t('login.failedBody')}\n\n${t('login.noAccountHint')}`, [
+          { text: t('login.tryAgain'), style: 'cancel' },
+          {
+            text: t('login.registerFree'),
+            onPress: () => {
+              captureEvent('login_failed_register_clicked')
+              router.push('/(auth)/register')
+            },
+          },
+        ])
+      } else if (kind === 'rate_limited') {
+        Alert.alert(t('login.failedTitle'), t('login.tooManyBody'))
       } else {
-        Alert.alert(t('login.failedTitle'), t('login.failedBody'))
+        const body = kind === 'timeout' ? 'login.timeoutBody' : kind === 'network' ? 'login.networkBody' : 'login.serverBody'
+        Alert.alert(t('login.connectionTitle'), t(body))
       }
     } finally {
       setLoading(false)
