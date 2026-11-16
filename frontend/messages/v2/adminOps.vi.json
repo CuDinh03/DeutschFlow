@@ -1225,6 +1225,118 @@
       "tabOverview": "Tổng quan",
       "tabLedger": "Theo ledger",
       "errorTitle": "Không tải được số liệu chi phí AI"
+    },
+    "feedback": {
+      "eyebrow": "Vận hành",
+      "title": "Góp ý người dùng",
+      "subtitle": "Đọc góp ý của học viên, giáo viên và trung tâm, trả lời người gửi và theo dõi tới khi xong.",
+      "search": "Tìm theo nội dung, email, tên",
+      "allStatuses": "Tất cả",
+      "status": {
+        "NEW": "Chưa đọc",
+        "READ": "Đã đọc",
+        "IN_PROGRESS": "Đang làm",
+        "SHIPPED": "Đã ra mắt",
+        "DECLINED": "Chưa làm"
+      },
+      "statusLong": {
+        "NEW": "Đã gửi",
+        "READ": "Đã đọc",
+        "IN_PROGRESS": "Đang làm",
+        "SHIPPED": "Đã ra mắt / Đã sửa",
+        "DECLINED": "Chưa làm lúc này"
+      },
+      "allTypes": "Mọi loại",
+      "allAreas": "Mọi phần",
+      "allRoles": "Mọi vai trò",
+      "roles": {
+        "STUDENT": "Học viên",
+        "TEACHER": "Giáo viên",
+        "ORG": "Trung tâm",
+        "OWNER": "Chủ trung tâm",
+        "MANAGER": "Quản lý trung tâm"
+      },
+      "sort": {
+        "NEWEST": "Mới nhất",
+        "LOW_SCORE": "Điểm thấp trước"
+      },
+      "sortLabel": "Sắp xếp",
+      "typeFilter": "Loại",
+      "areaFilter": "Phần",
+      "roleFilter": "Vai trò",
+      "lowScore": "Điểm thấp",
+      "score": "{n}/5",
+      "noScore": "Không chấm",
+      "replies": "{n, plural, other {# trả lời}}",
+      "images": "{n, plural, other {# ảnh}}",
+      "empty": "Không có góp ý nào khớp bộ lọc.",
+      "loadError": "Chưa tải được góp ý.",
+      "retry": "Thử lại",
+      "selected": "Đã chọn {n}",
+      "markRead": "Đánh dấu đã đọc",
+      "clear": "Bỏ chọn",
+      "pickOne": "Chọn một góp ý để xem chi tiết.",
+      "detail": {
+        "since": "Học từ {date}",
+        "plan": "Gói",
+        "level": "Trình độ",
+        "org": "Trung tâm",
+        "source": "Nguồn",
+        "sent": "Gửi lúc",
+        "contact": "Liên hệ email",
+        "contactNo": "Không cho phép",
+        "tech": "Thông tin kỹ thuật",
+        "noTech": "Không kèm",
+        "images": "Ảnh đính kèm",
+        "noImages": "Không có",
+        "openImage": "Mở ảnh {n}",
+        "history": "Đã trả lời"
+      },
+      "sources": {
+        "IN_APP": "Trong ứng dụng",
+        "RATING_INVITE": "Thư mời đánh giá",
+        "AFTER_MOCK": "Sau thi thử"
+      },
+      "statusField": "Trạng thái",
+      "explanation": "Lời giải thích gửi người dùng (10–1000 ký tự)",
+      "explanationHint": "Người gửi đọc được lời này và nhận thông báo.",
+      "shippedHint": "Người gửi nhận thông báo \"đã thực hiện\" một lần.",
+      "saveStatus": "Lưu trạng thái",
+      "statusSaved": "Đã lưu trạng thái.",
+      "tabReply": "Trả lời người dùng",
+      "tabNote": "Ghi chú nội bộ",
+      "replyPlaceholder": "Người gửi đọc được lời này dưới góp ý của họ.",
+      "notePlaceholder": "Chỉ admin thấy.",
+      "sendReply": "Gửi trả lời",
+      "replySent": "Đã gửi trả lời. Người dùng nhận thông báo.",
+      "saveNote": "Lưu ghi chú",
+      "noteSaved": "Đã lưu ghi chú nội bộ.",
+      "prev": "Trang trước",
+      "next": "Trang sau",
+      "pageOf": "Trang {page} / {pages} · {total} góp ý",
+      "failed": "Chưa lưu được. Thử lại.",
+      "types": {
+        "BUG": "Báo lỗi",
+        "IDEA": "Đề xuất",
+        "USABILITY": "Khó dùng",
+        "GENERAL": "Nhận xét chung"
+      },
+      "areas": {
+        "EXAM": "Luyện thi",
+        "SPEAKING": "Luyện nói",
+        "INTERVIEW": "Phỏng vấn nghề",
+        "VOCABULARY": "Từ vựng",
+        "ROADMAP": "Lộ trình",
+        "BILLING": "Gói và thanh toán",
+        "IOS_APP": "Ứng dụng iPhone",
+        "CLASSES": "Lớp học",
+        "GRADING": "Chấm bài",
+        "SCHEDULE": "Lịch",
+        "MATERIALS": "Tài liệu",
+        "STUDENTS": "Học viên",
+        "REPORTS": "Báo cáo",
+        "OTHER": "Khác"
+      }
     }
   }
 }

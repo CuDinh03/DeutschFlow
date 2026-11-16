@@ -1,6 +1,7 @@
 package com.deutschflow.moderation.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -114,6 +115,10 @@ public class ModerationRateLimiterService {
         final Deque<Slot> day = new ArrayDeque<>();
     }
 
+    /** Tiền tố khoá Redis, để nhiều bộ giới hạn (báo cáo, góp ý…) dùng chung lớp mà không chung lượt. */
+    private final String keyPrefix;
+
+    @Autowired
     public ModerationRateLimiterService(
             @Value("${app.moderation.report.rate-limit.enabled:true}") boolean enabled,
             @Value("${app.moderation.report.rate-limit.hour-max:10}") int hourMax,
@@ -121,6 +126,22 @@ public class ModerationRateLimiterService {
             @Value("${app.moderation.report.rate-limit.day-max:30}") int dayMax,
             @Value("${app.moderation.report.rate-limit.day-window-seconds:86400}") long dayWindowSeconds,
             @Nullable StringRedisTemplate redis) {
+        this("rl:moderation:report", enabled, hourMax, hourWindowSeconds, dayMax, dayWindowSeconds, redis);
+    }
+
+    /**
+     * Bộ giới hạn hai cửa sổ cho một việc khác (vd. gửi góp ý, tải ảnh góp ý). {@code keyPrefix} phải
+     * khác mọi bộ khác, không thì hai việc ăn chung hạn mức trên Redis.
+     */
+    public ModerationRateLimiterService(
+            String keyPrefix,
+            boolean enabled,
+            int hourMax,
+            long hourWindowSeconds,
+            int dayMax,
+            long dayWindowSeconds,
+            @Nullable StringRedisTemplate redis) {
+        this.keyPrefix = keyPrefix;
         this.enabled = enabled;
         this.hourMax = Math.max(1, hourMax);
         this.hourWindowSeconds = Math.max(1L, hourWindowSeconds);
@@ -128,8 +149,8 @@ public class ModerationRateLimiterService {
         this.dayWindowSeconds = Math.max(1L, dayWindowSeconds);
         this.redis = redis;
         this.twoWindowScript = new DefaultRedisScript<>(TWO_WINDOW_LUA, Long.class);
-        log.info("[ModerationRateLimiter] {} · {}/{}s + {}/{}s · storage={}",
-                enabled ? "BẬT" : "TẮT", this.hourMax, this.hourWindowSeconds, this.dayMax, this.dayWindowSeconds,
+        log.info("[ModerationRateLimiter:{}] {} · {}/{}s + {}/{}s · storage={}",
+                keyPrefix, enabled ? "BẬT" : "TẮT", this.hourMax, this.hourWindowSeconds, this.dayMax, this.dayWindowSeconds,
                 this.redis != null ? "Redis + in-memory fallback" : "in-memory only");
     }
 
@@ -274,11 +295,11 @@ public class ModerationRateLimiterService {
         }
     }
 
-    private static String hourKey(long userId) {
-        return "rl:moderation:report:h|" + userId;
+    private String hourKey(long userId) {
+        return keyPrefix + ":h|" + userId;
     }
 
-    private static String dayKey(long userId) {
-        return "rl:moderation:report:d|" + userId;
+    private String dayKey(long userId) {
+        return keyPrefix + ":d|" + userId;
     }
 }

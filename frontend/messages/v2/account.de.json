@@ -169,6 +169,120 @@
       "emptyTitle": "Noch keine Benachrichtigungen",
       "emptyBody": "Neue Updates erscheinen hier.",
       "unreadAria": "ungelesen"
+    },
+    "feedback": {
+      "eyebrow": "Konto",
+      "title": "Feedback zu myDeutschFlow",
+      "subtitle": "Das Team liest jedes Feedback. Wenn deins behoben oder umgesetzt wird, bekommst du eine persönliche Benachrichtigung.",
+      "typeLabel": "Was möchtest du senden?",
+      "types": {
+        "BUG": "Fehler melden",
+        "IDEA": "Vorschlag",
+        "USABILITY": "Schwer zu bedienen",
+        "GENERAL": "Allgemeine Rückmeldung"
+      },
+      "typeHints": {
+        "BUG": "Etwas funktioniert falsch, hängt oder verliert Daten",
+        "IDEA": "Eine Funktion oder Arbeitsweise, die du dir wünschst",
+        "USABILITY": "Kein Fehler, aber verwirrend oder schwer zu finden",
+        "GENERAL": "Was dir gefällt oder dein Gesamteindruck"
+      },
+      "scaleLabel": "Wie bewertest du deine aktuelle Erfahrung?",
+      "optional": "Optional",
+      "scale": {
+        "1": "Sehr ärgerlich",
+        "2": "Noch nicht gut",
+        "3": "In Ordnung",
+        "4": "Zufrieden",
+        "5": "Sehr zufrieden"
+      },
+      "areaLabel": "Welcher Bereich ist betroffen?",
+      "areas": {
+        "EXAM": "Prüfungstraining",
+        "SPEAKING": "Sprechtraining",
+        "INTERVIEW": "Bewerbungsgespräch",
+        "VOCABULARY": "Wortschatz",
+        "ROADMAP": "Lernpfad",
+        "BILLING": "Tarife und Zahlung",
+        "IOS_APP": "iPhone-App",
+        "CLASSES": "Kurse",
+        "GRADING": "Bewertung",
+        "SCHEDULE": "Stundenplan",
+        "MATERIALS": "Materialien",
+        "STUDENTS": "Lernende",
+        "REPORTS": "Berichte",
+        "OTHER": "Sonstiges"
+      },
+      "contentLabel": {
+        "BUG": "Was ist passiert?",
+        "IDEA": "Was wünschst du dir?",
+        "USABILITY": "Was hat dich verwirrt?",
+        "GENERAL": "Was möchtest du dem Team sagen?"
+      },
+      "contentHint": {
+        "BUG": "Was hast du gemacht, was hast du gesehen und was hast du erwartet?",
+        "IDEA": "Was wünschst du dir und wofür?",
+        "USABILITY": "Wo warst du verwirrt oder bist nicht weitergekommen?",
+        "GENERAL": "Was dir gefällt oder dein Gesamteindruck."
+      },
+      "counter": "{n} / {max}",
+      "imagesLabel": "Bildschirmfotos",
+      "imagesHint": "Bis zu 3 Bilder, je 5 MB",
+      "imagesPick": "Bilder auswählen",
+      "imagesDrop": "Bilder hierher ziehen oder",
+      "imageRemove": "Bild entfernen",
+      "imageUploading": "Bild wird hochgeladen…",
+      "imageWrong": "Bilder müssen PNG, JPEG oder WebP sein, höchstens 5 MB.",
+      "imageTooMany": "Du kannst höchstens 3 Bilder anhängen.",
+      "imageFailed": "Das Bild konnte nicht hochgeladen werden. Du kannst dein Feedback trotzdem ohne Bild senden.",
+      "techLabel": "Technische Angaben mitsenden, damit wir Fehler schneller finden",
+      "techHint": "Browser, Gerät und die geöffnete Seite. Keine Antworten, keine Passwörter.",
+      "techShow": "Ansehen, was gesendet wird",
+      "techHide": "Ausblenden",
+      "techFields": {
+        "page": "Seite",
+        "browser": "Browser",
+        "os": "Betriebssystem",
+        "device": "Gerät",
+        "locale": "Sprache",
+        "screen": "Bildschirm"
+      },
+      "devices": {
+        "phone": "Handy",
+        "tablet": "Tablet",
+        "desktop": "Computer"
+      },
+      "contactLabel": "Das Team darf mir für Rückfragen eine E-Mail schreiben",
+      "contactHint": "Nur für dieses Feedback.",
+      "submit": "Feedback senden",
+      "needMore": "Schreib mindestens 10 Zeichen, um zu senden.",
+      "readyHint": "Den Stand siehst du unter Dein Feedback.",
+      "sentTitle": "Gesendet. Danke!",
+      "sentBody": "Dein Feedback steht jetzt unter Dein Feedback. Der Stand ändert sich, sobald das Team es liest und bearbeitet.",
+      "sendFailed": "Dein Feedback konnte nicht gesendet werden. Dein Text ist noch da, versuch es bitte erneut.",
+      "mineTitle": "Dein Feedback",
+      "mineCount": "{n, plural, =0 {Noch keins} other {# Einträge}}",
+      "mineEmpty": "Du hast noch kein Feedback gesendet.",
+      "mineLoadError": "Dein Feedback konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "status": {
+        "NEW": "Gesendet",
+        "READ": "Gelesen",
+        "IN_PROGRESS": "In Arbeit",
+        "SHIPPED": "Veröffentlicht",
+        "SHIPPED_BUG": "Behoben",
+        "DECLINED": "Vorerst nicht geplant"
+      },
+      "steps": {
+        "sent": "Gesendet",
+        "read": "Gelesen",
+        "doing": "In Arbeit",
+        "shipped": "Veröffentlicht",
+        "fixed": "Behoben"
+      },
+      "teamReply": "myDeutschFlow-Team · {date}",
+      "satisfactionShort": "Bewertet mit {n}/5",
+      "attachments": "{n, plural, one {# Bild} other {# Bilder}}"
     }
   }
 }

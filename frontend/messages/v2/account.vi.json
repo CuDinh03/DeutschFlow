@@ -169,6 +169,120 @@
       "emptyTitle": "Chưa có thông báo",
       "emptyBody": "Các cập nhật mới sẽ hiện ở đây.",
       "unreadAria": "chưa đọc"
+    },
+    "feedback": {
+      "eyebrow": "Tài khoản",
+      "title": "Góp ý cho myDeutschFlow",
+      "subtitle": "Đội ngũ đọc mọi góp ý. Khi góp ý của bạn được sửa hoặc làm thành tính năng, bạn nhận thông báo riêng.",
+      "typeLabel": "Bạn muốn gửi gì?",
+      "types": {
+        "BUG": "Báo lỗi",
+        "IDEA": "Đề xuất",
+        "USABILITY": "Khó dùng",
+        "GENERAL": "Nhận xét chung"
+      },
+      "typeHints": {
+        "BUG": "Có chỗ chạy sai, bị treo, mất dữ liệu",
+        "IDEA": "Một tính năng hay cách làm bạn muốn có",
+        "USABILITY": "Không lỗi nhưng rối, khó tìm, khó hiểu",
+        "GENERAL": "Điều bạn thích hoặc cảm nhận chung"
+      },
+      "scaleLabel": "Bạn chấm trải nghiệm hiện tại",
+      "optional": "Không bắt buộc",
+      "scale": {
+        "1": "Rất khó chịu",
+        "2": "Chưa ổn",
+        "3": "Tạm được",
+        "4": "Hài lòng",
+        "5": "Rất hài lòng"
+      },
+      "areaLabel": "Liên quan phần nào?",
+      "areas": {
+        "EXAM": "Luyện thi",
+        "SPEAKING": "Luyện nói",
+        "INTERVIEW": "Phỏng vấn nghề",
+        "VOCABULARY": "Từ vựng",
+        "ROADMAP": "Lộ trình",
+        "BILLING": "Gói và thanh toán",
+        "IOS_APP": "Ứng dụng iPhone",
+        "CLASSES": "Lớp học",
+        "GRADING": "Chấm bài",
+        "SCHEDULE": "Lịch",
+        "MATERIALS": "Tài liệu",
+        "STUDENTS": "Học viên",
+        "REPORTS": "Báo cáo",
+        "OTHER": "Khác"
+      },
+      "contentLabel": {
+        "BUG": "Chuyện gì đã xảy ra?",
+        "IDEA": "Bạn muốn có điều gì?",
+        "USABILITY": "Chỗ nào khiến bạn bối rối?",
+        "GENERAL": "Bạn muốn nói gì với đội ngũ?"
+      },
+      "contentHint": {
+        "BUG": "Bạn đang làm gì, thấy gì, và mong thấy gì?",
+        "IDEA": "Bạn muốn có điều gì, để làm gì?",
+        "USABILITY": "Chỗ nào làm bạn rối hoặc khó tìm?",
+        "GENERAL": "Điều bạn thích hoặc cảm nhận chung."
+      },
+      "counter": "{n} / {max}",
+      "imagesLabel": "Ảnh chụp màn hình",
+      "imagesHint": "Tối đa 3 ảnh, mỗi ảnh 5 MB",
+      "imagesPick": "Chọn ảnh",
+      "imagesDrop": "Kéo ảnh vào đây hoặc",
+      "imageRemove": "Gỡ ảnh",
+      "imageUploading": "Đang tải ảnh…",
+      "imageWrong": "Ảnh phải là PNG, JPEG hoặc WebP, tối đa 5 MB.",
+      "imageTooMany": "Chỉ đính kèm được 3 ảnh.",
+      "imageFailed": "Chưa tải được ảnh. Bạn vẫn gửi được góp ý không có ảnh.",
+      "techLabel": "Kèm thông tin kỹ thuật để tìm lỗi nhanh hơn",
+      "techHint": "Trình duyệt, thiết bị, trang đang mở. Không gồm bài làm hay mật khẩu.",
+      "techShow": "Xem sẽ gửi gì",
+      "techHide": "Ẩn",
+      "techFields": {
+        "page": "Trang",
+        "browser": "Trình duyệt",
+        "os": "Hệ điều hành",
+        "device": "Thiết bị",
+        "locale": "Ngôn ngữ",
+        "screen": "Màn hình"
+      },
+      "devices": {
+        "phone": "Điện thoại",
+        "tablet": "Máy tính bảng",
+        "desktop": "Máy tính"
+      },
+      "contactLabel": "Cho phép đội ngũ hỏi thêm qua email",
+      "contactHint": "Chỉ dùng cho góp ý này.",
+      "submit": "Gửi góp ý",
+      "needMore": "Viết ít nhất 10 ký tự để gửi.",
+      "readyHint": "Bạn theo dõi trạng thái ở danh sách Góp ý của bạn.",
+      "sentTitle": "Đã gửi. Cảm ơn bạn.",
+      "sentBody": "Góp ý vừa gửi nằm ở danh sách Góp ý của bạn. Trạng thái đổi khi đội ngũ đọc và xử lý.",
+      "sendFailed": "Chưa gửi được góp ý. Nội dung bạn viết vẫn còn, hãy thử lại.",
+      "mineTitle": "Góp ý của bạn",
+      "mineCount": "{n, plural, =0 {Chưa có} other {# góp ý}}",
+      "mineEmpty": "Bạn chưa gửi góp ý nào.",
+      "mineLoadError": "Chưa tải được góp ý của bạn.",
+      "retry": "Thử lại",
+      "status": {
+        "NEW": "Đã gửi",
+        "READ": "Đã đọc",
+        "IN_PROGRESS": "Đang làm",
+        "SHIPPED": "Đã ra mắt",
+        "SHIPPED_BUG": "Đã sửa",
+        "DECLINED": "Chưa làm lúc này"
+      },
+      "steps": {
+        "sent": "Đã gửi",
+        "read": "Đã đọc",
+        "doing": "Đang làm",
+        "shipped": "Đã ra mắt",
+        "fixed": "Đã sửa"
+      },
+      "teamReply": "Đội ngũ myDeutschFlow · {date}",
+      "satisfactionShort": "Hài lòng {n}/5",
+      "attachments": "{n, plural, other {# ảnh}}"
     }
   }
 }

@@ -93,7 +93,11 @@
       "org-audit": "Sổ hoạt động",
       "org-certificates": "Chứng nhận",
       "admin-ai-usage": "Chi phí AI",
-      "admin-exam-bank": "Ngân hàng đề Nói"
+      "admin-exam-bank": "Ngân hàng đề Nói",
+      "feedback": "Gửi góp ý",
+      "t-feedback": "Gửi góp ý",
+      "org-feedback": "Gửi góp ý",
+      "admin-feedback": "Góp ý"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",
@@ -297,7 +301,9 @@
       "MFA_RECOVERY_CODES_LOW": "Sắp hết mã khôi phục",
       "MFA_RESET_BY_ADMIN": "Xác thực hai lớp đã được đặt lại",
       "ADMIN_SUPPORT_VIEW": "Đội hỗ trợ đã xem tài khoản",
-      "PASSWORD_RESET_BY_ADMIN": "Mật khẩu đã được đặt lại"
+      "PASSWORD_RESET_BY_ADMIN": "Mật khẩu đã được đặt lại",
+      "FEEDBACK_REPLIED": "Đội ngũ đã trả lời góp ý của bạn",
+      "FEEDBACK_SHIPPED": "Góp ý của bạn đã được thực hiện"
     }
   },
   "inbox": {

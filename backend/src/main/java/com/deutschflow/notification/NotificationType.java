@@ -194,5 +194,14 @@ public enum NotificationType {
      * "có người đã đổi" để báo lại nếu không phải họ yêu cầu. Ghi qua notification_outbox trong giao
      * dịch đặt lại (G2), worker gửi sau commit.
      */
-    PASSWORD_RESET_BY_ADMIN
+    PASSWORD_RESET_BY_ADMIN,
+    // ── Góp ý về phần mềm (đặc tả gopycapnhat, GĐ1, 16/11/2026) ─────────────
+    // Người nhận luôn là người gửi góp ý. Ghi qua notification_outbox (G2), có push Expo (FBK-45).
+    // Payload: {@code feedbackId}, {@code feedbackTitle} (tiêu đề góp ý của CHÍNH người nhận), {@code bug}
+    // (true = Báo lỗi, câu đổi "thực hiện" thành "sửa"). App mobile chưa biết hai loại này vẫn hiện được
+    // vì tiêu đề và thân dựng ở server.
+    /** Đội ngũ vừa trả lời góp ý (kể cả lời giải thích khi chọn "Chưa làm lúc này"). */
+    FEEDBACK_REPLIED,
+    /** Góp ý vừa chuyển sang "Đã ra mắt" / "Đã sửa". Mỗi góp ý tối đa một tin (BR-08). */
+    FEEDBACK_SHIPPED
 }

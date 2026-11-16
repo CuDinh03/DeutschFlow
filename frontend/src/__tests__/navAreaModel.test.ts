@@ -98,7 +98,7 @@ describe('S-01 — student: đúng 5 area, không mất destination', () => {
   })
 
   it('giữ nguyên URL — mọi href là route /v2 thật đang tồn tại (IA-D8)', () => {
-    const real = Array.from(new Set([...realRoutes('student'), '/v2/profile', '/v2/notifications']))
+    const real = Array.from(new Set([...realRoutes('student'), '/v2/profile', '/v2/notifications', '/v2/feedback']))
     const hrefs = [
       ...studentAreas.areas.map((a) => a.href),
       ...studentAreas.areas.flatMap((a) => localItems(a).map((l) => l.href)),

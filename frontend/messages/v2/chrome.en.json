@@ -93,7 +93,11 @@
       "org-audit": "Activity log",
       "org-certificates": "Certificates",
       "admin-ai-usage": "AI costs",
-      "admin-exam-bank": "Speaking item bank"
+      "admin-exam-bank": "Speaking item bank",
+      "feedback": "Send feedback",
+      "t-feedback": "Send feedback",
+      "org-feedback": "Send feedback",
+      "admin-feedback": "Feedback"
     },
     "sections": {
       "classMgmt": "Class Management",
@@ -297,7 +301,9 @@
       "MFA_RECOVERY_CODES_LOW": "Running out of recovery codes",
       "MFA_RESET_BY_ADMIN": "Two-factor authentication was reset",
       "ADMIN_SUPPORT_VIEW": "Support viewed your account",
-      "PASSWORD_RESET_BY_ADMIN": "Password was reset"
+      "PASSWORD_RESET_BY_ADMIN": "Password was reset",
+      "FEEDBACK_REPLIED": "The team replied to your feedback",
+      "FEEDBACK_SHIPPED": "Your feedback has been put into practice"
     }
   },
   "inbox": {

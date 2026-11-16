@@ -1,5 +1,6 @@
 package com.deutschflow.user.service;
 
+import com.deutschflow.feedback.service.FeedbackAccountCleanup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,6 +26,7 @@ public class AccountDeletionService {
 
     private final JdbcTemplate jdbc;
     private final AccountDeletionGuard deletionGuard;
+    private final FeedbackAccountCleanup feedbackCleanup;
 
     /** Tables with a non-cascading FK to users(id) that must be cleared first. */
     private static final String[] NON_CASCADING_BY_USER_ID = {
@@ -87,6 +89,10 @@ public class AccountDeletionService {
         // non-cascading FKs to users(id). A learner never populates them, so learner deletion is
         // clean; but a TEACHER/ADMIN self-deleting could still FK-fail on authored content. That
         // path needs a dedicated offboarding design and is out of scope for the 5.1.1(v) learner fix.
+        // Góp ý về phần mềm (V389, FBK-64): dòng góp ý, ảnh, lời trả lời đi theo FK CASCADE; FILE ảnh trên
+        // R2 thì không, nên lấy danh sách khoá ngay bây giờ và xoá file sau commit.
+        feedbackCleanup.deleteFilesAfterCommit(userId);
+
         int rows = jdbc.update("DELETE FROM users WHERE id = ?", userId);
         log.info("Account deletion completed for userId={} (rows={})", userId, rows);
     }
