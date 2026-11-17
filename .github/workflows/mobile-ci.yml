@@ -202,15 +202,15 @@ jobs:
           } else {
             summary.push('### 🫆 Không có commit gốc để so', `- HEAD: \`${head.hash}\``);
           }
+          // Lệch runtime đang phát hành chỉ làm job đỏ khi owner đã đặt biến (SP-5). Không dùng `return`
+          // ở đây: script chạy qua stdin không được bọc hàm, `return` top-level là SyntaxError.
+          const prodMismatch = !!prod && prod !== head.hash;
           if (prod) {
-            const ok = prod === head.hash;
-            summary.push('', ok ? `✅ HEAD khớp runtime đang phát hành (\`${prod.slice(0, 8)}\`) — OTA từ nhánh này tới được build đó.` : `⚠️ HEAD KHÁC runtime đang phát hành \`${prod.slice(0, 8)}\` — OTA từ nhánh này KHÔNG tới build đó.`);
-            if (!ok) console.log(`::error title=Lệch runtime đang phát hành::HEAD ${head.hash.slice(0, 8)} ≠ PROD_RUNTIME_FINGERPRINT ${prod.slice(0, 8)} — OTA từ nhánh này không tới bản đang bán.`);
-            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
-            if (!ok) process.exit(1);
-            return;
+            summary.push('', prodMismatch ? `⚠️ HEAD KHÁC runtime đang phát hành \`${prod.slice(0, 8)}\` — OTA từ nhánh này KHÔNG tới build đó.` : `✅ HEAD khớp runtime đang phát hành (\`${prod.slice(0, 8)}\`) — OTA từ nhánh này tới được build đó.`);
+            if (prodMismatch) console.log(`::error title=Lệch runtime đang phát hành::HEAD ${head.hash.slice(0, 8)} ≠ PROD_RUNTIME_FINGERPRINT ${prod.slice(0, 8)} — OTA từ nhánh này không tới bản đang bán.`);
           }
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
+          if (prodMismatch) process.exit(1);
           JS
 
   # SP-5: expo-doctor soát lệch phiên bản giữa các gói và Expo SDK. CHỈ CẢNH BÁO: ngày thêm
