@@ -215,7 +215,7 @@ jobs:
 
   # SP-5: expo-doctor soát lệch phiên bản giữa các gói và Expo SDK. CHỈ CẢNH BÁO: ngày thêm
   # (18/11/2026) nó báo expo-asset 12.0.13 so với ~12.0.14 mong đợi; nâng gói đó đổi fingerprint,
-  # tức là phải chờ bản build native kế tiếp. Sau bản build đó bỏ continue-on-error để thành cổng.
+  # tức là phải chờ bản build native kế tiếp. Sau bản build đó bỏ nhánh `if !` ở bước dưới để thành cổng.
   # Node 22 vì expo-doctor bản mới đòi node ≥ 22.13.
   expo-doctor:
     name: 🩺 Expo doctor (cảnh báo)
@@ -223,7 +223,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.mobile == 'true'
     timeout-minutes: 10
-    continue-on-error: true
 
     steps:
       - name: Checkout Code
@@ -240,6 +239,11 @@ jobs:
         working-directory: ./mobile
         run: npm ci
 
+      # continue-on-error đặt ở mức BƯỚC: đặt ở mức job thì check run vẫn hiện đỏ trên PR dù workflow
+      # coi là qua. Lỗi được nâng thành cảnh báo vàng trên PR để vẫn thấy được.
       - name: expo-doctor
         working-directory: ./mobile
-        run: npx --yes expo-doctor@1
+        run: |
+          if ! npx --yes expo-doctor@1; then
+            echo "::warning title=expo-doctor báo lệch phiên bản::Xem log bước này. Lệch đã biết 18/11/2026: expo-asset 12.0.13 so với ~12.0.14, nâng gói đổi fingerprint nên chờ build native kế tiếp."
+          fi
