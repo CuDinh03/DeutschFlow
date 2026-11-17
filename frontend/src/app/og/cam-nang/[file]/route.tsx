@@ -5,7 +5,7 @@ import { guideArticle } from '@/data/camNang'
 /**
  * `/og/cam-nang/<slug>.png` — ảnh chia sẻ riêng của một bài Cẩm nang (đợt 0, 18/11/2026). Chữ lớn đúng
  * bằng tên bài (cũng là `og:title`); dòng phụ là câu hỏi tiêu biểu ngắn nhất của bài, chép nguyên văn.
- * Chỉ tiếng Việt như trang Cẩm nang. Slug lạ hoặc bài nháp → 404.
+ * Chỉ tiếng Việt như trang Cẩm nang. Slug không có trong `GUIDE_ARTICLES` → 404.
  */
 export async function GET(_req: Request, { params }: { params: { file: string } }) {
   const slug = /^([a-z0-9]+(?:-[a-z0-9]+)*)\.png$/.exec(params.file)?.[1]

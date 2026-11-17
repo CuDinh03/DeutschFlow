@@ -221,7 +221,7 @@
         { "q": "Was passiert mit meinen Aufnahmen?", "a": "Aufnahmen werden in Text umgewandelt, damit sie bewertet und kommentiert werden können. Speicherdauer und Löschung stehen in der Datenschutzerklärung." },
         { "q": "Ist eine Probeprüfung ein Zertifikat?", "a": "Nein. Probeprüfungen simulieren das Format telc B1, stehen in keiner Verbindung zu telc und ersetzen kein Zertifikat." },
         { "q": "Ich lerne an einer Sprachschule. Können wir es gemeinsam nutzen?", "a": "Ja. Die Sprachschule legt Klassen an und gibt Aufgaben; Sie bearbeiten sie in der App, die Lehrkraft verfolgt und bewertet sie." },
-        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos, ohne Vorauszahlung, mit 7 Tagen Pro nach der Registrierung. Danach bleiben Lektionen und Vokabelwiederholung kostenlos. KI-Sprechtraining, Interviewtraining und KI-Korrektur brauchen Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App." }
+        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos, ohne Vorauszahlung, und testen nach der Registrierung 7 Tage kostenlos. Danach bleiben Lektionen und Vokabelwiederholung kostenlos. KI-Sprechtraining, Interviewtraining und KI-Korrektur brauchen Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App." }
       ]
     },
     "founder": {
@@ -410,7 +410,7 @@
         "faqLevelQ": "Welches Deutschniveau brauche ich für ein Vorstellungsgespräch als {name}?",
         "faqLevelA": "Das hängt von Beruf und Arbeitgeber ab. Viele Ausbildungsprogramme verlangen B1, manche B2; für Ärztinnen, Ärzte und Apotheker gelten meist höhere Anforderungen. Prüfen Sie die Anforderungen der Stelle.",
         "faqCostQ": "Kostet das Üben des Vorstellungsgesprächs als {name} etwas?",
-        "faqCostA": "Sie starten kostenlos und ohne Vorauszahlung, mit 7 Tagen Pro für das Interviewtraining mit der KI. Danach braucht das Interviewtraining Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App."
+        "faqCostA": "Sie starten kostenlos und ohne Vorauszahlung, und testen das Interviewtraining mit der KI 7 Tage kostenlos. Danach braucht das Interviewtraining Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App."
       }
     },
     "footer": {

@@ -43,7 +43,7 @@ describe('Cẩm nang', () => {
   })
 
   it('bài theo nghề không tranh cụm từ khoá của trang nghề (M7)', () => {
-    const fold = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase()
+    const fold = (t: string) => t.normalize('NFD').toLowerCase().replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
     for (const a of GUIDE_ARTICLES) {
       const t = fold(a.title)
       expect(t, a.slug).not.toMatch(/^phong van tieng duc (nghe|nganh)/)
