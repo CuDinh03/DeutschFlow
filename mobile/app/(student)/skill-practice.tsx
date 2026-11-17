@@ -181,6 +181,7 @@ function SkillPracticeRunner() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Screen
             scroll
+            keyboardInsets={false}
             edges={[]}
             contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}
           >
