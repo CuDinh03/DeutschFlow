@@ -93,7 +93,7 @@ export const MessageBubble = memo(function MessageBubble({
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}
             >
               <ThemedText variant="label" color="success">
-                ✍️ Nên nói
+                Nên nói
               </ThemedText>
               {fb?.grammarPoint ? <Pill label={fb.grammarPoint} tone="success" /> : null}
             </View>
@@ -130,7 +130,7 @@ export const MessageBubble = memo(function MessageBubble({
               }}
             >
               <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
-                💡 {s.germanText}
+                {s.germanText}
               </ThemedText>
               <ThemedText variant="label" color="info">
                 Dùng →

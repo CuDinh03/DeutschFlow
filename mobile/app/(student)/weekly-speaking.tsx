@@ -295,7 +295,7 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <ThemedText variant="label" color="success">
-              ✓ Đã nộp
+              Đã nộp
             </ThemedText>
             {score != null ? (
               <ThemedText variant="bodyStrong" color="success" style={{ marginLeft: 'auto' }}>

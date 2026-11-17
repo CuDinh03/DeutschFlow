@@ -33,10 +33,10 @@ export function PersonaStage({ personaId, stage, reaction }: PersonaStageProps) 
   const isTalking = stage === 'speaking' && !reaction
 
   const { label, color } =
-    reaction === 'praise' ? { label: 'Sehr gut! 🎉', color: c.success }
-      : reaction === 'approve' ? { label: 'Chính xác ✓', color: c.success }
-        : reaction === 'wrong' ? { label: 'Cùng sửa nhé ✍️', color: c.danger }
-          : reaction === 'offtopic' ? { label: 'Quay lại chủ đề nhé 🙂', color: c.info }
+    reaction === 'praise' ? { label: 'Sehr gut!', color: c.success }
+      : reaction === 'approve' ? { label: 'Chính xác', color: c.success }
+        : reaction === 'wrong' ? { label: 'Cùng sửa nhé', color: c.danger }
+          : reaction === 'offtopic' ? { label: 'Quay lại chủ đề nhé', color: c.info }
             : stage === 'listening' ? { label: 'Đang nghe…', color: c.danger }
               : stage === 'thinking' ? { label: 'Đang suy nghĩ…', color: c.textMuted }
                 : stage === 'speaking' ? { label: 'Đang nói…', color: c.accentText }

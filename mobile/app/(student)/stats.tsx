@@ -509,7 +509,11 @@ function AchievementBadge({ achievement, isNew }: { achievement: Achievement; is
           justifyContent: 'center',
         }}
       >
-        <ThemedText style={{ fontSize: 26 }}>{unlocked ? achievement.iconEmoji : '🔒'}</ThemedText>
+        {unlocked ? (
+          <ThemedText style={{ fontSize: 26 }}>{achievement.iconEmoji}</ThemedText>
+        ) : (
+          <GaGlyph name="khoa" size={26} ink="muted" />
+        )}
         {isNew ? (
           <View
             style={{

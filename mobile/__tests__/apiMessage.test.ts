@@ -91,3 +91,13 @@ describe('apiMessage', () => {
     expect(apiMessage('chuỗi trần')).toBe('Lỗi không xác định')
   })
 })
+
+describe('apiMessage — Error mang mã máy không ra giao diện', () => {
+  it.each(['no_uri', 'empty', 'no-recording'])('"%s" thành câu chung tiếng Việt', (code) => {
+    expect(apiMessage(new Error(code))).toBe('Đã có lỗi xảy ra, vui lòng thử lại.')
+  })
+
+  it('câu người đọc được vẫn giữ nguyên', () => {
+    expect(apiMessage(new Error('Không tải được bài nghe'))).toBe('Không tải được bài nghe')
+  })
+})

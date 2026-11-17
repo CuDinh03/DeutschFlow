@@ -14,7 +14,20 @@ export interface TeacherSummary {
   id: number
   displayName: string
   email: string
+  /** Mã vai trò trong lớp: PRIMARY (giáo viên chính), ASSISTANT (trợ giảng). Hiện ra qua teacherRoleLabel. */
   role: string
+}
+
+/** Tên vai trò giáo viên trong lớp cho người đọc; không bao giờ trả mã máy. */
+export function teacherRoleLabel(role: string | null | undefined): string {
+  switch ((role ?? '').toUpperCase()) {
+    case 'PRIMARY':
+      return 'Giáo viên chính'
+    case 'ASSISTANT':
+      return 'Trợ giảng'
+    default:
+      return 'Giáo viên'
+  }
 }
 
 export interface MyClassroom {
