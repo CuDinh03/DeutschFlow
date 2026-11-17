@@ -15,6 +15,8 @@ interface ScreenProps {
   contentStyle?: StyleProp<ViewStyle>
   refreshing?: boolean
   onRefresh?: () => void
+  /** iOS: ScrollView tự chừa chỗ cho bàn phím. Tắt ở màn đã tự bọc KeyboardAvoidingView. */
+  keyboardInsets?: boolean
 }
 
 export function Screen({
@@ -25,6 +27,7 @@ export function Screen({
   contentStyle,
   refreshing,
   onRefresh,
+  keyboardInsets = true,
 }: ScreenProps) {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
@@ -53,6 +56,9 @@ export function Screen({
         contentContainerStyle={[inset, pad, contentStyle]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        // iOS: tự chừa chỗ cho bàn phím để ô nhập cuối màn (ô Viết, ghi chú) không bị che.
+        // Màn nào đã tự bọc KeyboardAvoidingView thì tắt bằng keyboardInsets={false}.
+        automaticallyAdjustKeyboardInsets={keyboardInsets}
         refreshControl={
           onRefresh ? (
             <RefreshControl

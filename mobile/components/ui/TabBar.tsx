@@ -256,6 +256,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
           <GestureDetector gesture={swipeGesture}>
           <View
+            accessibilityRole="tabbar"
             style={{
               flex: 1,
               flexDirection: 'row',
@@ -352,7 +353,8 @@ function TabItem({ icon, label, focused, onPress, onLayout, spotlightId }: TabIt
       onPressOut={() => {
         press.value = withSpring(1, motion.spring.snappy)
       }}
-      accessibilityRole="button"
+      accessibilityRole="tab"
+      accessibilityLabel={label}
       accessibilityState={{ selected: focused }}
       style={{
         flex: 1,

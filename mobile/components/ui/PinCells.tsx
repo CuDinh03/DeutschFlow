@@ -81,6 +81,7 @@ export function PinCells({
         <TextInput
           testID={testID}
           accessibilityLabel={label}
+          accessibilityHint={error}
           value={value}
           onChangeText={(v) => onChange(v.replace(/\D/g, '').slice(0, length))}
           onFocus={() => setFocused(true)}

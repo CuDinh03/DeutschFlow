@@ -175,7 +175,7 @@ function NodePracticeRunner() {
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
+        <Screen scroll keyboardInsets={false} edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
           {result ? (
             result.completed ? (
               // Completion = the climactic moment: editorial ink hero (mirrors Home).

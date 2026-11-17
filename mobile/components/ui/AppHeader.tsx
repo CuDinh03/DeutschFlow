@@ -50,7 +50,7 @@ export function AppHeader({ title, subtitle, onBack, right }: AppHeaderProps) {
         </Pressable>
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
-        {title ? <ThemedText variant="titleLg">{title}</ThemedText> : null}
+        {title ? <ThemedText variant="titleLg" accessibilityRole="header">{title}</ThemedText> : null}
         {subtitle ? (
           <ThemedText variant="caption" color="muted">
             {subtitle}

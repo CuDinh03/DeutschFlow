@@ -260,6 +260,15 @@ export default function SrsScreen() {
           <Animated.View
             style={[frontStyle, cardFaceStyle(c)]}
             onTouchEnd={() => { void flipCard() }}
+            // VoiceOver không thấy phép xoay 3D: mặt đang úp phải ra khỏi cây trợ năng, kẻo đọc
+            // luôn nghĩa tiếng Việt trước khi lật.
+            accessible={!flipped}
+            accessibilityElementsHidden={flipped}
+            importantForAccessibility={flipped ? 'no-hide-descendants' : 'yes'}
+            accessibilityRole="button"
+            accessibilityLabel={`${currentCard.gender ? `${currentCard.gender} ` : ''}${currentCard.word}`}
+            accessibilityHint="Chạm hai lần để xem nghĩa"
+            onAccessibilityTap={() => { void flipCard() }}
           >
             <View style={cardEyebrowStyle}>
               <Caption color={c.textMuted}>Tiếng Đức</Caption>
@@ -290,6 +299,13 @@ export default function SrsScreen() {
           <Animated.View
             style={[backStyle, cardFaceStyle(c)]}
             onTouchEnd={() => { void flipCard() }}
+            accessible={flipped}
+            accessibilityElementsHidden={!flipped}
+            importantForAccessibility={flipped ? 'yes' : 'no-hide-descendants'}
+            accessibilityRole="button"
+            accessibilityLabel={currentCard.exampleSentence ? `${currentCard.translation}. Ví dụ: ${currentCard.exampleSentence}` : currentCard.translation}
+            accessibilityHint="Chạm hai lần để lật lại"
+            onAccessibilityTap={() => { void flipCard() }}
           >
             <View style={cardEyebrowStyle}>
               <Caption color={c.textMuted}>Nghĩa tiếng Việt</Caption>

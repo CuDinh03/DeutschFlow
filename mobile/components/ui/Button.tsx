@@ -110,6 +110,8 @@ export function Button({
   return (
     <AnimatedPressable
       accessibilityRole="button"
+      // Khi đang tải, vòng quay thay chỗ chữ: giữ tên nút cho VoiceOver.
+      accessibilityLabel={label}
       accessibilityState={{ disabled: isInactive, busy: loading }}
       onPress={handlePress}
       onPressIn={() => {

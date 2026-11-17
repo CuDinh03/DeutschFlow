@@ -30,6 +30,8 @@ export function ProgressBar({ value, height = 8, trackColor, fillColor, style }:
 
   return (
     <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(clamped * 100) }}
       style={[
         {
           height,
