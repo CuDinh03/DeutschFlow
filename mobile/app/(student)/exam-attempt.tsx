@@ -36,6 +36,14 @@ import { PARENT_OF } from '@/lib/screenParents'
 // scored on the web; the app covers the true/false + single-choice items so a
 // student can practise reading and get an instant score.
 export default function ExamAttemptScreen() {
+  // Màn sống trong Tabs nên KHÔNG unmount khi đổi tham số: mở sang attemptId khác vẫn là bản thể cũ,
+  // giữ nguyên state (nháp, câu trả lời, điểm, tệp đính kèm) của lần trước. Remount theo key
+  // giống mẫu ở skill-practice.tsx.
+  const { attemptId } = useLocalSearchParams<{ attemptId: string }>()
+  return <ExamAttemptRunner key={attemptId ?? 'none'} />
+}
+
+function ExamAttemptRunner() {
   const theme = useTheme()
   const c = theme.colors
   const params = useLocalSearchParams<{ examId: string; attemptId: string; title?: string; level?: string }>()
