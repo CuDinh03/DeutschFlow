@@ -105,6 +105,13 @@ jobs:
         working-directory: ./mobile
         run: npx tsc --noEmit
 
+      # SP-5 (QĐ-SP-7, 11/11/2026): rules-of-hooks là lỗi — hook gọi có điều kiện làm sập màn lúc chạy
+      # mà tsc và jest không bắt được. Cảnh báo (exhaustive-deps…) không chặn. Gọi thẳng npx, không qua
+      # script npm: mục `scripts` của package.json nằm trong runtime fingerprint.
+      - name: ESLint
+        working-directory: ./mobile
+        run: npx eslint .
+
       - name: Unit Tests
         working-directory: ./mobile
         run: npm test
@@ -123,16 +130,16 @@ jobs:
   # `runtimeVersion.policy = fingerprint` dùng lúc EAS build (trên main 89988670 ra đúng
   # dfba226a… = runtime build 17). ĐỪNG thay bằng `npx @expo/fingerprint .`: nó ra số khác vì
   # thiếu platform/option (bẫy đã ghi trong handoff mobile §3.1).
-  # Tuỳ chọn: đặt repo variable PROD_RUNTIME_FINGERPRINT = runtime của build đang phát hành → job
-  # nói thêm HEAD còn khớp build đó không (OTA tới được hay không).
-  # Informational (continue-on-error) — cảnh báo, không chặn merge và KHÔNG là required check.
+  # Repo variable PROD_RUNTIME_FINGERPRINT = runtime của build đang phát hành (owner đặt). SP-5
+  # (QĐ-SP-7, 11/11/2026) siết cổng: khi biến được đặt mà HEAD KHÁC nó thì job ĐỎ — PR đó cắt OTA
+  # tới bản đang bán, phải đi kèm kế hoạch build native mới. Biến chưa đặt thì job chỉ cảnh báo như
+  # trước. Job chưa là required check: muốn chặn merge thật thì owner thêm nó vào branch protection.
   fingerprint-guard:
     name: 🫆 Fingerprint (cảnh báo đổi runtime)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.mobile == 'true'
     timeout-minutes: 15
-    continue-on-error: true
 
     steps:
       - name: Checkout Code
@@ -198,7 +205,41 @@ jobs:
           if (prod) {
             const ok = prod === head.hash;
             summary.push('', ok ? `✅ HEAD khớp runtime đang phát hành (\`${prod.slice(0, 8)}\`) — OTA từ nhánh này tới được build đó.` : `⚠️ HEAD KHÁC runtime đang phát hành \`${prod.slice(0, 8)}\` — OTA từ nhánh này KHÔNG tới build đó.`);
-            if (!ok) console.log(`::warning title=Lệch runtime đang phát hành::HEAD ${head.hash.slice(0, 8)} ≠ PROD_RUNTIME_FINGERPRINT ${prod.slice(0, 8)}`);
+            if (!ok) console.log(`::error title=Lệch runtime đang phát hành::HEAD ${head.hash.slice(0, 8)} ≠ PROD_RUNTIME_FINGERPRINT ${prod.slice(0, 8)} — OTA từ nhánh này không tới bản đang bán.`);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
+            if (!ok) process.exit(1);
+            return;
           }
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
           JS
+
+  # SP-5: expo-doctor soát lệch phiên bản giữa các gói và Expo SDK. CHỈ CẢNH BÁO: ngày thêm
+  # (18/11/2026) nó báo expo-asset 12.0.13 so với ~12.0.14 mong đợi; nâng gói đó đổi fingerprint,
+  # tức là phải chờ bản build native kế tiếp. Sau bản build đó bỏ continue-on-error để thành cổng.
+  # Node 22 vì expo-doctor bản mới đòi node ≥ 22.13.
+  expo-doctor:
+    name: 🩺 Expo doctor (cảnh báo)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: expo-doctor
+        working-directory: ./mobile
+        run: npx --yes expo-doctor@1
