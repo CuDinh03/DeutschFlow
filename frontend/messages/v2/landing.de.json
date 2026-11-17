@@ -18,7 +18,7 @@
       "sub": {
         "interview": "12 Interviewer · Feedback nach jeder Antwort",
         "exam": "Probeprüfung telc B1 · A2–B2 Prüfungsratgeber",
-        "pricing": "7 Tage Pro gratis · Klare Tarife",
+        "pricing": "7 Tage kostenlos testen · Klare Tarife",
         "guide": "Interview-Ratgeber & Musterbriefe",
         "centers": "Sprech-/Schreibaufgaben · KI-Vorbewertung",
         "training": "60 Ausbildungsberufe & offizielle Quellen",
@@ -56,7 +56,7 @@
     },
     "plansBand": {
       "cap": "Klare Tarife",
-      "title": "7 Tage Pro zum Start, keine Vorauszahlung",
+      "title": "7 Tage kostenlos testen, keine Vorauszahlung",
       "sub": "Nach 7 Tagen wechselt Ihr Konto automatisch in den kostenlosen Tarif. Ein Upgrade ist jederzeit in der iPhone-App möglich.",
       "detailLink": "Alle Tarife im Detail vergleichen"
     },
@@ -221,7 +221,7 @@
         { "q": "Was passiert mit meinen Aufnahmen?", "a": "Aufnahmen werden in Text umgewandelt, damit sie bewertet und kommentiert werden können. Speicherdauer und Löschung stehen in der Datenschutzerklärung." },
         { "q": "Ist eine Probeprüfung ein Zertifikat?", "a": "Nein. Probeprüfungen simulieren das Format telc B1, stehen in keiner Verbindung zu telc und ersetzen kein Zertifikat." },
         { "q": "Ich lerne an einer Sprachschule. Können wir es gemeinsam nutzen?", "a": "Ja. Die Sprachschule legt Klassen an und gibt Aufgaben; Sie bearbeiten sie in der App, die Lehrkraft verfolgt und bewertet sie." },
-        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos, ohne Vorauszahlung, mit 7 Tagen Pro nach der Registrierung. Danach bleiben Lektionen und Vokabelwiederholung kostenlos. KI-Sprechtraining, Interviewtraining und KI-Korrektur brauchen Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App." }
+        { "q": "Kostet das etwas?", "a": "Sie starten kostenlos, ohne Vorauszahlung, und testen nach der Registrierung 7 Tage kostenlos. Danach bleiben Lektionen und Vokabelwiederholung kostenlos. KI-Sprechtraining, Interviewtraining und KI-Korrektur brauchen Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App." }
       ]
     },
     "founder": {
@@ -384,8 +384,8 @@
           "title": "{nameDe}: Fragen im Vorstellungsgespräch | myDeutschFlow",
           "titleShort": "{nameDe}: Fragen im Vorstellungsgespräch",
           "titleMin": "{nameDe}",
-          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe} und wichtige Fachbegriffe. Antworten mit einem KI-Interviewer üben, 7 Tage Pro gratis.",
-          "descriptionShort": "Fragen im Vorstellungsgespräch als {nameDe}. Antworten mit einem KI-Interviewer üben, 7 Tage Pro gratis."
+          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe} und wichtige Fachbegriffe. Antworten mit einem KI-Interviewer üben, 7 Tage kostenlos testen.",
+          "descriptionShort": "Fragen im Vorstellungsgespräch als {nameDe}. Antworten mit einem KI-Interviewer üben, 7 Tage kostenlos testen."
         },
         "back": "Alle Berufe",
         "title": "Vorstellungsgespräch: {nameDe}",
@@ -399,7 +399,7 @@
         "termsGuide": "Die Fachbegriffe dieses Berufs stehen im Ratgeber <link>„{title}“</link>.",
         "labelsNote": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Der „allgemeine Fragenkatalog“ gilt für alle Berufe, mit Ihrer Berufsbezeichnung.",
         "cta": "Dieses Gespräch üben",
-        "ctaNote": "Kostenlos testen: 7 Tage Pro, ohne Vorauszahlung. Danach braucht das Interviewtraining Pro.",
+        "ctaNote": "7 Tage kostenlos testen, ohne Vorauszahlung. Danach braucht das Interviewtraining Pro.",
         "relatedCap": "Verwandte Berufe",
         "guideLink": "Ratgeber: {title}",
         "examLink": "Zur Prüfung {name}",
@@ -410,7 +410,7 @@
         "faqLevelQ": "Welches Deutschniveau brauche ich für ein Vorstellungsgespräch als {name}?",
         "faqLevelA": "Das hängt von Beruf und Arbeitgeber ab. Viele Ausbildungsprogramme verlangen B1, manche B2; für Ärztinnen, Ärzte und Apotheker gelten meist höhere Anforderungen. Prüfen Sie die Anforderungen der Stelle.",
         "faqCostQ": "Kostet das Üben des Vorstellungsgesprächs als {name} etwas?",
-        "faqCostA": "Sie starten kostenlos und ohne Vorauszahlung, mit 7 Tagen Pro für das Interviewtraining mit der KI. Danach braucht das Interviewtraining Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App."
+        "faqCostA": "Sie starten ohne Vorauszahlung und testen das Interviewtraining mit der KI 7 Tage kostenlos. Danach braucht das Interviewtraining Pro: 249.000₫ für 1 Monat oder 399.000₫ für 2 Monate, in der iPhone-App."
       }
     },
     "footer": {

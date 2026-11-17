@@ -18,7 +18,7 @@
       "sub": {
         "interview": "12 người phỏng vấn · Sửa lỗi sau từng câu",
         "exam": "Thi thử telc B1 online · Cẩm nang A2–B2",
-        "pricing": "7 ngày Pro thử miễn phí · Gói 2 tháng 399k",
+        "pricing": "Dùng thử 7 ngày · Gói 2 tháng 399k",
         "guide": "Kinh nghiệm phỏng vấn & đề viết mẫu",
         "centers": "Giao bài nói, viết · AI chấm nháp cho lớp",
         "training": "Tra cứu 60 nghề & nguồn chính thống tại Đức",
@@ -56,7 +56,7 @@
     },
     "plansBand": {
       "cap": "Gói học minh bạch",
-      "title": "Bắt đầu với 7 ngày Pro, không cần thanh toán trước",
+      "title": "Dùng thử 7 ngày, không cần thanh toán trước",
       "sub": "Hết 7 ngày dùng thử, tài khoản tự về gói Miễn phí. Muốn tiếp tục luyện nói và thi thử với AI, bạn nâng cấp trong app iPhone.",
       "detailLink": "Xem bảng so sánh đầy đủ các gói"
     },
@@ -221,7 +221,7 @@
         { "q": "Ghi âm của tôi được xử lý thế nào?", "a": "Bản ghi âm được chuyển thành chữ để chấm và nhận xét. Thời gian lưu và cách yêu cầu xoá được ghi trong Chính sách bảo mật." },
         { "q": "Thi thử có phải chứng chỉ không?", "a": "Không. Thi thử mô phỏng cấu trúc đề telc B1, không liên kết với telc và không thay cho chứng chỉ." },
         { "q": "Tôi đang học ở trung tâm, dùng chung được không?", "a": "Được. Trung tâm tạo lớp và giao bài; bạn làm trên ứng dụng, giáo viên theo dõi và chấm." },
-        { "q": "Có mất phí không?", "a": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro khi đăng ký. Hết 7 ngày, bạn vẫn học bài và ôn từ vựng miễn phí. Luyện nói, phỏng vấn và chấm bài bằng AI cần gói Pro: 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)." }
+        { "q": "Có mất phí không?", "a": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và được dùng thử 7 ngày khi đăng ký. Hết 7 ngày, bạn vẫn học bài và ôn từ vựng miễn phí. Luyện nói, phỏng vấn và chấm bài bằng AI cần gói Pro: 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone. Chi tiết ở trang Chi phí (mydeutschflow.com/chi-phi/)." }
       ]
     },
     "founder": {
@@ -384,8 +384,8 @@
           "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe}) | myDeutschFlow",
           "titleShort": "Phỏng vấn tiếng Đức nghề {name}",
           "titleMin": "Phỏng vấn nghề {name}",
-          "description": "Câu hỏi phỏng vấn tiếng Đức nghề {name} ({nameDe}) và từ chuyên môn nên biết. Luyện trả lời với AI, học thử 7 ngày Pro.",
-          "descriptionShort": "Câu hỏi phỏng vấn tiếng Đức nghề {name} và từ chuyên môn nên biết. Luyện trả lời với AI, học thử 7 ngày Pro."
+          "description": "Câu hỏi phỏng vấn tiếng Đức nghề {name} ({nameDe}) và từ chuyên môn nên biết. Luyện trả lời với AI, dùng thử 7 ngày.",
+          "descriptionShort": "Câu hỏi phỏng vấn tiếng Đức nghề {name} và từ chuyên môn nên biết. Luyện trả lời với AI, dùng thử 7 ngày."
         },
         "back": "Tất cả nghề",
         "title": "Phỏng vấn tiếng Đức nghề {name} ({nameDe})",
@@ -399,7 +399,7 @@
         "termsGuide": "Từ vựng của nghề này có trong bài cẩm nang <link>“{title}”</link>.",
         "labelsNote": "Câu “Đã duyệt” đã được người kiểm tra. Câu “AI tạo” do AI soạn riêng cho nghề này, đang chờ duyệt. “Bộ câu hỏi chung” dùng cho mọi nghề, chỉ thay tên nghề cho khớp với bạn.",
         "cta": "Luyện phỏng vấn nghề này",
-        "ctaNote": "Học thử miễn phí: 7 ngày Pro, không cần thanh toán trước. Sau đó luyện phỏng vấn cần gói Pro.",
+        "ctaNote": "Dùng thử 7 ngày, không cần thanh toán trước. Sau đó luyện phỏng vấn cần gói Pro.",
         "relatedCap": "Nghề liên quan",
         "guideLink": "Đọc cẩm nang “{title}”",
         "examLink": "Tìm hiểu kỳ thi {name}",
@@ -410,7 +410,7 @@
         "faqLevelQ": "Cần trình độ tiếng Đức nào để phỏng vấn nghề {name}?",
         "faqLevelA": "Tuỳ nghề và nơi tuyển. Nhiều chương trình học nghề yêu cầu từ B1, có nơi yêu cầu B2; bác sĩ, dược sĩ thường cần trình độ cao hơn. Hãy kiểm tra yêu cầu của nơi bạn ứng tuyển.",
         "faqCostQ": "Luyện phỏng vấn nghề {name} có mất phí không?",
-        "faqCostA": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và có 7 ngày Pro để luyện phỏng vấn với AI. Sau đó cần gói Pro, 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone. Cách nâng cấp khi dùng Android có ở trang Chi phí (mydeutschflow.com/chi-phi/)."
+        "faqCostA": "Bạn bắt đầu miễn phí, không cần thanh toán trước, và được dùng thử 7 ngày luyện phỏng vấn với AI. Sau đó cần gói Pro, 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone. Cách nâng cấp khi dùng Android có ở trang Chi phí (mydeutschflow.com/chi-phi/)."
       }
     },
     "footer": {

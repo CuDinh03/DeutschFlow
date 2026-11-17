@@ -80,7 +80,7 @@ export default async function GradeReportPage({ params }: { params: { token: str
               <Link href="/free-grade/">Chấm bài của bạn miễn phí</Link>
             </GaBtn>
             <GaBtn asChild variant="ghost" size="lg">
-              <Link href={START_HREF}>Học thử 7 ngày Pro</Link>
+              <Link href={START_HREF}>Dùng thử 7 ngày</Link>
             </GaBtn>
           </div>
         </div>

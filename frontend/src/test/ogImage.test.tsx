@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { OG_SIZE, occupationOgImage, ogImage } from '@/lib/ogImage'
+import { OG_SIZE, guideOgImage, occupationOgImage, ogImage, shortHash } from '@/lib/ogImage'
 import { HomeCard, OG_FONT_FILES, OccupationCard, pickOgQuestion } from '@/lib/og/ogCards'
 import type { OccupationDetail } from '@/lib/occupationTypes'
 
@@ -16,6 +16,17 @@ describe('ogImage', () => {
     expect([img.width, img.height]).toEqual([1200, 630])
     expect(OG_SIZE).toEqual({ width: 1200, height: 630 })
     expect(occupationOgImage('koch', 'vi', 'alt').url).toMatch(/^\/og\/nghe\/koch\.png\?l=vi&v=\d+$/)
+  })
+})
+
+describe('guideOgImage (Cẩm nang, 18/11/2026)', () => {
+  it('ảnh riêng theo slug; phiên bản đổi khi tên bài đổi', () => {
+    const img = guideOgImage('phong-van-tieng-duc-nghe-bep', 'Cách trả lời')
+    expect(img.url).toMatch(/^\/og\/cam-nang\/phong-van-tieng-duc-nghe-bep\.png\?v=[0-9a-f]{8}$/)
+    expect([img.width, img.height]).toEqual([1200, 630])
+    expect(img.alt).toBe('Cách trả lời')
+    expect(shortHash('a')).not.toBe(shortHash('b'))
+    expect(shortHash('Cách trả lời')).toBe(shortHash('Cách trả lời'))
   })
 })
 

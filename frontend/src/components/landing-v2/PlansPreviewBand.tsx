@@ -14,7 +14,7 @@ import { APP_STORE_URL, START_HREF } from './links'
  * - Đọc trực tiếp nguồn đơn nhất `PLANS` từ `@/data/chiPhiPage` (0 lệch số liệu với `/chi-phi/`).
  * - Ở màn điện thoại 390px: cuộn ngang `mob-snap-rail` và đưa gói chính `Pro 2 tháng · 399.000₫`
  *   lên đầu băng (`-order-1 md:order-none`) để người học thấy ngay lựa chọn tối ưu mà trang không bị dài.
- * - Ở bản EN/DE (trang `/chi-phi/` hiện chỉ tiếng Việt): hiển thị thẻ tóm tắt dùng thử 7 ngày Pro minh bạch.
+ * - Ở bản EN/DE (trang `/chi-phi/` hiện chỉ tiếng Việt): hiển thị thẻ tóm tắt dùng thử 7 ngày minh bạch.
  */
 export function PlansPreviewBand({
   onStartClick,

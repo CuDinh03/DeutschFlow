@@ -14,10 +14,10 @@
 export const PATH = '/chi-phi/'
 export const TITLE = 'Chi phí myDeutschFlow: gói Miễn phí, Pro và Tăng tốc'
 export const DESCRIPTION =
-  'Pro 249.000₫ một tháng, 399.000₫ hai tháng; Tăng tốc 599.000₫ hai tháng. Mua trong app iPhone. Học viên mới có 7 ngày Pro, không cần thanh toán trước.'
+  'Pro 249.000₫ một tháng, 399.000₫ hai tháng; Tăng tốc 599.000₫ hai tháng. Mua trong app iPhone. Học viên mới được dùng thử 7 ngày, không cần thanh toán trước.'
 export const H1 = 'Chi phí myDeutschFlow'
 export const INTRO =
-  'Bạn bắt đầu miễn phí, không cần thanh toán trước, và học viên mới có ngay 7 ngày Pro để dùng thử mọi phần luyện AI. Gói Pro giá 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone và tự gia hạn.'
+  'Bạn bắt đầu miễn phí, không cần thanh toán trước, và học viên mới được dùng thử 7 ngày mọi phần luyện AI. Gói Pro giá 249.000₫ một tháng hoặc 399.000₫ cho 2 tháng, mua trong app iPhone và tự gia hạn.'
 
 export type PlanCta = 'start' | 'appStore'
 
@@ -54,7 +54,7 @@ export const PLANS: readonly PricePlan[] = [
     features: [
       'Bài học từ vựng và ngữ pháp A1–B1',
       'Ôn từ vựng mỗi ngày, nhắc lại đúng lúc sắp quên',
-      '7 ngày Pro khi đăng ký: luyện nói, phỏng vấn theo nghề, thi thử telc B1',
+      'Dùng thử 7 ngày khi đăng ký: luyện nói, phỏng vấn theo nghề, thi thử telc B1',
       'Chấm thử một bài viết tiếng Đức ở trang Chấm thử miễn phí',
     ],
     limit:
@@ -107,7 +107,7 @@ export const ANDROID_NOTE = {
 } as const
 
 export const WHICH_PLAN: readonly { who: string; plan: string }[] = [
-  { who: 'Mới học A1, muốn xem cách học trước', plan: 'Gói Miễn phí và 7 ngày Pro, chưa cần mua gì.' },
+  { who: 'Mới học A1, muốn xem cách học trước', plan: 'Gói Miễn phí và 7 ngày dùng thử, chưa cần mua gì.' },
   { who: 'Có buổi phỏng vấn hoặc kỳ thi telc B1 trong khoảng 8 tuần tới', plan: 'Pro 2 tháng.' },
   { who: 'Chỉ cần một tháng, hoặc muốn trả từng tháng', plan: 'Pro tháng.' },
   { who: 'Ngày nào cũng luyện nói trên 5 phiên', plan: 'Tăng tốc 2 tháng.' },
@@ -148,7 +148,7 @@ export const SCHOOL = {
 export const FAQS: readonly { q: string; a: string }[] = [
   {
     q: 'Dùng thử có phải thanh toán trước không?',
-    a: 'Không. Học viên mới có 7 ngày Pro ngay khi đăng ký, không cần thanh toán trước. Hết 7 ngày, tài khoản tự về gói Miễn phí và không bị trừ tiền.',
+    a: 'Không. Học viên mới được dùng thử 7 ngày ngay khi đăng ký, không cần thanh toán trước. Hết 7 ngày, tài khoản tự về gói Miễn phí và không bị trừ tiền.',
   },
   {
     q: 'Hết 7 ngày dùng thử thì còn dùng được gì?',

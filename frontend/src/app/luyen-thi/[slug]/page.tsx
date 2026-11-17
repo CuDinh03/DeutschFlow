@@ -119,7 +119,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
               </GaBtn>
             </div>
             <p className="mt-3 text-ga-small text-ga-muted">
-              Học viên mới có 7 ngày Pro, gồm thi thử telc B1 đủ 4 kỹ năng. Không cần thanh toán trước.
+              Dùng thử 7 ngày khi đăng ký, gồm thi thử telc B1 đủ 4 kỹ năng. Không cần thanh toán trước.
             </p>
             <p className="mt-5 rounded-ga-md border-l-4 border-ga-yellow bg-ga-card px-4 py-3 text-ga-small text-ga-ink shadow-ga-sm">
               Đề thi thử mô phỏng định dạng telc B1, không liên kết với telc và không thay cho chứng chỉ. Phần chấm Nói đang Beta, điểm chỉ để tham khảo.

@@ -24,6 +24,11 @@ describe('robots.txt — bot AI', () => {
     }
   })
 
+  it('Google-Extended không bị chặn — owner chốt 18/11/2026 để Gemini trích dẫn được', () => {
+    expect(AI_TRAINING_BOTS as readonly string[]).not.toContain('Google-Extended')
+    expect(ruleFor('Google-Extended')).toBeUndefined()
+  })
+
   it('không bot nào vừa ở nhóm tìm kiếm vừa ở nhóm huấn luyện', () => {
     const both = AI_SEARCH_BOTS.filter((b) => (AI_TRAINING_BOTS as readonly string[]).includes(b))
     expect(both).toEqual([])

@@ -22,8 +22,13 @@ export interface GuideArticle {
   description: string
   h1: string
   lead: string
-  /** YYYY-MM-DD */
+  /** YYYY-MM-DD — ngày đăng lần đầu, không đổi. */
   published: string
+  /**
+   * YYYY-MM-DD — ngày sửa NỘI DUNG thật (thêm/bớt mục, đổi dữ kiện, nguồn, câu tiếng Đức). Chỉ đổi
+   * title/meta hay sửa chính tả thì giữ nguyên. Thiếu thì bằng `published` (xem `guideUpdated`).
+   */
+  updated?: string
   /** Mã nghề để dẫn sang trang nghề và mở buổi luyện đúng nghề. */
   occupationCode: string
   occupationNameDe: string
@@ -43,13 +48,16 @@ export interface GuideArticle {
 export const GUIDE_ARTICLES: GuideArticle[] = [
   {
     slug: 'phong-van-tieng-duc-nghe-bep',
-    title: 'Phỏng vấn tiếng Đức nghề bếp: câu hỏi và cách trả lời',
+    // Đợt 0 (18/11/2026): tách khỏi cụm "phỏng vấn tiếng Đức nghề bếp" mà trang nghề `/phong-van/koch/`
+    // giữ — bài Cẩm nang giữ "cách trả lời + mẫu câu + từ vựng". Slug giữ nguyên (đã đăng).
+    title: 'Cách trả lời phỏng vấn tiếng Đức nghề bếp',
     description:
-      'Ba câu hỏi phỏng vấn tiếng Đức nghề bếp (Koch/Köchin), cách trả lời, từ vựng trong bếp và lỗi ngữ pháp hay gặp. Luyện thử với AI, không cần thanh toán trước.',
-    h1: 'Phỏng vấn tiếng Đức nghề bếp: câu hỏi, từ vựng và cách trả lời',
+      'Cách trả lời phỏng vấn tiếng Đức nghề bếp (Koch/Köchin): câu hỏi tiêu biểu, mẫu câu, từ vựng trong bếp và lỗi hay gặp. Luyện nói thử với người phỏng vấn AI.',
+    h1: 'Trả lời phỏng vấn tiếng Đức nghề bếp: mẫu câu, từ vựng và lỗi hay gặp',
     lead:
       'Dành cho người chuẩn bị phỏng vấn vị trí Koch/Köchin (đầu bếp) ở Đức, dù đi theo diện học nghề (Ausbildung) hay đã có kinh nghiệm. Ba câu hỏi dưới đây lấy nguyên văn từ bộ câu hỏi nghề bếp mà người phỏng vấn trên myDeutschFlow dùng.',
     published: '2026-11-08',
+    updated: '2026-11-18',
     occupationCode: 'koch',
     occupationNameDe: 'Koch/Köchin',
     crumb: 'Nghề bếp',
@@ -122,11 +130,11 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
     faqs: [
       {
         q: 'Phỏng vấn nghề bếp ở Đức cần trình độ tiếng Đức nào?',
-        a: 'Tuỳ chương trình và nhà tuyển dụng. Nhiều chương trình học nghề yêu cầu từ B1, có nơi yêu cầu B2. Hãy kiểm tra yêu cầu của nơi bạn ứng tuyển.',
+        a: 'Tuỳ chương trình học nghề và tuỳ nhà tuyển dụng, mỗi nơi đặt yêu cầu riêng. Hãy đọc kỹ thông báo tuyển hoặc hỏi trực tiếp nơi bạn ứng tuyển.',
       },
       {
         q: 'Luyện phỏng vấn nghề bếp trên myDeutschFlow có mất phí không?',
-        a: 'Học viên mới có 7 ngày Pro để luyện phỏng vấn với AI, không cần thanh toán trước và không tự trừ tiền. Hết 7 ngày, muốn luyện tiếp với AI thì cần gói Pro (xem trang Chi phí).',
+        a: 'Bạn được dùng thử 7 ngày khi đăng ký, không cần thanh toán trước và không tự trừ tiền. Sau đó, muốn luyện tiếp với AI thì cần gói Pro (xem trang Chi phí).',
       },
       {
         q: 'Sau buổi luyện tôi nhận được gì?',
@@ -136,13 +144,19 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   },
 ]
 
+/** Ngày sửa nội dung thật của bài — dùng cho `dateModified`, dòng "Cập nhật" và `lastmod` sitemap. */
+export function guideUpdated(a: Pick<GuideArticle, 'published' | 'updated'>): string {
+  return a.updated ?? a.published
+}
+
 export function guideArticle(slug: string): GuideArticle | undefined {
   return GUIDE_ARTICLES.find((a) => a.slug === slug)
 }
 
 /**
  * Tiêu đề thẻ `<title>` của một bài: tên bài + thương hiệu, cùng kiểu với trang mục lục `/cam-nang/`. Quá 60
- * ký tự thì bỏ đuôi thương hiệu (giống trang nghề).
+ * ký tự thì bỏ đuôi thương hiệu (giống trang nghề) — chỉ là lưới an toàn: luật bài viết (đặc tả SEO 18/11)
+ * bắt tên bài ≤ 44 ký tự để không bao giờ rơi vào nhánh này (test `camNang.test.ts`).
  */
 export function guideDocumentTitle(title: string): string {
   const full = `${title} · myDeutschFlow`

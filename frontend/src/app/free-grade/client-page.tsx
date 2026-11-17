@@ -272,7 +272,7 @@ export default function FreeGradeClientPage() {
 
 /** Câu dưới kết quả chấm thử — câu cố định theo sổ lời hứa. */
 export const RESULT_NOTE =
-  'Đây là bản chấm thử bằng AI, điểm để tham khảo. Muốn luyện đủ 4 phần thi telc B1, bạn học thử 7 ngày Pro, không cần thanh toán trước.'
+  'Đây là bản chấm thử bằng AI, điểm để tham khảo. Muốn luyện đủ 4 phần thi telc B1, bạn dùng thử 7 ngày, không cần thanh toán trước.'
 
 function ResultCard({ result }: { result: FreeGradeResult }) {
   return (
