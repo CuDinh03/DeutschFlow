@@ -7,6 +7,7 @@ import { router } from 'expo-router'
 import { runCleanupBestEffort } from './bestEffort'
 import { isMaintenanceError, maintenanceInfoFromProblem } from './maintenance'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
+import { queryClient } from './queryClient'
 
 /**
  * Refresh hỏng: đây có phải phiên bị TỪ CHỐI DỨT KHOÁT không, hay chỉ là trục
@@ -187,13 +188,15 @@ let refreshPromise: Promise<RefreshResult> | null = null
  * rơi vào catch ngoài và đăng xuất… tức là ĐÚNG hành vi trước bản vá, không tệ hơn;
  * còn mọi ca transient thật (server chưa nhận request) thì lần 2 cứu được phiên.
  */
+export const REFRESH_PATH = '/auth/refresh'
+
 async function postRefreshWithOneRetry(refreshToken: string) {
   try {
-    return await api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+    return await api.post<RefreshResponseData>(REFRESH_PATH, { refreshToken })
   } catch (err) {
     if (!isTransientFailure(err)) throw err
     await new Promise((resolve) => setTimeout(resolve, 900))
-    return api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+    return api.post<RefreshResponseData>(REFRESH_PATH, { refreshToken })
   }
 }
 
@@ -239,7 +242,10 @@ api.interceptors.response.use(
     reportApiFailure(error)
 
     const original = error.config as typeof error.config & { _retry?: boolean }
-    if (error.response?.status !== 401 || original?._retry) {
+    // Chính lệnh làm mới phiên bị 401 (tài khoản bị khoá/xoá trong lúc access token còn hạn) thì
+    // KHÔNG đi tiếp vào nhánh refresh: refreshPromise lúc đó là chính lệnh này, chờ nó là tự chờ
+    // mình, cả đăng xuất lẫn mở app đều treo. Trả lỗi về để nhánh catch bên dưới kết thúc phiên.
+    if (error.response?.status !== 401 || original?._retry || original?.url === REFRESH_PATH) {
       return Promise.reject(error)
     }
     original._retry = true
@@ -287,6 +293,10 @@ api.interceptors.response.use(
       // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
       const { useAuthStore } = require('@/stores/useAuthStore') as typeof import('@/stores/useAuthStore')
       useAuthStore.getState().setUser(null)
+      // Cache react-query không gắn userId (['dashboard'], ['conversations']…): không xoá thì người
+      // đăng nhập kế tiếp trên máy này thấy dữ liệu của người trước cho tới khi refetch xong. Xoá
+      // SAU setUser(null) để màn đang mở không refetch bằng token vừa xoá.
+      queryClient.clear()
       // Đây là đường kết thúc phiên PHỔ BIẾN HƠN nút "Đăng xuất" (người dùng bỏ
       // app lâu hơn tuổi thọ refresh token), và nó không đi qua useAuthStore.logout()
       // — nên phải tự dọn trạng thái per-thiết bị, kẻo người đã rời đi vẫn bị nhắc

@@ -7,6 +7,7 @@ const clearDailyGoalMinutes = jest.fn().mockResolvedValue(undefined)
 const clearOnboardingDraft = jest.fn().mockResolvedValue(undefined)
 const clearGuestSessionCache = jest.fn().mockResolvedValue(undefined)
 const disableStudyReminder = jest.fn().mockResolvedValue(undefined)
+const clearDeliveredNotifications = jest.fn().mockResolvedValue(undefined)
 const chatOutboxClear = jest.fn()
 const srsOfflineClear = jest.fn()
 const clearActiveSession = jest.fn().mockResolvedValue(undefined)
@@ -37,19 +38,20 @@ jest.mock('@/lib/onboardingDraft', () => ({
 }))
 jest.mock('@/lib/studyReminder', () => ({
   disableStudyReminder: (...a: unknown[]) => disableStudyReminder(...a),
+  clearDeliveredNotifications: (...a: unknown[]) => clearDeliveredNotifications(...a),
 }))
 
 import { clearDeviceSessionState } from '@/lib/deviceSessionState'
 
 beforeEach(() => {
   jest.clearAllMocks()
-  for (const m of [tourReset, starterReset, clearDailyGoalMinutes, clearOnboardingDraft, clearGuestSessionCache, disableStudyReminder, clearActiveSession]) {
+  for (const m of [tourReset, starterReset, clearDailyGoalMinutes, clearOnboardingDraft, clearGuestSessionCache, disableStudyReminder, clearDeliveredNotifications, clearActiveSession]) {
     m.mockResolvedValue(undefined)
   }
 })
 
 describe('clearDeviceSessionState', () => {
-  test('dọn đủ tám thứ bám theo thiết bị', () => {
+  test('dọn đủ mọi thứ bám theo thiết bị', () => {
     // Danh sách này là hợp đồng: thêm một thứ lưu per-thiết bị mà quên thêm vào
     // đây là mở lại đúng lỗ rò giữa hai tài khoản trên cùng máy.
     // 3 mục mới (soát 02/09): outbox chat (F-23 — lộ nguyên văn tin nhắn),
@@ -61,6 +63,7 @@ describe('clearDeviceSessionState', () => {
       expect(clearOnboardingDraft).toHaveBeenCalledTimes(1)
       expect(clearGuestSessionCache).toHaveBeenCalledTimes(1)
       expect(disableStudyReminder).toHaveBeenCalledTimes(1)
+      expect(clearDeliveredNotifications).toHaveBeenCalledTimes(1)
       expect(chatOutboxClear).toHaveBeenCalledTimes(1)
       expect(srsOfflineClear).toHaveBeenCalledTimes(1)
       expect(clearActiveSession).toHaveBeenCalledTimes(1)

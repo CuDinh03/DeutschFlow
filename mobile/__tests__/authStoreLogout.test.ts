@@ -9,6 +9,11 @@
 const clearDeviceSessionState = jest.fn().mockResolvedValue(undefined)
 const clearTokens = jest.fn().mockResolvedValue(undefined)
 const resetAnalytics = jest.fn()
+const queryClear = jest.fn()
+
+jest.mock('@/lib/queryClient', () => ({
+  queryClient: { clear: (...a: unknown[]) => queryClear(...a) },
+}))
 
 jest.mock('@/lib/api', () => ({
   __esModule: true,
@@ -51,6 +56,8 @@ describe('useAuthStore.logout', () => {
     expect(useAuthStore.getState().isLoggedIn).toBe(false)
     expect(useAuthStore.getState().user).toBeNull()
     expect(resetAnalytics).toHaveBeenCalledTimes(1)
+    // Cache máy chủ của tài khoản vừa rời đi không được sống sang người đăng nhập sau.
+    expect(queryClear).toHaveBeenCalledTimes(1)
   })
 
   test('dọn dẹp hỏng cũng KHÔNG được treo phiên đăng xuất', async () => {

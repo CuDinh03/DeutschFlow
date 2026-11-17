@@ -78,3 +78,16 @@ export async function disableStudyReminder(): Promise<void> {
     // best-effort. (logout() còn bọc thêm một lớp Promise.allSettled nữa.)
   }
 }
+
+/**
+ * Gỡ các thông báo đã hiện trong Trung tâm thông báo và số trên biểu tượng app khi kết thúc phiên:
+ * nội dung (tin nhắn giáo viên, bài tập) là của tài khoản vừa rời máy. Không bao giờ throw.
+ */
+export async function clearDeliveredNotifications(): Promise<void> {
+  try {
+    await Notifications.dismissAllNotificationsAsync()
+    await Notifications.setBadgeCountAsync(0)
+  } catch {
+    // Cùng lý do với disableStudyReminder: bước dọn best-effort không được làm hỏng đăng xuất.
+  }
+}
