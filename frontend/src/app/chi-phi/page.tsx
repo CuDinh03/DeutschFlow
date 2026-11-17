@@ -251,7 +251,7 @@ export default function ChiPhiPage() {
               Tải trên App Store<span className="sr-only"> (mở trong thẻ mới)</span>
             </a>
           </div>
-          <p className="mt-3 text-ga-small text-ga-subtle">Không cần thanh toán trước · 7 ngày Pro · App iPhone; Android dùng bản web</p>
+          <p className="mt-3 text-ga-small text-ga-subtle">Không cần thanh toán trước · Dùng thử 7 ngày · App iPhone; Android dùng bản web</p>
         </div>
 
         <p className="mt-8 text-ga-small text-ga-muted">

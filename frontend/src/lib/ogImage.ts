@@ -21,3 +21,19 @@ export function ogImage(page: OgPage, locale: PublicLocale, alt: string) {
 export function occupationOgImage(code: string, locale: PublicLocale, alt: string) {
   return { url: `/og/nghe/${code}.png?l=${locale}&v=${OG_VERSION}`, ...OG_SIZE, alt, type: 'image/png' }
 }
+
+/**
+ * Ảnh chia sẻ riêng của một bài Cẩm nang (đợt 0, 18/11/2026) — trước đây bài mượn ảnh trang nghề nên ảnh
+ * không khớp tiêu đề bài. `v` lấy từ tiêu đề: đổi tên bài thì URL đổi, Facebook/Zalo lấy ảnh mới; đổi bài
+ * khác không làm mới ảnh của mọi trang như `OG_VERSION`.
+ */
+export function guideOgImage(slug: string, title: string) {
+  return { url: `/og/cam-nang/${slug}.png?v=${shortHash(title)}`, ...OG_SIZE, alt: title, type: 'image/png' }
+}
+
+/** Băm djb2 rút gọn 8 ký tự hex — chỉ để đổi URL khi chuỗi đổi, không dùng cho bảo mật. */
+export function shortHash(text: string): string {
+  let h = 5381
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0
+  return h.toString(16).padStart(8, '0')
+}

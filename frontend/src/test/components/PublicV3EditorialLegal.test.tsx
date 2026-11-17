@@ -38,7 +38,7 @@ describe('Public v3.4 — Cẩm nang & Pháp lý (PR 4)', () => {
     render(<GuideIndexCatalog articles={GUIDE_ARTICLES} />)
     expect(screen.getByRole('button', { name: /Tất cả/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText(/3 câu hỏi đã duyệt/)).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Phỏng vấn tiếng Đức nghề bếp/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Cách trả lời phỏng vấn tiếng Đức nghề bếp/ })).toHaveAttribute(
       'href',
       '/cam-nang/phong-van-tieng-duc-nghe-bep/',
     )

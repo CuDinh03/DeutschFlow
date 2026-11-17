@@ -119,7 +119,7 @@ export default function WhatIsPage() {
           <div className="mt-6 rounded-ga-lg border border-ga-yellow bg-ga-yellow-soft p-4 sm:p-5">
             <p className="text-ga-eyebrow uppercase text-ga-ink">Tóm tắt trong 30 giây</p>
             <p className="mt-1.5 text-ga-body text-ga-ink">
-              <strong>myDeutschFlow</strong> là nền tảng luyện phỏng vấn xin việc bằng tiếng Đức theo từng nghề kết hợp lộ trình A1–B1 và thi thử telc B1, dùng chung một tài khoản trên web (mydeutschflow.com) và ứng dụng iPhone. Học viên mới có 7 ngày Pro khi đăng ký, không cần thanh toán trước.
+              <strong>myDeutschFlow</strong> là nền tảng luyện phỏng vấn xin việc bằng tiếng Đức theo từng nghề kết hợp lộ trình A1–B1 và thi thử telc B1, dùng chung một tài khoản trên web (mydeutschflow.com) và ứng dụng iPhone. Học viên mới được dùng thử 7 ngày khi đăng ký, không cần thanh toán trước.
             </p>
           </div>
         </header>
@@ -304,7 +304,7 @@ export default function WhatIsPage() {
 
         <h2 className={H2}>Chi phí và thiết bị</h2>
         <p className={P}>
-          Bắt đầu miễn phí, không cần thanh toán trước, có 7 ngày Pro khi đăng ký; chi tiết các gói ở trang <Link href="/chi-phi/" className={A}>Chi phí</Link>. Dùng trên trình duyệt web (máy tính và điện thoại) và ứng dụng iPhone (iOS 15.1 trở lên); máy Android dùng bản web. Trang web có giao diện tiếng Việt, tiếng Anh và tiếng Đức.
+          Bắt đầu miễn phí, không cần thanh toán trước, dùng thử 7 ngày khi đăng ký; chi tiết các gói ở trang <Link href="/chi-phi/" className={A}>Chi phí</Link>. Dùng trên trình duyệt web (máy tính và điện thoại) và ứng dụng iPhone (iOS 15.1 trở lên); máy Android dùng bản web. Trang web có giao diện tiếng Việt, tiếng Anh và tiếng Đức.
         </p>
 
         <h2 className={H2}>Câu hỏi thường gặp</h2>

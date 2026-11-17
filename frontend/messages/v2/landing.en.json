@@ -56,7 +56,7 @@
     },
     "plansBand": {
       "cap": "Transparent plans",
-      "title": "Start with 7 days of Pro, no upfront payment",
+      "title": "Start with a 7-day free trial, no upfront payment",
       "sub": "After 7 days your account returns to Free automatically. Upgrade in the iPhone app whenever you want to keep practising with AI.",
       "detailLink": "Compare plans in detail"
     },
@@ -221,7 +221,7 @@
         { "q": "What happens to my recordings?", "a": "Recordings are turned into text so they can be scored and reviewed. How long they are kept and how to ask for deletion is described in the Privacy Policy." },
         { "q": "Is a mock exam a certificate?", "a": "No. Mock exams simulate the telc B1 format, are not affiliated with telc and do not replace a certificate." },
         { "q": "I study at a language school. Can we use it together?", "a": "Yes. The school creates classes and assigns work; you do it in the app and your teacher follows and grades it." },
-        { "q": "Does it cost anything?", "a": "You start for free with no upfront payment and get 7 days of Pro when you sign up. After that, lessons and vocabulary review stay free. AI speaking, interview practice and AI grading need Pro: 249,000₫ for 1 month or 399,000₫ for 2 months, bought in the iPhone app." }
+        { "q": "Does it cost anything?", "a": "You start for free with no upfront payment and get a 7-day trial when you sign up. After that, lessons and vocabulary review stay free. AI speaking, interview practice and AI grading need Pro: 249,000₫ for 1 month or 399,000₫ for 2 months, bought in the iPhone app." }
       ]
     },
     "founder": {
@@ -384,8 +384,8 @@
           "title": "{nameDe} interview questions in German | myDeutschFlow",
           "titleShort": "{name}: German job interview questions",
           "titleMin": "{name} job interview in German",
-          "description": "German job interview questions and key terms for {nameDe}. Practise your answers with an AI interviewer, with 7 days of Pro free.",
-          "descriptionShort": "{name}: German job interview questions and key terms. Practise your answers with an AI interviewer, with 7 days of Pro free."
+          "description": "German job interview questions and key terms for {nameDe}. Practise your answers with an AI interviewer, with a 7-day free trial.",
+          "descriptionShort": "{name}: German job interview questions and key terms. Practise your answers with an AI interviewer, with a 7-day free trial."
         },
         "back": "All occupations",
         "title": "Job interview: {nameDe}",
@@ -399,7 +399,7 @@
         "termsGuide": "The key terms for this job are in the guide <link>“{title}”</link>.",
         "labelsNote": "“Reviewed” questions have been checked by a person. “AI-generated” questions were written by AI for this job and are awaiting review. The “general question set” is used for every job, with your job title.",
         "cta": "Practise this interview",
-        "ctaNote": "Try it free: 7 days of Pro, no upfront payment. After that, interview practice needs Pro.",
+        "ctaNote": "Try it free for 7 days, no upfront payment. After that, interview practice needs Pro.",
         "relatedCap": "Related jobs",
         "guideLink": "Guide: {title}",
         "examLink": "About the {name} exam",
@@ -410,7 +410,7 @@
         "faqLevelQ": "What level of German do I need for a {name} interview?",
         "faqLevelA": "It depends on the job and the employer. Many vocational training programmes ask for B1, some for B2; doctors and pharmacists usually need a higher level. Check the requirements of the place you are applying to.",
         "faqCostQ": "Does practising the {name} interview cost anything?",
-        "faqCostA": "You start for free, with no upfront payment, and get 7 days of Pro to practise interviews with the AI. After that, interview practice needs Pro: 249,000₫ for 1 month or 399,000₫ for 2 months, bought in the iPhone app."
+        "faqCostA": "You start for free, with no upfront payment, and get a 7-day trial to practise interviews with the AI. After that, interview practice needs Pro: 249,000₫ for 1 month or 399,000₫ for 2 months, bought in the iPhone app."
       }
     },
     "footer": {

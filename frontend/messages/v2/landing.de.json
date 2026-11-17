@@ -18,7 +18,7 @@
       "sub": {
         "interview": "12 Interviewer · Feedback nach jeder Antwort",
         "exam": "Probeprüfung telc B1 · A2–B2 Prüfungsratgeber",
-        "pricing": "7 Tage Pro gratis · Klare Tarife",
+        "pricing": "7 Tage kostenlos testen · Klare Tarife",
         "guide": "Interview-Ratgeber & Musterbriefe",
         "centers": "Sprech-/Schreibaufgaben · KI-Vorbewertung",
         "training": "60 Ausbildungsberufe & offizielle Quellen",
@@ -56,7 +56,7 @@
     },
     "plansBand": {
       "cap": "Klare Tarife",
-      "title": "7 Tage Pro zum Start, keine Vorauszahlung",
+      "title": "7 Tage kostenlos testen, keine Vorauszahlung",
       "sub": "Nach 7 Tagen wechselt Ihr Konto automatisch in den kostenlosen Tarif. Ein Upgrade ist jederzeit in der iPhone-App möglich.",
       "detailLink": "Alle Tarife im Detail vergleichen"
     },
@@ -384,8 +384,8 @@
           "title": "{nameDe}: Fragen im Vorstellungsgespräch | myDeutschFlow",
           "titleShort": "{nameDe}: Fragen im Vorstellungsgespräch",
           "titleMin": "{nameDe}",
-          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe} und wichtige Fachbegriffe. Antworten mit einem KI-Interviewer üben, 7 Tage Pro gratis.",
-          "descriptionShort": "Fragen im Vorstellungsgespräch als {nameDe}. Antworten mit einem KI-Interviewer üben, 7 Tage Pro gratis."
+          "description": "Typische Fragen im Vorstellungsgespräch als {nameDe} und wichtige Fachbegriffe. Antworten mit einem KI-Interviewer üben, 7 Tage kostenlos testen.",
+          "descriptionShort": "Fragen im Vorstellungsgespräch als {nameDe}. Antworten mit einem KI-Interviewer üben, 7 Tage kostenlos testen."
         },
         "back": "Alle Berufe",
         "title": "Vorstellungsgespräch: {nameDe}",
@@ -399,7 +399,7 @@
         "termsGuide": "Die Fachbegriffe dieses Berufs stehen im Ratgeber <link>„{title}“</link>.",
         "labelsNote": "„Geprüft“ heißt: von einem Menschen kontrolliert. „KI-erstellt“ heißt: von der KI für diesen Beruf formuliert, Prüfung ausstehend. Der „allgemeine Fragenkatalog“ gilt für alle Berufe, mit Ihrer Berufsbezeichnung.",
         "cta": "Dieses Gespräch üben",
-        "ctaNote": "Kostenlos testen: 7 Tage Pro, ohne Vorauszahlung. Danach braucht das Interviewtraining Pro.",
+        "ctaNote": "7 Tage kostenlos testen, ohne Vorauszahlung. Danach braucht das Interviewtraining Pro.",
         "relatedCap": "Verwandte Berufe",
         "guideLink": "Ratgeber: {title}",
         "examLink": "Zur Prüfung {name}",

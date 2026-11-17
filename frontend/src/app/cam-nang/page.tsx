@@ -68,7 +68,7 @@ export default function GuideIndexPage() {
             Xem câu hỏi mẫu theo từng nghề và vào nói thử ngay
           </h2>
           <p className="mt-2 max-w-[620px] text-ga-body text-ga-muted">
-            Danh mục nghề trên myDeutschFlow có câu hỏi mẫu tiếng Đức kèm bản dịch tiếng Việt cho từng vị trí làm việc tại Đức. Học viên mới có 7 ngày Pro khi đăng ký, không cần thanh toán trước.
+            Danh mục nghề trên myDeutschFlow có câu hỏi mẫu tiếng Đức kèm bản dịch tiếng Việt cho từng vị trí làm việc tại Đức. Dùng thử 7 ngày khi đăng ký, không cần thanh toán trước.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">

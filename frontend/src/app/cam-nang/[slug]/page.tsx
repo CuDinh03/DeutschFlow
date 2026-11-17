@@ -4,9 +4,9 @@ import { breadcrumbStructuredData } from '@/lib/homeStructuredData'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
-import { GUIDE_ARTICLES, guideArticle, guideDocumentTitle } from '@/data/camNang'
+import { GUIDE_ARTICLES, guideArticle, guideDocumentTitle, guideUpdated } from '@/data/camNang'
 import { absoluteUrl } from '@/lib/siteUrl'
-import { occupationOgImage } from '@/lib/ogImage'
+import { guideOgImage } from '@/lib/ogImage'
 import { GaBtn } from '@/components/ui-v2/GaBtn'
 import { PublicShell } from '@/components/landing-v2/PublicShell'
 import { PersonaPortrait } from '@/components/landing-v2/PersonaPortrait'
@@ -39,7 +39,9 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
       locale: 'vi_VN',
       url,
       siteName: 'myDeutschFlow',
-      images: [occupationOgImage(a.occupationCode, 'vi', a.title)],
+      publishedTime: a.published,
+      modifiedTime: guideUpdated(a),
+      images: [guideOgImage(a.slug, a.title)],
     },
   }
 }
@@ -51,6 +53,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
   if (!a) notFound()
   const url = absoluteUrl(`/cam-nang/${a.slug}/`)
   const startHref = `${START_HREF}/?occupation=${encodeURIComponent(a.occupationCode)}`
+  const updated = guideUpdated(a)
 
   const tocItems = [
     { href: '#cau-hoi', label: `Ba câu hỏi với ${a.interviewer}` },
@@ -69,9 +72,9 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
         description: a.description,
         inLanguage: 'vi-VN',
         datePublished: a.published,
-        dateModified: a.published,
+        dateModified: updated,
         mainEntityOfPage: url,
-        image: absoluteUrl(occupationOgImage(a.occupationCode, 'vi', a.title).url),
+        image: absoluteUrl(guideOgImage(a.slug, a.title).url),
         author: { '@type': 'Organization', name: 'myDeutschFlow', url: absoluteUrl('/') },
         publisher: {
           '@type': 'Organization',
@@ -83,7 +86,8 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
         ...breadcrumbStructuredData([
           ['Trang chủ', '/'],
           ['Cẩm nang', '/cam-nang/'],
-          [a.h1, `/cam-nang/${a.slug}/`],
+          // Khớp breadcrumb hiển thị (`a.crumb`), không dùng H1.
+          [a.crumb, `/cam-nang/${a.slug}/`],
         ]),
         '@context': undefined,
       },
@@ -135,7 +139,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
             <p className="mt-4 text-ga-m-lead text-ga-muted">{a.lead}</p>
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-ga-border pt-4 text-ga-small text-ga-muted">
               <span>
-                Cập nhật <time dateTime={a.published}>{a.published.split('-').reverse().join('/')}</time> · Người phỏng vấn:{' '}
+                Cập nhật <time dateTime={updated}>{updated.split('-').reverse().join('/')}</time> · Người phỏng vấn:{' '}
                 <strong className="font-semibold text-ga-ink">{a.interviewer}</strong>
               </span>
               <Link
@@ -318,7 +322,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
               Trả lời {a.interviewer} bằng giọng nói
             </p>
             <p className="mt-2 text-ga-small text-ga-muted">
-              7 ngày Pro khi đăng ký, không cần thanh toán trước.
+              Dùng thử 7 ngày, không cần thanh toán trước.
             </p>
             <GaBtn asChild variant="ink" size="md" className="mt-4 w-full">
               <Link href={startHref}>Mở buổi luyện {a.crumb}</Link>

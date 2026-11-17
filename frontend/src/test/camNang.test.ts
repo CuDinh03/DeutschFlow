@@ -3,7 +3,7 @@
  * không được bịa câu "AI sẽ hỏi". Bộ câu hỏi chép từ ngân hàng ở `interviewSamples` (đã có test đối chiếu Java).
  */
 import { describe, expect, it } from 'vitest'
-import { GUIDE_ARTICLES, guideArticle, guideDocumentTitle } from '@/data/camNang'
+import { GUIDE_ARTICLES, guideArticle, guideDocumentTitle, guideUpdated } from '@/data/camNang'
 import { INTERVIEW_SAMPLES, COMMON_INTRO_QUESTION, fillPosition } from '@/data/interviewSamples'
 
 describe('Cẩm nang', () => {
@@ -33,5 +33,40 @@ describe('Cẩm nang', () => {
 
   it('lời mở bài không khẳng định buổi luyện chỉ có ba chủ đề cố định', () => {
     for (const a of GUIDE_ARTICLES) expect(a.intro).not.toMatch(/câu hỏi xoay quanh/)
+  })
+
+  it('tên bài ≤ 44 ký tự để title luôn giữ đuôi thương hiệu (đặc tả SEO 18/11, M2)', () => {
+    for (const a of GUIDE_ARTICLES) {
+      expect(a.title.length, a.slug).toBeLessThanOrEqual(44)
+      expect(guideDocumentTitle(a.title)).toBe(`${a.title} · myDeutschFlow`)
+    }
+  })
+
+  it('bài theo nghề không tranh cụm từ khoá của trang nghề (M7)', () => {
+    const fold = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase()
+    for (const a of GUIDE_ARTICLES) {
+      const t = fold(a.title)
+      expect(t, a.slug).not.toMatch(/^phong van tieng duc (nghe|nganh)/)
+      expect(t, a.slug).not.toContain('cau hoi')
+      expect(t, a.slug).toMatch(/tra loi|mau cau|tu vung/)
+      expect(a.title, a.slug).not.toBe(a.h1)
+    }
+  })
+
+  it('ngày cập nhật hợp lệ và không trước ngày đăng', () => {
+    for (const a of GUIDE_ARTICLES) {
+      const u = guideUpdated(a)
+      expect(u).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(u >= a.published, a.slug).toBe(true)
+    }
+    expect(guideUpdated({ published: '2026-01-02' })).toBe('2026-01-02')
+  })
+
+  it('không nêu yêu cầu trình độ hay câu "7 ngày Pro" khi chưa có nguồn/chưa đúng sản phẩm', () => {
+    for (const a of GUIDE_ARTICLES) {
+      const text = JSON.stringify(a)
+      expect(text, a.slug).not.toMatch(/7 ngày Pro/)
+      expect(text, a.slug).not.toMatch(/yêu cầu (từ )?B[12]/)
+    }
   })
 })
