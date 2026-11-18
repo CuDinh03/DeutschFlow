@@ -171,9 +171,9 @@ describe('examHub — phần riêng của app', () => {
     expect(checkedCount(undefined)).toBe(0)
   })
 
-  it('đường thi nói: telc, cấp theo lịch, luyện riêng Teil khi có teil', () => {
-    expect(oralRoute(null)).toEqual({ pathname: '/(student)/speaking-exam', params: { provider: 'TELC', level: 'B1', mode: 'MOCK' } })
-    expect(oralRoute({ level: 'B2' }, 2).params).toEqual({ provider: 'TELC', level: 'B2', mode: 'DRILL', teil: '2' })
+  it('đường thi nói: sảnh telc theo cấp của lịch, mặc định B1', () => {
+    expect(oralRoute(null)).toEqual({ pathname: '/(student)/speaking-exam', params: { provider: 'TELC', level: 'B1' } })
+    expect(oralRoute({ level: 'B2' }).params).toEqual({ provider: 'TELC', level: 'B2' })
   })
 
   it('chữ thẻ Hôm nay theo loại buổi, có nút khi có màn để mở', () => {

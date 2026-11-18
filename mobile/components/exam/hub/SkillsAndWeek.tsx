@@ -36,6 +36,9 @@ export function dayGlyph(d: Pick<ExamPlanDay, 'kind' | 'section'>): GlyphName {
       return 't_cafe'
     case 'EXAM_DAY':
       return 'muctieu'
+    default:
+      // Máy chủ thêm loại buổi mới mà bản app này chưa biết: vẫn vẽ được, không sập tab.
+      return 'lich'
   }
 }
 
@@ -134,7 +137,7 @@ function askSwap(day: ExamPlanDay, days: ExamPlanDay[], onSwap: (from: string, t
 }
 
 /** Bảy buổi của tuần này; hôm nay viền đậm; buổi chưa làm chạm để đổi chỗ. */
-export function WeekRail({ days, onSwap }: { days: ExamPlanDay[]; onSwap: (from: string, to: string) => void }) {
+export function WeekRail({ days, onSwap, disabled = false }: { days: ExamPlanDay[]; onSwap: (from: string, to: string) => void; disabled?: boolean }) {
   const c = useTheme().colors
   return (
     <ScrollView
@@ -153,7 +156,7 @@ export function WeekRail({ days, onSwap }: { days: ExamPlanDay[]; onSwap: (from:
             accessibilityRole={d.movable ? 'button' : undefined}
             accessibilityLabel={`${weekdayShort(d.date)}, ${dayLabel(d)}, ${status}`}
             accessibilityHint={d.movable ? 'Chạm để đổi chỗ với buổi khác' : undefined}
-            disabled={!d.movable}
+            disabled={!d.movable || disabled}
             onPress={() => askSwap(d, days, onSwap)}
             style={({ pressed }) => ({
               width: 88,

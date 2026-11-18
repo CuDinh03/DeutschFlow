@@ -6,7 +6,7 @@
 // Thay màn thi thử cũ (chọn cấp A1–B2, đề Goethe, khoá PRO): luyện đề telc mở theo quyền
 // `/mock-exams/practice/access` như web; thi thử trọn đề mở từ màn Đề.
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Alert, View } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { useFocusEffect } from 'expo-router'
@@ -25,24 +25,30 @@ export default function ExamScreen() {
   const tabClearance = useTabBarClearance()
   const c = useTheme().colors
   const queryClient = useQueryClient()
-  const { data, derived, isLoading, isError, refetch } = useExamHub()
+  const { data, derived, isLoading, isError, refetch, dataUpdatedAt } = useExamHub()
   const pull = usePullRefresh(async () => {
     await refetch()
   })
 
-  // Tab không unmount: quay về từ một Teil/đề phải thấy điểm mới.
+  // Tab không unmount. Kiểm tra một Teil đã làm mới dữ liệu này; vào lại tab chỉ tải lại khi đã cũ
+  // hơn 1 phút (mỗi lần tải là gói đề + tổng quan từng đề).
   useFocusEffect(
     useCallback(() => {
-      void refetch()
-    }, [refetch]),
+      if (Date.now() - dataUpdatedAt > 60_000) void refetch()
+    }, [refetch, dataUpdatedAt]),
   )
 
   const level = data?.plan?.level ?? 'B1'
 
+  // Một lần đổi một lúc: lần sau chờ lần trước xong (rollback không xoá nhầm lần đổi mới hơn).
+  const [swapping, setSwapping] = useState(false)
   const onSwap = async (from: string, to: string) => {
     const plan = data?.plan
     const week = derived?.week
-    if (!plan || !week) return
+    if (!plan || !week || swapping) return
+    setSwapping(true)
+    // Lượt tải lại đang bay có thể trả lịch cũ đè lên bản vừa đổi.
+    await queryClient.cancelQueries({ queryKey: EXAM_HUB_QUERY_KEY })
     const setPlan = (p: ExamPlan) => queryClient.setQueryData<ExamHubData>(EXAM_HUB_QUERY_KEY, (old) => (old ? { ...old, plan: p } : old))
     setPlan(swapLocally(plan, from, to))
     try {
@@ -50,6 +56,8 @@ export default function ExamScreen() {
     } catch (e) {
       setPlan(plan)
       Alert.alert('Chưa đổi được buổi', apiMessage(e) || 'Thử lại sau ít phút.')
+    } finally {
+      setSwapping(false)
     }
   }
 
@@ -85,7 +93,7 @@ export default function ExamScreen() {
       ) : !data.access ? (
         <EmptyState glyph="khoa" title="Luyện đề chưa mở" message="Luyện đề telc chưa mở cho tài khoản này. Liên hệ trung tâm hoặc thử lại sau." />
       ) : (
-        <HubBody data={data} derived={derived} onSwap={onSwap} />
+        <HubBody data={data} derived={derived} onSwap={onSwap} swapping={swapping} />
       )}
     </Screen>
   )
@@ -95,10 +103,12 @@ function HubBody({
   data,
   derived,
   onSwap,
+  swapping,
 }: {
   data: ExamHubData
   derived: NonNullable<ReturnType<typeof useExamHub>['derived']>
   onSwap: (from: string, to: string) => void
+  swapping: boolean
 }) {
   const { plan, diagnostic, overviews, rows, attempts, locked } = data
   const newcomer = isNewcomer(data)
@@ -107,7 +117,7 @@ function HubBody({
   const current = [...overviews].sort((a, b) => checkedCount(b) - checkedCount(a))[0]
   const week = derived.week
   const routeFor = (s: Skill): ExamRoute | null =>
-    s.id === 'SPRECHEN' ? oralRoute(plan, s.weakest?.teil ?? null) : s.weakest ? teilRouteFor(s.weakest.key, overviews) : null
+    s.id === 'SPRECHEN' ? oralRoute(plan) : s.weakest ? teilRouteFor(s.weakest.key, overviews) : null
 
   return (
     <>
@@ -134,7 +144,7 @@ function HubBody({
             actionLabel="Lịch theo tuần"
             onAction={() => go(examPlanRoute)}
           />
-          <WeekRail days={week.days} onSwap={onSwap} />
+          <WeekRail days={week.days} onSwap={onSwap} disabled={swapping} />
         </View>
       ) : null}
 

@@ -4,7 +4,7 @@
 // màn thi thử (`ExamTeilBody`). `mode=diag`: một phần của bài chẩn đoán — không làm lại, không thẻ
 // chiến thuật, kiểm tra xong về màn bài chẩn đoán.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AppState, View } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
@@ -15,7 +15,8 @@ import { ObjGroupView, WritingTaskView } from '@/components/exam/ExamTeilBody'
 import { WritingResultCard } from '@/components/exam/WritingResultCard'
 import type { HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { parseExamSections } from '@/lib/examApi'
-import { checkPracticeTeil, getPracticeOverview, gradePracticeWriting, resetPracticeTeil, type PracticeTeilResult, type WritingEvaluation } from '@/lib/telcPracticeApi'
+import { checkPracticeTeil, getPracticeOverview, gradePracticeWriting, resetPracticeTeil, type PracticeOverview, type PracticeProgress, type PracticeTeilResult, type WritingEvaluation } from '@/lib/telcPracticeApi'
+import { stopExamTts } from '@/lib/examTts'
 import { answeredCount, formatClock, locateTeil, nextTeilKey, objectiveResult, practiceOverviewKey, scoreSummary, teilTitle, WRITING_TEXT_KEY, writingResult } from '@/lib/practiceTeil'
 import { asHref, diagnosticRoute, examSetRoute, teilRoute } from '@/lib/examRoutes'
 import { EXAM_HUB_QUERY_KEY } from '@/hooks/useExamHub'
@@ -34,10 +35,12 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   const queryClient = useQueryClient()
   const goBack = useBackTo(() => asHref(diag ? diagnosticRoute : examSetRoute(examId)))
 
-  const { data: overview, isLoading, isError, refetch } = useQuery({
+  // Luôn tải lại khi mở: nạp tiến độ từ bản mới nhất của máy chủ, không từ bộ nhớ đệm cũ.
+  const { data: overview, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: practiceOverviewKey(examId),
     queryFn: () => getPracticeOverview(examId),
     enabled: Number.isFinite(examId),
+    refetchOnMount: 'always',
   })
   const parsed = useMemo(() => (overview?.sectionsJson ? parseExamSections(overview.sectionsJson) : null), [overview?.sectionsJson])
   const located = useMemo(() => locateTeil(parsed, teilKey), [parsed, teilKey])
@@ -51,29 +54,58 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const checked = !!result || !!evaluation
-  const draft = usePracticeDraft(examId, teilKey, !checked)
+  const isWriting = teilKey.startsWith('SCHREIBEN')
+  const latest = useRef({ answers, seconds })
+  latest.current = { answers, seconds }
+  // Lưu nháp xong thì ghi tiến độ vào bộ nhớ đệm: mở lại Teil (hoặc màn Đề) thấy ngay bản mới.
+  const onSaved = useCallback(
+    (progress: PracticeProgress) =>
+      queryClient.setQueryData<PracticeOverview>(practiceOverviewKey(examId), (old) =>
+        old ? { ...old, teile: old.teile.map((t) => (t.key === teilKey ? { ...t, progress } : t)) } : old,
+      ),
+    [queryClient, examId, teilKey],
+  )
+  const draft = usePracticeDraft({ examId, teilKey, enabled: loaded && !checked, latest, onSaved })
 
-  // Nạp tiến độ đã lưu một lần (nháp, đồng hồ, kết quả đã kiểm tra).
+  // Nạp tiến độ đã lưu một lần, SAU lượt tải lại lúc mở (nháp, đồng hồ, kết quả đã kiểm tra).
+  // Kết quả là trắc nghiệm hay phiếu chấm Viết quyết định theo phần thi, không đoán theo hình dạng.
   useEffect(() => {
-    if (!meta || loaded) return
+    if (!meta || loaded || isFetching) return
     const p = meta.progress
-    setAnswers(p?.answers ?? {})
-    setSeconds(p?.elapsedSeconds ?? 0)
+    const a = p?.answers ?? {}
+    const sec = p?.elapsedSeconds ?? 0
+    setAnswers(a)
+    setSeconds(sec)
+    latest.current = { answers: a, seconds: sec }
+    draft.baseline()
     if (p?.checked) {
-      setResult(objectiveResult(p.result))
-      setEvaluation(writingResult(p.result))
+      if (isWriting) setEvaluation(writingResult(p.result))
+      else setResult(objectiveResult(p.result))
     }
     setLoaded(true)
-  }, [meta, loaded])
+  }, [meta, loaded, isFetching, isWriting, draft])
 
   // Đồng hồ đếm lên mỗi giây khi màn đang mở, app đang dùng và chưa kiểm tra. Không bao giờ tự nộp.
   const [focused, setFocused] = useState(true)
+  const focusedRef = useRef(true)
   useFocusEffect(
     useCallback(() => {
       setFocused(true)
-      return () => setFocused(false)
-    }, []),
+      focusedRef.current = true
+      return () => {
+        setFocused(false)
+        focusedRef.current = false
+        // Rời màn thì thôi đọc Ansage / phát bài nghe; cổng nghe chưa mở thì làm lại từ đầu khi quay lại.
+        stopExamTts()
+        setPhase((ph) => (ph === 'ready' ? ph : 'idle'))
+        void draft.flush()
+      }
+    }, [draft]),
   )
+  /** Chế độ chẩn đoán xong một phần thì về màn bài chẩn đoán — chỉ khi học viên còn ở màn này. */
+  const backToDiagnostic = () => {
+    if (focusedRef.current) router.replace(asHref(diagnosticRoute))
+  }
   const [active, setActive] = useState(AppState.currentState === 'active')
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => setActive(s === 'active'))
@@ -89,7 +121,8 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
     if (checked) return
     const next = { ...answers, [id]: value }
     setAnswers(next)
-    draft.schedule(next, seconds)
+    latest.current = { answers: next, seconds }
+    draft.schedule()
   }
 
   const refreshAfterCheck = () => {
@@ -106,7 +139,7 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
       setResult(objectiveResult(p.result))
       captureEvent('practice_teil_checked', { teil: teilKey, score: p.score ?? null, max: p.max ?? null, diag })
       refreshAfterCheck()
-      if (diag) router.replace(asHref(diagnosticRoute))
+      if (diag) backToDiagnostic()
     } catch (e) {
       Alert.alert('Chưa kiểm tra được', apiMessage(e) || 'Thử lại sau ít phút.')
     } finally {
@@ -137,7 +170,7 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
       setEvaluation(ev)
       captureEvent('practice_writing_graded', { total: ev.total, max: ev.max, diag })
       refreshAfterCheck()
-      if (diag) router.replace(asHref(diagnosticRoute))
+      if (diag) backToDiagnostic()
     } catch (e) {
       Alert.alert('Chưa chấm được bài viết', apiMessage(e) || (e instanceof Error ? e.message : 'Thử lại sau ít phút.'))
     } finally {
@@ -233,6 +266,7 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
               level={overview?.level}
               value={answers[WRITING_TEXT_KEY] ?? ''}
               onChange={(text) => setAnswer(WRITING_TEXT_KEY, text)}
+              editable={!busy}
               hideStrategy={diag}
             />
           )}

@@ -64,14 +64,14 @@ export function scoreSummary(score: number | null | undefined, max: number | nul
   return { score, max, pct, passed: pct >= PASS_PCT, label: STATUS_LABEL[statusOf(pct)] }
 }
 
-/** Kết quả trắc nghiệm của tiến độ (bỏ phiếu chấm Viết). */
+/** Kết quả trắc nghiệm của tiến độ một Teil không phải Schreiben (thiếu `items` ⇒ null). */
 export function objectiveResult(result: PracticeTeilResult | WritingEvaluation | null | undefined): PracticeTeilResult | null {
-  return result && 'items' in result && Array.isArray(result.items) ? (result as PracticeTeilResult) : null
+  return result && typeof result === 'object' && Array.isArray((result as PracticeTeilResult).items) ? (result as PracticeTeilResult) : null
 }
 
-/** Phiếu chấm Viết của tiến độ, nếu có. */
+/** Phiếu chấm của Teil Schreiben. Phần thi quyết định loại kết quả, không đoán theo hình dạng. */
 export function writingResult(result: PracticeTeilResult | WritingEvaluation | null | undefined): WritingEvaluation | null {
-  return result && !('items' in result) && typeof (result as WritingEvaluation).total === 'number' ? (result as WritingEvaluation) : null
+  return result && typeof result === 'object' && typeof (result as WritingEvaluation).total === 'number' ? (result as WritingEvaluation) : null
 }
 
 /** Trạng thái một Teil ở màn Đề: mới, đang làm (n câu / số từ), đã kiểm tra (điểm). */

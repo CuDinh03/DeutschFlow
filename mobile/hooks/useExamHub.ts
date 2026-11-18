@@ -65,6 +65,9 @@ async function loadExamHub(): Promise<ExamHubData> {
     overviews = ovs.filter((o): o is PracticeOverview => !!o)
     mockTeile = scores
   }
+  // App chỉ luyện telc (owner chốt 18/11): lịch ôn của kỳ thi khác (tạo trên web) không hiện ở đây,
+  // kẻo gắn nhãn telc và mở nhầm đề telc trùng khoá Teil.
+  const telcPlan = plan && plan.provider && plan.provider.toUpperCase() !== 'TELC' ? null : plan
   return {
     access,
     rows,
@@ -72,8 +75,8 @@ async function loadExamHub(): Promise<ExamHubData> {
     attempts,
     overviews,
     mockTeile,
-    plan,
-    oral: latestOral(orals, 'TELC', plan?.level ?? 'B1'),
+    plan: telcPlan,
+    oral: latestOral(orals, 'TELC', telcPlan?.level ?? 'B1'),
     diagnostic,
   }
 }

@@ -65,10 +65,11 @@ describe('practiceTeil', () => {
     expect(continueTeil(ov)?.key).toBe('LESEN-2')
   })
 
-  it('tách kết quả trắc nghiệm và phiếu chấm Viết', () => {
+  it('đọc kết quả trắc nghiệm và phiếu chấm Viết; dữ liệu hỏng thì null', () => {
     const obj = { teilKey: 'LESEN-1', type: 'X', score: 1, max: 5, correctCount: 1, total: 5, items: [], unusedOptions: [] }
     expect(objectiveResult(obj)).toBe(obj)
-    expect(writingResult(obj)).toBeNull()
+    expect(objectiveResult({ ...obj, items: undefined } as never)).toBeNull()
+    expect(objectiveResult('lỗi' as never)).toBeNull()
     const w = { status: 'AI_EVALUATED', total: 30, max: 45 }
     expect(writingResult(w)).toBe(w)
     expect(objectiveResult(w)).toBeNull()

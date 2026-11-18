@@ -228,7 +228,7 @@ export function todayCard(
         return { kind: 'FULL_EXAM', minutes: day.minutes, route: day.examId ? fullExamRoute(day.examId) : null, examTitle: day.examTitle, done }
       case 'ORAL_MOCK':
       case 'ORAL_DRILL':
-        return { kind: day.kind, teil: day.teil, minutes: day.minutes, route: oralRoute(plan, day.kind === 'ORAL_DRILL' ? day.teil : null), done }
+        return { kind: day.kind, teil: day.teil, minutes: day.minutes, route: oralRoute(plan), done }
       case 'ROADMAP':
         return { kind: 'ROADMAP', minutes: day.minutes, route: roadmapRoute, done }
       case 'REST':
@@ -319,6 +319,8 @@ export function dayLabel(d: Pick<ExamPlanDay, 'kind' | 'section' | 'teil'>): str
       return 'Nghỉ'
     case 'EXAM_DAY':
       return 'Ngày thi'
+    default:
+      return 'Buổi ôn'
   }
 }
 
@@ -355,15 +357,15 @@ export function todayCardText(card: TodayCardModel): TodayCardText {
     case 'FULL_EXAM':
       return {
         eyebrow,
-        title: 'Thi thử phần viết',
-        reason: card.examTitle ? `${card.examTitle} · đồng hồ chạy liên tục, hết giờ tự nộp.` : 'Chưa còn đề mới để thi thử. Đề tiếp theo sắp có.',
+        title: 'Thi thử trọn đề',
+        reason: card.examTitle ? `${card.examTitle} · làm trọn đề như thi thật.` : 'Chưa còn đề mới để thi thử. Đề tiếp theo sắp có.',
         action,
         german: false,
       }
     case 'ORAL_MOCK':
       return { eyebrow, title: 'Thi thử phần nói', reason: 'Thi với giám khảo AI, khoảng 15 phút.', action, german: false }
     case 'ORAL_DRILL':
-      return { eyebrow, title: `Sprechen · Teil ${card.teil ?? 1}`, reason: 'Luyện một Teil nói với giám khảo AI.', action, german: true }
+      return { eyebrow, title: `Sprechen · Teil ${card.teil ?? 1}`, reason: `Vào phòng thi nói, chọn luyện Teil ${card.teil ?? 1} với giám khảo AI.`, action, german: true }
     case 'ROADMAP':
       return { eyebrow, title: 'Bài trong lộ trình', reason: 'Một bài trong lộ trình học để giữ nền ngữ pháp và từ vựng.', action, german: false }
     case 'REST':

@@ -5,7 +5,7 @@
 import { useCallback } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import type { GlyphName } from '@/lib/galerieGlyphs'
@@ -73,7 +73,7 @@ function ExamSet({ examId }: { examId: number }) {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={overview?.title ?? 'Đề luyện'} subtitle="telc Deutsch B1" onBack={goBack} />
+      <AppHeader title={overview?.title ?? 'Đề luyện'} subtitle={overview ? `telc Deutsch ${overview.level}` : undefined} onBack={goBack} />
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
           <Skeleton height={90} radius="lg" />
@@ -133,7 +133,7 @@ function ExamSet({ examId }: { examId: number }) {
               onPress={() => go(fullExamRoute(examId))}
             />
             <ThemedText variant="caption" color="muted" align="center">
-              Bấm giờ như thi thật (Lesen và Sprachbausteine, Hören, Schreiben).
+              Lesen, Sprachbausteine, Hören, Schreiben liền nhau như thi thật.
             </ThemedText>
           </View>
 
@@ -141,8 +141,14 @@ function ExamSet({ examId }: { examId: number }) {
             <View style={{ gap: space[3] }}>
               <SectionHeader title="Lịch sử thi thử" />
               {finished.map((a) => (
-                <View key={a.id} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space[2] }}>
-                  <ThemedText variant="body" color="secondary">
+                <Pressable
+                  key={a.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Lượt thi thử ${a.total_score ?? 0} điểm, xem lại`}
+                  onPress={() => router.push({ pathname: '/(student)/exam-review', params: { attemptId: String(a.id), title: overview.title } } as unknown as Href)}
+                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 44, opacity: pressed ? 0.7 : 1 })}
+                >
+                  <ThemedText variant="body" color="secondary" style={{ flex: 1 }}>
                     {(a.finished_at ?? a.started_at).slice(0, 10).split('-').reverse().join('/')}
                     {a.status === 'PARTIAL' ? ' · dừng giữa chừng' : ''}
                   </ThemedText>
@@ -150,7 +156,8 @@ function ExamSet({ examId }: { examId: number }) {
                     {a.total_score ?? 0}
                     {max > 0 ? `/${max}` : ''}
                   </ThemedText>
-                </View>
+                  <Icon icon={ChevronRight} size={16} color="faint" />
+                </Pressable>
               ))}
             </View>
           ) : null}

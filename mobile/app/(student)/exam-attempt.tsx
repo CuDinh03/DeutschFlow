@@ -27,6 +27,7 @@ import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/a
 import { trackFeatureAction } from '@/lib/analytics'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
 import { PARENT_OF } from '@/lib/screenParents'
+import { takeAttemptDraft } from '@/lib/attemptDraft'
 
 // Auto-scored objective reading (Lesen) attempt. Listening/Writing/Speaking are
 // scored on the web; the app covers the true/false + single-choice items so a
@@ -47,7 +48,8 @@ function ExamAttemptRunner() {
   const attemptId = Number(params.attemptId)
 
   const navigation = useNavigation()
-  const [answers, setAnswers] = useState<Record<string, string>>({})
+  // Lượt đang dở mở từ màn giới thiệu: nạp đúng các câu đã lưu (có thể làm trên web).
+  const [answers, setAnswers] = useState<Record<string, string>>(() => takeAttemptDraft(attemptId))
   const [submitting, setSubmitting] = useState(false)
   const [score, setScore] = useState<number | null>(null)
   const [gates, setGates] = useState<ExamGate[] | undefined>(undefined)

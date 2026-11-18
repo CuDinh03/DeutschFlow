@@ -42,13 +42,11 @@ export const examPlanRoute: ExamRoute = { pathname: '/(student)/exam-plan' }
 export const roadmapRoute: ExamRoute = { pathname: '/(student)/learn' }
 
 /**
- * Phòng thi nói của kỳ thi này: mặc định thi thử phần nói; `teil` ⇒ luyện riêng Teil đó.
- * Cấp theo lịch ôn, thiếu thì B1. Owner chốt 18/11: app chỉ luyện telc.
+ * Sảnh thi nói telc của cấp này (owner chốt 18/11: app chỉ luyện telc). Sảnh có nút thi thử trọn bài
+ * và luyện từng Teil; không tự mở phòng từ đây vì mỗi lượt dùng ngân sách chấm AI.
  */
-export function oralRoute(plan: Pick<ExamPlan, 'level'> | null | undefined, teil?: number | null): ExamRoute {
-  const params: Record<string, string> = { provider: 'TELC', level: plan?.level ?? 'B1', mode: teil ? 'DRILL' : 'MOCK' }
-  if (teil) params.teil = String(teil)
-  return { pathname: '/(student)/speaking-exam', params }
+export function oralRoute(plan: Pick<ExamPlan, 'level'> | null | undefined): ExamRoute {
+  return { pathname: '/(student)/speaking-exam', params: { provider: 'TELC', level: plan?.level ?? 'B1' } }
 }
 
 /** Ép kiểu về `Href` của expo-router: đường dẫn dựng động nên typed routes không tự suy ra. */

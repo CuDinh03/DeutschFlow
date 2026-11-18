@@ -142,7 +142,7 @@ export function ObjGroupView({
               selected={answers[item.id]}
               onSelect={(val) => onAnswer(item.id, val)}
               result={review?.get(item.id)}
-              locked={!!review}
+              reviewing={!!review}
             />
           </View>
         ))}
@@ -236,7 +236,7 @@ function QuestionCard({
   selected,
   onSelect,
   result,
-  locked = false,
+  reviewing = false,
 }: {
   item: ExamObjItem
   /** Teil chứa câu này — cần cho luật "mỗi lựa chọn một lần" của đề telc. */
@@ -245,7 +245,8 @@ function QuestionCard({
   selected?: string
   onSelect: (val: string) => void
   result?: PracticeItemResult
-  locked?: boolean
+  /** Đang xem kết quả: không chọn lại được, nhưng không làm mờ hay đọc "(đã dùng)". */
+  reviewing?: boolean
 }) {
   const { colors } = useTheme()
   // Giá trị nộp tách khỏi nhãn: trắc nghiệm options object nộp chữ cái A/B/C (AC-MOBFIX-03).
@@ -282,8 +283,10 @@ function QuestionCard({
             <Choice
               key={choice.value}
               label={choice.label}
+              german={choice.value !== NONE_OF_THEM}
               active={selected === choice.value}
-              locked={locked || (used.has(choice.value) && selected !== choice.value)}
+              locked={!reviewing && used.has(choice.value) && selected !== choice.value}
+              reviewing={reviewing}
               mark={mark}
               onPress={() => onSelect(choice.value)}
             />
@@ -333,27 +336,33 @@ function Choice({
   active,
   locked = false,
   mark = null,
+  reviewing = false,
+  german = true,
   onPress,
 }: {
   label: string
+  /** Nhãn tiếng Đức (đọc bằng giọng Đức); "không mẩu nào hợp" là tiếng Việt. */
+  german?: boolean
   active: boolean
   locked?: boolean
+  reviewing?: boolean
   /** Sau khi kiểm tra: `right` = đáp án đúng, `wrong` = lựa chọn sai của học viên. */
   mark?: 'right' | 'wrong' | null
   onPress: () => void
 }) {
   const { colors } = useTheme()
   const reviewed = mark !== null
+  const blocked = locked || reviewing
   const border = mark === 'right' ? colors.success : mark === 'wrong' ? colors.danger : active ? colors.accent : colors.border
   const bg = mark === 'right' ? colors.successSoft : mark === 'wrong' ? colors.dangerSoft : active ? colors.accentSoft : colors.surface
-  const suffix = mark === 'right' ? ' (đáp án đúng)' : mark === 'wrong' ? ' (bạn chọn, chưa đúng)' : locked && !reviewed && !active ? ' (đã dùng)' : ''
+  const suffix = mark === 'right' ? ' (đáp án đúng)' : mark === 'wrong' ? ' (bạn chọn, chưa đúng)' : locked && !active ? ' (đã dùng)' : ''
   return (
     <SelectableRow
       role="radio"
       label={`${label}${suffix}`}
       selected={active}
-      disabled={locked}
-      onPress={locked ? () => {} : onPress}
+      disabled={blocked}
+      onPress={blocked ? () => {} : onPress}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -367,7 +376,7 @@ function Choice({
         paddingVertical: active || reviewed ? space[4] - 1 : space[4],
         // `SelectableRow` chỉ chặn thao tác và khai trợ năng; dấu hiệu NHÌN THẤY phải do đây đặt,
         // bằng không lựa chọn đã khoá trông y hệt lựa chọn còn bấm được. Lúc xem kết quả thì không mờ.
-        opacity: locked && !reviewed && !active ? 0.45 : 1,
+        opacity: locked && !active ? 0.45 : 1,
       }}
     >
       <View
@@ -388,7 +397,7 @@ function Choice({
           <Icon icon={Check} size={13} color="onAccent" strokeWidth={3} />
         ) : null}
       </View>
-      <ThemedText variant={active ? 'bodyStrong' : 'body'} color={active ? 'primary' : 'secondary'} style={{ flex: 1 }} accessibilityLanguage="de-DE">
+      <ThemedText variant={active ? 'bodyStrong' : 'body'} color={active ? 'primary' : 'secondary'} style={{ flex: 1 }} accessibilityLanguage={german ? 'de-DE' : undefined}>
         {label}
       </ThemedText>
     </SelectableRow>

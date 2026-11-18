@@ -192,8 +192,9 @@ function RunList({ view, overview, onView }: { view: DiagnosticView; overview: P
             <Pressable
               key={p}
               accessibilityRole="button"
-              accessibilityLabel={`${name}, ${isDone ? 'đã xong' : isCurrent ? 'làm tiếp' : 'chưa làm'}`}
-              disabled={isDone}
+              accessibilityLabel={`${name}, ${isDone ? 'đã xong' : isCurrent ? 'làm tiếp' : 'chưa tới lượt'}`}
+              // Làm đúng thứ tự như đề thật (như web): chỉ phần đang tới lượt bấm được.
+              disabled={!isCurrent}
               onPress={() => open(p)}
               style={({ pressed }) => ({
                 flexDirection: 'row',
@@ -210,7 +211,7 @@ function RunList({ view, overview, onView }: { view: DiagnosticView; overview: P
                 {name}
               </ThemedText>
               <ThemedText variant="caption" color={isDone ? 'success' : 'muted'}>{isDone ? 'Đã xong' : isCurrent ? 'Làm tiếp' : ''}</ThemedText>
-              {isDone ? null : <Icon icon={ChevronRight} size={16} color="faint" />}
+              {isCurrent ? <Icon icon={ChevronRight} size={16} color="faint" /> : null}
             </Pressable>
           )
         })}
