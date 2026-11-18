@@ -16,7 +16,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#FFCD00"
+      "backgroundColor": "#FAF9F6"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -86,7 +86,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFCD00"
+        "backgroundColor": "#171615"
       },
       "package": "com.deutschflow.app",
       "permissions": [
@@ -108,7 +108,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#1A1A2E",
+          "color": "#171615",
           "sounds": []
         }
       ],
