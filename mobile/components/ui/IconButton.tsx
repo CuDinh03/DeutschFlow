@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/theme'
 import { Icon } from './Icon'
 import { GaGlyph } from './GaGlyph'
 import type { GlyphName } from '@/lib/galerieGlyphs'
+import { iconHitSlop } from '@/lib/touchTarget'
 
 type IconColorRole =
   | 'primary'
@@ -36,7 +37,7 @@ interface IconButtonProps {
   color?: IconColorRole
   size?: number
   disabled?: boolean
-  /** Expanded hit area in pt; defaults to 8 so a 22pt icon meets the 44pt iOS minimum. */
+  /** Vùng chạm mở rộng (pt). Mặc định đủ để icon `size` đạt tối thiểu 44pt của iOS. */
   hitSlop?: number
   style?: StyleProp<ViewStyle>
 }
@@ -50,9 +51,11 @@ export function IconButton({
   color = 'muted',
   size = 22,
   disabled = false,
-  hitSlop = 8,
+  hitSlop,
   style,
 }: IconButtonProps) {
+  // 22pt + 8 mỗi phía chỉ được 38pt; tính theo cỡ icon để luôn ≥ 44pt.
+  const slop = hitSlop ?? iconHitSlop(size)
   useTheme() // ensure rerender on theme change so Icon picks up the new color
   return (
     <Pressable
@@ -61,7 +64,7 @@ export function IconButton({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      hitSlop={hitSlop}
+      hitSlop={slop}
       onPress={() => {
         if (disabled) return
         void Haptics.selectionAsync()

@@ -2,8 +2,8 @@
 // state animates the border color only (no layout shift). Password fields get a
 // reveal/hide eye toggle (Galerie v2 mockup parity).
 
-import { useState } from 'react'
-import { Pressable, TextInput, View, type TextInputProps } from 'react-native'
+import { useEffect, useState } from 'react'
+import { AccessibilityInfo, Pressable, TextInput, View, type TextInputProps } from 'react-native'
 import { Eye, EyeOff } from 'lucide-react-native'
 import { fonts, maxFontScale, radius, space, type, useTheme } from '@/lib/theme'
 import { ThemedText } from './ThemedText'
@@ -28,6 +28,11 @@ export function TextField({
   const [revealed, setRevealed] = useState(false)
   const isPassword = !!secureTextEntry
 
+  // Lỗi hiện ra dưới ô không tự được VoiceOver đọc: báo một lần mỗi khi câu lỗi đổi.
+  useEffect(() => {
+    if (error) AccessibilityInfo.announceForAccessibility(label ? `${label}: ${error}` : error)
+  }, [error, label])
+
   const borderColor = error
     ? theme.colors.danger
     : focused
@@ -37,7 +42,8 @@ export function TextField({
   return (
     <View style={{ gap: space[2] }}>
       {label ? (
-        <ThemedText variant="label" color="secondary">
+        // Nhãn đã gắn vào ô nhập (accessibilityLabel) — ẩn bản hiển thị để VoiceOver khỏi đọc hai lần.
+        <ThemedText variant="label" color="secondary" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {label}
         </ThemedText>
       ) : null}
@@ -45,6 +51,8 @@ export function TextField({
         <TextInput
           // Dynamic Type cap (matches bodyLg) so large font settings keep the field usable.
           maxFontSizeMultiplier={maxFontScale.bodyLg}
+          accessibilityLabel={label}
+          accessibilityHint={error}
           secureTextEntry={isPassword && !revealed}
           placeholderTextColor={theme.colors.textFaint}
           selectionColor={theme.colors.accent}

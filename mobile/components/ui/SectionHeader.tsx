@@ -28,10 +28,10 @@ export function SectionHeader({ title, eyebrow, actionLabel, onAction }: Section
             {eyebrow}
           </ThemedText>
         ) : null}
-        <ThemedText variant="titleLg">{title}</ThemedText>
+        <ThemedText variant="titleLg" accessibilityRole="header">{title}</ThemedText>
       </View>
       {actionLabel && onAction ? (
-        <Pressable onPress={onAction} hitSlop={8}>
+        <Pressable onPress={onAction} hitSlop={12} accessibilityRole="button" accessibilityLabel={actionLabel}>
           <ThemedText variant="bodyStrong" color="accent">
             {actionLabel}
           </ThemedText>

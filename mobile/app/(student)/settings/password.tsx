@@ -54,7 +54,7 @@ export default function ChangePasswordScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <AppHeader title="Đổi mật khẩu" subtitle="Bảo mật tài khoản" onBack={goBack} />
 
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[8], gap: space[5] }}>
+        <Screen scroll keyboardInsets={false} edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[8], gap: space[5] }}>
           <Card tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
             <GaGlyph name="matkhau" size={20} ink="primary" />
             <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
