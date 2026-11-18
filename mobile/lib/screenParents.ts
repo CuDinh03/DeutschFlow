@@ -34,6 +34,10 @@ export type MainTabHref = (typeof STUDENT_TAB)[MainTab]
 export const PARENT_OF = {
   'exam-attempt': '/(student)/exam',
   'exam-review': '/(student)/exam',
+  // Luyện đề telc (Đợt 4, 19/11/2026). `exam-teil` về màn Đề của chính đề đó (tính lúc bấm).
+  'exam-set': '/(student)/exam',
+  'exam-full': '/(student)/exam',
+  'exam-diagnostic': '/(student)/exam',
   node: '/(student)/lernweg',
   'node-practice': '/(student)/lernweg',
   'skill-practice': '/(student)/lernweg',

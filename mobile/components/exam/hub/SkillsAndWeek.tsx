@@ -16,7 +16,7 @@ import { go, weekdayShort } from './HubCards'
  * Chữ "Sát ngưỡng": cam của bảng màu (#C26A1B) chỉ đạt ~3,9:1 trên nền trắng, chưa đủ 4,5:1 cho chữ
  * nhỏ, nên chữ dùng cam đậm hơn; thanh vẫn dùng cam của bảng màu.
  */
-const NEAR_TEXT = '#9A5210'
+export const NEAR_TEXT = '#9A5210'
 
 const SKILL_GLYPH: Record<Skill['id'], GlyphName> = { LESEN: 'doc', HOEREN: 'nghe', SCHREIBEN: 'viet', SPRECHEN: 'noi' }
 const SKILL_NAME: Record<Skill['id'], string> = { LESEN: 'Lesen', HOEREN: 'Hören', SCHREIBEN: 'Schreiben', SPRECHEN: 'Sprechen' }

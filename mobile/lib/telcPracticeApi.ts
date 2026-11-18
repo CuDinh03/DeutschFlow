@@ -3,6 +3,7 @@
 // Khác `examApi.ts` (lượt thi thử cũ) và `/api/practice` (thư viện bài tập bổ trợ).
 
 import api from './api'
+import { pollAsyncJob } from './asyncJobs'
 
 export interface PracticeItemResult {
   id: string
@@ -144,3 +145,48 @@ export async function getPracticeOverview(examId: number): Promise<PracticeOverv
   return data
 }
 
+
+/** `notes` không truyền ⇒ server giữ ghi chú đã lưu. Teil đã kiểm tra thì server bỏ qua nháp. */
+export async function savePracticeDraft(
+  examId: number,
+  teilKey: string,
+  answers: Record<string, string>,
+  elapsedSeconds: number,
+): Promise<PracticeProgress | null> {
+  const { data } = await api.put<PracticeProgress | null>(`/mock-exams/practice/${examId}/teile/${teilKey}/draft`, {
+    answers,
+    elapsedSeconds,
+  })
+  return data
+}
+
+export async function checkPracticeTeil(
+  examId: number,
+  teilKey: string,
+  answers: Record<string, string>,
+  elapsedSeconds: number,
+): Promise<PracticeProgress> {
+  const { data } = await api.post<PracticeProgress>(`/mock-exams/practice/${examId}/teile/${teilKey}/check`, {
+    answers,
+    elapsedSeconds,
+  })
+  return data
+}
+
+/** "Làm lại" Teil (giữ đánh dấu bài đọc như mặc định của server). */
+export async function resetPracticeTeil(examId: number, teilKey: string): Promise<void> {
+  await api.delete(`/mock-exams/practice/${examId}/teile/${teilKey}`)
+}
+
+/** Gửi bài Viết rồi chờ AI chấm xong (job nền, tối đa 3 phút như web). */
+export async function gradePracticeWriting(examId: number, text: string, elapsedSeconds: number): Promise<WritingEvaluation> {
+  const { data } = await api.post<{ jobId: string }>(`/mock-exams/practice/${examId}/schreiben`, { text, elapsedSeconds })
+  const job = await pollAsyncJob(data.jobId, { timeoutMs: 180_000 })
+  if (!job.resultPayload) throw new Error('Đã chấm xong nhưng chưa nhận được phiếu chấm. Thử mở lại Teil.')
+  const payload = JSON.parse(job.resultPayload) as WritingEvaluation & { error?: unknown }
+  // Lưới an toàn như web: job kiểu cũ từng ghi lỗi là COMPLETED, sự thật nằm trong payload.
+  if (payload.status === 'FAILED') {
+    throw new Error(typeof payload.error === 'string' && payload.error.trim() ? payload.error : 'Chấm bài viết chưa thành công. Thử lại sau.')
+  }
+  return payload
+}

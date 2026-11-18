@@ -22,6 +22,12 @@ export const teilRoute = (examId: number, key: string): ExamRoute => ({
   params: { examId: String(examId), teil: key },
 })
 
+/** Một phần của bài chẩn đoán: làm như luyện Teil nhưng không làm lại, xong về màn bài chẩn đoán. */
+export const diagnosticTeilRoute = (examId: number, key: string): ExamRoute => ({
+  pathname: '/(student)/exam-teil',
+  params: { examId: String(examId), teil: key, mode: 'diag' },
+})
+
 /** Thi thử trọn đề, bấm giờ như thi thật. */
 export const fullExamRoute = (examId: number): ExamRoute => ({
   pathname: '/(student)/exam-full',
