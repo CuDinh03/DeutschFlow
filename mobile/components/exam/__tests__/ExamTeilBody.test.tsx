@@ -3,6 +3,11 @@
 // lựa chọn câu khác đã dùng bị khoá; sau kiểm tra thì khoá hết, tô đáp án đúng / lựa chọn sai, có giải thích.
 
 import type { ReactElement } from 'react'
+import { ObjGroupView } from '../ExamTeilBody'
+import { parseExamSections, type ExamObjGroup } from '@/lib/examApi'
+import type { PracticeItemResult } from '@/lib/telcPracticeApi'
+
+// jest tự đưa jest.mock lên trước các import.
 
 jest.mock('@/lib/theme', () => ({
   radius: { xs: 2, sm: 4, md: 4, lg: 4, full: 9999 },
@@ -24,9 +29,6 @@ jest.mock('../TelcGapText', () => ({ TelcGapText: () => null }))
 jest.mock('../ReadingPassage', () => ({ ReadingPassage: () => null }))
 jest.mock('@/lib/api', () => ({ __esModule: true, default: {}, apiMessage: () => '' }))
 
-import { ObjGroupView } from '../ExamTeilBody'
-import { parseExamSections, type ExamObjGroup } from '@/lib/examApi'
-import type { PracticeItemResult } from '@/lib/telcPracticeApi'
 
 type El = ReactElement<Record<string, unknown>>
 const isEl = (n: unknown): n is El => !!n && typeof n === 'object' && 'props' in (n as object) && 'type' in (n as object)

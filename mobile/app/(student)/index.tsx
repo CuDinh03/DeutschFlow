@@ -32,7 +32,6 @@ import {
   Screen,
   Card,
   ThemedText,
-  Icon,
   Pill,
   ListRow,
   SectionHeader,
