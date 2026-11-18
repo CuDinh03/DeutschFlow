@@ -9,8 +9,11 @@ import { Platform } from 'react-native'
  * Requires the 4 auto-renewable products (lib/iapProducts.ts) to be approved in App Store Connect,
  * and a NEW EAS build (native module — not OTA-able). Verify purchase + restore with a sandbox
  * tester before submitting.
+ *
+ * Chỉ iOS (SP-5, 11/11/2026): Android chưa hỗ trợ và không có sản phẩm Google Play nào được cấu hình;
+ * bản Android lỡ build ra sẽ hiện màn giải thích PRO quản lý trên web thay cho màn mua.
  */
-export const IAP_ENABLED = true
+export const IAP_ENABLED = Platform.OS === 'ios'
 
 /**
  * Whether to show in-app upgrade / paywall surfaces.
