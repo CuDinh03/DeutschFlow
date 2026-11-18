@@ -71,7 +71,7 @@ function ExamAttemptRunner() {
   const confirmLeave = useCallback((proceed: () => void) => {
     Alert.alert(
       'Thoát bài thi?',
-      'Bạn chưa nộp bài. Thoát bây giờ sẽ mất các câu đã trả lời.',
+      'Bạn chưa nộp bài. Các câu trả lời thêm trên app chưa được lưu lên máy chủ, thoát bây giờ sẽ mất.',
       [
         { text: 'Ở lại', style: 'cancel' },
         { text: 'Thoát', style: 'destructive', onPress: proceed },

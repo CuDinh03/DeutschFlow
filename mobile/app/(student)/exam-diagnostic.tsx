@@ -175,7 +175,7 @@ function RunList({ view, overview, onView }: { view: DiagnosticView; overview: P
     }
   }
 
-  const open = (part: string) => go(part === ORAL_PART ? oralRoute({ level: 'B1' }) : diagnosticTeilRoute(overview.examId, part))
+  const open = (part: string) => go(part === ORAL_PART ? oralRoute({ level: overview.level }) : diagnosticTeilRoute(overview.examId, part))
 
   return (
     <View style={{ gap: space[4] }}>

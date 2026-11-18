@@ -210,7 +210,9 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   return (
     <Screen edges={['top']}>
       <AppHeader title={teilTitle(teilKey)} subtitle={diag ? 'Bài chẩn đoán' : overview?.title} onBack={goBack} />
-      {isLoading ? (
+      {/* Chưa nạp xong tiến độ (kể cả lượt tải lại khi đã có bộ nhớ đệm) thì chưa cho thao tác:
+          chọn câu lúc này sẽ bị bản nạp xoá, còn "Kiểm tra" sẽ đè điểm cũ trên máy chủ. */}
+      {isLoading || (!loaded && !isError && !!meta) ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <Skeleton height={120} radius="lg" />
           <Skeleton height={220} radius="lg" />
