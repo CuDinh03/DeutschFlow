@@ -9,8 +9,9 @@
 //   1. Màn cha CẤU TRÚC (PARENT_OF): màn con chỉ có một lối vào hợp lý (bài thi → sảnh thi thử,
 //      node/skill-practice → Lernweg, lớp → danh sách lớp, cài đặt → Hồ sơ…).
 //   2. Màn "tiện ích" mở được từ nhiều tab (SRS, Từ vựng, Ngữ pháp, Thông báo, PRO, Tiến độ…):
-//      quay về TAB CHÍNH được mở gần nhất trước khi rẽ vào (lastMainTabHref) — Heute nếu mở
-//      thẳng từ push notification / deep link.
+//      quay về TRẠM được mở gần nhất trước khi rẽ vào (lastMainTabHref): tab chính, hoặc Hồ sơ
+//      nếu vừa rẽ từ Hồ sơ (Hồ sơ thôi là tab từ 18/11/2026) — Heute nếu mở thẳng từ push
+//      notification / deep link. Riêng Hồ sơ back về tab chính gần nhất (lastTabHref).
 // Cố ý KHÔNG bật backBehavior='history' toàn app: history đưa back về cả những màn đã kết thúc
 // (phòng thi đã chấm, phiên nói đã "Xong" qua replace) — xem lib/examSpeakingNav.ts.
 // Cụm Luyện thi Nói giữ sơ đồ riêng ở lib/examSpeakingNav.ts (#554).

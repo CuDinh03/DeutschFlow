@@ -4,7 +4,7 @@
 // Luyện thi · Tiến bộ); "Tôi" (màn profile) không còn là tab mà mở từ ảnh đại diện.
 // Có ảnh tự tải lên thì hiện ảnh, không thì chữ cái cuối của tên (tên Việt: tên gọi đứng cuối).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Image, Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -22,6 +22,8 @@ export function AvatarButton() {
   const name = user?.displayName ?? ''
   const avatarUrl = user?.avatarUrl ?? null
   const [imageFailed, setImageFailed] = useState(false)
+  // Màn tab không unmount: đổi ảnh (tải ảnh mới) thì thử hiện lại.
+  useEffect(() => setImageFailed(false), [avatarUrl])
 
   return (
     <Pressable

@@ -21,7 +21,8 @@ export function useBackTo(target: BackTarget): () => void {
   return goBack
 }
 
-/** Màn tiện ích mở từ nhiều tab: về tab chính được mở gần nhất (Heute nếu vào thẳng từ thông báo). */
+/** Màn tiện ích mở từ nhiều nơi: về trạm mở gần nhất — tab chính, hoặc Hồ sơ nếu vừa rẽ từ Hồ sơ
+ *  (Heute nếu vào thẳng từ thông báo). Tên giữ nguyên để không đổi 20+ màn đang gọi. */
 export function useBackToMainTab(): () => void {
   return useBackTo(lastMainTabHref)
 }
