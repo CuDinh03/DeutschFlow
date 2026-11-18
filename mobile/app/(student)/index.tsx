@@ -26,7 +26,7 @@ import { gamificationApi } from '@/lib/gamificationApi'
 import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
 import { messagesApi } from '@/lib/messagesApi'
 import { TodayTasks } from '@/components/home/TodayTasks'
-import { ExamCountdownCard } from '@/components/exam/ExamCountdownCard'
+import { TodayPlanCard } from '@/components/exam/hub/TodayPlanCard'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -359,7 +359,11 @@ export default function DashboardScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: motion.duration.normal }}
         >
-          <View style={{ paddingHorizontal: space[5], marginTop: space[3] }}>
+          {/* Owner chốt 18/11 (giữ 19/11): lịch ôn telc đứng đầu màn Hôm nay; chưa có ngày thi thì
+              mời làm bài chẩn đoán. Tự ẩn khi tài khoản chưa mở luyện đề. */}
+          <TodayPlanCard dueSrs={dueSrs} style={{ marginHorizontal: space[5], marginTop: space[3] }} />
+
+          <View style={{ paddingHorizontal: space[5], marginTop: space[4] }}>
             {/* Streak hero — editorial ink card, the day-one engagement metric */}
             <SpotlightTarget id={SPOTLIGHT_TARGETS.homeStreak}>
             <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>
@@ -405,9 +409,6 @@ export default function DashboardScreen() {
               đến hạn + nói/từ vựng theo gợi ý. Thẻ Ôn SRS ngay dưới là "việc"
               thứ tư, giữ nguyên vì nó là mỏ neo tour (homeSrsCard). */}
           <TodayTasks />
-
-          {/* LT3: chỉ hiện với người có ngày thi và có kế hoạch cho kỳ thi đó. */}
-          <ExamCountdownCard style={{ marginHorizontal: space[5], marginTop: space[4] }} />
 
           {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
               tự biến mất vĩnh viễn khi hoàn thành đủ. */}
