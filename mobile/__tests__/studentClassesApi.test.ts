@@ -16,6 +16,7 @@ import {
   fetchAssignmentDetail, fetchClassSessions, fetchMyAttendance, fetchMySkillReport,
   isAwaitingTeacher, isFinalGrade, isSubmittedStatus,
   submitAssignment, uploadAssignmentFile, type StudentAssignment,
+  teacherRoleLabel,
 } from '@/lib/studentClassesApi'
 
 const get = api.get as unknown as jest.Mock
@@ -228,5 +229,17 @@ describe('assignmentRowKey', () => {
 
     expect(new Set(keys).size).toBe(3)
     expect(keys).toEqual([1, 2, 3])
+  })
+})
+
+describe('teacherRoleLabel', () => {
+  it('đổi mã vai trò thành tên người đọc', () => {
+    expect(teacherRoleLabel('PRIMARY')).toBe('Giáo viên chính')
+    expect(teacherRoleLabel('ASSISTANT')).toBe('Trợ giảng')
+  })
+
+  it('mã lạ hoặc thiếu không bao giờ lộ ra giao diện', () => {
+    expect(teacherRoleLabel('SUBSTITUTE')).toBe('Giáo viên')
+    expect(teacherRoleLabel(undefined)).toBe('Giáo viên')
   })
 })

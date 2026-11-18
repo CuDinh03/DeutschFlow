@@ -7,7 +7,7 @@ import { apiMessage } from '@/lib/api'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import {
   assignmentRowKey, assignmentStatusView, fetchClassAssignments, fetchClassDetail, fetchClassLessons,
-  fetchMyAttendance, fetchMySkillReport, isFinalGrade, GRADING_FAILED_LABEL,
+  fetchMyAttendance, fetchMySkillReport, isFinalGrade, GRADING_FAILED_LABEL, teacherRoleLabel,
   type ClassLesson, type ClassroomDetail, type MySkillReport, type StudentAssignment,
   type StudentAttendance, type TeacherSummary,
 } from '@/lib/studentClassesApi'
@@ -684,7 +684,7 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
                     {t.email}
                   </ThemedText>
                   <View style={{ flexDirection: 'row', marginTop: space[1] }}>
-                    <Pill tone="accent" label={t.role} />
+                    <Pill tone="accent" label={teacherRoleLabel(t.role)} />
                   </View>
                 </View>
               </View>

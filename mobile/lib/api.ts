@@ -116,8 +116,16 @@ export function apiMessage(e: unknown): string {
     }
     return 'Yêu cầu không thực hiện được, vui lòng thử lại.'
   }
-  if (e instanceof Error) return e.message
+  // Error tự ném trong app có thể mang mã máy ('no_uri', 'empty'…): không đưa ra giao diện.
+  if (e instanceof Error) return isMachineCode(e.message) ? GENERIC_ERROR_MESSAGE : e.message
   return 'Lỗi không xác định'
+}
+
+const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra, vui lòng thử lại.'
+
+/** Chuỗi kiểu mã máy: không dấu cách, chỉ chữ thường không dấu, số, `_`, `-`. */
+function isMachineCode(message: string): boolean {
+  return /^[a-z0-9_-]+$/.test(message.trim())
 }
 
 /**
