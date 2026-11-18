@@ -120,6 +120,10 @@
   --ga-radius-touch: var(--ga-r-xs);
   /* Ô nhập và ô chọn thả xuống (GaInput, GaTextarea, GaSelect). */
   --ga-r-control: var(--ga-r-sm);
+  /* Chữ tô sáng trong dòng và ô chú giải nhỏ: bo lớn hơn sẽ thành viên thuốc. */
+  --ga-r-mark: 3px;
+  /* Tờ đề thi nói (viền mực 2px, bóng cứng): giữ góc gần vuông như tờ giấy in. */
+  --ga-r-paper: 2px;
 
   /* Semantic bổ sung (DS §5.4/§5.7 — approved). Warning: text đậm hóa từ orange để đạt AA
      trên nền soft (D2). Locked là neutral + nhãn chữ, không phải màu cảnh báo. */

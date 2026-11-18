@@ -119,7 +119,7 @@ export function WritingResultView({ evaluation, text, points, wide }: Props) {
                   onClick={() => setCurrent(s.note)}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setCurrent(s.note))}
                   className={cn(
-                    'cursor-pointer rounded-ga px-0.5 text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
+                    'cursor-pointer rounded-ga-mark px-0.5 text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
                     on ? 'bg-ga-yellow' : 'bg-ga-yellow-soft shadow-[inset_0_-2px_0_var(--ga-yellow)]',
                   )}
                 >

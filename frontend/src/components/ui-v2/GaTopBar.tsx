@@ -50,9 +50,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
   const inbox = roleAreas?.inbox
 
   return (
-    // Kính mờ nhẹ. Thẻ có backdrop-filter thành gốc toạ độ của mọi con `position: fixed`, nên ngăn kéo,
-    // hộp thoại, popover KHÔNG được render bên trong header (chúng đều là anh em hoặc portal).
-    <header data-ga-chrome className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card/90 px-4 backdrop-blur-md lg:gap-4 lg:px-6">
+    <header data-ga-chrome className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card px-4 lg:gap-4 lg:px-6">
       <GaSidebarToggle />
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3.5">

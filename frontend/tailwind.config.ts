@@ -159,6 +159,8 @@ const config: Config = {
         ga: 'var(--ga-radius)',
         'ga-touch': 'var(--ga-radius-touch)',
         'ga-control': 'var(--ga-r-control)',
+        'ga-mark': 'var(--ga-r-mark)',
+        'ga-paper': 'var(--ga-r-paper)',
         'ga-sm': 'var(--ga-r-sm)',
         'ga-md': 'var(--ga-r-md)',
         'ga-lg': 'var(--ga-r-lg)',

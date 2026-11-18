@@ -39,7 +39,7 @@ function LegendCell({ status, children }: { status: Cell['status']; children: Re
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       <span
-        className="inline-flex h-4 w-4 items-center justify-center rounded-ga border"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-ga-mark border"
         style={{ background: st.bg, color: st.fg, borderColor: 'var(--ga-line)' }}
       >
         <st.Icon size={11} aria-hidden />
