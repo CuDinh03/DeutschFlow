@@ -23,6 +23,14 @@ import {
 import { useBackTo } from '@/hooks/useBackTo'
 
 export default function ClassChatScreen() {
+  // Màn sống trong Tabs nên KHÔNG unmount khi đổi tham số: mở sang classId khác vẫn là bản thể cũ,
+  // giữ nguyên state (nháp, câu trả lời, điểm, tệp đính kèm) của lần trước. Remount theo key
+  // giống mẫu ở skill-practice.tsx.
+  const { classId } = useLocalSearchParams<{ classId: string }>()
+  return <ClassChatRunner key={classId ?? 'none'} />
+}
+
+function ClassChatRunner() {
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()

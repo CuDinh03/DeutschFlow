@@ -66,6 +66,14 @@ async function openInApp(url: string, errMsg = 'Không mở được tài liệu
 }
 
 export default function AssignmentDetail() {
+  // Màn sống trong Tabs nên KHÔNG unmount khi đổi tham số: mở sang id khác vẫn là bản thể cũ,
+  // giữ nguyên state (nháp, câu trả lời, điểm, tệp đính kèm) của lần trước. Remount theo key
+  // giống mẫu ở skill-practice.tsx.
+  const { id } = useLocalSearchParams<{ id: string }>()
+  return <AssignmentDetailRunner key={id ?? 'none'} />
+}
+
+function AssignmentDetailRunner() {
   const { id, classId } = useLocalSearchParams<{ id: string; classId?: string }>()
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   // classId có khi mở từ trang lớp; từ thông báo / sau phiên nói thì về danh sách lớp.

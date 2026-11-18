@@ -30,6 +30,14 @@ import { PARENT_OF } from '@/lib/screenParents'
 // thread is idle (adaptivePollMs) — snappy when active, calm when quiet, to save battery + data.
 
 export default function MessageThreadScreen() {
+  // Màn sống trong Tabs nên KHÔNG unmount khi đổi tham số: mở sang userId khác vẫn là bản thể cũ,
+  // giữ nguyên state (nháp, câu trả lời, điểm, tệp đính kèm) của lần trước. Remount theo key
+  // giống mẫu ở skill-practice.tsx.
+  const { userId } = useLocalSearchParams<{ userId: string }>()
+  return <MessageThreadRunner key={userId ?? 'none'} />
+}
+
+function MessageThreadRunner() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackTo(PARENT_OF['messages/[userId]'])
   const c = useTheme().colors
