@@ -4,6 +4,7 @@ import { setTokens, clearTokens, getRefreshToken, getRoleFromToken } from '@/lib
 import { identifyUser, resetAnalytics } from '@/lib/analytics'
 import { clearDeviceSessionState } from '@/lib/deviceSessionState'
 import { runCleanupBestEffort } from '@/lib/bestEffort'
+import { queryClient } from '@/lib/queryClient'
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 
@@ -75,6 +76,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     // chặn hai dòng dưới, kẻo người dùng kẹt "đã đăng nhập" với token vừa bị xoá.
     await runCleanupBestEffort(clearDeviceSessionState)
     set({ user: null, isLoggedIn: false })
+    // Cache máy chủ của tài khoản vừa rời đi (xem lib/api.ts, nhánh kết thúc phiên). Sau set() để
+    // màn đang mở không refetch bằng token đã xoá.
+    queryClient.clear()
     resetAnalytics()
   },
 

@@ -21,7 +21,7 @@ import { clearActiveSession } from './activeSession'
 import { clearDailyGoalMinutes } from './dailyGoal'
 import { clearOnboardingDraft } from './onboardingDraft'
 import { clearGuestSessionCache } from './guestSessionStore'
-import { disableStudyReminder } from './studyReminder'
+import { clearDeliveredNotifications, disableStudyReminder } from './studyReminder'
 
 /**
  * Best-effort, không bao giờ throw.
@@ -48,6 +48,8 @@ export async function clearDeviceSessionState(): Promise<void> {
     // claim phiên của người trước (server chặn 400, đây là lớp thứ hai).
     clearGuestSessionCache(),
     disableStudyReminder(),
+    // Thông báo đã nhận (tin nhắn, bài tập) và số trên biểu tượng là của người vừa rời máy.
+    clearDeliveredNotifications(),
     Promise.resolve().then(() => useChatOutboxStore.getState().clear()),
     Promise.resolve().then(() => useSrsOfflineStore.getState().clear()),
     clearActiveSession(),
