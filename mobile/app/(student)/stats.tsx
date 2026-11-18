@@ -55,7 +55,7 @@ interface SkillsShape {
 }
 
 export default function StatsScreen() {
-  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  // Từ 18/11/2026 Tiến bộ là tab: không có back, chừa đáy cho thanh tab nổi.
   const tabClearance = useTabBarClearance()
   const { data: stats, isLoading, isError, refetch: refetchStats } = useQuery({
     queryKey: ['stats'],

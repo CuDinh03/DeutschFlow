@@ -12,7 +12,7 @@ import { MotiView } from 'moti'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Icon, Button, useTabBarClearance, GaGlyph } from '@/components/ui'
+import { ThemedText, Icon, Button, useTabBarClearance, GaGlyph, AvatarButton } from '@/components/ui'
 import { SpotlightTarget } from '@/components/guide/SpotlightTour'
 import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
 import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
@@ -184,7 +184,11 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
       showsVerticalScrollIndicator={false}
     >
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
-        <ThemedText variant="displayLg">Luyện nói</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <ThemedText variant="displayLg">Luyện nói</ThemedText>
+          {/* Lối vào Tôi và cài đặt (Hồ sơ thôi là tab, owner chốt 18/11/2026). */}
+          <AvatarButton />
+        </View>
         <ThemedText variant="body" color="muted" style={{ marginTop: 2 }}>
           Chọn cách luyện và người đồng hành
         </ThemedText>

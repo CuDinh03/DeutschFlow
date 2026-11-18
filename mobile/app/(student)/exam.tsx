@@ -20,7 +20,7 @@ import { ExamCountdownCard } from '@/components/exam/ExamCountdownCard'
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 export default function ExamScreen() {
-  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
+  // Từ 18/11/2026 Luyện thi là tab: không có back, chừa đáy cho thanh tab nổi.
   const tabClearance = useTabBarClearance()
   const theme = useTheme()
   const { hasProAccess } = usePlanStore()

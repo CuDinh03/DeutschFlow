@@ -4,12 +4,14 @@
 // Luyện thi · Tiến bộ); "Tôi" (màn profile) không còn là tab mà mở từ ảnh đại diện.
 // Có ảnh tự tải lên thì hiện ảnh, không thì chữ cái cuối của tên (tên Việt: tên gọi đứng cuối).
 
+import { useState } from 'react'
 import { Image, Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useTheme } from '@/lib/theme'
 import { avatarInitial } from '@/lib/avatarInitial'
+import { captureEvent } from '@/lib/analytics'
 import { ThemedText } from './ThemedText'
 
 const SIZE = 40
@@ -19,6 +21,7 @@ export function AvatarButton() {
   const user = useAuthStore((s) => s.user)
   const name = user?.displayName ?? ''
   const avatarUrl = user?.avatarUrl ?? null
+  const [imageFailed, setImageFailed] = useState(false)
 
   return (
     <Pressable
@@ -27,6 +30,8 @@ export function AvatarButton() {
       hitSlop={4}
       onPress={() => {
         void Haptics.selectionAsync()
+        // Giữ chuỗi số liệu cũ của tab Hồ sơ: cùng sự kiện, khác nguồn.
+        captureEvent('nav_clicked', { feature: 'profile', from: 'avatar' })
         router.push('/(student)/profile')
       }}
       style={({ pressed }) => ({
@@ -50,10 +55,15 @@ export function AvatarButton() {
           borderColor: c.surface,
         }}
       >
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={{ width: SIZE, height: SIZE }} accessibilityIgnoresInvertColors />
+        {avatarUrl && !imageFailed ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={{ width: SIZE, height: SIZE }}
+            onError={() => setImageFailed(true)}
+            accessibilityIgnoresInvertColors
+          />
         ) : (
-          <ThemedText variant="title" style={{ color: c.onAccent, fontSize: 17, lineHeight: 20 }}>
+          <ThemedText variant="title" style={{ color: c.onAccent, fontSize: 17, lineHeight: 22 }}>
             {avatarInitial(name)}
           </ThemedText>
         )}

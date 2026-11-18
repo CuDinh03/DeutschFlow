@@ -50,23 +50,40 @@ export const PARENT_OF = {
 
 export type ParentScreen = keyof typeof PARENT_OF
 
+const PROFILE_HREF = '/(student)/profile' as const
+export type HubHref = MainTabHref | typeof PROFILE_HREF
+
 let lastMainTab: MainTab = 'index'
+// "Trạm" gần nhất = tab chính hoặc Hồ sơ. Màn tiện ích (Nâng cấp, Thông báo, Sổ từ…) mở từ Hồ sơ
+// thì back về Hồ sơ như trước khi Hồ sơ thôi là tab; còn chính Hồ sơ back về tab chính.
+let lastHubIsProfile = false
 
 export function isMainTab(name: string | undefined): name is MainTab {
   return name !== undefined && Object.prototype.hasOwnProperty.call(STUDENT_TAB, name)
 }
 
-/** Gọi mỗi khi Tabs đổi state (listener ở app/(student)/_layout.tsx): chỉ nhớ khi route là tab chính. */
+/** Gọi mỗi khi Tabs đổi state (listener ở app/(student)/_layout.tsx): nhớ tab chính và trạm. */
 export function noteFocusedRoute(routeName: string | undefined): void {
-  if (isMainTab(routeName)) lastMainTab = routeName
+  if (isMainTab(routeName)) {
+    lastMainTab = routeName
+    lastHubIsProfile = false
+  } else if (routeName === 'profile') {
+    lastHubIsProfile = true
+  }
 }
 
-/** href của tab chính được mở gần nhất — đích cho nút back của màn tiện ích. */
-export function lastMainTabHref(): MainTabHref {
+/** Đích back của màn tiện ích: trạm mở gần nhất (tab chính, hoặc Hồ sơ nếu vừa rẽ từ Hồ sơ). */
+export function lastMainTabHref(): HubHref {
+  return lastHubIsProfile ? PROFILE_HREF : STUDENT_TAB[lastMainTab]
+}
+
+/** Đích back của Hồ sơ: tab chính mở gần nhất (Hồ sơ mở từ ảnh đại diện trên các tab). */
+export function lastTabHref(): MainTabHref {
   return STUDENT_TAB[lastMainTab]
 }
 
 /** Chỉ dùng trong test. */
 export function resetLastMainTab(): void {
   lastMainTab = 'index'
+  lastHubIsProfile = false
 }

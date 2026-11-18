@@ -1,7 +1,7 @@
 // Mode-independent design scales. Semantic color mapping lives in themes.ts.
 //
 // Nhận diện v3.4 "Warm Modern German EdTech" (18/11/2026, giống web
-// docs/HE_THONG_THIET_KE_GIAO_DIEN_BEN_TRONG_V3.md): Newsreader cho tiêu đề, Be Vietnam Pro
+// bản đặc tả thiết kế v3.4 của owner, giữ local): Newsreader cho tiêu đề, Be Vietnam Pro
 // cho giao diện, bo góc mềm 8/12/18/24, bóng ấm. Trước đó là Galerie v2 (góc ~4px,
 // Plus Jakarta Sans). KHOÁ token giữ nguyên qua các lần đổi để mọi màn vẫn biên dịch;
 // chỉ GIÁ TRỊ đổi.

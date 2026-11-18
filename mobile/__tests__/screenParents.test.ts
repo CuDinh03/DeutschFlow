@@ -4,7 +4,7 @@
 import { existsSync } from 'fs'
 import { join } from 'path'
 import {
-  PARENT_OF, STUDENT_TAB, isMainTab, lastMainTabHref, noteFocusedRoute, resetLastMainTab,
+  PARENT_OF, STUDENT_TAB, isMainTab, lastMainTabHref, lastTabHref, noteFocusedRoute, resetLastMainTab,
 } from '@/lib/screenParents'
 
 const APP = join(__dirname, '..', 'app')
@@ -50,10 +50,19 @@ describe('lastMainTabHref', () => {
     expect(lastMainTabHref()).toBe('/(student)/exam')
   })
 
-  it('Hồ sơ không còn là tab: mở Hồ sơ không ghi đè tab vừa mở (back của Hồ sơ về đó)', () => {
+  it('Hồ sơ không còn là tab: back của Hồ sơ về tab vừa mở', () => {
     noteFocusedRoute('stats')
     noteFocusedRoute('profile')
-    expect(lastMainTabHref()).toBe('/(student)/stats')
+    expect(lastTabHref()).toBe('/(student)/stats')
+  })
+
+  it('màn tiện ích mở từ Hồ sơ back về Hồ sơ; mở lại một tab thì back về tab đó', () => {
+    noteFocusedRoute('learn')
+    noteFocusedRoute('profile')
+    noteFocusedRoute('upgrade')
+    expect(lastMainTabHref()).toBe('/(student)/profile')
+    noteFocusedRoute('index')
+    expect(lastMainTabHref()).toBe('/(student)')
   })
 
   it('isMainTab chỉ nhận 5 tab chính', () => {

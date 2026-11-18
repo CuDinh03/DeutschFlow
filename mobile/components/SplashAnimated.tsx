@@ -1,5 +1,5 @@
 // Màn chờ khi mở app — nhận diện v3.4 (18/11/2026). Nền giấy ấm, ô biểu tượng app nền mực
-// (đúng SVG chính thức docs/design/public-v3-assets/app-icon-dark.svg): nét D trắng tự vẽ,
+// (đúng app-icon-dark.svg chính thức của bộ nhận diện, owner giữ local): nét D trắng tự vẽ,
 // rồi ô vàng + tam giác đỏ bật ra, rồi chữ "myDeutschFlow" (Flow luôn đỏ) và khẩu hiệu
 // LEARN GERMAN. FIND YOUR FLOW. (owner chốt giữ). Cố định màu, không theo theme.
 //
@@ -17,6 +17,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated'
+import Constants from 'expo-constants'
 import { fonts } from '@/lib/theme'
 
 const AnimatedPath = Animated.createAnimatedComponent(Path)
@@ -27,6 +28,9 @@ const YELLOW = '#FFC900'
 const INK = '#171615'
 const RED = '#E3261D'
 const PAPER = '#FAF9F6'
+// Nền nối tiếp màn chờ native: bản build hiện tại vẫn nền vàng; khi build mới đổi sang giấy
+// (PR biểu tượng app) thì app.json đổi theo. Lấy từ cấu hình để không nhảy màu khi đi OTA.
+const SPLASH_BG = Constants.expoConfig?.splash?.backgroundColor ?? PAPER
 
 // Nét D của biểu tượng app (app-icon-dark.svg, viewBox 100). Chu vi ≈ 214 (độ dài để vẽ nét).
 const D_PATH = 'M 22 19 L 55 19 L 80 39 L 80 61 L 55 81 L 22 81 Z'
@@ -127,7 +131,7 @@ export function SplashAnimated({ ready, onDone }: SplashAnimatedProps) {
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center', zIndex: 999 },
+  root: { backgroundColor: SPLASH_BG, alignItems: 'center', justifyContent: 'center', zIndex: 999 },
   center: { alignItems: 'center', gap: 20 },
   tile: {
     width: TILE,

@@ -46,7 +46,7 @@ import {
 } from '@/lib/activeSession'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, GaGlyph, AvatarButton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, GaGlyph } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
@@ -779,18 +779,6 @@ export default function SpeakingScreen() {
   if (view === 'select') {
     return (
       <Screen edges={['top']}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: space[5],
-            paddingTop: space[2],
-          }}
-        >
-          <ThemedText variant="titleLg">Luyện nói</ThemedText>
-          <AvatarButton />
-        </View>
         {pendingResume ? (
           <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
             <Card style={{ borderColor: c.accent + '99' }}>

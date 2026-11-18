@@ -1,7 +1,8 @@
 // Logo D của myDeutschFlow — đúng hình học SVG chính thức của bộ nhận diện v3.4
-// (docs/design/public-v3-assets/logo-mark-light.svg, viewBox 100): nét D mực dày 11, góc
+// (logo-mark-light.svg trong bộ nhận diện owner giữ local, viewBox 100): nét D mực dày 11, góc
 // vuông (miter), ô vàng 13×13 và tam giác đỏ cố định màu. Nét D theo màu chữ chính của theme.
-// Không tự vẽ lại logo: đổi hình phải lấy từ bộ nhận diện owner đưa.
+// Không tự vẽ lại logo: đổi hình phải lấy từ bộ nhận diện owner đưa. Ô vàng/tam giác đỏ khớp
+// từng toạ độ với SVG; mã màu theo bảng màu thương hiệu (#FFC900, #E3261D).
 
 import Svg, { Path, Polygon, Rect } from 'react-native-svg'
 import { useTheme } from '@/lib/theme'

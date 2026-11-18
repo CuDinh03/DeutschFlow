@@ -13,7 +13,7 @@ import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { planDisplayName } from '@/lib/iapProducts'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, AppHeader, GaGlyph } from '@/components/ui'
-import { useBackToMainTab } from '@/hooks/useBackTo'
+import { useBackToLastTab } from '@/hooks/useBackTo'
 import * as Application from 'expo-application'
 import * as Updates from 'expo-updates'
 import { formatAppVersion } from '@/lib/appVersion'
@@ -28,9 +28,8 @@ export default function ProfileScreen() {
   })
   const theme = useTheme()
   const c = theme.colors
-  // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
   // Hồ sơ thôi là tab (owner chốt 18/11/2026): mở từ ảnh đại diện, back về tab vừa mở.
-  const goBack = useBackToMainTab()
+  const goBack = useBackToLastTab()
   const { user, logout } = useAuthStore()
   const { plan, isPro, isUltra } = usePlanStore()
   // V-06: gói do trung tâm cấp → không mời huỷ/hoàn tiền Apple (xem cụm "Gói đăng ký" bên dưới).

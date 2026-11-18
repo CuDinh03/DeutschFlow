@@ -1,5 +1,5 @@
 // Semantic color tokens — nhận diện v3.4 (18/11/2026), LIGHT-ONLY, giống web
-// (docs/HE_THONG_THIET_KE_GIAO_DIEN_BEN_TRONG_V3.md): giấy ấm #FAF9F6, mực #171615,
+// (bản đặc tả thiết kế nội khu v3.4 của owner, giữ local; phía web: frontend/src/styles/galerie.css): giấy ấm #FAF9F6, mực #171615,
 // vàng #FFC900, đỏ #E3261D (chữ "Flow" luôn đỏ), xanh hải quân #23406E (der, focus),
 // xanh lá #169B5E (das, đạt). Không còn chữ mờ #B3ADA5 (2,1:1) và chữ vàng #C79A00
 // (2,5:1): chữ phụ dùng #6E6A63 (≥ 4,5:1 trên giấy), chữ trên nền vàng dùng mực.
