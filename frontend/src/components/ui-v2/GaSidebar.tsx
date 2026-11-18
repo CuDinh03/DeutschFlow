@@ -26,6 +26,11 @@ export interface GaSidebarProps {
   nav: RoleNav
 }
 
+// Mục đang chọn: nền accent nhạt bo 12px + một thanh chỉ thị dọc bo tròn (v3.4), thay cho vạch inset
+// vuông cũ bị cắt cụt ở góc bo.
+const ACTIVE_ITEM =
+  'relative bg-ga-accent-soft font-semibold text-ga-accent before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-ga-pill before:bg-ga-accent'
+
 function isActive(href: string, rootHref: string, pathname: string): boolean {
   const p = pathname.replace(/\/+$/, '') || '/'
   if (href === rootHref) return p === rootHref
@@ -81,7 +86,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
         onClick={close}
         aria-hidden
         className={cn(
-          'fixed inset-0 z-40 bg-ga-ink/40 transition-opacity duration-200 lg:hidden',
+          'fixed inset-0 z-40 bg-ga-overlay backdrop-blur-[8px] transition-opacity duration-200 lg:hidden',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
       />
@@ -92,10 +97,10 @@ export function GaSidebar({ nav }: GaSidebarProps) {
         aria-label={t('shell.mainNav')}
         className={cn(
           // Mobile: ngăn kéo trượt cố định, NGOÀI luồng flex → nội dung chiếm trọn chiều ngang.
-          'fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col border-r border-ga-line bg-ga-card p-5',
+          'fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col rounded-r-ga-lg border-r border-ga-line bg-ga-card p-5',
           'transition-transform duration-200 ease-out',
           // lg+: trả lại rail tĩnh 248px như thiết kế gốc (không hiệu ứng, không đổ bóng).
-          'lg:static lg:z-auto lg:w-[248px] lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none lg:transition-none',
+          'lg:static lg:z-auto lg:w-[248px] lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:rounded-none lg:shadow-none lg:transition-none',
           open ? 'translate-x-0 shadow-ga-drawer' : '-translate-x-full',
         )}
       >
@@ -138,7 +143,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
                     'group flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 transition-colors lg:min-h-0',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
                     active
-                      ? 'bg-ga-accent-soft font-semibold text-ga-accent shadow-ga-selected-bar'
+                      ? ACTIVE_ITEM
                       : 'font-medium text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
                   )}
                 >
@@ -171,7 +176,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
                       'flex min-h-11 items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] transition-colors lg:min-h-0',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-inset',
                       active
-                        ? 'bg-ga-accent-soft font-semibold text-ga-accent shadow-ga-selected-bar'
+                        ? ACTIVE_ITEM
                         : 'font-medium text-ga-muted hover:bg-ga-surface hover:text-ga-ink',
                     )}
                   >

@@ -34,9 +34,9 @@ vi.mock('next-intl', () => ({
 const GALERIE = readFileSync(join(__dirname, '../../styles/galerie.css'), 'utf8')
 
 const EXPECTED_ACCENT: Record<RoleId, string> = {
-  student: '#FFCD00',
+  student: '#FFC900',
   teacher: '#7C56C8',
-  admin: '#27406B',
+  admin: '#23406E',
   org: '#11888A',
 }
 

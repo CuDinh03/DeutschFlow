@@ -181,7 +181,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
         <button
           type="button"
           aria-label={unread > 0 ? t('notificationsUnread', { count: unread }) : t('notifications')}
-          className="relative grid h-11 w-11 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg data-[state=open]:bg-ga-surface data-[state=open]:text-ga-ink lg:h-[38px] lg:w-[38px]"
+          className="relative grid h-11 w-11 place-items-center rounded-ga-pill border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg data-[state=open]:bg-ga-surface data-[state=open]:text-ga-ink lg:h-[38px] lg:w-[38px]"
         >
           <GaIcon name="notifications" size={20} />
           {unread > 0 && (

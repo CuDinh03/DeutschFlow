@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * GaInput — control nhập liệu chuẩn Galerie (DS §8.2, primitive từng THIẾU trong lớp ga).
- * Radius touch 6px (ngoại lệ có tên DS §6.2) · min-height 44px mobile (D8) · focus-visible ring ·
+ * Bo theo `--ga-r-control` (12px sau đăng nhập; trang công khai ghim 6px như bản đã duyệt) · min-height 44px mobile (D8) · focus-visible ring ·
  * `invalid` → aria-invalid + viền/ring đỏ (F-05/aria-invalid từng là 0/27).
  * Font-size <1024px được galerie.css ép 16px sẵn (chống iOS auto-zoom) — không đổi ở đây.
  */
@@ -23,7 +23,7 @@ export const GaInput = React.forwardRef<HTMLInputElement, GaInputProps>(function
       data-slot="ga-input"
       aria-invalid={invalid || props['aria-invalid'] || undefined}
       className={cn(
-        'w-full min-w-0 rounded-ga-touch border border-ga-line bg-ga-card px-3.5 py-2.5 text-ga-small font-medium text-ga-ink',
+        'w-full min-w-0 rounded-ga-control border border-ga-line bg-ga-card px-3.5 py-2.5 text-ga-small font-medium text-ga-ink',
         'min-h-11 lg:min-h-9',
         'placeholder:text-ga-subtle',
         'outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ga-focus',
@@ -49,7 +49,7 @@ export const GaTextarea = React.forwardRef<HTMLTextAreaElement, GaTextareaProps>
         data-slot="ga-textarea"
         aria-invalid={invalid || props['aria-invalid'] || undefined}
         className={cn(
-          'w-full min-w-0 rounded-ga-touch border border-ga-line bg-ga-card px-3.5 py-2.5 text-ga-small font-medium text-ga-ink',
+          'w-full min-w-0 rounded-ga-control border border-ga-line bg-ga-card px-3.5 py-2.5 text-ga-small font-medium text-ga-ink',
           'placeholder:text-ga-subtle',
           'outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ga-focus',
           'disabled:pointer-events-none disabled:opacity-50',

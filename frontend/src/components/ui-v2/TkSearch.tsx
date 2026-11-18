@@ -18,7 +18,7 @@ export function TkSearch({ containerClassName, className, ...props }: TkSearchPr
         // Ring focus-within: shadow-ga-card-hover quá mờ để làm focus indicator (F-05) — ring accent
         // là chỉ báo bàn phím nhìn thấy được; radius touch cho control nhập liệu (DS §6.2).
         // min-h 44px dưới lg (F-06/D8 — Gate 0 review); lg trả lại chiều cao compact.
-        'flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-ga-touch border border-ga-line bg-ga-card px-4 py-2.5 transition-shadow focus-within:ring-2 focus-within:ring-ga-focus lg:min-h-0',
+        'flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-ga-pill border border-ga-line bg-ga-card px-4 py-2.5 transition-shadow focus-within:ring-2 focus-within:ring-ga-focus lg:min-h-0',
         containerClassName,
       )}
     >

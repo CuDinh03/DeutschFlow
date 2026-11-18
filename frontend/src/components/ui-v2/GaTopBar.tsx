@@ -50,13 +50,15 @@ export function GaTopBar({ role }: GaTopBarProps) {
   const inbox = roleAreas?.inbox
 
   return (
-    <header data-ga-chrome className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card px-4 lg:gap-4 lg:px-6">
+    // Kính mờ nhẹ. Thẻ có backdrop-filter thành gốc toạ độ của mọi con `position: fixed`, nên ngăn kéo,
+    // hộp thoại, popover KHÔNG được render bên trong header (chúng đều là anh em hoặc portal).
+    <header data-ga-chrome className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card/90 px-4 backdrop-blur-md lg:gap-4 lg:px-6">
       <GaSidebarToggle />
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3.5">
         {/* Chip vai trò: chỉ giữ khi mang dữ liệu thật (admin health, teacher pending). */}
         {role === 'admin' ? (
-          <span className="hidden whitespace-nowrap rounded-ga bg-ga-green-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-green md:inline-flex">
+          <span className="hidden whitespace-nowrap rounded-ga-pill bg-ga-green-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-green md:inline-flex">
             {t(ROLE_CHIP_KEY.admin)}
           </span>
         ) : role === 'teacher' ? (
@@ -64,7 +66,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
             <TeacherPendingPill />
           </div>
         ) : !roleAreas ? (
-          <span className="hidden whitespace-nowrap rounded-ga bg-ga-accent-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-accent md:inline-flex">
+          <span className="hidden whitespace-nowrap rounded-ga-pill bg-ga-accent-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-accent md:inline-flex">
             {t(ROLE_CHIP_KEY[role])}
           </span>
         ) : null}
@@ -75,7 +77,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
           <Link
             href={inbox.href}
             aria-label={t('messages')}
-            className="group grid h-11 w-11 shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
+            className="group grid h-11 w-11 shrink-0 place-items-center rounded-ga-pill border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
           >
             {/* Nút điều khiển trên thanh trên đều là Lucide (chuông, trợ giúp) — không đặt glyph thương hiệu lẫn vào. */}
             <GaIcon name={inbox.icon} size={20} />
@@ -91,7 +93,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
           <Link
             href={HELP_HREF[role]}
             aria-label={t('help')}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-ga-pill border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] lg:w-[38px]"
           >
             <GaIcon name="help" size={20} />
           </Link>

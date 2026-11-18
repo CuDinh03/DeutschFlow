@@ -162,7 +162,7 @@ export function DataTable<T>({
     setPage(1)
   }
 
-  const card = 'overflow-hidden rounded-ga border border-ga-line bg-ga-card'
+  const card = 'overflow-hidden rounded-ga-md border border-ga-line bg-ga-card shadow-ga-sm'
   // Thẻ bọc ngoài có `overflow-hidden` nên trên mobile bảng bị CẮT MẤT cột thay vì cuộn được.
   // Vùng cuộn ngang riêng + min-w cho table giữ cột khỏi bị bóp nát; từ lg tắt cả hai để
   // hành vi desktop (table `w-full` co theo thẻ) không đổi một pixel.

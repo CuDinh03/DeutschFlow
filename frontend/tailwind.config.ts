@@ -158,6 +158,7 @@ const config: Config = {
         // Galerie 2.0 — 2px editorial + ngoại lệ touch 6px có tên (DS §6.2) + pill + thang bo góc trang công khai v3.4.
         ga: 'var(--ga-radius)',
         'ga-touch': 'var(--ga-radius-touch)',
+        'ga-control': 'var(--ga-r-control)',
         'ga-sm': 'var(--ga-r-sm)',
         'ga-md': 'var(--ga-r-md)',
         'ga-lg': 'var(--ga-r-lg)',
