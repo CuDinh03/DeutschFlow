@@ -12,14 +12,19 @@ const TU_NGOAI = [
   'Speaking', 'Home', 'Today', 'Learn', 'Profile', 'Weekly',
 ]
 
-describe('TAB_LABELS — nhãn 4 tab học viên', () => {
-  test('đúng chữ web đang dùng ở nav.areas (chrome.vi.json)', () => {
+describe('TAB_LABELS — nhãn 5 tab học viên', () => {
+  test('đúng bộ tab của khu học viên trên web (owner chốt 18/11/2026)', () => {
     expect(TAB_LABELS).toEqual({
       index: 'Hôm nay',
       learn: 'Học',
       speaking: 'Luyện nói',
-      profile: 'Hồ sơ',
+      exam: 'Luyện thi',
+      stats: 'Tiến bộ',
     })
+  })
+
+  test('đúng thứ tự trên thanh tab', () => {
+    expect(Object.keys(TAB_LABELS)).toEqual(['index', 'learn', 'speaking', 'exam', 'stats'])
   })
 
   test('không nhãn nào lẫn tiếng Đức hoặc tiếng Anh', () => {

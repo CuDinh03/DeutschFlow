@@ -43,11 +43,13 @@ export default function StudentLayout() {
         <Tabs.Screen name="index" options={{ title: TAB_LABELS.index }} />
         <Tabs.Screen name="learn" options={{ title: TAB_LABELS.learn }} />
         <Tabs.Screen name="speaking" options={{ title: TAB_LABELS.speaking }} />
-        <Tabs.Screen name="profile" options={{ title: TAB_LABELS.profile }} />
+        <Tabs.Screen name="exam" options={{ title: TAB_LABELS.exam }} />
+        <Tabs.Screen name="stats" options={{ title: TAB_LABELS.stats }} />
+        {/* Hồ sơ (Tôi và cài đặt) mở từ ảnh đại diện góc trên — owner chốt 18/11/2026. */}
+        <Tabs.Screen name="profile" options={{ href: null }} />
 
         {/* Detail routes: reachable via router.push, not shown as tabs */}
         <Tabs.Screen name="guide" options={{ href: null }} />
-        <Tabs.Screen name="exam" options={{ href: null }} />
         <Tabs.Screen name="exam-attempt" options={{ href: null }} />
         <Tabs.Screen name="exam-review" options={{ href: null }} />
         <Tabs.Screen name="exam-plan" options={{ href: null }} />
@@ -59,7 +61,6 @@ export default function StudentLayout() {
         <Tabs.Screen name="certificates" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
         <Tabs.Screen name="srs" options={{ href: null }} />
-        <Tabs.Screen name="stats" options={{ href: null }} />
         <Tabs.Screen name="upgrade" options={{ href: null }} />
         <Tabs.Screen name="vocabulary" options={{ href: null }} />
         <Tabs.Screen name="video-lesson" options={{ href: null }} />

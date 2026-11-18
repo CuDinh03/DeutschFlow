@@ -15,11 +15,15 @@
 // (phòng thi đã chấm, phiên nói đã "Xong" qua replace) — xem lib/examSpeakingNav.ts.
 // Cụm Luyện thi Nói giữ sơ đồ riêng ở lib/examSpeakingNav.ts (#554).
 
+// 5 tab chính theo khu học viên trên web (owner chốt 18/11/2026). Hồ sơ thôi là tab (mở từ ảnh
+// đại diện) nên KHÔNG được nhớ là tab chính: nút back của Hồ sơ về tab vừa mở trước đó; các
+// màn cài đặt vẫn về Hồ sơ qua PARENT_OF.
 export const STUDENT_TAB = {
   index: '/(student)',
   learn: '/(student)/learn',
   speaking: '/(student)/speaking',
-  profile: '/(student)/profile',
+  exam: '/(student)/exam',
+  stats: '/(student)/stats',
 } as const
 
 export type MainTab = keyof typeof STUDENT_TAB

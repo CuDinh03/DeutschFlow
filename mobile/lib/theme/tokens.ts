@@ -1,9 +1,10 @@
 // Mode-independent design scales. Semantic color mapping lives in themes.ts.
 //
-// v2 "Galerie" design language (2026-06-28): warm-paper editorial — Newsreader
-// serif large-titles, Plus Jakarta Sans UI, hairline borders, SHARP corners (~4px),
-// yellow-square motif. Token KEYS are kept stable across the v1→v2 reskin so every
-// screen/component keeps compiling; only the VALUES changed.
+// Nhận diện v3.4 "Warm Modern German EdTech" (18/11/2026, giống web
+// docs/HE_THONG_THIET_KE_GIAO_DIEN_BEN_TRONG_V3.md): Newsreader cho tiêu đề, Be Vietnam Pro
+// cho giao diện, bo góc mềm 8/12/18/24, bóng ấm. Trước đó là Galerie v2 (góc ~4px,
+// Plus Jakarta Sans). KHOÁ token giữ nguyên qua các lần đổi để mọi màn vẫn biên dịch;
+// chỉ GIÁ TRỊ đổi.
 
 export const space = {
   0: 0,
@@ -20,20 +21,20 @@ export const space = {
   16: 64,
 } as const
 
-// Galerie = sharp corners. Almost everything is ~4px; larger surfaces get a hair
-// more. `full` stays for pills/circles.
+// v3.4: sm 8 (nhãn, ô nhỏ) · md 12 (ô nhập, phương án) · lg 18 (thẻ) · xl 24 (thẻ sân
+// khấu) · 2xl/3xl cho tấm lớn. `full` cho nút viên thuốc và hình tròn.
 export const radius = {
-  sm: 4,
-  md: 4,
-  lg: 4,
-  xl: 6,
-  '2xl': 8,
-  '3xl': 10,
+  sm: 8,
+  md: 12,
+  lg: 18,
+  xl: 24,
+  '2xl': 28,
+  '3xl': 32,
   full: 9999,
 } as const
 
 // Font family names as registered by @expo-google-fonts loaders in _layout.tsx.
-// v2: display/titles = Newsreader (serif), UI/body = Plus Jakarta Sans. Keys kept
+// v3.4: display/titles = Newsreader (serif), UI/body = Be Vietnam Pro. Keys kept
 // stable (displayBlack/…/monoBold) so the type scale + any direct refs still resolve.
 // 06/09/2026: body đổi từ Instrument Sans → Plus Jakarta Sans vì Instrument Sans thiếu
 // 50/70 glyph tiếng Việt (ơ ư ạ ả ấ ầ ẩ … ỹ Ư Ơ, kiểm bảng cmap TTF) → hệ điều hành
@@ -42,12 +43,12 @@ export const fonts = {
   displayBlack: 'Newsreader_700Bold',
   displayBold: 'Newsreader_600SemiBold',
   displaySemi: 'Newsreader_500Medium',
-  bodyRegular: 'PlusJakartaSans_400Regular',
-  bodyMedium: 'PlusJakartaSans_500Medium',
-  bodySemi: 'PlusJakartaSans_600SemiBold',
-  bodyBold: 'PlusJakartaSans_700Bold',
+  bodyRegular: 'BeVietnamPro_400Regular',
+  bodyMedium: 'BeVietnamPro_500Medium',
+  bodySemi: 'BeVietnamPro_600SemiBold',
+  bodyBold: 'BeVietnamPro_700Bold',
   // "mono" role retired in v2 — numbers use the serif; map to keep refs valid.
-  monoMedium: 'PlusJakartaSans_500Medium',
+  monoMedium: 'BeVietnamPro_500Medium',
   monoBold: 'Newsreader_600SemiBold',
 } as const
 

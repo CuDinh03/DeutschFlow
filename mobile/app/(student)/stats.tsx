@@ -20,6 +20,8 @@ import {
   Pill,
   Caption,
   AppHeader,
+  AvatarButton,
+  useTabBarClearance,
   ProgressBar,
   ErrorState,
   FadeIn,
@@ -27,7 +29,6 @@ import {
   SkillRadar,
   Button,
 GaGlyph } from '@/components/ui'
-import { useBackToMainTab } from '@/hooks/useBackTo'
 
 interface StatsData {
   streakDays: number
@@ -55,7 +56,7 @@ interface SkillsShape {
 
 export default function StatsScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
-  const goBack = useBackToMainTab()
+  const tabClearance = useTabBarClearance()
   const { data: stats, isLoading, isError, refetch: refetchStats } = useQuery({
     queryKey: ['stats'],
     queryFn: () => api.get<StatsData>('/student/stats').then((r) => r.data),
@@ -113,7 +114,7 @@ export default function StatsScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Tiến độ học tập" onBack={goBack} />
+      <AppHeader title="Tiến bộ" right={<AvatarButton />} />
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <View style={{ flexDirection: 'row', gap: space[3] }}>
@@ -129,7 +130,7 @@ export default function StatsScreen() {
         <Screen
           scroll
           edges={[]}
-          contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], paddingTop: space[2], gap: space[3] }}
+          contentStyle={{ paddingHorizontal: space[5], paddingBottom: tabClearance, paddingTop: space[2], gap: space[3] }}
           refreshing={pull.refreshing}
           onRefresh={onRefresh}
         >

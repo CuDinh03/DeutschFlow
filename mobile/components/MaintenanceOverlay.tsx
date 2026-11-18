@@ -11,7 +11,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { fonts } from '@/lib/theme/tokens'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 
-const YELLOW = '#FFCD00'
+const YELLOW = '#FFC900'
 const INK = '#211B0C'
 const PAPER = '#FAF7EF'
 const GOLD = '#8A6C00'

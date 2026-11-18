@@ -1,8 +1,9 @@
-// Semantic color tokens — v2 "Galerie" warm-paper (LIGHT-ONLY).
-// Brand identity = logo: gold #FFCD00 + red #DA291C, carried over from v1.
-// The design has no dark variant, so `darkTheme`/`darkColors` alias the light
-// (warm-paper) values — the app renders warm-paper regardless of system scheme.
-// Token KEYS are unchanged from v1 so every consumer keeps compiling.
+// Semantic color tokens — nhận diện v3.4 (18/11/2026), LIGHT-ONLY, giống web
+// (docs/HE_THONG_THIET_KE_GIAO_DIEN_BEN_TRONG_V3.md): giấy ấm #FAF9F6, mực #171615,
+// vàng #FFC900, đỏ #E3261D (chữ "Flow" luôn đỏ), xanh hải quân #23406E (der, focus),
+// xanh lá #169B5E (das, đạt). Không còn chữ mờ #B3ADA5 (2,1:1) và chữ vàng #C79A00
+// (2,5:1): chữ phụ dùng #6E6A63 (≥ 4,5:1 trên giấy), chữ trên nền vàng dùng mực.
+// darkTheme/darkColors vẫn trỏ về bảng sáng. KHOÁ token giữ nguyên để mọi màn biên dịch.
 
 import type { ViewStyle } from 'react-native'
 
@@ -71,56 +72,59 @@ export interface Theme {
   blurTint: 'dark' | 'light'
 }
 
-const YELLOW = '#FFCD00' // brand gold (yellow-square motif)
-const GOLD = '#C79A00' // deep gold — passes AA on warm paper
-const RED = '#DA291C' // logo red (also danger in v2)
+const YELLOW = '#FFC900' // vàng thương hiệu v3.4
+const RED = '#E3261D' // đỏ logo, die, nguy hiểm
+const INK = '#171615'
+const NAVY = '#23406E' // der, thông tin, viền focus
+const GREEN = '#169B5E' // das, đạt
 
-// Warm-paper palette (na-theme.jsx → NA.*)
 export const lightColors: ThemeColors = {
-  bg: '#FBFAF7',
+  bg: '#FAF9F6',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  surfaceSunken: '#F6F3EC',
-  border: '#E7E3DA',
-  borderStrong: '#D8D2C6',
-  textPrimary: '#161513', // ink
-  textSecondary: '#76716A', // muted
-  textMuted: '#B3ADA5', // subtle
-  textFaint: '#C9C4BC', // faint
+  surfaceSunken: '#F3EFE8',
+  border: 'rgba(23,22,21,0.09)',
+  borderStrong: 'rgba(23,22,21,0.18)',
+  textPrimary: INK,
+  textSecondary: '#6E6A63',
+  // Bỏ chữ mờ không đạt tương phản: textMuted = chữ phụ. textFaint chỉ cho chi tiết trang trí.
+  textMuted: '#6E6A63',
+  textFaint: '#8A847B',
   accent: YELLOW,
-  accentSoft: 'rgba(255,205,0,0.16)',
-  onAccent: '#161513', // ink reads on yellow
-  accentText: GOLD,
+  accentSoft: 'rgba(255,201,0,0.22)',
+  onAccent: INK,
+  // Chữ "nhấn vàng" cũ (#C79A00) không đạt 4,5:1 ⇒ dùng mực; điểm nhấn vàng nằm ở nền/viền.
+  accentText: INK,
   brand: RED,
-  brandSoft: 'rgba(218,41,28,0.12)',
+  brandSoft: 'rgba(227,38,29,0.10)',
   onBrand: '#FFFFFF',
-  success: '#1E9E61',
-  successSoft: 'rgba(30,158,97,0.13)',
+  success: GREEN,
+  successSoft: 'rgba(22,155,94,0.12)',
   danger: RED,
-  dangerSoft: 'rgba(218,41,28,0.12)',
-  info: '#2F6FC9',
-  infoSoft: 'rgba(47,111,201,0.12)',
+  dangerSoft: 'rgba(227,38,29,0.10)',
+  info: NAVY,
+  infoSoft: 'rgba(35,64,110,0.10)',
   violet: '#7C56C8',
   teal: '#11888A',
-  orange: '#E07B39',
-  der: '#2F6FC9', // blue
-  die: '#DA291C', // red
-  das: '#1E9E61', // green
-  inkSurface: '#161513', // editorial dark hero card
-  onInk: '#FBFAF7', // primary text on ink
-  onInkMuted: '#A39E94', // secondary text on ink
-  overlay: 'rgba(22,21,19,0.45)',
-  skeletonBase: '#EFEBE2',
-  skeletonHighlight: '#F7F4ED',
+  orange: '#C26A1B',
+  der: NAVY,
+  die: RED,
+  das: GREEN,
+  inkSurface: INK,
+  onInk: '#FAF9F6',
+  onInkMuted: 'rgba(255,255,255,0.68)',
+  overlay: 'rgba(23,22,21,0.45)',
+  skeletonBase: '#EFEAE1',
+  skeletonHighlight: '#F7F4EE',
 }
 
 // Light-only: dark aliases the warm-paper palette.
 export const darkColors: ThemeColors = lightColors
 
-// Warm-paper leans on hairline borders; shadows stay subtle.
+// Bóng ấm v3.4 (--sh-sm / --sh-md của web).
 const paperShadow: Theme['shadow'] = {
-  card: { shadowColor: '#161513', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  lifted: { shadowColor: '#161513', shadowOpacity: 0.1, shadowRadius: 22, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
+  card: { shadowColor: INK, shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  lifted: { shadowColor: INK, shadowOpacity: 0.1, shadowRadius: 32, shadowOffset: { width: 0, height: 14 }, elevation: 8 },
 }
 
 export const lightTheme: Theme = { isDark: false, colors: lightColors, shadow: paperShadow, blurTint: 'light' }

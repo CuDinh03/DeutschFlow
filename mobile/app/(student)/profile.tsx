@@ -12,7 +12,8 @@ import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { planDisplayName } from '@/lib/iapProducts'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
-import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, useTabBarClearance, GaGlyph } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn, AppHeader, GaGlyph } from '@/components/ui'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 import * as Application from 'expo-application'
 import * as Updates from 'expo-updates'
 import { formatAppVersion } from '@/lib/appVersion'
@@ -28,7 +29,8 @@ export default function ProfileScreen() {
   const theme = useTheme()
   const c = theme.colors
   // Thanh tab liquid-glass nổi đè lên nội dung — chừa đáy cho mục cuối.
-  const tabClearance = useTabBarClearance()
+  // Hồ sơ thôi là tab (owner chốt 18/11/2026): mở từ ảnh đại diện, back về tab vừa mở.
+  const goBack = useBackToMainTab()
   const { user, logout } = useAuthStore()
   const { plan, isPro, isUltra } = usePlanStore()
   // V-06: gói do trung tâm cấp → không mời huỷ/hoàn tiền Apple (xem cụm "Gói đăng ký" bên dưới).
@@ -142,8 +144,9 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: tabClearance }}>
-      <FadeIn delay={0} style={{ paddingHorizontal: space[5], paddingTop: space[5] }}>
+    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
+      <AppHeader title="Tôi và cài đặt" onBack={goBack} />
+      <FadeIn delay={0} style={{ paddingHorizontal: space[5], paddingTop: space[2] }}>
         <Caption style={{ marginBottom: space[2] }}>Tài khoản của bạn</Caption>
         {/* Identity — editorial ink hero, mirroring the Home streak card idiom */}
         <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>

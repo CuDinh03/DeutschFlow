@@ -9,11 +9,10 @@ import { Alert } from 'react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, Caption, SelectableChip, GaGlyph } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, AvatarButton, EmptyState, ErrorState, SectionHeader, Skeleton, Caption, SelectableChip, GaGlyph, useTabBarClearance } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
-import { useBackToMainTab } from '@/hooks/useBackTo'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
 import { pickBand } from '@/lib/learnerBand'
 import { ExamCountdownCard } from '@/components/exam/ExamCountdownCard'
@@ -22,7 +21,7 @@ const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 export default function ExamScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
-  const goBack = useBackToMainTab()
+  const tabClearance = useTabBarClearance()
   const theme = useTheme()
   const { hasProAccess } = usePlanStore()
 
@@ -93,7 +92,7 @@ export default function ExamScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Thi thử Goethe" onBack={goBack} />
+      <AppHeader title="Luyện thi" right={<AvatarButton />} />
 
       <ExamCountdownCard invite style={{ paddingHorizontal: space[5], paddingTop: space[2] }} />
 
@@ -150,7 +149,7 @@ export default function ExamScreen() {
         <Screen
           scroll
           edges={[]}
-          contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[2] }}
+          contentStyle={{ paddingHorizontal: space[5], paddingBottom: tabClearance, gap: space[3], paddingTop: space[2] }}
           refreshing={pull.refreshing}
           onRefresh={() => void pull.onRefresh()}
         >

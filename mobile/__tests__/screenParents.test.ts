@@ -46,12 +46,19 @@ describe('lastMainTabHref', () => {
     noteFocusedRoute('srs')
     noteFocusedRoute(undefined)
     expect(lastMainTabHref()).toBe('/(student)/learn')
-    noteFocusedRoute('profile')
-    expect(lastMainTabHref()).toBe('/(student)/profile')
+    noteFocusedRoute('exam')
+    expect(lastMainTabHref()).toBe('/(student)/exam')
   })
 
-  it('isMainTab chỉ nhận 4 tab chính', () => {
-    expect(['index', 'learn', 'speaking', 'profile'].every(isMainTab)).toBe(true)
+  it('Hồ sơ không còn là tab: mở Hồ sơ không ghi đè tab vừa mở (back của Hồ sơ về đó)', () => {
+    noteFocusedRoute('stats')
+    noteFocusedRoute('profile')
+    expect(lastMainTabHref()).toBe('/(student)/stats')
+  })
+
+  it('isMainTab chỉ nhận 5 tab chính', () => {
+    expect(['index', 'learn', 'speaking', 'exam', 'stats'].every(isMainTab)).toBe(true)
+    expect(isMainTab('profile')).toBe(false)
     expect(isMainTab('srs')).toBe(false)
     expect(isMainTab('constructor')).toBe(false)
   })

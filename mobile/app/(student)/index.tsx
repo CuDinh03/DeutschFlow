@@ -41,6 +41,7 @@ import {
   Caption,
   ProgressBar,
   useTabBarClearance,
+  AvatarButton,
 GaGlyph } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -344,6 +345,7 @@ export default function DashboardScreen() {
             badge={unread}
             onPress={() => router.push('/(student)/notifications')}
           />
+          <AvatarButton />
         </View>
       </View>
 
