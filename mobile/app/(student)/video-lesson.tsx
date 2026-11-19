@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { View, ActivityIndicator, Alert, Share } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useLocalSearchParams } from 'expo-router'
-import { Download } from 'lucide-react-native'
-import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, AppHeader, ThemedText, Icon, EmptyState, ErrorState, SelectableChip } from '@/components/ui'
+import { space, useTheme } from '@/lib/theme'
+import { Screen, Button, EmptyState, ErrorState } from '@/components/ui'
+import { Chip, Rail, SectionHead, TopBar } from '@/components/learn/HocOnParts'
 import { apiMessage } from '@/lib/api'
 import { videoLessonApi } from '@/lib/videoLessonApi'
 import { VideoLessonPlayer } from '@/components/video/VideoLessonPlayer'
@@ -20,6 +20,9 @@ const LISTEN_TOPICS = [
   { de: 'Im Restaurant', vi: 'Ở nhà hàng' },
 ] as const
 
+// Giao diện v3.4 (Đợt 6A, mẫu `video`): đầu màn có tên ở giữa, chip chọn cấp / Tới hạn / Hội thoại cuộn
+// ngang, chủ đề hội thoại thành chip, nút "Xuất video mp4" toàn chiều ngang cuối màn. Truy vấn, chế độ,
+// xuất mp4 (poll + Share) giữ nguyên.
 export default function VideoLessonScreen() {
   const c = useTheme().colors
   const params = useLocalSearchParams<{ level?: string; type?: string; caseName?: string; title?: string; from?: string }>()
@@ -96,172 +99,90 @@ export default function VideoLessonScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
-        title={isGrammar ? (params.title ?? 'Video ngữ pháp') : 'Video ôn tập'}
-        onBack={goBack}
-      />
+      <TopBar onBack={goBack} title={isGrammar ? (params.title ?? 'Video ngữ pháp') : 'Video ôn tập'} />
 
-      {!isGrammar && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: space[5],
-            marginBottom: space[4],
-          }}
-        >
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
-            {LEVELS.map((lv) => {
-              const active = !due && !listening && lv === level
-              return (
-                <SelectableChip
-                  key={lv}
-                  label={`Cấp ${lv}`}
-                  selected={active}
-                  onPress={() => {
-                    setLevel(lv)
-                    setDue(false)
-                    setListening(false)
-                  }}
-                  style={{
-                    paddingHorizontal: space[4],
-                    paddingVertical: 6,
-                    borderRadius: radius.full,
-                    backgroundColor: active ? c.accent : c.surfaceSunken,
-                    borderWidth: active ? 0 : 1,
-                    borderColor: c.border,
-                  }}
-                >
-                  <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
-                    {lv}
-                  </ThemedText>
-                </SelectableChip>
-              )
-            })}
-            <SelectableChip
+      <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], paddingTop: space[3] }}>
+        {!isGrammar && (
+          <Rail style={{ marginBottom: space[4] }}>
+            {LEVELS.map((lv) => (
+              <Chip
+                key={lv}
+                label={lv}
+                accessibilityLabel={`Cấp ${lv}`}
+                on={!due && !listening && lv === level}
+                onPress={() => {
+                  setLevel(lv)
+                  setDue(false)
+                  setListening(false)
+                }}
+              />
+            ))}
+            <Chip
               label="Tới hạn"
-              selected={due}
+              on={due && !listening}
               onPress={() => {
                 setDue(true)
                 setListening(false)
               }}
-              style={{
-                paddingHorizontal: space[4],
-                paddingVertical: 6,
-                borderRadius: radius.full,
-                backgroundColor: due ? c.accent : c.surfaceSunken,
-                borderWidth: due ? 0 : 1,
-                borderColor: c.border,
-              }}
-            >
-              <ThemedText variant="label" color={due ? 'onAccent' : 'muted'}>
-                Tới hạn
-              </ThemedText>
-            </SelectableChip>
-            <SelectableChip
+            />
+            <Chip
               label="Hội thoại"
-              selected={listening}
+              on={listening}
               onPress={() => {
                 setListening(true)
                 setDue(false)
               }}
-              style={{
-                paddingHorizontal: space[4],
-                paddingVertical: 6,
-                borderRadius: radius.full,
-                backgroundColor: listening ? c.accent : c.surfaceSunken,
-                borderWidth: listening ? 0 : 1,
-                borderColor: c.border,
-              }}
-            >
-              <ThemedText variant="label" color={listening ? 'onAccent' : 'muted'}>
-                Hội thoại
-              </ThemedText>
-            </SelectableChip>
+            />
+          </Rail>
+        )}
+
+        {!isGrammar && listening && (
+          <>
+            <SectionHead title="Hội thoại" right={`Cấp ${level}`} style={{ marginTop: 0 }} />
+            <Rail style={{ marginBottom: space[4] }}>
+              {LISTEN_TOPICS.map((t) => (
+                <Chip key={t.de} label={t.vi} on={topic === t.de} onPress={() => setTopic(t.de)} />
+              ))}
+            </Rail>
+          </>
+        )}
+
+        {isLoading ? (
+          <View style={{ paddingVertical: space[10], alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={c.textPrimary} />
           </View>
+        ) : isError ? (
+          <ErrorState onRetry={() => void refetch()} />
+        ) : !data || data.scenes.length === 0 ? (
+          <EmptyState
+            glyph="video"
+            title="Chưa có video"
+            message={
+              isGrammar
+                ? 'Chủ đề ngữ pháp này chưa có nội dung video.'
+                : listening
+                  ? 'Chưa tạo được hội thoại (cần dịch vụ AI). Thử lại sau.'
+                  : due
+                    ? 'Không có từ tới hạn kèm hình ảnh. Học thêm hoặc thêm ảnh cho từ.'
+                    : `Cấp ${level} chưa có từ kèm hình ảnh. Thêm ảnh cho từ vựng rồi thử lại.`
+            }
+          />
+        ) : (
+          <VideoLessonPlayer timeline={data} />
+        )}
 
-          {mode === 'level' && !!data && data.scenes.length > 0 && (
-            <SelectableChip
-              label="Xuất video mp4"
-              onPress={() => void startExport()}
-              disabled={exporting}
-              hitSlop={8}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: exporting ? 0.6 : 1 }}
-            >
-              {exporting ? (
-                <ActivityIndicator size="small" color={c.accent} />
-              ) : (
-                <Icon icon={Download} size={18} color="accent" />
-              )}
-              <ThemedText variant="label" color="accent">
-                {exporting ? 'Đang xuất…' : '.mp4'}
-              </ThemedText>
-            </SelectableChip>
-          )}
-        </View>
-      )}
-
-      {!isGrammar && listening && (
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: space[2],
-            paddingHorizontal: space[5],
-            marginBottom: space[4],
-          }}
-        >
-          {LISTEN_TOPICS.map((t) => {
-            const active = topic === t.de
-            return (
-              <SelectableChip
-                key={t.de}
-                label={t.vi}
-                selected={active}
-                hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-                onPress={() => setTopic(t.de)}
-                style={{
-                  paddingHorizontal: space[3],
-                  paddingVertical: 5,
-                  borderRadius: radius.full,
-                  backgroundColor: active ? c.accentSoft : 'transparent',
-                  borderWidth: 1,
-                  borderColor: active ? c.accent : c.border,
-                }}
-              >
-                <ThemedText variant="caption" color={active ? 'accent' : 'muted'}>
-                  {t.vi}
-                </ThemedText>
-              </SelectableChip>
-            )
-          })}
-        </View>
-      )}
-
-      {isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={c.accent} />
-        </View>
-      ) : isError ? (
-        <ErrorState onRetry={() => void refetch()} />
-      ) : !data || data.scenes.length === 0 ? (
-        <EmptyState
-          glyph="video"
-          title="Chưa có video"
-          message={
-            isGrammar
-              ? 'Chủ đề ngữ pháp này chưa có nội dung video.'
-              : listening
-                ? 'Chưa tạo được hội thoại (cần dịch vụ AI). Thử lại sau.'
-                : due
-                  ? 'Không có từ tới hạn kèm hình ảnh. Học thêm hoặc thêm ảnh cho từ.'
-                  : `Cấp ${level} chưa có từ kèm hình ảnh. Thêm ảnh cho từ vựng rồi thử lại.`
-          }
-        />
-      ) : (
-        <VideoLessonPlayer timeline={data} />
-      )}
+        {/* Phase B — xuất mp4 chỉ cho video từ vựng theo cấp (render ở server). */}
+        {!isGrammar && mode === 'level' && !!data && data.scenes.length > 0 && (
+          <Button
+            label={exporting ? 'Đang xuất…' : 'Xuất video mp4'}
+            variant="secondary"
+            loading={exporting}
+            disabled={exporting}
+            onPress={() => void startExport()}
+            style={{ marginTop: space[5] }}
+          />
+        )}
+      </Screen>
     </Screen>
   )
 }

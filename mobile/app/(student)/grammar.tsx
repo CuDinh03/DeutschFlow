@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
-import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
-import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption, Skeleton, ErrorState, GaGlyph } from '@/components/ui'
+import { radius, space, themeShadowStyle, useTheme } from '@/lib/theme'
+import { Screen, ThemedText, Icon, Skeleton, ErrorState } from '@/components/ui'
+import { ArtBadge, Badge, GlyphTile, HeroTitle, ListCard, ListItem, SectionHead, TopBar } from '@/components/learn/HocOnParts'
 import { mapGrammarTopic, type GrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
 import { levelsFromTree, type CefrLevelState, type LevelState } from '@/lib/levelState'
@@ -23,10 +24,10 @@ interface TopicQueryLike {
 }
 
 const CASES = [
-  { key: 'nominativ', label: 'Nominativ', desc: 'Chủ ngữ (Wer? Was?)' },
-  { key: 'akkusativ', label: 'Akkusativ', desc: 'Tân ngữ trực tiếp (Wen? Was?)' },
-  { key: 'dativ', label: 'Dativ', desc: 'Tân ngữ gián tiếp (Wem?)' },
-  { key: 'genitiv', label: 'Genitiv', desc: 'Sở hữu (Wessen?)' },
+  { key: 'nominativ', label: 'Nominativ', short: 'Nom.', role: 'chủ ngữ', desc: 'Chủ ngữ (Wer? Was?)' },
+  { key: 'akkusativ', label: 'Akkusativ', short: 'Akk.', role: 'tân ngữ trực tiếp', desc: 'Tân ngữ trực tiếp (Wen? Was?)' },
+  { key: 'dativ', label: 'Dativ', short: 'Dat.', role: 'tân ngữ gián tiếp', desc: 'Tân ngữ gián tiếp (Wem?)' },
+  { key: 'genitiv', label: 'Genitiv', short: 'Gen.', role: 'sở hữu', desc: 'Sở hữu (Wessen?)' },
 ] as const
 
 const ARTICLE_TABLE = {
@@ -36,25 +37,14 @@ const ARTICLE_TABLE = {
   genitiv: { der: 'des', die: 'der', das: 'des', plural: 'der' },
 }
 
-const TABLE_HEADERS = ['', 'mask. (der)', 'fem. (die)', 'neut. (das)', 'Plural']
-
-// Per-column gender tint for the declension table (index-aligned with the
-// header/form columns: 0=row label, 1=der, 2=die, 3=das, 4=plural).
-type ThemeColors = ReturnType<typeof useTheme>['colors']
-const GENDER_HEX: ((c: ThemeColors) => string)[] = [
-  (c) => c.textMuted,
-  (c) => c.der,
-  (c) => c.die,
-  (c) => c.das,
-  (c) => c.textSecondary,
-]
-
+// Giao diện v3.4 (Đợt 6A, mẫu `grammar`): tiêu đề vệt vàng, thẻ mực có bảng 4 Kasus đầy đủ
+// (m/f/n/Pl.), video theo từng cách thành danh sách, bài học ngữ pháp theo cấp thành danh sách có ô
+// biểu tượng (xong / đang mở / khoá). Truy vấn, khoá theo cấp, điều hướng video giữ nguyên.
 export default function GrammarScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackToMainTab()
   const theme = useTheme()
   const c = theme.colors
-  const [expandedCase, setExpandedCase] = useState<string | null>('nominativ')
 
   const startedRef = useRef(false)
   useEffect(() => {
@@ -104,152 +94,72 @@ export default function GrammarScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Ngữ pháp tiếng Đức" onBack={goBack} />
+      <TopBar onBack={goBack} />
 
       <Screen
         scroll
         edges={[]}
-        contentStyle={{ paddingBottom: space[8] }}
+        contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], paddingTop: space[4] }}
         refreshing={pull.refreshing}
         onRefresh={() => void pull.onRefresh()}
       >
-        {/* Editorial ink hero — the Kasus system is the conceptual anchor of this screen */}
-        <View style={{ paddingHorizontal: space[5], marginTop: space[1], marginBottom: space[5] }}>
-          <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-            <Caption color={c.accent}>Ngữ pháp · 4 Kasus</Caption>
-            <ThemedText variant="display" style={{ color: c.onInk, marginTop: space[2] }}>
-              Bảng cách tiếng Đức
-            </ThemedText>
-            <ThemedText variant="caption" style={{ color: c.onInkMuted, marginTop: space[2] }}>
-              Mỗi danh từ đổi mạo từ theo cách. Chạm vào từng cách để xem bảng chia der / die / das.
-            </ThemedText>
-            <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[4] }}>
-              <DeclLegend label="der" tone="der" />
-              <DeclLegend label="die" tone="die" />
-              <DeclLegend label="das" tone="das" />
+        <HeroTitle lead="Ngữ pháp" mark="tiếng Đức" />
+
+        {/* Thẻ mực: bảng mạo từ xác định theo 4 cách — mở cho mọi người, không khoá theo cấp. */}
+        <View
+          style={[
+            { marginTop: space[4], backgroundColor: c.inkSurface, borderRadius: radius.lg, padding: space[5] },
+            themeShadowStyle(theme.shadow.card),
+          ]}
+        >
+          <ThemedText variant="label" style={{ color: c.onInkMuted, letterSpacing: 1, textTransform: 'uppercase' }}>
+            Ngữ pháp · 4 Kasus
+          </ThemedText>
+          <View style={{ flexDirection: 'row', gap: 6, marginTop: space[3] }}>
+            <ArtBadge gender="der" />
+            <ArtBadge gender="die" />
+            <ArtBadge gender="das" />
+            <View style={{ height: 26, paddingHorizontal: 10, borderRadius: radius.full, borderWidth: 1, borderColor: c.onInkMuted, justifyContent: 'center' }}>
+              <ThemedText variant="caption" style={{ color: c.onInk, fontWeight: '700', fontSize: 13 }}>
+                die (Pl.)
+              </ThemedText>
             </View>
-          </Card>
+          </View>
+          <KasusTable />
         </View>
 
-        <View style={{ paddingHorizontal: space[5] }}>
-          <Caption style={{ marginBottom: space[1] }}>Kasus</Caption>
-          <SectionHeader title="Bảng cách" />
-        </View>
-
-        {CASES.map((kasus) => {
-          const isOpen = expandedCase === kasus.key
-          const row = ARTICLE_TABLE[kasus.key as keyof typeof ARTICLE_TABLE]
-          return (
-            <Card
+        <SectionHead title="Video theo cách" right="Bảng chia + lồng tiếng" />
+        <ListCard>
+          {CASES.map((kasus, i) => (
+            <ListItem
               key={kasus.key}
-              padded={false}
-              onPress={() => setExpandedCase(isOpen ? null : kasus.key)}
-              style={{ marginHorizontal: space[5], marginBottom: space[2], overflow: 'hidden' }}
+              first={i === 0}
+              accessibilityLabel={`Video: ${kasus.label}`}
+              onPress={() =>
+                router.push({
+                  pathname: '/(student)/video-lesson',
+                  params: { caseName: kasus.key, title: `Video: ${kasus.label}`, from: 'grammar' },
+                } as unknown as Href)
+              }
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: space[4] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: radius.sm,
-                      backgroundColor: isOpen ? c.accentSoft : c.surfaceSunken,
-                      borderWidth: 1,
-                      borderColor: isOpen ? c.accentSoft : c.borderStrong,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <ThemedText variant="title" color={isOpen ? 'accent' : 'secondary'}>
-                      {kasus.key.slice(0, 1).toUpperCase()}
-                    </ThemedText>
-                  </View>
-                  <View style={{ gap: 2 }}>
-                    <ThemedText variant="bodyStrong">{kasus.label}</ThemedText>
-                    <ThemedText variant="caption" color="muted">
-                      {kasus.desc}
-                    </ThemedText>
-                  </View>
-                </View>
-                <Icon icon={isOpen ? ChevronUp : ChevronDown} size={18} color="muted" />
+              <GlyphTile name="video" />
+              <View style={{ flex: 1, gap: 1 }}>
+                <ThemedText variant="body" style={{ fontWeight: '500' }} accessibilityLanguage="de-DE">
+                  {kasus.label}
+                </ThemedText>
+                <ThemedText variant="caption" color="muted">
+                  {kasus.desc}
+                </ThemedText>
               </View>
-
-              {isOpen ? (
-                <View style={{ paddingHorizontal: space[4], paddingBottom: space[4] }}>
-                  <View
-                    style={{
-                      backgroundColor: c.surfaceSunken,
-                      borderRadius: radius.sm,
-                      borderWidth: 1,
-                      borderColor: c.border,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: c.borderStrong }}>
-                      {TABLE_HEADERS.map((h, i) => (
-                        <View key={i} style={{ flex: 1, paddingVertical: space[2], paddingHorizontal: space[1] }}>
-                          <ThemedText variant="caption" align="center" style={{ color: GENDER_HEX[i](c) }}>
-                            {h}
-                          </ThemedText>
-                        </View>
-                      ))}
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={{ flex: 1, paddingVertical: space[3], paddingHorizontal: space[1] }}>
-                        <ThemedText variant="caption" color="muted" align="center">
-                          best.
-                        </ThemedText>
-                      </View>
-                      {[row.der, row.die, row.das, row.plural].map((v, i) => (
-                        <View key={i} style={{ flex: 1, paddingVertical: space[3], paddingHorizontal: space[1] }}>
-                          <ThemedText
-                            variant="title"
-                            align="center"
-                            style={{ color: GENDER_HEX[i](c) }}
-                          >
-                            {v}
-                          </ThemedText>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Video: ${kasus.label}`}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/(student)/video-lesson',
-                        params: { caseName: kasus.key, title: `Video: ${kasus.label}`, from: 'grammar' },
-                      } as unknown as Href)
-                    }
-                    style={{
-                      marginTop: space[3],
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: space[2],
-                      paddingVertical: space[3],
-                      borderRadius: radius.sm,
-                      borderWidth: 1,
-                      borderColor: c.accentSoft,
-                      backgroundColor: c.accentSoft,
-                    }}
-                  >
-                    <GaGlyph name="video" size={16} ink="primary" />
-                    <ThemedText variant="label" color="accent">
-                      Xem video ngữ pháp
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              ) : null}
-            </Card>
-          )
-        })}
+              <Icon icon={ChevronRight} size={18} color="faint" />
+            </ListItem>
+          ))}
+        </ListCard>
 
         {treeQuery.isLoading ? (
-          <View style={{ paddingHorizontal: space[5], marginTop: space[5], gap: space[2] }}>
-            <Skeleton height={72} radius="2xl" />
-            <Skeleton height={72} radius="2xl" />
+          <View style={{ marginTop: space[6], gap: space[2] }}>
+            <Skeleton height={56} radius="md" />
+            <Skeleton height={56} radius="md" />
           </View>
         ) : treeQuery.isError && !treeQuery.data ? (
           <View style={{ marginTop: space[4] }}>
@@ -261,13 +171,12 @@ export default function GrammarScreen() {
           </View>
         ) : (
           <>
-            <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-              <Caption style={{ marginBottom: space[1] }}>Ngữ pháp</Caption>
-              <SectionHeader title="Bài học ngữ pháp" />
+            <SectionHead title="Bài học ngữ pháp" right={levels.find((l) => l.state === 'current')?.level} />
+            <View style={{ gap: space[4] }}>
+              {levels.map((l) => (
+                <LevelBlock key={l.level} level={l.level} state={l.state} query={topicByLevel.get(l.level)} />
+              ))}
             </View>
-            {levels.map((l) => (
-              <LevelBlock key={l.level} level={l.level} state={l.state} query={topicByLevel.get(l.level)} />
-            ))}
           </>
         )}
       </Screen>
@@ -275,111 +184,128 @@ export default function GrammarScreen() {
   )
 }
 
+/** Bảng mẫu `.kasus`: hàng = cách, cột = giống đực/cái/trung/số nhiều, ô tô theo màu giống. */
+function KasusTable() {
+  const c = useTheme().colors
+  const cols = [
+    { key: 'der', head: 'm', bg: c.der },
+    { key: 'die', head: 'f', bg: c.die },
+    { key: 'das', head: 'n', bg: c.das },
+    { key: 'plural', head: 'Pl.', bg: null },
+  ] as const
+  return (
+    <View style={{ marginTop: space[4], gap: 6 }} accessibilityLabel="Bảng mạo từ xác định theo bốn cách">
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        <View style={{ flex: 1.6 }} />
+        {cols.map((col) => (
+          <ThemedText key={col.key} variant="caption" align="center" style={{ flex: 1, color: c.onInkMuted }}>
+            {col.head}
+          </ThemedText>
+        ))}
+      </View>
+      {CASES.map((kasus) => {
+        const row = ARTICLE_TABLE[kasus.key]
+        return (
+          <View
+            key={kasus.key}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+            accessible
+            accessibilityLabel={`${kasus.label}, ${kasus.role}: ${row.der}, ${row.die}, ${row.das}, số nhiều ${row.plural}`}
+          >
+            <View style={{ flex: 1.6 }}>
+              <ThemedText variant="title" style={{ color: c.onInk, fontSize: 15, lineHeight: 18 }}>
+                {kasus.short}
+              </ThemedText>
+              <ThemedText variant="caption" style={{ color: c.onInkMuted, fontSize: 11, lineHeight: 14 }}>
+                {kasus.role}
+              </ThemedText>
+            </View>
+            {cols.map((col) => (
+              <View
+                key={col.key}
+                style={{
+                  flex: 1,
+                  height: 32,
+                  borderRadius: radius.sm,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: col.bg ?? 'transparent',
+                  borderWidth: col.bg ? 0 : 1,
+                  borderColor: c.onInkMuted,
+                }}
+              >
+                <ThemedText variant="bodyStrong" style={{ color: c.onInk, fontSize: 14 }} accessibilityLanguage="de-DE">
+                  {row[col.key]}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
 // One CEFR level's grammar lessons. Unlocked levels (done/current) list their topics; a
 // locked level is dimmed with a "Mở khi đạt {level}" lock and lists any authored topics as a
 // disabled teaser (empty higher levels just show the header). The gate is visual-only — the
-// topic cards aren't interactive, so nothing needs to block navigation.
+// topic rows aren't interactive, so nothing needs to block navigation.
 function LevelBlock({ level, state, query }: { level: string; state: LevelState; query?: TopicQueryLike }) {
   const locked = state === 'locked'
   const topics = query?.data ?? []
-  const tone = state === 'done' ? 'success' : state === 'current' ? 'accent' : 'neutral'
   return (
-    <View style={{ marginTop: space[4], opacity: locked ? 0.55 : 1 }}>
-      <View
-        style={{
-          paddingHorizontal: space[5],
-          marginBottom: space[2],
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: space[2],
-        }}
-      >
-        <Pill label={level} tone={tone} />
-        {locked ? (
-          <>
-            <GaGlyph name="khoa" size={13} ink="faint" />
-            <ThemedText variant="caption" color="faint">
-              Mở khi đạt {level}
-            </ThemedText>
-          </>
-        ) : (
-          <ThemedText variant="caption" color="muted">
-            {state === 'done' ? 'Đã hoàn thành' : 'Đang học'}
-          </ThemedText>
-        )}
+    <View style={{ gap: space[2] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <Badge label={level} tone={state === 'done' ? 'green' : state === 'current' ? 'yellow' : 'neutral'} />
+        <ThemedText variant="caption" color="muted">
+          {locked ? `Mở khi đạt ${level}` : state === 'done' ? 'Đã hoàn thành' : 'Đang học'}
+        </ThemedText>
       </View>
 
       {query?.isLoading ? (
-        <View style={{ paddingHorizontal: space[5] }}>
-          <Skeleton height={64} radius="2xl" />
-        </View>
+        <Skeleton height={56} radius="md" />
       ) : query?.isError && !locked ? (
-        <View style={{ paddingHorizontal: space[5], flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <ThemedText variant="caption" color="muted">
             Không tải được bài học.
           </ThemedText>
-          <Pressable accessibilityRole="button" accessibilityLabel="Thử lại" onPress={() => query.refetch()}>
-            <ThemedText variant="label" color="accent">
+          <Pressable accessibilityRole="button" accessibilityLabel="Thử lại" hitSlop={12} onPress={() => query.refetch()}>
+            <ThemedText variant="label" color="info">
               Thử lại
             </ThemedText>
           </Pressable>
         </View>
       ) : topics.length > 0 ? (
-        topics.map((topic) => <TopicCard key={topic.id} topic={topic} />)
+        <ListCard>
+          {topics.map((topic, i) => (
+            <TopicRow key={topic.id} topic={topic} first={i === 0} locked={locked} level={level} />
+          ))}
+        </ListCard>
       ) : !locked ? (
-        <View style={{ paddingHorizontal: space[5] }}>
-          <ThemedText variant="caption" color="faint">
-            Chưa có bài học cho cấp này.
-          </ThemedText>
-        </View>
+        <ThemedText variant="caption" color="muted">
+          Chưa có bài học cho cấp này.
+        </ThemedText>
       ) : null}
     </View>
   )
 }
 
-function TopicCard({ topic }: { topic: GrammarTopic }) {
+/** Hàng bài ngữ pháp (mẫu `.li` + `.gi`): xong = dấu hoàn thành, cấp khoá = ổ khoá. */
+function TopicRow({ topic, first, locked, level }: { topic: GrammarTopic; first: boolean; locked: boolean; level: string }) {
+  const sub = locked ? `Mở khi đạt ${level}` : topic.isCompleted ? 'Đã hoàn thành' : topic.summary
   return (
-    <Card style={{ marginHorizontal: space[5], marginBottom: space[2] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space[3] }}>
-        <View style={{ flex: 1, gap: space[1] }}>
-          <ThemedText variant="bodyStrong">{topic.title}</ThemedText>
-          {topic.summary ? (
-            <ThemedText variant="caption" color="muted">
-              {topic.summary}
-            </ThemedText>
-          ) : null}
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: space[2] }}>
-          <Pill label={topic.cefrLevel} tone="neutral" />
-          {topic.isCompleted ? <Pill label="Xong" tone="success" icon={Check} /> : null}
-        </View>
+    <ListItem first={first}>
+      <GlyphTile name={locked ? 'khoa' : topic.isCompleted ? 'hoanthanh' : 'nguphap'} tone={topic.isCompleted && !locked ? 'green' : 'neutral'} />
+      <View style={{ flex: 1, gap: 1 }}>
+        <ThemedText variant="body" color={locked ? 'muted' : 'primary'} style={{ fontWeight: '500' }}>
+          {topic.title}
+        </ThemedText>
+        {sub ? (
+          <ThemedText variant="caption" color="muted" numberOfLines={2}>
+            {sub}
+          </ThemedText>
+        ) : null}
       </View>
-    </Card>
-  )
-}
-
-// Small declension legend chip used on the ink hero (der = blue, die = red,
-// das = green) — the gender-colour motif that recurs in the Kasus tables.
-function DeclLegend({ label, tone }: { label: string; tone: 'der' | 'die' | 'das' }) {
-  const c = useTheme().colors
-  const hex = tone === 'der' ? c.der : tone === 'die' ? c.die : c.das
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: space[2],
-        paddingHorizontal: space[2],
-        paddingVertical: 5,
-        borderRadius: radius.sm,
-        borderWidth: 1,
-        borderColor: c.onInkMuted,
-      }}
-    >
-      <View style={{ width: 8, height: 8, borderRadius: radius.full, backgroundColor: hex }} />
-      <ThemedText variant="caption" style={{ color: c.onInk }}>
-        {label}
-      </ThemedText>
-    </View>
+    </ListItem>
   )
 }
