@@ -22,7 +22,7 @@ export function AdPosterCard({ letter, label, index }: { letter: string; label: 
   const frame =
     style === 'rahmen' ? { borderWidth: 1.5, borderTopWidth: 6, borderColor: INK, backgroundColor: PAPER }
     : style === 'hand' ? { borderWidth: 1, borderStyle: 'dashed' as const, borderColor: '#8A847B', backgroundColor: PAPER, transform: [{ rotate: '-1deg' }] }
-    : style === 'band' ? { borderWidth: 1, borderColor: '#C9C2B6', backgroundColor: PAPER, paddingTop: 0, paddingHorizontal: 0 }
+    : style === 'band' ? { borderWidth: 1, borderColor: '#C9C2B6', backgroundColor: PAPER, ...(headline ? { paddingTop: 0, paddingHorizontal: 0 } : null) }
     : style === 'grau' ? { backgroundColor: PAPER_GREY }
     : style === 'plakat' ? { borderWidth: 3, borderColor: INK, backgroundColor: PAPER }
     : { borderWidth: 1, borderColor: '#C9C2B6', backgroundColor: PAPER }
@@ -71,7 +71,7 @@ export function AdPosterCard({ letter, label, index }: { letter: string; label: 
         variant="caption"
         style={[
           { color: INK, textAlign: center ? 'center' : 'left', fontStyle: style === 'grau' ? 'italic' : 'normal' },
-          style === 'band' ? { paddingHorizontal: space[3], paddingBottom: space[2] } : null,
+          style === 'band' && headline ? { paddingHorizontal: space[3], paddingBottom: space[2] } : null,
           bodyFont ?? null,
         ]}
       >

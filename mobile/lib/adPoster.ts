@@ -24,7 +24,18 @@ export function splitAd(label: string): { headline: string | null; body: string 
     const rest = text.slice(nl + 1).trim()
     return rest ? { headline: head, body: rest } : { headline: null, body: head }
   }
-  const m = /^(.{3,48}?[.!?:])\s+(\S[\s\S]*)$/.exec(text)
-  if (m) return { headline: m[1].trim(), body: m[2].trim() }
+  // Tìm dấu kết câu đầu tiên trong 48 ký tự; dấu chấm ngay sau từ ngắn (≤ 3 chữ: "Tel.", "Dr.", "Nr.",
+  // "z.B.") là chữ viết tắt, không phải hết câu ⇒ bỏ qua và tìm tiếp.
+  const re = /[.!?:](?=\s+\S)/g
+  let hit: RegExpExecArray | null
+  while ((hit = re.exec(text)) && hit.index < 48) {
+    const end = hit.index + 1
+    if (hit[0] === '.') {
+      const word = /(\S+)$/.exec(text.slice(0, hit.index))?.[1] ?? ''
+      if (word.replace(/[^A-Za-zÄÖÜäöüß]/g, '').length <= 3) continue
+    }
+    if (end < 3) continue
+    return { headline: text.slice(0, end).trim(), body: text.slice(end).trim() }
+  }
   return { headline: null, body: text }
 }

@@ -19,4 +19,12 @@ describe('adPoster', () => {
     expect(splitAd(long).headline).toBeNull()
     expect(splitAd('Nur ein Satz.')).toEqual({ headline: null, body: 'Nur ein Satz.' })
   })
+  it('không cắt tại chữ viết tắt', () => {
+    expect(splitAd('Tel. 0176 123456, ab 18 Uhr.').headline).toBeNull()
+    expect(splitAd('Praxis Dr. Müller sucht Hilfe! Ab sofort, Teilzeit.')).toEqual({
+      headline: 'Praxis Dr. Müller sucht Hilfe!',
+      body: 'Ab sofort, Teilzeit.',
+    })
+    expect(splitAd('Gesucht: Babysitter für zwei Kinder.')).toEqual({ headline: 'Gesucht:', body: 'Babysitter für zwei Kinder.' })
+  })
 })
