@@ -44,12 +44,15 @@ interface InterviewHubProps {
   starting: boolean
   /** Phiếu của buổi cũ đang tải: vòng xoay ở dòng đó, khoá nút Bắt đầu. */
   loadingReportId: number | null
+  /** Nghề đã chọn (giữ ở màn cha để đổi nhánh Phỏng vấn ↔ Nói tự do không mất lựa chọn). */
+  picked: string | null
+  onPick: (code: string) => void
   onStart: (args: StartArgs) => void
   onFreeTalk: () => void
   onOpenReport: (sessionId: number) => void
 }
 
-export function InterviewHub({ cefr, profileOccupation, starting, loadingReportId, onStart, onFreeTalk, onOpenReport }: InterviewHubProps) {
+export function InterviewHub({ cefr, profileOccupation, starting, loadingReportId, picked, onPick, onStart, onFreeTalk, onOpenReport }: InterviewHubProps) {
   const c = useTheme().colors
   const tabClearance = useTabBarClearance(space[6])
   const occupations = useQuery({ queryKey: OCCUPATIONS_QUERY_KEY, queryFn: fetchOccupations, staleTime: 600_000 })
@@ -57,7 +60,6 @@ export function InterviewHub({ cefr, profileOccupation, starting, loadingReportI
   const recent = useQuery({ queryKey: ['ai-speaking-sessions', 'recent-interviews'], queryFn: () => speakingApi.listSessions(40), staleTime: 60_000 })
   const all = useMemo(() => occupations.data ?? [], [occupations.data])
 
-  const [picked, setPicked] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   // Danh mục tải lỗi/chưa có mà hồ sơ đã có nghề ⇒ vẫn mở thẻ người phỏng vấn của nghề đó.
   const selectedCode = picked ?? (all.length ? defaultOccupationCode(all, profileOccupation) : profileOccupation)
@@ -122,7 +124,7 @@ export function InterviewHub({ cefr, profileOccupation, starting, loadingReportI
                 key={o.code}
                 occupation={o}
                 onPress={() => {
-                  setPicked(o.code)
+                  onPick(o.code)
                   setQuery('')
                 }}
               />
@@ -147,7 +149,7 @@ export function InterviewHub({ cefr, profileOccupation, starting, loadingReportI
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
                 accessibilityLanguage="de-DE"
-                onPress={() => setPicked(o.code)}
+                onPress={() => onPick(o.code)}
                 style={{
                   height: 36,
                   paddingHorizontal: space[3],

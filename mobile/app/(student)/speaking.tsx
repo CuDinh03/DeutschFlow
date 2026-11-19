@@ -109,11 +109,14 @@ export default function SpeakingScreen() {
   // Giao diện v3.4 (Đợt 5, 19/11/2026): tab gồm hai nhánh Phỏng vấn theo nghề | Nói tự do (owner chốt
   // 18/11). `?mode=INTERVIEW` / `?mode=COMMUNICATION` (onboarding, lối tắt) chọn nhánh; tab không unmount
   // nên nghe cả nonce `t` để lần mở sau vẫn đổi nhánh.
-  const [track, setTrack] = useState<SpeakingTrack>(modeParam === 'COMMUNICATION' ? 'free' : 'interview')
+  // `?mode=LESSON` (đang khoá) rơi về Nói tự do như trước, không vào Phỏng vấn.
+  const [track, setTrack] = useState<SpeakingTrack>(modeParam === 'COMMUNICATION' || modeParam === 'LESSON' ? 'free' : 'interview')
   useEffect(() => {
     if (modeParam === 'INTERVIEW') setTrack('interview')
-    else if (modeParam === 'COMMUNICATION') setTrack('free')
+    else if (modeParam === 'COMMUNICATION' || modeParam === 'LESSON') setTrack('free')
   }, [modeParam, nonceParam])
+  // Nghề người học đã chọn ở nhánh Phỏng vấn — giữ ở đây vì đổi nhánh là gỡ InterviewHub.
+  const [pickedOccupation, setPickedOccupation] = useState<string | null>(null)
   const { currentLevel, occupationCode } = useLearnerLevel()
   // Phiếu của buổi cũ mở từ "Buổi gần đây": đóng thì chỉ về màn chọn, không đụng phiên đang dở.
   const [viewingPastReport, setViewingPastReport] = useState(false)
@@ -913,6 +916,8 @@ export default function SpeakingScreen() {
             profileOccupation={occupationCode ?? null}
             starting={starting}
             loadingReportId={loadingReportId}
+            picked={pickedOccupation}
+            onPick={setPickedOccupation}
             onStart={startSession}
             onFreeTalk={() => setTrack('free')}
             onOpenReport={(id) => void openPastReport(id)}
