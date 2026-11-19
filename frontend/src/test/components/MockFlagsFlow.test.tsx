@@ -102,8 +102,10 @@ describe('Thi thử — đánh dấu xem lại', () => {
       expect(screen.getByRole('button', { name: 'Đánh dấu câu 2 để xem lại' })).toHaveAttribute('aria-pressed', 'false'),
     )
     expect(screen.getByRole('button', { name: 'Đánh dấu câu 1 để xem lại' })).toHaveAttribute('aria-pressed', 'false')
-    expect(h.save).not.toHaveBeenCalledWith(55, expect.objectContaining({ flags: expect.arrayContaining(['L1-2']) }), 6)
-  }, 10_000)
+    // Lần lưu lại sau xung đột mang bản của server (không cờ) trên version mới, không đưa L1-2 trở lại.
+    await waitFor(() => expect(h.save).toHaveBeenCalledTimes(2), { timeout: 5000 })
+    expect(h.save).toHaveBeenLastCalledWith(55, expect.objectContaining({ flags: [] }), 6)
+  }, 15_000)
 
   it('danh sách câu đánh dấu nhảy về đúng Teil của chặng đang thi', async () => {
     const user = userEvent.setup()

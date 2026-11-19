@@ -67,12 +67,10 @@ export async function startAttempt(examId: number): Promise<StartedAttempt> {
     answers: parseDraftAnswers(data?.draft?.answers_json),
     sectionIndex: typeof data?.draft?.section_index === 'number' ? data.draft.section_index : 0,
     draftVersion: data?.draft?.version ?? 0,
-    flags: parseFlags(data?.draft?.flags),
+    flags: parseDraftFlags(data?.draft?.flags),
     closedAttemptId: typeof data?.closed_attempt_id === 'number' ? data.closed_attempt_id : null,
   }
 }
-
-export const parseFlags = parseDraftFlags
 
 /** PATCH …/draft — kết quả theo union của autosaver (`examDraftSync`). `flags` thiếu ⇒ server giữ giá trị cũ. */
 export async function saveAttemptDraft(
