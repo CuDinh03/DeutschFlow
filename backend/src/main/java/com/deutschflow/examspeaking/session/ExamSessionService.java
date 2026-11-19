@@ -70,6 +70,8 @@ public class ExamSessionService {
     static final long TURN_ESTIMATED_TOKENS = 700L;
     static final long DRILL_EVAL_ESTIMATED_TOKENS = 600L;
     static final long STT_ESTIMATED_TOKENS = 200L;
+    /** Trần độ dài ghi chú (Konzeptpapier) lưu cho một phiên. */
+    static final int NOTES_MAX_CHARS = 4000;
     static final long MOCK_GRADING_ESTIMATED_TOKENS = 12_000L;
     /** F-08: mock phải có ngân sách chấm ngay lúc TẠO — thi trọn bài rồi mới biết hết ví là đánh đổi sai. */
     static final long MOCK_CREATE_ESTIMATED_TOKENS = MOCK_GRADING_ESTIMATED_TOKENS + TURN_ESTIMATED_TOKENS;
@@ -521,11 +523,17 @@ public class ExamSessionService {
         return view(s, blueprint(s), plan(s), null);
     }
 
+    /**
+     * Lưu ghi chú bằng một UPDATE riêng cột ghi chú (không tranh khoá lạc quan với "Vào thi" / chọn
+     * chủ đề đang chạy cùng lúc), rồi đọc lại phiên để trả snapshot mới nhất.
+     */
     @Transactional
     public ExamSessionView saveNotes(long userId, long sessionId, String notes) {
+        String text = notes == null ? null : notes.substring(0, Math.min(notes.length(), NOTES_MAX_CHARS));
+        if (sessionRepository.updateNotes(sessionId, userId, text, Instant.now()) == 0) {
+            load(userId, sessionId); // ném NotFoundException như trước
+        }
         SpeakingExamSession s = load(userId, sessionId);
-        s.setNotesText(notes == null ? null : notes.substring(0, Math.min(notes.length(), 4000)));
-        sessionRepository.save(s);
         return view(s, blueprint(s), plan(s), null);
     }
 

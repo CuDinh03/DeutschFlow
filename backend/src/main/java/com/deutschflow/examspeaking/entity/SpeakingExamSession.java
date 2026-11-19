@@ -16,6 +16,12 @@ import java.util.Map;
  */
 @Entity
 @Table(name = "speaking_exam_sessions")
+/*
+ * Chỉ UPDATE các cột đã đổi: "Vào thi" / chọn chủ đề không ghi lại cột notes_text bằng bản đọc cũ
+ * khi ghi chú vừa được lưu riêng qua SpeakingExamSessionRepository#updateNotes (19/11/2026).
+ * Khoá lạc quan (version) vẫn giữ nguyên cho các lệnh đổi trạng thái.
+ */
+@org.hibernate.annotations.DynamicUpdate
 @Getter
 @Setter
 @NoArgsConstructor
