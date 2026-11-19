@@ -52,6 +52,7 @@ import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
 import { InterviewHub } from '@/components/speaking/InterviewHub'
 import { InterviewProgress } from '@/components/speaking/InterviewProgress'
+import { ElapsedClock } from '@/components/speaking/ElapsedClock'
 import { SpeakingTrackBar, type SpeakingTrack } from '@/components/speaking/SpeakingTrackBar'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
 import { DEFAULT_BAND, practiceBand } from '@/lib/learnerBand'
@@ -65,6 +66,7 @@ import {
   emptyConversationReport,
   mapMessagesToTurns,
   phaseLabel,
+  chatStatus,
   makeUserTurn,
   setTurnStatus,
   attachFeedbackToTurn,
@@ -708,6 +710,30 @@ export default function SpeakingScreen() {
     }
   }
 
+  /** Mở lại phiếu của buổi hội thoại (Nói tự do) gần nhất — dòng "Buổi gần đây" (Đợt 5C). */
+  async function openPastConvReport(sessionId: number) {
+    if (loadingReportId !== null || starting) return
+    setLoadingReportId(sessionId)
+    try {
+      const r = await speakingApi.getConversationReport(sessionId)
+      if (viewRef.current !== 'select') return
+      setReport(null)
+      setConvReport(r)
+      setViewingPastReport(true)
+      setView('summary')
+    } catch (e) {
+      handleAiError(e, 'Không tải được phiếu kết quả')
+    } finally {
+      setLoadingReportId(null)
+    }
+  }
+
+  function closePastConvReport() {
+    setConvReport(null)
+    setViewingPastReport(false)
+    setView('select')
+  }
+
   function closePastReport() {
     setReport(null)
     setViewingPastReport(false)
@@ -821,11 +847,14 @@ export default function SpeakingScreen() {
   if (view === 'summary' && convReport) {
     return (
       <Screen edges={['top']}>
-        <ScreenHeader title="Kết quả luyện nói" onClose={resetToSelect} />
+        <ScreenHeader title="Kết quả luyện nói" onClose={viewingPastReport ? closePastConvReport : resetToSelect} />
         <ConversationSummary
           report={convReport}
-          onPracticeAgain={resetToSelect}
-          onDone={() => (assignmentKey ? finishAssignmentFlow() : router.replace('/(student)'))}
+          onPracticeAgain={viewingPastReport ? closePastConvReport : resetToSelect}
+          onDone={() =>
+            viewingPastReport ? closePastConvReport() : assignmentKey ? finishAssignmentFlow() : router.replace('/(student)')
+          }
+          onOpenErrors={() => router.push('/(student)/error-repair')}
         />
       </Screen>
     )
@@ -931,6 +960,9 @@ export default function SpeakingScreen() {
             onOpenExam={() => router.push({ pathname: '/(student)/speaking-exam', params: { provider: 'TELC', t: String(Date.now()) } })}
             onOpenInterview={() => setTrack('interview')}
             initialMode={initialMode}
+            onOpenWeekly={() => router.push('/(student)/weekly-speaking')}
+            onOpenRecent={(id) => void openPastConvReport(id)}
+            loadingReportId={loadingReportId}
           />
         )}
       </Screen>
@@ -958,17 +990,19 @@ export default function SpeakingScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel="Đóng" hitSlop={8} onPress={handleClose}>
           <Icon icon={X} size={22} color="muted" />
         </Pressable>
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
           <ThemedText variant="bodyStrong" numberOfLines={1}>
             {session?.sessionMode === 'INTERVIEW'
               ? session?.interviewPosition ?? 'Phỏng vấn'
-              : session?.topic ?? 'Hội thoại'}
+              : `${session?.topic ?? 'Hội thoại'}${session?.cefrLevel ? ` · ${session.cefrLevel}` : ''}`}
           </ThemedText>
           <ThemedText variant="caption" color="muted">
             {phaseKey && session?.sessionMode !== 'INTERVIEW' ? `${phaseLabel(phaseKey)} • ` : ''}
             {userTurns} câu trả lời
           </ThemedText>
         </View>
+        {/* Phỏng vấn đã có đồng hồ trong thanh 5 pha; hội thoại tự do hiện đồng hồ ở đầu màn (mẫu speakchat). */}
+        {session?.sessionMode !== 'INTERVIEW' ? <ElapsedClock startedAt={chatOpenedAt} /> : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Kết thúc và xem đánh giá"
@@ -1023,20 +1057,29 @@ export default function SpeakingScreen() {
         )}
       </ScrollView>
 
-      {/* Input dock */}
+      {/* Input dock — dòng trạng thái + micro nổi bật (mẫu v3.4 `speakchat`, Đợt 5C) */}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          gap: space[2],
           paddingHorizontal: space[4],
           paddingTop: space[2],
           paddingBottom: insets.bottom > 0 ? insets.bottom : space[4],
           borderTopWidth: 1,
           borderTopColor: c.border,
           backgroundColor: c.surface,
+          gap: space[2],
         }}
       >
+      <ThemedText variant="label" align="center" accessibilityLiveRegion="polite">
+        {chatStatus({
+          recording: isRecording,
+          transcribing,
+          sending: sending || typing,
+          aiSpeaking: stage === 'speaking',
+          finishing,
+          name: (PERSONA_TOKENS as Record<string, { name: string } | undefined>)[personaId]?.name ?? null,
+        })}
+      </ThemedText>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2] }}>
         <Animated.View style={isRecording ? pulseStyle : undefined}>
           <Pressable
             accessibilityRole="button"
@@ -1045,18 +1088,19 @@ export default function SpeakingScreen() {
             onPress={isRecording ? stopRecordingAndTranscribe : startRecording}
             disabled={sending || finishing || transcribing}
             style={{
-              width: 44,
-              height: 44,
+              width: 52,
+              height: 52,
               borderRadius: radius.full,
-              backgroundColor: isRecording ? c.danger : c.surfaceSunken,
+              backgroundColor: isRecording ? c.danger : c.accent,
               alignItems: 'center',
               justifyContent: 'center',
+              opacity: sending || finishing || transcribing ? 0.5 : 1,
             }}
           >
             {transcribing ? (
-              <ActivityIndicator color={c.textMuted} size="small" />
+              <ActivityIndicator color={c.onAccent} size="small" />
             ) : (
-              <GaGlyph name="speaking" size={20} ink={isRecording ? 'onAccent' : 'muted'} gold={isRecording ? 'ink' : 'accent'} />
+              <GaGlyph name="speaking" size={24} ink="onAccent" gold="ink" />
             )}
           </Pressable>
         </Animated.View>
@@ -1064,7 +1108,7 @@ export default function SpeakingScreen() {
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder={transcribing ? 'Đang nhận diện giọng nói…' : 'Nhập câu trả lời của bạn…'}
+          placeholder={transcribing ? 'Đang nhận diện giọng nói…' : 'Hoặc gõ câu trả lời…'}
           placeholderTextColor={c.textFaint}
           selectionColor={c.accent}
           multiline
@@ -1101,6 +1145,7 @@ export default function SpeakingScreen() {
         >
           <Icon icon={Send} size={20} color={!draft.trim() || busy ? 'faint' : 'onAccent'} />
         </Pressable>
+      </View>
       </View>
       </KeyboardAvoidingView>
     </Screen>
