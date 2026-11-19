@@ -104,6 +104,9 @@ export default function SpeakingExamRoomScreen() {
   const [notes, setNotes] = useState('')
   const [notesState, setNotesState] = useState<NotesSaveState>('idle')
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Lệnh đổi phiên (lưu ghi chú, chọn chủ đề, sang phần) chạy NỐI ĐUÔI nhau: backend lưu cả dòng phiên
+  // (không khoá phiên bản), hai lệnh chồng nhau thì lệnh về sau ghi đè trạng thái lệnh kia vừa đổi.
+  const sessionOpsRef = useRef<Promise<unknown>>(Promise.resolve())
   const notesSeededRef = useRef(false)
   // Vai AI đang phát tiếng (PRUEFER/PARTNER) — để hàng người sáng đúng người.
   const [aiSpeaker, setAiSpeaker] = useState<string | null>(null)
@@ -202,6 +205,7 @@ export default function SpeakingExamRoomScreen() {
     setLines([])
     setLoadError(false)
     setPendingTurn(null)
+    setMuted(isExamTtsMuted()) // màn kiểm micro có thể đã bật lại tiếng giữa hai phiên
     setNotesState('idle')
     if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
     notesTimerRef.current = null
@@ -280,18 +284,26 @@ export default function SpeakingExamRoomScreen() {
     () => { void doAdvance() },
   )
 
+  /** Xếp một lệnh đổi phiên sau các lệnh đang chạy (lỗi của lệnh trước không chặn lệnh sau). */
+  function queueSessionOp<T>(op: () => Promise<T>): Promise<T> {
+    const next = sessionOpsRef.current.catch(() => undefined).then(op)
+    sessionOpsRef.current = next
+    return next
+  }
+
   async function doAdvance() {
     if (busy || uploading || recording) return
     setBusy(true)
     stopVoice()
     try {
       // Ghi chú đang chờ tự lưu: lưu ngay trước khi rời phòng chuẩn bị, kẻo mất mấy chữ cuối.
+      // Lỗi thì thử lại một lần; vẫn lỗi thì phòng thi hiện bản trên máy (xem OralTaskCard).
       if (notesTimerRef.current) {
         clearTimeout(notesTimerRef.current)
         notesTimerRef.current = null
-        await persistNotes(notes)
+        if (!(await persistNotes(notes))) await persistNotes(notes)
       }
-      applySession(await examSpeakingApi.advance(sessionId), true)
+      applySession(await queueSessionOp(() => examSpeakingApi.advance(sessionId)), true)
     } catch (e) {
       Alert.alert('Lỗi', apiMessage(e))
     } finally {
@@ -300,14 +312,16 @@ export default function SpeakingExamRoomScreen() {
   }
 
   /** Lưu ghi chú; chỉ cập nhật `notesText` của snapshot (không đè trạng thái phiên bằng bản cũ hơn). */
-  async function persistNotes(text: string) {
+  async function persistNotes(text: string): Promise<boolean> {
     setNotesState('saving')
     try {
-      const v = await examSpeakingApi.saveNotes(sessionId, text.trim())
+      const v = await queueSessionOp(() => examSpeakingApi.saveNotes(sessionId, text.trim()))
       setSession((prev) => (prev && prev.id === v.id ? { ...prev, notesText: v.notesText } : prev))
       setNotesState('saved')
+      return true
     } catch {
       setNotesState('error')
+      return false
     }
   }
 
@@ -324,6 +338,7 @@ export default function SpeakingExamRoomScreen() {
   function toggleMute() {
     const next = !muted
     setExamTtsMuted(next)
+    if (next) stopVoice() // chuỗi đang đọc bị cắt không tự báo xong — tắt đèn người đang nói tại đây
     setMuted(next)
   }
 
@@ -403,7 +418,9 @@ export default function SpeakingExamRoomScreen() {
     if (busy) return
     setBusy(true)
     try {
-      setSession(await examSpeakingApi.choose(sessionId, teilNo, index))
+      const v = await queueSessionOp(() => examSpeakingApi.choose(sessionId, teilNo, index))
+      // Giữ ghi chú vừa lưu xong trong lúc chờ (bản `choose` có thể đọc trước lượt lưu đó).
+      setSession((prev) => ({ ...v, notesText: prev?.id === v.id ? prev.notesText ?? v.notesText : v.notesText }))
       void Haptics.selectionAsync()
     } catch (e) {
       Alert.alert('Lỗi', apiMessage(e))
@@ -637,7 +654,7 @@ export default function SpeakingExamRoomScreen() {
             contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[4], gap: space[3] }}
             keyboardShouldPersistTaps="handled"
           >
-            {d ? <OralTaskCard directive={d} notesText={session.notesText} /> : null}
+            {d ? <OralTaskCard directive={d} notesText={session.notesText || notes.trim() || null} /> : null}
             {d ? <TeilStrategyCard provider={session.provider} level={session.level} section="SPRECHEN" teil={d.teilNo} /> : null}
 
             {lines.map((l) => (

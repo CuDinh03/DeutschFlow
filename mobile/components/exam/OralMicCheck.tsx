@@ -15,7 +15,7 @@ import { BrushMark, Button, GaGlyph, IconButton, Pill, Screen, ThemedText } from
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { SPEECH_LEVEL, litBars, meterLevel } from '@/lib/oralRoom'
-import { speakExamLine, stopExamTts } from '@/lib/examTts'
+import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from '@/lib/examTts'
 
 const BARS = 14
 /** Nghe thấy tiếng rồi thì đo thêm chừng này để người học thấy thanh nhảy theo giọng mình. */
@@ -61,6 +61,7 @@ export function OralMicCheck({
 
   const startCheck = useCallback(async () => {
     stopExamTts()
+    setSpeakerPlaying(false) // phát thử bị cắt ngang không tự báo xong
     stoppingRef.current = false
     heardAtRef.current = null
     setStatus('checking')
@@ -103,6 +104,8 @@ export function OralMicCheck({
   async function playSpeaker() {
     if (speakerPlaying || status === 'checking') return
     setSpeakerPlaying(true)
+    // Người học bấm Phát để nghe giọng giám khảo: bật lại tiếng nếu lần thi trước đã tắt.
+    if (isExamTtsMuted()) setExamTtsMuted(false)
     try {
       await speakExamLine('PRUEFER', 'Guten Tag. Können Sie mich gut hören?')
     } finally {
