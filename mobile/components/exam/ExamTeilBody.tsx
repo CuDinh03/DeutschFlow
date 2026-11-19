@@ -2,7 +2,8 @@
 // thi thử `exam-attempt.tsx` (19/11/2026) để màn luyện từng Teil (`exam-teil.tsx`) và bài chẩn đoán
 // dùng lại đúng một chỗ dựng cho mọi dạng bài telc. Sau khi kiểm tra, `review` tô đúng/sai từng câu.
 
-import { TextInput, View } from 'react-native'
+import type { ReactNode } from 'react'
+import { Pressable, TextInput, View } from 'react-native'
 import { Check, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, Icon, SelectableRow, ThemedText } from '@/components/ui'
@@ -30,6 +31,10 @@ interface ObjGroupViewProps {
   unlimitedPlays?: boolean
   /** Ẩn thẻ chiến thuật (bài chẩn đoán làm như thi thật). */
   hideStrategy?: boolean
+  /** Bài đọc dựng sẵn thay cho bài đọc mặc định (luyện Teil: bài đọc có bút đánh dấu). */
+  passageOverride?: ReactNode
+  /** Phần thêm cuối thẻ từng câu (luyện Teil: "Vì sao tôi chọn", "Hỏi AI về câu này"). */
+  renderItemExtra?: (item: ExamObjItem) => ReactNode
 }
 
 export function ObjGroupView({
@@ -44,6 +49,8 @@ export function ObjGroupView({
   review,
   unlimitedPlays = false,
   hideStrategy = false,
+  passageOverride,
+  renderItemExtra,
 }: ObjGroupViewProps) {
   const c = useTheme().colors
   const phase = review ? 'ready' : gatePhase
@@ -98,7 +105,9 @@ export function ObjGroupView({
         <TelcGapText text={group.gappedText} items={group.items} answers={answers} showWord={group.telcType === 'GAP_WORDBANK'} />
       ) : null}
 
-      {group.passage ? (
+      {passageOverride ? (
+        passageOverride
+      ) : group.passage ? (
         group.passageLines || group.vorspann || group.glossary || group.quelle ? (
           <ReadingPassage
             title={group.passageTitle}
@@ -143,6 +152,7 @@ export function ObjGroupView({
               onSelect={(val) => onAnswer(item.id, val)}
               result={review?.get(item.id)}
               reviewing={!!review}
+              extra={renderItemExtra?.(item)}
             />
           </View>
         ))}
@@ -159,6 +169,8 @@ export function WritingTaskView({
   onChange,
   editable = true,
   hideStrategy = false,
+  checkedPoints,
+  onTogglePoint,
 }: {
   task: ExamWritingTask
   section: string
@@ -168,6 +180,10 @@ export function WritingTaskView({
   onChange: (text: string) => void
   editable?: boolean
   hideStrategy?: boolean
+  /** Ý (Leitpunkt) học viên đã đánh dấu là viết xong — chỉ lưu trên máy. */
+  checkedPoints?: readonly string[]
+  /** Có thì mỗi ý là một ô đánh dấu (luyện Teil); không thì in ý như tờ đề. */
+  onTogglePoint?: (point: string) => void
 }) {
   const c = useTheme().colors
   const words = value.trim().split(/\s+/).filter(Boolean).length
@@ -200,11 +216,15 @@ export function WritingTaskView({
           <ThemedText variant="body" color="secondary">{task.prompt}</ThemedText>
         </View>
       ) : null}
-      {task.points?.map((pt, i) => (
-        <ThemedText key={i} variant="body" color="secondary" accessibilityLanguage="de-DE">
-          P{i + 1}. {pt}
-        </ThemedText>
-      ))}
+      {task.points && onTogglePoint ? (
+        <LeitpunktChecklist points={task.points} checked={checkedPoints ?? []} onToggle={onTogglePoint} />
+      ) : (
+        task.points?.map((pt, i) => (
+          <ThemedText key={i} variant="body" color="secondary" accessibilityLanguage="de-DE">
+            P{i + 1}. {pt}
+          </ThemedText>
+        ))
+      )}
       <TextInput
         multiline
         editable={editable}
@@ -229,6 +249,58 @@ export function WritingTaskView({
   )
 }
 
+/** Các ý bắt buộc của bài Viết thành ô đánh dấu "đã viết" (mẫu iOS `writing`). */
+function LeitpunktChecklist({ points, checked, onToggle }: { points: string[]; checked: readonly string[]; onToggle: (point: string) => void }) {
+  const c = useTheme().colors
+  const done = points.filter((p) => checked.includes(p)).length
+  return (
+    <View style={{ gap: space[2] }}>
+      <Caption>{`Viết xong ý nào thì đánh dấu ý đó · ${done}/${points.length}`}</Caption>
+      {points.map((pt, i) => {
+        const on = checked.includes(pt)
+        return (
+          <Pressable
+            key={`${i}-${pt}`}
+            accessibilityRole="checkbox"
+            accessibilityLabel={pt}
+            accessibilityLanguage="de-DE"
+            accessibilityState={{ checked: on }}
+            onPress={() => onToggle(pt)}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space[3],
+              minHeight: 44,
+              paddingHorizontal: space[3],
+              paddingVertical: space[2],
+              borderRadius: radius.sm,
+              borderWidth: 1.5,
+              borderColor: on ? c.success : c.border,
+              backgroundColor: pressed ? c.surfaceSunken : c.surface,
+            })}
+          >
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 6,
+                borderWidth: 1.5,
+                borderColor: on ? c.success : c.borderStrong,
+                backgroundColor: on ? c.success : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {on ? <Icon icon={Check} size={14} color="onInk" strokeWidth={3} /> : null}
+            </View>
+            <ThemedText variant="bodyStrong" style={{ flex: 1 }} accessibilityLanguage="de-DE">{pt}</ThemedText>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
 function QuestionCard({
   item,
   group,
@@ -237,6 +309,7 @@ function QuestionCard({
   onSelect,
   result,
   reviewing = false,
+  extra,
 }: {
   item: ExamObjItem
   /** Teil chứa câu này — cần cho luật "mỗi lựa chọn một lần" của đề telc. */
@@ -247,6 +320,7 @@ function QuestionCard({
   result?: PracticeItemResult
   /** Đang xem kết quả: không chọn lại được, nhưng không làm mờ hay đọc "(đã dùng)". */
   reviewing?: boolean
+  extra?: ReactNode
 }) {
   const { colors } = useTheme()
   // Giá trị nộp tách khỏi nhãn: trắc nghiệm options object nộp chữ cái A/B/C (AC-MOBFIX-03).
@@ -294,6 +368,7 @@ function QuestionCard({
         })}
       </View>
       {result ? <ItemExplanation result={result} /> : null}
+      {extra}
     </Card>
   )
 }
