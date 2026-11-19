@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, AppState, View, type ScrollView } from 'react-native'
+import { ActivityIndicator, Alert, AppState, StyleSheet, View, type ScrollView } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useFocusEffect, useLocalSearchParams, useNavigation, type Href } from 'expo-router'
 import api, { apiMessage } from '@/lib/api'
@@ -23,6 +23,7 @@ import { parseDraftAnswers, takeAttemptDraft, takeAttemptStart } from '@/lib/att
 import { answeredCount as groupAnswered } from '@/lib/practiceTeil'
 import { asHref, oralRoute } from '@/lib/examRoutes'
 import { saveAttemptDraft, stopAttempt } from '@/lib/mockAttemptApi'
+import { stopExamTts } from '@/lib/examTts'
 import {
   anchorFromServer,
   createDraftAutosaver,
@@ -291,6 +292,7 @@ function ExamAttemptRunner() {
     if (finishingRef.current) return
     if (!opts?.auto && answeredCount === 0) return
     finishingRef.current = true
+    stopExamTts()
     setSubmitting(true)
     try {
       // Lưu nốt nháp (và chờ lần lưu đang bay) TRƯỚC khi chặn lưu, để không có PATCH đua với /finish và
@@ -424,8 +426,16 @@ function ExamAttemptRunner() {
     if (inProgress && !submitting) confirmLeave(leave)
     else leave()
   }, [inProgress, submitting, confirmLeave])
-  // Back cứng Android cũng qua hộp xác nhận rời bài (Tabs không có stack nên beforeRemove không bắn).
-  useHardwareBack(handleBack)
+  // Back cứng Android đi cùng đường với nút X (hộp Dừng / Tạm rời) khi đang thi; ngoài lúc thi thì như
+  // nút back. Tabs không có stack nên beforeRemove không bắn.
+  const requestExitRef = useRef<(() => void) | null>(null)
+  // Đặt lại mỗi lần render: chỉ màn đang thi (nhánh cuối) mới gán, các màn kết quả/đang tải không dùng bản cũ.
+  requestExitRef.current = null
+  const onHardwareBack = useCallback(() => {
+    if (requestExitRef.current) requestExitRef.current()
+    else handleBack()
+  }, [handleBack])
+  useHardwareBack(onHardwareBack)
 
   // Guard the swipe-back / hardware-back gesture too, not just the header button.
   useEffect(() => {
@@ -479,6 +489,7 @@ function ExamAttemptRunner() {
     if (finishingRef.current) return
     finishingRef.current = true
     submittingRef.current = true
+    stopExamTts()
     setStopping(true)
     try {
       const r = await stopAttempt(attemptId, answersRef.current)
@@ -576,24 +587,6 @@ function ExamAttemptRunner() {
     )
   }
 
-  if (submitting || stopping) {
-    return (
-      <Screen edges={['top']}>
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[5] }}>
-          <Card style={{ gap: space[3], alignItems: 'center', paddingVertical: space[8] }}>
-            <ActivityIndicator color={c.textPrimary} />
-            <ThemedText variant="title" align="center" accessibilityRole="header" accessibilityLiveRegion="polite">
-              {stopping ? 'Đang dừng và chấm phần đã làm…' : timedOut ? 'Hết giờ. Bài đang được nộp' : 'Đang nộp và chấm bài…'}
-            </ThemedText>
-            <ThemedText variant="caption" color="muted" align="center">
-              {stopping ? 'Teil đã làm được chấm ngay; bài viết dở không chấm.' : 'Trắc nghiệm chấm ngay; bài viết AI chấm khoảng một phút.'}
-            </ThemedText>
-          </Card>
-        </View>
-      </Screen>
-    )
-  }
-
   const stageSections = parsed.sections.filter((sec) => stages.length <= 1 || stageOf(sec.name) === stage)
   const chips: TeilChip[] = stageSections.flatMap((sec) => [
     ...sec.groups.map((g, i) => {
@@ -611,6 +604,8 @@ function ExamAttemptRunner() {
     ...sec.writing.map((w): RunTeil => ({ key: `SCHREIBEN-${w.teil}`, writing: true, answered: (answers[w.answerKey] ?? '').trim() ? 1 : 0, total: 1 })),
   ])
   const flagged = flaggedEntries(stageSections, flags)
+
+  requestExitRef.current = inProgress ? requestExit : null
 
   // Tạm rời từ hộp Dừng: lưu rồi rời ngay; chỉ hỏi lại khi chưa lưu được (mất mạng).
   async function leaveAfterSave() {
@@ -745,6 +740,21 @@ function ExamAttemptRunner() {
           )}
         </View>
       </Screen>
+      {/* Đang nộp / đang dừng: lớp phủ ĐÈ lên bài, không thay cây — nộp/dừng lỗi thì quay lại đúng chỗ, lượt
+          nghe Hören đã dùng không bị đặt lại. */}
+      {submitting || stopping ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg, justifyContent: 'center', paddingHorizontal: space[5] }]}>
+          <Card style={{ gap: space[3], alignItems: 'center', paddingVertical: space[8] }}>
+            <ActivityIndicator color={c.textPrimary} />
+            <ThemedText variant="title" align="center" accessibilityRole="header" accessibilityLiveRegion="polite">
+              {stopping ? 'Đang dừng và chấm phần đã làm…' : timedOut ? 'Hết giờ. Bài đang được nộp' : 'Đang nộp và chấm bài…'}
+            </ThemedText>
+            <ThemedText variant="caption" color="muted" align="center">
+              {stopping ? 'Teil đã làm được chấm ngay; bài viết dở không chấm.' : 'Trắc nghiệm chấm ngay; bài viết AI chấm khoảng một phút.'}
+            </ThemedText>
+          </Card>
+        </View>
+      ) : null}
     </Screen>
   )
 }
