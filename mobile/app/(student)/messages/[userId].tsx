@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View,
+  FlatList, KeyboardAvoidingView, Platform, View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { MoreVertical, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { messagesApi, type Message } from '@/lib/messagesApi'
 import { adaptivePollMs, maxMessageId, mergeThreadById } from '@/lib/chatDelta'
@@ -16,10 +15,13 @@ import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
 import { useChatAutoScroll } from '@/hooks/useChatAutoScroll'
 import { useIsScreenFocused } from '@/hooks/useIsScreenFocused'
 import { reportFlow, userSafetyMenu } from '@/lib/moderationActions'
-import { fonts, radius, space, useTheme } from '@/lib/theme'
+import { space } from '@/lib/theme'
 import {
-  AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
+  EmptyState, ErrorState, Screen, Skeleton,
 } from '@/components/ui'
+import { HeaderGlyphButton, TopBar } from '@/components/classroom/ClassroomParts'
+import { BubbleView, ChatComposer, DaySeparator } from '@/components/classroom/ChatParts'
+import { clockLabel, daySeparatorAbove } from '@/lib/classroomUi'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
@@ -40,7 +42,6 @@ export default function MessageThreadScreen() {
 function MessageThreadRunner() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackTo(PARENT_OF['messages/[userId]'])
-  const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
   const params = useLocalSearchParams<{ userId: string; name?: string }>()
@@ -110,6 +111,11 @@ function MessageThreadRunner() {
 
   const outbox = useMemo(() => itemsForChannel(outboxItems, 'dm', userId), [outboxItems, userId])
   const bubbles = useMemo(() => buildDmBubbles(q.data ?? [], outbox), [q.data, outbox])
+  // Vạch ngày (v3.4 `.daysep`) — chỉ trình bày, tính từ danh sách đã dựng.
+  const separators = useMemo(() => {
+    const now = new Date()
+    return bubbles.map((_, i) => daySeparatorAbove(bubbles, i, now))
+  }, [bubbles])
 
   // Follow the newest bubble (own send or an incoming reply) when at the bottom; don't yank a
   // user reading history. bubbles[0] is the newest (list is inverted / newest-first).
@@ -129,25 +135,22 @@ function MessageThreadRunner() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
+      {/* Giao diện v3.4 (Đợt 6B, mẫu `dm`): thanh đầu giữa + nút Tùy chọn an toàn (glyph `antoan`). */}
+      <TopBar
         title={name}
         subtitle="Nhắn tin với giáo viên"
         onBack={goBack}
         right={
-          <Pressable
-            accessibilityRole="button"
+          <HeaderGlyphButton
+            glyph="antoan"
             accessibilityLabel="Tùy chọn an toàn"
-            hitSlop={8}
             onPress={() =>
               userSafetyMenu(userId, name, () => {
                 void qc.invalidateQueries({ queryKey: ['conversations'] })
                 goBack()
               })
             }
-            style={{ padding: space[2] }}
-          >
-            <Icon icon={MoreVertical} size={20} color="faint" />
-          </Pressable>
+          />
         }
       />
       <KeyboardAvoidingView
@@ -178,124 +181,55 @@ function MessageThreadRunner() {
             keyExtractor={(b) => b.key}
             onScroll={onScroll}
             scrollEventThrottle={16}
-            renderItem={({ item }) => (
-              <Bubble
-                vm={item}
-                onRetry={item.status === 'failed' ? () => retry(item.tempId!) : undefined}
-                onReport={
-                  item.mine || item.realId == null
-                    ? undefined
-                    : () => reportFlow({ context: 'DIRECT_MESSAGE', messageId: item.realId! }, 'Báo cáo tin nhắn')
-                }
-              />
+            renderItem={({ item, index }) => (
+              <View>
+                {separators[index] ? <DaySeparator label={separators[index]!} /> : null}
+                <Bubble
+                  vm={item}
+                  peerName={name}
+                  onRetry={item.status === 'failed' ? () => retry(item.tempId!) : undefined}
+                  onReport={
+                    item.mine || item.realId == null
+                      ? undefined
+                      : () => reportFlow({ context: 'DIRECT_MESSAGE', messageId: item.realId! }, 'Báo cáo tin nhắn')
+                  }
+                />
+              </View>
             )}
             contentContainerStyle={{ paddingHorizontal: space[5], paddingVertical: space[3] }}
             keyboardDismissMode="interactive"
           />
         )}
 
-        {/* Composer */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            gap: space[2],
-            paddingHorizontal: space[4],
-            paddingTop: space[2],
-            paddingBottom: Math.max(insets.bottom, space[2]),
-            borderTopWidth: 1,
-            borderTopColor: c.border,
-            backgroundColor: c.bg,
-          }}
-        >
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Nhập tin nhắn…"
-            placeholderTextColor={c.textFaint}
-            multiline
-            accessibilityLabel="Nội dung tin nhắn"
-            style={{
-              flex: 1,
-              maxHeight: 120,
-              backgroundColor: c.surfaceSunken,
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: c.border,
-              paddingHorizontal: space[3],
-              paddingVertical: space[2],
-              color: c.textPrimary,
-              fontFamily: fonts.bodyRegular,
-              fontSize: 15,
-            }}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Gửi tin nhắn"
-            accessibilityState={{ disabled: !canSend }}
-            disabled={!canSend}
-            onPress={onSend}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: radius.md,
-              backgroundColor: canSend ? c.accent : c.surfaceSunken,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon icon={Send} size={18} color={canSend ? 'onAccent' : 'faint'} />
-          </Pressable>
-        </View>
+        <ChatComposer
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Nhập tin nhắn…"
+          canSend={canSend}
+          onSend={onSend}
+          bottomInset={insets.bottom}
+        />
       </KeyboardAvoidingView>
     </Screen>
   )
 }
 
-function Bubble({ vm, onReport, onRetry }: { vm: ChatBubbleVM; onReport?: () => void; onRetry?: () => void }) {
-  const c = useTheme().colors
-  const mine = vm.mine
-  const failed = vm.status === 'failed'
+function Bubble({
+  vm, peerName, onReport, onRetry,
+}: { vm: ChatBubbleVM; peerName: string; onReport?: () => void; onRetry?: () => void }) {
   const sending = vm.status === 'sending'
   return (
-    <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: space[2] }}>
-      <Pressable
-        onLongPress={onReport}
-        onPress={onRetry}
-        accessibilityRole={onReport || onRetry ? 'button' : undefined}
-        accessibilityLabel={
-          onRetry ? 'Gửi lại tin nhắn' : onReport ? 'Giữ để báo cáo tin nhắn' : undefined
-        }
-        style={{
-          maxWidth: '82%',
-          opacity: sending ? 0.65 : 1,
-          backgroundColor: mine ? c.accent : c.surface,
-          borderWidth: mine ? 0 : 1,
-          borderColor: c.border,
-          borderRadius: radius.md,
-          paddingHorizontal: space[3],
-          paddingVertical: space[2],
-        }}
-      >
-        <ThemedText variant="body" style={{ color: mine ? c.onBrand : c.textPrimary }}>
-          {vm.body}
-        </ThemedText>
-      </Pressable>
-      {failed ? (
-        <Caption color={c.danger} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
-          Gửi lỗi · Chạm để thử lại
-        </Caption>
-      ) : (
-        <Caption color={c.textFaint} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
-          {sending ? 'Đang gửi…' : clock(vm.createdAt)}
-        </Caption>
-      )}
-    </View>
+    <BubbleView
+      mine={vm.mine}
+      meta={`${vm.mine ? 'Bạn' : peerName} · ${sending ? 'Đang gửi…' : clockLabel(vm.createdAt)}`}
+      body={vm.body}
+      sending={sending}
+      failed={vm.status === 'failed'}
+      onLongPress={onReport}
+      onPress={onRetry}
+      accessibilityLabel={
+        onRetry ? 'Gửi lại tin nhắn' : onReport ? 'Giữ để báo cáo tin nhắn' : undefined
+      }
+    />
   )
-}
-
-function clock(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
 }
