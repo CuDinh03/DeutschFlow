@@ -2,21 +2,21 @@ import type { ReactNode } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useLocalSearchParams } from 'expo-router'
-import { ArrowRight } from 'lucide-react-native'
-import { space, useTheme } from '@/lib/theme'
+import { ArrowLeft, ArrowRight } from 'lucide-react-native'
+import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
-  Card,
   ThemedText,
   Icon,
-  AppHeader,
-  Caption,
+  IconButton,
   Pill,
   ProgressBar,
   EmptyState,
   ErrorState,
   Skeleton,
 } from '@/components/ui'
+import { markSegments } from '@/lib/correctionMarks'
+import { weeklyScoreLabel, wpmRatio } from '@/lib/weeklyUi'
 import { weeklyApi, rubricScore, type WeeklyGrammarError, type WeeklyReplacement } from '@/lib/weeklyApi'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
@@ -27,7 +27,7 @@ export default function WeeklyDetailScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackTo(PARENT_OF['weekly-detail'])
   const c = useTheme().colors
-  const params = useLocalSearchParams<{ id: string; title?: string }>()
+  const params = useLocalSearchParams<{ id: string; title?: string; week?: string }>()
   const id = Number(params.id)
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -38,10 +38,23 @@ export default function WeeklyDetailScreen() {
 
   const rubric = data?.rubricOrNull ?? null
   const score = rubricScore(rubric)
+  const verdict = weeklyScoreLabel(score)
+  const errors = rubric?.grammar?.errors ?? []
+  const segments = data?.transcript ? markSegments(data.transcript, errors.map((e) => e.wrong_span)) : []
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={params.title ?? data?.promptTitle ?? 'Bài nói'} subtitle="Thử thách tuần · Sprechen" onBack={goBack} />
+      {/* Đầu màn theo mẫu v3.4 `weeklyd` (Đợt 5C) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[5], paddingTop: space[2], gap: space[2] }}>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Quay lại" onPress={goBack} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <ThemedText variant="label" numberOfLines={1}>
+            {params.week ? `Thử thách tuần ${params.week} · Sprechen` : 'Thử thách tuần · Sprechen'}
+          </ThemedText>
+          <ThemedText variant="caption" color="muted" numberOfLines={1}>{params.title ?? data?.promptTitle ?? ''}</ThemedText>
+        </View>
+        <View style={{ width: 44 }} />
+      </View>
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
@@ -56,81 +69,87 @@ export default function WeeklyDetailScreen() {
         </View>
       ) : (
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[5], paddingTop: space[2] }}>
-          {/* Score hero — editorial ink card for the key result metric */}
-          <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[4] }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-              <View style={{ gap: space[1] }}>
-                <Caption color={c.accent}>Điểm hoàn thành</Caption>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[1] }}>
-                  <ThemedText variant="displayLg" style={{ color: score != null ? c.onInk : c.onInkMuted }}>
-                    {score != null ? String(score) : '—'}
-                  </ThemedText>
-                  <ThemedText variant="title" style={{ color: c.onInkMuted }}>
-                    / {MAX_SCORE}
-                  </ThemedText>
-                </View>
-              </View>
-              {data.cefrBand ? <Pill label={data.cefrBand} tone="accent" solid /> : null}
+          {/* Điểm hoàn thành (mẫu `weeklyd`): số lớn giữa thẻ, nhãn kết luận */}
+          <View style={{ padding: space[5], borderRadius: radius.xl, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, alignItems: 'center', gap: space[2] }}>
+            <ThemedText variant="caption" color="secondary">Điểm hoàn thành</ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+              <ThemedText variant="displayLg" style={{ fontSize: 60, lineHeight: 64 }}>{score != null ? String(score) : '—'}</ThemedText>
+              <ThemedText variant="title" color="muted">{`/${MAX_SCORE}`}</ThemedText>
             </View>
-            {score != null ? (
-              <ProgressBar value={score / MAX_SCORE} fillColor={c.accent} trackColor={c.onInkMuted} height={6} />
-            ) : null}
+            {verdict ? <Pill label={verdict.label} tone={verdict.tone} /> : null}
+            {data.cefrBand ? <ThemedText variant="caption" color="muted">{`Trình độ ${data.cefrBand}`}</ThemedText> : null}
             {rubric?.feedback_vi_summary ? (
-              <ThemedText variant="caption" style={{ color: c.onInkMuted, lineHeight: 18 }}>
-                {rubric.feedback_vi_summary}
-              </ThemedText>
+              <ThemedText variant="body" color="secondary" align="center">{rubric.feedback_vi_summary}</ThemedText>
             ) : null}
-          </Card>
+          </View>
 
-          {/* Your answer */}
+          {/* Lời đã nói — gạch chỗ sai ngữ pháp (cùng cách đánh dấu với phòng phỏng vấn) */}
           {data.transcript ? (
             <Section title="Bạn đã nói">
-              <Card>
-                <ThemedText variant="body" color="secondary">
-                  {data.transcript}
+              <View style={{ padding: space[4], borderRadius: radius.lg, backgroundColor: c.surfaceSunken }}>
+                <ThemedText variant="body" style={{ lineHeight: 26 }}>
+                  {segments.map((seg, i) =>
+                    seg.mark == null ? (
+                      <ThemedText key={i} variant="body">{seg.text}</ThemedText>
+                    ) : (
+                      <ThemedText
+                        key={i}
+                        variant="body"
+                        style={{ color: c.danger, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.danger }}
+                      >
+                        {seg.text}
+                      </ThemedText>
+                    ),
+                  )}
                 </ThemedText>
-              </Card>
+              </View>
             </Section>
           ) : null}
 
           {/* Grammar corrections */}
-          {(rubric?.grammar?.errors?.length ?? 0) > 0 ? (
+          {errors.length > 0 ? (
             <Section title="Ngữ pháp cần sửa">
-              <Card style={{ gap: space[4] }}>
-                {rubric!.grammar!.errors!.map((e, i) => (
-                  <GrammarRow key={i} error={e} divider={i > 0} />
+              <View style={{ gap: space[4] }}>
+                {errors.map((e, i) => (
+                  <GrammarRow key={i} index={i + 1} error={e} />
                 ))}
-              </Card>
+              </View>
             </Section>
           ) : null}
 
           {/* Vocabulary upgrades */}
           {(rubric?.lexis?.replacements_suggested_de_vi?.length ?? 0) > 0 ? (
             <Section title="Từ vựng hay hơn">
-              <Card style={{ gap: space[4] }}>
+              <View style={{ gap: space[4] }}>
                 {rubric!.lexis!.replacements_suggested_de_vi!.map((r, i) => (
-                  <ReplacementRow key={i} item={r} divider={i > 0} />
+                  <ReplacementRow key={i} item={r} />
                 ))}
-              </Card>
+              </View>
             </Section>
           ) : null}
 
           {/* Fluency */}
           {rubric?.fluency?.subjective_notes_de || rubric?.fluency?.confidence_label ? (
             <Section title="Độ trôi chảy">
-              <Card style={{ gap: space[2] }}>
+              <View style={{ gap: space[2] }}>
+                {rubric.fluency?.wpm_approx != null ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }} accessible accessibilityLabel={`Khoảng ${rubric.fluency.wpm_approx} từ mỗi phút`}>
+                    <ThemedText variant="caption" color="secondary" style={{ width: 64 }}>Từ / phút</ThemedText>
+                    <View style={{ flex: 1 }}>
+                      <ProgressBar value={wpmRatio(rubric.fluency.wpm_approx)} fillColor={c.success} height={8} />
+                    </View>
+                    <ThemedText variant="mono" style={{ width: 36, textAlign: 'right' }}>{String(rubric.fluency.wpm_approx)}</ThemedText>
+                  </View>
+                ) : null}
                 {rubric.fluency?.subjective_notes_de ? (
                   <ThemedText variant="body" color="secondary">
                     {rubric.fluency.subjective_notes_de}
                   </ThemedText>
                 ) : null}
-                {rubric.fluency?.wpm_approx != null || rubric.fluency?.confidence_label ? (
-                  <ThemedText variant="caption" color="faint">
-                    {rubric.fluency?.wpm_approx != null ? `~${rubric.fluency.wpm_approx} từ/phút` : ''}
-                    {rubric.fluency?.confidence_label ? ` · ${rubric.fluency.confidence_label}` : ''}
-                  </ThemedText>
+                {rubric.fluency?.confidence_label ? (
+                  <ThemedText variant="caption" color="faint">{rubric.fluency.confidence_label}</ThemedText>
                 ) : null}
-              </Card>
+              </View>
             </Section>
           ) : null}
 
@@ -148,54 +167,69 @@ export default function WeeklyDetailScreen() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={{ gap: space[3] }}>
-      <Caption>{title}</Caption>
+      <ThemedText variant="title">{title}</ThemedText>
       {children}
     </View>
   )
 }
 
-function GrammarRow({ error, divider }: { error: WeeklyGrammarError; divider: boolean }) {
+function NumberBadge({ text, tone }: { text: string; tone: 'danger' | 'accent' }) {
   const c = useTheme().colors
   return (
-    <View style={{ gap: space[1], paddingTop: divider ? space[4] : 0, borderTopWidth: divider ? 1 : 0, borderTopColor: c.border }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
-        {error.wrong_span ? (
-          <ThemedText variant="bodyStrong" style={{ color: c.danger, textDecorationLine: 'line-through' }}>
-            {error.wrong_span}
-          </ThemedText>
-        ) : null}
-        <Icon icon={ArrowRight} size={13} color="faint" />
-        <ThemedText variant="bodyStrong" style={{ color: c.success }}>
-          {error.corrected_span}
-        </ThemedText>
-      </View>
-      {error.rule_vi_short ? (
-        <ThemedText variant="caption" color="muted">
-          {error.rule_vi_short}
-        </ThemedText>
-      ) : null}
+    <View style={{ minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: tone === 'danger' ? c.dangerSoft : c.accentSoft }}>
+      <ThemedText variant="label" style={{ color: tone === 'danger' ? c.danger : c.accentText }}>{text}</ThemedText>
     </View>
   )
 }
 
-function ReplacementRow({ item, divider }: { item: WeeklyReplacement; divider: boolean }) {
+function GrammarRow({ error, index }: { error: WeeklyGrammarError; index: number }) {
   const c = useTheme().colors
   return (
-    <View style={{ gap: space[1], paddingTop: divider ? space[4] : 0, borderTopWidth: divider ? 1 : 0, borderTopColor: c.border }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
-        <ThemedText variant="bodyStrong" color="muted">
-          {item.from_de}
-        </ThemedText>
-        <Icon icon={ArrowRight} size={13} color="faint" />
-        <ThemedText variant="bodyStrong" style={{ color: c.success }}>
-          {item.to_de_suggestion}
-        </ThemedText>
+    <View style={{ flexDirection: 'row', gap: space[3], alignItems: 'flex-start' }}>
+      <NumberBadge text={String(index)} tone="danger" />
+      <View style={{ flex: 1, gap: space[1] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+          {error.wrong_span ? (
+            <ThemedText variant="bodyStrong" style={{ color: c.danger, textDecorationLine: 'line-through' }}>
+              {error.wrong_span}
+            </ThemedText>
+          ) : null}
+          <Icon icon={ArrowRight} size={13} color="faint" />
+          <ThemedText variant="bodyStrong" style={{ color: c.success }}>
+            {error.corrected_span}
+          </ThemedText>
+        </View>
+        {error.rule_vi_short ? (
+          <ThemedText variant="caption" color="muted">
+            {error.rule_vi_short}
+          </ThemedText>
+        ) : null}
       </View>
-      {item.note_vi ? (
-        <ThemedText variant="caption" color="faint">
-          {item.note_vi}
-        </ThemedText>
-      ) : null}
+    </View>
+  )
+}
+
+function ReplacementRow({ item }: { item: WeeklyReplacement }) {
+  const c = useTheme().colors
+  return (
+    <View style={{ flexDirection: 'row', gap: space[3], alignItems: 'flex-start' }}>
+      <NumberBadge text="→" tone="accent" />
+      <View style={{ flex: 1, gap: space[1] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+          <ThemedText variant="bodyStrong" color="muted">
+            {item.from_de}
+          </ThemedText>
+          <Icon icon={ArrowRight} size={13} color="faint" />
+          <ThemedText variant="bodyStrong" style={{ color: c.success }}>
+            {item.to_de_suggestion}
+          </ThemedText>
+        </View>
+        {item.note_vi ? (
+          <ThemedText variant="caption" color="faint">
+            {item.note_vi}
+          </ThemedText>
+        ) : null}
+      </View>
     </View>
   )
 }
