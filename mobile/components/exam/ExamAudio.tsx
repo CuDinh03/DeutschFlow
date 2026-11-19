@@ -42,11 +42,14 @@ export function ExamAudio({ script, label, maxPlays, locked = false, compact = f
   const [used, setUsed] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [activeLine, setActiveLine] = useState(-1)
-  // Mỗi lượt phát một số; bấm Dừng thì tăng ⇒ vòng đọc đang chạy thôi đọc các dòng sau.
-  const runRef = useRef(0)
 
+  // Mỗi lượt phát một số; bấm Dừng hoặc rời màn thì tăng ⇒ vòng đọc đang chạy thôi đọc các dòng sau.
+  const runRef = useRef(0)
   // Rời màn giữa chừng mà không dừng thì giọng vẫn đọc tiếp ở màn sau.
-  useEffect(() => () => stopExamTts(), [])
+  useEffect(() => () => {
+    runRef.current += 1
+    stopExamTts()
+  }, [])
 
   const turns: AudioTurn[] = Array.isArray(script) ? script.filter((t) => t.text?.trim()) : []
   // Mỗi nhân vật một giọng, người dẫn một giọng cố định (như web, 13–14/11/2026); máy chủ chưa có giọng
