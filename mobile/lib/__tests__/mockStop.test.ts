@@ -1,4 +1,4 @@
-import { parseStopResult, stopPreview, stopPreviewMessage, stoppedRows, stoppedSummary, touchedAny } from '../mockStop'
+import { parseStopResult, stopResultFromDetailed, stopPreview, stopPreviewMessage, stoppedRows, stoppedSummary, touchedAny } from '../mockStop'
 import { flaggedEntries, itemShortLabel } from '../mockFlags'
 import { mergeFlags, parseFlags, toggleFlag, classifyDraftSaveError } from '../mockRun'
 import { attemptStartFrom } from '../attemptDraft'
@@ -21,6 +21,19 @@ describe('dừng giữa chừng', () => {
       { key: 'LESEN-2', name: 'Lesen Teil 2', value: 'Chưa làm', counted: false },
     ])
     expect(stoppedSummary(r)).toBe('Tính 1/4 Teil')
+  })
+
+  it('lượt dừng ở nơi khác: đọc điểm từng Teil từ detailed_scores_json', () => {
+    const json = JSON.stringify({
+      partial: { reason: 'STOPPED', teile_done: 1, teile_counted: 1, teile_total: 2 },
+      teile: { 'LESEN-1': { status: 'SCORED', score: 15, max: 25, answered: 5, total: 5 }, 'HOEREN-1': { status: 'NOT_ATTEMPTED', max: 25, answered: 0, total: 5 } },
+    })
+    const r = stopResultFromDetailed(7, json)
+    expect(r).toMatchObject({ attemptId: 7, status: 'PARTIAL', alreadyClosed: true, teileCounted: 1, teileTotal: 2 })
+    expect(stoppedRows(r!).map((x) => x.value)).toEqual(['15/25 điểm', 'Chưa làm'])
+    expect(stopResultFromDetailed(7, '{"LESEN": {"total": 3, "max": 25}}')).toBeNull()
+    expect(stopResultFromDetailed(7, 'không phải json')).toBeNull()
+    expect(stopResultFromDetailed(7, null)).toBeNull()
   })
 
   it('thân lạ không làm văng', () => {

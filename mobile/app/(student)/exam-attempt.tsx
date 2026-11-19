@@ -14,7 +14,7 @@ import { MockStoppedView } from '@/components/exam/mock/MockStoppedView'
 import { FlaggedNav } from '@/components/exam/mock/FlaggedNav'
 import { useSpotlightScrollHost } from '@/components/guide/spotlightScrollHost'
 import { flaggedEntries } from '@/lib/mockFlags'
-import { stopPreview, stopPreviewMessage, touchedAny, type RunTeil, type StopResult } from '@/lib/mockStop'
+import { stopPreview, stopPreviewMessage, stopResultFromDetailed, touchedAny, type RunTeil, type StopResult } from '@/lib/mockStop'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
@@ -109,14 +109,16 @@ function ExamAttemptRunner() {
   flagsRef.current = flags
   const ackedFlagsRef = useRef<string[]>(flags)
   const sendingFlagsRef = useRef<string[] | undefined>(undefined)
-  // Chỉ gửi `flags` khi đã biết cờ trên server (từ /start hay 409) hoặc người học vừa đổi cờ — không thì
-  // gửi mảng rỗng sẽ xoá cờ đã đặt trên web.
-  const flagsKnownRef = useRef(start?.flags != null)
+  // Chỉ gửi `flags` khi đã biết cờ trên server (mở qua /start, hoặc 409 mang bản nháp) hoặc người học vừa
+  // đổi cờ — không thì gửi mảng rỗng sẽ xoá cờ đã đặt trên web. Server BỎ trường `flags` khi không có cờ
+  // nào (`MockExamDraftService.parseFlags` trả null cho mảng rỗng), nên vắng = rỗng.
+  const flagsKnownRef = useRef(start != null)
   // Vị trí trong ScrollView để nhảy tới Teil / câu đánh dấu: phần → nhóm/Teil → câu.
   const scrollHostRef = useRef<ScrollView | null>(null)
   const sectionYRef = useRef<Record<string, number>>({})
   const blockYRef = useRef<Record<string, { section: string; y: number }>>({})
   const itemYRef = useRef<Record<string, { block: string; y: number }>>({})
+  const blockOfItemRef = useRef<Record<string, string>>({})
   const saverRef = useRef<DraftAutosaver | null>(null)
   // Đang nộp (từ lúc bấm, kể cả lúc chờ lưu nốt nháp): chặn bấm nộp lần hai và tự nộp.
   const finishingRef = useRef(false)
@@ -162,6 +164,13 @@ function ExamAttemptRunner() {
   const showExistingResult = useCallback(async () => {
     try {
       const res = await api.get<AttemptResultDto>(`/mock-exams/attempts/${attemptId}/result`)
+      // Lượt đã "Dừng giữa chừng" ở nơi khác: không có tổng điểm — hiện điểm từng Teil, đừng hiện "0 điểm".
+      if (res.data.status === 'PARTIAL') {
+        setStopped(stopResultFromDetailed(attemptId, res.data.detailed_scores_json) ?? {
+          attemptId, status: 'PARTIAL', alreadyClosed: true, teileDone: null, teileCounted: null, teileTotal: null, teile: [],
+        })
+        return
+      }
       setResult(res.data)
       setGates(res.data.gates)
       setBudget(res.data.budget)
@@ -204,11 +213,12 @@ function ExamAttemptRunner() {
         ackedRef.current = serverAnswers
         answersRef.current = merged
         setAnswers(merged)
-        // Cờ gộp cùng luật; server không gửi cờ thì giữ cờ của máy.
+        // Cờ gộp cùng luật. Có bản nháp mà vắng `flags` = server không còn cờ nào (web vừa bỏ hết).
         let mergedFlags = flagsRef.current
-        if (draft?.flags) {
-          mergedFlags = mergeFlags(flagsRef.current, draft.flags, ackedFlagsRef.current)
-          ackedFlagsRef.current = draft.flags
+        if (draft) {
+          const serverFlags = draft.flags ?? []
+          mergedFlags = mergeFlags(flagsRef.current, serverFlags, ackedFlagsRef.current)
+          ackedFlagsRef.current = serverFlags
           flagsKnownRef.current = true
           flagsRef.current = mergedFlags
           setFlags(mergedFlags)
@@ -446,7 +456,9 @@ function ExamAttemptRunner() {
     const it = itemYRef.current[id]
     const b = it ? blockYRef.current[it.block] : undefined
     if (it && b) scrollToY((sectionYRef.current[b.section] ?? 0) + b.y + it.y)
-  }, [scrollToY])
+    // Câu đang ẩn (Teil nghe chưa bấm bắt đầu) không có vị trí: tới đầu Teil chứa nó.
+    else if (blockOfItemRef.current[id]) jumpToBlock(blockOfItemRef.current[id])
+  }, [scrollToY, jumpToBlock])
 
   // ── dừng giữa chừng ─────────────────────────────────────────────────────────
   // Như web (owner chốt 07/11/2026): server chấm theo Teil những Teil đã chạm, Viết dở không chấm, đồng hồ
@@ -465,9 +477,17 @@ function ExamAttemptRunner() {
       const r = await stopAttempt(attemptId, answersRef.current)
       saverRef.current?.dispose()
       trackFeatureAction('mock_exam', 'quit', { status: r.status })
-      if (r.status === 'COMPLETED') await showExistingResult()
-      else if (r.status === 'PARTIAL') setStopped(r)
-      else leaveToParent()
+      if (r.alreadyClosed && r.status !== 'CANCELLED') {
+        // Lượt đã đóng ở nơi khác (web, hoặc hết giờ): /stop không kèm điểm — đọc kết quả có sẵn.
+        await showExistingResult()
+      } else if (r.status === 'PARTIAL') {
+        setStopped(r)
+      } else {
+        // CANCELLED: không câu nào được tính (ví dụ chỉ làm phần server không chấm).
+        Alert.alert('Đã huỷ lượt thi', 'Chưa có câu nào được tính điểm nên lượt này bị huỷ, không vào lịch sử thi.', [
+          { text: 'Đã hiểu', onPress: leaveToParent },
+        ])
+      }
     } catch (e) {
       // Chưa dừng được: lượt vẫn mở như cũ, tự lưu chạy tiếp.
       submittingRef.current = false
@@ -585,13 +605,21 @@ function ExamAttemptRunner() {
   ])
   const flagged = flaggedEntries(stageSections, flags)
 
+  // Tạm rời từ hộp Dừng: lưu rồi rời ngay; chỉ hỏi lại khi chưa lưu được (mất mạng).
+  async function leaveAfterSave() {
+    const saved = await waitAtMost(saverRef.current?.flush().catch(() => false) ?? Promise.resolve(true), LEAVE_FLUSH_WAIT_MS)
+    if (saved) leaveToParent()
+    else confirmLeave(leaveToParent)
+  }
+
   // Nút X (mẫu `mockrun`: "Dừng thi thử"): dừng và chấm phần đã làm, hoặc tạm rời giữ lượt.
   function requestExit() {
     if (!inProgress || stopping) {
       handleBack()
       return
     }
-    if (!touchedAny(answersRef.current)) {
+    // Chỉ khi mở qua /start (đã nạp nháp server): mở không qua /start thì máy có thể chưa thấy câu đã làm trên web.
+    if (start != null && !touchedAny(answersRef.current)) {
       // Như web: chưa làm câu nào thì huỷ lượt rồi rời, không hỏi. Huỷ lỗi vẫn rời — lượt rỗng được chốt
       // khi quá giờ.
       finishingRef.current = true
@@ -606,7 +634,7 @@ function ExamAttemptRunner() {
       `${stopPreviewMessage(stopPreview(runTeile))}\n\nTạm rời thì giữ lượt, nhưng đồng hồ vẫn chạy.`,
       [
         { text: 'Làm tiếp', style: 'cancel' },
-        { text: 'Tạm rời', onPress: () => confirmLeave(leaveToParent) },
+        { text: 'Tạm rời', onPress: () => void leaveAfterSave() },
         { text: 'Dừng và chấm', style: 'destructive', onPress: () => void stopNowRef.current() },
       ],
     )
@@ -656,6 +684,7 @@ function ExamAttemptRunner() {
               // Cổng nghi thức (đề telc): Ansage → đọc câu hỏi → nghe được. Đề Goethe không khai ⇒ không cổng.
               const gateKey = `${section.name}-${group.title}`
               const blockKey = `${section.name}-${group.teilNo ?? gi + 1}`
+              for (const it of group.items) blockOfItemRef.current[it.id] = blockKey
               return (
                 <View key={gi} onLayout={(e) => { blockYRef.current[blockKey] = { section: section.name, y: e.nativeEvent.layout.y } }}>
                   <ObjGroupView

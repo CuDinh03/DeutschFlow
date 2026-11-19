@@ -53,6 +53,34 @@ export function parseStopResult(data: unknown): StopResult {
   }
 }
 
+/**
+ * Lượt đã "Dừng giữa chừng" (dừng trên web, hoặc server tự chốt khi hết giờ lúc vắng mặt) đọc lại qua
+ * `GET …/result`: `total_score` null, điểm từng Teil nằm trong `detailed_scores_json`
+ * (`{partial: {…}, teile: {KEY: {status, score, max, answered, total}}}`, `MockExamPartialScoring`).
+ * `null` khi chuỗi không phải dạng này.
+ */
+export function stopResultFromDetailed(attemptId: number, detailedJson: string | null | undefined): StopResult | null {
+  if (!detailedJson) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(detailedJson)
+  } catch {
+    return null
+  }
+  const o = (parsed ?? {}) as { partial?: Record<string, unknown>; teile?: Record<string, Record<string, unknown>> }
+  if (!o.partial || typeof o.partial !== 'object') return null
+  const teile = Object.entries(o.teile ?? {}).map(([key, v]) => ({ key, ...(v ?? {}) }))
+  return parseStopResult({
+    attempt_id: attemptId,
+    status: 'PARTIAL',
+    already_closed: true,
+    teile_done: o.partial.teile_done,
+    teile_counted: o.partial.teile_counted,
+    teile_total: o.partial.teile_total,
+    teile,
+  })
+}
+
 /** Một Teil của lượt đang thi, theo cách app đếm (câu đã chọn / tổng câu; Viết: đã viết hay chưa). */
 export interface RunTeil {
   key: string
