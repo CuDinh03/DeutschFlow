@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Pressable,
+  ScrollView,
   TextInput,
   Alert,
   ActivityIndicator,
@@ -21,7 +22,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import * as FileSystem from 'expo-file-system/legacy'
-import { Check, X, Volume2, Square } from 'lucide-react-native'
+import { Check, X, Volume2, Square, Play } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -31,15 +32,15 @@ import {
   Card,
   ThemedText,
   Icon,
-  Pill,
   Button,
-  AppHeader,
   EmptyState,
   ErrorState,
   Skeleton,
-  Caption,
   SelectableRow,
-GaGlyph } from '@/components/ui'
+  GaGlyph,
+} from '@/components/ui'
+import { Chip, Eyebrow, GlyphTile, Rail, RuledNote, TopBar } from '@/components/learn/HocOnParts'
+import { skillAnswered } from '@/lib/hocOnUi'
 import { skillTreeApi, type SkillExerciseItem } from '@/lib/skillTreeApi'
 import {
   activeSkills,
@@ -72,6 +73,9 @@ type Result = { scorePercent: number; completed: boolean; xp: number; alreadyCom
 // derived nextNode self-heals when the observer catches up (the lesson is already graded).
 const REVEAL_TREE_CAP_MS = 3000
 
+// Giao diện v3.4 (Đợt 6A, mẫu `skills4`): đầu màn "Luyện 4 kỹ năng", hàng chip tiến độ từng kỹ năng
+// (chạm để cuộn tới phần đó), mỗi câu là một thẻ lớn có nhãn "kỹ năng · câu n / N", câu Nói có nút
+// micro tròn. Vẫn làm hết rồi nộp một lần — logic chấm/nộp và ghi âm không đổi.
 export default function SkillPracticeScreen() {
   // Remount the runner when nodeId changes so stale submitted/result/answers and per-skill
   // child state (reorder order, recording) never leak from the previous lesson via "Bài tiếp theo".
@@ -108,6 +112,9 @@ function SkillPracticeRunner() {
 
   const se = data?.content?.skill_exercises
   const skills = useMemo(() => activeSkills(se), [se])
+  // Chip kỹ năng → cuộn tới phần đó (chỉ trình bày; vị trí đo bằng onLayout).
+  const scrollRef = useRef<ScrollView | null>(null)
+  const sectionY = useRef<Partial<Record<SkillKey, number>>>({})
   const nextNode = result?.completed ? findNextNode(tree, nodeId) : undefined
 
   function setAnswer(key: string, value: SkillAnswer) {
@@ -160,10 +167,10 @@ function SkillPracticeRunner() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
-        title={params.title ?? data?.titleVi ?? 'Luyện 4 kỹ năng'}
-        subtitle="Nghe · Nói · Đọc · Viết"
+      <TopBar
         onBack={goBack}
+        title="Luyện 4 kỹ năng"
+        subtitle={params.title ?? data?.titleVi ?? 'Nghe · Nói · Đọc · Viết'}
       />
 
       {isLoading ? (
@@ -179,17 +186,37 @@ function SkillPracticeRunner() {
         </View>
       ) : (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <Screen
-            scroll
-            keyboardInsets={false}
-            edges={[]}
-            contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}
+          <ScrollView
+            ref={scrollRef}
+            style={{ flex: 1, backgroundColor: c.bg }}
+            contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[3] }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
+            <Rail>
+              {skills.map((skill) => {
+                const total = itemsOf(se, skill).length
+                const doneCount = skillAnswered(skill, total, answers)
+                return (
+                  <Chip
+                    key={skill}
+                    label={`${SKILL_LABEL[skill]} · ${doneCount}/${total}`}
+                    on={doneCount === total}
+                    accessibilityLabel={`${SKILL_LABEL[skill]}: đã làm ${doneCount} trên ${total} câu. Chạm để cuộn tới`}
+                    onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current[skill] ?? 0) - space[2]), animated: true })}
+                  />
+                )
+              })}
+            </Rail>
+
             {result ? <ResultHero result={result} hasNext={!!nextNode} /> : null}
 
             {skills.map((skill) => (
               <SkillSection
                 key={skill}
+                onLayoutY={(y) => {
+                  sectionY.current[skill] = y
+                }}
                 skill={skill}
                 items={itemsOf(se, skill)}
                 passage={skill === 'LESEN' ? passageOf(se) : undefined}
@@ -217,7 +244,7 @@ function SkillPracticeRunner() {
                 onRoadmap={() => router.replace('/(student)/lernweg')}
               />
             )}
-          </Screen>
+          </ScrollView>
         </KeyboardAvoidingView>
       )}
     </Screen>
@@ -228,9 +255,11 @@ function ResultHero({ result, hasNext }: { result: NonNullable<Result>; hasNext:
   const c = useTheme().colors
   if (result.completed) {
     return (
-      <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[3] }}>
+      <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, borderRadius: radius.lg, gap: space[3] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Caption color={c.accent}>Hoàn thành chặng</Caption>
+          <ThemedText variant="label" style={{ color: c.accent, letterSpacing: 1, textTransform: 'uppercase' }}>
+            Hoàn thành chặng
+          </ThemedText>
           <ThemedText variant="monoLg" style={{ color: c.onInk }}>
             {result.scorePercent}%
           </ThemedText>
@@ -241,12 +270,12 @@ function ResultHero({ result, hasNext }: { result: NonNullable<Result>; hasNext:
               width: 36,
               height: 36,
               borderRadius: radius.md,
-              backgroundColor: c.accentSoft,
+              backgroundColor: c.accent,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <GaGlyph name="thithu" size={18} ink="primary" />
+            <GaGlyph name="thithu" size={18} ink="primary" gold="ink" />
           </View>
           <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
             {completionTitle(result.xp, result.alreadyCompleted)}
@@ -259,10 +288,10 @@ function ResultHero({ result, hasNext }: { result: NonNullable<Result>; hasNext:
     )
   }
   return (
-    <Card style={{ gap: space[2], borderColor: c.borderStrong }}>
+    <Card style={{ gap: space[2], borderColor: c.borderStrong, borderRadius: radius.lg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Caption>Kết quả</Caption>
-        <ThemedText variant="monoLg" color="accent">
+        <Eyebrow>Kết quả</Eyebrow>
+        <ThemedText variant="monoLg">
           {result.scorePercent}%
         </ThemedText>
       </View>
@@ -280,7 +309,9 @@ function SkillSection({
   answers,
   submitted,
   onAnswer,
+  onLayoutY,
 }: {
+  onLayoutY: (y: number) => void
   skill: SkillKey
   items: SkillExerciseItem[]
   passage?: { text_de?: string; text_type?: string; text_vi_hint?: string }
@@ -288,32 +319,34 @@ function SkillSection({
   submitted: boolean
   onAnswer: (key: string, v: SkillAnswer) => void
 }) {
-  const c = useTheme().colors
   return (
-    <View style={{ gap: space[3], marginTop: space[2] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <GaGlyph name={SKILL_GLYPH[skill]} size={22} />
-        <ThemedText variant="title" style={{ flex: 1 }}>
+    <View style={{ gap: space[3], marginTop: space[3] }} onLayout={(e) => onLayoutY(e.nativeEvent.layout.y)}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <GlyphTile name={SKILL_GLYPH[skill]} />
+        <ThemedText variant="titleLg" accessibilityRole="header" style={{ flex: 1 }}>
           {SKILL_LABEL[skill]}
         </ThemedText>
-        <Pill label={`${items.length} câu`} tone="neutral" />
+        <ThemedText variant="caption" color="muted">
+          {`${items.length} câu`}
+        </ThemedText>
       </View>
 
       {passage?.text_de ? (
-        <Card style={{ gap: space[2], backgroundColor: c.surfaceSunken }}>
-          {passage.text_type ? <Caption color={c.textFaint}>{passage.text_type}</Caption> : null}
-          <ThemedText variant="body">{passage.text_de}</ThemedText>
+        <RuledNote style={{ gap: space[2] }}>
+          {passage.text_type ? <Eyebrow>{passage.text_type}</Eyebrow> : null}
+          <ThemedText variant="bodyLg" accessibilityLanguage="de-DE">{passage.text_de}</ThemedText>
           {submitted && passage.text_vi_hint ? (
             <ThemedText variant="caption" color="muted">
               {passage.text_vi_hint}
             </ThemedText>
           ) : null}
-        </Card>
+        </RuledNote>
       ) : null}
 
       {items.map((item, i) => (
         <SkillItemCard
           key={`${skill}:${i}`}
+          eyebrow={`${SKILL_LABEL[skill]} · câu ${i + 1} / ${items.length}`}
           index={i + 1}
           item={item}
           value={answers[answerKey(skill, i)]}
@@ -326,37 +359,39 @@ function SkillSection({
 }
 
 function SkillItemCard({
-  index,
+  eyebrow,
   item,
   value,
   submitted,
   onAnswer,
 }: {
+  eyebrow: string
   index: number
   item: SkillExerciseItem
   value: SkillAnswer
   submitted: boolean
   onAnswer: (v: SkillAnswer) => void
 }) {
-  const c = useTheme().colors
   const ok = submitted && localIsCorrect(item, value)
   const speaking = isSpeaking(item.type)
   const hiddenPrompt = hiddenPromptOf(item)
 
   return (
-    <Card style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-        <ThemedText variant="label" color="faint">
-          {index}.
-        </ThemedText>
-        <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
-          {item.instruction_vi ?? item.question_vi ?? item.statement_de ?? ''}
-        </ThemedText>
-        {item.audio_transcript ? <PlayButton text={item.audio_transcript} label="Nghe" /> : null}
+    <Card style={{ gap: space[3], borderRadius: radius.lg, padding: space[5] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <Eyebrow style={{ flex: 1 }}>{eyebrow}</Eyebrow>
         {submitted && !speaking ? (
           <Icon icon={ok ? Check : X} size={18} color={ok ? 'success' : 'danger'} />
         ) : null}
       </View>
+      <ThemedText variant="bodyStrong">
+        {item.instruction_vi ?? item.question_vi ?? item.statement_de ?? ''}
+      </ThemedText>
+      {item.audio_transcript ? (
+        <View style={{ flexDirection: 'row' }}>
+          <PlayButton text={item.audio_transcript} label="Nghe" />
+        </View>
+      ) : null}
 
       {/* The header renders instruction_vi, which HIDES the real question/statement for
           choice + true-false items (see hiddenPromptOf). Surface it so the card isn't
@@ -412,14 +447,28 @@ function PlayButton({ text, label, disabled }: { text: string; label: string; di
       accessibilityState={{ busy: loading, disabled: !!disabled }}
       disabled={disabled}
       onPress={() => void play()}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: disabled ? 0.4 : 1 }}
-      hitSlop={8}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        height: 36,
+        paddingHorizontal: 14,
+        borderRadius: radius.full,
+        backgroundColor: c.surfaceSunken,
+        borderWidth: 1,
+        borderColor: c.border,
+        opacity: disabled ? 0.4 : 1,
+      }}
+      hitSlop={{ top: 4, bottom: 4 }}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={c.accent} />
+        <ActivityIndicator size="small" color={c.textPrimary} />
       ) : (
-        <Icon icon={Volume2} size={18} color="accent" />
+        <Icon icon={Volume2} size={16} color="secondary" />
       )}
+      <ThemedText variant="label" color="secondary">
+        {label}
+      </ThemedText>
     </Pressable>
   )
 }
@@ -441,7 +490,7 @@ function ChoiceInput({
       {(item.options ?? []).map((opt, i) => {
         const selected = value === i
         const isAnswer = i === item.correct_index
-        const border = submitted ? (isAnswer ? c.success : selected ? c.danger : c.border) : selected ? c.accent : c.border
+        const border = submitted ? (isAnswer ? c.success : selected ? c.danger : c.border) : selected ? c.textPrimary : c.borderStrong
         const bg = submitted ? (isAnswer ? c.successSoft : selected ? c.dangerSoft : c.surface) : selected ? c.accentSoft : c.surface
         return (
           <SelectableRow
@@ -454,18 +503,18 @@ function ChoiceInput({
               flexDirection: 'row',
               alignItems: 'center',
               gap: space[2],
-              borderWidth: 1,
+              borderWidth: 1.5,
               borderColor: border,
               backgroundColor: bg,
               borderRadius: radius.md,
-              paddingHorizontal: space[3],
-              paddingVertical: space[3],
+              paddingHorizontal: space[4],
+              minHeight: 52,
             }}
           >
-            <ThemedText variant="body" style={{ flex: 1 }}>
+            <ThemedText variant="body" style={{ flex: 1, paddingVertical: space[3] }}>
               {opt}
             </ThemedText>
-            {!submitted && selected ? <Icon icon={Check} size={16} color="accent" /> : null}
+            {!submitted && selected ? <Icon icon={Check} size={16} color="primary" /> : null}
             {submitted && isAnswer ? <Icon icon={Check} size={16} color="success" /> : null}
             {submitted && selected && !isAnswer ? <Icon icon={X} size={16} color="danger" /> : null}
           </SelectableRow>
@@ -497,16 +546,18 @@ function TrueFalseInput({
           <Pressable
             key={val}
             accessibilityRole="button"
-            accessibilityState={{ selected }}
+            accessibilityLabel={label}
+            accessibilityState={{ selected, disabled: submitted }}
             disabled={submitted}
             onPress={() => onAnswer(val)}
             style={{
               flex: 1,
               alignItems: 'center',
-              paddingVertical: space[3],
+              justifyContent: 'center',
+              minHeight: 52,
               borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: selected ? c.accent : c.border,
+              borderWidth: 1.5,
+              borderColor: selected ? c.textPrimary : c.borderStrong,
               backgroundColor: selected ? c.accentSoft : c.surface,
             }}
           >
@@ -549,13 +600,14 @@ function TextAnswerInput({
         placeholder="Nhập đáp án…"
         placeholderTextColor={c.textFaint}
         autoCapitalize="none"
+        accessibilityLabel="Đáp án"
         style={{
-          backgroundColor: c.surfaceSunken,
-          borderRadius: radius.md,
-          borderWidth: 1,
-          borderColor: submitted ? (ok ? c.success : c.danger) : c.border,
-          paddingHorizontal: space[3],
-          paddingVertical: space[3],
+          backgroundColor: c.surface,
+          borderRadius: radius.sm,
+          borderWidth: 1.5,
+          borderColor: submitted ? (ok ? c.success : c.danger) : c.borderStrong,
+          paddingHorizontal: space[4],
+          minHeight: 52,
           color: c.textPrimary,
           fontFamily: fonts.bodyRegular,
           fontSize: 15,
@@ -602,42 +654,65 @@ function ReorderInput({
     onAnswer(next.map((x) => words[x]).join(' '))
   }
 
+  // Mẫu `.answer-line` + `.ro-bank`: từ đã chọn nằm trong khung nét đứt (chạm để bỏ), từ chưa chọn
+  // nằm dưới (chạm để thêm). Cùng một hàm `tap` như trước nên câu ghép gửi đi không đổi.
+  const tile = (i: number, inLine: boolean) => (
+    <Pressable
+      key={`${inLine ? 'l' : 'b'}${i}`}
+      accessibilityRole="button"
+      accessibilityLabel={inLine ? `Bỏ từ ${words[i]}` : `Thêm từ ${words[i]}`}
+      accessibilityState={{ disabled: submitted }}
+      accessibilityLanguage="de-DE"
+      disabled={submitted}
+      onPress={() => tap(i)}
+      style={{
+        height: 42,
+        paddingHorizontal: 14,
+        justifyContent: 'center',
+        borderRadius: radius.md,
+        borderWidth: 1.5,
+        borderColor: c.borderStrong,
+        backgroundColor: c.surface,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 0,
+        shadowOffset: { width: 0, height: 2 },
+        opacity: submitted ? 0.7 : 1,
+      }}
+    >
+      <ThemedText variant="title" style={{ fontWeight: '500' }}>
+        {words[i]}
+      </ThemedText>
+    </Pressable>
+  )
+
   return (
-    <View style={{ gap: space[2] }}>
-      {order.length > 0 ? (
-        <ThemedText variant="bodyStrong" style={{ color: c.accentText }}>
-          {order.map((x) => words[x]).join(' ')}
-        </ThemedText>
-      ) : (
-        <ThemedText variant="caption" color="faint">
-          Chạm các từ theo đúng thứ tự…
-        </ThemedText>
-      )}
+    <View style={{ gap: space[3] }}>
+      <View
+        style={{
+          minHeight: 96,
+          padding: 10,
+          borderRadius: radius.md,
+          borderWidth: 1.5,
+          borderStyle: order.length > 0 && submitted ? 'solid' : 'dashed',
+          borderColor: c.borderStrong,
+          backgroundColor: c.surface,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignContent: 'flex-start',
+          gap: space[2],
+        }}
+      >
+        {order.length > 0 ? (
+          order.map((x) => tile(x, true))
+        ) : (
+          <ThemedText variant="body" color="muted" style={{ padding: space[2] }}>
+            Chạm từ bên dưới để xếp câu
+          </ThemedText>
+        )}
+      </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
-        {words.map((w, i) => {
-          const isUsed = used.has(i)
-          return (
-            <Pressable
-              key={i}
-              accessibilityRole="button"
-              disabled={submitted}
-              onPress={() => tap(i)}
-              style={{
-                paddingHorizontal: space[3],
-                paddingVertical: space[2],
-                borderRadius: radius.sm,
-                borderWidth: 1,
-                borderColor: isUsed ? c.accent : c.border,
-                backgroundColor: isUsed ? c.accentSoft : c.surface,
-                opacity: submitted ? 0.7 : 1,
-              }}
-            >
-              <ThemedText variant="body" color={isUsed ? 'accent' : 'primary'}>
-                {w}
-              </ThemedText>
-            </Pressable>
-          )
-        })}
+        {words.map((_, i) => (used.has(i) ? null : tile(i, false)))}
       </View>
       {submitted && item.correct_answer != null ? (
         <ThemedText variant="caption">
@@ -832,12 +907,9 @@ function SpeakingInput({
   return (
     <View style={{ gap: space[2] }}>
       {model ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <ThemedText variant="body" style={{ flex: 1 }}>
-            {model}
-          </ThemedText>
-          <PlayButton text={model} label="Nghe mẫu" disabled={recording || preparing} />
-        </View>
+        <ThemedText variant="titleLg" style={{ fontWeight: '400' }} accessibilityLanguage="de-DE">
+          {model}
+        </ThemedText>
       ) : null}
       {gloss ? (
         <ThemedText variant="caption" color="muted">
@@ -845,64 +917,79 @@ function SpeakingInput({
         </ThemedText>
       ) : null}
       {submitted && item.expected_answer ? (
-        <ThemedText variant="caption" color="faint">
+        <ThemedText variant="caption" color="muted">
           Gợi ý: {item.expected_answer}
         </ThemedText>
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={recording ? 'Dừng ghi âm' : 'Ghi âm và nói theo'}
-        accessibilityState={{ selected: done, busy: preparing, disabled: submitted }}
-        disabled={submitted || preparing}
-        onPress={() => (recording ? void stopRecording() : void startRecording())}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: space[2],
-          paddingVertical: space[3],
-          borderRadius: radius.md,
-          borderWidth: 1,
-          borderColor: recording ? c.danger : done ? c.success : c.border,
-          backgroundColor: recording ? c.dangerSoft : done ? c.successSoft : c.surface,
-          opacity: submitted ? 0.7 : 1,
-        }}
-      >
-        {preparing ? (
-          <ActivityIndicator size="small" color={c.accent} />
-        ) : (
-          recording ? (
-            <Icon icon={Square} size={16} color="danger" />
-          ) : done ? (
-            <Icon icon={Check} size={16} color="success" />
-          ) : (
-            <GaGlyph name="speaking" size={16} ink="accentText" />
-          )
-        )}
-        <ThemedText variant="label" color={recording ? 'danger' : done ? 'success' : 'accent'}>
-          {recording ? 'Đang ghi… Chạm để dừng' : done ? 'Đã ghi âm — ghi lại' : 'Nhấn để nói theo'}
-        </ThemedText>
-      </Pressable>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginTop: space[1] }}>
+        {model ? <PlayButton text={model} label="Nghe mẫu" disabled={recording || preparing} /> : null}
+        {recordedUri && !recording ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Nghe lại bản ghi của bạn"
+            onPress={() => void playRecording(recordedUri)}
+            hitSlop={{ top: 4, bottom: 4 }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              height: 36,
+              paddingHorizontal: 14,
+              borderRadius: radius.full,
+              backgroundColor: c.surfaceSunken,
+              borderWidth: 1,
+              borderColor: c.border,
+            }}
+          >
+            {playingBack ? (
+              <ActivityIndicator size="small" color={c.textPrimary} />
+            ) : (
+              <Icon icon={Play} size={14} color="secondary" />
+            )}
+            <ThemedText variant="label" color="secondary">
+              Nghe lại bản ghi
+            </ThemedText>
+          </Pressable>
+        ) : null}
+      </View>
 
-      {recordedUri && !recording ? (
+      {/* Mẫu `.micbtn`: nút micro tròn 84pt, đỏ khi đang ghi. */}
+      <View style={{ alignItems: 'center', gap: space[2], marginTop: space[4] }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Nghe lại bản ghi của bạn"
-          onPress={() => void playRecording(recordedUri)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: space[1] }}
-          hitSlop={8}
+          accessibilityLabel={recording ? 'Dừng ghi âm' : done ? 'Ghi âm lại' : 'Ghi âm và nói theo'}
+          accessibilityState={{ selected: done, busy: preparing, disabled: submitted }}
+          disabled={submitted || preparing}
+          onPress={() => (recording ? void stopRecording() : void startRecording())}
+          style={({ pressed }) => ({
+            width: 84,
+            height: 84,
+            borderRadius: radius.full,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: recording ? c.danger : preparing ? c.borderStrong : c.inkSurface,
+            borderWidth: 3,
+            borderColor: recording ? c.dangerSoft : done ? c.success : c.accent,
+            opacity: submitted ? 0.6 : 1,
+            transform: [{ scale: pressed ? 0.94 : 1 }],
+          })}
         >
-          {playingBack ? (
-            <ActivityIndicator size="small" color={c.accent} />
+          {preparing ? (
+            <ActivityIndicator size="small" color={c.onInk} />
+          ) : recording ? (
+            <Icon icon={Square} size={26} color="onInk" />
           ) : (
-            <Icon icon={Volume2} size={16} color="accent" />
+            <GaGlyph name="noi" size={30} ink="onInk" />
           )}
-          <ThemedText variant="caption" color="accent">
-            Nghe lại bản ghi của bạn
-          </ThemedText>
         </Pressable>
-      ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {done && !recording ? <Icon icon={Check} size={14} color="success" /> : null}
+          <ThemedText variant="label" color={recording ? 'danger' : done ? 'success' : 'primary'}>
+            {recording ? 'Đang ghi… Chạm để dừng' : done ? 'Đã ghi âm — chạm để ghi lại' : 'Nhấn để nói theo'}
+          </ThemedText>
+        </View>
+      </View>
     </View>
   )
 }
