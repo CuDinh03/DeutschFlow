@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -10,6 +10,8 @@ GaGlyph } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { examSpeakingApi, type BlueprintSummary, type ExamMode, type ExamProvider } from '@/lib/examSpeakingApi'
+import { OralMicCheck } from '@/components/exam/OralMicCheck'
+import { isMicCheckedThisRun, markMicChecked } from '@/lib/oralRoom'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { levelsFromBlueprints, providerName, verdict, verdictLabel, verdictTone } from '@/lib/examSpeakingUi'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -19,16 +21,27 @@ import { useHardwareBack } from '@/hooks/useHardwareBack'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
 import { pickBand } from '@/lib/learnerBand'
 
+/** Hệ thi duy nhất trên app: owner chốt 18/11/2026 chỉ luyện telc (giao diện v3.4). Kết quả Goethe cũ vẫn xem được. */
+const PROVIDER: ExamProvider = 'TELC'
+
 /** Hub Luyện thi Nói — thiết kế canvas 02/09 (đã chốt): hero chọn level, cấu trúc đề, điểm yếu, kết quả gần đây. */
 export default function SpeakingExamHubScreen() {
   const theme = useTheme()
   const c = theme.colors
   const { hasProAccess } = usePlanStore()
-  // Parity web 05/09: mobile trước đây khoá cứng Goethe — telc có đủ blueprint A1–B2 từ V277.
-  // LT3: lộ trình thi dẫn vào đây kèm hệ và cấp của kỳ thi, khỏi phải chọn lại.
-  const params = useLocalSearchParams<{ provider?: string; level?: string }>()
-  const [provider, setProvider] = useState<ExamProvider>(params.provider === 'TELC' ? 'TELC' : 'GOETHE')
+  // LT3: lộ trình thi dẫn vào đây kèm cấp của kỳ thi, khỏi phải chọn lại. Hệ thi luôn là telc
+  // (Đợt 5 phần B, 19/11/2026): tham số `provider` cũ được bỏ qua.
+  const params = useLocalSearchParams<{ level?: string; t?: string }>()
+  const provider = PROVIDER
   const [level, setLevel] = useState<string | null>(params.level ?? null)
+  // Màn kiểm micro đang mở cho lần bắt đầu nào (thi thử trọn bài hay luyện một Teil).
+  const [micFor, setMicFor] = useState<{ mode: ExamMode; teil?: number } | null>(null)
+  // Màn là Tabs.Screen ẩn, không unmount: lần mở sau (kèm nonce `t`) phải nghe lại cấp được truyền
+  // và đóng màn kiểm micro còn mở dở từ lần trước.
+  useEffect(() => {
+    if (params.level) setLevel(params.level)
+    setMicFor(null)
+  }, [params.level, params.t])
   // Vorbereitungszeit: 5′ rút gọn (mặc định) hoặc chuẩn thi thật theo blueprint (B1/B2).
   const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
   // Khoá đang mở phòng: 'MOCK' hoặc `DRILL-<teil>` — mỗi nút chỉ xoay khi đúng là nó đang mở.
@@ -66,7 +79,16 @@ export default function SpeakingExamHubScreen() {
   // N3 (đợt 2, 05/09): ngoài thi thử trọn bài (MOCK), backend nhận mode DRILL + teil để luyện
   // MỘT Teil — ngắn, chấm riêng, rẻ hơn (ExamSessionService: ~600 token/lượt chấm). Web đã có
   // thẻ drill từng Teil; mobile trước đây chỉ tạo MOCK.
-  async function startSession(mode: ExamMode, teil?: number) {
+  function startSession(mode: ExamMode, teil?: number) {
+    if (!activeLevel || starting) return
+    if (!isMicCheckedThisRun()) {
+      setMicFor({ mode, teil })
+      return
+    }
+    void createAndEnter(mode, teil)
+  }
+
+  async function createAndEnter(mode: ExamMode, teil?: number) {
     if (!activeLevel || starting) return
     const key = mode === 'MOCK' ? 'MOCK' : `DRILL-${teil ?? 0}`
     setStarting(key)
@@ -80,6 +102,7 @@ export default function SpeakingExamHubScreen() {
         prepMode: mode === 'MOCK' && (activeBlueprint?.prepSec ?? 0) > 0 ? prepMode : undefined,
       })
       router.push({ pathname: '/(student)/speaking-exam-room', params: { id: String(session.id) } })
+      setMicFor(null)
     } catch (e) {
       // F-08: tạo MOCK giữ chỗ ngân sách chấm — hết quota là lý do thường gặp nhất, dẫn thẳng tới nâng cấp.
       handleAiError(e, 'Không bắt đầu được')
@@ -90,18 +113,39 @@ export default function SpeakingExamHubScreen() {
   const startMock = () => startSession('MOCK')
 
   // Back về tab Speaking (màn cha) — điều hướng tường minh, vì GO_BACK của Tabs (firstRoute) về Heute.
-  const goBack = useCallback(() => router.navigate(examParentHref('hub')), [])
+  // Đang ở màn kiểm micro thì back chỉ đóng màn đó.
+  const goBack = useCallback(() => {
+    if (micFor) setMicFor(null)
+    else router.navigate(examParentHref('hub'))
+  }, [micFor])
   useHardwareBack(goBack)
+  // Màn ẩn dưới Tabs không unmount: rời màn thì đóng màn kiểm micro đang mở, quay lại thấy màn chính.
+  useFocusEffect(useCallback(() => () => setMicFor(null), []))
+
+  if (hasProAccess && micFor && activeLevel) {
+    const key = micFor.mode === 'MOCK' ? 'MOCK' : `DRILL-${micFor.teil ?? 0}`
+    return (
+      <OralMicCheck
+        level={activeLevel}
+        entering={starting === key}
+        onBack={() => setMicFor(null)}
+        onEnter={() => {
+          markMicChecked()
+          void createAndEnter(micFor.mode, micFor.teil)
+        }}
+      />
+    )
+  }
 
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Luyện thi Nói" subtitle="Goethe · telc · Sprechen" onBack={goBack} />
+        <AppHeader title="Luyện thi Nói" subtitle="telc · Sprechen" onBack={goBack} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             glyph="khoa"
             title="Tính năng PRO"
-            message="Thi thử phần Nói với giám khảo AI, chấm theo đúng bộ tiêu chí Goethe hoặc telc."
+            message="Thi thử phần Nói với giám khảo AI, chấm theo đúng bộ tiêu chí telc."
             actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
             onAction={PAYWALL_ENABLED ? () => router.push('/(student)/upgrade') : undefined}
           />
@@ -114,29 +158,6 @@ export default function SpeakingExamHubScreen() {
     <Screen edges={['top']}>
       <AppHeader title="Luyện thi Nói" subtitle={`${providerName(provider)} · Sprechen · Beta`} onBack={goBack} />
       <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
-        {/* Hệ chứng chỉ — parity web (catalog có Goethe/telc từ Đợt 1) */}
-        <View style={{ flexDirection: 'row', gap: space[2] }} accessibilityRole="radiogroup" accessibilityLabel="Hệ chứng chỉ">
-          {(['GOETHE', 'TELC'] as const).map((p) => {
-            const active = p === provider
-            return (
-              <Pressable
-                key={p}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`Hệ ${providerName(p)}`}
-                onPress={() => { setProvider(p); setLevel(null) }}
-                style={{
-                  flex: 1, alignItems: 'center', paddingVertical: space[3], borderRadius: radius.md,
-                  borderWidth: 1, borderColor: active ? c.inkSurface : c.border,
-                  backgroundColor: active ? c.inkSurface : c.surface,
-                }}
-              >
-                <ThemedText variant="label" style={active ? { color: c.onInk } : undefined}>{providerName(p)}</ThemedText>
-              </Pressable>
-            )
-          })}
-        </View>
-
         {blueprintsQ.isLoading ? (
           <Skeleton height={260} radius="3xl" />
         ) : blueprintsQ.isError ? (
@@ -216,7 +237,7 @@ export default function SpeakingExamHubScreen() {
               )}
               <Button
                 label={starting === 'MOCK' ? 'Đang mở phòng thi…' : `Bắt đầu bài thi thử ${activeLevel ?? ''}`}
-                onPress={() => void startMock()}
+                onPress={startMock}
                 loading={starting === 'MOCK'}
                 disabled={starting !== null && starting !== 'MOCK'}
               />
@@ -252,7 +273,7 @@ export default function SpeakingExamHubScreen() {
                         size="sm"
                         loading={starting === `DRILL-${p.teilNo}`}
                         disabled={starting !== null && starting !== `DRILL-${p.teilNo}`}
-                        onPress={() => void startSession('DRILL', p.teilNo)}
+                        onPress={() => startSession('DRILL', p.teilNo)}
                       />
                     </View>
                   ))}

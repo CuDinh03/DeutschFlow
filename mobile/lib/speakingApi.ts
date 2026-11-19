@@ -123,6 +123,8 @@ export interface AiChatResponse {
   /** INTRO | ICE_BREAKER | HARD_SKILLS | STAR_SOFT | CLOSING */
   interviewPhaseKey?: string | null
   interviewHintKey?: string | null
+  /** Lỗi có cấu trúc của câu người học (backend luôn gửi mảng, có thể rỗng). */
+  errors?: SpeakingErrorItem[] | null
 }
 
 /** Mirrors `AiSpeakingMessageDto` — a persisted turn, used to rehydrate on resume. */
@@ -139,6 +141,7 @@ export interface AiSpeakingMessage {
   assistantAction: string | null
   assistantFeedback: string | null
   createdAt: string | null
+  errors?: SpeakingErrorItem[] | null
 }
 
 /** Mirrors `AiSpeakingSessionDto`. */
