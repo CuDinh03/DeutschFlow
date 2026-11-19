@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react-native'
 import { ArrowLeft } from 'lucide-react-native'
 import { Pressable, ScrollView, View, type StyleProp, type ViewStyle } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { radius, space, themeShadowStyle, useTheme } from '@/lib/theme'
+import { fonts, radius, space, themeShadowStyle, useTheme } from '@/lib/theme'
 import { BrushMark, GaGlyph, IconButton, ThemedText } from '@/components/ui'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import type { BadgeTone } from '@/lib/hocOnUi'
@@ -227,7 +227,7 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: Badge
   const t = map[tone]
   return (
     <View style={{ height: 24, paddingHorizontal: 10, borderRadius: radius.full, backgroundColor: t.bg, justifyContent: 'center', alignSelf: 'flex-start' }}>
-      <ThemedText variant="caption" style={{ color: t.fg, fontWeight: '700' }} numberOfLines={1}>
+      <ThemedText variant="caption" style={{ color: t.fg, fontFamily: fonts.bodyBold }} numberOfLines={1}>
         {label}
       </ThemedText>
     </View>
@@ -248,7 +248,7 @@ export function ArtBadge({ gender, label, small = false }: { gender: 'der' | 'di
         alignSelf: 'center',
       }}
     >
-      <ThemedText variant="caption" style={{ color: c.onBrand, fontWeight: '700', fontSize: small ? 11 : 13 }} accessibilityLanguage="de-DE">
+      <ThemedText variant="caption" style={{ color: c.onBrand, fontFamily: fonts.bodyBold, fontSize: small ? 11 : 13 }} accessibilityLanguage="de-DE">
         {label ?? gender}
       </ThemedText>
     </View>

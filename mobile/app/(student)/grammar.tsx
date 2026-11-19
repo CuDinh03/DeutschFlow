@@ -6,7 +6,7 @@ import { router, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
-import { radius, space, themeShadowStyle, useTheme } from '@/lib/theme'
+import { fonts, radius, space, themeShadowStyle, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, Icon, Skeleton, ErrorState } from '@/components/ui'
 import { ArtBadge, Badge, GlyphTile, HeroTitle, ListCard, ListItem, SectionHead, TopBar } from '@/components/learn/HocOnParts'
 import { mapGrammarTopic, type GrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
@@ -120,7 +120,7 @@ export default function GrammarScreen() {
             <ArtBadge gender="die" />
             <ArtBadge gender="das" />
             <View style={{ height: 26, paddingHorizontal: 10, borderRadius: radius.full, borderWidth: 1, borderColor: c.onInkMuted, justifyContent: 'center' }}>
-              <ThemedText variant="caption" style={{ color: c.onInk, fontWeight: '700', fontSize: 13 }}>
+              <ThemedText variant="caption" style={{ color: c.onInk, fontFamily: fonts.bodyBold, fontSize: 13 }}>
                 die (Pl.)
               </ThemedText>
             </View>
@@ -144,7 +144,7 @@ export default function GrammarScreen() {
             >
               <GlyphTile name="video" />
               <View style={{ flex: 1, gap: 1 }}>
-                <ThemedText variant="body" style={{ fontWeight: '500' }} accessibilityLanguage="de-DE">
+                <ThemedText variant="body" style={{ fontFamily: fonts.bodyMedium }} accessibilityLanguage="de-DE">
                   {kasus.label}
                 </ThemedText>
                 <ThemedText variant="caption" color="muted">
@@ -297,7 +297,7 @@ function TopicRow({ topic, first, locked, level }: { topic: GrammarTopic; first:
     <ListItem first={first}>
       <GlyphTile name={locked ? 'khoa' : topic.isCompleted ? 'hoanthanh' : 'nguphap'} tone={topic.isCompleted && !locked ? 'green' : 'neutral'} />
       <View style={{ flex: 1, gap: 1 }}>
-        <ThemedText variant="body" color={locked ? 'muted' : 'primary'} style={{ fontWeight: '500' }}>
+        <ThemedText variant="body" color={locked ? 'muted' : 'primary'} style={{ fontFamily: fonts.bodyMedium }}>
           {topic.title}
         </ThemedText>
         {sub ? (

@@ -341,7 +341,7 @@ function WordRow({ word, first, last }: { word: Word; first: boolean; last: bool
       </View>
       <View style={{ flex: 1, gap: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
-          <ThemedText variant="body" style={{ fontWeight: '500' }} accessibilityLanguage="de-DE">
+          <ThemedText variant="body" style={{ fontFamily: fonts.bodyMedium }} accessibilityLanguage="de-DE">
             {word.word}
           </ThemedText>
           {word.cefrLevel ? (

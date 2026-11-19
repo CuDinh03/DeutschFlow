@@ -680,7 +680,7 @@ function ReorderInput({
         opacity: submitted ? 0.7 : 1,
       }}
     >
-      <ThemedText variant="title" style={{ fontWeight: '500' }}>
+      <ThemedText variant="title" style={{ fontFamily: fonts.displaySemi }}>
         {words[i]}
       </ThemedText>
     </Pressable>
@@ -907,7 +907,7 @@ function SpeakingInput({
   return (
     <View style={{ gap: space[2] }}>
       {model ? (
-        <ThemedText variant="titleLg" style={{ fontWeight: '400' }} accessibilityLanguage="de-DE">
+        <ThemedText variant="titleLg" style={{ fontFamily: fonts.displaySemi }} accessibilityLanguage="de-DE">
           {model}
         </ThemedText>
       ) : null}

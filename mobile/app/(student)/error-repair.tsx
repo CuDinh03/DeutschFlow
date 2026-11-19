@@ -3,7 +3,7 @@ import { Alert, View } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Button, EmptyState, ErrorState, GaGlyph, Icon, Screen, Skeleton, TextField, ThemedText } from '@/components/ui'
 import { GlyphTile, HeroTitle, ListCard, ListItem, RuledNote, SectionHead, TopBar } from '@/components/learn/HocOnParts'
 import { drillPass, errorSkillsApi, todayApi, type ErrorSkill } from '@/lib/todayApi'
@@ -196,7 +196,7 @@ function WrongSentence({ wrong, corrected, variant = 'bodyLg' }: { wrong: string
 function WrongSnippet({ skill }: { skill: ErrorSkill }) {
   const c = useTheme().colors
   if (!skill.sampleWrong) {
-    return <ThemedText variant="body" style={{ fontWeight: '500' }}>{skill.ruleViShort ?? getErrorTitle(skill.errorCode)}</ThemedText>
+    return <ThemedText variant="body" style={{ fontFamily: fonts.bodyMedium }}>{skill.ruleViShort ?? getErrorTitle(skill.errorCode)}</ThemedText>
   }
   const d = diffMiddle(skill.sampleWrong, skill.sampleCorrected)
   const text = d && d.wrong ? d.wrong : skill.sampleWrong
@@ -205,7 +205,7 @@ function WrongSnippet({ skill }: { skill: ErrorSkill }) {
       variant="body"
       numberOfLines={1}
       accessibilityLanguage="de-DE"
-      style={{ fontWeight: '500', textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.danger }}
+      style={{ fontFamily: fonts.bodyMedium, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.danger }}
     >
       {text}
     </ThemedText>
