@@ -15,7 +15,7 @@
 // nội dung chảy xuống dưới kính; các màn TAB chừa đáy bằng useTabBarClearance.
 
 import { BlurView } from 'expo-blur'
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect'
 import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
 import { type LayoutChangeEvent, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
@@ -61,7 +61,9 @@ let liquidGlassCache: boolean | null = null
 function hasLiquidGlass(): boolean {
   if (liquidGlassCache == null) {
     try {
-      liquidGlassCache = Platform.OS === 'ios' && isLiquidGlassAvailable()
+      // Thêm isGlassEffectAPIAvailable: vài bản iOS 26 beta báo có Liquid Glass nhưng thiếu API ⇒ crash
+      // (khuyến nghị của chính expo-glass-effect).
+      liquidGlassCache = Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()
     } catch {
       liquidGlassCache = false
     }
