@@ -2,7 +2,7 @@
 // nháp đã lưu (có thể làm trên web). Màn giới thiệu nhận nháp và chuyển cho màn làm bài để mở ra
 // đúng các câu đã trả lời — nộp bài trống sẽ chấm đè mất bài trên web.
 
-import { anchorFromServer, type ClockAnchor, type ServerClockBody } from './mockRun'
+import { anchorFromServer, parseFlags, type ClockAnchor, type ServerClockBody } from './mockRun'
 
 const pending = new Map<number, Record<string, string>>()
 
@@ -39,7 +39,7 @@ export function takeAttemptDraft(attemptId: number): Record<string, string> {
 
 export interface AttemptStartBody extends ServerClockBody {
   id: number
-  draft?: { answers_json?: string | null; section_index?: number | null; version?: number | null } | null
+  draft?: { answers_json?: string | null; section_index?: number | null; version?: number | null; flags?: unknown } | null
   closed_attempt_id?: number | null
 }
 
@@ -48,6 +48,8 @@ export interface AttemptStart {
   version: number
   sectionIndex: number | null
   clock: ClockAnchor | null
+  /** Câu đánh dấu xem lại đang lưu trên server (V374); `null` khi server không gửi. */
+  flags: string[] | null
   /** Lượt trước của đề này vừa được server chốt "Dừng giữa chừng" vì hết giờ khi vắng mặt. */
   closedPrevious: boolean
 }
@@ -58,6 +60,7 @@ export function attemptStartFrom(body: AttemptStartBody, clientAtMs: number): At
     version: typeof body.draft?.version === 'number' ? body.draft.version : 0,
     sectionIndex: typeof body.draft?.section_index === 'number' ? body.draft.section_index : null,
     clock: anchorFromServer(body, clientAtMs),
+    flags: Array.isArray(body.draft?.flags) ? parseFlags(body.draft.flags) : null,
     closedPrevious: typeof body.closed_attempt_id === 'number',
   }
 }

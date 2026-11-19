@@ -2,7 +2,7 @@
 // đồng hồ đếm ngược theo giờ server, dải ba chặng, dải chip tiến độ từng Teil. Kèm dòng trạng thái lưu.
 // Chỉ hiển thị — mọi quyết định (giờ, chặng, lưu) nằm ở `lib/mockRun.ts` và màn `exam-attempt.tsx`.
 
-import { ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { Check, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { GaGlyph, Icon, IconButton, ThemedText } from '@/components/ui'
@@ -21,16 +21,18 @@ interface Props {
   secondsLeft: number | null
   chips: TeilChip[]
   onExit: () => void
+  /** Bấm chip để tới Teil đó (Đợt 4e). */
+  onChipPress?: (key: string) => void
 }
 
-export function MockRunBar({ title, stage, stages, secondsLeft, chips, onExit }: Props) {
+export function MockRunBar({ title, stage, stages, secondsLeft, chips, onExit, onChipPress }: Props) {
   const c = useTheme().colors
   const pos = stages.indexOf(stage)
   const multi = stages.length > 1
   return (
     <View style={{ gap: space[3], paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[2] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon={X} accessibilityLabel="Rời bài thi thử" onPress={onExit} />
+        <IconButton icon={X} accessibilityLabel="Dừng hoặc tạm rời bài thi thử" onPress={onExit} />
         <View style={{ flex: 1, alignItems: 'center' }} accessible accessibilityRole="header">
           <ThemedText variant="label" numberOfLines={1}>
             {multi ? `Chặng ${pos + 1} / ${stages.length}` : title}
@@ -73,11 +75,16 @@ export function MockRunBar({ title, stage, stages, secondsLeft, chips, onExit }:
       {chips.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2] }}>
           {chips.map((ch) => (
-            <View
+            <Pressable
               key={ch.key}
-              accessible
+              onPress={onChipPress ? () => onChipPress(ch.key) : undefined}
+              disabled={!onChipPress}
+              accessibilityRole={onChipPress ? 'button' : undefined}
               accessibilityLabel={`${ch.label}${ch.complete ? ', đã làm xong' : ''}`}
-              style={{
+              accessibilityHint={onChipPress ? 'Tới Teil này' : undefined}
+              hitSlop={{ top: 7, bottom: 7 }}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.7 : 1,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 4,
@@ -87,13 +94,13 @@ export function MockRunBar({ title, stage, stages, secondsLeft, chips, onExit }:
                 borderWidth: 1,
                 borderColor: ch.complete ? c.successSoft : c.border,
                 backgroundColor: ch.complete ? c.successSoft : c.surface,
-              }}
+              })}
             >
               {ch.complete ? <Icon icon={Check} size={13} color="success" /> : null}
               <ThemedText variant="caption" style={{ color: ch.complete ? c.textPrimary : c.textSecondary, fontVariant: ['tabular-nums'] }}>
                 {ch.label}
               </ThemedText>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       ) : null}

@@ -95,12 +95,16 @@ export function shouldAutoSubmit(s: { secondsLeft: number | null; focused: boole
 export interface DraftPayload {
   answers: Record<string, string>
   sectionIndex: number
+  /** Câu "đánh dấu xem lại" (V374, chung với web). Không gửi ⇒ server giữ cờ đang lưu. */
+  flags?: string[]
 }
 
 export interface ServerDraft {
   answersJson: string | null
   sectionIndex: number | null
   version: number
+  /** Cờ của bản trên server; `undefined` khi server không gửi. */
+  flags?: string[]
 }
 
 export type DraftSaveResult =
@@ -135,6 +139,7 @@ export function classifyDraftSaveError(status: number | undefined, data: unknown
           answersJson: typeof raw.answers_json === 'string' ? raw.answers_json : null,
           sectionIndex: typeof raw.section_index === 'number' ? raw.section_index : null,
           version: typeof raw.version === 'number' ? raw.version : serverVersion,
+          ...(Array.isArray(raw.flags) ? { flags: parseFlags(raw.flags) } : {}),
         }
       : null
     return { kind: 'conflict', serverVersion, draft }
@@ -159,6 +164,34 @@ export function mergeConflict(
     const changedHere = local[k] !== acked[k]
     const v = changedHere ? local[k] : server[k]
     if (v !== undefined) out[k] = v
+  }
+  return out
+}
+
+// ─── cờ "đánh dấu xem lại" ──────────────────────────────────────────────────
+// Lưu trong nháp của lượt (`draft_flags_json`, V374) như web: đánh dấu trên web thì app thấy và ngược lại.
+
+/** Như web `parseFlags`: chỉ giữ chuỗi khác rỗng. */
+export function parseFlags(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && x !== '') : []
+}
+
+/** Bật/tắt cờ của một câu; trả mảng mới. */
+export function toggleFlag(flags: readonly string[], id: string): string[] {
+  return flags.includes(id) ? flags.filter((x) => x !== id) : [...flags, id]
+}
+
+/**
+ * Gộp ba chiều cho cờ khi lệch phiên bản — cùng luật với `mergeConflict`: câu nào máy đã bật/tắt so với
+ * `acked` thì theo máy, còn lại theo server. Giữ thứ tự: cờ của server trước, cờ mới của máy sau.
+ */
+export function mergeFlags(local: readonly string[], server: readonly string[], acked: readonly string[]): string[] {
+  const L = new Set(local)
+  const A = new Set(acked)
+  const keep = (id: string) => (L.has(id) !== A.has(id) ? L.has(id) : server.includes(id))
+  const out: string[] = []
+  for (const id of [...server, ...local, ...acked]) {
+    if (!out.includes(id) && keep(id)) out.push(id)
   }
   return out
 }
