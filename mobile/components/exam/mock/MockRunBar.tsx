@@ -43,7 +43,7 @@ export function MockRunBar({ title, stage, stages, secondsLeft, chips, onExit }:
       </View>
 
       {multi ? (
-        <View style={{ flexDirection: 'row', gap: space[1] + 2 }} accessibilityLabel={`Đang ở chặng ${stageName(stage)}`}>
+        <View style={{ flexDirection: 'row', gap: space[1] + 2 }} accessible accessibilityLabel={`Đang ở chặng ${stageName(stage)}`}>
           {stages.map((s) => {
             const cur = s === stage
             const done = s < stage
@@ -90,7 +90,7 @@ export function MockRunBar({ title, stage, stages, secondsLeft, chips, onExit }:
               }}
             >
               {ch.complete ? <Icon icon={Check} size={13} color="success" /> : null}
-              <ThemedText variant="caption" style={{ color: ch.complete ? c.success : c.textSecondary, fontVariant: ['tabular-nums'] }}>
+              <ThemedText variant="caption" style={{ color: ch.complete ? c.textPrimary : c.textSecondary, fontVariant: ['tabular-nums'] }}>
                 {ch.label}
               </ThemedText>
             </View>
@@ -104,8 +104,10 @@ export function MockRunBar({ title, stage, stages, secondsLeft, chips, onExit }:
 function ClockPill({ seconds }: { seconds: number }) {
   const c = useTheme().colors
   const tone = clockTone(seconds)
-  const fg = tone === 'danger' ? c.danger : tone === 'warn' ? c.orange : c.textPrimary
-  const bg = tone === 'danger' ? c.dangerSoft : c.surface
+  // Chữ luôn màu mực (cam/đỏ trên nền trắng/nhạt < 4,5:1); màu cảnh báo nằm ở viền và nền.
+  const fg = c.textPrimary
+  const edge = tone === 'danger' ? c.danger : tone === 'warn' ? c.orange : c.border
+  const bg = tone === 'danger' ? c.dangerSoft : tone === 'warn' ? c.accentSoft : c.surface
   return (
     <View
       accessible
@@ -118,8 +120,8 @@ function ClockPill({ seconds }: { seconds: number }) {
         minHeight: 36,
         paddingHorizontal: space[3],
         borderRadius: radius.full,
-        borderWidth: 1,
-        borderColor: tone === 'normal' ? c.border : fg,
+        borderWidth: tone === 'normal' ? 1 : 2,
+        borderColor: edge,
         backgroundColor: bg,
       }}
     >
@@ -142,7 +144,8 @@ const SAVE_TEXT: Record<SaveState, string> = {
 /** "✓ Đã lưu" — học viên biết bài đã lên máy chủ; mất mạng thì nói thẳng. */
 export function SaveStatus({ state }: { state: SaveState }) {
   const c = useTheme().colors
-  const color = state === 'retrying' ? c.danger : state === 'saved' ? c.success : c.textMuted
+  // Đỏ trên nền giấy (≈ 4,4:1) và xanh (≈ 3,4:1) chưa đạt 4,5:1: chữ mực khi có trạng thái đáng chú ý, màu ở biểu tượng.
+  const color = state === 'retrying' || state === 'saved' ? c.textPrimary : c.textMuted
   return (
     <View
       accessible
@@ -151,6 +154,7 @@ export function SaveStatus({ state }: { state: SaveState }) {
       style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
     >
       {state === 'saved' ? <Icon icon={Check} size={14} color="success" /> : null}
+      {state === 'retrying' ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.danger }} /> : null}
       <ThemedText variant="caption" style={{ color }}>
         {SAVE_TEXT[state]}
       </ThemedText>

@@ -73,7 +73,9 @@ export function MockResultView(p: Props) {
   const rows = lostRows(p.budget)
   const scoreRows = sectionScoreRows(p.detailedJson)
   const writingScore = scoreRows.find((r) => r.section === 'SCHREIBEN') ?? null
-  const teilRows = analysis ? analysisRows(analysis.teile, analysis.writing, writingScore) : []
+  // Teil viết thư = Teil SCHREIBEN không phải điền form (parseExamSections đã bỏ Teil form khỏi `writing`).
+  const letterTeil = parsedAnalysis?.sections.find((s) => s.name === 'SCHREIBEN')?.writing[0]?.teil ?? 1
+  const teilRows = analysis ? analysisRows(analysis.teile, analysis.writing, writingScore, `SCHREIBEN-${letterTeil}`) : []
   const openable = new Set(teilRows.filter((r) => r.openable).map((r) => r.key))
   const writingInfo = analysis ? { text: analysis.writingText, missingPoints: analysis.writing?.leitpunkte_fehlt?.length ?? 0 } : null
   const date = shortDate(p.finishedAt)

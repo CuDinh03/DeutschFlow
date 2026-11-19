@@ -95,8 +95,15 @@ describe('phản hồi lưu nháp', () => {
     expect(classifyDraftSaveError(500, {})).toEqual({ kind: 'error' })
   })
 
-  it('gộp khi lệch: câu trên máy thắng, câu chỉ có trên server được giữ', () => {
-    expect(mergeConflict({ a: 'x', c: 'z' }, { a: 'y', b: 'w' })).toEqual({ a: 'x', b: 'w', c: 'z' })
+  it('gộp ba chiều khi lệch: chỉ câu máy đã sửa thắng, còn lại theo server', () => {
+    // Máy sửa a và thêm c so với bản đã xác nhận; server (web) thêm b ⇒ giữ cả ba.
+    expect(mergeConflict({ a: 'x', c: 'z' }, { a: 'y', b: 'w' }, { a: 'y' })).toEqual({ a: 'x', b: 'w', c: 'z' })
+    // Web vừa đổi q1 a→b, máy KHÔNG sửa q1 (chỉ thêm q2) ⇒ lấy q1 của web, không làm sống lại 'a'.
+    expect(mergeConflict({ q1: 'a', q2: 'c' }, { q1: 'b' }, { q1: 'a' })).toEqual({ q1: 'b', q2: 'c' })
+    // Lần lưu trước tới server nhưng mất phản hồi: server đã có q1, máy thêm q2 ⇒ không mất câu nào.
+    expect(mergeConflict({ q1: 'a', q2: 'b' }, { q1: 'a' }, {})).toEqual({ q1: 'a', q2: 'b' })
+    // Web xoá q3, máy chưa đụng ⇒ xoá; máy xoá q4 (đã có ở bản xác nhận), web chưa đụng ⇒ xoá.
+    expect(mergeConflict({ q3: 'x' }, { q4: 'y' }, { q3: 'x', q4: 'y' })).toEqual({})
   })
 })
 

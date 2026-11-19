@@ -90,6 +90,9 @@ function ExamAttemptRunner() {
 
   const answersRef = useRef(answers)
   answersRef.current = answers
+  // Bản server đã xác nhận gần nhất (gốc của phép gộp ba chiều khi lệch phiên bản) + bản đang gửi.
+  const ackedRef = useRef<Record<string, string>>(answers)
+  const sendingRef = useRef<Record<string, string> | null>(null)
   const saverRef = useRef<DraftAutosaver | null>(null)
   // Đang nộp (từ lúc bấm, kể cả lúc chờ lưu nốt nháp): chặn bấm nộp lần hai và tự nộp.
   const finishingRef = useRef(false)
@@ -154,11 +157,14 @@ function ExamAttemptRunner() {
 
   useEffect(() => {
     const saver = createDraftAutosaver({
-      save: (payload, base) =>
-        submittingRef.current
-          ? Promise.resolve({ kind: 'saved' as const, version: base, clock: null })
-          : saveAttemptDraft(attemptId, payload, base),
+      save: (payload, base) => {
+        // Đang nộp: KHÔNG giả "đã lưu" (nộp lỗi thì hộp Tạm rời sẽ báo sai là đã lưu) — coi như chưa lưu.
+        if (submittingRef.current) return Promise.resolve({ kind: 'error' as const })
+        sendingRef.current = payload.answers
+        return saveAttemptDraft(attemptId, payload, base)
+      },
       onSaved: ({ clock: body }) => {
+        if (sendingRef.current) ackedRef.current = sendingRef.current
         // Mỗi lần lưu kéo đồng hồ về sự thật của server.
         const a = anchorFromServer(body, Date.now())
         if (a) setClock(a)
@@ -167,7 +173,9 @@ function ExamAttemptRunner() {
         if (submittingRef.current) return
         // Lượt được lưu ở nơi khác (web, hoặc lần lưu trước tới server mà mất phản hồi): gộp rồi lưu lại.
         saver.adoptVersion(draft?.version ?? serverVersion)
-        const merged = mergeConflict(answersRef.current, parseDraftAnswers(draft?.answersJson))
+        const serverAnswers = parseDraftAnswers(draft?.answersJson)
+        const merged = mergeConflict(answersRef.current, serverAnswers, ackedRef.current)
+        ackedRef.current = serverAnswers
         answersRef.current = merged
         setAnswers(merged)
         saver.notifyChange({ answers: merged, sectionIndex: sectionIndexRef.current })

@@ -143,12 +143,24 @@ export function classifyDraftSaveError(status: number | undefined, data: unknown
 }
 
 /**
- * Gộp khi lệch phiên bản: câu trên máy này thắng (đây là máy người học đang cầm), câu chỉ có trên server
- * (làm ở web) được giữ. Trường hợp hay gặp nhất là lần lưu trước ĐÃ tới server nhưng mất phản hồi — gộp
- * thì không mất câu nào, còn lấy nguyên bản server (như web) sẽ mất các câu chọn sau lần lưu đó.
+ * Gộp BA CHIỀU khi lệch phiên bản (soát Đợt 4b): `acked` = bản server đã xác nhận gần nhất mà máy này biết
+ * (từ `/start`, rồi mỗi lần lưu thành công). Với từng câu: máy ĐÃ SỬA so với `acked` thì lấy bản máy (kể cả
+ * xoá); máy chưa sửa thì lấy bản server (kể cả xoá). Vừa giữ câu chọn sau lần lưu mất phản hồi, vừa không
+ * đè câu người học vừa sửa trên web (gộp hai chiều "máy thắng" làm sống lại giá trị cũ của `/start`).
  */
-export function mergeConflict(local: Record<string, string>, server: Record<string, string>): Record<string, string> {
-  return { ...server, ...local }
+export function mergeConflict(
+  local: Record<string, string>,
+  server: Record<string, string>,
+  acked: Record<string, string>,
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  const keys = new Set([...Object.keys(local), ...Object.keys(server), ...Object.keys(acked)])
+  for (const k of keys) {
+    const changedHere = local[k] !== acked[k]
+    const v = changedHere ? local[k] : server[k]
+    if (v !== undefined) out[k] = v
+  }
+  return out
 }
 
 export const DRAFT_DEBOUNCE_MS = 2_500

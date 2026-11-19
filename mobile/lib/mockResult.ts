@@ -109,7 +109,9 @@ export function teilNameOfKey(key: string): string {
 /** Dòng phụ của một chỗ mất điểm. */
 export function lostReason(r: LostRow, writing: { text: string | null; missingPoints: number } | null): string {
   if (r.section === 'SCHREIBEN') {
-    if (!writing?.text?.trim()) return 'Chưa viết bài'
+    // Chưa có phân tích (đang tải / lỗi) ⇒ chưa biết có bài hay không: đừng khẳng định "Chưa viết bài".
+    if (writing == null) return 'Mất điểm ở Teil này'
+    if (!writing.text?.trim()) return 'Chưa viết bài'
     return writing.missingPoints > 0 ? `Thiếu ${writing.missingPoints} ý bắt buộc` : 'Mất điểm ở cách viết thư'
   }
   if (r.wrong != null && r.items != null) {
@@ -163,6 +165,11 @@ export function analysisRows(
   teile: readonly PracticeTeilResult[],
   writing: { status?: string | null; total?: number | null; max?: number | null } | null,
   writingScore?: { total: number; max: number } | null,
+  /**
+   * Khoá Teil viết thư của đề (`SCHREIBEN-<số Teil>`, như `writingKey` backend). telc A1/A2 có Teil điền
+   * form (`SCHREIBEN-1`, đã nằm trong `teile`) và Teil viết thư `SCHREIBEN-2` — khoá cứng `-1` trùng khoá.
+   */
+  writingKey = 'SCHREIBEN-1',
 ): AnalysisRow[] {
   const rows: AnalysisRow[] = teile.map((t) => {
     const m = /^([A-Z_]+)-(\d+)$/.exec(t.teilKey)
@@ -175,12 +182,12 @@ export function analysisRows(
       openable: t.items.length > 0,
     }
   })
-  if (writing) {
+  if (writing && !teile.some((t) => t.teilKey === writingKey)) {
     const pending = writing.status === 'PENDING_AI_EVALUATION'
     const total = writingScore?.total ?? writing.total ?? null
     const max = writingScore?.max ?? writing.max ?? null
     rows.push({
-      key: 'SCHREIBEN-1',
+      key: writingKey,
       name: 'Schreiben',
       section: 'SCHREIBEN',
       meta: pending || total == null ? 'Đang chờ chấm' : `${formatPoints(total)}${max != null ? `/${formatPoints(max)}` : ''} điểm`,
