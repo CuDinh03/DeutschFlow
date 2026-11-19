@@ -4,7 +4,7 @@
 // Mức lấy theo hồ sơ (trước 19/11 màn chọn người phỏng vấn ép C1 — lỗi, owner chốt 18/11).
 
 import { useEffect, useMemo, useState } from 'react'
-import { Image, Pressable, ScrollView, TextInput, View, type ImageSourcePropType } from 'react-native'
+import { ActivityIndicator, Image, Pressable, ScrollView, TextInput, View, type ImageSourcePropType } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, Search, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -42,21 +42,25 @@ interface InterviewHubProps {
   cefr: string
   profileOccupation: string | null
   starting: boolean
+  /** Phiếu của buổi cũ đang tải: vòng xoay ở dòng đó, khoá nút Bắt đầu. */
+  loadingReportId: number | null
   onStart: (args: StartArgs) => void
   onFreeTalk: () => void
   onOpenReport: (sessionId: number) => void
 }
 
-export function InterviewHub({ cefr, profileOccupation, starting, onStart, onFreeTalk, onOpenReport }: InterviewHubProps) {
+export function InterviewHub({ cefr, profileOccupation, starting, loadingReportId, onStart, onFreeTalk, onOpenReport }: InterviewHubProps) {
   const c = useTheme().colors
   const tabClearance = useTabBarClearance(space[6])
   const occupations = useQuery({ queryKey: OCCUPATIONS_QUERY_KEY, queryFn: fetchOccupations, staleTime: 600_000 })
-  const recent = useQuery({ queryKey: ['ai-speaking-sessions', 'recent-interviews'], queryFn: () => speakingApi.listSessions(10), staleTime: 60_000 })
+  // API không lọc theo chế độ: lấy rộng để người nói tự do nhiều vẫn thấy buổi phỏng vấn gần đây.
+  const recent = useQuery({ queryKey: ['ai-speaking-sessions', 'recent-interviews'], queryFn: () => speakingApi.listSessions(40), staleTime: 60_000 })
   const all = useMemo(() => occupations.data ?? [], [occupations.data])
 
   const [picked, setPicked] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const selectedCode = picked ?? defaultOccupationCode(all, profileOccupation)
+  // Danh mục tải lỗi/chưa có mà hồ sơ đã có nghề ⇒ vẫn mở thẻ người phỏng vấn của nghề đó.
+  const selectedCode = picked ?? (all.length ? defaultOccupationCode(all, profileOccupation) : profileOccupation)
   const chips = useMemo(() => occupationChips(all, selectedCode), [all, selectedCode])
   const results = useMemo(() => (query.trim() ? searchOccupations(all, query, 6) : []), [all, query])
   const recentRows = useMemo(() => recentInterviews(recent.data ?? [], new Date()), [recent.data])
@@ -66,7 +70,7 @@ export function InterviewHub({ cefr, profileOccupation, starting, onStart, onFre
       <ThemedText variant="label" color="muted" style={{ marginTop: space[5], letterSpacing: 1, textTransform: 'uppercase' }}>
         Phỏng vấn theo nghề
       </ThemedText>
-      <View style={{ marginTop: space[2] }} accessibilityRole="header">
+      <View style={{ marginTop: space[2] }} accessible accessibilityRole="header" accessibilityLabel="Bạn làm nghề gì?">
         <ThemedText variant="display">Bạn làm</ThemedText>
         <BrushMark>nghề gì?</BrushMark>
       </View>
@@ -162,7 +166,7 @@ export function InterviewHub({ cefr, profileOccupation, starting, onStart, onFre
       )}
 
       {selectedCode ? (
-        <InterviewerCard key={selectedCode} code={selectedCode} cefr={cefr} starting={starting} onStart={onStart} />
+        <InterviewerCard key={selectedCode} code={selectedCode} cefr={cefr} starting={starting} disabled={loadingReportId !== null} onStart={onStart} />
       ) : null}
 
       <Pressable accessibilityRole="button" onPress={onFreeTalk} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, marginTop: space[3] })}>
@@ -172,7 +176,7 @@ export function InterviewHub({ cefr, profileOccupation, starting, onStart, onFre
           </View>
           <View style={{ flex: 1 }}>
             <ThemedText variant="bodyStrong">Luyện nói tự do với AI</ThemedText>
-            <ThemedText variant="caption" color="muted">Hội thoại đời sống, thử thách tuần</ThemedText>
+            <ThemedText variant="caption" color="muted">Hội thoại đời sống, chọn người đồng hành</ThemedText>
           </View>
           <Icon icon={ChevronRight} size={18} color="faint" />
         </Card>
@@ -187,6 +191,8 @@ export function InterviewHub({ cefr, profileOccupation, starting, onStart, onFre
                 key={r.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${r.title}${r.when ? `, ${r.when}` : ''}${r.score != null ? `, ${formatScore10(r.score)} trên 10` : ''}. Xem phiếu nhận xét`}
+                accessibilityState={{ busy: loadingReportId === r.id, disabled: loadingReportId !== null }}
+                disabled={loadingReportId !== null}
                 onPress={() => onOpenReport(r.id)}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
@@ -210,7 +216,7 @@ export function InterviewHub({ cefr, profileOccupation, starting, onStart, onFre
                   {r.when ? <ThemedText variant="caption" color="muted">{r.when}</ThemedText> : null}
                 </View>
                 {r.score != null ? <ThemedText variant="titleLg">{formatScore10(r.score)}</ThemedText> : null}
-                <Icon icon={ChevronRight} size={18} color="faint" />
+                {loadingReportId === r.id ? <ActivityIndicator size="small" color={c.textMuted} /> : <Icon icon={ChevronRight} size={18} color="faint" />}
               </Pressable>
             ))}
           </Card>
@@ -234,7 +240,7 @@ function OccupationRow({ occupation, onPress }: { occupation: OccupationSummary;
   )
 }
 
-function InterviewerCard({ code, cefr, starting, onStart }: { code: string; cefr: string; starting: boolean; onStart: (args: StartArgs) => void }) {
+function InterviewerCard({ code, cefr, starting, disabled, onStart }: { code: string; cefr: string; starting: boolean; disabled: boolean; onStart: (args: StartArgs) => void }) {
   const c = useTheme().colors
   const [experience, setExperience] = useState('1-2Y')
   const [showVi, setShowVi] = useState(false)
@@ -327,6 +333,7 @@ function InterviewerCard({ code, cefr, starting, onStart }: { code: string; cefr
         <Button
           label="Bắt đầu phỏng vấn"
           loading={starting}
+          disabled={disabled}
           onPress={() =>
             onStart({
               sessionMode: 'INTERVIEW',

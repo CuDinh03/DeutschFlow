@@ -61,8 +61,10 @@ export const MessageBubble = memo(function MessageBubble({
                     <ThemedText
                       key={k}
                       variant="body"
+                      // Chữ giữ màu thường trên nền vàng (đỏ trên vàng chỉ ~3:1); chỗ sai = nền sáng + gạch chấm đỏ.
                       style={{
-                        color: colors.danger,
+                        color: colors.onAccent,
+                        backgroundColor: 'rgba(255,255,255,0.55)',
                         textDecorationLine: 'underline',
                         textDecorationStyle: 'dotted',
                         textDecorationColor: colors.danger,

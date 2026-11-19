@@ -100,20 +100,25 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
       {report.phaseResults.length > 0 ? (
         <View style={{ gap: space[2] }}>
           {report.phaseResults.map((phase, i) => {
-            const phaseScore = phase.score != null ? phase.score : 0
+            // Pha chưa chấm (phiếu dựng khi phiên kết thúc mà AI chưa chấm): "—", không vẽ thanh 0.
+            const phaseScore = phase.score
             return (
               <View
                 key={`${phase.phase}-${i}`}
                 accessible
-                accessibilityLabel={`${phaseLabel(phase.phase)}: ${formatScore10(phaseScore)} trên 10`}
+                accessibilityLabel={`${phaseLabel(phase.phase)}: ${phaseScore != null ? `${formatScore10(phaseScore)} trên 10` : 'chưa chấm'}`}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
               >
                 <ThemedText variant="label" color="secondary" style={{ width: 92 }} numberOfLines={1}>
                   {phaseLabel(phase.phase)}
                 </ThemedText>
-                <ProgressBar value={scoreFraction(phaseScore)} style={{ flex: 1 }} fillColor={phaseScore >= 6 ? c.success : c.accent} />
+                {phaseScore != null ? (
+                  <ProgressBar value={scoreFraction(phaseScore)} style={{ flex: 1 }} fillColor={phaseScore >= 6 ? c.success : c.accent} />
+                ) : (
+                  <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: c.surfaceSunken }} />
+                )}
                 <ThemedText variant="label" style={{ width: 30, textAlign: 'right', fontVariant: ['tabular-nums'] }}>
-                  {formatScore10(phaseScore)}
+                  {phaseScore != null ? formatScore10(phaseScore) : '—'}
                 </ThemedText>
               </View>
             )

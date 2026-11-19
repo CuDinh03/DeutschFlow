@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -26,9 +26,15 @@ export default function SpeakingExamHubScreen() {
   const { hasProAccess } = usePlanStore()
   // Parity web 05/09: mobile trước đây khoá cứng Goethe — telc có đủ blueprint A1–B2 từ V277.
   // LT3: lộ trình thi dẫn vào đây kèm hệ và cấp của kỳ thi, khỏi phải chọn lại.
-  const params = useLocalSearchParams<{ provider?: string; level?: string }>()
+  const params = useLocalSearchParams<{ provider?: string; level?: string; t?: string }>()
   const [provider, setProvider] = useState<ExamProvider>(params.provider === 'TELC' ? 'TELC' : 'GOETHE')
   const [level, setLevel] = useState<string | null>(params.level ?? null)
+  // Màn là Tabs.Screen ẩn, không unmount: lần mở sau (kèm nonce `t`) phải nghe lại hệ thi được truyền,
+  // kẻo đã chọn Goethe một lần thì ô "Thi nói" (telc) vẫn mở Goethe (soát Đợt 5, 19/11/2026).
+  useEffect(() => {
+    if (params.provider === 'TELC' || params.provider === 'GOETHE') setProvider(params.provider)
+    if (params.level) setLevel(params.level)
+  }, [params.provider, params.level, params.t])
   // Vorbereitungszeit: 5′ rút gọn (mặc định) hoặc chuẩn thi thật theo blueprint (B1/B2).
   const [prepMode, setPrepMode] = useState<'SHORT' | 'FULL'>('SHORT')
   // Khoá đang mở phòng: 'MOCK' hoặc `DRILL-<teil>` — mỗi nút chỉ xoay khi đúng là nó đang mở.

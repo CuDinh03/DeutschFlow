@@ -118,10 +118,12 @@ export default function SpeakingScreen() {
   // Phiếu của buổi cũ mở từ "Buổi gần đây": đóng thì chỉ về màn chọn, không đụng phiên đang dở.
   const [viewingPastReport, setViewingPastReport] = useState(false)
   // Đồng hồ phòng phỏng vấn tính từ lúc vào màn hội thoại trên máy (giờ máy chủ của phiên không kèm múi giờ).
+  // Đặt mốc cùng lúc với setView('chat') để khung đầu không hiện giờ của buổi trước.
   const [chatOpenedAt, setChatOpenedAt] = useState(() => Date.now())
-  useEffect(() => {
-    if (view === 'chat') setChatOpenedAt(Date.now())
-  }, [view])
+  // Đang tải phiếu của một buổi cũ (dòng "Buổi gần đây"): hiện vòng xoay ở dòng đó, khoá nút Bắt đầu.
+  const [loadingReportId, setLoadingReportId] = useState<number | null>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
 
   // Thanh tab liquid-glass giờ NỔI ĐÈ lên nội dung (overlay) — trong phiên nói
   // (chat/tổng kết) nó sẽ đè lên dock nhập liệu/nút Xong, và giữa buổi nói cũng
@@ -405,6 +407,7 @@ export default function SpeakingScreen() {
         cefrLevel: created.cefrLevel,
         topic: created.topic,
       })
+      setChatOpenedAt(Date.now())
       setView('chat')
       speakGerman(greeting, () => flashReaction(null), created.persona)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -685,10 +688,12 @@ export default function SpeakingScreen() {
   }
 
   async function openPastReport(sessionId: number) {
-    if (finishing) return
-    setFinishing(true)
+    if (loadingReportId !== null || starting) return
+    setLoadingReportId(sessionId)
     try {
       const r = await speakingApi.getReport(sessionId)
+      // Trong lúc chờ mà người học đã sang màn khác (vd. vào phiên mới) thì bỏ kết quả, không đè lên.
+      if (viewRef.current !== 'select') return
       setConvReport(null)
       setReport(r)
       setViewingPastReport(true)
@@ -696,7 +701,7 @@ export default function SpeakingScreen() {
     } catch (e) {
       handleAiError(e, 'Không tải được phiếu nhận xét')
     } finally {
-      setFinishing(false)
+      setLoadingReportId(null)
     }
   }
 
@@ -777,6 +782,7 @@ export default function SpeakingScreen() {
       setPhaseKey(null)
       setReport(null)
       setPendingResume(null)
+      setChatOpenedAt(Date.now())
       setView('chat')
       scrollToEnd()
     } catch (e) {
@@ -906,6 +912,7 @@ export default function SpeakingScreen() {
             cefr={practiceBand(currentLevel)}
             profileOccupation={occupationCode ?? null}
             starting={starting}
+            loadingReportId={loadingReportId}
             onStart={startSession}
             onFreeTalk={() => setTrack('free')}
             onOpenReport={(id) => void openPastReport(id)}
@@ -916,7 +923,7 @@ export default function SpeakingScreen() {
             starting={starting}
             onStart={startSession}
             // App chỉ luyện telc (owner chốt 18/11): sảnh thi nói mở thẳng telc, không rơi vào Goethe.
-            onOpenExam={() => router.push({ pathname: '/(student)/speaking-exam', params: { provider: 'TELC' } })}
+            onOpenExam={() => router.push({ pathname: '/(student)/speaking-exam', params: { provider: 'TELC', t: String(Date.now()) } })}
             onOpenInterview={() => setTrack('interview')}
             initialMode={initialMode}
           />

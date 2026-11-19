@@ -40,6 +40,7 @@ export function SpeakingTrackBar({ track, onChange }: { track: SpeakingTrack; on
               key={t.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
+              hitSlop={{ top: 6, bottom: 6 }}
               onPress={() => {
                 if (on) return
                 void Haptics.selectionAsync()

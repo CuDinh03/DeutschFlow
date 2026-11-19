@@ -16,21 +16,21 @@ export function InterviewProgress({ phaseKey, startedAt }: { phaseKey: string | 
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
-  const current = Math.max(0, interviewPhaseIndex(phaseKey))
+  // Chưa biết pha (vừa tiếp tục phiên dở, chờ lượt AI kế) ⇒ không đoán là Giới thiệu.
+  const current = interviewPhaseIndex(phaseKey)
   const label = phaseKey ? phaseLabel(phaseKey) : phaseLabel(INTERVIEW_PHASES[0])
 
   return (
     <View style={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[2], gap: space[2] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <ThemedText variant="label" style={{ flex: 1 }}>
-          Phần {current + 1}/{INTERVIEW_PHASES.length} · {label}
+          {current >= 0 ? `Phần ${current + 1}/${INTERVIEW_PHASES.length} · ${label}` : 'Đang tiếp tục buổi phỏng vấn'}
         </ThemedText>
         <View
           accessible
           accessibilityLabel={`Thời gian buổi: ${formatElapsed(now - startedAt)}`}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space[2], paddingVertical: 2, borderRadius: radius.full, backgroundColor: c.surfaceSunken }}
         >
-          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.danger }} />
           <ThemedText variant="label" style={{ fontVariant: ['tabular-nums'] }}>{formatElapsed(now - startedAt)}</ThemedText>
         </View>
       </View>
@@ -42,7 +42,7 @@ export function InterviewProgress({ phaseKey, startedAt }: { phaseKey: string | 
               flex: 1,
               height: 5,
               borderRadius: 3,
-              backgroundColor: i < current ? c.textPrimary : i === current ? c.accent : c.border,
+              backgroundColor: current < 0 ? c.border : i < current ? c.textPrimary : i === current ? c.accent : c.border,
             }}
           />
         ))}
