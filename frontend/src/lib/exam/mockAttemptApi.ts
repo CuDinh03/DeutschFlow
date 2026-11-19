@@ -9,7 +9,7 @@
 import api, { httpStatus, isAxiosErr } from '@/lib/api'
 import { waitForAsyncJob } from '@/lib/asyncJob'
 import { isAttemptAlreadyFinished } from '@/lib/mockExamFinish'
-import { classifyDraftSaveError, parseDraftAnswers, type DraftSaveResult } from '@/lib/exam/examDraftSync'
+import { classifyDraftSaveError, parseDraftAnswers, parseDraftFlags, type DraftSaveResult } from '@/lib/exam/examDraftSync'
 import type { ExamGate } from '@/components/exam/telc/examGates'
 import type { ExamBudget } from '@/components/exam/telc/examBudget'
 import type { ItemAiAnswer, PracticeTeilResult, WritingEvaluation } from '@/lib/telcPracticeApi'
@@ -72,9 +72,7 @@ export async function startAttempt(examId: number): Promise<StartedAttempt> {
   }
 }
 
-export function parseFlags(raw: unknown): string[] {
-  return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && x !== '') : []
-}
+export const parseFlags = parseDraftFlags
 
 /** PATCH …/draft — kết quả theo union của autosaver (`examDraftSync`). `flags` thiếu ⇒ server giữ giá trị cũ. */
 export async function saveAttemptDraft(

@@ -39,6 +39,7 @@ vi.mock('@/lib/exam/mockAttemptApi', async (orig) => ({
 }))
 
 import FullExamRoute from '@/app/v2/student/mock-exam/full/page'
+import { classifyDraftSaveError } from '@/lib/exam/examDraftSync'
 
 const mc = (id: string) => ({ id, question: `Frage ${id}`, options: { a: 'eins', b: 'zwei' } })
 const SECTIONS = JSON.stringify({
@@ -79,6 +80,29 @@ describe('Thi thử — đánh dấu xem lại', () => {
       () => expect(h.save).toHaveBeenCalledWith(55, expect.objectContaining({ flags: ['L1-2', 'L1-1'] }), 3),
       { timeout: 5000 },
     )
+  }, 10_000)
+
+  it('409 từ máy khác đã bỏ HẾT cờ (draft vắng flags) ⇒ web bỏ cờ cũ, không lưu lại cờ vừa bị bỏ', async () => {
+    const user = userEvent.setup()
+    h.save
+      // Thân 409 đúng như backend gửi: draft có, trường flags bị bỏ vì danh sách rỗng.
+      .mockResolvedValueOnce(
+        classifyDraftSaveError(409, {
+          error: 'DRAFT_VERSION_CONFLICT',
+          server_version: 6,
+          draft: { answers_json: '{}', section_index: 0, question_index: null, version: 6 },
+        }),
+      )
+      .mockResolvedValue({ kind: 'saved', version: 7, remainingSeconds: 3600 })
+    render(<FullExamRoute />)
+
+    await user.click(await screen.findByRole('button', { name: 'Đánh dấu câu 1 để xem lại' }))
+    await waitFor(() => expect(h.save).toHaveBeenCalledTimes(1), { timeout: 5000 })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Đánh dấu câu 2 để xem lại' })).toHaveAttribute('aria-pressed', 'false'),
+    )
+    expect(screen.getByRole('button', { name: 'Đánh dấu câu 1 để xem lại' })).toHaveAttribute('aria-pressed', 'false')
+    expect(h.save).not.toHaveBeenCalledWith(55, expect.objectContaining({ flags: expect.arrayContaining(['L1-2']) }), 6)
   }, 10_000)
 
   it('danh sách câu đánh dấu nhảy về đúng Teil của chặng đang thi', async () => {

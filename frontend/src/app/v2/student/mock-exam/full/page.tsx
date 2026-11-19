@@ -295,7 +295,8 @@ function AttemptTaking({ examId, onFinished }: { examId: number; onFinished: (at
         baseVersionRef.current = serverVersion
         autosaverRef.current?.adoptVersion(serverVersion)
         if (draft?.answersJson) setAnswers(parseDraftAnswers(draft.answersJson))
-        if (draft?.flags) setFlags(draft.flags)
+        // Server thắng như với câu trả lời. Có bản nháp mà không có cờ = máy khác đã bỏ hết cờ.
+        if (draft) setFlags(draft.flags)
         setSaveState('saved')
         toast.info(t('draftConflict'))
       },

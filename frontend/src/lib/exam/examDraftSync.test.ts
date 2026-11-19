@@ -172,8 +172,24 @@ describe('classifyDraftSaveError', () => {
     expect(result).toEqual({
       kind: 'conflict',
       serverVersion: 5,
-      draft: { answersJson: '{"q1":"b"}', sectionIndex: 2, questionIndex: 1, version: 5 },
+      draft: { answersJson: '{"q1":"b"}', sectionIndex: 2, questionIndex: 1, version: 5, flags: [] },
     })
+  })
+
+  it('409: draft có mà vắng flags (server bỏ trường khi rỗng) ⇒ flags = [] — máy khác đã bỏ hết cờ', () => {
+    const result = classifyDraftSaveError(409, {
+      server_version: 6,
+      draft: { answers_json: '{}', section_index: 0, question_index: null, version: 6 },
+    })
+    expect(result).toMatchObject({ kind: 'conflict', draft: { flags: [] } })
+  })
+
+  it('409: flags lọc bỏ phần tử không phải chuỗi hoặc rỗng', () => {
+    const result = classifyDraftSaveError(409, {
+      server_version: 6,
+      draft: { answers_json: '{}', version: 6, flags: ['L1-1', 5, '', null] },
+    })
+    expect(result).toMatchObject({ kind: 'conflict', draft: { flags: ['L1-1'] } })
   })
 
   it('409 without draft body still classifies as conflict', () => {
