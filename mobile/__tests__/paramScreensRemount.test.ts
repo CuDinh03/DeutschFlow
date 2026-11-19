@@ -7,7 +7,6 @@ import { join } from 'path'
 // bằng `key` theo tham số đó. Jest của dự án không render màn, nên test này canh ở mức mã nguồn.
 const SCREENS: Array<{ file: string; param: string }> = [
   { file: 'app/(student)/skill-practice.tsx', param: 'nodeId' },
-  { file: 'app/(student)/exam-attempt.tsx', param: 'attemptId' },
   { file: 'app/(student)/messages/[userId].tsx', param: 'userId' },
   { file: 'app/(student)/class-chat/[classId].tsx', param: 'classId' },
   { file: 'app/(student)/assignments/[id].tsx', param: 'id' },
@@ -31,6 +30,8 @@ describe('màn theo tham số remount khi tham số đổi', () => {
 const PRACTICE_SCREENS: { file: string; key: RegExp }[] = [
   { file: 'app/(student)/exam-set.tsx', key: /<ExamSet key=\{examId \?\? 'none'\}/ },
   { file: 'app/(student)/exam-full.tsx', key: /<FullIntro key=\{examId \?\? 'none'\}/ },
+  // Thi thử (Đợt 4b): key theo lượt + nonce `t` của màn giới thiệu — mở lại lượt dở dựng lại từ nháp mới nhất.
+  { file: 'app/(student)/exam-attempt.tsx', key: /<ExamAttemptRunner key=\{`\$\{attemptId \?\? 'none'\}:\$\{t \?\? ''\}`\} \/>/ },
   { file: 'app/(student)/exam-teil.tsx', key: /<TeilRunner key=\{`\$\{examId\}-\$\{teil\}-\$\{mode \?\? ''\}`\}/ },
 ]
 
