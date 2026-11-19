@@ -52,3 +52,8 @@ ba11faba710c2a1bb23ade9111ab958544d39b5b:frontend/src/test/components/todayModel
 # AdminMfaFlowIntegrationTest là base64 của 32 byte 0x01..0x20 — chỉ dùng trong test, không phải khoá
 # máy chủ (khoá thật chỉ nằm trong /srv/deutschflow/env/backend.env). Đã mở đúng dòng 57 để xác nhận.
 326167f6c00c83654975c045a0258739f4dbbfd9:backend/src/test/java/com/deutschflow/user/mfa/AdminMfaFlowIntegrationTest.java:generic-api-key:57
+
+# Test kết quả thi thử (mobile, 19/11/2026): dòng mong đợi của `analysisRows` có trường `key` bằng mã Teil
+# (dạng PHẦN-số). Rule `generic-api-key` thấy chữ `key` kèm chuỗi entropy 3.73 nên bắt nhầm. Đã mở đúng dòng
+# đó: là mã Teil telc, không phải khoá.
+e5336d7865e8998c12b95fde07ac18cf0e7f9642:mobile/lib/__tests__/mockResult.test.ts:generic-api-key:109
