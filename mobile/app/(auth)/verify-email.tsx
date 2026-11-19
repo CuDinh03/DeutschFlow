@@ -113,7 +113,7 @@ export default function VerifyEmailScreen() {
       <View style={{ paddingHorizontal: space[5], paddingTop: space[2] }}>
         <IconButton
           icon={ArrowLeft}
-          accessibilityLabel={t('verify.changeEmail')}
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           disabled={loading}
         />
@@ -182,7 +182,7 @@ export default function VerifyEmailScreen() {
               </ThemedText>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={left > 0 ? t('verify.resendAfter', { time: formatCountdown(left) }) : t('verify.resend')}
+                accessibilityLabel={left > 0 ? t('verify.resendAfterA11y', { seconds: left }) : t('verify.resend')}
                 accessibilityState={{ disabled: loading || left > 0 }}
                 disabled={loading || left > 0}
                 hitSlop={LINK_HIT_SLOP}

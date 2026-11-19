@@ -21,7 +21,6 @@ export const authMessages = defineMessages(
       back: 'Quay lại',
     },
     register: {
-      title: 'Tạo tài khoản',
       titleLead: 'Tạo',
       titleMark: 'tài khoản',
       subtitle: 'Miễn phí, không cần thanh toán trước',
@@ -113,6 +112,7 @@ export const authMessages = defineMessages(
       resend: 'Gửi lại mã',
       notReceived: 'Chưa nhận được?',
       resendAfter: 'Gửi lại sau {time}',
+      resendAfterA11y: 'Gửi lại mã sau {seconds} giây',
       resentTitle: 'Đã gửi mã mới',
       resentBody: 'Hãy kiểm tra hộp thư {email}.',
       resendFailed: 'Chưa gửi lại được mã. Vui lòng thử lại.',
@@ -145,7 +145,6 @@ export const authMessages = defineMessages(
         back: 'Back',
       },
       register: {
-        title: 'Create an account',
         titleLead: 'Create an',
         titleMark: 'account',
         subtitle: 'Free, no credit card needed',
@@ -237,6 +236,7 @@ export const authMessages = defineMessages(
         resend: 'Resend code',
         notReceived: "Didn't get it?",
         resendAfter: 'Resend in {time}',
+        resendAfterA11y: 'Resend code in {seconds} seconds',
         resentTitle: 'New code sent',
         resentBody: 'Check the inbox of {email}.',
         resendFailed: 'We could not resend the code. Please try again.',
@@ -268,7 +268,6 @@ export const authMessages = defineMessages(
         back: 'Zurück',
       },
       register: {
-        title: 'Konto erstellen',
         titleLead: 'Konto',
         titleMark: 'erstellen',
         subtitle: 'Kostenlos, keine Kreditkarte nötig',
@@ -360,6 +359,7 @@ export const authMessages = defineMessages(
         resend: 'Code erneut senden',
         notReceived: 'Nicht erhalten?',
         resendAfter: 'Erneut senden in {time}',
+        resendAfterA11y: 'Code in {seconds} Sekunden erneut senden',
         resentTitle: 'Neuer Code gesendet',
         resentBody: 'Sieh im Postfach von {email} nach.',
         resendFailed: 'Der Code konnte nicht erneut gesendet werden. Bitte versuche es noch einmal.',
