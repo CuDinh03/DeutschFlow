@@ -3,7 +3,7 @@ import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useLocalSearchParams } from 'expo-router'
 import { ArrowLeft, ArrowRight } from 'lucide-react-native'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
   ThemedText,
@@ -95,7 +95,7 @@ export default function WeeklyDetailScreen() {
                       <ThemedText
                         key={i}
                         variant="body"
-                        style={{ color: c.textPrimary, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.danger, fontWeight: '600' }}
+                        style={{ color: c.textPrimary, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.danger, fontFamily: fonts.bodySemi }}
                       >
                         {seg.text}
                       </ThemedText>
@@ -176,8 +176,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function NumberBadge({ text, tone }: { text: string; tone: 'danger' | 'accent' }) {
   const c = useTheme().colors
   return (
-    <View style={{ minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: tone === 'danger' ? c.danger : c.accent }}>
-      <ThemedText variant="label" style={{ color: tone === 'danger' ? c.onInk : c.onAccent }}>{text}</ThemedText>
+    <View style={{ minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: tone === 'danger' ? c.dangerSoft : c.accentSoft, borderWidth: 1.5, borderColor: tone === 'danger' ? c.danger : c.accent }}>
+      <ThemedText variant="label" style={{ color: c.textPrimary }}>{text}</ThemedText>
     </View>
   )
 }
