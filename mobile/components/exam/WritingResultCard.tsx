@@ -1,12 +1,13 @@
 // Phiếu chấm bài Viết telc trong chế độ luyện (Đợt 4, 19/11/2026): điểm, từng tiêu chí, nhận xét,
-// ghi chú lỗi trong bài, bài mẫu. Bản rút gọn của `WritingResultView` trên web (chưa tô ghi chú
-// ngay trong bài; ghi chú hiện thành danh sách bên dưới).
+// ghi chú lỗi trong bài, bài mẫu. Bản rút gọn của `WritingResultView` trên web. Đợt 4c (mẫu `wresult`):
+// lỗi tô vàng ngay trong bài, có số khớp với danh sách ghi chú bên dưới.
 
-import { View } from 'react-native'
-import { radius, space, useTheme } from '@/lib/theme'
+import { Text, View } from 'react-native'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, ThemedText } from '@/components/ui'
 import type { WritingEvaluation } from '@/lib/telcPracticeApi'
 import { scoreSummary } from '@/lib/practiceTeil'
+import { markSegments } from '@/lib/correctionMarks'
 
 const CATEGORY_VI: Record<string, string> = {
   INHALT: 'Nội dung',
@@ -17,10 +18,15 @@ const CATEGORY_VI: Record<string, string> = {
   REGISTER: 'Văn phong',
 }
 
-export function WritingResultCard({ evaluation }: { evaluation: WritingEvaluation }) {
+/** `essay`: bài học viên đã gửi chấm — có thì tô lỗi ngay trong bài. */
+export function WritingResultCard({ evaluation, essay }: { evaluation: WritingEvaluation; essay?: string }) {
   const c = useTheme().colors
   const s = scoreSummary(evaluation.total, evaluation.max)
   const notes = evaluation.annotations ?? []
+  // Ghi chú có `quote` tìm thấy trong bài thì được tô và mang số (thứ tự ghi chú); ghi chú chèn thêm
+  // (`insertAfter`) hoặc trích lệch chữ thì vẫn ở danh sách, không có số.
+  const segments = essay?.trim() ? markSegments(essay, notes.map((n) => n.quote)) : null
+  const found = new Set((segments ?? []).map((g) => g.mark).filter((m): m is number => m != null))
   return (
     <View style={{ gap: space[3] }}>
       <Card style={{ gap: space[2], backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
@@ -65,12 +71,38 @@ export function WritingResultCard({ evaluation }: { evaluation: WritingEvaluatio
         </Card>
       ) : null}
 
+      {segments ? (
+        <Card style={{ gap: space[2] }}>
+          <Caption>Bài của bạn</Caption>
+          <ThemedText variant="body" accessibilityLanguage="de-DE" style={{ lineHeight: 24 }}>
+            {segments.map((g, i) =>
+              g.mark ? (
+                <Text key={i} accessibilityLabel={`Lỗi ${g.mark}: ${g.text}`}>
+                  <Text style={{ backgroundColor: c.accentSoft, color: c.textPrimary, textDecorationLine: 'underline', textDecorationColor: c.accent }}>{g.text}</Text>
+                  <Text style={{ fontSize: 10, fontFamily: fonts.bodyBold, color: c.danger }}>{` ${g.mark}`}</Text>
+                </Text>
+              ) : (
+                <Text key={i}>{g.text}</Text>
+              ),
+            )}
+          </ThemedText>
+          {found.size > 0 ? <ThemedText variant="caption" color="muted">Chỗ tô vàng có số khớp với ghi chú bên dưới.</ThemedText> : null}
+        </Card>
+      ) : null}
+
       {notes.length > 0 ? (
         <Card style={{ gap: space[3] }}>
           <Caption>Lỗi trong bài ({notes.length})</Caption>
           {notes.map((n, i) => (
             <View key={i} style={{ gap: 2, borderLeftWidth: 3, borderLeftColor: c.danger, paddingLeft: space[3] }}>
-              <ThemedText variant="label" color="muted">{CATEGORY_VI[n.category] ?? n.category}</ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                {found.has(i + 1) ? (
+                  <View style={{ minWidth: 20, height: 20, borderRadius: radius.full, backgroundColor: c.dangerSoft, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                    <ThemedText variant="caption" color="danger" style={{ fontFamily: fonts.bodyBold, fontVariant: ['tabular-nums'] }}>{i + 1}</ThemedText>
+                  </View>
+                ) : null}
+                <ThemedText variant="label" color="muted">{CATEGORY_VI[n.category] ?? n.category}</ThemedText>
+              </View>
               {n.quote ? (
                 <ThemedText variant="body" accessibilityLanguage="de-DE" style={{ textDecorationLine: 'line-through', color: c.textSecondary }}>
                   {n.quote}
