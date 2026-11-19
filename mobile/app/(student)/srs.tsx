@@ -250,6 +250,11 @@ export default function SrsScreen() {
             color="secondary"
             size={20}
             onPress={() => {
+              // Về thẻ đầu ở MẶT TRƯỚC (trước đây giữ nguyên trạng thái lật của thẻ đang xem).
+              setFlipped(false)
+              flipRotation.value = 0
+              translateX.value = 0
+              translateY.value = 0
               setCurrentIndex(0)
               void refetch()
             }}
@@ -394,7 +399,8 @@ function GradeButton({
   onPress: () => void
 }) {
   const c = useTheme().colors
-  const fg = tone === 'danger' ? c.danger : tone === 'success' ? c.success : c.textPrimary
+  // Chữ đỏ trên trắng đạt (4,6:1); chữ xanh thì không (3,57:1) ⇒ "Dễ" dùng chữ mực, viền xanh nói màu.
+  const fg = tone === 'danger' ? c.danger : c.textPrimary
 
   const handlePress = () => {
     void Haptics.selectionAsync()
@@ -414,7 +420,7 @@ function GradeButton({
         gap: 2,
         backgroundColor: c.surface,
         borderWidth: 1.5,
-        borderColor: c.borderStrong,
+        borderColor: tone === 'success' ? c.success : c.borderStrong,
         borderRadius: radius.sm,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Search, Check, ChevronRight } from 'lucide-react-native'
+import { Search, Check, ChevronRight, Plus } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
@@ -87,7 +87,7 @@ export default function VocabularyScreen() {
 
   // SRS due count (real data) for the dashboard hero — /srs/due returns the due
   // queue; we count it (capped) rather than fabricating learning/mastered totals.
-  const { data: dueCount = 0 } = useQuery({
+  const { data: dueCount } = useQuery({
     queryKey: ['srs-due-count'],
     // Backend /srs/due không nhận `limit` (tự cap phía server) — đừng gửi param chết (F-22).
     queryFn: () => api.get<unknown[]>('/srs/due').then((r) => (r.data ?? []).length),
@@ -137,7 +137,7 @@ export default function VocabularyScreen() {
           </ThemedText>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
             <ThemedText variant="displayLg" style={{ fontSize: 40, lineHeight: 44 }}>
-              {dueCount}
+              {dueCount != null ? String(dueCount) : '—'}
             </ThemedText>
             <ThemedText variant="caption" color="muted">
               thẻ
@@ -286,7 +286,8 @@ export default function VocabularyScreen() {
 
 /**
  * Một hàng của danh sách từ (mẫu `.list .li`). Các hàng ghép thành một khung liền: hàng đầu bo góc
- * trên, hàng cuối bo góc dưới, hàng sau có đường kẻ trên. Nút tròn bên phải = "đã thuộc" (mẫu `.known`).
+ * trên, hàng cuối bo góc dưới, hàng sau có đường kẻ trên. Nút tròn bên phải (vị trí `.known` của mẫu) =
+ * THÊM VÀO ÔN THẺ: `POST /vocabulary/{id}/learn` đưa từ vào hàng ôn FSRS, không đánh dấu "đã thuộc".
  */
 function WordRow({ word, first, last }: { word: Word; first: boolean; last: boolean }) {
   const c = useTheme().colors
@@ -357,7 +358,7 @@ function WordRow({ word, first, last }: { word: Word; first: boolean; last: bool
         ) : null}
       </View>
       <SelectableChip
-        label={done ? 'Đã thuộc' : 'Đánh dấu đã thuộc'}
+        label={done ? 'Đang ôn' : 'Thêm vào ôn thẻ'}
         selected={done}
         onPress={add}
         disabled={done || busy}
@@ -369,12 +370,12 @@ function WordRow({ word, first, last }: { word: Word; first: boolean; last: bool
           alignItems: 'center',
           justifyContent: 'center',
           borderWidth: 1.5,
-          borderColor: done ? c.success : c.borderStrong,
-          backgroundColor: done ? c.success : 'transparent',
+          borderColor: done ? c.inkSurface : c.borderStrong,
+          backgroundColor: done ? c.inkSurface : 'transparent',
           opacity: busy ? 0.5 : 1,
         }}
       >
-        <Icon icon={Check} size={16} color={done ? 'onInk' : 'faint'} />
+        <Icon icon={done ? Check : Plus} size={16} color={done ? 'onInk' : 'secondary'} />
       </SelectableChip>
     </View>
   )

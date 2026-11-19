@@ -73,7 +73,12 @@ export function Eyebrow({ children, style }: { children: ReactNode; style?: Styl
 export function HeroTitle({ lead, mark, style }: { lead?: string; mark: string; style?: StyleProp<ViewStyle> }) {
   const full = [lead, mark].filter(Boolean).join(' ')
   return (
-    <View style={style} accessible accessibilityRole="header" accessibilityLabel={full}>
+    <View
+      style={[{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: space[2] }, style]}
+      accessible
+      accessibilityRole="header"
+      accessibilityLabel={full}
+    >
       {lead ? <ThemedText variant="display">{lead}</ThemedText> : null}
       {mark ? <BrushMark>{mark}</BrushMark> : null}
     </View>
@@ -220,8 +225,9 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: Badge
   const map: Record<BadgeTone, { bg: string; fg: string }> = {
     neutral: { bg: c.surfaceSunken, fg: c.textSecondary },
     yellow: { bg: c.accentSoft, fg: c.textPrimary },
-    green: { bg: c.successSoft, fg: c.success },
-    red: { bg: c.dangerSoft, fg: c.danger },
+    // Chữ mực trên nền nhạt: xanh/đỏ trên nền nhạt không đạt 4,5:1 (soát Đợt 6A).
+    green: { bg: c.successSoft, fg: c.textPrimary },
+    red: { bg: c.dangerSoft, fg: c.textPrimary },
     ink: { bg: c.inkSurface, fg: c.onInk },
   }
   const t = map[tone]
@@ -243,12 +249,15 @@ export function ArtBadge({ gender, label, small = false }: { gender: 'der' | 'di
         height: small ? 22 : 26,
         paddingHorizontal: small ? 8 : 10,
         borderRadius: radius.full,
-        backgroundColor: c[gender],
+        // Viền màu mạo từ + nền nhạt cùng màu, chữ mực: chữ trắng trên xanh "das" chỉ 3,57:1.
+        backgroundColor: `${c[gender]}22`,
+        borderWidth: 1.5,
+        borderColor: c[gender],
         justifyContent: 'center',
         alignSelf: 'center',
       }}
     >
-      <ThemedText variant="caption" style={{ color: c.onBrand, fontFamily: fonts.bodyBold, fontSize: small ? 11 : 13 }} accessibilityLanguage="de-DE">
+      <ThemedText variant="caption" style={{ color: c.textPrimary, fontFamily: fonts.bodyBold, fontSize: small ? 11 : 13 }} accessibilityLanguage="de-DE">
         {label ?? gender}
       </ThemedText>
     </View>

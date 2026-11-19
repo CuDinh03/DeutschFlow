@@ -246,7 +246,6 @@ function DrillBody({
   onResolved: () => void
   showRule?: boolean
 }) {
-  const c = useTheme().colors
   const [attempt, setAttempt] = useState('')
   const [phase, setPhase] = useState<'idle' | 'fail' | 'submitting' | 'done'>('idle')
   const target = skill.sampleCorrected ?? ''
@@ -273,7 +272,7 @@ function DrillBody({
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
         <GlyphTile name="hoanthanh" tone="green" />
-        <ThemedText variant="bodyStrong" style={{ flex: 1, color: c.success }}>
+        <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
           {skill.ruleViShort ?? getErrorTitle(skill.errorCode)} — đã trị xong hôm nay
         </ThemedText>
       </View>

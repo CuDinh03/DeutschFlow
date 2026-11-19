@@ -168,7 +168,8 @@ export default function VideoLessonScreen() {
             }
           />
         ) : (
-          <VideoLessonPlayer timeline={data} />
+          // key theo nguồn video: đổi cấp/chủ đề (dữ liệu có sẵn trong cache) thì trình phát về cảnh đầu.
+          <VideoLessonPlayer key={`${mode}-${level}-${topic}-${params.caseName ?? ''}`} timeline={data} />
         )}
 
         {/* Phase B — xuất mp4 chỉ cho video từ vựng theo cấp (render ở server). */}
