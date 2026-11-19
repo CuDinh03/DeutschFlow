@@ -108,7 +108,7 @@ export default function SpeakingExamRoomScreen() {
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Lệnh đổi phiên (lưu ghi chú, chọn chủ đề, sang phần) chạy NỐI ĐUÔI nhau: backend lưu cả dòng phiên
   // (không khoá phiên bản), hai lệnh chồng nhau thì lệnh về sau ghi đè trạng thái lệnh kia vừa đổi.
-  const sessionOpsRef = useRef(createSerialQueue())
+  const [sessionOps] = useState(createSerialQueue)
   // Chặn gửi đôi một lượt khi tự dừng và bấm tay rơi vào cùng một khung hình.
   const stopRequestedRef = useRef(false)
   const notesSeededRef = useRef(false)
@@ -290,7 +290,7 @@ export default function SpeakingExamRoomScreen() {
 
   /** Xếp một lệnh đổi phiên sau các lệnh đang chạy (lỗi của lệnh trước không chặn lệnh sau). */
   function queueSessionOp<T>(op: () => Promise<T>): Promise<T> {
-    return sessionOpsRef.current.run(op)
+    return sessionOps.run(op)
   }
 
   async function doAdvance() {
@@ -300,8 +300,8 @@ export default function SpeakingExamRoomScreen() {
     try {
       // Ghi chú đang chờ tự lưu: lưu ngay trước khi rời phòng chuẩn bị, kẻo mất mấy chữ cuối.
       // Lỗi thì thử lại một lần; vẫn lỗi thì phòng thi hiện bản trên máy (xem OralTaskCard).
-      if (notesTimerRef.current) {
-        clearTimeout(notesTimerRef.current)
+      if (notesTimerRef.current || notesState === 'error') {
+        if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
         notesTimerRef.current = null
         if (!(await persistNotes(notes))) await persistNotes(notes)
       }

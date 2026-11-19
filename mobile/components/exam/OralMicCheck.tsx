@@ -13,7 +13,6 @@ import { ArrowLeft } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { BrushMark, Button, GaGlyph, IconButton, Pill, Screen, ThemedText } from '@/components/ui'
 import type { GlyphName } from '@/lib/galerieGlyphs'
-import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { SPEECH_LEVEL, litBars, meterLevel } from '@/lib/oralRoom'
 import { isExamTtsMuted, setExamTtsMuted, speakExamLine, stopExamTts } from '@/lib/examTts'
 
@@ -46,6 +45,9 @@ export function OralMicCheck({
   const heardAtRef = useRef<number | null>(null)
   const startedAtRef = useRef(0)
   const stoppingRef = useRef(false)
+  // Đường dẫn bản ghi thử, giữ riêng: lúc unmount, recorder native có thể đã được giải phóng trước
+  // cleanup của màn này — đọc `recorder.uri` khi đó sẽ ném lỗi.
+  const uriRef = useRef<string | null>(null)
 
   const stopCheck = useCallback(async (next: MicCheckStatus) => {
     if (stoppingRef.current) return
@@ -55,7 +57,8 @@ export function OralMicCheck({
       if (recorder.isRecording) await recorder.stop()
     } catch { /* đã dừng */ }
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
-    const uri = recorder.uri
+    const uri = uriRef.current
+    uriRef.current = null
     if (uri) void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {})
   }, [recorder])
 
@@ -73,6 +76,7 @@ export function OralMicCheck({
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
       await recorder.prepareToRecordAsync()
+      uriRef.current = recorder.uri
       recorder.record()
       startedAtRef.current = Date.now()
     } catch {
@@ -80,32 +84,21 @@ export function OralMicCheck({
     }
   }, [recorder])
 
-  /** Rời màn giữa lúc kiểm: dừng (nếu còn ghi) rồi xoá bản ghi thử — không để lại trong cache. */
-  const discardRecording = useCallback(() => {
-    const uri = recorder.uri
-    const stop = recorder.isRecording ? recorder.stop().catch(() => {}) : Promise.resolve()
-    void stop.then(() => {
-      if (uri) void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {})
-    })
-  }, [recorder])
-
   // Tự kiểm ngay khi mở: người học vừa bấm "Bắt đầu thi thử" nên xin quyền micro lúc này là đúng chỗ.
+  // Rời màn (back, vào phòng, chuyển tab — màn cha đóng màn này khi blur) = unmount: KHÔNG đụng
+  // `recorder` (đã/đang giải phóng, giải phóng tự dừng ghi); chỉ trả audio mode và xoá file thử.
   useEffect(() => {
     void startCheck()
     return () => {
       stopExamTts()
-      discardRecording()
+      void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
+      const uri = uriRef.current
+      uriRef.current = null
+      // Chờ native đóng file xong rồi mới xoá.
+      if (uri) setTimeout(() => { void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}) }, 500)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Chuyển tab giữa lúc kiểm: guard dừng bản ghi và trả audio mode; ở đây xoá file và đưa về "chưa nghe thấy".
-  useRecorderBlurGuard(recorder, () => {
-    stoppingRef.current = true
-    setStatus('quiet')
-    const uri = recorder.uri
-    if (uri) setTimeout(() => { void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}) }, 500)
-  })
 
   const meter = status === 'checking' ? meterLevel(state.metering) : 0
   useEffect(() => {
