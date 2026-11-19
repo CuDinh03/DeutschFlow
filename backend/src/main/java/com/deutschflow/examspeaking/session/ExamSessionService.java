@@ -462,7 +462,7 @@ public class ExamSessionService {
                     PrueferScriptService.Moment.PART_INTRO, stimulus(updated.part(teilNo), 0)).textDe());
         }
         sessionRepository.save(s);
-        return view(s, bp, updated, null);
+        return view(s, bp, updated, null, sessionRepository.findNotesText(s.getId()));
     }
 
     /** Vorbereitungszeit hiệu lực: SHORT (mặc định) = 5′ rút gọn (mục 4b kế hoạch); FULL = chuẩn thi thật. */
@@ -485,7 +485,8 @@ public class ExamSessionService {
         }
         advanceInternal(s, bp, plan, Instant.now());
         sessionRepository.save(s);
-        return view(s, bp, plan, null);
+        // Ghi chú đọc lại từ DB: lượt tự lưu ghi chú có thể vừa commit sau khi phiên được nạp.
+        return view(s, bp, plan, null, sessionRepository.findNotesText(s.getId()));
     }
 
     @Transactional
@@ -799,6 +800,11 @@ public class ExamSessionService {
     }
 
     private ExamSessionView view(SpeakingExamSession s, ExamBlueprint bp, SessionPlan plan, Map<String, Object> lastEval) {
+        return view(s, bp, plan, lastEval, s.getNotesText());
+    }
+
+    private ExamSessionView view(SpeakingExamSession s, ExamBlueprint bp, SessionPlan plan, Map<String, Object> lastEval,
+                                 String notesText) {
         Instant now = Instant.now();
         ExamSessionView.Directive directive = null;
         if (SpeakingExamSession.STATE_IN_PART.equals(s.getState())) {
@@ -825,7 +831,7 @@ public class ExamSessionService {
                 ? prepMaterials(bp, plan) : null;
         return new ExamSessionView(s.getId(), bp.provider().name(), bp.level(), s.getMode(), s.getState(),
                 s.getCurrentPart(), s.getCurrentStep(), plan.parts().size(), now, prepDeadline, prepSec, materials,
-                s.getPartDeadlineAt(), directive, lastEval, s.getNotesText(), s.getGradingJobId(), resultAvailable,
+                s.getPartDeadlineAt(), directive, lastEval, notesText, s.getGradingJobId(), resultAvailable,
                 s.isRetainAudio(), s.getGradingError());
     }
 

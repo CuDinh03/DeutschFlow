@@ -20,11 +20,22 @@ public interface SpeakingExamSessionRepository extends JpaRepository<SpeakingExa
      * / chọn chủ đề; lưu cả dòng có khoá lạc quan thì lệnh commit sau ném 409 (19/11/2026). Ghi chú
      * không ảnh hưởng luồng thi, nên không cần tranh khoá với các lệnh đổi trạng thái.
      *
+     * <p>⚠️ {@code clearAutomatically}: entity phiên đang được giữ trong CÙNG giao dịch sẽ bị detach —
+     * đừng gọi rồi tiếp tục sửa entity đó (setter sau đó không được ghi xuống).
+     *
      * @return số dòng đã đổi (0 = không có phiên này của người này)
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE SpeakingExamSession s SET s.notesText = :notes, s.updatedAt = :now WHERE s.id = :id AND s.userId = :userId")
     int updateNotes(@Param("id") Long id, @Param("userId") Long userId, @Param("notes") String notes, @Param("now") Instant now);
+
+    /**
+     * Ghi chú hiện có trong DB — để snapshot trả về sau "Vào thi" / chọn chủ đề không mang bản ghi chú
+     * đã đọc trước khi một lượt lưu ghi chú chạy song song kịp commit. Truy vấn này cũng flush thay đổi
+     * đang chờ của phiên (FlushMode AUTO).
+     */
+    @Query("SELECT s.notesText FROM SpeakingExamSession s WHERE s.id = :id")
+    String findNotesText(@Param("id") Long id);
 
     List<SpeakingExamSession> findTop20ByUserIdOrderByCreatedAtDesc(Long userId);
 

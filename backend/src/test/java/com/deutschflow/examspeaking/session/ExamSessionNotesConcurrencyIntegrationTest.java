@@ -39,8 +39,9 @@ import static org.mockito.Mockito.doAnswer;
  * <p>Web và app đều TỰ LƯU ghi chú khi người học ngừng gõ, nên một lượt {@code PUT /notes} rất dễ
  * chạy cùng lúc với {@code advance} ("Vào thi ngay", hết giờ chuẩn bị) hoặc {@code choose}. Trước bản
  * vá, {@code saveNotes} nạp cả entity rồi lưu lại toàn bộ dòng (có khoá lạc quan {@code version}) ⇒
- * lệnh commit sau ném 409: hoặc ghi chú không lưu được, hoặc "Vào thi" lỗi. Ngược lại, {@code advance}
- * ghi đè cả cột {@code notes_text} bằng bản đọc cũ.
+ * lệnh commit sau ném 409: hoặc ghi chú không lưu được, hoặc "Vào thi" / chọn chủ đề lỗi. Bản vá lưu
+ * ghi chú bằng UPDATE riêng (không tăng version); ca 2 còn gác {@code @DynamicUpdate}: thiếu nó thì
+ * {@code advance} ghi lại cột {@code notes_text} bằng bản đọc cũ.
  *
  * <p>Hai ca dựng đúng thứ tự xen kẽ đó trên MỘT luồng: giao dịch ngoài đọc phiên trước (bản cũ nằm
  * trong persistence context), một giao dịch REQUIRES_NEW commit thay đổi của "lệnh kia", rồi lệnh
@@ -125,12 +126,36 @@ class ExamSessionNotesConcurrencyIntegrationTest extends AbstractPostgresIntegra
             sessionRepository.findByIdAndUserId(id, userId).orElseThrow();
             // …thì lượt tự lưu ghi chú commit trước.
             txNew().executeWithoutResult(st2 -> sessionService.saveNotes(userId, id, "aber: allein"));
-            sessionService.advance(userId, id);
+            ExamSessionView v = sessionService.advance(userId, id);
+            // Snapshot trả cho client cũng mang ghi chú mới (thẻ đề trong phòng thi hiện từ đây).
+            assertThat(v.notesText()).isEqualTo("aber: allein");
         });
 
         Map<String, Object> r = row(id);
         assertThat(r.get("state")).isEqualTo(SpeakingExamSession.STATE_IN_PART);
         assertThat(r.get("notes_text")).isEqualTo("aber: allein");
+    }
+
+    @Test
+    @DisplayName("chọn chủ đề sau khi ghi chú vừa được lưu: giữ cả chủ đề lẫn ghi chú, không lỗi")
+    void chooseDoesNotConflictWithNotesSavedConcurrently() {
+        ExamSessionView s = sessionService.create(userId, new CreateExamSessionRequest("GOETHE", "B1", "MOCK", null));
+        ExamSessionView.PrepMaterial choice = s.prepMaterials().stream()
+                .filter(ExamSessionView.PrepMaterial::choiceRequired).findFirst().orElseThrow();
+
+        ExamSessionView v = tx().execute(st -> {
+            sessionRepository.findByIdAndUserId(s.id(), userId).orElseThrow();
+            txNew().executeWithoutResult(st2 -> sessionService.saveNotes(userId, s.id(), "Thema 2: Pro und Contra"));
+            return sessionService.choose(userId, s.id(), choice.teilNo(), 1);
+        });
+
+        assertThat(v.notesText()).isEqualTo("Thema 2: Pro und Contra");
+        assertThat(v.prepMaterials().stream().filter(m -> m.teilNo() == choice.teilNo()).findFirst().orElseThrow().chosenIndex())
+                .isEqualTo(1);
+        assertThat(row(s.id()).get("notes_text")).isEqualTo("Thema 2: Pro und Contra");
+        ExamSessionView reread = sessionService.get(userId, s.id());
+        assertThat(reread.prepMaterials().stream().filter(m -> m.teilNo() == choice.teilNo()).findFirst().orElseThrow().chosenIndex())
+                .isEqualTo(1);
     }
 
     @Test
