@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { Lock, Play, Square, Users } from 'lucide-react-native'
 import { ThemedText, Caption, Icon } from '@/components/ui'
@@ -6,6 +6,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { speakExamLine, stopExamTts } from '@/lib/examTts'
 import { canPlayAgain, playsLeft } from '@/lib/playBudget'
 import type { AudioTurn } from '@/lib/examApi'
+import { assignHoerenVoices } from '@/lib/hoerenVoices'
 
 interface ExamAudioProps {
   /** Chuỗi (một giọng) hoặc mảng lượt nói (hai giọng — Hörverstehen Teil 2 của telc; câu dẫn + bài — Teil 1/3). */
@@ -41,6 +42,9 @@ export function ExamAudio({ script, label, maxPlays, locked = false, compact = f
   useEffect(() => () => stopExamTts(), [])
 
   const turns: AudioTurn[] = Array.isArray(script) ? script.filter((t) => t.text?.trim()) : []
+  // Mỗi nhân vật một giọng, người dẫn một giọng cố định (như web, 13–14/11/2026); máy chủ chưa có giọng
+  // `HOER_*` thì examTts tự đọc theo vai như trước.
+  const voices = useMemo(() => (Array.isArray(script) ? assignHoerenVoices([script])[0] : []), [script])
   const isTurns = turns.length > 0
   // Câu dẫn không phải nhân vật: một câu dẫn + một bài vẫn là "một người nói".
   const speakerCount = turns.filter((t) => t.kind !== 'LEAD_IN').length
@@ -63,7 +67,7 @@ export function ExamAudio({ script, label, maxPlays, locked = false, compact = f
       if (isTurns) {
         for (let i = 0; i < turns.length; i++) {
           setActiveLine(i)
-          await speakExamLine(turns[i].speaker ?? ROLES[i % ROLES.length], turns[i].text)
+          await speakExamLine(turns[i].speaker ?? ROLES[i % ROLES.length], turns[i].text, voices[i])
         }
       } else {
         await speakExamLine('PRUEFER', String(script))
@@ -72,7 +76,7 @@ export function ExamAudio({ script, label, maxPlays, locked = false, compact = f
       setPlaying(false)
       setActiveLine(-1)
     }
-  }, [isTurns, turns, script, maxPlays, used, locked])
+  }, [isTurns, turns, script, maxPlays, used, locked, voices])
 
   const hint = locked
     ? 'Nghe hướng dẫn và đọc câu hỏi xong mới phát được.'
