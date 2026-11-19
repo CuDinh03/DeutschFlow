@@ -5,6 +5,7 @@ import { ThemedText, Caption, Icon } from '@/components/ui'
 import { radius, space, useTheme } from '@/lib/theme'
 import { speakExamLine, stopExamTts } from '@/lib/examTts'
 import { NARRATOR_ROLE } from '@/lib/examApi'
+import { HOEREN_NARRATOR_VOICE } from '@/lib/hoerenVoices'
 
 /**
  * Pha của cổng. `idle`: chưa bấm bắt đầu, câu hỏi còn ẩn (như chưa mở đề). `ansage`/`framing`:
@@ -55,7 +56,7 @@ export function HoerenGate({ title, ansage, readingSeconds, framing, phase, onPh
     runRef.current += 1
     const run = runRef.current
     onPhaseChange('ansage')
-    await speakExamLine(NARRATOR_ROLE, ansage)
+    await speakExamLine(NARRATOR_ROLE, ansage, HOEREN_NARRATOR_VOICE)
     if (runRef.current !== run) return
     if (readingSeconds > 0) {
       onPhaseChange('reading')
@@ -64,7 +65,7 @@ export function HoerenGate({ title, ansage, readingSeconds, framing, phase, onPh
     }
     if (framing) {
       onPhaseChange('framing')
-      await speakExamLine(NARRATOR_ROLE, framing)
+      await speakExamLine(NARRATOR_ROLE, framing, HOEREN_NARRATOR_VOICE)
       if (runRef.current !== run) return
     }
     onPhaseChange('ready')

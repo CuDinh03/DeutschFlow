@@ -10,6 +10,7 @@ import { itemChoices, NONE_OF_THEM, type ExamObjGroup, type ExamObjItem, type Ex
 import type { PracticeItemResult } from '@/lib/telcPracticeApi'
 import { TeilStrategyCard } from './TeilStrategyCard'
 import { ExamAudio } from './ExamAudio'
+import { assignTeilVoices } from '@/lib/hoerenVoices'
 import { HoerenGate, type HoerenGatePhase } from './HoerenGate'
 import { TelcGapText } from './TelcGapText'
 import { ReadingPassage } from './ReadingPassage'
@@ -51,6 +52,9 @@ export function ObjGroupView({
   // Chưa bấm bắt đầu thì câu hỏi còn ẩn — cho đọc trước là vô hiệu hoá thời gian đọc của đề thật.
   const hideBody = phase === 'idle'
   const plays = unlimitedPlays ? undefined : group.maxPlays
+  // Mỗi nhân vật một giọng, chia một lần cho cả Teil như web — người dẫn một giọng cố định cho cả đề.
+  // Tính thẳng (vài chục dòng, một hash) — không dùng hook để test dựng cây bằng cách gọi hàm vẫn chạy.
+  const teilVoices = assignTeilVoices(group.audio, group.items.map((it) => it.audio))
   return (
     <View style={{ gap: space[3] }}>
       <Caption>{group.title}</Caption>
@@ -72,7 +76,7 @@ export function ObjGroupView({
         />
       ) : null}
 
-      {!hideBody && group.audio ? <ExamAudio script={group.audio} label={group.title} maxPlays={plays} locked={audioLocked} /> : null}
+      {!hideBody && group.audio ? <ExamAudio script={group.audio} label={group.title} maxPlays={plays} locked={audioLocked} voices={teilVoices.group} /> : null}
 
       {/* Kho lựa chọn dùng chung cả Teil — in một lần ở đầu như đề giấy. */}
       {group.pool && (group.telcType === 'MATCH_HEADLINE' || group.telcType === 'MATCH_AD_X') ? (
@@ -132,9 +136,9 @@ export function ObjGroupView({
       ) : null}
 
       {!hideBody &&
-        group.items.map((item) => (
+        group.items.map((item, idx) => (
           <View key={item.id} style={{ gap: space[2] }}>
-            {item.audio ? <ExamAudio script={item.audio} label={item.question} maxPlays={plays} locked={audioLocked} compact /> : null}
+            {item.audio ? <ExamAudio script={item.audio} label={item.question} maxPlays={plays} locked={audioLocked} compact voices={teilVoices.items[idx]} /> : null}
             <QuestionCard
               item={item}
               group={group}

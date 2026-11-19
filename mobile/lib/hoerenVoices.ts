@@ -13,6 +13,8 @@ export const HOEREN_MALE_VOICES = ['HOER_M1', 'HOER_M2', 'HOER_M3'] as const
 export const HOEREN_NARRATOR_VOICE = 'HOER_M1'
 
 const ALTERNATING_ROLES = ['PRUEFER', 'PARTNER'] as const
+/** Vai của người dẫn — như `NARRATOR_ROLE` của `examApi` (không import để jest không kéo axios). */
+const NARRATOR_ROLE = 'PRUEFER'
 const FEMALE_ROLE = /^(PRUEFER|F|W|FRAU|FEMALE|WEIBLICH)$/i
 const FEMALE_NAME = /(^|\s)(Frau|Moderatorin|Sprecherin|Reporterin|Interviewerin|Journalistin|Ansagerin)(\s|$)/i
 const MALE_NAME = /(^|\s)(Herr|Moderator|Sprecher|Reporter|Interviewer|Journalist|Ansager)(\s|$)/i
@@ -87,4 +89,43 @@ export function assignHoerenVoices(segments: readonly (readonly AudioTurn[])[]):
       return voice
     })
   })
+}
+
+export type AudioScript = string | readonly AudioTurn[]
+
+/** Như web `asTurns`: kịch bản dạng chuỗi là MỘT lượt của người dẫn (vai PRUEFER). */
+export function scriptTurns(script: AudioScript): AudioTurn[] {
+  return typeof script === 'string' ? [{ speaker: NARRATOR_ROLE, text: script }] : [...script]
+}
+
+/**
+ * Chia giọng ở cấp Teil như web `HoerenTeilView`: bài nghe chung của Teil là một đoạn; không có thì mỗi câu có
+ * bài nghe là một đoạn, theo thứ tự câu. Trả về giọng của bài chung (nếu có) và của từng câu (cùng chỉ số với
+ * `itemScripts`; câu không có bài nghe ⇒ `undefined`). Nhờ chia một lần cho cả Teil, hai người cùng giới liền
+ * nhau ở Teil 1/3 luôn khác giọng.
+ */
+export function assignTeilVoices(
+  groupScript: AudioScript | undefined,
+  itemScripts: readonly (AudioScript | undefined)[],
+): { group: string[] | undefined; items: (string[] | undefined)[] } {
+  if (groupScript != null && scriptTurns(groupScript).some((t) => (t.text ?? '').trim())) {
+    return { group: assignHoerenVoices([scriptTurns(groupScript)])[0], items: itemScripts.map(() => undefined) }
+  }
+  const at: number[] = []
+  const segments: AudioTurn[][] = []
+  itemScripts.forEach((script, i) => {
+    const turns = script != null ? scriptTurns(script) : []
+    if (turns.some((t) => (t.text ?? '').trim())) {
+      at[i] = segments.length
+      segments.push(turns)
+    }
+  })
+  const voices = assignHoerenVoices(segments)
+  return { group: undefined, items: itemScripts.map((_, i) => (at[i] != null ? voices[at[i]] : undefined)) }
+}
+
+/** Như web `playSteps`: câu „Nummer 41. …" thì người dẫn đọc số câu, nhân vật đọc phần còn lại. */
+export function splitAnnounce(text: string): { announce: string; body: string } | null {
+  const m = /^(Nummer\s+\d+\.)\s+(\S[\s\S]*)$/.exec(text.trim())
+  return m ? { announce: m[1], body: m[2] } : null
 }

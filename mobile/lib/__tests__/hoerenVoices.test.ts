@@ -1,4 +1,6 @@
-import { assignHoerenVoices, HOEREN_NARRATOR_VOICE, nameGender, normalizeTurns, roleGender } from '../hoerenVoices'
+import {
+  assignHoerenVoices, assignTeilVoices, HOEREN_NARRATOR_VOICE, nameGender, normalizeTurns, roleGender, scriptTurns, splitAnnounce,
+} from '../hoerenVoices'
 
 describe('hoerenVoices (sinh đôi web)', () => {
   it('normalizeTurns bỏ lượt rỗng, luân phiên vai khi không khai', () => {
@@ -37,5 +39,61 @@ describe('hoerenVoices (sinh đôi web)', () => {
     expect(a[0]).toBe(a[2])
     expect(a[0].startsWith('HOER_F')).toBe(true)
     expect(assignHoerenVoices([turns])).toEqual(assignHoerenVoices([turns]))
+  })
+})
+
+// Kết quả chuẩn lấy bằng cách chạy chính `assignHoerenVoices` + `itemTurns` của web (origin/main, 19/11/2026)
+// trên cùng đầu vào. Đổi phép chia ở một bên mà quên bên kia thì các ca này đỏ.
+describe('cùng đầu vào thì ra cùng giọng với web', () => {
+  const teil1 = [
+    'Nummer 41. Ich fahre das ganze Jahr mit dem Fahrrad ins Büro.',
+    'Nummer 42. Ich arbeite in einer Bäckerei und nehme das Auto.',
+    'Nummer 43. Ich pendle jeden Tag von Augsburg nach München.',
+    'Nummer 44. Ich gehe zu Fuß, meine Schule ist ganz nah.',
+    'Nummer 45. Wir fahren zu dritt mit einem Auto ins Büro.',
+  ].map((text, i) => [{ speaker: i % 2 === 0 ? 'PRUEFER' : 'PARTNER', text }])
+
+  it('Teil 1 telc B1: năm người năm giọng, chia ở cấp Teil', () => {
+    expect(assignTeilVoices(undefined, teil1).items).toEqual([['HOER_F3'], ['HOER_M3'], ['HOER_F1'], ['HOER_M2'], ['HOER_F2']])
+  })
+
+  it('Teil 2: phỏng vấn radio', () => {
+    const teil2 = [
+      { speaker: 'PRUEFER', name: 'Moderatorin', text: 'Herzlich willkommen, Herr Vogel.' },
+      { speaker: 'PARTNER', name: 'Herr Vogel', text: 'Vielen Dank für die Einladung.' },
+      { speaker: 'PRUEFER', name: 'Moderatorin', text: 'Wie kam es zu Ihrem Beruf?' },
+      { speaker: 'PARTNER', name: 'Herr Vogel', text: 'Eigentlich war es ein Zufall.' },
+    ]
+    expect(assignTeilVoices(teil2, [undefined, undefined]).group).toEqual(['HOER_F2', 'HOER_M3', 'HOER_F2', 'HOER_M3'])
+  })
+
+  it('Teil 3: câu dẫn là người dẫn, hai người nam liền nhau khác giọng', () => {
+    const teil3 = [
+      ['Sie hören eine Nachricht auf dem Anrufbeantworter.', 'PRUEFER', 'Hallo Frau Brandt, hier ist Nadine Krüger.'],
+      ['Im Radio hören Sie folgenden Hinweis.', 'PARTNER', 'Achtung Autofahrer auf der A 8.'],
+      ['Sie hören eine Durchsage am Bahnhof.', 'PARTNER', 'Der ICE nach Hamburg hat heute zwanzig Minuten Verspätung.'],
+    ].map(([lead, speaker, text]) => [
+      { speaker: 'PRUEFER', text: lead, kind: 'LEAD_IN' as const },
+      { speaker, text },
+    ])
+    expect(assignTeilVoices(undefined, teil3).items).toEqual([
+      ['HOER_M1', 'HOER_F1'],
+      ['HOER_M1', 'HOER_M2'],
+      ['HOER_M1', 'HOER_M3'],
+    ])
+  })
+
+  it('câu không có bài nghe được bỏ qua, không làm lệch thứ tự xoay vòng', () => {
+    const withGap = [teil1[0], undefined, ...teil1.slice(1)]
+    expect(assignTeilVoices(undefined, withGap).items).toEqual([['HOER_F3'], undefined, ['HOER_M3'], ['HOER_F1'], ['HOER_M2'], ['HOER_F2']])
+  })
+
+  it('kịch bản chuỗi là một lượt của người dẫn (vai PRUEFER), như web', () => {
+    expect(scriptTurns('Hallo.')).toEqual([{ speaker: 'PRUEFER', text: 'Hallo.' }])
+  })
+
+  it('tách „Nummer NN." cho người dẫn đọc', () => {
+    expect(splitAnnounce('Nummer 41. Ich fahre Rad.')).toEqual({ announce: 'Nummer 41.', body: 'Ich fahre Rad.' })
+    expect(splitAnnounce('Ich fahre Rad.')).toBeNull()
   })
 })
