@@ -25,6 +25,10 @@ export interface OccupationInterviewInfo {
   /** Mã SpeakingPersona sẽ phỏng vấn nghề này (nhân vật viết tay hoặc người tuyển dụng theo nơi làm việc). */
   personaCode: string
   interviewPosition: string
+  /** Câu trong bộ câu hỏi của nhân vật (trùng câu AI hỏi trong phiên). */
+  sampleQuestions?: { phase: string | null; questionDe: string; questionVi: string | null }[]
+  /** Lớp câu hỏi riêng của nghề (đợt 2b), câu đã duyệt trước. */
+  occupationQuestions?: { questionDe: string; questionVi: string | null; status: string | null }[]
 }
 
 export async function fetchOccupationInterviewInfo(code: string): Promise<OccupationInterviewInfo> {

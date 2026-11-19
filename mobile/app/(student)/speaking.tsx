@@ -50,7 +50,10 @@ import { Screen, Card, ThemedText, Icon, GaGlyph } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
-import { DEFAULT_BAND } from '@/lib/learnerBand'
+import { InterviewHub } from '@/components/speaking/InterviewHub'
+import { SpeakingTrackBar, type SpeakingTrack } from '@/components/speaking/SpeakingTrackBar'
+import { useLearnerLevel } from '@/hooks/useLearnerLevel'
+import { DEFAULT_BAND, practiceBand } from '@/lib/learnerBand'
 import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
 import { MessageBubble } from '@/components/speaking/MessageBubble'
 import { ScreenHeader } from '@/components/speaking/ScreenHeader'
@@ -101,6 +104,18 @@ export default function SpeakingScreen() {
     modeParam === 'INTERVIEW' || modeParam === 'COMMUNICATION' ? modeParam : undefined
 
   const [view, setView] = useState<ScreenView>('select')
+
+  // Giao diện v3.4 (Đợt 5, 19/11/2026): tab gồm hai nhánh Phỏng vấn theo nghề | Nói tự do (owner chốt
+  // 18/11). `?mode=INTERVIEW` / `?mode=COMMUNICATION` (onboarding, lối tắt) chọn nhánh; tab không unmount
+  // nên nghe cả nonce `t` để lần mở sau vẫn đổi nhánh.
+  const [track, setTrack] = useState<SpeakingTrack>(modeParam === 'COMMUNICATION' ? 'free' : 'interview')
+  useEffect(() => {
+    if (modeParam === 'INTERVIEW') setTrack('interview')
+    else if (modeParam === 'COMMUNICATION') setTrack('free')
+  }, [modeParam, nonceParam])
+  const { currentLevel, occupationCode } = useLearnerLevel()
+  // Phiếu của buổi cũ mở từ "Buổi gần đây": đóng thì chỉ về màn chọn, không đụng phiên đang dở.
+  const [viewingPastReport, setViewingPastReport] = useState(false)
 
   // Thanh tab liquid-glass giờ NỔI ĐÈ lên nội dung (overlay) — trong phiên nói
   // (chat/tổng kết) nó sẽ đè lên dock nhập liệu/nút Xong, và giữa buổi nói cũng
@@ -663,7 +678,32 @@ export default function SpeakingScreen() {
     }
   }
 
+  async function openPastReport(sessionId: number) {
+    if (finishing) return
+    setFinishing(true)
+    try {
+      const r = await speakingApi.getReport(sessionId)
+      setConvReport(null)
+      setReport(r)
+      setViewingPastReport(true)
+      setView('summary')
+    } catch (e) {
+      handleAiError(e, 'Không tải được phiếu nhận xét')
+    } finally {
+      setFinishing(false)
+    }
+  }
+
+  function closePastReport() {
+    setReport(null)
+    setViewingPastReport(false)
+    setView('select')
+  }
+
   function resetToSelect() {
+    setViewingPastReport(false)
+    // Buổi vừa xong phải hiện ngay ở "Buổi gần đây" của nhánh Phỏng vấn.
+    void queryClient.invalidateQueries({ queryKey: ['ai-speaking-sessions'] })
     setSession(null)
     setMessages([])
     setReport(null)
@@ -754,10 +794,11 @@ export default function SpeakingScreen() {
 
   // ── Summary view ───────────────────────────────────────────────────────────
   if (view === 'summary' && report) {
+    const close = viewingPastReport ? closePastReport : resetToSelect
     return (
       <Screen edges={['top']}>
-        <ScreenHeader title="Kết quả phỏng vấn" onClose={resetToSelect} />
-        <SessionSummary report={report} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
+        <ScreenHeader title="Kết quả phỏng vấn" onClose={close} />
+        <SessionSummary report={report} onPracticeAgain={close} onDone={viewingPastReport ? close : () => router.replace('/(student)')} />
       </Screen>
     )
   }
@@ -853,13 +894,27 @@ export default function SpeakingScreen() {
           </View>
         ) : null}
 
-        <CompanionSelect
-          isPro={hasProAccess}
-          starting={starting}
-          onStart={startSession}
-          onOpenExam={() => router.push('/(student)/speaking-exam')}
-          initialMode={initialMode}
-        />
+        <SpeakingTrackBar track={track} onChange={setTrack} />
+        {track === 'interview' ? (
+          <InterviewHub
+            cefr={practiceBand(currentLevel)}
+            profileOccupation={occupationCode ?? null}
+            starting={starting}
+            onStart={startSession}
+            onFreeTalk={() => setTrack('free')}
+            onOpenReport={(id) => void openPastReport(id)}
+          />
+        ) : (
+          <CompanionSelect
+            isPro={hasProAccess}
+            starting={starting}
+            onStart={startSession}
+            // App chỉ luyện telc (owner chốt 18/11): sảnh thi nói mở thẳng telc, không rơi vào Goethe.
+            onOpenExam={() => router.push({ pathname: '/(student)/speaking-exam', params: { provider: 'TELC' } })}
+            onOpenInterview={() => setTrack('interview')}
+            initialMode={initialMode}
+          />
+        )}
       </Screen>
     )
   }

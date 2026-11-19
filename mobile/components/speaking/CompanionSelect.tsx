@@ -1,9 +1,13 @@
 // Persona + mode selector for AI Speaking — RN parity of the web CompanionSelect.
 // Hàng mode 4 ô (Hội thoại / Phỏng vấn / Thi nói / Luyện tập), grouped personas
 // with avatars, per-persona accent theming, and mode-specific config (position /
-// scenario / level). "Thi nói" là lối vào Luyện thi Nói Goethe (điều hướng sang
-// hub thi, không phải một sessionMode); "Luyện tập" (LESSON) đang KHOÁ theo
-// quyết định 02/09 — mở lại khi luồng lesson được làm mới.
+// scenario / level). "Thi nói" là lối vào sảnh thi nói telc (điều hướng, không
+// phải một sessionMode); "Luyện tập" (LESSON) đang KHOÁ theo quyết định 02/09 —
+// mở lại khi luồng lesson được làm mới.
+//
+// Giao diện v3.4 (Đợt 5, 19/11/2026): đây là nhánh "Nói tự do" của tab Luyện nói. Thanh chuyển
+// Phỏng vấn | Nói tự do và ảnh đại diện nằm ở đầu tab (`SpeakingTrackBar`); ô "Phỏng vấn" chuyển
+// sang nhánh Phỏng vấn theo nghề (`InterviewHub`) thay vì lưới người phỏng vấn theo ngành.
 
 import { useMemo, useRef, useState } from 'react'
 import type { GlyphName } from '@/lib/galerieGlyphs'
@@ -12,10 +16,7 @@ import { MotiView } from 'moti'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Icon, Button, useTabBarClearance, GaGlyph, AvatarButton } from '@/components/ui'
-import { SpotlightTarget } from '@/components/guide/SpotlightTour'
-import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
-import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
+import { ThemedText, Icon, Button, useTabBarClearance, GaGlyph } from '@/components/ui'
 import {
   PERSONA_LIST,
   PERSONA_GROUPS,
@@ -26,10 +27,6 @@ import { PersonaAvatar } from '@/components/speaking/PersonaAvatar'
 import { speakingApi, type SpeakingSessionMode } from '@/lib/speakingApi'
 import { practiceBand } from '@/lib/learnerBand'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
-import { fetchOccupationInterviewInfo, occupationName } from '@/lib/occupations'
-import { WORKPLACE_INTERVIEWERS, isWorkplaceInterviewerId, resolveStagePersona } from '@/lib/workplaceInterviewers'
-import { PERSONA_TOKENS } from '@/lib/personas'
-import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 
 export interface StartArgs {
   /** Không có khi phỏng vấn theo nghề (K3b) — backend chọn người phỏng vấn theo `occupationCode`. */
@@ -51,8 +48,10 @@ interface CompanionSelectProps {
   isPro: boolean
   starting: boolean
   onStart: (args: StartArgs) => void
-  /** Mở hub Luyện thi Nói Goethe — ô "Thi nói" trên hàng mode. */
+  /** Mở sảnh thi nói telc — ô "Thi nói" trên hàng mode. */
   onOpenExam: () => void
+  /** Sang nhánh Phỏng vấn theo nghề — ô "Phỏng vấn" trên hàng mode. */
+  onOpenInterview: () => void
   /** Preselect a mode (e.g. routed in from onboarding's INTERVIEW_FIRST). */
   initialMode?: SpeakingSessionMode
 }
@@ -85,16 +84,17 @@ const EXPERIENCE: { id: string; label: string }[] = [
   { id: '5Y', label: '5+ năm' },
 ]
 
-export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialMode }: CompanionSelectProps) {
+export function CompanionSelect({ isPro, starting, onStart, onOpenExam, onOpenInterview, initialMode }: CompanionSelectProps) {
   const theme = useTheme()
   // Thanh tab liquid-glass nổi đè lên nội dung — nút "Bắt đầu" cuối trang phải
   // nằm trên kính, không bị pill che.
   const tabClearance = useTabBarClearance(space[6])
   // Cho tour host cuộn hàng mode vào tầm nhìn trước khi chiếu sáng (màn nhỏ).
   const scrollRef = useRef<ScrollView | null>(null)
-  // LESSON đang khoá — deep link cũ ?mode=LESSON rơi êm về Hội thoại.
+  // LESSON đang khoá — deep link cũ ?mode=LESSON rơi êm về Hội thoại. INTERVIEW nay là nhánh riêng
+  // của tab (InterviewHub), màn này chỉ còn Hội thoại.
   const [mode, setMode] = useState<SpeakingSessionMode>(
-    initialMode && initialMode !== 'LESSON' ? initialMode : 'COMMUNICATION',
+    initialMode && initialMode !== 'LESSON' && initialMode !== 'INTERVIEW' ? initialMode : 'COMMUNICATION',
   )
   const [group, setGroup] = useState<PersonaGroup>('it')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -105,7 +105,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
   // (getMyLearningProfile → clamp). Trước 17/09/2026 khởi tạo cứng 'B1' nên tài khoản A0 mở phiên
   // hội thoại B1 — backend không kẹp lại band client gửi (ChatPrepService.resolveSessionLevel).
   const [cefrPick, setCefrPick] = useState<string | null>(null)
-  const { currentLevel, occupationCode } = useLearnerLevel()
+  const { currentLevel } = useLearnerLevel()
   const cefr = cefrPick ?? practiceBand(currentLevel)
 
   // Backend personas carry `difficulty` → used to lock ADVANCED ones for free users.
@@ -170,7 +170,8 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
       persona: selected,
       sessionMode: mode,
       topic,
-      cefrLevel: mode === 'INTERVIEW' ? 'C1' : cefr,
+      // Mức theo hồ sơ hoặc chip người học chọn; trước 19/11/2026 phỏng vấn bị ép C1 (lỗi, owner chốt 18/11).
+      cefrLevel: cefr,
       interviewPosition: mode === 'INTERVIEW' ? position ?? undefined : undefined,
       experienceLevel: mode === 'INTERVIEW' ? experience : undefined,
     })
@@ -184,24 +185,14 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
       showsVerticalScrollIndicator={false}
     >
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <ThemedText variant="displayLg">Luyện nói</ThemedText>
-          {/* Lối vào Tôi và cài đặt (Hồ sơ thôi là tab, owner chốt 18/11/2026). */}
-          <AvatarButton />
-        </View>
+        <ThemedText variant="display" accessibilityRole="header">Luyện nói với AI</ThemedText>
         <ThemedText variant="body" color="muted" style={{ marginTop: 2 }}>
           Chọn cách luyện và người đồng hành
         </ThemedText>
       </View>
 
-      {/* Mode tabs — anchor cho coach mark speaking_intro (onboarding v1 §6).
-          marginHorizontal thay paddingHorizontal: neo đo đúng hàng 4 ô nên khung
-          vàng ôm sát các ô thay vì ôm cả lề màn hình (QA 05/09). */}
-      <SpotlightScrollHostProvider value={scrollRef}>
-      <SpotlightTarget
-        id={SPOTLIGHT_TARGETS.speakingModeTabs}
-        style={{ flexDirection: 'row', gap: space[2], marginHorizontal: space[5], marginTop: space[4] }}
-      >
+      {/* Hàng 4 ô chế độ. Neo tour speaking_intro chuyển lên thanh Phỏng vấn | Nói tự do (Đợt 5). */}
+      <View style={{ flexDirection: 'row', gap: space[2], marginHorizontal: space[5], marginTop: space[4] }}>
         {MODES.map((m) => {
           const active = mode === m.key
           const locked = m.locked === true
@@ -215,6 +206,10 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
               onPress={() => {
                 if (m.key === 'EXAM') {
                   onOpenExam()
+                  return
+                }
+                if (m.key === 'INTERVIEW') {
+                  onOpenInterview()
                   return
                 }
                 switchMode(m.key)
@@ -242,17 +237,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
             </Pressable>
           )
         })}
-      </SpotlightTarget>
-      </SpotlightScrollHostProvider>
-
-      {mode === 'INTERVIEW' && occupationCode ? (
-        <OccupationInterviewCard
-          occupationCode={occupationCode}
-          cefr={cefr}
-          starting={starting}
-          onStart={onStart}
-        />
-      ) : null}
+      </View>
 
       {/* Group chips */}
       <ScrollView
@@ -491,83 +476,6 @@ function PersonaCard({
         ) : null}
       </MotiView>
     </Pressable>
-  )
-}
-
-/**
- * K3b (21/10/2026): "Phỏng vấn theo nghề của bạn" — nghề lấy từ hồ sơ (onboarding 2e). Trước K3b không
- * client nào gửi `occupationCode` ⇒ lớp câu hỏi theo nghề (2b) và 8 người tuyển dụng (2c) không tới
- * người học. Nghề không tải được ⇒ thẻ ẩn, màn cũ giữ nguyên. Gương web `OccupationInterviewCard`.
- */
-function OccupationInterviewCard({
-  occupationCode,
-  cefr,
-  starting,
-  onStart,
-}: {
-  occupationCode: string
-  cefr: string
-  starting: boolean
-  onStart: (args: StartArgs) => void
-}) {
-  const theme = useTheme()
-  const [experience, setExperience] = useState<string>('1-2Y')
-  const { data: info } = useQuery({
-    queryKey: ['occupation-interview', occupationCode],
-    queryFn: () => fetchOccupationInterviewInfo(occupationCode),
-    staleTime: 600_000,
-    retry: 1,
-  })
-  if (!info) return null
-
-  const stageId = resolveStagePersona(info.personaCode)
-  const interviewer = isWorkplaceInterviewerId(stageId) ? WORKPLACE_INTERVIEWERS[stageId] : PERSONA_TOKENS[stageId]
-  const accent = interviewer.accent
-
-  return (
-    <View
-      style={{
-        marginHorizontal: space[5],
-        marginTop: space[4],
-        padding: space[4],
-        borderRadius: radius.xl,
-        backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: theme.colors.textPrimary,
-        gap: space[3],
-      }}
-    >
-      <ThemedText variant="label" color="muted">Phỏng vấn theo nghề của bạn</ThemedText>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <PersonaBubbleAvatar personaId={stageId} size={52} ringColor={accent} paused />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ThemedText variant="bodyStrong" numberOfLines={2}>{info.occupation.nameDe}</ThemedText>
-          <ThemedText variant="caption" color="muted" numberOfLines={1}>{occupationName(info.occupation, 'vi')}</ThemedText>
-          <ThemedText variant="caption" color="muted" numberOfLines={1}>Người phỏng vấn: {interviewer.name}</ThemedText>
-        </View>
-      </View>
-      <ConfigGroup label="Kinh nghiệm">
-        {EXPERIENCE.map((e) => (
-          <ChoiceChip key={e.id} label={e.label} active={experience === e.id} accent={accent} onPress={() => setExperience(e.id)} />
-        ))}
-      </ConfigGroup>
-      <Button
-        label="Bắt đầu phỏng vấn"
-        loading={starting}
-        onPress={() =>
-          onStart({
-            sessionMode: 'INTERVIEW',
-            topic: info.interviewPosition,
-            cefrLevel: cefr,
-            experienceLevel: experience,
-            occupationCode,
-          })
-        }
-      />
-      <ThemedText variant="caption" color="muted">
-        Câu hỏi theo đúng nghề bạn chọn. Hoặc chọn người phỏng vấn khác bên dưới.
-      </ThemedText>
-    </View>
   )
 }
 
