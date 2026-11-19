@@ -6,6 +6,8 @@ import { ArrowLeft } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { drillTargets, type DrillTarget } from '@/lib/examSpeakingUi'
+import { isMicCheckedThisRun, markMicChecked } from '@/lib/oralRoom'
+import { OralMicCheck } from '@/components/exam/OralMicCheck'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   BrushMark, Button, Caption, Card, EmptyState, ErrorState, IconButton, Pill, Screen, Skeleton, ThemedText, YellowSquare,
@@ -33,10 +35,24 @@ export default function SpeakingExamWeaknessScreen() {
   // Đợt 5 phần B (19/11/2026): app chỉ luyện telc — lỗi cũ từ đề Goethe vẫn hiện, nhưng nút luyện chỉ mở telc.
   const targets = drillTargets(weakPoints).filter((t) => t.provider === 'TELC')
   const [starting, setStarting] = useState<string | null>(null)
+  // Lần luyện đầu tiên trong lần mở app: kiểm micro trước khi tạo phiên (như sảnh thi nói).
+  const [micFor, setMicFor] = useState<DrillTarget | null>(null)
 
   // Back về hub Luyện thi Nói (màn cha) — điều hướng tường minh, vì GO_BACK của Tabs (firstRoute) về Heute.
-  const goBack = useCallback(() => router.navigate(examParentHref('weakness')), [])
+  const goBack = useCallback(() => {
+    if (micFor) setMicFor(null)
+    else router.navigate(examParentHref('weakness'))
+  }, [micFor])
   useHardwareBack(goBack)
+
+  function requestDrill(t: DrillTarget) {
+    if (starting) return
+    if (!isMicCheckedThisRun()) {
+      setMicFor(t)
+      return
+    }
+    void startDrill(t)
+  }
 
   async function startDrill(t: DrillTarget) {
     if (starting) return
@@ -46,11 +62,26 @@ export default function SpeakingExamWeaknessScreen() {
       trackFeatureAction('exam_speaking', 'started', { level: t.level, mode: 'DRILL', teil: t.teilNo, from: 'weakness' })
       const session = await examSpeakingApi.createSession({ provider: t.provider, level: t.level, mode: 'DRILL', teil: t.teilNo })
       router.push({ pathname: '/(student)/speaking-exam-room', params: { id: String(session.id) } })
+      setMicFor(null)
     } catch (e) {
       Alert.alert('Không bắt đầu được', apiMessage(e))
     } finally {
       setStarting(null)
     }
+  }
+
+  if (micFor) {
+    return (
+      <OralMicCheck
+        level={micFor.level}
+        entering={starting === `${micFor.level}-${micFor.teilNo}`}
+        onBack={() => setMicFor(null)}
+        onEnter={() => {
+          markMicChecked()
+          void startDrill(micFor)
+        }}
+      />
+    )
   }
 
   return (
@@ -103,7 +134,7 @@ export default function SpeakingExamWeaknessScreen() {
                         variant={i === 0 ? 'primary' : 'secondary'}
                         loading={starting === key}
                         disabled={starting !== null && starting !== key}
-                        onPress={() => void startDrill(t)}
+                        onPress={() => requestDrill(t)}
                       />
                     </View>
                   )

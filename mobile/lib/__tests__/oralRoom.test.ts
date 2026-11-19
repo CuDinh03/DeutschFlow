@@ -1,4 +1,5 @@
 import {
+  isMicCheckedThisRun, markMicChecked,
   coveredCount, createSilenceDetector, findBlueprint, litBars, meterLevel, micStatus, oralSpeaker, partMinutes,
   resultBadge, resultHeadline, resultRows, scoreBar, scoreNote, speakerName, taskPrompts, teilStages, transcriptByTeil,
 } from '../oralRoom'
@@ -146,5 +147,13 @@ describe('xem lại hội thoại', () => {
     expect(speakerName('CANDIDATE')).toBe('Bạn')
     expect(speakerName('PARTNER')).toBe('Bạn thi')
     expect(speakerName('PRUEFER')).toBe('Giám khảo')
+  })
+})
+
+describe('kiểm micro một lần mỗi lần mở app', () => {
+  it('chưa kiểm thì false, đánh dấu xong thì true', () => {
+    expect(isMicCheckedThisRun()).toBe(false)
+    markMicChecked()
+    expect(isMicCheckedThisRun()).toBe(true)
   })
 })

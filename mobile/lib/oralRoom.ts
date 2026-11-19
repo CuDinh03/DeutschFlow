@@ -5,6 +5,19 @@
 import type { BlueprintSummary, ExamResultView, ScoreSheet } from './examSpeakingApi'
 import type { Verdict } from './examSpeakingUi'
 
+// ── Kiểm micro một lần mỗi lần mở app ───────────────────────────────────────
+
+let micCheckedThisRun = false
+
+/** Đã qua màn kiểm micro trong lần mở app này chưa (mẫu v3.4 `oralmic`: "Làm một lần trước khi vào phòng"). */
+export function isMicCheckedThisRun(): boolean {
+  return micCheckedThisRun
+}
+
+export function markMicChecked(): void {
+  micCheckedThisRun = true
+}
+
 // ── Mức âm micro ─────────────────────────────────────────────────────────────
 
 /** expo-audio trả `metering` theo dBFS (−160 = im tuyệt đối, 0 = đỉnh). Dưới mức này coi như im. */

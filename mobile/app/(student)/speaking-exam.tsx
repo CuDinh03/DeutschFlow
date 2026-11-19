@@ -11,6 +11,7 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { examSpeakingApi, type BlueprintSummary, type ExamMode, type ExamProvider } from '@/lib/examSpeakingApi'
 import { OralMicCheck } from '@/components/exam/OralMicCheck'
+import { isMicCheckedThisRun, markMicChecked } from '@/lib/oralRoom'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { levelsFromBlueprints, providerName, verdict, verdictLabel, verdictTone } from '@/lib/examSpeakingUi'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -22,9 +23,6 @@ import { pickBand } from '@/lib/learnerBand'
 
 /** Hệ thi duy nhất trên app: owner chốt 18/11/2026 chỉ luyện telc (giao diện v3.4). Kết quả Goethe cũ vẫn xem được. */
 const PROVIDER: ExamProvider = 'TELC'
-
-/** Đã kiểm micro trong lần mở app này — mẫu v3.4 `oralmic`: "Làm một lần trước khi vào phòng". */
-let micCheckedThisRun = false
 
 /** Hub Luyện thi Nói — thiết kế canvas 02/09 (đã chốt): hero chọn level, cấu trúc đề, điểm yếu, kết quả gần đây. */
 export default function SpeakingExamHubScreen() {
@@ -83,7 +81,7 @@ export default function SpeakingExamHubScreen() {
   // thẻ drill từng Teil; mobile trước đây chỉ tạo MOCK.
   function startSession(mode: ExamMode, teil?: number) {
     if (!activeLevel || starting) return
-    if (!micCheckedThisRun) {
+    if (!isMicCheckedThisRun()) {
       setMicFor({ mode, teil })
       return
     }
@@ -130,7 +128,7 @@ export default function SpeakingExamHubScreen() {
         entering={starting === key}
         onBack={() => setMicFor(null)}
         onEnter={() => {
-          micCheckedThisRun = true
+          markMicChecked()
           void createAndEnter(micFor.mode, micFor.teil)
         }}
       />
