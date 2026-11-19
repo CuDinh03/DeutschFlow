@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, View } from 'react-native'
+import { Alert, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
+import { ArrowLeft } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { drillTargets, type DrillTarget } from '@/lib/examSpeakingUi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Caption, Card, EmptyState, ErrorState, Pill, Screen, Skeleton, ThemedText, YellowSquare,
-GaGlyph } from '@/components/ui'
+  BrushMark, Button, Caption, Card, EmptyState, ErrorState, IconButton, Pill, Screen, Skeleton, ThemedText, YellowSquare,
+} from '@/components/ui'
 import { examSpeakingApi } from '@/lib/examSpeakingApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { examParentHref } from '@/lib/examSpeakingNav'
@@ -29,7 +30,8 @@ export default function SpeakingExamWeaknessScreen() {
   const packs = weaknessQ.data?.packs ?? []
   // N3 (đợt 2, 05/09): màn này từng là ngõ cụt (chỉ có nút quay lại). Gom (level, Teil) hay sai
   // thành chip "Luyện ngay" → phiên DRILL đúng Teil đó, như web từ yếu điểm bấm là vào DRILL.
-  const targets = drillTargets(weakPoints)
+  // Đợt 5 phần B (19/11/2026): app chỉ luyện telc — lỗi cũ từ đề Goethe vẫn hiện, nhưng nút luyện chỉ mở telc.
+  const targets = drillTargets(weakPoints).filter((t) => t.provider === 'TELC')
   const [starting, setStarting] = useState<string | null>(null)
 
   // Back về hub Luyện thi Nói (màn cha) — điều hướng tường minh, vì GO_BACK của Tabs (firstRoute) về Heute.
@@ -53,7 +55,14 @@ export default function SpeakingExamWeaknessScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Ôn yếu điểm" subtitle="Lỗi hay mắc trong phòng thi Nói" onBack={goBack} />
+      <View style={{ paddingHorizontal: space[5], paddingTop: space[2], gap: space[3] }}>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Quay lại" onPress={goBack} />
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2] }} accessible accessibilityRole="header" accessibilityLabel="Ôn yếu điểm">
+          <ThemedText variant="display">Ôn</ThemedText>
+          <BrushMark>yếu điểm</BrushMark>
+        </View>
+        <ThemedText variant="caption" color="secondary">Lỗi hay mắc trong phòng thi Nói.</ThemedText>
+      </View>
       {weaknessQ.isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <Skeleton height={120} radius="2xl" />
@@ -77,36 +86,30 @@ export default function SpeakingExamWeaknessScreen() {
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
 
           {targets.length > 0 && (
-            <View style={{ gap: space[2] }}>
-              <Caption>Luyện ngay đúng Teil hay sai</Caption>
+            <Card style={{ gap: space[3] }}>
+              <View style={{ gap: 2 }}>
+                <ThemedText variant="title">Luyện ngay đúng Teil hay sai</ThemedText>
+                <ThemedText variant="caption" color="secondary">Một Teil ngắn, chấm riêng, không tính vào thi thử.</ThemedText>
+              </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
-                {targets.map((t) => {
+                {targets.map((t, i) => {
                   const key = `${t.level}-${t.teilNo}`
-                  const busy = starting === key
+                  const multiLevel = new Set(targets.map((x) => x.level)).size > 1
                   return (
-                    <Pressable
-                      key={key}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Luyện Teil ${t.teilNo} trình độ ${t.level}, sai ${t.count} lần`}
-                      accessibilityState={{ disabled: starting !== null, busy }}
-                      disabled={starting !== null}
-                      onPress={() => void startDrill(t)}
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', gap: space[1] + 2,
-                        borderWidth: 1, borderColor: c.accentText, backgroundColor: c.accentSoft,
-                        borderRadius: radius.full, paddingHorizontal: space[3], paddingVertical: space[2],
-                        opacity: starting !== null && !busy ? 0.5 : 1,
-                      }}
-                    >
-                      {busy ? <ActivityIndicator size="small" color={c.accentText} /> : <GaGlyph name="noi" size={14} ink="primary" />}
-                      <ThemedText variant="label">{`${t.level} · Teil ${t.teilNo}`}</ThemedText>
-                      <Pill label={`×${t.count}`} tone="neutral" />
-                    </Pressable>
+                    <View key={key} style={{ flexGrow: 1, flexBasis: '45%' }}>
+                      <Button
+                        label={multiLevel ? `${t.level} · Luyện Teil ${t.teilNo}` : `Luyện Teil ${t.teilNo}`}
+                        size="sm"
+                        variant={i === 0 ? 'primary' : 'secondary'}
+                        loading={starting === key}
+                        disabled={starting !== null && starting !== key}
+                        onPress={() => void startDrill(t)}
+                      />
+                    </View>
                   )
                 })}
               </View>
-              <ThemedText variant="caption" color="faint">Một Teil ngắn, chấm riêng — không phải thi lại cả bài.</ThemedText>
-            </View>
+            </Card>
           )}
 
           {weakPoints.length > 0 && (
@@ -153,15 +156,11 @@ export default function SpeakingExamWeaknessScreen() {
               <Caption>Redemittel cho dạng bài đang yếu</Caption>
               {packs.map((p) => (
                 <Card key={p.archetype} style={{ gap: space[3] }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                    <GaGlyph name="hoithoai" size={16} ink="primary" />
-                    <ThemedText variant="bodyStrong" style={{ flex: 1 }}>{p.archetype}</ThemedText>
-                  </View>
-                  <View style={{ gap: space[2] }}>
+                  <ThemedText variant="bodyStrong">{p.archetype}</ThemedText>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
                     {p.phrases.slice(0, 8).map((ph, i) => (
-                      <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-                        <YellowSquare size={5} style={{ marginTop: 7 }} />
-                        <ThemedText variant="body" style={{ flex: 1 }}>{ph}</ThemedText>
+                      <View key={i} style={{ paddingHorizontal: space[3], paddingVertical: space[2], borderRadius: radius.md, backgroundColor: c.surfaceSunken }}>
+                        <ThemedText variant="body">{ph}</ThemedText>
                       </View>
                     ))}
                   </View>
