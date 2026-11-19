@@ -7,7 +7,7 @@
  * Catalog vi THẬT → test canh luôn thiếu khoá i18n room.oral.*.
  */
 import React from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
@@ -258,6 +258,28 @@ describe('Phòng thi nói — màn Chuẩn bị', () => {
     await user.click(screen.getByTestId('prep-enter'))
     await waitFor(() => expect(api.advance).toHaveBeenCalledWith(701))
     expect(await screen.findByTestId('oral-room')).toBeInTheDocument()
+  })
+
+  it('lưu ghi chú về muộn sau khi đã vào thi: vẫn ở phòng thi, không quay về phòng chuẩn bị', async () => {
+    api.getSession.mockResolvedValue({ data: prepSession(1) })
+    let resolveSave: (v: unknown) => void = () => {}
+    // Bản lưu ghi chú đọc phiên lúc còn PREP và về SAU phản hồi vào thi (19/11/2026).
+    api.saveNotes.mockReturnValue(new Promise((r) => { resolveSave = r }))
+    api.advance.mockResolvedValue({ data: mockSession(1) })
+    const user = userEvent.setup()
+    renderRoom()
+
+    const notes = await screen.findByTestId('prep-notes')
+    await user.type(notes, ' 15 Uhr')
+    await user.click(screen.getByTestId('prep-enter'))
+    await waitFor(() => expect(api.advance).toHaveBeenCalledWith(701))
+    expect(await screen.findByTestId('oral-room')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveSave({ data: { ...prepSession(1), notesText: 'Freitag? 15 Uhr' } })
+    })
+    expect(screen.getByTestId('oral-room')).toBeInTheDocument()
+    expect(screen.queryByTestId('oral-prep-room')).not.toBeInTheDocument()
   })
 
   it('X hỏi trước khi rời phòng chuẩn bị; Rời phòng thì về trang đã vào', async () => {
