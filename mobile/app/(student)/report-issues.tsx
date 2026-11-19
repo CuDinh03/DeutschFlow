@@ -7,11 +7,12 @@
 // Không có nút mở link công khai: link `/phieu/{token}` là thứ gửi cho GIA ĐÌNH, còn ở đây học viên
 // đã xem được trọn nội dung ngay trong ứng dụng. Thêm nút mở link chỉ tạo thêm một đường phát tán
 // token ra ngoài mà không cho em ấy biết thêm điều gì.
+//
+// Giao diện v3.4 (Đợt 6C, 19/11/2026; mẫu `reports`): nút back, tiêu đề + dòng "chỉ xem", thẻ phiếu.
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import {
   Screen,
-  AppHeader,
   EmptyState,
   ErrorState,
   Skeleton,
@@ -19,6 +20,7 @@ import {
   FadeIn,
   useTabBarClearance,
 } from '@/components/ui'
+import { PageTitle, SubHeader } from '@/components/me/MeParts'
 import { ReportIssueCard } from '@/components/report/ReportIssueCard'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { useBackTo } from '@/hooks/useBackTo'
@@ -38,14 +40,24 @@ export default function ReportIssuesScreen() {
   const pull = usePullRefresh(refetch)
 
   return (
-    <Screen scroll refreshing={pull.refreshing} onRefresh={pull.onRefresh} contentStyle={{ paddingBottom: tabClearance }}>
-      <AppHeader title="Phiếu gửi gia đình" onBack={goBack} />
+    <Screen
+      scroll
+      refreshing={pull.refreshing}
+      onRefresh={pull.onRefresh}
+      contentStyle={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: tabClearance }}
+    >
+      <SubHeader onBack={goBack} />
+      <PageTitle
+        title="Phiếu gửi gia đình"
+        sub="Giáo viên phát hành cho gia đình. Chỉ xem, không sửa."
+        style={{ marginTop: space[4] }}
+      />
 
-      <View style={{ paddingHorizontal: space[5], gap: space[4] }}>
+      <View style={{ gap: space[3], marginTop: space[4] }}>
         {isLoading ? (
           <>
-            <Skeleton height={120} radius="xl" />
-            <Skeleton height={120} radius="xl" />
+            <Skeleton height={160} radius="xl" />
+            <Skeleton height={160} radius="xl" />
           </>
         ) : isError ? (
           <ErrorState
@@ -55,7 +67,7 @@ export default function ReportIssuesScreen() {
           />
         ) : entries.length === 0 ? (
           <EmptyState
-            glyph="thongke"
+            glyph="baigiao"
             title="Chưa có phiếu nào"
             message="Khi giáo viên phát hành phiếu đánh giá gửi gia đình, phiếu sẽ hiện ở đây — đúng bản mà gia đình nhận được."
           />
