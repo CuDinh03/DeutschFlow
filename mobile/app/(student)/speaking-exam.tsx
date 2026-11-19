@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -119,6 +119,8 @@ export default function SpeakingExamHubScreen() {
     else router.navigate(examParentHref('hub'))
   }, [micFor])
   useHardwareBack(goBack)
+  // Màn ẩn dưới Tabs không unmount: rời màn thì đóng màn kiểm micro đang mở, quay lại thấy màn chính.
+  useFocusEffect(useCallback(() => () => setMicFor(null), []))
 
   if (hasProAccess && micFor && activeLevel) {
     const key = micFor.mode === 'MOCK' ? 'MOCK' : `DRILL-${micFor.teil ?? 0}`

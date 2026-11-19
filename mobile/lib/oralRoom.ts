@@ -18,6 +18,31 @@ export function markMicChecked(): void {
   micCheckedThisRun = true
 }
 
+// ── Lệnh đổi phiên chạy nối đuôi ────────────────────────────────────────────
+
+/**
+ * Hàng đợi tuần tự: mỗi lệnh chỉ bắt đầu khi lệnh trước xong (thành công hay lỗi). Phòng chuẩn bị
+ * dùng cho lưu ghi chú / chọn chủ đề / vào thi — backend lưu cả dòng phiên, không khoá phiên bản,
+ * nên hai lệnh chồng nhau thì lệnh về sau ghi đè trạng thái lệnh kia vừa đổi.
+ */
+export function createSerialQueue() {
+  let tail: Promise<unknown> = Promise.resolve()
+  return {
+    run<T>(op: () => Promise<T>): Promise<T> {
+      const next = tail.catch(() => undefined).then(op)
+      tail = next
+      return next
+    },
+  }
+}
+
+/** Ghi chú hiện trong phòng thi: lưu lỗi thì bản trên máy (mới hơn) thắng; không thì bản server, rỗng thì bản máy. */
+export function roomNotes(serverNotes: string | null | undefined, localNotes: string, saveFailed: boolean): string | null {
+  const local = localNotes.trim()
+  if (saveFailed && local) return local
+  return serverNotes?.trim() || local || null
+}
+
 // ── Mức âm micro ─────────────────────────────────────────────────────────────
 
 /** expo-audio trả `metering` theo dBFS (−160 = im tuyệt đối, 0 = đỉnh). Dưới mức này coi như im. */

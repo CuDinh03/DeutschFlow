@@ -1,5 +1,5 @@
 import {
-  isMicCheckedThisRun, markMicChecked,
+  isMicCheckedThisRun, markMicChecked, createSerialQueue, roomNotes,
   coveredCount, createSilenceDetector, findBlueprint, litBars, meterLevel, micStatus, oralSpeaker, partMinutes,
   resultBadge, resultHeadline, resultRows, scoreBar, scoreNote, speakerName, taskPrompts, teilStages, transcriptByTeil,
 } from '../oralRoom'
@@ -155,5 +155,35 @@ describe('kiểm micro một lần mỗi lần mở app', () => {
     expect(isMicCheckedThisRun()).toBe(false)
     markMicChecked()
     expect(isMicCheckedThisRun()).toBe(true)
+  })
+})
+
+describe('createSerialQueue', () => {
+  it('lệnh sau chỉ bắt đầu khi lệnh trước xong, kể cả lệnh trước lỗi', async () => {
+    const q = createSerialQueue()
+    const log: string[] = []
+    let releaseSave: () => void = () => {}
+    const save = q.run(() => new Promise<void>((resolve, reject) => {
+      log.push('save:start')
+      releaseSave = () => { log.push('save:end'); reject(new Error('mạng')) }
+    }))
+    const advance = q.run(async () => { log.push('advance:start'); return 'IN_PART' })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(log).toEqual(['save:start'])
+    releaseSave()
+    await expect(save).rejects.toThrow('mạng')
+    await expect(advance).resolves.toBe('IN_PART')
+    expect(log).toEqual(['save:start', 'save:end', 'advance:start'])
+  })
+})
+
+describe('roomNotes', () => {
+  it('lưu lỗi thì bản trên máy (mới hơn) thắng', () => {
+    expect(roomNotes('abc', 'abc def', true)).toBe('abc def')
+  })
+  it('lưu được thì dùng bản server; server rỗng thì dùng bản máy', () => {
+    expect(roomNotes('abc', 'abc def', false)).toBe('abc')
+    expect(roomNotes(null, ' x ', false)).toBe('x')
+    expect(roomNotes('', '', false)).toBeNull()
   })
 })

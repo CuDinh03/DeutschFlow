@@ -80,17 +80,32 @@ export function OralMicCheck({
     }
   }, [recorder])
 
+  /** Rời màn giữa lúc kiểm: dừng (nếu còn ghi) rồi xoá bản ghi thử — không để lại trong cache. */
+  const discardRecording = useCallback(() => {
+    const uri = recorder.uri
+    const stop = recorder.isRecording ? recorder.stop().catch(() => {}) : Promise.resolve()
+    void stop.then(() => {
+      if (uri) void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {})
+    })
+  }, [recorder])
+
   // Tự kiểm ngay khi mở: người học vừa bấm "Bắt đầu thi thử" nên xin quyền micro lúc này là đúng chỗ.
   useEffect(() => {
     void startCheck()
     return () => {
       stopExamTts()
-      if (recorder.isRecording) void recorder.stop().catch(() => {})
+      discardRecording()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useRecorderBlurGuard(recorder, () => setStatus('quiet'))
+  // Chuyển tab giữa lúc kiểm: guard dừng bản ghi và trả audio mode; ở đây xoá file và đưa về "chưa nghe thấy".
+  useRecorderBlurGuard(recorder, () => {
+    stoppingRef.current = true
+    setStatus('quiet')
+    const uri = recorder.uri
+    if (uri) setTimeout(() => { void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}) }, 500)
+  })
 
   const meter = status === 'checking' ? meterLevel(state.metering) : 0
   useEffect(() => {

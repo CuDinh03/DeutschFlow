@@ -23,7 +23,9 @@ import {
   drillSummary, formatClock, gradingFailedCopy, isRetryableTurnError, newClientTurnId, nextPrueferAnnouncement,
   providerName, remainingSec, stateLabel, type DrillTurnEval,
 } from '@/lib/examSpeakingUi'
-import { createSilenceDetector, findBlueprint, meterLevel, micStatus, oralSpeaker } from '@/lib/oralRoom'
+import {
+  createSerialQueue, createSilenceDetector, findBlueprint, meterLevel, micStatus, oralSpeaker, roomNotes,
+} from '@/lib/oralRoom'
 import { readOralAutoStop, writeOralAutoStop } from '@/lib/oralAutoStop'
 import { OralMicDock, OralPeople, OralStages, OralTaskCard } from '@/components/exam/OralRoomParts'
 import { OralPrep, type NotesSaveState } from '@/components/exam/OralPrep'
@@ -106,7 +108,9 @@ export default function SpeakingExamRoomScreen() {
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Lệnh đổi phiên (lưu ghi chú, chọn chủ đề, sang phần) chạy NỐI ĐUÔI nhau: backend lưu cả dòng phiên
   // (không khoá phiên bản), hai lệnh chồng nhau thì lệnh về sau ghi đè trạng thái lệnh kia vừa đổi.
-  const sessionOpsRef = useRef<Promise<unknown>>(Promise.resolve())
+  const sessionOpsRef = useRef(createSerialQueue())
+  // Chặn gửi đôi một lượt khi tự dừng và bấm tay rơi vào cùng một khung hình.
+  const stopRequestedRef = useRef(false)
   const notesSeededRef = useRef(false)
   // Vai AI đang phát tiếng (PRUEFER/PARTNER) — để hàng người sáng đúng người.
   const [aiSpeaker, setAiSpeaker] = useState<string | null>(null)
@@ -286,9 +290,7 @@ export default function SpeakingExamRoomScreen() {
 
   /** Xếp một lệnh đổi phiên sau các lệnh đang chạy (lỗi của lệnh trước không chặn lệnh sau). */
   function queueSessionOp<T>(op: () => Promise<T>): Promise<T> {
-    const next = sessionOpsRef.current.catch(() => undefined).then(op)
-    sessionOpsRef.current = next
-    return next
+    return sessionOpsRef.current.run(op)
   }
 
   async function doAdvance() {
@@ -450,6 +452,7 @@ export default function SpeakingExamRoomScreen() {
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
       await recorder.prepareToRecordAsync()
       recorder.record()
+      stopRequestedRef.current = false
       setRecording(true)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     } catch {
@@ -458,7 +461,8 @@ export default function SpeakingExamRoomScreen() {
   }
 
   async function stopAndSubmitTurn() {
-    if (!recording) return
+    if (!recording || stopRequestedRef.current) return
+    stopRequestedRef.current = true
     setRecording(false)
     setUploading(true)
     try {
@@ -654,7 +658,7 @@ export default function SpeakingExamRoomScreen() {
             contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[4], gap: space[3] }}
             keyboardShouldPersistTaps="handled"
           >
-            {d ? <OralTaskCard directive={d} notesText={session.notesText || notes.trim() || null} /> : null}
+            {d ? <OralTaskCard directive={d} notesText={roomNotes(session.notesText, notes, notesState === 'error')} /> : null}
             {d ? <TeilStrategyCard provider={session.provider} level={session.level} section="SPRECHEN" teil={d.teilNo} /> : null}
 
             {lines.map((l) => (

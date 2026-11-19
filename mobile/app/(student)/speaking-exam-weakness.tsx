@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Alert, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -44,6 +44,8 @@ export default function SpeakingExamWeaknessScreen() {
     else router.navigate(examParentHref('weakness'))
   }, [micFor])
   useHardwareBack(goBack)
+  // Màn ẩn dưới Tabs không unmount: rời màn thì đóng màn kiểm micro đang mở, quay lại thấy màn chính.
+  useFocusEffect(useCallback(() => () => setMicFor(null), []))
 
   function requestDrill(t: DrillTarget) {
     if (starting) return
