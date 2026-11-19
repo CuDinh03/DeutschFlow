@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import { getPracticeMarks, savePracticeMarks } from '@/lib/telcPracticeApi'
-import { applyPen, CONTEXT_BLOCK, dropStale, emptyPack, isFull, parsePack, type MarksPack, type Pen, type Piece } from '@/lib/passageMarks'
+import { applyPen, CONTEXT_BLOCK, dropStale, emptyPack, MAX_MARKS, parsePack, type MarksPack, type Pen, type Piece } from '@/lib/passageMarks'
 
 export const MARKS_AUTOSAVE_MS = 800
 
@@ -50,19 +50,30 @@ export function usePassageMarks({ examId, teilKey, context }: { examId: number; 
     }
   }, [examId, teilKey, context, attempt])
 
+  // Lưu NỐI ĐUÔI: đang có một PUT bay thì chỉ đánh dấu bẩn, xong lượt này mới lưu tiếp — hai PUT chồng
+  // nhau mà tới server sai thứ tự thì gói cũ thắng (server ghi đè cả gói).
+  const saving = useRef(false)
   const flush = useCallback(async () => {
     if (timer.current) {
       clearTimeout(timer.current)
       timer.current = null
     }
-    if (!dirty.current) return
-    dirty.current = false
+    if (saving.current || !dirty.current) return
+    saving.current = true
     try {
-      await savePracticeMarks(examId, teilKey, latest.current)
-      setSaveFailed(false)
-    } catch {
-      dirty.current = true
-      setSaveFailed(true)
+      while (dirty.current) {
+        dirty.current = false
+        try {
+          await savePracticeMarks(examId, teilKey, latest.current)
+          setSaveFailed(false)
+        } catch {
+          dirty.current = true
+          setSaveFailed(true)
+          break
+        }
+      }
+    } finally {
+      saving.current = false
     }
   }, [examId, teilKey])
 
@@ -71,7 +82,8 @@ export function usePassageMarks({ examId, teilKey, context }: { examId: number; 
     (piece: Piece, pen: Pen): boolean => {
       if (status !== 'ready') return false
       const next = applyPen(latest.current, texts, piece, pen)
-      if (next.marks.length > latest.current.marks.length && isFull(latest.current)) return false
+      // Chặn theo gói MỚI: một lần chạm có thể tách mảnh (+1) và thêm mảnh (+1) ⇒ vượt 300, server trả 400.
+      if (next.marks.length > latest.current.marks.length && next.marks.length > MAX_MARKS) return false
       latest.current = next
       setPack(next)
       dirty.current = true

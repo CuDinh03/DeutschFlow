@@ -7,13 +7,17 @@
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, TextInput, View } from 'react-native'
 import { NotebookPen, RotateCw } from 'lucide-react-native'
+import { isOrgBudgetError, isQuotaExceededError } from '@/lib/quota'
+import { handleAiError } from '@/lib/upsell'
 import { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, GaGlyph, Icon, ThemedText } from '@/components/ui'
 import { NOTE_MAX, type ItemAiAnswer } from '@/lib/telcPracticeApi'
 
 /** Ô "Vì sao tôi chọn" của một câu. Thu gọn thành một nút nhỏ; đã có chữ thì mở sẵn. */
-export function NoteField({ label, value, onChange }: { label: string; value: string; onChange: (text: string) => void }) {
+export function NoteField({
+  label, value, onChange, editable = true,
+}: { label: string; value: string; onChange: (text: string) => void; editable?: boolean }) {
   const c = useTheme().colors
   const [open, setOpen] = useState(value !== '')
   if (!open) {
@@ -36,6 +40,7 @@ export function NoteField({ label, value, onChange }: { label: string; value: st
       <TextInput
         value={value}
         onChangeText={onChange}
+        editable={editable}
         maxLength={NOTE_MAX}
         multiline
         placeholder="Ví dụ: thấy bài nhắc đúng ngày đó nên chọn…"
@@ -83,6 +88,13 @@ export function AskAiPanel({ itemLabel, ask }: { itemLabel: string; ask: () => P
     try {
       setState({ kind: 'done', res: await ask() })
     } catch (e) {
+      // Hết lượt / hết ngân sách trung tâm: dùng câu chung của app (bản iOS không bán gói không được mời
+      // nâng cấp — App Store 2.1(b)), không in nguyên câu server.
+      if (isQuotaExceededError(e) || isOrgBudgetError(e)) {
+        handleAiError(e)
+        setState({ kind: 'idle' })
+        return
+      }
       setState({ kind: 'error', message: apiMessage(e) || 'Chưa hỏi được AI. Bạn thử lại sau nhé.' })
     }
   }

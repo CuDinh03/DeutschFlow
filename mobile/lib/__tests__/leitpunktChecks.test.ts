@@ -12,7 +12,8 @@ describe('leitpunktChecks — ô đã viết ý', () => {
     expect(toggleChecked(['A', 'B'], 'A')).toEqual(['B'])
   })
   test('khoá lưu hợp lệ cho SecureStore', () => {
-    expect(leitpunktStoreKey(12, 'SCHREIBEN-1')).toBe('df_leitpunkte_12_SCHREIBEN-1')
+    expect(leitpunktStoreKey(12, 'SCHREIBEN-1', 7)).toBe('df_leitpunkte_7_12_SCHREIBEN-1')
+    expect(leitpunktStoreKey(12, 'SCHREIBEN-1', 8)).not.toBe(leitpunktStoreKey(12, 'SCHREIBEN-1', 7))
     expect(leitpunktStoreKey(12, 'A B/1')).toMatch(/^[A-Za-z0-9._-]+$/)
   })
 })

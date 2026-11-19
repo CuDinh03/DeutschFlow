@@ -100,19 +100,35 @@ export function parsePack(raw: unknown): MarksPack {
   return p
 }
 
-/** Bỏ đánh dấu của khối đã đổi chữ (hash lệch) hoặc không còn, và mảnh vượt độ dài khối (như web). */
+/**
+ * Bỏ đánh dấu của khối APP ĐANG DỰNG (`texts`) đã đổi chữ (hash lệch) và mảnh vượt độ dài khối (như web).
+ * Mảnh thuộc khối app KHÔNG dựng (vd. đề câu `q:<id>` web cho tô) được giữ NGUYÊN và gửi lại khi lưu —
+ * server ghi đè cả gói, bỏ chúng là xoá mất đánh dấu + ghi chú của web (soát Đợt 4c, HIGH).
+ */
 export function dropStale(pack: MarksPack, texts: Record<string, string>): { pack: MarksPack; dropped: boolean } {
-  const ok = (b: string) => texts[b] != null && (pack.blocks[b] == null || pack.blocks[b] === fnv1a(texts[b]))
-  const marks = pack.marks.filter((m) => ok(m.b) && m.e <= texts[m.b].length)
+  const ok = (m: Mark) => {
+    const t = texts[m.b]
+    if (t == null) return true
+    return (pack.blocks[m.b] == null || pack.blocks[m.b] === fnv1a(t)) && m.e <= t.length
+  }
+  const marks = pack.marks.filter(ok)
   if (marks.length === pack.marks.length) return { pack, dropped: false }
   return { pack: { ...pack, marks }, dropped: true }
 }
 
-/** Ghi hash hiện tại cho khối có đánh dấu (server cũng ghi lại). */
+/** Ghi hash cho khối có đánh dấu: khối app dựng dùng hash chữ hiện tại; khối khác giữ hash đã có. */
 function stamp(pack: MarksPack, texts: Record<string, string>): MarksPack {
   const blocks: Record<string, string> = {}
-  for (const m of pack.marks) if (texts[m.b] != null) blocks[m.b] = pack.blocks[m.b] ?? fnv1a(texts[m.b])
+  for (const m of pack.marks) {
+    if (texts[m.b] != null) blocks[m.b] = fnv1a(texts[m.b])
+    else if (pack.blocks[m.b] != null) blocks[m.b] = pack.blocks[m.b]
+  }
   return { ...pack, blocks }
+}
+
+/** Mảnh có dữ liệu web (gắn câu `q` hoặc ghi chú `n`) — app không hiện được nên không được làm mất. */
+function hasWebData(m: Mark): boolean {
+  return m.q != null || (m.n ?? '') !== ''
 }
 
 export function coveredFully(marks: readonly Mark[], piece: Piece, filter: (m: Mark) => boolean): boolean {
@@ -149,22 +165,27 @@ export function subtract(marks: readonly Mark[], piece: Piece, filter: (m: Mark)
 export function applyPen(pack: MarksPack, texts: Record<string, string>, piece: Piece, pen: Pen): MarksPack {
   if (piece.e <= piece.s) return pack
   let marks = [...pack.marks]
+  const inPiece = (m: Mark) => m.b === piece.b && m.e > piece.s && m.s < piece.e
   if (pen === 'erase') {
-    marks = subtract(marks, piece, () => true)
+    // Tẩy không xoá mảnh mang gắn câu / ghi chú của web (app không hiện được, xoá là mất âm thầm).
+    marks = subtract(marks, piece, (m) => !hasWebData(m))
   } else if (pen === 'ul') {
     const full = coveredFully(marks, piece, (m) => m.k === 'ul')
+    const carry = marks.find((m) => inPiece(m) && m.k === 'ul' && hasWebData(m))
     marks = subtract(marks, piece, (m) => m.k === 'ul')
-    if (!full) marks.push(newMark(piece, 'ul', null))
+    if (!full || carry) marks.push(newMark(piece, 'ul', null, carry))
   } else {
     const same = coveredFully(marks, piece, (m) => m.k === 'hl' && m.c === pen)
+    // Tô đè: mang theo gắn câu + ghi chú của mảnh web trong câu này sang mảnh mới.
+    const carry = marks.find((m) => inPiece(m) && m.k === 'hl' && hasWebData(m))
     marks = subtract(marks, piece, (m) => m.k === 'hl')
-    if (!same) marks.push(newMark(piece, 'hl', pen))
+    if (!same || carry) marks.push(newMark(piece, 'hl', pen, carry))
   }
   return stamp({ ...pack, marks }, texts)
 }
 
-function newMark(piece: Piece, k: MarkKind, c: MarkColor | null): Mark {
-  return { id: uid('h'), g: uid('g'), b: piece.b, s: piece.s, e: piece.e, k, c, q: null, n: '' }
+function newMark(piece: Piece, k: MarkKind, c: MarkColor | null, carry?: Mark): Mark {
+  return { id: uid('h'), g: uid('g'), b: piece.b, s: piece.s, e: piece.e, k, c, q: carry?.q ?? null, n: carry?.n ?? '' }
 }
 
 export function isFull(pack: MarksPack): boolean {

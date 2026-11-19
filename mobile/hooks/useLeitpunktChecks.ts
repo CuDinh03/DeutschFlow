@@ -5,10 +5,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as SecureStore from 'expo-secure-store'
 import { leitpunktStoreKey, parseChecked, toggleChecked } from '@/lib/leitpunktChecks'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 export function useLeitpunktChecks(examId: number, teilKey: string, points: readonly string[] | undefined) {
   const [checked, setChecked] = useState<string[]>([])
-  const key = leitpunktStoreKey(examId, teilKey)
+  const userId = useAuthStore((s) => s.user?.id ?? null)
+  const key = leitpunktStoreKey(examId, teilKey, userId)
   const pointsKey = (points ?? []).join('\u0000')
   const latest = useRef<string[]>([])
 

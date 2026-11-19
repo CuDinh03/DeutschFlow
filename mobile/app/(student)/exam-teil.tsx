@@ -249,7 +249,8 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   /** Cuối thẻ từng câu: "Vì sao tôi chọn" lúc làm, ghi chú + "Hỏi AI về câu này" sau khi kiểm tra. */
   const itemExtra = (item: ExamObjItem) => {
     if (!withNotes) return null
-    if (!checked) return <NoteField label="câu này" value={notes[item.id] ?? ''} onChange={(text) => setNote(item.id, text)} />
+    // Khoá khi đang kiểm tra: phản hồi kiểm tra đặt lại ghi chú, chữ gõ trong lúc chờ sẽ bị đè.
+    if (!checked) return <NoteField label="câu này" value={notes[item.id] ?? ''} onChange={(text) => setNote(item.id, text)} editable={!busy} />
     const mine = notes[item.id]?.trim()
     return (
       <View style={{ gap: space[3] }}>

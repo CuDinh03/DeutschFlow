@@ -2,9 +2,12 @@
 // trên máy (không có API) — hàm thuần ở đây, đọc/ghi máy ở `hooks/useLeitpunktChecks.ts`.
 // Lưu theo CHỮ của ý (không theo thứ tự): đề xáo thứ tự ý thì dấu vẫn đúng ý.
 
-/** Khoá SecureStore chỉ nhận chữ, số, `.`, `-`, `_`. */
-export function leitpunktStoreKey(examId: number, teilKey: string): string {
-  return `df_leitpunkte_${examId}_${teilKey.replace(/[^A-Za-z0-9._-]/g, '_')}`
+/**
+ * Khoá SecureStore (chỉ nhận chữ, số, `.`, `-`, `_`). Gắn id người dùng: SecureStore không liệt kê được khoá
+ * để dọn khi đăng xuất, nên tách theo người để tài khoản khác trên cùng máy không thấy dấu cũ.
+ */
+export function leitpunktStoreKey(examId: number, teilKey: string, userId?: number | null): string {
+  return `df_leitpunkte_${userId ?? 0}_${examId}_${teilKey.replace(/[^A-Za-z0-9._-]/g, '_')}`
 }
 
 /** Đọc bản đã lưu: chỉ giữ ý còn có trong đề hiện tại. Hỏng ⇒ rỗng. */
