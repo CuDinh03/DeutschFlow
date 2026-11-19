@@ -60,11 +60,15 @@ function FullIntro({ examId }: { examId: number }) {
       return { key: b.id || secs.join('-'), glyph: BLOCK_GLYPH[secs[0] as keyof typeof BLOCK_GLYPH] as GlyphName, name: secs.map((x) => BLOCK_NAME[x]).join(' + '), minutes: b.minutes }
     })
   const total = blocks.reduce((n, b) => n + b.minutes, 0)
+  // Tên các phần viết theo ĐÚNG đề (A1/A2 không có Sprachbausteine) — không viết cứng.
+  const writtenNames = blocks.map((b) => b.name).join(', ')
+  const firstBlock = blocks[0]?.name ?? ''
+  const hoerenAfter = blocks.findIndex((b) => b.name.includes('Hören')) > 0
   const level = overview?.level ?? 'B1'
 
   const modes: { id: Mode; glyph: GlyphName; name: string; meta: string }[] = [
     { id: 'all', glyph: 'thithu', name: 'Trọn đề', meta: `Phần viết rồi phần nói${total > 0 ? ` · khoảng ${total + ORAL_MINUTES} phút` : ''}` },
-    { id: 'written', glyph: 'viet', name: 'Phần viết', meta: `Lesen, Sprachbausteine, Hören, Schreiben${total > 0 ? ` · ${total} phút` : ''}` },
+    { id: 'written', glyph: 'viet', name: 'Phần viết', meta: `${writtenNames || 'Lesen, Hören, Schreiben'}${total > 0 ? ` · ${total} phút` : ''}` },
     { id: 'oral', glyph: 'noi', name: 'Phần nói', meta: `3 Teil với giám khảo và bạn thi AI · khoảng ${ORAL_MINUTES} phút` },
   ]
 
@@ -166,7 +170,7 @@ function FullIntro({ examId }: { examId: number }) {
           {mode !== 'oral' ? (
             <View style={{ gap: space[3], backgroundColor: c.surfaceSunken, borderRadius: radius.lg, padding: space[4] }}>
               <Rule glyph="thoigian" text={running ? 'Bạn đang có lượt dở: đồng hồ tính từ lúc bắt đầu lượt đó và không dừng, kể cả khi thoát app.' : 'Đồng hồ chạy khi bấm Bắt đầu và không dừng, kể cả khi thoát app.'} />
-              <Rule glyph="nghe" text="Vào Hören là không quay lại Lesen và Sprachbausteine." />
+              {hoerenAfter ? <Rule glyph="nghe" text={`Vào Hören là không quay lại ${firstBlock}.`} /> : null}
               <Rule glyph="hoanthanh" text="Bài tự lưu trong lúc làm. Hết giờ bài tự nộp; Viết được AI chấm sau khi nộp." />
             </View>
           ) : null}
