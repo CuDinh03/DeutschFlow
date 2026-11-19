@@ -51,6 +51,7 @@ import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
 import { InterviewHub } from '@/components/speaking/InterviewHub'
+import { InterviewProgress } from '@/components/speaking/InterviewProgress'
 import { SpeakingTrackBar, type SpeakingTrack } from '@/components/speaking/SpeakingTrackBar'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
 import { DEFAULT_BAND, practiceBand } from '@/lib/learnerBand'
@@ -116,6 +117,11 @@ export default function SpeakingScreen() {
   const { currentLevel, occupationCode } = useLearnerLevel()
   // Phiếu của buổi cũ mở từ "Buổi gần đây": đóng thì chỉ về màn chọn, không đụng phiên đang dở.
   const [viewingPastReport, setViewingPastReport] = useState(false)
+  // Đồng hồ phòng phỏng vấn tính từ lúc vào màn hội thoại trên máy (giờ máy chủ của phiên không kèm múi giờ).
+  const [chatOpenedAt, setChatOpenedAt] = useState(() => Date.now())
+  useEffect(() => {
+    if (view === 'chat') setChatOpenedAt(Date.now())
+  }, [view])
 
   // Thanh tab liquid-glass giờ NỔI ĐÈ lên nội dung (overlay) — trong phiên nói
   // (chat/tổng kết) nó sẽ đè lên dock nhập liệu/nút Xong, và giữa buổi nói cũng
@@ -947,7 +953,7 @@ export default function SpeakingScreen() {
               : session?.topic ?? 'Hội thoại'}
           </ThemedText>
           <ThemedText variant="caption" color="muted">
-            {phaseKey ? `${phaseLabel(phaseKey)} • ` : ''}
+            {phaseKey && session?.sessionMode !== 'INTERVIEW' ? `${phaseLabel(phaseKey)} • ` : ''}
             {userTurns} câu trả lời
           </ThemedText>
         </View>
@@ -968,6 +974,8 @@ export default function SpeakingScreen() {
           <Icon icon={Flag} size={20} color="accent" />
         </Pressable>
       </View>
+
+      {session?.sessionMode === 'INTERVIEW' ? <InterviewProgress phaseKey={phaseKey} startedAt={chatOpenedAt} /> : null}
 
       <PersonaStage personaId={personaId} stage={stage} reaction={reaction} />
 

@@ -95,6 +95,17 @@ export interface SpeakingSuggestion {
 }
 
 /** Mirrors `AiSpeakingChatResponse`. NON_NULL on the wire, so most are optional. */
+/** Mirrors `ErrorItemDto` — một lỗi có cấu trúc trong câu của người học (đoạn sai → đoạn đúng + luật ngắn). */
+export interface SpeakingErrorItem {
+  errorCode?: string | null
+  severity?: string | null
+  confidence?: number | null
+  wrongSpan?: string | null
+  correctedSpan?: string | null
+  ruleViShort?: string | null
+  exampleCorrectDe?: string | null
+}
+
 export interface AiChatResponse {
   messageId?: number | null
   sessionId?: number | null
@@ -112,6 +123,8 @@ export interface AiChatResponse {
   /** INTRO | ICE_BREAKER | HARD_SKILLS | STAR_SOFT | CLOSING */
   interviewPhaseKey?: string | null
   interviewHintKey?: string | null
+  /** Lỗi có cấu trúc của câu người học (backend luôn gửi mảng, có thể rỗng). */
+  errors?: SpeakingErrorItem[] | null
 }
 
 /** Mirrors `AiSpeakingMessageDto` — a persisted turn, used to rehydrate on resume. */
@@ -128,6 +141,7 @@ export interface AiSpeakingMessage {
   assistantAction: string | null
   assistantFeedback: string | null
   createdAt: string | null
+  errors?: SpeakingErrorItem[] | null
 }
 
 /** Mirrors `AiSpeakingSessionDto`. */
