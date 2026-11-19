@@ -458,8 +458,11 @@ const SKILLS: { key: 'horen' | 'lesen' | 'schreiben' | 'sprechen'; label: string
   { key: 'sprechen', label: 'Nói' },
 ]
 
-/** Vạch đạt trên thanh kỹ năng (`.sbar > s` của mẫu): 6/10. */
-const PASS_MARK = 0.6
+/**
+ * Vạch trên thanh kỹ năng (`.sbar > s` của mẫu). Đặt ở 5/10 cho khớp xếp loại của backend
+ * (`SkillReportDto.gradeOf`: ≥ 5,0 là "Trung bình"); mẫu vẽ 6/10 nhưng không API nào có ngưỡng đó.
+ */
+const PASS_MARK = 0.5
 
 function hasAnySkill(r: MySkillReport): boolean {
   return r.horen != null || r.lesen != null || r.schreiben != null || r.sprechen != null

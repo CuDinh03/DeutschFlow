@@ -126,10 +126,12 @@ function ClassChatRunner() {
   const outbox = useMemo(() => itemsForChannel(outboxItems, 'class', classId), [outboxItems, classId])
   const bubbles = useMemo(() => buildClassBubbles(q.data ?? [], outbox), [q.data, outbox])
   // Vạch ngày (v3.4 `.daysep`) — chỉ trình bày, tính từ danh sách đã dựng.
+  // Màn không unmount: khoá theo NGÀY để qua nửa đêm (dữ liệu không đổi) nhãn Hôm nay/Hôm qua vẫn tính lại.
+  const dayKey = new Date().toDateString()
   const separators = useMemo(() => {
-    const now = new Date()
+    const now = new Date(dayKey) // 00:00 hôm nay — đủ để so theo ngày
     return bubbles.map((_, i) => daySeparatorAbove(bubbles, i, now))
-  }, [bubbles])
+  }, [bubbles, dayKey])
 
   // Follow the newest bubble (own send or an incoming message) when at the bottom; don't yank a
   // user reading history. bubbles[0] is the newest (list is inverted / newest-first).
@@ -222,8 +224,8 @@ function Bubble({
       onLongPress={onLongPress}
       onPress={onRetry}
       delayLongPress={300}
-      accessibilityLabel={
-        onRetry ? 'Gửi lại tin nhắn' : onLongPress ? 'Giữ để xoá tin nhắn' : undefined
+      accessibilityHint={
+        onRetry ? 'Chạm để gửi lại' : onLongPress ? (vm.mine ? 'Giữ để báo cáo hoặc xoá' : 'Giữ để báo cáo') : undefined
       }
     />
   )

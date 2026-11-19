@@ -113,7 +113,9 @@ export default function NotificationsScreen() {
   }
 
   const unreadCount = notifs.filter((n) => !n.isRead).length
-  const entries = useMemo(() => groupByDay(notifs, (n) => `n-${n.id}`, new Date()), [notifs])
+  // Khoá theo ngày: màn không unmount, qua nửa đêm thì nhóm Hôm nay/Hôm qua phải tính lại.
+  const dayKey = new Date().toDateString()
+  const entries = useMemo(() => groupByDay(notifs, (n) => `n-${n.id}`, new Date(dayKey)), [notifs, dayKey])
 
   return (
     <Screen edges={['top']}>

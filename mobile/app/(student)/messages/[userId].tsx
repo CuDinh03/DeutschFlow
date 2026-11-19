@@ -112,10 +112,12 @@ function MessageThreadRunner() {
   const outbox = useMemo(() => itemsForChannel(outboxItems, 'dm', userId), [outboxItems, userId])
   const bubbles = useMemo(() => buildDmBubbles(q.data ?? [], outbox), [q.data, outbox])
   // Vạch ngày (v3.4 `.daysep`) — chỉ trình bày, tính từ danh sách đã dựng.
+  // Màn không unmount: khoá theo NGÀY để qua nửa đêm (dữ liệu không đổi) nhãn Hôm nay/Hôm qua vẫn tính lại.
+  const dayKey = new Date().toDateString()
   const separators = useMemo(() => {
-    const now = new Date()
+    const now = new Date(dayKey) // 00:00 hôm nay — đủ để so theo ngày
     return bubbles.map((_, i) => daySeparatorAbove(bubbles, i, now))
-  }, [bubbles])
+  }, [bubbles, dayKey])
 
   // Follow the newest bubble (own send or an incoming reply) when at the bottom; don't yank a
   // user reading history. bubbles[0] is the newest (list is inverted / newest-first).
@@ -227,9 +229,7 @@ function Bubble({
       failed={vm.status === 'failed'}
       onLongPress={onReport}
       onPress={onRetry}
-      accessibilityLabel={
-        onRetry ? 'Gửi lại tin nhắn' : onReport ? 'Giữ để báo cáo tin nhắn' : undefined
-      }
+      accessibilityHint={onRetry ? 'Chạm để gửi lại' : onReport ? 'Giữ để báo cáo' : undefined}
     />
   )
 }

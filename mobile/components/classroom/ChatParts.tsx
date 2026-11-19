@@ -32,12 +32,13 @@ export interface BubbleViewProps {
   onPress?: () => void
   onLongPress?: () => void
   delayLongPress?: number
-  accessibilityLabel?: string
+  /** Gợi ý thao tác cho trình đọc màn hình (nhãn chính luôn là người gửi · giờ + nội dung). */
+  accessibilityHint?: string
 }
 
 /** Một bong bóng: của mình = nền mực chữ sáng, đuôi góc dưới phải; người khác = nền thẻ có viền. */
 export function BubbleView({
-  mine, meta, body, deleted, sending, failed, onPress, onLongPress, delayLongPress, accessibilityLabel,
+  mine, meta, body, deleted, sending, failed, onPress, onLongPress, delayLongPress, accessibilityHint,
 }: BubbleViewProps) {
   const c = useTheme().colors
   const inkBubble = mine && !deleted
@@ -49,7 +50,9 @@ export function BubbleView({
         onLongPress={onLongPress}
         delayLongPress={delayLongPress}
         accessibilityRole={onPress || onLongPress ? 'button' : undefined}
-        accessibilityLabel={accessibilityLabel}
+        accessible
+        accessibilityLabel={`${meta}. ${deleted ? 'Tin đã xoá' : body}${failed ? '. Gửi lỗi' : ''}`}
+        accessibilityHint={accessibilityHint}
         style={{
           maxWidth: '84%',
           opacity: sending ? 0.65 : 1,
