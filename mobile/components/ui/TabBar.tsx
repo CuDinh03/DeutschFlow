@@ -36,12 +36,14 @@ import { GaGlyph } from './GaGlyph'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { TAB_LABELS } from '@/lib/tabLabels'
 
-// Biểu tượng nhận diện của 4 tab = bộ Galerie (mobile/GALERIE_GLYPHS.md).
+// Biểu tượng nhận diện của 5 tab = bộ Galerie (mobile/GALERIE_GLYPHS.md).
+// Bộ tab theo khu học viên trên web (owner chốt 18/11/2026).
 const ICONS: Record<string, GlyphName> = {
   index: 'heute',
   learn: 'hoc',
   speaking: 'speaking',
-  profile: 'hoso',
+  exam: 'thithu',
+  stats: 'thongke',
 }
 
 // Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính vẫn là
@@ -177,7 +179,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   }))
 
   // Hide the floating bar on pushed detail screens (href:null routes that aren't
-  // one of the 4 real tabs). They have their own AppHeader + back button, and the
+  // one of the 5 real tabs). They have their own AppHeader + back button, and the
   // bar would otherwise float over their bottom content — e.g. the skill tree's
   // companion/zoom controls. Placed after all hooks to respect rules-of-hooks.
   const focusedRoute = state.routes[state.index]

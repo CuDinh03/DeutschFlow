@@ -26,3 +26,16 @@ describe('màn theo tham số remount khi tham số đổi', () => {
     expect(body).toMatch(new RegExp(`<\\w+Runner key=\\{${param} \\?\\? 'none'\\} />`))
   })
 })
+
+// Luyện đề telc (Đợt 4, 19/11/2026): phần thân nhận tham số qua props và được key theo tham số.
+const PRACTICE_SCREENS: { file: string; key: RegExp }[] = [
+  { file: 'app/(student)/exam-set.tsx', key: /<ExamSet key=\{examId \?\? 'none'\}/ },
+  { file: 'app/(student)/exam-full.tsx', key: /<FullIntro key=\{examId \?\? 'none'\}/ },
+  { file: 'app/(student)/exam-teil.tsx', key: /<TeilRunner key=\{`\$\{examId\}-\$\{teil\}-\$\{mode \?\? ''\}`\}/ },
+]
+
+describe('màn luyện đề remount khi tham số đổi', () => {
+  it.each(PRACTICE_SCREENS)('$file remount theo tham số', ({ file, key }) => {
+    expect(defaultExportBody(readFileSync(join(__dirname, '..', file), 'utf8'))).toMatch(key)
+  })
+})

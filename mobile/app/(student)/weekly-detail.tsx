@@ -70,7 +70,7 @@ export default function WeeklyDetailScreen() {
                   </ThemedText>
                 </View>
               </View>
-              {data.cefrBand ? <Pill label={data.cefrBand} tone="accent" /> : null}
+              {data.cefrBand ? <Pill label={data.cefrBand} tone="accent" solid /> : null}
             </View>
             {score != null ? (
               <ProgressBar value={score / MAX_SCORE} fillColor={c.accent} trackColor={c.onInkMuted} height={6} />

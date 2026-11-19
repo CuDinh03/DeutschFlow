@@ -9,7 +9,7 @@ import { useReducedMotion } from '@/lib/useReducedMotion'
 
 const PIECES = 26
 // Brand-forward palette: DE gold + red, ink, and a cool counterpoint.
-const COLORS = ['#FFCD00', '#DA291C', '#161513', '#2E86AB', '#5FAD56']
+const COLORS = ['#FFC900', '#E3261D', '#171615', '#23406E', '#169B5E']
 
 interface Piece {
   startX: number

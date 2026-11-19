@@ -14,15 +14,15 @@ import {
   Newsreader_600SemiBold,
   Newsreader_700Bold,
 } from '@expo-google-fonts/newsreader'
-// Body/UI = Plus Jakarta Sans (đủ 70/70 glyph tiếng Việt). Instrument Sans cũ chỉ có 20/70
-// (thiếu ơ ư ạ ả ấ ầ … ỹ) → iOS/Android fallback từng ký tự sang SF/Roboto, chữ Việt lẫn nét.
+// Body/UI = Be Vietnam Pro (nhận diện v3.4, giống web; thiết kế cho tiếng Việt nên đủ dấu).
+// Nạp lúc chạy bằng useFonts (asset JS) ⇒ không đổi fingerprint native, phát hành OTA được.
 import {
   useFonts as useSans,
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-} from '@expo-google-fonts/plus-jakarta-sans'
+  BeVietnamPro_400Regular,
+  BeVietnamPro_500Medium,
+  BeVietnamPro_600SemiBold,
+  BeVietnamPro_700Bold,
+} from '@expo-google-fonts/be-vietnam-pro'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
@@ -130,10 +130,10 @@ function RootLayout() {
     Newsreader_700Bold,
   })
   const [sansLoaded] = useSans({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
+    BeVietnamPro_400Regular,
+    BeVietnamPro_500Medium,
+    BeVietnamPro_600SemiBold,
+    BeVietnamPro_700Bold,
   })
   const fontsReady = serifLoaded && sansLoaded
 

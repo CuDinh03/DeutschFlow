@@ -6,7 +6,7 @@
 import { useCallback, useRef } from 'react'
 import { router, type Href } from 'expo-router'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
-import { lastMainTabHref } from '@/lib/screenParents'
+import { lastMainTabHref, lastTabHref } from '@/lib/screenParents'
 
 type BackTarget = Href | (() => Href)
 
@@ -21,7 +21,13 @@ export function useBackTo(target: BackTarget): () => void {
   return goBack
 }
 
-/** Màn tiện ích mở từ nhiều tab: về tab chính được mở gần nhất (Heute nếu vào thẳng từ thông báo). */
+/** Màn tiện ích mở từ nhiều nơi: về trạm mở gần nhất — tab chính, hoặc Hồ sơ nếu vừa rẽ từ Hồ sơ
+ *  (Heute nếu vào thẳng từ thông báo). Tên giữ nguyên để không đổi 20+ màn đang gọi. */
 export function useBackToMainTab(): () => void {
   return useBackTo(lastMainTabHref)
+}
+
+/** Hồ sơ (mở từ ảnh đại diện): về tab chính mở gần nhất, không về chính nó. */
+export function useBackToLastTab(): () => void {
+  return useBackTo(lastTabHref)
 }
