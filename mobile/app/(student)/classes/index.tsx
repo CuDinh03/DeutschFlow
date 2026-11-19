@@ -1,19 +1,20 @@
 import { useState } from 'react'
-import type { GlyphName } from '@/lib/galerieGlyphs'
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
-import { ChevronRight, Plus } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import {
   fetchMyClasses, joinClassByInviteCode, type MyClassroom,
 } from '@/lib/studentClassesApi'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, EmptyState, ErrorState, FadeIn, Icon,
+  Button, Caption, Card, EmptyState, ErrorState, FadeIn, GaGlyph, Icon,
   ProgressBar, Screen, Skeleton, TextField, ThemedText, YellowSquare,
-GaGlyph } from '@/components/ui'
+} from '@/components/ui'
+import { MarkTitle, StatTriplet, TopBar } from '@/components/classroom/ClassroomParts'
+import { formatAvgVi, percentLabel, shortDate } from '@/lib/classroomUi'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
@@ -32,41 +33,36 @@ export default function StudentClassesIndex() {
   })
   const pull = usePullRefresh(refetch)
 
+  // Giao diện v3.4 (Đợt 6B, mẫu `classes`): nút back + "Tham gia lớp" mực, tiêu đề có vệt vàng,
+  // mỗi lớp một thẻ lớn (ô glyph vàng, bộ ba số liệu, thanh tiến độ, bài mới nhất).
+  const header = (
+    <View style={{ paddingHorizontal: space[5], paddingTop: space[4], paddingBottom: space[2], gap: space[1] }}>
+      <MarkTitle plain="Lớp" mark="của tôi" />
+      <ThemedText variant="caption" color="muted" style={{ fontSize: 13 }}>
+        {classes && classes.length > 0 ? `Đang tham gia ${classes.length} lớp` : 'Lớp bạn đã tham gia'}
+      </ThemedText>
+    </View>
+  )
+
   return (
     <Screen>
-      <AppHeader
-        title="Lớp của tôi"
-        subtitle={
-          classes && classes.length > 0
-            ? `Đang tham gia ${classes.length} lớp`
-            : 'Lớp bạn đã tham gia'
-        }
+      <TopBar
         onBack={goBack}
         right={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Tham gia lớp"
+          <Button
+            label="Tham gia lớp"
+            size="sm"
+            fullWidth={false}
             onPress={() => setJoinOpen(true)}
-            hitSlop={8}
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              borderRadius: radius.md,
-              backgroundColor: theme.colors.accentSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Icon icon={Plus} size={20} color="accent" />
-          </Pressable>
+          />
         }
       />
+      {header}
 
       {isLoading ? (
-        <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
-          <Skeleton height={150} radius="md" />
-          <Skeleton height={150} radius="md" />
+        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
+          <Skeleton height={190} radius="lg" />
+          <Skeleton height={190} radius="lg" />
         </View>
       ) : error ? (
         <ErrorState
@@ -90,6 +86,7 @@ export default function StudentClassesIndex() {
           keyExtractor={(c) => String(c.id)}
           contentContainerStyle={{
             paddingHorizontal: space[5],
+            paddingTop: space[3],
             paddingBottom: space[8],
             gap: space[3],
           }}
@@ -100,22 +97,6 @@ export default function StudentClassesIndex() {
               onRefresh={() => void pull.onRefresh()}
               tintColor={theme.colors.accent}
             />
-          }
-          ListHeaderComponent={
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: space[2],
-                paddingTop: space[3],
-                paddingBottom: space[1],
-              }}
-            >
-              <YellowSquare size={9} />
-              <Caption>
-                {`${classes.length} lớp đang tham gia`}
-              </Caption>
-            </View>
           }
           renderItem={({ item, index }) => (
             <FadeIn delay={index * 60}>
@@ -135,86 +116,59 @@ export default function StudentClassesIndex() {
 }
 
 function ClassCard({ classroom }: { classroom: MyClassroom }) {
-  const theme = useTheme()
-  const c = theme.colors
+  const c = useTheme().colors
   const lessonPercent = classroom.lessonTotal > 0
     ? classroom.lessonCompleted / classroom.lessonTotal
     : 0
+  const teachers = classroom.teachers.length > 0
+    ? classroom.teachers.map((t) => t.displayName).join(', ')
+    : 'Chưa có giáo viên'
+  const due = shortDate(classroom.latestAssignmentDueDate)
 
   return (
     <Card
-      padded={false}
       onPress={() => router.push(`/(student)/classes/${classroom.id}` as never)}
       accessibilityLabel={`Mở lớp ${classroom.name}`}
+      style={{ borderRadius: radius.xl, gap: space[3] }}
     >
-      {/* Editorial header — eyebrow + serif title, teacher line, chevron affordance */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: space[3],
-          padding: space[4],
-          borderBottomWidth: 1,
-          borderBottomColor: c.border,
-        }}
-      >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
         <View
           style={{
             width: 44,
             height: 44,
             borderRadius: radius.md,
-            backgroundColor: c.accentSoft,
+            backgroundColor: c.accent,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <GaGlyph name="lophoc" size={20} ink="primary" />
+          <GaGlyph name="lophoc" size={24} ink="onAccent" gold="ink" />
         </View>
-        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <Caption color={c.accentText}>Lớp học</Caption>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <ThemedText variant="title" numberOfLines={1}>
             {classroom.name}
           </ThemedText>
-          <ThemedText variant="caption" color="secondary" numberOfLines={1}>
-            {classroom.teachers.length > 0
-              ? classroom.teachers.map((t) => t.displayName).join(', ')
-              : 'Chưa có giáo viên'}
+          <ThemedText variant="caption" color="muted" numberOfLines={1} style={{ fontSize: 13 }}>
+            {teachers}
           </ThemedText>
         </View>
         <Icon icon={ChevronRight} size={18} color="faint" />
       </View>
 
-      {/* Mini-stats — hairline sharp tiles */}
-      <View style={{ flexDirection: 'row', borderBottomWidth: classroom.lessonTotal > 0 || classroom.latestAssignmentTopic ? 1 : 0, borderBottomColor: c.border }}>
-        <MiniStat glyph="baigiao" label="Bài tập" value={String(classroom.assignmentCount)} />
-        <MiniStat
-          glyph="thoigian"
-          label="Chưa nộp"
-          value={String(classroom.pendingCount)}
-          tone={classroom.pendingCount > 0 ? 'danger' : undefined}
-          divider
-        />
-        <MiniStat
-          glyph="dulieuai"
-          label="Điểm TB"
-          value={classroom.avgScore != null ? classroom.avgScore.toFixed(1) : '–'}
-          divider
-        />
-      </View>
+      <StatTriplet
+        cells={[
+          { value: String(classroom.assignmentCount), label: 'Bài tập' },
+          { value: String(classroom.pendingCount), label: 'Chưa nộp', tone: classroom.pendingCount > 0 ? 'danger' : undefined },
+          { value: formatAvgVi(classroom.avgScore), label: 'Điểm TB' },
+        ]}
+      />
 
       {classroom.lessonTotal > 0 && (
-        <View
-          style={{
-            gap: space[2],
-            padding: space[4],
-            borderBottomWidth: classroom.latestAssignmentTopic ? 1 : 0,
-            borderBottomColor: c.border,
-          }}
-        >
+        <View style={{ gap: space[2] }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Caption>Tiến độ lớp</Caption>
-            <ThemedText variant="caption" color="secondary">
-              {classroom.lessonCompleted}/{classroom.lessonTotal} buổi
+            <ThemedText variant="caption" color="muted" style={{ fontSize: 13 }}>Tiến độ lớp</ThemedText>
+            <ThemedText variant="label">
+              {`${classroom.lessonCompleted}/${classroom.lessonTotal} buổi · ${percentLabel(classroom.lessonCompleted, classroom.lessonTotal)}`}
             </ThemedText>
           </View>
           <ProgressBar value={lessonPercent} />
@@ -222,57 +176,15 @@ function ClassCard({ classroom }: { classroom: MyClassroom }) {
       )}
 
       {classroom.latestAssignmentTopic && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: space[2],
-            padding: space[4],
-          }}
-        >
-          <YellowSquare size={9} style={{ marginTop: 4 }} />
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Caption>Bài mới nhất</Caption>
-            <ThemedText variant="bodyStrong" numberOfLines={1}>
-              {classroom.latestAssignmentTopic}
-            </ThemedText>
-          </View>
-        </View>
+        <ThemedText variant="caption" color="muted" numberOfLines={2} style={{ fontSize: 13 }}>
+          {'Bài mới nhất: '}
+          <ThemedText variant="caption" style={{ fontSize: 13, fontFamily: fonts.bodySemi }}>
+            {classroom.latestAssignmentTopic}
+          </ThemedText>
+          {due ? ` · hạn ${due}` : ''}
+        </ThemedText>
       )}
     </Card>
-  )
-}
-
-function MiniStat({
-  glyph, label, value, tone, divider,
-}: {
-  glyph: GlyphName
-  label: string
-  value: string
-  tone?: 'danger'
-  divider?: boolean
-}) {
-  const theme = useTheme()
-  const c = theme.colors
-  const isDanger = tone === 'danger'
-  return (
-    <View
-      style={{
-        flex: 1,
-        paddingVertical: space[3],
-        paddingHorizontal: space[2],
-        alignItems: 'center',
-        gap: 4,
-        borderLeftWidth: divider ? 1 : 0,
-        borderLeftColor: c.border,
-      }}
-    >
-      <GaGlyph name={glyph} size={14} ink={isDanger ? 'danger' : 'muted'} gold={isDanger ? 'danger' : 'accent'} />
-      <ThemedText variant="monoLg" color={isDanger ? 'danger' : 'primary'}>
-        {value}
-      </ThemedText>
-      <Caption color={isDanger ? c.danger : c.textMuted}>{label}</Caption>
-    </View>
   )
 }
 

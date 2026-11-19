@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Upload } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import {
@@ -11,11 +10,17 @@ import {
   type ClassLesson, type ClassroomDetail, type MySkillReport, type StudentAssignment,
   type StudentAttendance, type TeacherSummary,
 } from '@/lib/studentClassesApi'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, IconButton, Pill, ProgressBar,
-  Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
-GaGlyph } from '@/components/ui'
+  Button, Card, EmptyState, ErrorState, GaGlyph, GaGlyphTile, Screen, Skeleton, ThemedText,
+} from '@/components/ui'
+import {
+  Chip, HeaderGlyphButton, InitialAvatar, ListBlock, StatTriplet, StatusBadge, TopBar, listRowStyle,
+  type BadgeTone,
+} from '@/components/classroom/ClassroomParts'
+import {
+  assignmentTypeGlyph, assignmentTypeLabel, formatAvgVi, nameInitial, percentLabel, sessionDayBox, shortDate,
+} from '@/lib/classroomUi'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
@@ -44,10 +49,10 @@ export default function StudentClassDetail() {
   if (detailQ.isLoading) {
     return (
       <Screen>
-        <AppHeader title="Đang tải lớp…" onBack={goBack} />
-        <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
-          <Skeleton height={120} />
-          <Skeleton height={180} />
+        <TopBar title="Đang tải lớp…" onBack={goBack} />
+        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[4] }}>
+          <Skeleton height={120} radius="lg" />
+          <Skeleton height={180} radius="lg" />
         </View>
       </Screen>
     )
@@ -55,7 +60,7 @@ export default function StudentClassDetail() {
   if (detailQ.error || !detailQ.data) {
     return (
       <Screen>
-        <AppHeader title="Không mở được lớp" onBack={goBack} />
+        <TopBar title="Không mở được lớp" onBack={goBack} />
         <ErrorState
           message={detailQ.error ? apiMessage(detailQ.error) : 'Không tìm thấy lớp.'}
           onRetry={() => void detailQ.refetch()}
@@ -68,47 +73,55 @@ export default function StudentClassDetail() {
   const assignments = assignmentsQ.data ?? []
   const lessons = lessonsQ.data ?? []
 
+  // Giao diện v3.4 (Đợt 6B, mẫu `classd`): thanh đầu có nút Chat lớp + Lịch buổi học, tên lớp,
+  // dòng "Dạy bởi", bộ ba số liệu, hàng chip chọn mục, rồi nội dung từng mục.
   return (
     <Screen>
-      <AppHeader
-        title={detail.name}
-        subtitle={`${detail.studentCount} học viên · ${detail.assignmentCount} bài tập`}
+      <TopBar
         onBack={goBack}
         right={
-          <IconButton
-            glyph="hoithoai"
-            accessibilityLabel="Chat lớp"
-            onPress={() =>
-              router.push({
-                pathname: '/(student)/class-chat/[classId]',
-                params: { classId: String(classId), className: detail.name },
-              })
-            }
-          />
+          <>
+            <HeaderGlyphButton
+              glyph="tinnhan"
+              accessibilityLabel="Chat lớp"
+              onPress={() =>
+                router.push({
+                  pathname: '/(student)/class-chat/[classId]',
+                  params: { classId: String(classId), className: detail.name },
+                })
+              }
+            />
+            <HeaderGlyphButton
+              glyph="lich"
+              accessibilityLabel="Xem lịch buổi học"
+              onPress={() =>
+                router.push({
+                  pathname: '/(student)/class-schedule/[classId]',
+                  params: { classId: String(classId), className: detail.name },
+                })
+              }
+            />
+          </>
         }
       />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: space[5],
+          paddingTop: space[4],
           paddingBottom: space[8],
           gap: space[4],
         }}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}
       >
-        <HeaderCard detail={detail} />
-        <ProgressStrip detail={detail} />
-        <Button
-          label="Xem lịch buổi học"
-          variant="secondary"
-          glyph="lich"
-          onPress={() =>
-            router.push({
-              pathname: '/(student)/class-schedule/[classId]',
-              params: { classId: String(classId), className: detail.name },
-            })
-          }
-        />
-        <TabBar tab={tab} setTab={setTab} />
+        <View style={{ gap: space[1] }}>
+          <ThemedText variant="titleLg" accessibilityRole="header">{detail.name}</ThemedText>
+          <ThemedText variant="caption" color="muted" style={{ fontSize: 13 }}>
+            {`${detail.studentCount} học viên · ${detail.assignmentCount} bài tập`}
+          </ThemedText>
+        </View>
+        <TaughtBy detail={detail} />
+        <ClassStats detail={detail} />
+        <TabRail tab={tab} setTab={setTab} />
         {tab === 'assignments' && (
           <AssignmentsTab classId={id}
             assignments={assignments}
@@ -138,95 +151,66 @@ export default function StudentClassDetail() {
   )
 }
 
-// Editorial ink hero — the "who teaches this class" primary fact.
+// "Dạy bởi" — ai dạy lớp này, ô tròn chữ cái đầu nền mực. Lớp đúng MỘT giáo viên thì có chip
+// "Nhắn tin" mở thẳng hội thoại (cùng đường với tab Giáo viên); nhiều giáo viên thì chọn ở tab đó.
 //
 // V-04: KHÔNG hiện mã mời lớp và KHÔNG có nút Chia sẻ ở màn HỌC VIÊN. Mã mời là chìa khoá vào một
 // GHẾ của trung tâm (mỗi lượt chia sẻ = một ghế người lạ có thể chiếm), mà học viên không phải
 // người có quyền mời. Backend cũng đã ngừng trả `inviteCode` cho lớp thuộc trung tâm — đây là lớp
 // chặn thứ hai, và đường giáo viên xem/chia sẻ mã lớp của mình không đi qua màn này.
-function HeaderCard({ detail }: { detail: ClassroomDetail }) {
-  const theme = useTheme()
-  const c = theme.colors
+function TaughtBy({ detail }: { detail: ClassroomDetail }) {
+  const names = detail.teachers.length > 0
+    ? detail.teachers.map((t) => t.displayName).join(', ')
+    : 'Chưa có giáo viên'
+  const only = detail.teachers.length === 1 ? detail.teachers[0] : null
   return (
-    <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-      <View style={{ gap: space[3] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <YellowSquare size={8} />
-          <Caption color={c.accent}>Dạy bởi</Caption>
-        </View>
-        <ThemedText variant="titleLg" style={{ color: c.onInk }}>
-          {detail.teachers.length > 0
-            ? detail.teachers.map((t) => t.displayName).join(', ')
-            : 'Chưa có giáo viên'}
-        </ThemedText>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+      <InitialAvatar initial={nameInitial(detail.teachers[0]?.displayName)} size={36} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <ThemedText variant="caption" color="muted" style={{ fontSize: 13 }}>Dạy bởi</ThemedText>
+        <ThemedText variant="bodyStrong" numberOfLines={2}>{names}</ThemedText>
       </View>
-    </Card>
-  )
-}
-
-function ProgressStrip({ detail }: { detail: ClassroomDetail }) {
-  const lessonPercent = detail.lessonTotal > 0
-    ? detail.lessonCompleted / detail.lessonTotal : 0
-  const assignPercent = detail.assignmentCount > 0
-    ? detail.gradedCount / detail.assignmentCount : 0
-  return (
-    <View style={{ flexDirection: 'row', gap: space[2] }}>
-      <ProgressCard
-        label="Tiến độ lớp"
-        value={detail.lessonTotal > 0 ? `${detail.lessonCompleted}/${detail.lessonTotal}` : '–'}
-        sub={detail.currentLessonTitle ?? 'Chưa có buổi học'}
-        percent={lessonPercent}
-        accent="accent"
-      />
-      <ProgressCard
-        label="Bài tập"
-        value={detail.assignmentCount > 0 ? `${detail.gradedCount}/${detail.assignmentCount}` : '–'}
-        sub={`${detail.pendingCount} chưa nộp`}
-        percent={assignPercent}
-        accent="success"
-      />
-      <ProgressCard
-        label="Điểm TB"
-        value={detail.avgScore != null ? detail.avgScore.toFixed(1) : '–'}
-        sub={detail.avgScore != null ? 'Đã chấm' : 'Chưa có điểm'}
-        accent="info"
-      />
+      {only ? (
+        <Chip
+          label="Nhắn tin"
+          accessibilityLabel={`Nhắn tin cho ${only.displayName}`}
+          onPress={() =>
+            router.push({
+              pathname: '/(student)/messages/[userId]',
+              params: { userId: String(only.id), name: only.displayName },
+            })
+          }
+        />
+      ) : null}
     </View>
   )
 }
 
-function ProgressCard({
-  label, value, sub, percent, accent,
-}: {
-  label: string; value: string; sub: string; percent?: number
-  accent: 'accent' | 'success' | 'info'
-}) {
-  const theme = useTheme()
-  const c = theme.colors
-  const fill = accent === 'success' ? c.success : accent === 'info' ? c.info : c.accent
+function ClassStats({ detail }: { detail: ClassroomDetail }) {
+  const c = useTheme().colors
+  const notes = [
+    detail.currentLessonTitle ? `Buổi hiện tại: ${detail.currentLessonTitle}` : null,
+    detail.pendingCount > 0 ? `${detail.pendingCount} bài chưa nộp` : null,
+  ].filter(Boolean).join(' · ')
   return (
-    <Card style={{ flex: 1 }}>
-      <View style={{ gap: space[1] }}>
-        <Caption>{label}</Caption>
-        <ThemedText variant="title">{value}</ThemedText>
-        <ThemedText variant="caption" color="muted" numberOfLines={1}>
-          {sub}
-        </ThemedText>
-        {typeof percent === 'number' && (
-          <View style={{ marginTop: space[1] }}>
-            <ProgressBar value={percent} height={4} fillColor={fill} />
-          </View>
-        )}
-      </View>
-    </Card>
+    <View style={{ gap: space[2], borderTopWidth: 1, borderTopColor: c.border }}>
+      <StatTriplet
+        style={{ paddingTop: space[3] }}
+        cells={[
+          { value: percentLabel(detail.lessonCompleted, detail.lessonTotal), label: 'Tiến độ lớp' },
+          { value: detail.assignmentCount > 0 ? `${detail.gradedCount}/${detail.assignmentCount}` : '–', label: 'Bài đã chấm' },
+          { value: formatAvgVi(detail.avgScore), label: 'Điểm TB' },
+        ]}
+      />
+      {notes ? (
+        <ThemedText variant="caption" color="muted" numberOfLines={2}>{notes}</ThemedText>
+      ) : null}
+    </View>
   )
 }
 
-// Sharp editorial segmented control — UPPERCASE labels, active segment lifts to
-// the surface layer with a yellow underline mark.
-function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
-  const theme = useTheme()
-  const c = theme.colors
+// Hàng chip chọn mục (`.rail` + `.chip.on`): cuộn ngang, chip đang chọn nền mực.
+function TabRail({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'assignments', label: 'Bài tập' },
     { key: 'grades', label: 'Điểm' },
@@ -235,48 +219,24 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { key: 'progress', label: 'Tiến độ' },
   ]
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        backgroundColor: c.surfaceSunken,
-        borderRadius: radius.sm,
-        borderWidth: 1,
-        borderColor: c.border,
-        padding: 4,
-        gap: 4,
-      }}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      accessibilityRole="tablist"
+      style={{ marginHorizontal: -space[5] }}
+      contentContainerStyle={{ paddingHorizontal: space[5], gap: space[2], paddingVertical: space[1] }}
     >
-      {tabs.map((t) => {
-        const active = t.key === tab
-        return (
-          <Pressable
-            key={t.key}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            onPress={() => setTab(t.key)}
-            style={{
-              flex: 1,
-              paddingVertical: space[2],
-              backgroundColor: active ? c.surface : 'transparent',
-              borderRadius: radius.sm,
-              borderWidth: active ? 1 : 0,
-              borderColor: c.border,
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <Caption color={active ? c.textPrimary : c.textMuted}>{t.label}</Caption>
-            {active ? <YellowSquare size={5} /> : null}
-          </Pressable>
-        )
-      })}
-    </View>
+      {tabs.map((t) => (
+        <Chip key={t.key} label={t.label} selectable on={t.key === tab} onPress={() => setTab(t.key)} />
+      ))}
+    </ScrollView>
   )
 }
 
 function AssignmentsTab({
   assignments, isError, onRetry, classId,
 }: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void; classId: string }) {
+  const c = useTheme().colors
   if (assignments.length === 0 && isError) {
     return (
       <ErrorState
@@ -292,56 +252,53 @@ function AssignmentsTab({
     )
   }
   return (
-    <View style={{ gap: space[4] }}>
-      <SectionHeader title="Bài tập của lớp" />
-      <View style={{ gap: space[2] }}>
-        {assignments.map((a) => (
-          <Card
+    <ListBlock>
+      {assignments.map((a, i) => {
+        const due = shortDate(a.dueDate)
+        const badge = statusBadge(a.status, a.teacherScore)
+        const title = a.topic || 'Bài tập'
+        return (
+          <Pressable
             // V-12c: KHÔNG dùng a.id — backend trả id = null cho bài chưa bắt đầu (xem assignmentRowKey).
             key={assignmentRowKey(a)}
             onPress={() => router.push({ pathname: '/(student)/assignments/[id]', params: { id: String(a.assignmentId), classId } })}
-            accessibilityLabel={`Mở bài tập ${a.topic || 'bài tập'}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Mở bài tập ${title}, ${badge.a11y}`}
+            style={({ pressed }) => listRowStyle(c.border, i === 0, { backgroundColor: pressed ? c.surfaceSunken : 'transparent' })}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-              <View style={{ flex: 1, gap: space[1] }}>
-                <Caption>Bài tập</Caption>
-                <ThemedText variant="title" numberOfLines={1}>
-                  {a.topic || 'Bài tập'}
-                </ThemedText>
-                {a.dueDate && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: space[1] }}>
-                    <GaGlyph name="thoigian" size={11} ink="muted" />
-                    <ThemedText variant="caption" color="muted">
-                      Hạn {new Date(a.dueDate).toLocaleString('vi-VN')}
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-              <StatusPill status={a.status} score={a.teacherScore} />
+            <GaGlyphTile name={assignmentTypeGlyph(a.assignmentType)} tone="neutral" size={36} glyphSize={20} radius={radius.sm} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <ThemedText variant="bodyStrong" numberOfLines={1}>{title}</ThemedText>
+              <ThemedText variant="caption" color="muted" numberOfLines={1}>
+                {`${assignmentTypeLabel(a.assignmentType)}${due ? ` · hạn ${due}` : ''}`}
+              </ThemedText>
             </View>
-          </Card>
-        ))}
-      </View>
-    </View>
+            <StatusBadge label={badge.label} tone={badge.tone} />
+          </Pressable>
+        )
+      })}
+    </ListBlock>
   )
 }
 
-function StatusPill({ status, score }: { status: string; score: number | null }) {
+function statusBadge(status: string, score: number | null): { label: string; tone: BadgeTone; a11y: string } {
   // Phân loại dùng CHUNG với màn chi tiết bài (assignmentStatusView) — cùng một bài không được
   // hiện hai câu chữ ở hai màn (V-12c).
   switch (assignmentStatusView(status)) {
     case 'graded':
-      return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
+      return score != null
+        ? { label: String(score), tone: 'success', a11y: `đã chấm, điểm ${score}` }
+        : { label: 'Đã chấm', tone: 'success', a11y: 'đã chấm' }
     case 'gradingFailed':
       // Đã nộp NHƯNG khâu chấm chết — học viên có quyền biết bài mình chưa được chấm. Vẫn thuộc
       // nhóm isAwaitingTeacher nên quyền "Nộp bản khác" không đổi.
-      return <Pill tone="danger" glyph="canhbao" label={GRADING_FAILED_LABEL} />
+      return { label: GRADING_FAILED_LABEL, tone: 'danger', a11y: GRADING_FAILED_LABEL }
     case 'awaitingTeacher':
       // AI_GRADED = bài ĐÃ nộp, đang chờ giáo viên (F-14 soát 02/09) — trước đây rơi nhánh else và
       // hiện "Chưa nộp" đỏ cho bài học viên vừa nộp xong.
-      return <Pill tone="info" icon={Upload} label="Đã nộp" />
+      return { label: 'Đã nộp', tone: 'info', a11y: 'đã nộp' }
     default:
-      return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
+      return { label: 'Chưa nộp', tone: 'danger', a11y: 'chưa nộp' }
   }
 }
 
@@ -367,59 +324,34 @@ function GradesTab({
     return <EmptyState glyph="dulieuai" title="Chưa có điểm" message="Chưa có bài nào được chấm." />
   }
   return (
-    <View style={{ gap: space[4] }}>
-      <SectionHeader title="Điểm đã chấm" />
-      <View style={{ gap: space[2] }}>
-        {graded.map((a) => {
-          const tone = a.teacherScore == null
-            ? 'accent'
-            : a.teacherScore >= 8 ? 'success' : a.teacherScore >= 5 ? 'accent' : 'danger'
-          const figColor = a.teacherScore == null
-            ? c.textPrimary
-            : a.teacherScore >= 8 ? c.success : a.teacherScore >= 5 ? c.accentText : c.danger
-          return (
-            <Card key={a.id}>
-              <View style={{ gap: space[2] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space[3] }}>
-                  <View style={{ flex: 1, gap: space[1] }}>
-                    <Caption>Bài tập</Caption>
-                    <ThemedText variant="title" numberOfLines={1}>
-                      {a.topic || 'Bài tập'}
-                    </ThemedText>
-                  </View>
-                  {a.teacherScore != null && (
-                    <View style={{ alignItems: 'center', gap: 2 }}>
-                      <ThemedText variant="displayLg" style={{ color: figColor }}>
-                        {String(a.teacherScore)}
-                      </ThemedText>
-                      <Pill tone={tone} label="Điểm" />
-                    </View>
-                  )}
-                </View>
-                {a.teacherFeedback && (
-                  <View
-                    style={{
-                      borderTopWidth: 1,
-                      borderTopColor: c.border,
-                      paddingTop: space[2],
-                    }}
-                  >
-                    <Caption>Nhận xét</Caption>
-                    <ThemedText variant="caption" color="secondary" style={{ marginTop: space[1] }}>
-                      {a.teacherFeedback}
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-            </Card>
-          )
-        })}
-      </View>
-    </View>
+    <ListBlock>
+      {graded.map((a, i) => {
+        const figColor = a.teacherScore == null
+          ? c.textPrimary
+          : a.teacherScore >= 8 ? c.success : a.teacherScore >= 5 ? c.accentText : c.danger
+        return (
+          <View key={a.id} style={listRowStyle(c.border, i === 0, { alignItems: 'flex-start', paddingVertical: space[3] })}>
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <ThemedText variant="bodyStrong" numberOfLines={2}>{a.topic || 'Bài tập'}</ThemedText>
+              {a.teacherFeedback ? (
+                <ThemedText variant="caption" color="muted">{`Nhận xét: ${a.teacherFeedback}`}</ThemedText>
+              ) : null}
+            </View>
+            {a.teacherScore != null ? (
+              <ThemedText variant="titleLg" style={{ color: figColor, fontVariant: ['tabular-nums'] }} accessibilityLabel={`Điểm ${a.teacherScore}`}>
+                {String(a.teacherScore)}
+              </ThemedText>
+            ) : null}
+          </View>
+        )
+      })}
+    </ListBlock>
   )
 }
 
 // P4: the student's own evaluation — 4-skill report + attendance history (own data only).
+// v3.4 (mẫu `classd`, mục Đánh giá): một thẻ gồm bảng điểm 4 kỹ năng dạng thanh, nhận xét của giáo
+// viên và tóm tắt điểm danh; danh sách từng buổi điểm danh nằm dưới thẻ.
 function EvaluationTab({ classId }: { classId: number }) {
   const reportQ = useQuery({
     queryKey: ['my-skill-report', classId],
@@ -437,8 +369,8 @@ function EvaluationTab({ classId }: { classId: number }) {
   if (reportQ.isLoading && attendanceQ.isLoading) {
     return (
       <View style={{ gap: space[3] }}>
-        <Skeleton height={168} />
-        <Skeleton height={120} />
+        <Skeleton height={168} radius="lg" />
+        <Skeleton height={120} radius="lg" />
       </View>
     )
   }
@@ -459,13 +391,13 @@ function EvaluationTab({ classId }: { classId: number }) {
   const attendance = attendanceQ.data ?? []
 
   return (
-    <View style={{ gap: space[5] }}>
-      <View style={{ gap: space[3] }}>
-        <SectionHeader title="Bảng điểm 4 kỹ năng" />
+    <View style={{ gap: space[4] }}>
+      <Card style={{ gap: space[3] }}>
+        <ThemedText variant="bodyStrong" accessibilityRole="header">Bảng điểm 4 kỹ năng</ThemedText>
         {reportQ.isError ? (
           <ErrorState title="Không tải được bảng điểm" onRetry={() => void reportQ.refetch()} />
         ) : report && hasAnySkill(report) ? (
-          <SkillReportCard report={report} />
+          <SkillBars report={report} />
         ) : (
           <EmptyState
             glyph="thongke"
@@ -473,23 +405,32 @@ function EvaluationTab({ classId }: { classId: number }) {
             message="Giáo viên chưa chấm điểm 4 kỹ năng cho bạn."
           />
         )}
-      </View>
 
-      <View style={{ gap: space[3] }}>
-        <SectionHeader title="Nhận xét của giáo viên" />
+        <ThemedText variant="bodyStrong" accessibilityRole="header" style={{ marginTop: space[2] }}>
+          Nhận xét của giáo viên
+        </ThemedText>
         {report?.teacherComment ? (
-          <TeacherCommentCard comment={report.teacherComment} evaluatedAt={report.evaluatedAt} />
+          <View style={{ gap: space[1] }}>
+            {/* Trước đây `teacher_comment` chỉ đi ra DTO phía giáo viên: thầy cô viết trong sổ điểm
+                và không đường nào trả nó về cho chính học viên được nhận xét. */}
+            <ThemedText variant="body" style={{ lineHeight: 22 }}>{report.teacherComment}</ThemedText>
+            {report.evaluatedAt ? (
+              <ThemedText variant="caption" color="muted">
+                {`Nhận xét ngày ${new Date(report.evaluatedAt).toLocaleDateString('vi-VN')}`}
+              </ThemedText>
+            ) : null}
+          </View>
         ) : (
-          <EmptyState
-            glyph="hoithoai"
-            title="Chưa có nhận xét"
-            message="Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có."
-          />
+          <ThemedText variant="body" color="muted">
+            Giáo viên chưa viết nhận xét cho bạn. Nhận xét sẽ hiện ở đây khi có.
+          </ThemedText>
         )}
-      </View>
 
-      <View style={{ gap: space[3] }}>
-        <SectionHeader title="Điểm danh" />
+        {!attendanceQ.isError && attendance.length > 0 ? <AttendanceSummary rows={attendance} /> : null}
+      </Card>
+
+      <View>
+        <ThemedText variant="title" accessibilityRole="header" style={{ marginBottom: space[3] }}>Điểm danh</ThemedText>
         {attendanceQ.isError ? (
           <ErrorState title="Không tải được điểm danh" onRetry={() => void attendanceQ.refetch()} />
         ) : attendance.length === 0 ? (
@@ -499,14 +440,11 @@ function EvaluationTab({ classId }: { classId: number }) {
             message="Lớp chưa có buổi học nào được ghi nhận."
           />
         ) : (
-          <>
-            <AttendanceSummary rows={attendance} />
-            <View style={{ gap: space[2] }}>
-              {attendance.map((a) => (
-                <AttendanceRow key={a.lessonLogId} row={a} />
-              ))}
-            </View>
-          </>
+          <ListBlock>
+            {attendance.map((a, i) => (
+              <AttendanceRow key={a.lessonLogId} row={a} first={i === 0} />
+            ))}
+          </ListBlock>
         )}
       </View>
     </View>
@@ -514,68 +452,75 @@ function EvaluationTab({ classId }: { classId: number }) {
 }
 
 const SKILLS: { key: 'horen' | 'lesen' | 'schreiben' | 'sprechen'; label: string }[] = [
-  { key: 'horen', label: 'Nghe' },
   { key: 'lesen', label: 'Đọc' },
+  { key: 'horen', label: 'Nghe' },
   { key: 'schreiben', label: 'Viết' },
   { key: 'sprechen', label: 'Nói' },
 ]
+
+/**
+ * Vạch trên thanh kỹ năng (`.sbar > s` của mẫu). Đặt ở 5/10 cho khớp xếp loại của backend
+ * (`SkillReportDto.gradeOf`: ≥ 5,0 là "Trung bình"); mẫu vẽ 6/10 nhưng không API nào có ngưỡng đó.
+ */
+const PASS_MARK = 0.5
 
 function hasAnySkill(r: MySkillReport): boolean {
   return r.horen != null || r.lesen != null || r.schreiben != null || r.sprechen != null
 }
 
-function gradeTone(total: number | null): 'success' | 'accent' | 'danger' | 'neutral' {
+function gradeTone(total: number | null): BadgeTone {
   if (total == null) return 'neutral'
   if (total >= 8) return 'success'
   if (total >= 5) return 'accent'
   return 'danger'
 }
 
-function SkillReportCard({ report }: { report: MySkillReport }) {
-  return (
-    <Card style={{ gap: space[4] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View>
-          <Caption>Tổng kết</Caption>
-          <ThemedText variant="displayLg">
-            {report.total != null ? report.total.toFixed(1) : '—'}
-          </ThemedText>
-        </View>
-        <Pill tone={gradeTone(report.total)} label={report.grade} solid />
-      </View>
-      <View style={{ gap: space[3] }}>
-        {SKILLS.map((s) => {
-          const v = report[s.key]
-          return (
-            <View key={s.key} style={{ gap: 4 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <ThemedText variant="caption" color="muted">{s.label}</ThemedText>
-                <ThemedText variant="caption" color={v != null ? 'primary' : 'faint'}>
-                  {v != null ? v.toFixed(1) : 'Chưa có'}
-                </ThemedText>
-              </View>
-              <ProgressBar value={v != null ? Math.min(1, v / 10) : 0} height={5} />
-            </View>
-          )
-        })}
-      </View>
-    </Card>
-  )
-}
-
-/**
- * Nhận xét bằng lời của giáo viên. Trước đây `teacher_comment` chỉ đi ra DTO phía giáo viên: thầy cô
- * viết trong sổ điểm và không đường nào trả nó về cho chính học viên được nhận xét.
- */
-function TeacherCommentCard({ comment, evaluatedAt }: { comment: string; evaluatedAt: string | null }) {
+function SkillBars({ report }: { report: MySkillReport }) {
   const c = useTheme().colors
   return (
-    <Card style={{ gap: space[2], borderLeftWidth: 3, borderLeftColor: c.accentText }}>
-      <ThemedText variant="body" style={{ lineHeight: 22 }}>{comment}</ThemedText>
-      {evaluatedAt ? (
-        <Caption>Nhận xét ngày {new Date(evaluatedAt).toLocaleDateString('vi-VN')}</Caption>
-      ) : null}
-    </Card>
+    <View style={{ gap: space[1] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <ThemedText variant="caption" color="muted" style={{ flex: 1 }}>
+          {`Tổng kết ${report.total != null ? formatAvgVi(report.total) : '—'}`}
+        </ThemedText>
+        <StatusBadge label={report.grade} tone={gradeTone(report.total)} />
+      </View>
+      {SKILLS.map((s) => {
+        const v = report[s.key]
+        const ratio = v != null ? Math.max(0, Math.min(1, v / 10)) : 0
+        const low = v != null && ratio < PASS_MARK
+        return (
+          <View
+            key={s.key}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] + 2, paddingVertical: 7 }}
+            accessible
+            accessibilityLabel={`${s.label}: ${v != null ? formatAvgVi(v) : 'chưa có'}`}
+          >
+            <ThemedText variant="body" style={{ width: 64, fontSize: 14 }}>{s.label}</ThemedText>
+            <View style={{ flex: 1, height: 5, borderRadius: radius.full, backgroundColor: c.surfaceSunken }}>
+              <View
+                style={{
+                  width: `${ratio * 100}%`,
+                  height: '100%',
+                  borderRadius: radius.full,
+                  backgroundColor: low ? c.borderStrong : c.info,
+                }}
+              />
+              <View
+                style={{ position: 'absolute', left: `${PASS_MARK * 100}%`, top: -5, width: 2, height: 15, borderRadius: 1, backgroundColor: c.textPrimary }}
+              />
+            </View>
+            <ThemedText
+              variant="bodyStrong"
+              color={v != null ? 'primary' : 'faint'}
+              style={{ width: 52, textAlign: 'right', fontFamily: fonts.displayBold, fontVariant: ['tabular-nums'] }}
+            >
+              {v != null ? formatAvgVi(v) : 'Chưa có'}
+            </ThemedText>
+          </View>
+        )
+      })}
+    </View>
   )
 }
 
@@ -586,124 +531,81 @@ function AttendanceSummary({ rows }: { rows: StudentAttendance[] }) {
   const marked = present + late + absent
   const rate = marked > 0 ? Math.round(((present + late) / marked) * 100) : null
   return (
-    <Card>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', gap: space[5] }}>
-          <SummaryStat label="Có mặt" value={present} tone="success" />
-          <SummaryStat label="Muộn" value={late} tone="accent" />
-          <SummaryStat label="Vắng" value={absent} tone="danger" />
-        </View>
-        {rate != null ? (
-          <View style={{ alignItems: 'flex-end' }}>
-            <Caption>Chuyên cần</Caption>
-            <ThemedText variant="title">{rate}%</ThemedText>
-          </View>
-        ) : null}
-      </View>
-    </Card>
-  )
-}
-
-function SummaryStat({ label, value, tone }: { label: string; value: number; tone: 'success' | 'accent' | 'danger' }) {
-  const c = useTheme().colors
-  const col = tone === 'success' ? c.success : tone === 'danger' ? c.danger : c.accentText
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <ThemedText variant="title" style={{ color: col }}>{String(value)}</ThemedText>
-      <Caption>{label}</Caption>
-    </View>
+    <ThemedText variant="caption" color="muted" style={{ fontSize: 13, marginTop: space[1] }}>
+      {`Điểm danh: ${present + late}/${marked} buổi · ${present} có mặt · ${late} muộn · ${absent} vắng${rate != null ? ` · chuyên cần ${rate}%` : ''}`}
+    </ThemedText>
   )
 }
 
 function attendanceStatus(status: StudentAttendance['status']) {
   switch (status) {
     case 'PRESENT':
-      return { label: 'Có mặt', tone: 'success' as const, color: 'success' as const, glyph: 'hoanthanh' as const }
+      return { label: 'Có mặt', tone: 'success' as const }
     case 'LATE':
-      return { label: 'Muộn', tone: 'accent' as const, color: 'accent' as const, glyph: 'thoigian' as const }
+      return { label: 'Muộn', tone: 'accent' as const }
     case 'ABSENT':
-      return { label: 'Vắng', tone: 'danger' as const, color: 'danger' as const, glyph: 'canhbao' as const }
+      return { label: 'Vắng', tone: 'danger' as const }
     default:
-      return { label: 'Chưa điểm danh', tone: 'neutral' as const, color: 'muted' as const, glyph: 'danghoc' as const }
+      return { label: 'Chưa điểm danh', tone: 'neutral' as const }
   }
 }
 
-function AttendanceRow({ row }: { row: StudentAttendance }) {
+function AttendanceRow({ row, first }: { row: StudentAttendance; first: boolean }) {
+  const c = useTheme().colors
   const s = attendanceStatus(row.status)
+  const box = sessionDayBox(row.sessionDate)
   const date = new Date(row.sessionDate)
   const dateLabel = Number.isNaN(date.getTime()) ? row.sessionDate : date.toLocaleDateString('vi-VN')
   return (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <GaGlyph name={s.glyph} size={18} ink={s.color} gold={s.color === 'muted' ? 'accent' : s.color} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText variant="bodyStrong" numberOfLines={1}>
-            {row.topic || (row.sessionNumber != null ? `Buổi ${row.sessionNumber}` : 'Buổi học')}
-          </ThemedText>
-          <ThemedText variant="caption" color="muted" numberOfLines={1}>
-            {dateLabel}
-            {row.note ? ` · ${row.note}` : ''}
-          </ThemedText>
-        </View>
-        <Pill tone={s.tone} label={s.label} />
+    <View style={listRowStyle(c.border, first)}>
+      <DayBox day={box?.day ?? '—'} sub={box?.weekday ?? ''} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <ThemedText variant="bodyStrong" numberOfLines={1}>
+          {row.topic || (row.sessionNumber != null ? `Buổi ${row.sessionNumber}` : 'Buổi học')}
+        </ThemedText>
+        <ThemedText variant="caption" color="muted" numberOfLines={1}>
+          {dateLabel}
+          {row.note ? ` · ${row.note}` : ''}
+        </ThemedText>
       </View>
-    </Card>
+      <StatusBadge tone={s.tone} label={s.label} />
+    </View>
   )
 }
 
 function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
-  const theme = useTheme()
   if (teachers.length === 0) {
     return <EmptyState glyph="lophoc" title="Chưa có giáo viên" message="Lớp này chưa có giáo viên nào." />
   }
   return (
-    <View style={{ gap: space[4] }}>
-      <SectionHeader title="Giáo viên phụ trách" />
-      <View style={{ gap: space[2] }}>
-        {teachers.map((t) => (
-          <Card key={t.id}>
-            <View style={{ gap: space[3] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: radius.sm,
-                    backgroundColor: theme.colors.accentSoft,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <GaGlyph name="t_exam" size={20} ink="primary" />
-                </View>
-                <View style={{ flex: 1, gap: space[1] }}>
-                  <ThemedText variant="bodyStrong" numberOfLines={1}>
-                    {t.displayName}
-                  </ThemedText>
-                  <ThemedText variant="caption" color="muted" numberOfLines={1}>
-                    {t.email}
-                  </ThemedText>
-                  <View style={{ flexDirection: 'row', marginTop: space[1] }}>
-                    <Pill tone="accent" label={teacherRoleLabel(t.role)} />
-                  </View>
-                </View>
-              </View>
-              <Button
-                label="Nhắn tin"
-                glyph="hoithoai"
-                variant="secondary"
-                size="sm"
-                onPress={() =>
-                  router.push({
-                    pathname: '/(student)/messages/[userId]',
-                    params: { userId: String(t.id), name: t.displayName },
-                  })
-                }
-              />
+    <View style={{ gap: space[3] }}>
+      {teachers.map((t) => (
+        <Card key={t.id} style={{ gap: space[3] }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+            <InitialAvatar initial={nameInitial(t.displayName)} size={44} />
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <ThemedText variant="bodyStrong" numberOfLines={1}>
+                {t.displayName}
+              </ThemedText>
+              <ThemedText variant="caption" color="muted" numberOfLines={1} style={{ fontSize: 13 }}>
+                {`${teacherRoleLabel(t.role)}${t.email ? ` · ${t.email}` : ''}`}
+              </ThemedText>
             </View>
-          </Card>
-        ))}
-      </View>
+          </View>
+          <Button
+            label="Nhắn tin"
+            variant="secondary"
+            size="sm"
+            fullWidth={false}
+            onPress={() =>
+              router.push({
+                pathname: '/(student)/messages/[userId]',
+                params: { userId: String(t.id), name: t.displayName },
+              })
+            }
+          />
+        </Card>
+      ))}
     </View>
   )
 }
@@ -713,76 +615,90 @@ function ProgressTab({
 }: { detail: ClassroomDetail; lessons: ClassLesson[]; isError: boolean; onRetry: () => void }) {
   const theme = useTheme()
   const c = theme.colors
+  if (lessons.length === 0 && isError) {
+    return (
+      <ErrorState
+        title="Không tải được tiến độ"
+        message="Không thể tải danh sách buổi học của lớp. Vui lòng thử lại."
+        onRetry={onRetry}
+      />
+    )
+  }
+  if (lessons.length === 0) {
+    return (
+      <EmptyState
+        glyph="baigiao"
+        title="Chưa có checklist"
+        message="Giáo viên chưa tạo danh sách buổi học. Tiến độ lớp sẽ hiển thị tại đây khi có."
+      />
+    )
+  }
   return (
     <View style={{ gap: space[4] }}>
-      {lessons.length === 0 && isError ? (
-        <ErrorState
-          title="Không tải được tiến độ"
-          message="Không thể tải danh sách buổi học của lớp. Vui lòng thử lại."
-          onRetry={onRetry}
-        />
-      ) : lessons.length === 0 ? (
-        <EmptyState
-          glyph="baigiao"
-          title="Chưa có checklist"
-          message="Giáo viên chưa tạo danh sách buổi học. Tiến độ lớp sẽ hiển thị tại đây khi có."
-        />
-      ) : (
-        <>
-          {detail.currentLessonTitle && (
-            <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-              <View style={{ gap: space[2] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                  <YellowSquare size={8} />
-                  <Caption color={c.accent}>Buổi hiện tại của lớp</Caption>
-                </View>
-                <ThemedText variant="title" style={{ color: c.onInk }}>
-                  {detail.currentLessonTitle}
-                </ThemedText>
-              </View>
-            </Card>
-          )}
-          <View style={{ gap: space[3] }}>
-            <SectionHeader title="Lộ trình buổi học" />
-            <View style={{ gap: space[2] }}>
-              {lessons.map((l, idx) => (
-                <LessonRow key={l.id} lesson={l} index={idx} />
-              ))}
-            </View>
-          </View>
-        </>
+      {detail.currentLessonTitle && (
+        <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[1] }}>
+          <ThemedText variant="label" style={{ color: c.onInkMuted, letterSpacing: 1, textTransform: 'uppercase', fontSize: 11.5 }}>
+            Buổi hiện tại của lớp
+          </ThemedText>
+          <ThemedText variant="title" style={{ color: c.onInk }}>
+            {detail.currentLessonTitle}
+          </ThemedText>
+        </Card>
       )}
+      <View>
+        <ThemedText variant="title" accessibilityRole="header" style={{ marginBottom: space[3] }}>Lộ trình buổi học</ThemedText>
+        <ListBlock>
+          {lessons.map((l, idx) => (
+            <LessonRow key={l.id} lesson={l} index={idx} />
+          ))}
+        </ListBlock>
+      </View>
     </View>
   )
 }
 
 function LessonRow({ lesson, index }: { lesson: ClassLesson; index: number }) {
+  const c = useTheme().colors
   return (
-    <Card tone={lesson.completed ? 'sunken' : 'surface'}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-        <GaGlyph
-          name={lesson.completed ? 'hoanthanh' : 'danghoc'}
-          size={20}
-          ink={lesson.completed ? 'onAccent' : 'muted'}
-          gold={lesson.completed ? 'success' : 'accent'}
-        />
-        <View style={{ flex: 1, gap: space[1] }}>
-          <Caption>Buổi {index + 1}</Caption>
-          <ThemedText variant="bodyStrong" numberOfLines={2}>
-            {lesson.title}
+    <View style={listRowStyle(c.border, index === 0, { alignItems: 'flex-start', paddingVertical: space[3] })}>
+      <DayBox day={String(index + 1)} sub="Buổi" done={lesson.completed} />
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <ThemedText variant="bodyStrong" numberOfLines={2}>
+          {lesson.title}
+        </ThemedText>
+        {lesson.description ? (
+          <ThemedText variant="caption" color="muted">
+            {lesson.description}
           </ThemedText>
-          {lesson.description ? (
-            <ThemedText variant="caption" color="muted">
-              {lesson.description}
-            </ThemedText>
-          ) : null}
-          {lesson.completed && lesson.completedAt ? (
-            <ThemedText variant="caption" color="success">
-              Đã hoàn thành {new Date(lesson.completedAt).toLocaleString('vi-VN')}
-            </ThemedText>
-          ) : null}
-        </View>
+        ) : null}
+        {lesson.completed && lesson.completedAt ? (
+          <ThemedText variant="caption" color="success">
+            Đã hoàn thành {new Date(lesson.completedAt).toLocaleString('vi-VN')}
+          </ThemedText>
+        ) : null}
       </View>
-    </Card>
+      {lesson.completed ? <GaGlyph name="hoanthanh" size={20} ink="onAccent" gold="success" accessibilityLabel="Đã hoàn thành" /> : null}
+    </View>
+  )
+}
+
+/** Ô ngày/số buổi `.dbox` (46×50, nền chìm): số lớn serif + dòng phụ nhỏ. */
+function DayBox({ day, sub, done }: { day: string; sub: string; done?: boolean }) {
+  const c = useTheme().colors
+  return (
+    <View
+      style={{
+        width: 46,
+        height: 50,
+        borderRadius: radius.md,
+        backgroundColor: done ? c.successSoft : c.surfaceSunken,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <ThemedText variant="title" style={{ lineHeight: 22, fontVariant: ['tabular-nums'] }}>{day}</ThemedText>
+      <ThemedText variant="caption" color="muted" style={{ fontSize: 11, lineHeight: 13 }}>{sub}</ThemedText>
+    </View>
   )
 }

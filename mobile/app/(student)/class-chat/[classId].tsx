@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View,
+  Alert, FlatList, KeyboardAvoidingView, Platform, View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { classChannelApi, type ClassMessage } from '@/lib/classChannelApi'
 import { adaptivePollMs } from '@/lib/chatDelta'
@@ -16,10 +15,13 @@ import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
 import { useChatAutoScroll } from '@/hooks/useChatAutoScroll'
 import { useIsScreenFocused } from '@/hooks/useIsScreenFocused'
 import { reportFlow } from '@/lib/moderationActions'
-import { fonts, radius, space, useTheme } from '@/lib/theme'
+import { space } from '@/lib/theme'
 import {
-  AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
+  EmptyState, ErrorState, Screen, Skeleton,
 } from '@/components/ui'
+import { TopBar } from '@/components/classroom/ClassroomParts'
+import { BubbleView, ChatComposer, DaySeparator } from '@/components/classroom/ChatParts'
+import { clockLabel, daySeparatorAbove } from '@/lib/classroomUi'
 import { useBackTo } from '@/hooks/useBackTo'
 
 export default function ClassChatScreen() {
@@ -31,7 +33,6 @@ export default function ClassChatScreen() {
 }
 
 function ClassChatRunner() {
-  const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
   const params = useLocalSearchParams<{ classId: string; className?: string; from?: string }>()
@@ -124,6 +125,13 @@ function ClassChatRunner() {
 
   const outbox = useMemo(() => itemsForChannel(outboxItems, 'class', classId), [outboxItems, classId])
   const bubbles = useMemo(() => buildClassBubbles(q.data ?? [], outbox), [q.data, outbox])
+  // Vạch ngày (v3.4 `.daysep`) — chỉ trình bày, tính từ danh sách đã dựng.
+  // Màn không unmount: khoá theo NGÀY để qua nửa đêm (dữ liệu không đổi) nhãn Hôm nay/Hôm qua vẫn tính lại.
+  const dayKey = new Date().toDateString()
+  const separators = useMemo(() => {
+    const now = new Date(dayKey) // 00:00 hôm nay — đủ để so theo ngày
+    return bubbles.map((_, i) => daySeparatorAbove(bubbles, i, now))
+  }, [bubbles, dayKey])
 
   // Follow the newest bubble (own send or an incoming message) when at the bottom; don't yank a
   // user reading history. bubbles[0] is the newest (list is inverted / newest-first).
@@ -141,7 +149,8 @@ function ClassChatRunner() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={className} subtitle="Kênh chat lớp" onBack={goBack} />
+      {/* Giao diện v3.4 (Đợt 6B, mẫu `cchat`): thanh đầu giữa, bong bóng mực/thẻ, vạch ngày, ô nhập viên thuốc. */}
+      <TopBar title="Kênh chat lớp" subtitle={className} onBack={goBack} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -170,70 +179,30 @@ function ClassChatRunner() {
             keyExtractor={(b) => b.key}
             onScroll={onScroll}
             scrollEventThrottle={16}
-            renderItem={({ item }) => (
-              <Bubble
-                vm={item}
-                onLongPress={item.realId != null ? () => messageActions(item) : undefined}
-                onRetry={item.status === 'failed' ? () => retry(item.tempId!) : undefined}
-              />
+            renderItem={({ item, index }) => (
+              <View>
+                {separators[index] ? <DaySeparator label={separators[index]!} /> : null}
+                <Bubble
+                  vm={item}
+                  onLongPress={item.realId != null ? () => messageActions(item) : undefined}
+                  onRetry={item.status === 'failed' ? () => retry(item.tempId!) : undefined}
+                />
+              </View>
             )}
             contentContainerStyle={{ paddingHorizontal: space[5], paddingVertical: space[3] }}
             keyboardDismissMode="interactive"
           />
         )}
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            gap: space[2],
-            paddingHorizontal: space[4],
-            paddingTop: space[2],
-            paddingBottom: Math.max(insets.bottom, space[2]),
-            borderTopWidth: 1,
-            borderTopColor: c.border,
-            backgroundColor: c.bg,
-          }}
-        >
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Nhắn cả lớp…"
-            placeholderTextColor={c.textFaint}
-            multiline
-            accessibilityLabel="Nội dung tin nhắn"
-            style={{
-              flex: 1,
-              maxHeight: 120,
-              backgroundColor: c.surfaceSunken,
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: c.border,
-              paddingHorizontal: space[3],
-              paddingVertical: space[2],
-              color: c.textPrimary,
-              fontFamily: fonts.bodyRegular,
-              fontSize: 15,
-            }}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Gửi tin nhắn"
-            accessibilityState={{ disabled: !canSend }}
-            disabled={!canSend}
-            onPress={onSend}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: radius.md,
-              backgroundColor: canSend ? c.accent : c.surfaceSunken,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon icon={Send} size={18} color={canSend ? 'onAccent' : 'faint'} />
-          </Pressable>
-        </View>
+        <ChatComposer
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Nhắn cả lớp…"
+          canSend={canSend}
+          onSend={onSend}
+          bottomInset={insets.bottom}
+          hint="Giữ một tin nhắn để báo cáo, hoặc xoá tin của bạn."
+        />
       </KeyboardAvoidingView>
     </Screen>
   )
@@ -242,61 +211,22 @@ function ClassChatRunner() {
 function Bubble({
   vm, onLongPress, onRetry,
 }: { vm: ChatBubbleVM; onLongPress?: () => void; onRetry?: () => void }) {
-  const c = useTheme().colors
-  const mine = vm.mine
-  const failed = vm.status === 'failed'
   const sending = vm.status === 'sending'
+  const who = vm.mine ? 'Bạn' : vm.senderName || 'Thành viên'
   return (
-    <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: space[2] }}>
-      {!mine && vm.senderName ? (
-        <Caption color={c.textFaint} style={{ marginBottom: 2, paddingHorizontal: space[1] }}>
-          {vm.senderName}
-        </Caption>
-      ) : null}
-      <Pressable
-        onLongPress={onLongPress}
-        onPress={onRetry}
-        delayLongPress={300}
-        accessibilityRole={onLongPress || onRetry ? 'button' : undefined}
-        accessibilityLabel={
-          onRetry ? 'Gửi lại tin nhắn' : onLongPress ? 'Giữ để xoá tin nhắn' : undefined
-        }
-        style={{
-          maxWidth: '82%',
-          opacity: sending ? 0.65 : 1,
-          backgroundColor: vm.deleted ? c.surfaceSunken : mine ? c.accent : c.surface,
-          borderWidth: mine && !vm.deleted ? 0 : 1,
-          borderColor: c.border,
-          borderRadius: radius.md,
-          paddingHorizontal: space[3],
-          paddingVertical: space[2],
-        }}
-      >
-        {vm.deleted ? (
-          <ThemedText variant="body" color="faint" style={{ fontStyle: 'italic' }}>
-            Tin đã xoá
-          </ThemedText>
-        ) : (
-          <ThemedText variant="body" style={{ color: mine ? c.onBrand : c.textPrimary }}>
-            {vm.body}
-          </ThemedText>
-        )}
-      </Pressable>
-      {failed ? (
-        <Caption color={c.danger} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
-          Gửi lỗi · Chạm để thử lại
-        </Caption>
-      ) : (
-        <Caption color={c.textFaint} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
-          {sending ? 'Đang gửi…' : clock(vm.createdAt)}
-        </Caption>
-      )}
-    </View>
+    <BubbleView
+      mine={vm.mine}
+      meta={`${who} · ${sending ? 'Đang gửi…' : clockLabel(vm.createdAt)}`}
+      body={vm.body}
+      deleted={vm.deleted}
+      sending={sending}
+      failed={vm.status === 'failed'}
+      onLongPress={onLongPress}
+      onPress={onRetry}
+      delayLongPress={300}
+      accessibilityHint={
+        onRetry ? 'Chạm để gửi lại' : onLongPress ? (vm.mine ? 'Giữ để báo cáo hoặc xoá' : 'Giữ để báo cáo') : undefined
+      }
+    />
   )
-}
-
-function clock(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
 }
