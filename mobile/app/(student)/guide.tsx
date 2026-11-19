@@ -2,187 +2,122 @@ import { useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
-import { ChevronDown, ArrowUpRight } from 'lucide-react-native'
-import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader, GaGlyph } from '@/components/ui'
+import { ChevronDown } from 'lucide-react-native'
+import { motion, space, useTheme } from '@/lib/theme'
+import type { GlyphName } from '@/lib/galerieGlyphs'
+import { Screen, ThemedText, Icon, FadeIn, Button } from '@/components/ui'
+import { MarkTitle, Row, RowList, SectionHead, SubHeader } from '@/components/me/MeParts'
 import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { captureEvent } from '@/lib/analytics'
-import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
+import { GUIDE_ITEMS, FAQ, type GuideItem } from '@/components/guide/tourContent'
 import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
+// Giao diện v3.4 (Đợt 6C, 19/11/2026; mẫu `guide`): "Sổ tay học viên", nút mực "Xem lại hướng dẫn nhanh",
+// danh sách tính năng dạng hàng có glyph Galerie, hỏi đáp mở/đóng. GUIDE_ITEMS mang icon Lucide cho tour;
+// ở đây biểu tượng nhận diện là glyph (GALERIE_GLYPHS.md), ánh xạ theo `key`.
+const GUIDE_GLYPH: Record<string, GlyphName> = {
+  dashboard: 'heute',
+  roadmap: 'lernweg',
+  speaking: 'speaking',
+  review: 'srs',
+  vocabulary: 'tuvung',
+  learn: 'hoc',
+  exam: 'thithu',
+  streak: 'chuoi',
+}
+
 export default function GuideScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackTo(PARENT_OF['guide'])
-  const c = useTheme().colors
   const { startTour } = useSpotlightTour()
   // The iOS free build ships with no commercial PRO surface, so drop FAQ entries that mention it.
   const faqs = PRO_UNLOCKED_FREE ? FAQ.filter((entry) => !entry.proOnly) : FAQ
 
   return (
-    <Screen edges={['top']}>
-      <AppHeader
-        title="Hướng dẫn"
-        subtitle="Sổ tay học viên"
-        onBack={goBack}
-      />
-      <Screen scroll edges={[]} contentStyle={{ paddingBottom: space[10] }}>
-      <View style={{ paddingHorizontal: space[5], paddingTop: space[4], gap: space[6] }}>
-        <FadeIn>
-          <ThemedText variant="body" color="muted">
-            Tất cả những gì bạn cần để bắt đầu học hiệu quả
-          </ThemedText>
-        </FadeIn>
+    <Screen scroll edges={['top']} contentStyle={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[10] }}>
+      <SubHeader onBack={goBack} />
+      <FadeIn style={{ marginTop: space[4], gap: space[2] }}>
+        <MarkTitle lead="Sổ tay" mark="học viên" />
+        <ThemedText variant="body" color="secondary">
+          Tất cả những gì bạn cần để bắt đầu học hiệu quả
+        </ThemedText>
+      </FadeIn>
 
-        {/* Replay tour — editorial ink hero for the primary action */}
-        <FadeIn delay={60}>
-          <Card
-            onPress={() => {
-              captureEvent('guide_tour_replay_clicked', { from: 'guide_screen' })
-              // Tour spotlight chạy trên Trang chủ — bước 1 tự điều hướng về đó.
-              void getDailyGoalMinutes().then((m) =>
-                startTour('home', 'replay', { dailyGoalMinutes: m }),
-              )
-            }}
-            elevation="lifted"
-            accessibilityLabel="Xem lại hướng dẫn nhanh"
-            accessibilityHint="Về Trang chủ và chạy lại tour hướng dẫn trên màn hình"
-            style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
-              <View
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: radius.lg,
-                  backgroundColor: c.accentSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <GaGlyph name="huongdan" size={26} ink="primary" />
-              </View>
-              <View style={{ flex: 1, gap: space[1] }}>
-                <Caption color={c.accent}>Tour nhanh</Caption>
-                <ThemedText variant="title" style={{ color: c.onInk }}>
-                  Xem lại hướng dẫn nhanh
-                </ThemedText>
-                <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                  Chạy lại tour chỉ chỗ từng tính năng ngay trên màn hình
-                </ThemedText>
-              </View>
-            </View>
-          </Card>
-        </FadeIn>
+      <FadeIn delay={60} style={{ marginTop: space[4] }}>
+        <Button
+          label="Xem lại hướng dẫn nhanh"
+          onPress={() => {
+            captureEvent('guide_tour_replay_clicked', { from: 'guide_screen' })
+            // Tour spotlight chạy trên Trang chủ — bước 1 tự điều hướng về đó.
+            void getDailyGoalMinutes().then((m) =>
+              startTour('home', 'replay', { dailyGoalMinutes: m }),
+            )
+          }}
+        />
+        <ThemedText variant="caption" color="muted" align="center" style={{ marginTop: space[2] }}>
+          Về Trang chủ và chạy lại tour chỉ chỗ từng tính năng
+        </ThemedText>
+      </FadeIn>
 
-        {/* Feature catalogue */}
-        <View>
-          <View style={{ gap: space[1], marginBottom: space[3] }}>
-            <Caption>Khám phá</Caption>
-            <ThemedText variant="titleLg">Các tính năng chính</ThemedText>
-          </View>
-          <View style={{ gap: space[3] }}>
-            {GUIDE_ITEMS.map((item, i) => (
-              <FadeIn key={item.title} delay={100 + i * 40}>
-                <FeatureCard item={item} />
-              </FadeIn>
-            ))}
-          </View>
-        </View>
+      <SectionHead title="Các tính năng chính" style={{ marginTop: space[6] + 2, marginBottom: space[3] }} />
+      <FadeIn delay={100}>
+        <RowList>
+          {GUIDE_ITEMS.map((item) => (
+            <FeatureRow key={item.key} item={item} />
+          ))}
+        </RowList>
+      </FadeIn>
 
-        {/* FAQ */}
-        <View>
-          <View style={{ gap: space[1], marginBottom: space[3] }}>
-            <Caption>Hỏi & Đáp</Caption>
-            <ThemedText variant="titleLg">Câu hỏi thường gặp</ThemedText>
-          </View>
-          <Card padded={false} style={{ paddingHorizontal: space[4] }}>
-            {faqs.map((entry, i) => (
-              <FaqRow key={entry.q} question={entry.q} answer={entry.a} divider={i > 0} />
-            ))}
-          </Card>
-        </View>
-      </View>
-      </Screen>
+      <SectionHead title="Câu hỏi thường gặp" style={{ marginTop: space[6] + 2, marginBottom: space[3] }} />
+      <RowList>
+        {faqs.map((entry) => (
+          <FaqRow key={entry.q} question={entry.q} answer={entry.a} />
+        ))}
+      </RowList>
     </Screen>
   )
 }
 
-function FeatureCard({ item }: { item: GuideItem }) {
-  const theme = useTheme()
-  const { fg, soft } = toneStyles(theme, item.tone)
-  const Glyph = item.icon
-
+function FeatureRow({ item }: { item: GuideItem }) {
   return (
-    <Card
+    <Row
+      glyph={GUIDE_GLYPH[item.key] ?? 'huongdan'}
+      title={item.title}
+      subtitle={`${item.desc}\nCách dùng: ${item.how}`}
+      accessibilityLabel={`${item.title}. ${item.desc} Cách dùng: ${item.how}`}
       onPress={() => {
         captureEvent('guide_feature_opened', { feature: item.key })
         router.push(item.route)
       }}
-    >
-      <View style={{ gap: space[3] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: radius.md,
-              backgroundColor: soft,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Glyph size={22} color={fg} strokeWidth={2.2} />
-          </View>
-          <ThemedText variant="title" style={{ flex: 1 }}>
-            {item.title}
-          </ThemedText>
-          <Icon icon={ArrowUpRight} size={18} color="faint" />
-        </View>
-        <ThemedText variant="body" color="secondary">
-          {item.desc}
-        </ThemedText>
-        <View
-          style={{
-            backgroundColor: theme.colors.surfaceSunken,
-            borderRadius: radius.md,
-            paddingHorizontal: space[3],
-            paddingVertical: space[3],
-          }}
-        >
-          <ThemedText variant="caption" color="muted">
-            <ThemedText variant="caption" color="secondary">
-              Cách dùng:{' '}
-            </ThemedText>
-            {item.how}
-          </ThemedText>
-        </View>
-      </View>
-    </Card>
+    />
   )
 }
 
-function FaqRow({ question, answer, divider }: { question: string; answer: string; divider: boolean }) {
-  const theme = useTheme()
+function FaqRow({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false)
+  const c = useTheme().colors
 
   return (
-    <View style={divider ? { borderTopWidth: 1, borderTopColor: theme.colors.border } : undefined}>
+    <View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={question}
         accessibilityState={{ expanded: open }}
         accessibilityHint="Nhấn để mở hoặc đóng câu trả lời"
         onPress={() => setOpen((v) => !v)}
-        style={{
+        style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: space[3],
-          paddingVertical: space[4],
-        }}
+          minHeight: 56,
+          paddingVertical: space[3],
+          paddingHorizontal: space[4],
+          backgroundColor: pressed ? c.surfaceSunken : 'transparent',
+        })}
       >
         <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
           {question}
@@ -197,7 +132,7 @@ function FaqRow({ question, answer, divider }: { question: string; answer: strin
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: motion.duration.fast }}
         >
-          <ThemedText variant="body" color="secondary" style={{ paddingBottom: space[4] }}>
+          <ThemedText variant="body" color="secondary" style={{ paddingHorizontal: space[4], paddingBottom: space[4] }}>
             {answer}
           </ThemedText>
         </MotiView>
