@@ -3,7 +3,7 @@
 // Hướng dẫn chạy lại tour, lời chào có vệt vàng, thẻ phỏng vấn theo nghề, hai ô nhanh, "Tiếp tục học".
 import { useCallback, useEffect, useState } from 'react'
 import { View, Alert, Linking } from 'react-native'
-import { useQuery } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
@@ -26,6 +26,7 @@ import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
+import { EXAM_HUB_QUERY_KEY } from '@/hooks/useExamHub'
 import { messagesApi } from '@/lib/messagesApi'
 import { TodayTasks } from '@/components/home/TodayTasks'
 import { TodayPlanCard } from '@/components/exam/hub/TodayPlanCard'
@@ -127,8 +128,14 @@ export default function DashboardScreen() {
   // scrollTo/đo neo của spotlight → coach mark nổ đúng lúc đó rơi về tooltip giữa
   // màn không khoét sáng (F-SRS-COACH-01, QA tài khoản mới 05/09). Gate coi
   // `refreshing` là bận, làm mới xong effect chạy lại và nổ bình thường.
+  const queryClient = useQueryClient()
   const pull = usePullRefresh(async () => {
-    await Promise.all([refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread()])
+    // Cả các khối mới của Hôm nay (lịch ôn / ô Thi thử dựa trên exam-hub, ô Lộ trình dựa trên roadmap).
+    await Promise.all([
+      refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread(),
+      queryClient.invalidateQueries({ queryKey: EXAM_HUB_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: ROADMAP_ME_QUERY_KEY }),
+    ])
   })
 
   const { startTour, activeTourId } = useSpotlightTour()
@@ -366,7 +373,7 @@ export default function DashboardScreen() {
       <View
         accessible
         accessibilityRole="header"
-        accessibilityLabel={`Chào ${firstName}, ${markWord} hôm nay.`}
+        accessibilityLabel={`${todayDateLine(new Date())}. Chào ${firstName}, ${markWord} hôm nay.`}
         style={{ paddingHorizontal: space[5], marginTop: space[5] }}
       >
         <ThemedText variant="label" color="muted" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>

@@ -114,6 +114,8 @@ export function QuickTiles({
   const { data, derived } = useExamHub()
   const showMock = !!data?.access && !!derived && data.rows.length > 0
   const mock = showMock ? nextMockDay(derived?.week?.days, derived?.today ?? '') : null
+  // Chưa có lịch ôn đang chạy (chưa đặt ngày thi) thì đừng nói "lịch ôn" như thể đã có (soát Đợt 2b).
+  const hasActivePlan = data?.plan?.status === 'ACTIVE'
   if (!showMock && !roadmap) return null
 
   return (
@@ -137,12 +139,12 @@ export function QuickTiles({
           <Tile
             glyph="thithu"
             label="Thi thử trọn đề"
-            a11y="Thi thử trọn đề, tuần này chưa có buổi trong lịch ôn"
+            a11y={hasActivePlan ? 'Thi thử trọn đề, tuần này chưa có buổi trong lịch ôn' : 'Thi thử trọn đề, đặt ngày thi để xếp buổi thi thử'}
             onPress={() => router.navigate('/(student)/exam')}
           >
             <ThemedText variant="title">Chưa xếp</ThemedText>
             <ThemedText variant="caption" color="muted" numberOfLines={2}>
-              Tuần này chưa có buổi thi thử trong lịch ôn
+              {hasActivePlan ? 'Tuần này chưa có buổi thi thử trong lịch ôn' : 'Đặt ngày thi để xếp buổi thi thử'}
             </ThemedText>
           </Tile>
         )
@@ -151,7 +153,7 @@ export function QuickTiles({
         <Tile
           glyph="lernweg"
           label={roadmap.range ? `Lộ trình ${roadmap.range}` : 'Lộ trình'}
-          a11y={`Lộ trình ${roadmap.range ?? ''}, ${roadmap.pct}%, ${roadmap.done}/${roadmap.total} chặng`}
+          a11y={`Lộ trình${roadmap.range ? ` ${roadmap.range}` : ''}, ${roadmap.pct}%, ${roadmap.done}/${roadmap.total} chặng`}
           onPress={() => router.push('/(student)/lernweg')}
         >
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
