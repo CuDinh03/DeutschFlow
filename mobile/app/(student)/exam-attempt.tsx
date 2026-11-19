@@ -164,6 +164,13 @@ function ExamAttemptRunner() {
   const showExistingResult = useCallback(async () => {
     try {
       const res = await api.get<AttemptResultDto>(`/mock-exams/attempts/${attemptId}/result`)
+      // Lượt bị huỷ ở nơi khác (dừng khi chưa làm câu nào): không có kết quả để hiện.
+      if (res.data.status === 'CANCELLED') {
+        Alert.alert('Lượt thi đã huỷ', 'Lượt này đã được dừng ở nơi khác khi chưa có câu nào, nên không có điểm.', [
+          { text: 'Đã hiểu', onPress: () => router.navigate(PARENT_OF['exam-attempt']) },
+        ])
+        return
+      }
       // Lượt đã "Dừng giữa chừng" ở nơi khác: không có tổng điểm — hiện điểm từng Teil, đừng hiện "0 điểm".
       if (res.data.status === 'PARTIAL') {
         setStopped(stopResultFromDetailed(attemptId, res.data.detailed_scores_json) ?? {
