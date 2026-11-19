@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
-import { Check, RotateCcw, X, Volume2, VolumeX } from 'lucide-react-native'
+import { Check, CircleHelp, RotateCcw, X, Volume2, VolumeX } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { presentMinorAudioBlocked } from '@/lib/minorAudio'
@@ -29,6 +29,8 @@ import {
 import { readOralAutoStop, writeOralAutoStop } from '@/lib/oralAutoStop'
 import { OralMicDock, OralPeople, OralStages, OralTaskCard } from '@/components/exam/OralRoomParts'
 import { OralPrep, type NotesSaveState } from '@/components/exam/OralPrep'
+import { OralRoomGuide } from '@/components/exam/OralRoomGuide'
+import { markOralGuideSeen, readOralGuideSeen } from '@/lib/oralRoomGuide'
 import { isExamTtsMuted, setExamTtsMuted, speakExamSequence, stopExamTts } from '@/lib/examTts'
 import { trackFeatureAction } from '@/lib/analytics'
 import { examParentHref } from '@/lib/examSpeakingNav'
@@ -115,6 +117,11 @@ export default function SpeakingExamRoomScreen() {
   // Vai AI đang phát tiếng (PRUEFER/PARTNER) — để hàng người sáng đúng người.
   const [aiSpeaker, setAiSpeaker] = useState<string | null>(null)
   const [autoStop, setAutoStop] = useState(true)
+  // Hướng dẫn phòng thi (nút "?"): tự mở lần đầu vào Đang thi; giám khảo CHỜ đóng hướng dẫn mới nói
+  // (như web, owner chốt 07/11/2026). null = chưa đọc xong cờ "đã xem" trong máy.
+  const [guideOpen, setGuideOpen] = useState(false)
+  const guideSeenRef = useRef<boolean | null>(null)
+  const heldSpeechRef = useRef<string | null>(null)
   const silenceRef = useRef<ReturnType<typeof createSilenceDetector> | null>(null)
   const scrollRef = useRef<ScrollView>(null)
   const lineSeq = useRef(0)
@@ -195,10 +202,47 @@ export default function SpeakingExamRoomScreen() {
         pushLine('PRUEFER', announce)
         // Blur mà đồng hồ server hết hạn tự advance: dòng mới vẫn vào transcript
         // (đọc lại được), chỉ không phát tiếng khi màn không hiển thị.
-        if (speak && focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: announce }], setAiSpeaker)
+        if (speak && focusedRef.current) {
+          if (guideSeenRef.current !== true) {
+            // Lần đầu vào Đang thi (hoặc chưa đọc xong cờ): giữ lời giám khảo, mở hướng dẫn trước.
+            heldSpeechRef.current = announce
+            if (guideSeenRef.current === false) setGuideOpen(true)
+          } else {
+            void speakExamSequence([{ role: 'PRUEFER', text: announce }], setAiSpeaker)
+          }
+        }
       }
     }
   }, [pushLine, stopVoice])
+
+  useEffect(() => {
+    let alive = true
+    void readOralGuideSeen().then((seen) => {
+      if (!alive) return
+      guideSeenRef.current = seen
+      const held = heldSpeechRef.current
+      if (!held) return
+      if (seen) {
+        heldSpeechRef.current = null
+        if (focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
+      } else {
+        setGuideOpen(true)
+      }
+    })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function closeGuide() {
+    setGuideOpen(false)
+    if (guideSeenRef.current !== true) {
+      guideSeenRef.current = true
+      void markOralGuideSeen()
+    }
+    const held = heldSpeechRef.current
+    heldSpeechRef.current = null
+    if (held && focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
+  }
 
   // Nạp phiên lần đầu. Màn nằm dưới Tabs nên KHÔNG unmount giữa hai bài thi —
   // mở phiên mới trên màn cũ phải xoá sạch dấu vết phiên trước (transcript,
@@ -214,6 +258,8 @@ export default function SpeakingExamRoomScreen() {
     if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
     notesTimerRef.current = null
     lastPrueferRef.current = null
+    heldSpeechRef.current = null
+    setGuideOpen(false)
     pendingResultsNav.current = false
     notesSeededRef.current = false
     void (async () => {
@@ -611,6 +657,11 @@ export default function SpeakingExamRoomScreen() {
           >
             <Icon icon={muted ? VolumeX : Volume2} size={20} color="secondary" />
           </Pressable>
+          {inPart ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Xem hướng dẫn phòng thi" onPress={() => setGuideOpen(true)} hitSlop={8}>
+              <Icon icon={CircleHelp} size={20} color="secondary" />
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         <AppHeader
@@ -798,6 +849,7 @@ export default function SpeakingExamRoomScreen() {
           </Card>
         </View>
       )}
+      <OralRoomGuide visible={guideOpen} onClose={closeGuide} />
     </Screen>
   )
 }
