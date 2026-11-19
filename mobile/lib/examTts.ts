@@ -15,6 +15,7 @@
 
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
+import api from './api'
 import { speakingApi } from './speakingApi'
 import { EXAM_VOICE_BY_ROLE } from './examSpeakingUi'
 
@@ -54,8 +55,42 @@ export function isExamTtsMuted(): boolean {
   return muted
 }
 
-/** Phát một câu theo vai (PRUEFER/PARTNER). Resolve khi phát XONG (hoặc bỏ cuộc êm). */
-export async function speakExamLine(role: string, text: string): Promise<void> {
+// Persona của bài nghe (`HOER_*`, mỗi nhân vật một giọng) chỉ có khi sidecar đã build lại; sidecar cũ gặp
+// persona lạ thì lặng lẽ đọc giọng DEFAULT ⇒ phải hỏi `GET /ai-speaking/tts/personas` trước (như web). Không
+// hỏi được / chưa có ⇒ đọc bằng persona cũ theo vai (ANNA/THOMAS). Thấy `HOER_*` thì nhớ tới hết phiên.
+const PERSONAS_RECHECK_MS = 5 * 60_000
+let knownPersonas: Promise<ReadonlySet<string> | null> | null = null
+let knownPersonasUntil = 0
+
+function loadKnownPersonas(): Promise<ReadonlySet<string> | null> {
+  if (knownPersonas && Date.now() < knownPersonasUntil) return knownPersonas
+  const attempt = api
+    .get<{ personas?: unknown }>('/ai-speaking/tts/personas', { timeout: 6000 })
+    .then((r) => {
+      const list = Array.isArray(r.data?.personas) ? (r.data?.personas as unknown[]) : []
+      return new Set(list.filter((x): x is string => typeof x === 'string').map((x) => x.toUpperCase())) as ReadonlySet<string>
+    })
+    .catch(() => null)
+  knownPersonas = attempt
+  knownPersonasUntil = Date.now() + PERSONAS_RECHECK_MS
+  void attempt.then((set) => {
+    if (knownPersonas === attempt && set && Array.from(set).some((x) => x.startsWith('HOER_'))) knownPersonasUntil = Infinity
+  })
+  return attempt
+}
+
+async function voiceFor(role: string, persona?: string): Promise<string> {
+  const legacy = EXAM_VOICE_BY_ROLE[role] ?? 'DEFAULT'
+  if (!persona || persona === legacy) return legacy
+  const known = await loadKnownPersonas()
+  return known?.has(persona.toUpperCase()) ? persona : legacy
+}
+
+/**
+ * Phát một câu theo vai (PRUEFER/PARTNER). Resolve khi phát XONG (hoặc bỏ cuộc êm).
+ * `persona` (tuỳ chọn, bài nghe): giọng riêng của nhân vật (`HOER_*`); máy chủ chưa có thì đọc theo vai.
+ */
+export async function speakExamLine(role: string, text: string, persona?: string): Promise<void> {
   const trimmed = text.trim()
   if (!trimmed || muted) return
   stopPlaybackOnly()
@@ -63,8 +98,19 @@ export async function speakExamLine(role: string, text: string): Promise<void> {
 
   // 1. Server TTS đúng giọng persona.
   try {
-    const voice = EXAM_VOICE_BY_ROLE[role] ?? 'DEFAULT'
-    const base64 = await speakingApi.tts(trimmed, voice)
+    const voice = await voiceFor(role, persona)
+    if (myPlay !== playGen) return
+    let base64: string
+    try {
+      base64 = await speakingApi.tts(trimmed, voice)
+    } catch (e) {
+      // Máy chủ TỪ CHỐI persona mới (sidecar vừa lùi bản…) ⇒ thử lại bằng giọng theo vai trước khi rơi xuống
+      // giọng máy. Mất mạng / hết giờ (không có response) thì không thử lại.
+      const legacy = EXAM_VOICE_BY_ROLE[role] ?? 'DEFAULT'
+      const hasResponse = typeof e === 'object' && e !== null && (e as { response?: unknown }).response != null
+      if (voice === legacy || !hasResponse) throw e
+      base64 = await speakingApi.tts(trimmed, legacy)
+    }
     if (myPlay !== playGen) return
     const path = `${FileSystem.cacheDirectory}exam-tts-${fileSeq++}.mp3`
     await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 })
