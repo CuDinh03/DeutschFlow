@@ -22,10 +22,11 @@ interface ConversationSummaryProps {
   onOpenErrors?: () => void
 }
 
+/** Ô số/ký hiệu nền đặc — chữ trên nền màu đạt tương phản (nền nhạt + chữ màu không đạt 4,5:1). */
 function Badge({ text, tone }: { text: string; tone: 'success' | 'danger' | 'accent' }) {
   const c = useTheme().colors
-  const bg = tone === 'success' ? c.successSoft : tone === 'danger' ? c.dangerSoft : c.accentSoft
-  const fg = tone === 'success' ? c.success : tone === 'danger' ? c.danger : c.accentText
+  const bg = tone === 'success' ? c.success : tone === 'danger' ? c.danger : c.accent
+  const fg = tone === 'accent' ? c.onAccent : c.onInk
   return (
     <View style={{ minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <ThemedText variant="label" style={{ color: fg }}>{text}</ThemedText>

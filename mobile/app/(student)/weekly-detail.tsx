@@ -95,7 +95,7 @@ export default function WeeklyDetailScreen() {
                       <ThemedText
                         key={i}
                         variant="body"
-                        style={{ color: c.danger, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.danger }}
+                        style={{ color: c.textPrimary, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.danger, fontWeight: '600' }}
                       >
                         {seg.text}
                       </ThemedText>
@@ -176,8 +176,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function NumberBadge({ text, tone }: { text: string; tone: 'danger' | 'accent' }) {
   const c = useTheme().colors
   return (
-    <View style={{ minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: tone === 'danger' ? c.dangerSoft : c.accentSoft }}>
-      <ThemedText variant="label" style={{ color: tone === 'danger' ? c.danger : c.accentText }}>{text}</ThemedText>
+    <View style={{ minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: tone === 'danger' ? c.danger : c.accent }}>
+      <ThemedText variant="label" style={{ color: tone === 'danger' ? c.onInk : c.onAccent }}>{text}</ThemedText>
     </View>
   )
 }

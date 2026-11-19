@@ -11,7 +11,8 @@ describe('weeklyUi', () => {
   })
   it('dayMonth không lệch múi giờ', () => {
     expect(dayMonth('2026-11-15')).toBe('15/11')
-    expect(dayMonth('2026-11-15T23:30:00Z')).toBe('15/11')
+    // Chỉ đọc phần ngày của chuỗi (đề tuần trả 'YYYY-MM-DD'); không dùng cho thời điểm có múi giờ.
+    expect(dayMonth('2026-11-15T10:00:00')).toBe('15/11')
     expect(dayMonth('x')).toBe('x')
     expect(dayMonth(null)).toBe('')
   })

@@ -60,7 +60,7 @@ import { PersonaStage, type StageState, type Reaction } from '@/components/speak
 import { MessageBubble } from '@/components/speaking/MessageBubble'
 import { ScreenHeader } from '@/components/speaking/ScreenHeader'
 import { PERSONA_TOKENS } from '@/lib/personas'
-import { resolveStagePersona } from '@/lib/workplaceInterviewers'
+import { resolveStagePersona, stagePersonaInfo } from '@/lib/workplaceInterviewers'
 import {
   reactionFor,
   emptyConversationReport,
@@ -413,6 +413,9 @@ export default function SpeakingScreen() {
         topic: created.topic,
       })
       setChatOpenedAt(Date.now())
+      // Phiếu cũ đang tải mà phiên mới đã mở: bỏ cờ "đang xem phiếu cũ" để kết thúc phiên này đi đúng luồng.
+      setViewingPastReport(false)
+      setConvReport(null)
       setView('chat')
       speakGerman(greeting, () => flashReaction(null), created.persona)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -775,6 +778,7 @@ export default function SpeakingScreen() {
   }
 
   async function resumeSession(ref: ActiveSessionRef) {
+    if (loadingReportId !== null) return
     setResuming(true)
     try {
       const history = await speakingApi.getMessages(ref.id)
@@ -812,6 +816,8 @@ export default function SpeakingScreen() {
       setReport(null)
       setPendingResume(null)
       setChatOpenedAt(Date.now())
+      setViewingPastReport(false)
+      setConvReport(null)
       setView('chat')
       scrollToEnd()
     } catch (e) {
@@ -1076,7 +1082,7 @@ export default function SpeakingScreen() {
           sending: sending || typing,
           aiSpeaking: stage === 'speaking',
           finishing,
-          name: (PERSONA_TOKENS as Record<string, { name: string } | undefined>)[personaId]?.name ?? null,
+          name: stagePersonaInfo(personaId).name,
         })}
       </ThemedText>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2] }}>

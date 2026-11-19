@@ -389,7 +389,8 @@ export function CompanionSelect({
             </ConfigGroup>
           )}
 
-          <Button label={`Bắt đầu với ${selected.name}`} onPress={start} loading={starting} disabled={!ready} />
+          {/* Khoá khi đang tải phiếu cũ (như InterviewHub) — tránh đua mở phiếu cũ với phiên mới. */}
+          <Button label={`Bắt đầu với ${selected.name}`} onPress={start} loading={starting} disabled={!ready || loadingReportId !== null} />
         </View>
       ) : null}
 
