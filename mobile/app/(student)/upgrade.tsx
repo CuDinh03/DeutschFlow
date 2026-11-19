@@ -130,7 +130,7 @@ function IapPaywall() {
               onPress={() => void restore()}
               disabled={isBusy}
               hitSlop={12}
-              style={({ pressed }) => ({ opacity: pressed || (isBusy && phase !== 'restoring') ? 0.5 : 1, flexDirection: 'row', alignItems: 'center', gap: space[1] })}
+              style={({ pressed }) => ({ minHeight: 44, opacity: pressed || (isBusy && phase !== 'restoring') ? 0.5 : 1, flexDirection: 'row', alignItems: 'center', gap: space[1] })}
             >
               {phase === 'restoring' ? <ActivityIndicator size="small" color={c.info} /> : null}
               <ThemedText variant="label" color="info">

@@ -23,7 +23,7 @@ import * as Updates from 'expo-updates'
 import { formatAppVersion } from '@/lib/appVersion'
 
 // Giao diện v3.4 (Đợt 6C, 19/11/2026; mẫu `me`): danh tính, dải ba số, gói, hai nhóm "Học tập" và
-// "Cài đặt", nút xoá tài khoản viền đỏ, chân trang phiên bản + pháp lý.
+// "Cài đặt", nút xoá tài khoản (viền đậm, chữ đỏ), chân trang phiên bản + pháp lý.
 export default function ProfileScreen() {
   // Phiên bản thật của bản cài + OTA đang chạy (trước đây gõ cứng "v1.0.0" — lệch bản 1.0.1).
   const appVersionLabel = formatAppVersion({
@@ -128,9 +128,12 @@ export default function ProfileScreen() {
   function confirmDeleteAccount() {
     Alert.alert(
       'Xoá tài khoản',
-      'Hành động này xoá vĩnh viễn tài khoản và toàn bộ dữ liệu học tập của bạn. Không thể hoàn tác.',
+      // Mẫu v3.4 `delacc` + hướng dẫn xoá tài khoản của Apple: gói App Store tự gia hạn không tự huỷ theo tài khoản.
+      `Hành động này xoá vĩnh viễn tài khoản và toàn bộ dữ liệu học tập của bạn. Không thể hoàn tác.${
+        Platform.OS === 'ios' && IAP_ENABLED ? '\n\nGói đang trả phí qua App Store phải huỷ riêng trong Cài đặt iPhone.' : ''
+      }`,
       [
-        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Giữ tài khoản', style: 'cancel' },
         {
           text: 'Xoá vĩnh viễn',
           style: 'destructive',

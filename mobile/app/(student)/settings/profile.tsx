@@ -216,10 +216,11 @@ export default function EditProfileScreen() {
 
           {/* Ảnh đại diện (mẫu `profileedit`): ảnh tròn, trần 5MB, chip đổi ảnh. */}
           <MeCard style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] + 2 }}>
+            {/* Ảnh cũng bấm được, nhưng ẩn khỏi trình đọc màn hình — chip bên cạnh đã có nhãn (khỏi đọc trùng). */}
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Đổi ảnh đại diện"
-              accessibilityState={{ disabled: avatarBusy }}
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
               onPress={changeAvatar}
               disabled={avatarBusy}
             >

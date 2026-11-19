@@ -42,6 +42,9 @@ const SKILLS: { key: keyof ProgressOverview['skills']; label: string }[] = [
 const CHART_HEIGHT = 120
 const CHART_LABEL_SPACE = 18
 
+/** Thẻ phút học từng ngày — tắt tới khi backend đo phút thật (xem chú thích ở chỗ dựng thẻ). */
+const SHOW_WEEK_MINUTES = false
+
 export default function StatsScreen() {
   // Từ 18/11/2026 Tiến bộ là tab: không có back, chừa đáy cho thanh tab nổi.
   const tabClearance = useTabBarClearance()
@@ -134,8 +137,10 @@ export default function StatsScreen() {
             </FadeIn>
           ) : null}
 
-          {/* Phút học từng ngày tuần này (StudentStatsResponse.weeklyProgress, T2 → CN) */}
-          {stats?.weeklyProgress?.length ? (
+          {/* Phút học từng ngày (mẫu `stats`) TẠM ẨN — 19/11/2026: `StudentStatsResponse.weeklyProgress` không đo
+              phút thật (đếm learning_session_progress COMPLETED × 25, không gồm cây kỹ năng, luyện nói, ôn từ) nên
+              học viên mobile gần như luôn thấy 0. Bật lại khi backend tính phút học thật. */}
+          {SHOW_WEEK_MINUTES && stats?.weeklyProgress?.length ? (
             <FadeIn delay={60}>
               <WeekCard minutes={stats.weeklyProgress} />
             </FadeIn>
