@@ -1,24 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native'
+import { View, KeyboardAvoidingView, Platform, Alert, ScrollView, Pressable } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
+import { ArrowLeft } from 'lucide-react-native'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
 import { captureEvent } from '@/lib/analytics'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, Button, GaGlyph, PinCells } from '@/components/ui'
+import { Screen, ThemedText, Button, GaGlyph, IconButton, PinCells } from '@/components/ui'
 import { useT } from '@/lib/i18n'
 import { authMessages } from '@/lib/i18n/messages/auth'
 import {
   PIN_LENGTH,
+  formatCountdown,
   markSignupVerified,
   resendSecondsLeft,
   sanitizePin,
+  splitAtMarker,
   verifyFailure,
 } from '@/lib/registrationPin'
+
+/** Ký tự vô hình đánh dấu chỗ email trong câu dẫn đã dịch, để in đậm email (xem `splitAtMarker`). */
+const EMAIL_MARK = '\u2063'
+const LINK_HIT_SLOP = { top: 14, bottom: 14, left: 8, right: 8 }
 
 /**
  * Nhập mã xác minh đăng ký (thiết kế mã PIN 05/11 §7.2). Đến từ `register.tsx` sau 202 của
@@ -49,6 +56,7 @@ export default function VerifyEmailScreen() {
   }, [])
 
   const left = resendSecondsLeft(sentAt, resendAfter, now)
+  const subtitle = splitAtMarker(t('verify.subtitle', { email: EMAIL_MARK, minutes: String(ttlMinutes) }), EMAIL_MARK)
 
   async function verify(value: string) {
     if (loading || value.length !== PIN_LENGTH) return
@@ -101,68 +109,122 @@ export default function VerifyEmailScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
+      {/* Nút quay lại = "Đổi email": form đăng ký nằm ngay dưới trong stack, dữ liệu còn nguyên. */}
+      <View style={{ paddingHorizontal: space[5], paddingTop: space[2] }}>
+        <IconButton
+          icon={ArrowLeft}
+          accessibilityLabel={t('verify.changeEmail')}
+          onPress={() => router.back()}
+          disabled={loading}
+        />
+      </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView
-          style={{ flex: 1, paddingHorizontal: space[6] }}
-          contentContainerStyle={{ justifyContent: 'center', flexGrow: 1, paddingVertical: space[10], gap: space[4] }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: space[6], paddingTop: space[5], paddingBottom: space[8] }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
           <MotiView
             from={{ opacity: 0, translateY: 16 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: motion.duration.slow }}
-            style={{ gap: space[4] }}
           >
-            <View style={{ alignItems: 'center', marginBottom: space[4] }}>
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: radius.xl,
-                  backgroundColor: theme.colors.accentSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: space[3],
+            {/* Mẫu v3.4 `pin`: eyebrow, tiêu đề, câu dẫn có email đậm, sáu ô, hàng gửi lại, thẻ nhắc Spam. */}
+            <ThemedText variant="label" color="muted" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+              {t('verify.eyebrow')}
+            </ThemedText>
+            <ThemedText variant="titleLg" accessibilityRole="header" style={{ marginTop: space[2] }}>
+              {t('verify.title')}
+            </ThemedText>
+            <ThemedText variant="body" color="secondary" style={{ marginTop: space[2] }}>
+              {subtitle.before}
+              {subtitle.found ? (
+                <ThemedText variant="bodyStrong" color="primary">
+                  {email}
+                </ThemedText>
+              ) : null}
+              {subtitle.after}
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('verify.changeEmail')}
+              accessibilityState={{ disabled: loading }}
+              disabled={loading}
+              hitSlop={LINK_HIT_SLOP}
+              onPress={() => router.back()}
+              style={{ alignSelf: 'flex-start', marginTop: space[2] }}
+            >
+              <ThemedText variant="label" color="info">{t('verify.changeEmail')}</ThemedText>
+            </Pressable>
+
+            <View style={{ marginTop: space[6] }}>
+              <PinCells
+                label={t('verify.code')}
+                hideLabel
+                value={code}
+                onChange={(v) => {
+                  const digits = sanitizePin(v)
+                  setCode(digits)
+                  // Đủ 6 số (gõ, dán hoặc iOS tự điền từ Mail) là tự gửi — trừ đúng mã vừa bị từ chối.
+                  if (digits.length === PIN_LENGTH && digits !== lastSubmitted.current) void verify(digits)
                 }}
+                length={PIN_LENGTH}
+                autoFocus
+                testID="verify-code"
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: space[4] }}>
+              <ThemedText variant="label" color="secondary">
+                {t('verify.notReceived')}{' '}
+              </ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={left > 0 ? t('verify.resendAfter', { time: formatCountdown(left) }) : t('verify.resend')}
+                accessibilityState={{ disabled: loading || left > 0 }}
+                disabled={loading || left > 0}
+                hitSlop={LINK_HIT_SLOP}
+                onPress={() => void resend()}
               >
-                <GaGlyph name="tinnhan" size={26} ink="primary" />
-              </View>
-              <ThemedText variant="titleLg">{t('verify.title')}</ThemedText>
-              <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }} align="center">
-                {t('verify.subtitle', { email, minutes: String(ttlMinutes) })}
+                {left > 0 ? (
+                  <ThemedText variant="label" color="secondary" style={{ fontVariant: ['tabular-nums'] }}>
+                    {t('verify.resendAfter', { time: formatCountdown(left) })}
+                  </ThemedText>
+                ) : (
+                  <ThemedText variant="label" color="info" style={{ opacity: loading ? 0.55 : 1 }}>
+                    {t('verify.resend')}
+                  </ThemedText>
+                )}
+              </Pressable>
+            </View>
+
+            <View
+              style={{
+                marginTop: space[6],
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: space[3],
+                paddingVertical: space[3] + 2,
+                paddingHorizontal: space[4],
+                borderRadius: radius.lg,
+                backgroundColor: theme.colors.surfaceSunken,
+              }}
+            >
+              <GaGlyph name="thongbao" size={22} ink="primary" />
+              <ThemedText variant="caption" color="secondary" style={{ flex: 1, lineHeight: 18 }}>
+                {t('verify.spamHint')}
               </ThemedText>
             </View>
 
-            <PinCells
-              label={t('verify.code')}
-              value={code}
-              onChange={(v) => {
-                const digits = sanitizePin(v)
-                setCode(digits)
-                // Đủ 6 số (gõ, dán hoặc iOS tự điền từ Mail) là tự gửi — trừ đúng mã vừa bị từ chối.
-                if (digits.length === PIN_LENGTH && digits !== lastSubmitted.current) void verify(digits)
-              }}
-              length={PIN_LENGTH}
-              autoFocus
-              testID="verify-code"
-            />
             <Button
               label={t('verify.submit')}
               onPress={() => void verify(code)}
               loading={loading}
               disabled={code.length !== PIN_LENGTH}
+              style={{ marginTop: space[6] }}
             />
-            <Button
-              label={left > 0 ? t('verify.resendIn', { seconds: String(left) }) : t('verify.resend')}
-              variant="ghost"
-              onPress={() => void resend()}
-              disabled={loading || left > 0}
-            />
-            <Button label={t('verify.changeEmail')} variant="ghost" onPress={() => router.back()} disabled={loading} />
-            <ThemedText variant="caption" color="muted" align="center">
-              {t('verify.spamHint')}
-            </ThemedText>
           </MotiView>
         </ScrollView>
       </KeyboardAvoidingView>
