@@ -15,6 +15,7 @@ import { assignTeilVoices } from '@/lib/hoerenVoices'
 import { HoerenGate, type HoerenGatePhase } from './HoerenGate'
 import { TelcGapText } from './TelcGapText'
 import { ReadingPassage } from './ReadingPassage'
+import { AdPosterCard } from './AdPosterCard'
 
 interface ObjGroupViewProps {
   group: ExamObjGroup
@@ -94,9 +95,19 @@ export function ObjGroupView({
       {!hideBody && group.audio ? <ExamAudio script={group.audio} label={group.title} maxPlays={plays} locked={audioLocked} voices={teilVoices.group} /> : null}
 
       {/* Kho lựa chọn dùng chung cả Teil — in một lần ở đầu như đề giấy. */}
-      {group.pool && (group.telcType === 'MATCH_HEADLINE' || group.telcType === 'MATCH_AD_X') ? (
+      {/* Lesen Teil 3: mẩu rao vặt dựng như tờ dán bảng tin, sáu kiểu luân phiên (Đợt 7a). */}
+      {group.pool && group.telcType === 'MATCH_AD_X' ? (
+        <View style={{ gap: space[3] }}>
+          <Caption>Các mẩu rao vặt · mỗi mẩu chỉ dùng một lần</Caption>
+          {group.pool.map((opt, i) => (
+            <AdPosterCard key={opt.key} letter={opt.key} label={opt.label} index={i} />
+          ))}
+        </View>
+      ) : null}
+
+      {group.pool && group.telcType === 'MATCH_HEADLINE' ? (
         <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
-          <Caption>{group.telcType === 'MATCH_HEADLINE' ? 'Các tiêu đề' : 'Các mẩu rao vặt'}</Caption>
+          <Caption>Các tiêu đề</Caption>
           {group.pool.map((opt) => (
             <ThemedText key={opt.key} variant="body" color="secondary" accessibilityLanguage="de-DE">
               {opt.key}. {opt.label}
