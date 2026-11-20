@@ -4,9 +4,12 @@
 // có. Sau kiểm tra: ô hiện đúng/sai + lời giải như thẻ câu thường. Dùng chung luyện Teil, thi thử, bài
 // chẩn đoán, xem lại (qua `ObjGroupView`). Trạng thái khay ở đây (component con), `ObjGroupView` vẫn
 // là hàm thuần. Logic chọn: `lib/headlineMatch.ts`.
+// 20/11 (owner: "khay đang che hết bài đọc"): khay cao gần hết màn, nửa trên in TRỌN đoạn đang chọn
+// bằng chữ bài đọc (giữ chỗ tô bút), nửa dưới là 10 tiêu đề — hai vùng cuộn riêng, không phải lật khay
+// ra mới đọc được đoạn văn.
 
 import { useRef, useState, type ReactNode } from 'react'
-import { Modal, Pressable, ScrollView, View } from 'react-native'
+import { Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, X } from 'lucide-react-native'
@@ -14,7 +17,7 @@ import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Caption, Icon, ThemedText } from '@/components/ui'
 import type { ExamObjGroup, ExamObjItem } from '@/lib/examApi'
 import type { PracticeItemResult } from '@/lib/telcPracticeApi'
-import { answeredItems, pickHeadline, usedHeadlines } from '@/lib/headlineMatch'
+import { answeredItems, pickHeadline, trayLayout, TRAY_TOP_GAP, usedHeadlines } from '@/lib/headlineMatch'
 import { matchBlock } from '@/lib/marksBlocks'
 import type { MarksLayer } from '@/hooks/usePassageMarks'
 import { MarkedRun } from './MarkedRun'
@@ -68,6 +71,8 @@ export function HeadlineMatch({ group, answers, onAnswer, review, flags, onToggl
   }
   const activeIdx = active ? ids.indexOf(active) : -1
   const activeItem = activeIdx >= 0 ? group.items[activeIdx] : null
+  const activeBlock = activeItem && marks ? matchBlock(marks.texts, `t:${activeItem.id}`, activeItem.passage) : null
+  const activePassage = activeItem?.passage ? (activeBlock && marks ? <MarkedRun layer={marks} block={activeBlock} /> : activeItem.passage) : null
 
   return (
     <View
@@ -141,7 +146,7 @@ export function HeadlineMatch({ group, answers, onAnswer, review, flags, onToggl
       <HeadlineTray
         open={trayOpen && !reviewing && !!activeItem}
         num={activeItem ? numberOf(activeItem, activeIdx) : ''}
-        passage={activeItem?.passage}
+        passage={activePassage}
         pool={pool}
         picked={active ? answers[active] : undefined}
         used={used}
@@ -237,7 +242,8 @@ function HeadlineSlot({
   )
 }
 
-/** Khay kính 10 tiêu đề (mẫu `.hl-tray`): trượt lên ở đáy màn, nhắc lại đoạn đang chọn để khỏi cuộn. */
+/** Khay kính 10 tiêu đề (mẫu `.hl-tray`): trượt lên ở đáy màn. Nửa trên là trọn đoạn đang chọn (chữ bài
+ *  đọc, cuộn riêng, tối đa ~42% chiều cao màn), nửa dưới là danh sách tiêu đề — đọc và chọn cùng một chỗ. */
 function HeadlineTray({
   open,
   num,
@@ -250,7 +256,7 @@ function HeadlineTray({
 }: {
   open: boolean
   num: string
-  passage?: string
+  passage?: ReactNode
   pool: { key: string; label: string }[]
   picked?: string
   used: Set<string>
@@ -260,13 +266,15 @@ function HeadlineTray({
   const t = useTheme()
   const c = t.colors
   const insets = useSafeAreaInsets()
+  const { height } = useWindowDimensions()
+  const { sheetMax, passageMax } = trayLayout(height, insets.top)
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Đóng khay tiêu đề" onPress={onClose} style={{ flex: 1 }} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Đóng khay tiêu đề" onPress={onClose} style={{ flex: 1, minHeight: insets.top + TRAY_TOP_GAP }} />
         <View
           style={{
-            maxHeight: '72%',
+            maxHeight: sheetMax,
             marginHorizontal: space[2],
             marginBottom: Math.max(insets.bottom, space[2]),
             borderRadius: 26,
@@ -296,8 +304,14 @@ function HeadlineTray({
               </Pressable>
             </View>
             {passage ? (
-              <ScrollView style={{ maxHeight: 96 }} accessibilityLabel={`Đoạn ${num}`}>
-                <ThemedText variant="caption" color="secondary" accessibilityLanguage="de-DE">{passage}</ThemedText>
+              <ScrollView
+                style={{ maxHeight: passageMax, flexGrow: 0, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}
+                contentContainerStyle={{ padding: space[3] }}
+                accessibilityLabel={`Đoạn ${num}`}
+              >
+                <ThemedText variant="body" style={[TEXT_FONT, { color: c.textPrimary }]} accessibilityLanguage="de-DE">
+                  {passage}
+                </ThemedText>
               </ScrollView>
             ) : null}
             <ScrollView contentContainerStyle={{ gap: 6 }} style={{ flexShrink: 1 }}>

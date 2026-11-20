@@ -60,3 +60,20 @@ export function pickHeadline(
 export function answeredItems(itemIds: readonly string[], answers: Record<string, string>): number {
   return itemIds.filter((id) => (answers[id] ?? '').trim()).length
 }
+
+/** Phần màn dành cho đoạn văn trong khay (còn lại cho danh sách tiêu đề). */
+export const TRAY_PASSAGE_SHARE = 0.42
+/** Khoảng hở tối thiểu phía trên khay (dưới tai thỏ) để còn chạm ra ngoài đóng khay. */
+export const TRAY_TOP_GAP = 12
+
+/**
+ * Kích thước khay chọn tiêu đề theo màn: khay cao tối đa gần hết màn (chừa tai thỏ + khoảng hở),
+ * đoạn văn tối đa ~42% chiều cao màn — đủ cho một đoạn telc B1 (~60–90 từ) ở cỡ chữ bài đọc.
+ */
+export function trayLayout(windowHeight: number, insetTop: number): { sheetMax: number; passageMax: number } {
+  const h = Math.max(0, windowHeight)
+  return {
+    sheetMax: Math.max(0, Math.round(h - Math.max(0, insetTop) - TRAY_TOP_GAP)),
+    passageMax: Math.round(h * TRAY_PASSAGE_SHARE),
+  }
+}
