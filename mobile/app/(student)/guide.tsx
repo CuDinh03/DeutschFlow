@@ -4,18 +4,19 @@ import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import { ChevronDown, ArrowUpRight } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader, GaGlyph } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Caption, FadeIn, AppHeader, GaGlyph } from '@/components/ui'
 import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
 import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
-import { useBackTo } from '@/hooks/useBackTo'
-import { PARENT_OF } from '@/lib/screenParents'
+import { useBackToMainTab } from '@/hooks/useBackTo'
 
 export default function GuideScreen() {
-  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
-  const goBack = useBackTo(PARENT_OF['guide'])
+  // Back tường minh — Tabs firstRoute sẽ về Heute (xem lib/screenParents). Từ 19/11/2026 màn này mở
+  // được cả từ Hồ sơ lẫn nút "?" của tab Luyện thi, nên về trạm mở gần nhất: Hồ sơ nếu vừa rẽ từ Hồ sơ
+  // (như trước), không thì tab chính vừa rời.
+  const goBack = useBackToMainTab()
   const c = useTheme().colors
   const { startTour } = useSpotlightTour()
   // The iOS free build ships with no commercial PRO surface, so drop FAQ entries that mention it.

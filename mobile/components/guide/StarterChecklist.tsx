@@ -9,8 +9,9 @@ import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle } from 'react-native-svg'
-import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Card, ThemedText, Caption, GaGlyph } from '@/components/ui'
+import { ChevronRight } from 'lucide-react-native'
+import { motion, space, useTheme } from '@/lib/theme'
+import { Card, ThemedText, GaGlyph, Icon } from '@/components/ui'
 import { captureEvent } from '@/lib/analytics'
 import { useStarterStore, SRS_CHECKLIST_TARGET } from '@/stores/useStarterStore'
 
@@ -114,14 +115,17 @@ export function StarterChecklist({
     )
   }
 
+  // Giao diện v3.4 (mẫu `t-starter`, Đợt 2b): vòng số ở bên phải, ô vuông đánh dấu, mũi tên ở mục chưa xong.
   return (
-    <Card style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[3] }}>
+    <Card style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[2] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <ProgressRing value={doneCount / items.length} label={`${doneCount}/${items.length}`} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Caption color={theme.colors.accent}>Bắt đầu</Caption>
+          <ThemedText variant="label" color="muted" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+            Bắt đầu
+          </ThemedText>
           <ThemedText variant="title">Tuần đầu của bạn</ThemedText>
         </View>
+        <ProgressRing value={doneCount / items.length} label={`${doneCount}/${items.length}`} />
       </View>
       <View>
         {items.map((item, i) => (
@@ -132,21 +136,22 @@ export function StarterChecklist({
             accessibilityState={{ checked: item.done }}
             disabled={item.done}
             onPress={item.onPress}
-            style={{
+            style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
               gap: space[3],
+              minHeight: 46,
               paddingVertical: space[2],
               borderTopWidth: i > 0 ? 1 : 0,
               borderTopColor: theme.colors.border,
-              opacity: item.done ? 0.55 : 1,
-            }}
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
             <View
               style={{
-                width: 26,
-                height: 26,
-                borderRadius: radius.full,
+                width: 24,
+                height: 24,
+                borderRadius: 7,
                 borderWidth: 1.5,
                 borderColor: item.done ? theme.colors.success : theme.colors.borderStrong,
                 backgroundColor: item.done ? theme.colors.successSoft : 'transparent',
@@ -157,16 +162,17 @@ export function StarterChecklist({
               {item.done ? (
                 <GaGlyph name="hoanthanh" size={16} ink="onAccent" gold="success" />
               ) : (
-                <GaGlyph name={item.glyph} size={15} ink="muted" />
+                <GaGlyph name={item.glyph} size={14} ink="muted" />
               )}
             </View>
             <ThemedText
               variant="body"
               color={item.done ? 'muted' : 'primary'}
-              style={item.done ? { textDecorationLine: 'line-through' } : undefined}
+              style={[{ flex: 1 }, item.done ? { textDecorationLine: 'line-through' } : null]}
             >
               {item.label}
             </ThemedText>
+            {item.done ? null : <Icon icon={ChevronRight} size={16} color="faint" />}
           </Pressable>
         ))}
       </View>
@@ -190,7 +196,7 @@ function ProgressRing({ value, label }: { value: number; label: string }) {
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={theme.colors.accent}
+          stroke={theme.colors.textPrimary}
           strokeWidth={stroke}
           fill="none"
           strokeLinecap="round"

@@ -1,7 +1,9 @@
+// Màn Hôm nay (giao diện v3.4; mẫu `plans/ios-v3.4-mau` màn `today`). Đợt 2: thẻ "Lịch ôn hôm nay"
+// đứng đầu. Đợt 2b (19/11/2026): thanh đầu có chuỗi ngày dạng huy hiệu (neo tour `homeStreak`) và nút
+// Hướng dẫn chạy lại tour, lời chào có vệt vàng, thẻ phỏng vấn theo nghề, hai ô nhanh, "Tiếp tục học".
 import { useCallback, useEffect, useState } from 'react'
-import type { GlyphName } from '@/lib/galerieGlyphs'
-import { View, Pressable, Alert, Linking } from 'react-native'
-import { useQuery } from '@tanstack/react-query'
+import { View, Alert, Linking } from 'react-native'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
@@ -26,22 +28,24 @@ import { gamificationApi } from '@/lib/gamificationApi'
 import { lernwegApi, ROADMAP_ME_QUERY_KEY } from '@/lib/lernwegApi'
 import { messagesApi } from '@/lib/messagesApi'
 import { TodayTasks } from '@/components/home/TodayTasks'
-import { ExamCountdownCard } from '@/components/exam/ExamCountdownCard'
+import { TodayPlanCard } from '@/components/exam/hub/TodayPlanCard'
+import { ContinueLearning, InterviewCard, QuickTiles } from '@/components/home/TodayCards'
+import { RoundIconButton } from '@/components/home/RoundIconButton'
+import { EXAM_HUB_QUERY_KEY, useExamHub } from '@/hooks/useExamHub'
+import { greetingName, roadmapRange, todayDateLine } from '@/lib/homeToday'
+import { CircleHelp } from 'lucide-react-native'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
   Card,
   ThemedText,
-  Icon,
   Pill,
-  ListRow,
-  SectionHeader,
   Skeleton,
   ErrorState,
-  Caption,
-  ProgressBar,
   useTabBarClearance,
   AvatarButton,
+  BrandMark,
+  BrushMark,
 GaGlyph } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -49,12 +53,6 @@ GaGlyph } from '@/components/ui'
 interface DashboardData {
   streakDays: number
   weeklyXp: number
-}
-
-function greetingFor(hour: number): string {
-  if (hour < 12) return 'Chào buổi sáng'
-  if (hour < 18) return 'Chào buổi chiều'
-  return 'Chào buổi tối'
 }
 
 export default function DashboardScreen() {
@@ -129,8 +127,14 @@ export default function DashboardScreen() {
   // scrollTo/đo neo của spotlight → coach mark nổ đúng lúc đó rơi về tooltip giữa
   // màn không khoét sáng (F-SRS-COACH-01, QA tài khoản mới 05/09). Gate coi
   // `refreshing` là bận, làm mới xong effect chạy lại và nổ bình thường.
+  const queryClient = useQueryClient()
   const pull = usePullRefresh(async () => {
-    await Promise.all([refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread()])
+    // Cả các khối mới của Hôm nay (lịch ôn / ô Thi thử dựa trên exam-hub, ô Lộ trình dựa trên roadmap).
+    await Promise.all([
+      refetch(), refetchXp(), refetchSrs(), refetchUnread(), refetchMsgUnread(),
+      queryClient.invalidateQueries({ queryKey: EXAM_HUB_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: ROADMAP_ME_QUERY_KEY }),
+    ])
   })
 
   const { startTour, activeTourId } = useSpotlightTour()
@@ -300,15 +304,24 @@ export default function DashboardScreen() {
     setReminderOpen(false)
   }
 
-  const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
-  const greeting = greetingFor(new Date().getHours())
-  const level = xp?.level ?? 1
-  const totalXp = xp?.totalXp ?? 0
-  const weeklyXp = data?.weeklyXp ?? 0
+  const firstName = greetingName(user?.displayName)
   const dueSrs = srs?.dueCount ?? 0
   const unread = unreadData?.unreadCount ?? 0
+  // Lời chào theo mẫu: "ôn telc" khi tài khoản luyện được đề telc (mặc định cho mọi tài khoản từ
+  // 07/11); dữ liệu Luyện thi đã tải mà chưa mở luyện đề thì nói chung là học tiếng Đức.
+  const hub = useExamHub()
+  const markWord = hub.data && !hub.data.access ? 'học tiếng Đức' : 'ôn telc'
+  const roadmapTile =
+    treeTotal > 0 ? { pct: pathPct, done: treeDone, total: treeTotal, range: roadmapRange(roadmapNodes) } : null
 
   const onRefresh = () => void pull.onRefresh()
+
+  // Nút "?" trên thanh đầu (mẫu `t-help`): chạy lại tour Trang chủ như nút trong màn Hướng dẫn.
+  const replayTour = () => {
+    if (activeTourId) return
+    captureEvent('guide_tour_replay_clicked', { from: 'home_header' })
+    void getDailyGoalMinutes().then((m) => startTour('home', 'replay', { dailyGoalMinutes: m }))
+  }
 
   return (
     <Screen
@@ -321,31 +334,54 @@ export default function DashboardScreen() {
       <View
         style={{
           flexDirection: 'row',
-          justifyContent: 'space-between',
           alignItems: 'center',
+          gap: 6,
           paddingHorizontal: space[5],
-          paddingTop: space[3],
-          paddingBottom: space[2],
+          paddingTop: space[2],
         }}
       >
-        <View style={{ gap: 4 }}>
-          <Caption>{greeting},</Caption>
-          <ThemedText variant="titleLg">{firstName}</ThemedText>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <HeaderIconButton
-            glyph="hoithoai"
-            label={msgUnread > 0 ? `Tin nhắn, ${msgUnread} chưa đọc` : 'Tin nhắn'}
-            badge={msgUnread}
-            onPress={() => router.push('/(student)/messages')}
-          />
-          <HeaderIconButton
-            glyph="thongbao"
-            label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
-            badge={unread}
-            onPress={() => router.push('/(student)/notifications')}
-          />
-          <AvatarButton />
+        <BrandMark size={30} />
+        <View style={{ flex: 1 }} />
+        {/* Chuỗi ngày học dạng huy hiệu (mẫu `t-streak`) — bước 1 của tour Trang chủ neo vào đây. */}
+        {data ? (
+          <SpotlightTarget id={SPOTLIGHT_TARGETS.homeStreak}>
+            <StreakBadge days={data.streakDays ?? 0} />
+          </SpotlightTarget>
+        ) : null}
+        <RoundIconButton
+          icon={CircleHelp}
+          label="Xem hướng dẫn"
+          hint="Chạy lại tour chỉ chỗ từng phần trên màn hình"
+          onPress={replayTour}
+        />
+        <RoundIconButton
+          glyph="hoithoai"
+          label={msgUnread > 0 ? `Tin nhắn, ${msgUnread} chưa đọc` : 'Tin nhắn'}
+          badge={msgUnread}
+          onPress={() => router.push('/(student)/messages')}
+        />
+        <RoundIconButton
+          glyph="thongbao"
+          label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
+          badge={unread}
+          onPress={() => router.push('/(student)/notifications')}
+        />
+        <AvatarButton />
+      </View>
+
+      <View
+        accessible
+        accessibilityRole="header"
+        accessibilityLabel={`${todayDateLine(new Date())}. Chào ${firstName}, ${markWord} hôm nay.`}
+        style={{ paddingHorizontal: space[5], marginTop: space[5] }}
+      >
+        <ThemedText variant="label" color="muted" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+          {todayDateLine(new Date())}
+        </ThemedText>
+        <ThemedText variant="display" style={{ marginTop: space[1] }}>{`Chào ${firstName},`}</ThemedText>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <BrushMark>{markWord}</BrushMark>
+          <ThemedText variant="display"> hôm nay.</ThemedText>
         </View>
       </View>
 
@@ -359,55 +395,16 @@ export default function DashboardScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: motion.duration.normal }}
         >
-          <View style={{ paddingHorizontal: space[5], marginTop: space[3] }}>
-            {/* Streak hero — editorial ink card, the day-one engagement metric */}
-            <SpotlightTarget id={SPOTLIGHT_TARGETS.homeStreak}>
-            <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
-                <View
-                  style={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: radius.lg,
-                    backgroundColor: theme.colors.accentSoft,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <GaGlyph name="chuoi" size={30} ink="accent" />
-                </View>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Caption color={theme.colors.accent}>Chuỗi học</Caption>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
-                    <ThemedText variant="displayLg" style={{ color: theme.colors.onInk }}>
-                      {String(data?.streakDays ?? 0)}
-                    </ThemedText>
-                    <ThemedText variant="bodyStrong" style={{ color: theme.colors.onInkMuted }}>
-                      ngày
-                    </ThemedText>
-                  </View>
-                  <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted }}>
-                    Hoàn thành 2 hoạt động mỗi ngày để giữ chuỗi
-                  </ThemedText>
-                </View>
-              </View>
-            </Card>
-            </SpotlightTarget>
+          {/* Owner chốt 18/11 (giữ 19/11): lịch ôn telc đứng đầu màn Hôm nay; chưa có ngày thi thì
+              mời làm bài chẩn đoán. Tự ẩn khi tài khoản chưa mở luyện đề. */}
+          <TodayPlanCard dueSrs={dueSrs} style={{ marginHorizontal: space[5], marginTop: space[5] }} />
 
-            {/* Secondary stats */}
-            <View style={{ flexDirection: 'row', gap: space[3], marginTop: space[3] }}>
-              <StatCard glyph="capdo" accent="accent" value={`Lv ${level}`} label={`${totalXp} XP`} />
-              <StatCard glyph="xp" accent="info" value={`+${weeklyXp}`} label="XP tuần này" />
-            </View>
+          {/* Mẫu `t-interview` + `t-tiles`: phỏng vấn theo nghề, rồi hai ô Thi thử trọn đề / Lộ trình.
+              Ô Lộ trình cùng nguồn /roadmap/me với màn Lernweg (N1, 05/09). */}
+          <View style={{ paddingHorizontal: space[5], marginTop: space[4], gap: space[3] }}>
+            <InterviewCard />
+            <QuickTiles roadmap={roadmapTile} />
           </View>
-
-          {/* Heute (cụm 2, thiết kế 02/09): việc hôm nay từ /today/me — sửa lỗi
-              đến hạn + nói/từ vựng theo gợi ý. Thẻ Ôn SRS ngay dưới là "việc"
-              thứ tư, giữ nguyên vì nó là mỏ neo tour (homeSrsCard). */}
-          <TodayTasks />
-
-          {/* LT3: chỉ hiện với người có ngày thi và có kế hoạch cho kỳ thi đó. */}
-          <ExamCountdownCard style={{ marginHorizontal: space[5], marginTop: space[4] }} />
 
           {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
               tự biến mất vĩnh viễn khi hoàn thành đủ. */}
@@ -421,6 +418,11 @@ export default function DashboardScreen() {
               }}
             />
           ) : null}
+
+          {/* Heute (cụm 2, thiết kế 02/09): việc hôm nay từ /today/me — sửa lỗi
+              đến hạn + nói/từ vựng theo gợi ý. Thẻ Ôn SRS ngay dưới là "việc"
+              thứ tư, giữ nguyên vì nó là mỏ neo tour (homeSrsCard). */}
+          <TodayTasks />
 
           {dueSrs > 0 ? (
             // Lề đặt trên neo, không trên Card: neo đo đúng thẻ nên khung vàng của
@@ -461,47 +463,8 @@ export default function DashboardScreen() {
             </SpotlightTarget>
           ) : null}
 
-          {/* Lối vào Lernweg (cụm 3, 02/09; nguồn hợp nhất /roadmap/me từ 05/09) —
-              % ở đây và cây ở màn đích cùng một danh sách node. */}
-          {treeTotal > 0 ? (
-            <Card
-              onPress={() => router.push('/(student)/lernweg')}
-              accessibilityLabel={`Lộ trình đến B2, ${pathPct}%`}
-              style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[3] }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ gap: 6 }}>
-                  <Caption>Lộ trình đến B2</Caption>
-                  <ThemedText variant="display">{pathPct}%</ThemedText>
-                </View>
-                <GaGlyph name="lernweg" size={24} ink="muted" />
-              </View>
-              <ProgressBar value={pathPct / 100} />
-              <ThemedText variant="caption" color="muted">
-                {treeDone}/{treeTotal} chặng hoàn thành
-              </ThemedText>
-            </Card>
-          ) : null}
-
           <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-            <SectionHeader title="Hoạt động" />
-            <Card padded={false} style={{ paddingHorizontal: space[4] }}>
-              <ListRow
-                glyph="hoc"
-                iconTone="accent"
-                title="Luyện từ vựng SRS"
-                subtitle="Flashcard lặp lại ngắt quãng"
-                onPress={() => router.push('/(student)/srs')}
-              />
-              <Divider />
-              <ListRow
-                glyph="speaking"
-                iconTone="info"
-                title="Luyện nói AI"
-                subtitle="Hội thoại với AI coach"
-                onPress={() => router.push('/(student)/speaking')}
-              />
-            </Card>
+            <ContinueLearning nodes={roadmapNodes} />
           </View>
 
           {!isPro && !trialActive && PAYWALL_ENABLED ? (
@@ -547,112 +510,38 @@ export default function DashboardScreen() {
   )
 }
 
-// Header action: a bordered icon button with an optional unread badge (bell + messages).
-function HeaderIconButton({
-  glyph, label, badge, onPress,
-}: {
-  glyph: GlyphName
-  label: string
-  badge: number
-  onPress: () => void
-}) {
-  const theme = useTheme()
+// Huy hiệu chuỗi ngày học trên thanh đầu (mẫu `.badge.y`): nền vàng nhạt, glyph chuỗi, số ngày.
+function StreakBadge({ days }: { days: number }) {
+  const c = useTheme().colors
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={8}>
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: radius.md,
-          backgroundColor: theme.colors.surface,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <GaGlyph name={glyph} size={20} ink="secondary" />
-        {badge > 0 ? (
-          <View
-            style={{
-              position: 'absolute',
-              top: -2,
-              right: -2,
-              minWidth: 18,
-              height: 18,
-              paddingHorizontal: 4,
-              borderRadius: radius.full,
-              backgroundColor: theme.colors.danger,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 2,
-              borderColor: theme.colors.bg,
-            }}
-          >
-            <ThemedText variant="caption" style={{ color: theme.colors.onBrand, fontSize: 10 }}>
-              {badge > 9 ? '9+' : String(badge)}
-            </ThemedText>
-          </View>
-        ) : null}
-      </View>
-    </Pressable>
+    <View
+      accessible
+      accessibilityLabel={`Chuỗi học ${days} ngày`}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        height: 30,
+        paddingHorizontal: space[3],
+        borderRadius: radius.full,
+        backgroundColor: c.accentSoft,
+      }}
+    >
+      <GaGlyph name="chuoi" size={16} ink="primary" />
+      <ThemedText variant="label" style={{ fontVariant: ['tabular-nums'] }}>{`${days} ngày`}</ThemedText>
+    </View>
   )
-}
-
-function StatCard({
-  glyph,
-  accent,
-  value,
-  label,
-}: {
-  glyph: GlyphName
-  accent: 'accent' | 'info'
-  value: string
-  label: string
-}) {
-  const theme = useTheme()
-  const softBg = accent === 'accent' ? theme.colors.accentSoft : theme.colors.infoSoft
-  return (
-    <Card style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: radius.md,
-            backgroundColor: softBg,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <GaGlyph name={glyph} size={20} ink={accent === 'accent' ? 'primary' : accent} gold={accent} />
-        </View>
-        <View style={{ gap: 2 }}>
-          <ThemedText variant="monoLg">{value}</ThemedText>
-          <ThemedText variant="caption" color="muted">
-            {label}
-          </ThemedText>
-        </View>
-      </View>
-    </Card>
-  )
-}
-
-function Divider() {
-  const theme = useTheme()
-  return <View style={{ height: 1, backgroundColor: theme.colors.border }} />
 }
 
 function DashboardSkeleton() {
   return (
-    <View style={{ paddingHorizontal: space[5], marginTop: space[3], gap: space[4] }}>
+    <View style={{ paddingHorizontal: space[5], marginTop: space[5], gap: space[4] }}>
+      <Skeleton height={220} radius="2xl" />
+      <Skeleton height={140} radius="2xl" />
       <View style={{ flexDirection: 'row', gap: space[3] }}>
-        <Skeleton height={72} radius="2xl" style={{ flex: 1 }} />
-        <Skeleton height={72} radius="2xl" style={{ flex: 1 }} />
+        <Skeleton height={120} radius="2xl" style={{ flex: 1 }} />
+        <Skeleton height={120} radius="2xl" style={{ flex: 1 }} />
       </View>
-      <Skeleton height={72} radius="2xl" />
-      <Skeleton width={120} height={20} radius="md" />
-      <Skeleton height={180} radius="2xl" />
     </View>
   )
 }

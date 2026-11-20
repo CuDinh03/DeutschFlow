@@ -53,6 +53,10 @@ export default function StudentLayout() {
         <Tabs.Screen name="exam-attempt" options={{ href: null }} />
         <Tabs.Screen name="exam-review" options={{ href: null }} />
         <Tabs.Screen name="exam-plan" options={{ href: null }} />
+        <Tabs.Screen name="exam-set" options={{ href: null }} />
+        <Tabs.Screen name="exam-teil" options={{ href: null }} />
+        <Tabs.Screen name="exam-full" options={{ href: null }} />
+        <Tabs.Screen name="exam-diagnostic" options={{ href: null }} />
         <Tabs.Screen name="node" options={{ href: null }} />
         <Tabs.Screen name="node-practice" options={{ href: null }} />
         <Tabs.Screen name="grammar" options={{ href: null }} />

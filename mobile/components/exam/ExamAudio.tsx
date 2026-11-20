@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { Lock, Play, Square, Users } from 'lucide-react-native'
 import { ThemedText, Caption, Icon } from '@/components/ui'
 import { radius, space, useTheme } from '@/lib/theme'
 import { speakExamLine, stopExamTts } from '@/lib/examTts'
 import { canPlayAgain, playsLeft } from '@/lib/playBudget'
-import type { AudioTurn } from '@/lib/examApi'
+import { NARRATOR_ROLE, type AudioTurn } from '@/lib/examApi'
+import { assignHoerenVoices, HOEREN_NARRATOR_VOICE, scriptTurns, splitAnnounce } from '@/lib/hoerenVoices'
 
 interface ExamAudioProps {
   /** Chuỗi (một giọng) hoặc mảng lượt nói (hai giọng — Hörverstehen Teil 2 của telc; câu dẫn + bài — Teil 1/3). */
@@ -17,6 +18,11 @@ interface ExamAudioProps {
   locked?: boolean
   /** Bài nghe của MỘT câu: thu gọn, không liệt kê người nói khi chỉ có một nhân vật. */
   compact?: boolean
+  /**
+   * Giọng từng dòng, chia ở cấp Teil (`assignTeilVoices`) để hai người liền nhau ở hai câu khác nhau không trùng
+   * giọng. Bỏ trống ⇒ tự chia trong riêng đoạn này.
+   */
+  voices?: readonly string[]
 }
 
 const ROLES = ['PRUEFER', 'PARTNER'] as const
@@ -31,16 +37,27 @@ const ROLES = ['PRUEFER', 'PARTNER'] as const
  * giọng máy — server TTS hỏng là chuyện có thật, và Hörverstehen Teil 2 là 10 câu trên 25 điểm.
  * Lời thoại thì CỐ Ý không in: đây là bài nghe.
  */
-export function ExamAudio({ script, label, maxPlays, locked = false, compact = false }: ExamAudioProps) {
+export function ExamAudio({ script, label, maxPlays, locked = false, compact = false, voices: teilVoices }: ExamAudioProps) {
   const { colors: c } = useTheme()
   const [used, setUsed] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [activeLine, setActiveLine] = useState(-1)
 
+  // Mỗi lượt phát một số; bấm Dừng hoặc rời màn thì tăng ⇒ vòng đọc đang chạy thôi đọc các dòng sau.
+  const runRef = useRef(0)
   // Rời màn giữa chừng mà không dừng thì giọng vẫn đọc tiếp ở màn sau.
-  useEffect(() => () => stopExamTts(), [])
+  useEffect(() => () => {
+    runRef.current += 1
+    stopExamTts()
+  }, [])
 
   const turns: AudioTurn[] = Array.isArray(script) ? script.filter((t) => t.text?.trim()) : []
+  // Mỗi nhân vật một giọng, người dẫn một giọng cố định (như web, 13–14/11/2026); máy chủ chưa có giọng
+  // `HOER_*` thì examTts tự đọc theo vai như trước.
+  // Kịch bản dạng chuỗi là một lượt của người dẫn, như web.
+  const playTurns = useMemo(() => scriptTurns(script).filter((t) => t.text?.trim()), [script])
+  const ownVoices = useMemo(() => assignHoerenVoices([scriptTurns(script)])[0], [script])
+  const voices = teilVoices ?? ownVoices
   const isTurns = turns.length > 0
   // Câu dẫn không phải nhân vật: một câu dẫn + một bài vẫn là "một người nói".
   const speakerCount = turns.filter((t) => t.kind !== 'LEAD_IN').length
@@ -50,6 +67,7 @@ export function ExamAudio({ script, label, maxPlays, locked = false, compact = f
   const disabled = !playing && (locked || exhausted)
 
   const stop = useCallback(() => {
+    runRef.current += 1
     stopExamTts()
     setPlaying(false)
     setActiveLine(-1)
@@ -57,22 +75,30 @@ export function ExamAudio({ script, label, maxPlays, locked = false, compact = f
 
   const play = useCallback(async () => {
     if (locked || !canPlayAgain(maxPlays, used)) return
+    runRef.current += 1
+    const run = runRef.current
     setUsed((n) => n + 1)
     setPlaying(true)
     try {
-      if (isTurns) {
-        for (let i = 0; i < turns.length; i++) {
-          setActiveLine(i)
-          await speakExamLine(turns[i].speaker ?? ROLES[i % ROLES.length], turns[i].text)
+      for (let i = 0; i < playTurns.length; i++) {
+        if (runRef.current !== run) return
+        const turn = playTurns[i]
+        setActiveLine(i)
+        // Như web: „Nummer 41." do người dẫn đọc, phần còn lại bằng giọng nhân vật.
+        const announce = turn.kind === 'LEAD_IN' ? null : splitAnnounce(turn.text)
+        if (announce) {
+          await speakExamLine(NARRATOR_ROLE, announce.announce, HOEREN_NARRATOR_VOICE)
+          if (runRef.current !== run) return
         }
-      } else {
-        await speakExamLine('PRUEFER', String(script))
+        await speakExamLine(turn.speaker ?? ROLES[i % ROLES.length], announce ? announce.body : turn.text, voices[i])
       }
     } finally {
-      setPlaying(false)
-      setActiveLine(-1)
+      if (runRef.current === run) {
+        setPlaying(false)
+        setActiveLine(-1)
+      }
     }
-  }, [isTurns, turns, script, maxPlays, used, locked])
+  }, [playTurns, maxPlays, used, locked, voices])
 
   const hint = locked
     ? 'Nghe hướng dẫn và đọc câu hỏi xong mới phát được.'

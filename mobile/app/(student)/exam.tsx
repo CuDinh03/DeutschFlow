@@ -1,307 +1,197 @@
-import { useState } from 'react'
-import type { GlyphName } from '@/lib/galerieGlyphs'
-import { View } from 'react-native'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { usePullRefresh } from '@/hooks/usePullRefresh'
-import { router, useLocalSearchParams, type Href } from 'expo-router'
-import { ChevronRight } from 'lucide-react-native'
-import { Alert } from 'react-native'
-import api, { apiMessage } from '@/lib/api'
-import { radius, space, useTheme } from '@/lib/theme'
-import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, AvatarButton, EmptyState, ErrorState, SectionHeader, Skeleton, Caption, SelectableChip, GaGlyph, useTabBarClearance } from '@/components/ui'
-import { usePlanStore } from '@/stores/usePlanStore'
-import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
-import { trackFeatureAction } from '@/lib/analytics'
-import { useLearnerLevel } from '@/hooks/useLearnerLevel'
-import { pickBand } from '@/lib/learnerBand'
-import { ExamCountdownCard } from '@/components/exam/ExamCountdownCard'
+// Tab Luyện thi telc (giao diện v3.4, Đợt 2, 19/11/2026) — dựng theo mẫu `plans/ios-v3.4-mau` màn
+// `exam` và trang /v2/student/exam của web: đếm ngược ngày thi, gợi ý nhanh, bốn kỹ năng (vạch đỗ
+// 60%), tuần này (đổi chỗ buổi chưa làm), đề luyện. Owner chốt 18/11: chỉ telc; chưa có ngày thi thì
+// mời làm bài chẩn đoán; dưới 50% đỏ "Chưa đạt", 50–59% cam "Sát ngưỡng".
+//
+// Thay màn thi thử cũ (chọn cấp A1–B2, đề Goethe, khoá PRO): luyện đề telc mở theo quyền
+// `/mock-exams/practice/access` như web; thi thử trọn đề mở từ màn Đề.
 
-const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
+import { useCallback, useState } from 'react'
+import { Alert, View } from 'react-native'
+import { useQueryClient } from '@tanstack/react-query'
+import { router, useFocusEffect, type Href } from 'expo-router'
+import { CircleHelp } from 'lucide-react-native'
+import { apiMessage } from '@/lib/api'
+import { RoundIconButton } from '@/components/home/RoundIconButton'
+import { space } from '@/lib/theme'
+import { usePullRefresh } from '@/hooks/usePullRefresh'
+import { AvatarButton, BrushMark, EmptyState, ErrorState, ListRow, Screen, SectionHeader, Skeleton, ThemedText, useTabBarClearance } from '@/components/ui'
+import { EXAM_HUB_QUERY_KEY, hubSuggestions, isNewcomer, useExamHub, type ExamHubData } from '@/hooks/useExamHub'
+import { checkedCount, teilRouteFor, type Skill } from '@/lib/examHub'
+import { examPlanApi, swapLocally, type ExamPlan } from '@/lib/examPlanApi'
+import { diagnosticRoute, examPlanRoute, oralRoute, type ExamRoute } from '@/lib/examRoutes'
+import { CountdownInkCard, DiagnosticCard, ExamSetCard, SuggestionRail, go } from '@/components/exam/hub/HubCards'
+import { SkillBars, WeekRail } from '@/components/exam/hub/SkillsAndWeek'
 
 export default function ExamScreen() {
-  // Từ 18/11/2026 Luyện thi là tab: không có back, chừa đáy cho thanh tab nổi.
   const tabClearance = useTabBarClearance()
-  const theme = useTheme()
-  const { hasProAccess } = usePlanStore()
-
-  // 17/09: cấp mặc định theo TRÌNH ĐỘ HỒ SƠ (A0 → A1) thay vì ghim 'B1' — tài khoản A0 từng mở
-  // màn là thấy đề B1. `level` null tới khi hồ sơ trả lời (query đề chờ theo).
-  const [pickedLevel, setLevel] = useState<string | null>(null)
-  const { currentLevel, settled: levelSettled } = useLearnerLevel({ enabled: hasProAccess })
-  // LT3: lộ trình thi dẫn vào đây kèm cấp của kỳ thi, không theo trình độ hồ sơ.
-  const { level: planLevel } = useLocalSearchParams<{ level?: string }>()
-  const routeLevel = EXAM_LEVELS.find((lv) => lv === planLevel) ?? null
-  const level = pickedLevel ?? routeLevel ?? (levelSettled ? pickBand(currentLevel, EXAM_LEVELS) : null)
-
-  const { data: variants = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['exam-variants', level],
-    // includeComingSoon: đề nháp chờ duyệt (V342) về kèm cờ để hiện "Sắp có" — app cũ không gửi cờ thì không thấy.
-    queryFn: () =>
-      api
-        .get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level, includeComingSoon: true } })
-        .then((r) => r.data.map(mapExam)),
-    enabled: hasProAccess && level != null,
-    staleTime: 300_000,
-  })
-
-  const { data: recommendedId } = useQuery({
-    queryKey: ['exam-recommend', level],
-    queryFn: () => examApi.recommend(level ?? ''),
-    enabled: hasProAccess && level != null,
-    staleTime: 300_000,
-  })
-
-  const { data: attempts = [], refetch: refetchAttempts } = useQuery({
-    queryKey: ['exam-attempts'],
-    queryFn: () => examApi.listAttempts(),
-    enabled: hasProAccess,
-    staleTime: 60_000,
-  })
+  const queryClient = useQueryClient()
+  const { data, derived, isLoading, isError, refetch, dataUpdatedAt } = useExamHub()
   const pull = usePullRefresh(async () => {
-    await Promise.all([refetch(), refetchAttempts()])
+    await refetch()
   })
 
-  const completedAttempts = attempts.filter((a) => a.status === 'COMPLETED').slice(0, 5)
+  // Tab không unmount. Kiểm tra một Teil đã làm mới dữ liệu này; vào lại tab chỉ tải lại khi đã cũ
+  // hơn 1 phút (mỗi lần tải là gói đề + tổng quan từng đề).
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - dataUpdatedAt > 60_000) void refetch()
+    }, [refetch, dataUpdatedAt]),
+  )
 
-  const startExam = useMutation({
-    mutationFn: (examId: number) =>
-      api.post<{ id: number }>(`/mock-exams/${examId}/start`).then((r) => r.data),
-  })
+  const level = data?.plan?.level ?? 'B1'
 
-  function handleStart(variant: ExamVariant) {
-    Alert.alert('Bắt đầu thi?', 'Phần Đọc chấm tự động trên app; phần Nghe/Viết/Nói làm trên web.', [
-      { text: 'Huỷ', style: 'cancel' },
-      {
-        text: 'Bắt đầu',
-        onPress: () => {
-          trackFeatureAction('mock_exam', 'started', { exam_id: variant.id, level })
-          startExam.mutate(variant.id, {
-            onSuccess: (res) =>
-              router.push({
-                // Route exists; typed-route union regenerates on next `expo start`.
-                pathname: '/(student)/exam-attempt',
-                params: { examId: String(variant.id), attemptId: String(res.id), title: variant.title, level: variant.cefrLevel },
-              } as unknown as Href),
-            onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
-          })
-        },
-      },
-    ])
+  // Một lần đổi một lúc: lần sau chờ lần trước xong (rollback không xoá nhầm lần đổi mới hơn).
+  const [swapping, setSwapping] = useState(false)
+  const onSwap = async (from: string, to: string) => {
+    const plan = data?.plan
+    const week = derived?.week
+    if (!plan || !week || swapping) return
+    setSwapping(true)
+    // Lượt tải lại đang bay có thể trả lịch cũ đè lên bản vừa đổi.
+    await queryClient.cancelQueries({ queryKey: EXAM_HUB_QUERY_KEY })
+    const setPlan = (p: ExamPlan) => queryClient.setQueryData<ExamHubData>(EXAM_HUB_QUERY_KEY, (old) => (old ? { ...old, plan: p } : old))
+    setPlan(swapLocally(plan, from, to))
+    try {
+      setPlan(await examPlanApi.swapDays(week.weekNo, from, to))
+    } catch (e) {
+      setPlan(plan)
+      Alert.alert('Chưa đổi được buổi', apiMessage(e) || 'Thử lại sau ít phút.')
+    } finally {
+      setSwapping(false)
+    }
   }
 
   return (
-    <Screen edges={['top']}>
-      <AppHeader title="Luyện thi" right={<AvatarButton />} />
-
-      <ExamCountdownCard invite style={{ paddingHorizontal: space[5], paddingTop: space[2] }} />
-
-      {hasProAccess ? (
-        <View style={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[3], gap: space[2] }}>
-          <Caption>Cấp độ</Caption>
-          <View style={{ flexDirection: 'row', gap: space[2] }}>
-            {EXAM_LEVELS.map((lv) => {
-              const active = level === lv
-              return (
-                <SelectableChip
-                  key={lv}
-                  label={`Cấp ${lv}`}
-                  selected={active}
-                  onPress={() => setLevel(lv)}
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    paddingVertical: space[2],
-                    borderRadius: radius.sm,
-                    borderWidth: 1,
-                    borderColor: active ? theme.colors.accentText : theme.colors.border,
-                    backgroundColor: active ? theme.colors.accentSoft : theme.colors.surface,
-                  }}
-                >
-                  <ThemedText variant="label" color={active ? 'accent' : 'secondary'}>
-                    {lv}
-                  </ThemedText>
-                </SelectableChip>
-              )
-            })}
+    <Screen
+      scroll
+      edges={['top']}
+      contentStyle={{ paddingHorizontal: space[5], paddingTop: space[3], paddingBottom: tabClearance, gap: space[4] }}
+      refreshing={pull.refreshing}
+      onRefresh={() => void pull.onRefresh()}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <ThemedText variant="label" color="muted" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            Luyện thi telc
+          </ThemedText>
+          <View
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel={`telc Deutsch ${level}`}
+            style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: space[2] }}
+          >
+            <ThemedText variant="display">telc Deutsch</ThemedText>
+            <BrushMark>{level}</BrushMark>
           </View>
         </View>
-      ) : null}
+        {/* Mẫu `exam`: nút "?" cạnh ảnh đại diện. App chưa có tour riêng cho Luyện thi (web có `ScreenTour`)
+            nên mở màn Hướng dẫn; nút back của màn đó về lại tab này. */}
+        <RoundIconButton
+          icon={CircleHelp}
+          label="Xem hướng dẫn"
+          hint="Mở màn Hướng dẫn sử dụng"
+          onPress={() => router.push('/(student)/guide' as unknown as Href)}
+        />
+        <AvatarButton />
+      </View>
 
-      {!hasProAccess ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState
-            glyph="khoa"
-            title="Tính năng PRO"
-            message="Thi thử theo format Goethe chính thức, xem điểm chi tiết và phân tích điểm yếu."
-            actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
-            onAction={PAYWALL_ENABLED ? () => router.push('/(student)/upgrade') : undefined}
-          />
+      {isLoading && !data ? (
+        <View style={{ gap: space[3] }}>
+          <Skeleton height={150} radius="lg" />
+          <Skeleton height={44} radius="full" />
+          <Skeleton height={260} radius="md" />
         </View>
-      ) : isLoading || level == null ? (
-        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
-          <Skeleton height={110} radius="2xl" />
-          <Skeleton height={110} radius="2xl" />
-        </View>
-      ) : isError ? (
-        <ErrorState onRetry={() => void refetch()} />
+      ) : isError || !data || !derived ? (
+        <ErrorState title="Chưa tải được Luyện thi" onRetry={() => void refetch()} />
+      ) : !data.access ? (
+        <EmptyState glyph="khoa" title="Luyện đề chưa mở" message="Luyện đề telc chưa mở cho tài khoản này. Liên hệ trung tâm hoặc thử lại sau." />
       ) : (
-        <Screen
-          scroll
-          edges={[]}
-          contentStyle={{ paddingHorizontal: space[5], paddingBottom: tabClearance, gap: space[3], paddingTop: space[2] }}
-          refreshing={pull.refreshing}
-          onRefresh={() => void pull.onRefresh()}
-        >
-          {/* Orientation hero — editorial ink card framing the section (no data dependency) */}
-          <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>
-            <Caption color={theme.colors.accent}>Luyện đề chuẩn Goethe</Caption>
-            <ThemedText variant="title" style={{ color: theme.colors.onInk, marginTop: space[2] }}>
-              Thi thử như thi thật
-            </ThemedText>
-            <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted, marginTop: space[1] }}>
-              Phần Đọc chấm tự động trên app; Nghe, Viết và Nói làm trên web.
-            </ThemedText>
-          </Card>
-
-          {variants.length > 0 ? <Caption style={{ marginTop: space[2] }}>Đề thi {level}</Caption> : null}
-
-          {variants.length === 0 ? (
-            <EmptyState glyph="thithu" title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
-          ) : null}
-          {variants.map((variant) => {
-            if (variant.comingSoon) return <ComingSoonExamCard key={variant.id} variant={variant} />
-            const isRec = variant.isRecommended || variant.id === recommendedId
-            return (
-              <Card
-                key={variant.id}
-                onPress={() => handleStart(variant)}
-                style={{ borderColor: isRec ? theme.colors.accentText : theme.colors.border }}
-              >
-                {isRec || variant.isNew ? (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginBottom: space[3] }}>
-                    {variant.isNew ? <Pill label="Mới" tone="accent" /> : null}
-                    {isRec ? <Pill label="Gợi ý cho bạn" tone="accent" /> : null}
-                  </View>
-                ) : null}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-                  <LevelBadge level={variant.cefrLevel} />
-                  <View style={{ flex: 1 }}>
-                    <ThemedText variant="title" style={{ marginBottom: space[2] }}>
-                      {variant.title}
-                    </ThemedText>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[4] }}>
-                      {variant.totalQuestions > 0 ? (
-                        <MetaItem glyph="thithu" label={`${variant.totalQuestions} câu`} />
-                      ) : null}
-                      <MetaItem glyph="thoigian" label={`${variant.timeLimitMinutes} phút`} />
-                    </View>
-                  </View>
-                  <Icon icon={ChevronRight} size={18} color="faint" />
-                </View>
-              </Card>
-            )
-          })}
-
-          {completedAttempts.length > 0 ? (
-            <View style={{ marginTop: space[4], gap: space[2] }}>
-              <SectionHeader title="Lịch sử thi" eyebrow="Đã hoàn thành" />
-              {completedAttempts.map((a) => (
-                <AttemptRow key={a.id} attempt={a} />
-              ))}
-            </View>
-          ) : null}
-        </Screen>
+        <HubBody data={data} derived={derived} onSwap={onSwap} swapping={swapping} />
       )}
     </Screen>
   )
 }
 
-// Đề nháp chờ duyệt (V342): hiện cho biết sắp có, nhưng không bấm vào làm được.
-function ComingSoonExamCard({ variant }: { variant: ExamVariant }) {
-  return (
-    <Card style={{ opacity: 0.7 }}>
-      <Pill label="Sắp có" tone="neutral" style={{ marginBottom: space[3] }} />
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-        <LevelBadge level={variant.cefrLevel} />
-        <View style={{ flex: 1 }}>
-          <ThemedText variant="title" style={{ marginBottom: space[2] }}>
-            {variant.title}
-          </ThemedText>
-          <ThemedText variant="caption" color="muted">
-            Đề mô phỏng đang chờ duyệt nội dung — chưa làm được.
-          </ThemedText>
-        </View>
-      </View>
-    </Card>
-  )
-}
+function HubBody({
+  data,
+  derived,
+  onSwap,
+  swapping,
+}: {
+  data: ExamHubData
+  derived: NonNullable<ReturnType<typeof useExamHub>['derived']>
+  onSwap: (from: string, to: string) => void
+  swapping: boolean
+}) {
+  const { plan, diagnostic, overviews, rows, attempts, locked } = data
+  const newcomer = isNewcomer(data)
+  const suggestions = hubSuggestions(data, derived)
+  // Đề đang làm cho thẻ đếm ngược: đề có Teil kiểm tra gần nhất, chưa có thì đề đầu tiên.
+  const current = [...overviews].sort((a, b) => checkedCount(b) - checkedCount(a))[0]
+  const week = derived.week
+  const routeFor = (s: Skill): ExamRoute | null =>
+    s.id === 'SPRECHEN' ? oralRoute(plan) : s.weakest ? teilRouteFor(s.weakest.key, overviews) : null
 
-function AttemptRow({ attempt }: { attempt: ExamAttempt }) {
-  const c = useTheme().colors
-  const passed = attempt.passed === true
   return (
-    <Card
-      onPress={() =>
-        router.push({
-          pathname: '/(student)/exam-review',
-          params: { attemptId: String(attempt.id), title: attempt.exam_title },
-        } as unknown as Href)
-      }
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText variant="bodyStrong" numberOfLines={1}>
-            {attempt.exam_title}
-          </ThemedText>
-          <ThemedText variant="caption" color="muted">
-            {shortDate(attempt.finished_at ?? attempt.started_at)}
-            {attempt.total_score != null ? ` · ${attempt.total_score} điểm` : ''}
-          </ThemedText>
+    <>
+      {diagnostic === 'NONE' || diagnostic === 'IN_PROGRESS' ? <DiagnosticCard resume={diagnostic === 'IN_PROGRESS'} /> : null}
+
+      {plan?.status === 'ACTIVE' ? (
+        <CountdownInkCard plan={plan} setTitle={current?.title ?? null} done={checkedCount(current)} total={current?.teile.length ?? 0} />
+      ) : null}
+
+      {!newcomer ? <SuggestionRail items={suggestions} /> : null}
+
+      <View style={{ gap: space[3] }}>
+        <SectionHeader title="Bốn kỹ năng" />
+        <ThemedText variant="caption" color="muted" style={{ marginTop: -space[2] }}>
+          Vạch đứng là mức đỗ 60%. Chạm một kỹ năng để luyện Teil yếu nhất.
+        </ThemedText>
+        <SkillBars skills={derived.skills} routeFor={routeFor} />
+      </View>
+
+      {week?.days && week.days.length > 0 ? (
+        <View style={{ gap: space[3] }}>
+          <SectionHeader
+            title={`Tuần này · ${week.weekNo}/${plan?.totalWeeks ?? week.weekNo}`}
+            actionLabel="Lịch theo tuần"
+            onAction={() => go(examPlanRoute)}
+          />
+          <WeekRail days={week.days} onSwap={onSwap} disabled={swapping} />
         </View>
-        {attempt.passed != null ? (
-          <Pill label={passed ? 'Đạt' : 'Chưa đạt'} tone={passed ? 'success' : 'danger'} />
+      ) : null}
+
+      <View style={{ gap: space[3] }}>
+        <SectionHeader title="Đề luyện" />
+        {rows.length === 0 && locked.length === 0 ? (
+          <ThemedText variant="body" color="muted">Chưa có đề telc nào mở cho bạn.</ThemedText>
+        ) : (
+          rows.map((r) => (
+            <ExamSetCard
+              key={r.exam.id}
+              exam={r.exam}
+              overview={overviews.find((o) => o.examId === r.exam.id)}
+              attempts={attempts.filter((a) => a.exam_id === r.exam.id)}
+            />
+          ))
+        )}
+        {locked.map((p) => (
+          <ListRow key={p.id} glyph="khoa" title={p.title} subtitle="Bộ đề cần gói trả phí" showChevron={false} />
+        ))}
+      </View>
+
+      <View style={{ gap: space[2] }}>
+        {diagnostic === 'DONE' ? (
+          <ListRow glyph="muctieu" title="Bài chẩn đoán" subtitle="Xem lại kết quả từng kỹ năng" onPress={() => go(diagnosticRoute)} />
         ) : null}
-        <Icon icon={ChevronRight} size={16} color="faint" />
+        <ListRow
+          glyph="lich"
+          title="Đổi ngày thi, số phút mỗi ngày"
+          subtitle={plan?.status === 'ACTIVE' && plan.targetDate ? `telc ${plan.level ?? 'B1'} · thi ${plan.targetDate.split('-').reverse().join('/')}` : 'Thêm ngày thi để có lịch ôn theo tuần'}
+          onPress={() => go(examPlanRoute)}
+        />
       </View>
-    </Card>
-  )
-}
-
-function shortDate(iso: string | null): string {
-  if (!iso) return ''
-  const p = iso.slice(0, 10).split('-')
-  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''
-}
-
-function MetaItem({ glyph, label }: { glyph: GlyphName; label: string }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-      <GaGlyph name={glyph} size={13} ink="muted" />
-      <ThemedText variant="caption" color="muted">
-        {label}
-      </ThemedText>
-    </View>
-  )
-}
-
-// Editorial level chip — sharp paper square echoing the na-exam pack badge.
-function LevelBadge({ level }: { level: string }) {
-  const c = useTheme().colors
-  return (
-    <View
-      style={{
-        width: 46,
-        height: 46,
-        borderRadius: radius.sm,
-        backgroundColor: c.surfaceSunken,
-        borderWidth: 1,
-        borderColor: c.border,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <ThemedText variant="title">{level}</ThemedText>
-    </View>
+    </>
   )
 }
