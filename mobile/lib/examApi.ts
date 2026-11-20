@@ -270,6 +270,8 @@ export interface AttemptResultDto {
   finished_at?: string | null
   status?: string
   passed?: boolean | null
+  /** Điểm từng phần (chuỗi JSON `{LESEN: {total, max}, …}`) — màn kết quả thi thử đọc bằng `sectionScoreRows`. */
+  detailed_scores_json?: string | null
   /** Vắng mặt với mọi đề Goethe (backend đánh NON_EMPTY). */
   gates?: ExamGate[]
   /** LT1: ngân sách điểm — chỉ đề telc (backend đánh NON_NULL). */
