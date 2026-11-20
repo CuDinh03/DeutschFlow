@@ -13,13 +13,14 @@ import Animated, {
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
-import { RotateCcw, Check, X, Minus } from 'lucide-react-native'
+import { RotateCcw, Check, X } from 'lucide-react-native'
 import api, { apiMessage, isTransientFailure } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useStarterStore } from '@/stores/useStarterStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, Icon, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton, Caption, YellowSquare, VocabGlyphTile } from '@/components/ui'
+import { Screen, ThemedText, Icon, IconButton, ProgressBar, EmptyState, ErrorState, Skeleton, VocabGlyphTile } from '@/components/ui'
+import { ArtBadge, Badge, RuledNote, TopBar } from '@/components/learn/HocOnParts'
 import type { ThemeColors } from '@/lib/theme'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
@@ -62,6 +63,9 @@ function mapCard(r: RawDueCard): DueCard {
 const SWIPE_THRESHOLD = 80
 const SWIPE_OUT = 400
 
+// Giao diện v3.4 (Đợt 6A, mẫu `srs`): đầu màn "Ôn thẻ · n / N", thẻ lật có viên mạo từ, mặt sau có
+// câu ví dụ trên tờ giấy lề đỏ, ba ô chấm mức nhớ kiểu `.rate`, chú thích màu der/die/das ở cuối.
+// Lật, vuốt, chấm (quality 1/3/5), hàng đợi offline giữ nguyên.
 export default function SrsScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackToMainTab()
@@ -190,10 +194,10 @@ export default function SrsScreen() {
   if (isLoading) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Ôn tập SRS" onBack={goBack} />
-        <View style={{ paddingHorizontal: space[5], gap: space[4], paddingTop: space[2] }}>
+        <TopBar onBack={goBack} title="Ôn thẻ" />
+        <View style={{ paddingHorizontal: space[5], gap: space[4], paddingTop: space[4] }}>
           <Skeleton height={6} radius="full" />
-          <Skeleton height={360} radius="3xl" />
+          <Skeleton height={330} radius="lg" />
         </View>
       </Screen>
     )
@@ -202,7 +206,7 @@ export default function SrsScreen() {
   if (isError) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Ôn tập SRS" onBack={goBack} />
+        <TopBar onBack={goBack} title="Ôn thẻ" />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <ErrorState onRetry={() => void refetch()} />
         </View>
@@ -214,7 +218,7 @@ export default function SrsScreen() {
     const done = cards.length > 0
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Ôn tập SRS" onBack={goBack} />
+        <TopBar onBack={goBack} title="Ôn thẻ" />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             glyph="hoanthanh"
@@ -232,26 +236,38 @@ export default function SrsScreen() {
     )
   }
 
-  const genderTone = currentCard.gender ?? null
+  const gender = currentCard.gender ?? null
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
-        title={`${currentIndex + 1} / ${cards.length}`}
+      <TopBar
         onBack={goBack}
+        title={`Ôn thẻ · ${currentIndex + 1} / ${cards.length}`}
         right={
-          <Pressable accessibilityRole="button" accessibilityLabel="Bắt đầu lại" onPress={() => { setCurrentIndex(0); void refetch() }} hitSlop={8}>
-            <Icon icon={RotateCcw} size={20} color="secondary" />
-          </Pressable>
+          <IconButton
+            icon={RotateCcw}
+            accessibilityLabel="Bắt đầu lại"
+            color="secondary"
+            size={20}
+            onPress={() => {
+              // Về thẻ đầu ở MẶT TRƯỚC (trước đây giữ nguyên trạng thái lật của thẻ đang xem).
+              setFlipped(false)
+              flipRotation.value = 0
+              translateX.value = 0
+              translateY.value = 0
+              setCurrentIndex(0)
+              void refetch()
+            }}
+          />
         }
       />
 
-      <View style={{ paddingHorizontal: space[5], marginBottom: space[6], gap: space[2] }}>
-        <ProgressBar value={currentIndex / cards.length} />
+      <View style={{ paddingHorizontal: space[5], marginTop: space[3], marginBottom: space[5], gap: space[2] }}>
+        <ProgressBar value={currentIndex / cards.length} height={6} />
         {pendingSync > 0 ? (
-          <Caption color={c.textMuted}>
+          <ThemedText variant="caption" color="muted">
             {pendingSync} lượt chấm chờ đồng bộ — sẽ tự gửi khi có mạng.
-          </Caption>
+          </ThemedText>
         ) : null}
       </View>
 
@@ -270,30 +286,21 @@ export default function SrsScreen() {
             accessibilityHint="Chạm hai lần để xem nghĩa"
             onAccessibilityTap={() => { void flipCard() }}
           >
-            <View style={cardEyebrowStyle}>
-              <Caption color={c.textMuted}>Tiếng Đức</Caption>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+              {gender ? <ArtBadge gender={gender} /> : null}
+              <View style={{ flex: 1 }} />
+              {currentCard.cefrLevel ? <Badge label={currentCard.cefrLevel} /> : null}
             </View>
-            <VocabGlyphTile german={currentCard.word} meaning={currentCard.translation} size={96} style={{ marginBottom: space[5] }} />
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: space[2], flexWrap: 'wrap' }}>
-              {genderTone ? (
-                <ThemedText variant="display" align="center" style={{ color: genderColor(c, genderTone) }}>
-                  {currentCard.gender}
-                </ThemedText>
-              ) : null}
-              <ThemedText variant="displayLg" align="center">
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <VocabGlyphTile german={currentCard.word} meaning={currentCard.translation} size={72} style={{ marginBottom: space[4] }} />
+              <ThemedText variant="displayLg" align="center" accessibilityLanguage="de-DE">
+                {gender ? <ThemedText variant="displayLg" style={{ color: c[gender] }}>{`${gender} `}</ThemedText> : null}
                 {currentCard.word}
               </ThemedText>
             </View>
-            {currentCard.cefrLevel ? (
-              <View style={{ marginTop: space[4] }}>
-                <Caption color={c.textFaint}>{currentCard.cefrLevel}</Caption>
-              </View>
-            ) : null}
-            <View style={cardHintStyle}>
-              <ThemedText variant="caption" color="faint">
-                Chạm để xem nghĩa
-              </ThemedText>
-            </View>
+            <ThemedText variant="caption" color="muted" align="center">
+              Chạm để lật thẻ
+            </ThemedText>
           </Animated.View>
 
           <Animated.View
@@ -307,80 +314,93 @@ export default function SrsScreen() {
             accessibilityHint="Chạm hai lần để lật lại"
             onAccessibilityTap={() => { void flipCard() }}
           >
-            <View style={cardEyebrowStyle}>
-              <Caption color={c.textMuted}>Nghĩa tiếng Việt</Caption>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+              {gender ? <ArtBadge gender={gender} /> : null}
+              <View style={{ flex: 1 }} />
+              <ThemedText variant="caption" color="muted">
+                Chạm để lật lại
+              </ThemedText>
             </View>
-            <ThemedText variant="display" align="center">
+            <ThemedText variant="titleLg" style={{ marginTop: space[4] }} accessibilityLanguage="de-DE">
+              {gender ? <ThemedText variant="titleLg" style={{ color: c[gender] }}>{`${gender} `}</ThemedText> : null}
+              {currentCard.word}
+            </ThemedText>
+            <ThemedText variant="titleLg" style={{ fontFamily: fonts.bodyBold, marginTop: space[1] }}>
               {currentCard.translation}
             </ThemedText>
             {currentCard.exampleSentence ? (
-              <View
-                style={{
-                  width: '100%',
-                  marginTop: space[6],
-                  paddingTop: space[5],
-                  borderTopWidth: 1,
-                  borderTopColor: c.border,
-                }}
-              >
-                <Caption color={c.textMuted}>Ví dụ</Caption>
-                <ThemedText variant="body" align="center" style={{ marginTop: space[2], fontStyle: 'italic' }}>
+              <RuledNote style={{ marginTop: space[4] }}>
+                <ThemedText variant="body" accessibilityLanguage="de-DE">
                   {currentCard.exampleSentence}
                 </ThemedText>
-              </View>
+              </RuledNote>
             ) : null}
           </Animated.View>
         </Animated.View>
       </GestureDetector>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space[6], marginBottom: space[4] }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space[6], marginTop: space[3] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
           <Icon icon={X} size={13} color="danger" />
-          <Caption color={c.danger}>Vuốt trái · khó</Caption>
+          <ThemedText variant="caption" color="danger">
+            Vuốt trái · khó
+          </ThemedText>
         </View>
-        <YellowSquare size={6} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-          <Caption color={c.success}>Dễ · vuốt phải</Caption>
+          <ThemedText variant="caption" color="success">
+            Dễ · vuốt phải
+          </ThemedText>
           <Icon icon={Check} size={13} color="success" />
         </View>
       </View>
 
       {flipped ? (
-        <View style={{ paddingHorizontal: space[5], marginBottom: space[6] }}>
-          <View style={{ marginBottom: space[3] }}>
-            <Caption>Mức độ nhớ</Caption>
-          </View>
-          <View style={{ flexDirection: 'row', gap: space[2] }}>
-            <GradeButton label="Quên" hint="< 1 phút" icon={X} tone="danger" onPress={() => submitReview(1)} />
-            <GradeButton label="Khó" hint="Ôn lại" icon={Minus} tone="neutral" onPress={() => submitReview(3)} />
-            <GradeButton label="Dễ" hint="Vài ngày" icon={Check} tone="success" onPress={() => submitReview(5)} />
+        <View style={{ paddingHorizontal: space[5], marginTop: space[4] }}>
+          <ThemedText variant="caption" color="muted" align="center">
+            Bạn nhớ từ này thế nào?
+          </ThemedText>
+          <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[2] }}>
+            <GradeButton label="Quên" hint="< 1 phút" tone="danger" onPress={() => submitReview(1)} />
+            <GradeButton label="Khó" hint="Ôn lại" tone="neutral" onPress={() => submitReview(3)} />
+            <GradeButton label="Dễ" hint="Vài ngày" tone="success" onPress={() => submitReview(5)} />
           </View>
         </View>
       ) : null}
+
+      {/* Chú thích màu giống (mẫu: hàng der/die/das cuối màn). */}
+      <View
+        style={{ flexDirection: 'row', justifyContent: 'center', gap: space[4], marginTop: space[4], marginBottom: space[4] }}
+        accessible
+        accessibilityLabel="der giống đực, die giống cái, das giống trung"
+      >
+        {(['der', 'die', 'das'] as const).map((g) => (
+          <View key={g} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <ArtBadge gender={g} small />
+            <ThemedText variant="caption" color="muted">
+              {g === 'der' ? 'giống đực' : g === 'die' ? 'giống cái' : 'giống trung'}
+            </ThemedText>
+          </View>
+        ))}
+      </View>
     </Screen>
   )
 }
 
+/** Ô chấm mức nhớ (mẫu `.rate`): nền giấy, viền đậm, nhãn đậm + gợi ý khoảng ôn. */
 function GradeButton({
   label,
   hint,
-  icon,
   tone,
   onPress,
 }: {
   label: string
   hint: string
-  icon: typeof Check
   tone: 'danger' | 'neutral' | 'success'
   onPress: () => void
 }) {
   const c = useTheme().colors
-  const toneMap = {
-    danger: { soft: c.dangerSoft, fg: c.danger },
-    neutral: { soft: c.surfaceSunken, fg: c.textSecondary },
-    success: { soft: c.successSoft, fg: c.success },
-  } as const
-  const picked = toneMap[tone]
+  // Chữ đỏ trên trắng đạt (4,6:1); chữ xanh thì không (3,57:1) ⇒ "Dễ" dùng chữ mực, viền xanh nói màu.
+  const fg = tone === 'danger' ? c.danger : c.textPrimary
 
   const handlePress = () => {
     void Haptics.selectionAsync()
@@ -390,55 +410,27 @@ function GradeButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={`${label}, ${hint}`}
       onPress={handlePress}
-      style={{
+      style={({ pressed }) => ({
         flex: 1,
+        height: 64,
         alignItems: 'center',
-        gap: space[1],
-        paddingVertical: space[3],
-        backgroundColor: picked.soft,
-        borderWidth: 1,
-        borderColor: picked.soft,
-        borderRadius: radius.md,
-      }}
+        justifyContent: 'center',
+        gap: 2,
+        backgroundColor: c.surface,
+        borderWidth: 1.5,
+        borderColor: tone === 'success' ? c.success : c.borderStrong,
+        borderRadius: radius.sm,
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
     >
-      <Icon icon={icon} size={18} color={tone === 'neutral' ? 'secondary' : tone} />
-      <ThemedText variant="bodyStrong" style={{ color: picked.fg }}>
+      <ThemedText variant="bodyStrong" style={{ color: fg, fontFamily: fonts.bodyBold, fontSize: 14 }}>
         {label}
       </ThemedText>
-      <Text
-        style={{
-          fontFamily: fonts.bodyMedium,
-          fontSize: 10,
-          lineHeight: 13,
-          color: c.textFaint,
-        }}
-      >
-        {hint}
-      </Text>
+      <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11.5, lineHeight: 14, color: c.textMuted }}>{hint}</Text>
     </Pressable>
   )
-}
-
-function genderColor(c: ThemeColors, tone: 'der' | 'die' | 'das') {
-  return c[tone]
-}
-
-const cardEyebrowStyle = {
-  position: 'absolute' as const,
-  top: space[6],
-  left: 0,
-  right: 0,
-  alignItems: 'center' as const,
-}
-
-const cardHintStyle = {
-  position: 'absolute' as const,
-  bottom: space[6],
-  left: 0,
-  right: 0,
-  alignItems: 'center' as const,
 }
 
 function cardFaceStyle(c: ThemeColors) {
@@ -451,9 +443,11 @@ function cardFaceStyle(c: ThemeColors) {
     backgroundColor: c.surface,
     borderColor: c.border,
     borderWidth: 1,
-    borderRadius: radius['3xl'],
-    padding: space[7],
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    borderRadius: radius.lg,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   }
 }

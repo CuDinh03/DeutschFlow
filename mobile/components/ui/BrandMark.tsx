@@ -1,13 +1,15 @@
-// Static MyDeutschFlow 'D' logo mark (matches the splash + app icon geometry).
-// Outline follows the theme text colour so it reads in light + dark; the gold
-// square and red play-triangle are brand-locked.
+// Logo D của myDeutschFlow — đúng hình học SVG chính thức của bộ nhận diện v3.4
+// (logo-mark-light.svg trong bộ nhận diện owner giữ local, viewBox 100): nét D mực dày 11, góc
+// vuông (miter), ô vàng 13×13 và tam giác đỏ cố định màu. Nét D theo màu chữ chính của theme.
+// Không tự vẽ lại logo: đổi hình phải lấy từ bộ nhận diện owner đưa. Ô vàng/tam giác đỏ khớp
+// từng toạ độ với SVG; mã màu theo bảng màu thương hiệu (#FFC900, #E3261D).
 
-import Svg, { Path, Rect } from 'react-native-svg'
+import Svg, { Path, Polygon, Rect } from 'react-native-svg'
 import { useTheme } from '@/lib/theme'
 
-const D_PATH = 'M20 18 L20 82 L52 82 L74 62 L74 38 L52 18 Z'
-const GOLD = '#FFCD00'
-const RED = '#DA291C'
+export const BRAND_D_PATH = 'M 16 13 L 55 13 L 84 37 L 84 63 L 55 87 L 16 87 Z'
+const GOLD = '#FFC900'
+const RED = '#E3261D'
 
 interface BrandMarkProps {
   size?: number
@@ -16,17 +18,10 @@ interface BrandMarkProps {
 export function BrandMark({ size = 64 }: BrandMarkProps) {
   const theme = useTheme()
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Path
-        d={D_PATH}
-        stroke={theme.colors.textPrimary}
-        strokeWidth={5}
-        strokeLinecap="round"
-        strokeLinejoin="miter"
-        fill="none"
-      />
-      <Path d="M52 38 L74 50 L52 62 Z" fill={RED} />
-      <Rect x={24} y={45} width={9} height={9} fill={GOLD} />
+    <Svg width={size} height={size} viewBox="0 0 100 100" accessibilityLabel="myDeutschFlow">
+      <Path d={BRAND_D_PATH} stroke={theme.colors.textPrimary} strokeWidth={11} strokeLinejoin="miter" fill="none" />
+      <Rect x={27} y={43.5} width={13} height={13} rx={1.5} fill={GOLD} />
+      <Polygon points="49,33 72,50 49,67" fill={RED} />
     </Svg>
   )
 }

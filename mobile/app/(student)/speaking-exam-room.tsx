@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Linking, Pressable, View } from 'react-native'
+import { Alert, Linking, Pressable, ScrollView, View } from 'react-native'
+import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio'
+import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
-import { Check, Flag, Square, RotateCcw, ChevronRight, X, Volume2, VolumeX } from 'lucide-react-native'
+import { Check, CircleHelp, RotateCcw, X, Volume2, VolumeX } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { presentMinorAudioBlocked } from '@/lib/minorAudio'
@@ -12,7 +13,7 @@ import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { hasRenewingAiAllowance, usePlanStore } from '@/stores/usePlanStore'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, TextField, ThemedText, YellowSquare, GaGlyph } from '@/components/ui'
+  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText } from '@/components/ui'
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { useBlurGuard } from '@/hooks/useBlurGuard'
 import {
@@ -20,8 +21,16 @@ import {
 } from '@/lib/examSpeakingApi'
 import {
   drillSummary, formatClock, gradingFailedCopy, isRetryableTurnError, newClientTurnId, nextPrueferAnnouncement,
-  providerName, remainingSec, stateLabel, stimulusDisplay, type DrillTurnEval,
+  providerName, remainingSec, stateLabel, type DrillTurnEval,
 } from '@/lib/examSpeakingUi'
+import {
+  createSerialQueue, createSilenceDetector, findBlueprint, meterLevel, micStatus, oralSpeaker, roomNotes,
+} from '@/lib/oralRoom'
+import { readOralAutoStop, writeOralAutoStop } from '@/lib/oralAutoStop'
+import { OralMicDock, OralPeople, OralStages, OralTaskCard } from '@/components/exam/OralRoomParts'
+import { OralPrep, type NotesSaveState } from '@/components/exam/OralPrep'
+import { OralRoomGuide } from '@/components/exam/OralRoomGuide'
+import { markOralGuideSeen, readOralGuideSeen } from '@/lib/oralRoomGuide'
 import { isExamTtsMuted, setExamTtsMuted, speakExamSequence, stopExamTts } from '@/lib/examTts'
 import { trackFeatureAction } from '@/lib/analytics'
 import { examParentHref } from '@/lib/examSpeakingNav'
@@ -29,6 +38,10 @@ import { useHardwareBack } from '@/hooks/useHardwareBack'
 import { TeilStrategyCard } from '@/components/exam/TeilStrategyCard'
 
 const GRADING_POLL_MS = 3000
+/** Ngừng gõ ghi chú chừng này thì tự lưu (mẫu v3.4 `oralprep`). */
+const NOTES_SAVE_DEBOUNCE_MS = 1200
+/** Ghi âm có đo mức âm để tự dừng khi im (Đợt 5 phần B). */
+const ROOM_RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true }
 
 /** Một dòng hội thoại trong phòng thi (client giữ để render; server là nguồn sự thật). */
 interface RoomLine {
@@ -93,24 +106,67 @@ export default function SpeakingExamRoomScreen() {
   const [pendingTurn, setPendingTurn] = useState<PendingTurn | null>(null)
   const [muted, setMuted] = useState(isExamTtsMuted())
   const [notes, setNotes] = useState('')
-  const [savingNotes, setSavingNotes] = useState(false)
+  const [notesState, setNotesState] = useState<NotesSaveState>('idle')
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Lệnh đổi phiên (lưu ghi chú, chọn chủ đề, sang phần) chạy NỐI ĐUÔI nhau: backend lưu cả dòng phiên
+  // (không khoá phiên bản), hai lệnh chồng nhau thì lệnh về sau ghi đè trạng thái lệnh kia vừa đổi.
+  const [sessionOps] = useState(createSerialQueue)
+  // Chặn gửi đôi một lượt khi tự dừng và bấm tay rơi vào cùng một khung hình.
+  const stopRequestedRef = useRef(false)
   const notesSeededRef = useRef(false)
+  // Vai AI đang phát tiếng (PRUEFER/PARTNER) — để hàng người sáng đúng người.
+  const [aiSpeaker, setAiSpeaker] = useState<string | null>(null)
+  const [autoStop, setAutoStop] = useState(true)
+  // Hướng dẫn phòng thi (nút "?"): tự mở lần đầu vào Đang thi; giám khảo CHỜ đóng hướng dẫn mới nói
+  // (như web, owner chốt 07/11/2026). null = chưa đọc xong cờ "đã xem" trong máy.
+  const [guideOpen, setGuideOpen] = useState(false)
+  const guideSeenRef = useRef<boolean | null>(null)
+  const heldSpeechRef = useRef<string | null>(null)
+  const silenceRef = useRef<ReturnType<typeof createSilenceDetector> | null>(null)
+  const scrollRef = useRef<ScrollView>(null)
   const lineSeq = useRef(0)
   // Lời PRUEFER cuối cùng ĐÃ vào transcript (trim) — bất kể tới từ aiTurns hay
   // từ directive echo. Là chốt chặn duy nhất cho lỗi lặp câu dẫn giám khảo:
   // directive.prueferText lặp nguyên văn qua các step (xem nextPrueferAnnouncement).
   const lastPrueferRef = useRef<string | null>(null)
 
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const recorder = useAudioRecorder(ROOM_RECORDING_OPTIONS)
+  const recState = useAudioRecorderState(recorder, 100)
   useRecorderBlurGuard(recorder, () => setRecording(false))
+
+  useEffect(() => {
+    let alive = true
+    void readOralAutoStop().then((on) => { if (alive) setAutoStop(on) })
+    return () => { alive = false }
+  }, [])
+
+  /** Dừng giọng giám khảo/bạn thi và tắt đèn người đang nói. */
+  const stopVoice = useCallback(() => {
+    stopExamTts()
+    setAiSpeaker(null)
+  }, [])
 
   // Tabs không unmount khi rời màn: giọng giám khảo phải dừng theo BLUR (cleanup
   // unmount ở effect nạp phiên không chạy khi chỉ chuyển tab). Đồng hồ thi vẫn
   // chạy theo server — chỉ tắt tiếng, không tạm dừng bài thi hộ người dùng.
   const pendingResultsNav = useRef(false)
   const focusedRef = useBlurGuard(
-    () => stopExamTts(),
     () => {
+      stopVoice()
+      // Modal vẫn nổi trên tab khác khi màn bị ẩn ⇒ đóng tạm; lời giám khảo đang giữ để dành khi quay lại.
+      setGuideOpen(false)
+    },
+    () => {
+      // Quay lại màn: lời giám khảo còn giữ thì phát (đã xem hướng dẫn) hoặc mở lại hướng dẫn (chưa xem).
+      if (heldSpeechRef.current) {
+        if (guideSeenRef.current === true) {
+          const held = heldSpeechRef.current
+          heldSpeechRef.current = null
+          void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
+        } else if (guideSeenRef.current === false) {
+          setGuideOpen(true)
+        }
+      }
       // Poll chấm xong trong lúc blur → đã hoãn điều hướng; giờ màn sáng lại mới đi.
       if (pendingResultsNav.current) {
         pendingResultsNav.current = false
@@ -122,9 +178,9 @@ export default function SpeakingExamRoomScreen() {
   // Rời phòng thi = về hub Luyện thi Nói (màn cha) và tắt giọng giám khảo. Điều hướng tường minh:
   // GO_BACK của Tabs (student) (backBehavior=firstRoute) đẩy về Heute. Back cứng Android đi cùng đường.
   const leaveRoom = useCallback(() => {
-    stopExamTts()
+    stopVoice()
     router.navigate(examParentHref('room'))
-  }, [])
+  }, [stopVoice])
   useHardwareBack(leaveRoom)
 
   const pushLine = useCallback((role: RoomLine['role'], text: string, evalJson?: DrillTurnEval | null) => {
@@ -140,7 +196,7 @@ export default function SpeakingExamRoomScreen() {
       setNotes(data.notesText ?? '')
     }
     if (data.state === 'RESULTS') {
-      stopExamTts()
+      stopVoice()
       // Người dùng đang ở tab khác thì KHÔNG giật họ sang màn kết quả giữa
       // chừng — ghi nhớ, quay lại phòng thi mới điều hướng (onFocus ở trên).
       if (focusedRef.current) {
@@ -160,10 +216,49 @@ export default function SpeakingExamRoomScreen() {
         pushLine('PRUEFER', announce)
         // Blur mà đồng hồ server hết hạn tự advance: dòng mới vẫn vào transcript
         // (đọc lại được), chỉ không phát tiếng khi màn không hiển thị.
-        if (speak && focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: announce }])
+        if (speak && focusedRef.current) {
+          if (guideSeenRef.current !== true) {
+            // Lần đầu vào Đang thi (hoặc chưa đọc xong cờ): giữ lời giám khảo, mở hướng dẫn trước.
+            heldSpeechRef.current = announce
+            if (guideSeenRef.current === false) setGuideOpen(true)
+          } else {
+            void speakExamSequence([{ role: 'PRUEFER', text: announce }], setAiSpeaker)
+          }
+        }
       }
     }
-  }, [pushLine])
+  }, [pushLine, stopVoice])
+
+  useEffect(() => {
+    let alive = true
+    void readOralGuideSeen().then((seen) => {
+      if (!alive) return
+      guideSeenRef.current = seen
+      const held = heldSpeechRef.current
+      if (!held) return
+      if (seen) {
+        heldSpeechRef.current = null
+        if (focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
+      } else {
+        setGuideOpen(true)
+      }
+    })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function closeGuide() {
+    setGuideOpen(false)
+    if (guideSeenRef.current !== true) {
+      guideSeenRef.current = true
+      void markOralGuideSeen()
+    }
+    // Màn đang ẩn thì giữ lời lại, phát khi quay lại màn (useBlurGuard onFocus).
+    const held = heldSpeechRef.current
+    if (!held || !focusedRef.current) return
+    heldSpeechRef.current = null
+    void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
+  }
 
   // Nạp phiên lần đầu. Màn nằm dưới Tabs nên KHÔNG unmount giữa hai bài thi —
   // mở phiên mới trên màn cũ phải xoá sạch dấu vết phiên trước (transcript,
@@ -174,7 +269,13 @@ export default function SpeakingExamRoomScreen() {
     setLines([])
     setLoadError(false)
     setPendingTurn(null)
+    setMuted(isExamTtsMuted()) // màn kiểm micro có thể đã bật lại tiếng giữa hai phiên
+    setNotesState('idle')
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+    notesTimerRef.current = null
     lastPrueferRef.current = null
+    heldSpeechRef.current = null
+    setGuideOpen(false)
     pendingResultsNav.current = false
     notesSeededRef.current = false
     void (async () => {
@@ -187,9 +288,11 @@ export default function SpeakingExamRoomScreen() {
     })()
     return () => {
       alive = false
-      stopExamTts()
+      stopVoice()
+      if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+      notesTimerRef.current = null
     }
-  }, [sessionId, applySession])
+  }, [sessionId, applySession, stopVoice])
 
   // GRADING: poll tới khi server đổi trạng thái (RESULTS → màn kết quả; FAILED → nút chấm lại).
   useEffect(() => {
@@ -205,6 +308,37 @@ export default function SpeakingExamRoomScreen() {
     return () => clearInterval(t)
   }, [session?.state, sessionId, applySession])
 
+  // Tên Teil, thời lượng, có bạn thi hay không — lấy từ blueprint (cùng khoá cache với sảnh).
+  const blueprintsQ = useQuery({
+    queryKey: ['exam-speaking-blueprints', session?.provider],
+    queryFn: () => examSpeakingApi.listBlueprints({ provider: session?.provider }),
+    enabled: !!session,
+    staleTime: 60_000 * 30,
+  })
+  const blueprint = findBlueprint(blueprintsQ.data, session?.provider, session?.level)
+
+  // Tự dừng khi im: đọc mức âm của chính bản ghi đang thu. Đã nói rồi im liền 2 giây → dừng và
+  // gửi như bấm tay; chưa nói gì thì không cắt; máy không đo được mức âm thì không bao giờ cắt.
+  useEffect(() => {
+    if (!recording) {
+      silenceRef.current = null
+      return
+    }
+    if (!autoStop) return
+    if (!silenceRef.current) silenceRef.current = createSilenceDetector()
+    if (silenceRef.current.update(meterLevel(recState.metering), Date.now())) {
+      silenceRef.current = null
+      void stopAndSubmitTurn()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording, autoStop, recState.metering, recState.durationMillis])
+
+  function toggleAutoStop(on: boolean) {
+    setAutoStop(on)
+    silenceRef.current = null
+    void writeOralAutoStop(on)
+  }
+
   const prepSecLeft = useServerCountdown(
     session?.state === 'PREP' ? session.prepDeadlineAt : null,
     session?.serverNow,
@@ -216,12 +350,24 @@ export default function SpeakingExamRoomScreen() {
     () => { void doAdvance() },
   )
 
+  /** Xếp một lệnh đổi phiên sau các lệnh đang chạy (lỗi của lệnh trước không chặn lệnh sau). */
+  function queueSessionOp<T>(op: () => Promise<T>): Promise<T> {
+    return sessionOps.run(op)
+  }
+
   async function doAdvance() {
     if (busy || uploading || recording) return
     setBusy(true)
-    stopExamTts()
+    stopVoice()
     try {
-      applySession(await examSpeakingApi.advance(sessionId), true)
+      // Ghi chú đang chờ tự lưu: lưu ngay trước khi rời phòng chuẩn bị, kẻo mất mấy chữ cuối.
+      // Lỗi thì thử lại một lần; vẫn lỗi thì phòng thi hiện bản trên máy (xem OralTaskCard).
+      if (notesTimerRef.current || notesState === 'error') {
+        if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+        notesTimerRef.current = null
+        if (!(await persistNotes(notes))) await persistNotes(notes)
+      }
+      applySession(await queueSessionOp(() => examSpeakingApi.advance(sessionId)), true)
     } catch (e) {
       Alert.alert('Lỗi', apiMessage(e))
     } finally {
@@ -229,46 +375,96 @@ export default function SpeakingExamRoomScreen() {
     }
   }
 
-  async function saveNotes() {
-    setSavingNotes(true)
+  /** Lưu ghi chú; chỉ cập nhật `notesText` của snapshot (không đè trạng thái phiên bằng bản cũ hơn). */
+  async function persistNotes(text: string): Promise<boolean> {
+    setNotesState('saving')
     try {
-      setSession(await examSpeakingApi.saveNotes(sessionId, notes.trim()))
-    } catch (e) {
-      Alert.alert('Lỗi', apiMessage(e))
-    } finally {
-      setSavingNotes(false)
+      const v = await queueSessionOp(() => examSpeakingApi.saveNotes(sessionId, text.trim()))
+      setSession((prev) => (prev && prev.id === v.id ? { ...prev, notesText: v.notesText } : prev))
+      setNotesState('saved')
+      return true
+    } catch {
+      setNotesState('error')
+      return false
     }
+  }
+
+  function changeNotes(text: string) {
+    setNotes(text)
+    setNotesState('idle')
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+    notesTimerRef.current = setTimeout(() => {
+      notesTimerRef.current = null
+      void persistNotes(text)
+    }, NOTES_SAVE_DEBOUNCE_MS)
   }
 
   function toggleMute() {
     const next = !muted
     setExamTtsMuted(next)
+    if (next) stopVoice() // chuỗi đang đọc bị cắt không tự báo xong — tắt đèn người đang nói tại đây
     setMuted(next)
   }
 
-  async function doFinish() {
+  async function finishNow() {
     if (busy || uploading) return
-    Alert.alert('Kết thúc bài thi?', `Bài của bạn sẽ được chấm theo bộ tiêu chí ${providerName(session?.provider ?? 'GOETHE')}. Không quay lại nói tiếp được.`, [
-      { text: 'Ở lại', style: 'cancel' },
-      {
-        text: 'Kết thúc & chấm',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setBusy(true)
-            stopExamTts()
-            try {
-              trackFeatureAction('exam_speaking', 'completed', { level: session?.level ?? '?' })
-              applySession(await examSpeakingApi.finish(sessionId), false)
-            } catch (e) {
-              Alert.alert('Lỗi', apiMessage(e))
-            } finally {
-              setBusy(false)
-            }
-          })()
-        },
-      },
-    ])
+    setBusy(true)
+    stopVoice()
+    try {
+      trackFeatureAction('exam_speaking', 'completed', { level: session?.level ?? '?' })
+      applySession(await examSpeakingApi.finish(sessionId), false)
+    } catch (e) {
+      Alert.alert('Lỗi', apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function confirmFinish() {
+    if (busy || uploading || recording) return
+    Alert.alert(
+      'Kết thúc phần nói?',
+      `Bài được chấm theo bộ tiêu chí ${providerName(session?.provider ?? 'TELC')}, theo những gì bạn đã nói. Kết thúc rồi thì không vào lại phòng thi này được.`,
+      [
+        { text: 'Thi tiếp', style: 'cancel' },
+        { text: 'Kết thúc và chấm', style: 'destructive', onPress: () => { void finishNow() } },
+      ],
+    )
+  }
+
+  /** Sang Teil kế (thi thử) hoặc kết thúc phần luyện (một Teil) — không quay lại được. */
+  function confirmAdvance() {
+    if (busy || uploading || recording || !session) return
+    const drill = session.mode === 'DRILL'
+    const next = session.currentPart + 1
+    Alert.alert(
+      drill ? 'Kết thúc phần luyện?' : `Sang Teil ${next}?`,
+      drill ? 'Bạn sẽ thấy điểm chấm nhanh của các lượt vừa nói.' : `Không quay lại Teil ${session.currentPart} được nữa.`,
+      [
+        { text: 'Ở lại', style: 'cancel' },
+        { text: drill ? 'Kết thúc' : `Sang Teil ${next}`, onPress: () => { void doAdvance() } },
+      ],
+    )
+  }
+
+  /** Nút X: rời phòng (đồng hồ server vẫn chạy) hoặc kết thúc ngay. */
+  function confirmLeave() {
+    if (!session) return leaveRoom()
+    if (session.state === 'PREP') {
+      Alert.alert('Rời phòng chuẩn bị?', 'Đồng hồ chuẩn bị vẫn chạy. Hết giờ thì bài thi tự bắt đầu.', [
+        { text: 'Ở lại', style: 'cancel' },
+        { text: 'Rời phòng', onPress: leaveRoom },
+      ])
+      return
+    }
+    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+      { text: 'Thi tiếp', style: 'cancel' },
+      { text: 'Rời phòng', onPress: leaveRoom },
+    ]
+    if (session.mode === 'MOCK' && !busy && !uploading && !recording) {
+      buttons.push({ text: 'Kết thúc và chấm', style: 'destructive', onPress: () => { void finishNow() } })
+    }
+    Alert.alert('Rời phòng thi?', 'Đồng hồ thi vẫn chạy khi bạn rời phòng.', buttons)
   }
 
   async function doRegrade() {
@@ -286,7 +482,9 @@ export default function SpeakingExamRoomScreen() {
     if (busy) return
     setBusy(true)
     try {
-      setSession(await examSpeakingApi.choose(sessionId, teilNo, index))
+      const v = await queueSessionOp(() => examSpeakingApi.choose(sessionId, teilNo, index))
+      // Giữ ghi chú vừa lưu xong trong lúc chờ (bản `choose` có thể đọc trước lượt lưu đó).
+      setSession((prev) => ({ ...v, notesText: prev?.id === v.id ? prev.notesText ?? v.notesText : v.notesText }))
       void Haptics.selectionAsync()
     } catch (e) {
       Alert.alert('Lỗi', apiMessage(e))
@@ -312,10 +510,11 @@ export default function SpeakingExamRoomScreen() {
         }
         return
       }
-      stopExamTts() // giọng giám khảo không được lọt vào bản ghi
+      stopVoice() // giọng giám khảo không được lọt vào bản ghi
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
       await recorder.prepareToRecordAsync()
       recorder.record()
+      stopRequestedRef.current = false
       setRecording(true)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     } catch {
@@ -324,7 +523,8 @@ export default function SpeakingExamRoomScreen() {
   }
 
   async function stopAndSubmitTurn() {
-    if (!recording) return
+    if (!recording || stopRequestedRef.current) return
+    stopRequestedRef.current = true
     setRecording(false)
     setUploading(true)
     try {
@@ -397,7 +597,7 @@ export default function SpeakingExamRoomScreen() {
       // Phản hồi về muộn sau khi người dùng đã rời màn (back/chuyển tab giữa lúc
       // đang gửi): KHÔNG bắt đầu phát tiếng — stopExamTts lúc blur chỉ dừng được
       // thứ ĐANG kêu, không chặn được chuỗi mới khởi phát sau đó.
-      if (aiTurns.length > 0 && focusedRef.current) void speakExamSequence(aiTurns)
+      if (aiTurns.length > 0 && focusedRef.current) void speakExamSequence(aiTurns, setAiSpeaker)
     } catch (e) {
       Alert.alert('Lỗi lượt nói', apiMessage(e))
     }
@@ -430,52 +630,62 @@ export default function SpeakingExamRoomScreen() {
 
   const d = session.directive
   const inPart = session.state === 'IN_PART'
+  const live = inPart || session.state === 'PREP'
+  const currentBpPart = blueprint?.parts.find((p) => p.teilNo === session.currentPart)
+  const hasPartner = currentBpPart?.hasPartner ?? lines.some((l) => l.role === 'PARTNER')
+  const isLastPart = session.currentPart >= session.totalParts
+  const clock = session.state === 'PREP' ? prepSecLeft : partSecLeft
+  const prepParts = session.mode === 'MOCK' ? blueprint?.parts ?? [] : []
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
-        title={inPart && d ? `Teil ${d.teilNo} · ${d.title}` : stateLabel(session.state)}
-        subtitle={`Sprechen ${session.level} · ${session.mode === 'MOCK' ? 'thi thử' : 'luyện Teil'}`}
-        onBack={leaveRoom}
-        right={
-          inPart || session.state === 'PREP' ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={muted ? 'Bật tiếng giám khảo' : 'Tắt tiếng giám khảo'}
-                accessibilityState={{ selected: muted }}
-                onPress={toggleMute}
-                hitSlop={8}
-              >
-                <Icon icon={muted ? VolumeX : Volume2} size={20} color="secondary" />
-              </Pressable>
-              {session.state !== 'PREP' && (
-                <Pressable accessibilityRole="button" accessibilityLabel="Kết thúc và chấm bài" onPress={() => void doFinish()} hitSlop={8}>
-                  <Icon icon={Flag} size={20} color="secondary" />
-                </Pressable>
-              )}
-            </View>
-          ) : undefined
-        }
-      />
-
-      {/* Tiến độ theo Teil */}
-      <View style={{ flexDirection: 'row', gap: 4, paddingHorizontal: space[5], paddingBottom: space[3] }}>
-        {Array.from({ length: Math.max(1, session.totalParts) }, (_, i) => {
-          const teil = i + 1
-          const done = teil < session.currentPart
-          const current = teil === session.currentPart
-          return (
-            <View
-              key={teil}
-              style={{
-                flex: 1, height: 4, borderRadius: radius.full,
-                backgroundColor: done ? c.inkSurface : current ? c.accent : c.border,
-              }}
-            />
-          )
-        })}
-      </View>
+      {live ? (
+        // Đầu phòng thi theo mẫu v3.4: X · tên Teil (hoặc "Chuẩn bị") · đồng hồ · tắt tiếng.
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[3] }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={session.state === 'PREP' ? 'Rời phòng chuẩn bị' : 'Rời phòng hoặc kết thúc phần nói'}
+            onPress={confirmLeave}
+            hitSlop={8}
+            style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon icon={X} size={20} color="primary" />
+          </Pressable>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <ThemedText variant="label" numberOfLines={1}>
+              {inPart && d ? `Teil ${d.teilNo} · ${d.title}` : 'Chuẩn bị'}
+            </ThemedText>
+            <ThemedText variant="caption" color="muted" numberOfLines={1}>
+              {inPart && d
+                ? `Bước ${d.stepIndex + 1}/${d.stepCount}`
+                : `${session.mode === 'MOCK' ? 'Thi thử' : 'Luyện'} phần nói · ${providerName(session.provider)} ${session.level}`}
+            </ThemedText>
+          </View>
+          {clock != null && (
+            <Pill label={formatClock(clock)} tone={inPart && clock <= 20 ? 'danger' : 'neutral'} />
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={muted ? 'Bật tiếng giám khảo' : 'Tắt tiếng giám khảo'}
+            accessibilityState={{ selected: muted }}
+            onPress={toggleMute}
+            hitSlop={8}
+          >
+            <Icon icon={muted ? VolumeX : Volume2} size={20} color="secondary" />
+          </Pressable>
+          {inPart ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Xem hướng dẫn phòng thi" onPress={() => setGuideOpen(true)} hitSlop={8}>
+              <Icon icon={CircleHelp} size={20} color="secondary" />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : (
+        <AppHeader
+          title={stateLabel(session.state)}
+          subtitle={`Sprechen ${session.level} · ${session.mode === 'MOCK' ? 'thi thử' : 'luyện Teil'}`}
+          onBack={leaveRoom}
+        />
+      )}
 
       {/* retainAudio: phiên hiệu chuẩn — bắt buộc nói rõ (hợp đồng ExamSessionView) */}
       {session.retainAudio && (
@@ -488,94 +698,16 @@ export default function SpeakingExamRoomScreen() {
 
       {/* ── PREP ── */}
       {session.state === 'PREP' && (
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4] }}>
-          <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[2] }}>
-            <Caption color={c.onInkMuted}>Thời gian chuẩn bị</Caption>
-            <ThemedText variant="displayLg" style={{ color: c.onInk }}>
-              {prepSecLeft != null ? formatClock(prepSecLeft) : '—'}
-            </ThemedText>
-            <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-              Đọc đề, gạch ý. Hết giờ sẽ tự vào thi — hoặc vào sớm khi bạn sẵn sàng.
-            </ThemedText>
-          </Card>
-
-          {(session.prepMaterials ?? []).map((m) => (
-            <View key={m.teilNo} style={{ gap: space[2] }}>
-              <Caption>{`Teil ${m.teilNo} · ${m.title}`}</Caption>
-              {/* LT2: chiến thuật Teil — đọc trong giờ chuẩn bị, thu gọn mặc định. */}
-              <TeilStrategyCard provider={session.provider} level={session.level} section="SPRECHEN" teil={m.teilNo} />
-              <Card style={{ gap: space[3] }}>
-                {m.choiceRequired && (
-                  <ThemedText variant="caption" color="secondary">Chọn 1 chủ đề cho phần này:</ThemedText>
-                )}
-                <View style={{ gap: space[2] }}>
-                  {m.stimuli.map((s, idx) => {
-                    const disp = stimulusDisplay(s)
-                    const chosen = m.chosenIndex === idx
-                    const body = (
-                      <View style={{ gap: space[1] }}>
-                        {disp.headline ? (
-                          <ThemedText variant={m.choiceRequired ? 'bodyStrong' : 'title'}>{disp.headline}</ThemedText>
-                        ) : null}
-                        {disp.lines.slice(0, 3).map((ln, li) => (
-                          <ThemedText key={`l${li}`} variant="caption" color="secondary">{ln}</ThemedText>
-                        ))}
-                        {disp.bullets.slice(0, 6).map((b, bi) => (
-                          <View key={bi} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                            <YellowSquare size={5} />
-                            <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>{b}</ThemedText>
-                          </View>
-                        ))}
-                      </View>
-                    )
-                    if (!m.choiceRequired) return <View key={idx}>{body}</View>
-                    return (
-                      <Pressable
-                        key={idx}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: chosen }}
-                        accessibilityLabel={disp.headline ?? `Chủ đề ${idx + 1}`}
-                        onPress={() => void chooseTopic(m.teilNo, idx)}
-                        style={{
-                          borderWidth: chosen ? 2 : 1,
-                          borderColor: chosen ? c.accent : c.border,
-                          backgroundColor: chosen ? c.accentSoft : c.surface,
-                          borderRadius: radius.md,
-                          padding: space[3],
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: space[3],
-                        }}
-                      >
-                        <View style={{ flex: 1 }}>{body}</View>
-                        {chosen ? <Icon icon={Check} size={18} color="accent" /> : null}
-                      </Pressable>
-                    )
-                  })}
-                </View>
-              </Card>
-            </View>
-          ))}
-
-          {/* Konzeptpapier — parity web: ghi chú lúc chuẩn bị, dùng lại trong lúc thi */}
-          <View style={{ gap: space[2] }}>
-            <Caption>Ghi chú của bạn (Konzeptpapier)</Caption>
-            <Card style={{ gap: space[3] }}>
-              <TextField
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Gạch ý cho bài nói…"
-                multiline
-              />
-              <Button label={savingNotes ? 'Đang lưu…' : 'Lưu ghi chú'} variant="ghost" size="sm" onPress={() => void saveNotes()} loading={savingNotes} />
-            </Card>
-          </View>
-
-          <Button
-            label={busy ? 'Đang vào…' : 'Vào thi ngay'}
-            onPress={() => void doAdvance()}
-            loading={busy}
-            disabled={(session.prepMaterials ?? []).some((m) => m.choiceRequired && m.chosenIndex == null)}
+        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], paddingTop: space[2] }}>
+          <OralPrep
+            session={session}
+            parts={prepParts}
+            notes={notes}
+            onChangeNotes={changeNotes}
+            notesState={notesState}
+            busy={busy}
+            onChoose={(teilNo, idx) => { void chooseTopic(teilNo, idx) }}
+            onEnter={() => { void doAdvance() }}
           />
         </Screen>
       )}
@@ -583,47 +715,18 @@ export default function SpeakingExamRoomScreen() {
       {/* ── IN_PART ── */}
       {inPart && (
         <View style={{ flex: 1 }}>
-          <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[4], gap: space[3] }}>
-            {inPart && d ? (
-              <TeilStrategyCard provider={session.provider} level={session.level} section="SPRECHEN" teil={d.teilNo} />
-            ) : null}
-            {inPart && d && (
-              <Card style={{ gap: space[2] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                  <YellowSquare />
-                  <Caption style={{ flex: 1 }}>{`Bước ${d.stepIndex + 1}/${d.stepCount}`}</Caption>
-                  {partSecLeft != null && (
-                    <Pill label={formatClock(partSecLeft)} tone={partSecLeft <= 20 ? 'danger' : 'neutral'} />
-                  )}
-                </View>
-                {(() => {
-                  const disp = stimulusDisplay(d.stimulus)
-                  return (
-                    <View style={{ gap: space[1] }}>
-                      {disp.headline ? <ThemedText variant="title">{disp.headline}</ThemedText> : null}
-                      {disp.lines.slice(0, 3).map((ln, li) => (
-                        <ThemedText key={`l${li}`} variant="body" color="secondary">{ln}</ThemedText>
-                      ))}
-                      {disp.bullets.slice(0, 8).map((b, bi) => (
-                        <View key={bi} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                          <YellowSquare size={5} />
-                          <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>{b}</ThemedText>
-                        </View>
-                      ))}
-                    </View>
-                  )
-                })()}
-                {d.hintVi ? (
-                  <ThemedText variant="caption" color="muted">{d.hintVi}</ThemedText>
-                ) : null}
-                {session.notesText ? (
-                  <View style={{ backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[2] + 2, gap: 2 }}>
-                    <Caption>Ghi chú của bạn</Caption>
-                    <ThemedText variant="caption" color="secondary">{session.notesText}</ThemedText>
-                  </View>
-                ) : null}
-              </Card>
-            )}
+          <View style={{ paddingHorizontal: space[5], gap: space[3], paddingBottom: space[3] }}>
+            {session.mode === 'MOCK' && <OralStages totalParts={session.totalParts} currentPart={session.currentPart} />}
+            <OralPeople speaker={oralSpeaker(aiSpeaker, recording)} hasPartner={hasPartner} />
+          </View>
+          <ScrollView
+            ref={scrollRef}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+            contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[4], gap: space[3] }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {d ? <OralTaskCard directive={d} notesText={roomNotes(session.notesText, notes, notesState === 'error')} /> : null}
+            {d ? <TeilStrategyCard provider={session.provider} level={session.level} section="SPRECHEN" teil={d.teilNo} /> : null}
 
             {lines.map((l) => (
               <View
@@ -640,7 +743,7 @@ export default function SpeakingExamRoomScreen() {
                 }}
               >
                 <Caption color={l.role === 'CANDIDATE' ? c.onInkMuted : c.textSecondary}>
-                  {l.role === 'CANDIDATE' ? 'Bạn' : l.role === 'PARTNER' ? 'Bạn thi cùng' : 'Giám khảo'}
+                  {l.role === 'CANDIDATE' ? 'Bạn' : l.role === 'PARTNER' ? 'Bạn thi' : 'Giám khảo'}
                 </Caption>
                 <ThemedText variant="body" style={l.role === 'CANDIDATE' ? { color: c.onInk } : undefined}>
                   {l.text}
@@ -659,54 +762,20 @@ export default function SpeakingExamRoomScreen() {
                 </View>
               </Card>
             )}
+          </ScrollView>
 
-            {uploading && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[1] }}>
-                <ThemedText variant="caption" color="muted">Giám khảo đang nghe bản ghi của bạn…</ThemedText>
-              </View>
-            )}
-          </Screen>
-
-          {/* Thanh mic */}
-          {inPart && (
-            <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.surface, paddingHorizontal: space[5], paddingVertical: space[3], gap: space[2] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Sang phần tiếp theo"
-                  onPress={() => void doAdvance()}
-                  disabled={busy || uploading || recording}
-                  style={{ width: 44, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: c.borderStrong, alignItems: 'center', justifyContent: 'center', opacity: busy || uploading || recording ? 0.4 : 1 }}
-                >
-                  <Icon icon={ChevronRight} size={20} color="secondary" />
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={recording ? 'Dừng và gửi câu trả lời' : 'Bắt đầu nói'}
-                  onPress={() => void (recording ? stopAndSubmitTurn() : startRecording())}
-                  disabled={uploading || busy}
-                  style={{
-                    flex: 1, height: 56, borderRadius: radius.full,
-                    backgroundColor: recording ? c.danger : c.accent,
-                    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: space[2],
-                    opacity: uploading || busy ? 0.5 : 1,
-                  }}
-                >
-                  {recording ? (
-                    <Icon icon={Square} size={20} color="onInk" />
-                  ) : (
-                    <GaGlyph name="speaking" size={20} ink="onAccent" gold="ink" />
-                  )}
-                  <ThemedText variant="bodyStrong" style={{ color: recording ? c.onBrand : c.onAccent }}>
-                    {uploading ? 'Đang gửi…' : recording ? 'Dừng & gửi' : 'Nhấn để nói'}
-                  </ThemedText>
-                </Pressable>
-              </View>
-              <ThemedText variant="caption" color="faint" align="center">
-                Nói xong bấm Dừng — server phiên âm và giám khảo đáp lại.
-              </ThemedText>
-            </View>
-          )}
+          <OralMicDock
+            status={micStatus({ recording, uploading, aiSpeaking: aiSpeaker, busy })}
+            recording={recording}
+            disabled={uploading || busy}
+            onMic={() => void (recording ? stopAndSubmitTurn() : startRecording())}
+            autoStop={autoStop}
+            onAutoStop={toggleAutoStop}
+            actionLabel={session.mode === 'DRILL' ? 'Kết thúc luyện' : isLastPart ? 'Kết thúc và chấm' : `Sang Teil ${session.currentPart + 1}`}
+            actionPrimary={session.mode === 'MOCK' && isLastPart}
+            actionDisabled={busy || uploading || recording}
+            onAction={session.mode === 'MOCK' && isLastPart ? confirmFinish : confirmAdvance}
+          />
         </View>
       )}
 
@@ -796,6 +865,7 @@ export default function SpeakingExamRoomScreen() {
           </Card>
         </View>
       )}
+      <OralRoomGuide visible={guideOpen} onClose={closeGuide} />
     </Screen>
   )
 }

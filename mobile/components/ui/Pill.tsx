@@ -64,7 +64,8 @@ export function Pill({ label, tone = 'neutral', icon, glyph, solid = false, styl
         style={{
           fontFamily: fonts.bodySemi,
           fontSize: 10,
-          lineHeight: 12,
+          // Be Vietnam Pro cao ~1,27 em: chừa chỗ cho dấu trên chữ hoa (Đ, Ạ, Ấ…).
+          lineHeight: 14,
           letterSpacing: 0.9,
           textTransform: 'uppercase',
           color: fg,

@@ -6,10 +6,14 @@
 // Mọi nhánh đều phòng thiếu dữ liệu: phiếu cũ có `schemaVersion` thấp hơn, mục tiêu giáo trình có
 // thể null (lớp không dùng giáo trình), và điểm kỹ năng chưa nhập là `null` — hiển thị gạch ngang
 // chứ KHÔNG phải 0 (0 điểm và "chưa có điểm" là hai chuyện khác nhau).
+//
+// Giao diện v3.4 (Đợt 6C, 19/11/2026; mẫu `reports`): thẻ bo lớn, đầu thẻ kỳ + giáo viên, bốn kỹ năng
+// thành hàng nhãn viên thuốc, các mục phụ dưới nhãn nhỏ viết hoa.
 import { View } from 'react-native'
 import { format } from 'date-fns'
-import { Card, Caption, Pill, ThemedText } from '@/components/ui'
-import { radius, space, useTheme } from '@/lib/theme'
+import { ThemedText } from '@/components/ui'
+import { Badge, Eyebrow } from '@/components/me/MeParts'
+import { radius, space, themeShadowStyle, useTheme } from '@/lib/theme'
 import {
   attendanceRateText,
   gradeLabel,
@@ -22,7 +26,10 @@ import {
 
 const fmtDate = (iso: string | null | undefined) => (iso ? format(new Date(iso), 'dd/MM/yyyy') : '—')
 
-const PILL_TONE = { ok: 'success', muted: 'neutral', warn: 'danger' } as const
+const BADGE_TONE = { ok: 'success', muted: 'neutral', warn: 'danger' } as const
+
+/** Xếp loại tốt (Giỏi, Xuất sắc) tô xanh như mẫu; còn lại nền xám. */
+const GOOD_GRADES = new Set(['GOOD', 'EXCELLENT'])
 
 export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
   const theme = useTheme()
@@ -36,52 +43,61 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
   const selfStudy = payload.selfStudy ?? null
   const certificate = payload.certificate ?? null
   const rate = attendanceRateText(attendance)
+  const teacher = payload.class?.primaryTeacherName ?? null
+  const hasFooter =
+    !!issue.verificationCode ||
+    (issue.status === 'ACTIVE' && !!issue.tokenExpiresAt) ||
+    (issue.status === 'REVOKED' && !!issue.revokedAt)
 
   return (
-    <Card padded bordered style={{ gap: space[4] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText variant="titleLg">{periodLabel(issue.period)}</ThemedText>
-          <ThemedText variant="caption" color="secondary">
-            {[payload.class?.name ?? issue.className, payload.class?.level].filter(Boolean).join(' · ') || '—'}
+    <View
+      style={{
+        backgroundColor: c.surface,
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: radius.xl,
+        padding: space[4],
+        gap: space[4],
+        ...themeShadowStyle(theme.shadow.card),
+      }}
+    >
+      <View style={{ gap: space[1] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[3] }}>
+          <ThemedText variant="bodyStrong" style={{ flex: 1 }} accessibilityRole="header">
+            {periodLabel(issue.period)}
           </ThemedText>
+          {teacher ? (
+            <ThemedText variant="caption" color="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {teacher}
+            </ThemedText>
+          ) : null}
         </View>
-        <Pill label={status.label} tone={PILL_TONE[status.tone]} />
-      </View>
-
-      <View style={{ gap: 2 }}>
+        <ThemedText variant="caption" color="secondary">
+          {[payload.class?.name ?? issue.className, payload.class?.level].filter(Boolean).join(' · ') || '—'}
+        </ThemedText>
         <ThemedText variant="caption" color="muted">
           Phát hành {fmtDate(issue.issuedAt)}
           {issue.issuedByName ? ` · ${issue.issuedByName}` : ''}
         </ThemedText>
-        {payload.class?.primaryTeacherName ? (
-          <ThemedText variant="caption" color="muted">
-            Giáo viên phụ trách: {payload.class.primaryTeacherName}
-          </ThemedText>
-        ) : null}
+        <View style={{ marginTop: space[1] }}>
+          <Badge label={status.label} tone={BADGE_TONE[status.tone]} />
+        </View>
       </View>
 
       {/* Bốn kỹ năng — thang 0–10, cùng thứ tự với bản in và trang web */}
       <View style={{ gap: space[2] }}>
-        <Caption>Bốn kỹ năng</Caption>
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          {skills.map((s) => (
-            <View
-              key={s.code}
-              style={{
-                flex: 1,
-                alignItems: 'center',
-                paddingVertical: space[3],
-                borderRadius: radius.lg,
-                backgroundColor: c.surfaceSunken,
-              }}
-            >
-              <ThemedText variant="title">{scoreText(s.score)}</ThemedText>
-              <ThemedText variant="caption" color="secondary">
-                {skillLabel(s.code)}
-              </ThemedText>
-            </View>
-          ))}
+        <Eyebrow>Bốn kỹ năng</Eyebrow>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[1] + 2 }}>
+          {skills.map((s) => {
+            const grade = gradeLabel(s.grade)
+            return (
+              <Badge
+                key={s.code}
+                label={`${skillLabel(s.code)} · ${scoreText(s.score)}${grade ? ` · ${grade}` : ''}`}
+                tone={s.grade && GOOD_GRADES.has(s.grade) ? 'success' : 'neutral'}
+              />
+            )
+          })}
         </View>
         {payload.overall ? (
           <ThemedText variant="caption" color="secondary">
@@ -91,9 +107,16 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
         ) : null}
       </View>
 
+      <View style={{ gap: space[1] }}>
+        <Eyebrow>Nhận xét của giáo viên</Eyebrow>
+        <ThemedText variant="body" color={payload.teacherComment ? 'primary' : 'muted'}>
+          {payload.teacherComment ?? 'Giáo viên chưa ghi nhận xét cho kỳ này.'}
+        </ThemedText>
+      </View>
+
       {attendance ? (
         <View style={{ gap: space[1] }}>
-          <Caption>Chuyên cần</Caption>
+          <Eyebrow>Chuyên cần</Eyebrow>
           <ThemedText variant="body">
             Có mặt {attendance.present ?? 0} · Vắng {attendance.absent ?? 0} · Đi muộn {attendance.late ?? 0}
             {rate ? ` · Tỉ lệ ${rate}` : ''}
@@ -106,7 +129,7 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
 
       {assignments ? (
         <View style={{ gap: space[1] }}>
-          <Caption>Bài tập</Caption>
+          <Eyebrow>Bài tập</Eyebrow>
           <ThemedText variant="body">
             {assignments.avgScore === null || assignments.avgScore === undefined
               ? 'Chưa có bài nào được giáo viên chốt điểm'
@@ -120,7 +143,7 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
 
       {objectives ? (
         <View style={{ gap: space[1] }}>
-          <Caption>Mục tiêu giáo trình</Caption>
+          <Eyebrow>Mục tiêu giáo trình</Eyebrow>
           <ThemedText variant="body">
             Đã đạt {objectives.achieved ?? 0}/{objectives.total ?? 0} · cần luyện thêm{' '}
             {objectives.needsPractice ?? 0} · chưa đánh giá {objectives.notAssessed ?? 0}
@@ -135,7 +158,7 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
 
       {selfStudy ? (
         <View style={{ gap: space[1] }}>
-          <Caption>Tự học ngoài lớp</Caption>
+          <Eyebrow>Tự học ngoài lớp</Eyebrow>
           <ThemedText variant="caption" color="secondary">
             {selfStudy.speakingSessions ?? 0} phiên luyện nói ({selfStudy.speakingMinutes ?? 0} phút) ·{' '}
             {selfStudy.vocabMastered ?? 0} thẻ từ đã thuộc · {selfStudy.lessonsCompleted ?? 0} bài tự học
@@ -143,23 +166,16 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
         </View>
       ) : null}
 
-      <View style={{ gap: space[1] }}>
-        <Caption>Nhận xét của giáo viên</Caption>
-        <ThemedText variant="body" color={payload.teacherComment ? 'primary' : 'muted'}>
-          {payload.teacherComment ?? 'Giáo viên chưa ghi nhận xét cho kỳ này.'}
-        </ThemedText>
-      </View>
-
       {certificate ? (
         <View
           style={{
             gap: space[1],
             padding: space[3],
-            borderRadius: radius.lg,
+            borderRadius: radius.md,
             backgroundColor: certificate.eligible ? c.successSoft : c.surfaceSunken,
           }}
         >
-          <Caption>Điều kiện chứng nhận</Caption>
+          <Eyebrow>Điều kiện chứng nhận</Eyebrow>
           <ThemedText variant="bodyStrong" color={certificate.eligible ? 'success' : 'secondary'}>
             {certificate.eligible
               ? 'Đã đạt điều kiện xét cấp chứng nhận hoàn thành.'
@@ -172,7 +188,8 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
         </View>
       ) : null}
 
-      <View style={{ gap: 2 }}>
+      {hasFooter ? (
+      <View style={{ gap: 2, borderTopWidth: 1, borderTopColor: c.border, paddingTop: space[3] }}>
         {issue.verificationCode ? (
           <ThemedText variant="caption" color="muted">
             Mã phiếu {issue.verificationCode}
@@ -189,6 +206,7 @@ export function ReportIssueCard({ entry }: { entry: ReportIssueEntry }) {
           </ThemedText>
         ) : null}
       </View>
-    </Card>
+      ) : null}
+    </View>
   )
 }

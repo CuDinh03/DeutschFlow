@@ -1,64 +1,56 @@
 import { useEffect, useRef } from 'react'
-import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
 import { ArrowRight } from 'lucide-react-native'
-import api from '@/lib/api'
-import { progressApi, type SkillData, type WeeklyPoint } from '@/lib/progressApi'
+import { progressApi, type ProgressOverview } from '@/lib/progressApi'
 import { speakingApi, type AiSpeakingSession } from '@/lib/speakingApi'
-import { gamificationApi, type Achievement, type Rarity, type LeaderboardEntry } from '@/lib/gamificationApi'
+import { gamificationApi, type Achievement, type LeaderboardEntry } from '@/lib/gamificationApi'
 import { learningApi, type ErrorSkill } from '@/lib/learningApi'
+import { fetchStudentStats, STUDENT_STATS_QUERY_KEY } from '@/lib/studentStatsApi'
+import { formatCountVi, weekdayBars } from '@/lib/progressFormat'
+import { achievementGlyph, stripEmoji } from '@/lib/achievementDisplay'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
-  Card,
   ThemedText,
   Icon,
-  Pill,
-  Caption,
-  AppHeader,
+  AvatarButton,
+  useTabBarClearance,
   ProgressBar,
   ErrorState,
   FadeIn,
   Skeleton,
-  SkillRadar,
   Button,
-GaGlyph } from '@/components/ui'
-import { useBackToMainTab } from '@/hooks/useBackTo'
+  GaGlyph,
+} from '@/components/ui'
+import { Badge, Eyebrow, MarkTitle, MeCard, Row, RowList, SectionHead } from '@/components/me/MeParts'
 
-interface StatsData {
-  streakDays: number
-  totalXp: number
-  xpLevel: number
-  wordsLearned: number
-  speakingMinutes: number
-  grammarAccuracy: number
-  weeklyProgress: number[]
-}
+// Tab Tiến bộ — giao diện v3.4 (Đợt 6C, 19/11/2026; mẫu `stats`): năng lực 4 kỹ năng dạng thanh, phút
+// học từng ngày trong tuần, ba ô số, kinh nghiệm, huy hiệu lưới 4 cột (glyph thay emoji), bảng xếp hạng,
+// buổi luyện gần đây, lối sang Tôi và cài đặt.
 
-const SKILLS: { key: keyof SkillsShape; label: string; glyph: GlyphName }[] = [
-  { key: 'lesen', label: 'Đọc hiểu', glyph: 'doc' },
-  { key: 'hoeren', label: 'Nghe hiểu', glyph: 'nghe' },
-  { key: 'schreiben', label: 'Viết', glyph: 'viet' },
-  { key: 'sprechen', label: 'Nói', glyph: 'noi' },
+const SKILLS: { key: keyof ProgressOverview['skills']; label: string }[] = [
+  { key: 'lesen', label: 'Đọc' },
+  { key: 'hoeren', label: 'Nghe' },
+  { key: 'schreiben', label: 'Viết' },
+  { key: 'sprechen', label: 'Nói' },
 ]
 
-interface SkillsShape {
-  lesen: SkillData
-  hoeren: SkillData
-  schreiben: SkillData
-  sprechen: SkillData
-}
+const CHART_HEIGHT = 120
+const CHART_LABEL_SPACE = 18
+
+/** Thẻ phút học từng ngày — tắt tới khi backend đo phút thật (xem chú thích ở chỗ dựng thẻ). */
+const SHOW_WEEK_MINUTES = false
 
 export default function StatsScreen() {
-  // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
-  const goBack = useBackToMainTab()
+  // Từ 18/11/2026 Tiến bộ là tab: không có back, chừa đáy cho thanh tab nổi.
+  const tabClearance = useTabBarClearance()
   const { data: stats, isLoading, isError, refetch: refetchStats } = useQuery({
-    queryKey: ['stats'],
-    queryFn: () => api.get<StatsData>('/student/stats').then((r) => r.data),
+    queryKey: STUDENT_STATS_QUERY_KEY,
+    queryFn: fetchStudentStats,
     staleTime: 60_000,
   })
 
@@ -111,17 +103,20 @@ export default function StatsScreen() {
     .sort((a, b) => b.priorityScore - a.priorityScore)
     .slice(0, 3)
 
+  const title = <MarkTitle lead="Tiến độ" mark="học tập" style={{ marginTop: space[1] }} />
+
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Tiến độ học tập" onBack={goBack} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[5], paddingTop: space[2] }}>
+        <Eyebrow style={{ flex: 1 }}>Tiến bộ</Eyebrow>
+        <AvatarButton />
+      </View>
       {isLoading ? (
-        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
-          <View style={{ flexDirection: 'row', gap: space[3] }}>
-            <Skeleton height={120} radius="2xl" style={{ flex: 1 }} />
-            <Skeleton height={120} radius="2xl" style={{ flex: 1 }} />
-          </View>
-          <Skeleton height={180} radius="2xl" />
-          <Skeleton height={120} radius="2xl" />
+        <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
+          {title}
+          <Skeleton height={180} radius="lg" />
+          <Skeleton height={150} radius="lg" />
+          <Skeleton height={64} radius="md" />
         </View>
       ) : isError ? (
         <ErrorState onRetry={() => void refetchStats()} />
@@ -129,15 +124,31 @@ export default function StatsScreen() {
         <Screen
           scroll
           edges={[]}
-          contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], paddingTop: space[2], gap: space[3] }}
+          contentStyle={{ paddingHorizontal: space[5], paddingBottom: tabClearance, gap: space[3] }}
           refreshing={pull.refreshing}
           onRefresh={onRefresh}
         >
-          {/* Streak hero + totals — editorial ink card (the day-one metric) */}
-          <FadeIn delay={0}>
-            <StreakHeroCard
+          {title}
+
+          {/* Năng lực 4 kỹ năng — "mình đang ở đâu" */}
+          {overview ? (
+            <FadeIn delay={0}>
+              <SkillsCard overview={overview} />
+            </FadeIn>
+          ) : null}
+
+          {/* Phút học từng ngày (mẫu `stats`) TẠM ẨN — 19/11/2026: `StudentStatsResponse.weeklyProgress` không đo
+              phút thật (đếm learning_session_progress COMPLETED × 25, không gồm cây kỹ năng, luyện nói, ôn từ) nên
+              học viên mobile gần như luôn thấy 0. Bật lại khi backend tính phút học thật. */}
+          {SHOW_WEEK_MINUTES && stats?.weeklyProgress?.length ? (
+            <FadeIn delay={60}>
+              <WeekCard minutes={stats.weeklyProgress} />
+            </FadeIn>
+          ) : null}
+
+          <FadeIn delay={100}>
+            <TotalsStrip
               streakDays={stats?.streakDays ?? 0}
-              xpLevel={stats?.xpLevel ?? 1}
               wordsLearned={stats?.wordsLearned ?? 0}
               speakingMinutes={stats?.speakingMinutes ?? 0}
             />
@@ -145,7 +156,7 @@ export default function StatsScreen() {
 
           {/* XP & level progress */}
           {xp ? (
-            <FadeIn delay={60}>
+            <FadeIn delay={140}>
               <XpLevelCard
                 level={xp.level}
                 totalXp={xp.totalXp}
@@ -155,108 +166,59 @@ export default function StatsScreen() {
             </FadeIn>
           ) : null}
 
-          {/* Skill ability — "where am I" */}
-          {overview ? (
-            <FadeIn delay={80}>
-            <Card style={{ gap: space[4] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ gap: 4 }}>
-                  <Caption>Năng lực 4 kỹ năng</Caption>
-                  <ThemedText variant="title">Kỹ năng theo CEFR</ThemedText>
-                </View>
-                <Pill label={overview.cefrLevel || 'A1'} tone="accent" solid />
-              </View>
-              <SkillRadar
-                size={200}
-                style={{ alignSelf: 'center' }}
-                data={[
-                  { label: 'Nghe', value: Math.round(overview.skills?.hoeren?.score ?? 0) },
-                  { label: 'Đọc', value: Math.round(overview.skills?.lesen?.score ?? 0) },
-                  { label: 'Nói', value: Math.round(overview.skills?.sprechen?.score ?? 0) },
-                  { label: 'Viết', value: Math.round(overview.skills?.schreiben?.score ?? 0) },
-                ]}
-              />
-              {/* 2×2 score grid below the radar (mockup pairs the radar with skill figures). */}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {SKILLS.map(({ key, label, glyph }) => {
-                  const score = Math.round(overview.skills?.[key]?.score ?? 0)
-                  return (
-                    <View key={key} style={{ width: '50%', paddingVertical: space[2], gap: 2 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                        <GaGlyph name={glyph} size={14} ink="muted" />
-                        <ThemedText variant="label" color="secondary">
-                          {label}
-                        </ThemedText>
-                      </View>
-                      <ThemedText variant="monoLg">{score}</ThemedText>
-                    </View>
-                  )
-                })}
-              </View>
-            </Card>
-            </FadeIn>
-          ) : null}
-
-          {/* Weekly trend — "am I improving" */}
-          {overview && overview.weeklyProgress?.length > 0 ? (
-            <FadeIn delay={160}>
-              <Card style={{ gap: space[4] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <Caption>Phút học mỗi tuần</Caption>
-                  <ThemedText variant="monoLg">
-                    {overview.weeklyProgress.slice(-8).reduce((sum, p) => sum + p.minutesStudied, 0)}
-                  </ThemedText>
-                </View>
-                <WeeklyTrend points={overview.weeklyProgress} />
-              </Card>
-            </FadeIn>
-          ) : null}
-
           {/* Achievements */}
           {xp && xp.allAchievements.length > 0 ? (
-            <FadeIn delay={200}>
-              <AchievementsCard achievements={xp.allAchievements} pending={xp.pendingBadges} />
+            <FadeIn delay={180}>
+              <AchievementsGrid achievements={xp.allAchievements} pending={xp.pendingBadges} />
             </FadeIn>
           ) : null}
 
           {/* Recurring mistakes to work on */}
           {topErrors.length > 0 ? (
-            <FadeIn delay={220}>
+            <FadeIn delay={200}>
               <ErrorSkillsCard errors={topErrors} />
             </FadeIn>
           ) : null}
 
           {/* Leaderboard */}
           {leaderboard.length > 0 ? (
-            <FadeIn delay={230}>
-              <LeaderboardCard entries={leaderboard} meId={xp?.userId} />
+            <FadeIn delay={220}>
+              <Leaderboard entries={leaderboard} meId={xp?.userId} />
             </FadeIn>
           ) : null}
 
           {/* Recent sessions — history */}
           <FadeIn delay={240}>
-            <Card style={{ gap: space[3] }}>
-              <View style={{ gap: 4 }}>
-                <Caption>Lịch sử</Caption>
-                <ThemedText variant="title">Buổi luyện gần đây</ThemedText>
-              </View>
-              {sessions.length === 0 ? (
-                <View style={{ gap: space[3], alignItems: 'flex-start' }}>
-                  <ThemedText variant="caption" color="muted">
-                    Chưa có buổi luyện nào — thử một buổi luyện nói đầu tiên nhé.
-                  </ThemedText>
-                  <Button
-                    label="Bắt đầu buổi luyện nói"
-                    variant="secondary"
-                    fullWidth={false}
-                    onPress={() => router.navigate('/(student)/speaking')}
-                  />
-                </View>
-              ) : (
-                sessions.map((s, i) => <SessionRow key={s.id} session={s} isLast={i === sessions.length - 1} />)
-              )}
-            </Card>
+            <SectionHead title="Buổi luyện gần đây" style={{ marginTop: space[4], marginBottom: space[1] }} />
+            {sessions.length === 0 ? (
+              <MeCard style={{ gap: space[3], alignItems: 'flex-start' }}>
+                <ThemedText variant="caption" color="muted">
+                  Chưa có buổi luyện nào — thử một buổi luyện nói đầu tiên nhé.
+                </ThemedText>
+                <Button
+                  label="Bắt đầu buổi luyện nói"
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={() => router.navigate('/(student)/speaking')}
+                />
+              </MeCard>
+            ) : (
+              <RowList>
+                {sessions.map((s) => (
+                  <SessionRow key={s.id} session={s} />
+                ))}
+              </RowList>
+            )}
           </FadeIn>
+
+          <RowList style={{ marginTop: space[2] }}>
+            <Row
+              glyph="hoso"
+              title="Tôi và cài đặt"
+              subtitle="Hồ sơ, lớp, chứng nhận, cài đặt"
+              onPress={() => router.push('/(student)/profile')}
+            />
+          </RowList>
         </Screen>
       )}
     </Screen>
@@ -265,149 +227,115 @@ export default function StatsScreen() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function WeeklyTrend({ points }: { points: WeeklyPoint[] }) {
-  const { colors } = useTheme()
-  const recent = points.slice(-8)
-  const max = Math.max(1, ...recent.map((p) => p.minutesStudied))
+function SkillsCard({ overview }: { overview: ProgressOverview }) {
+  const c = useTheme().colors
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2], height: 80 }}>
-      {recent.map((p, i) => {
-        const ratio = p.minutesStudied / max
+    <MeCard style={{ gap: space[1] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[1] }}>
+        <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
+          Năng lực 4 kỹ năng
+        </ThemedText>
+        <Badge label={`CEFR ${overview.cefrLevel || 'A1'}`} tone="ink" />
+      </View>
+      {SKILLS.map(({ key, label }) => {
+        const score = Math.max(0, Math.min(100, Math.round(overview.skills?.[key]?.score ?? 0)))
         return (
-          <View key={`${p.week}-${i}`} style={{ flex: 1, alignItems: 'center', gap: space[1] }}>
-            <View style={{ flex: 1, justifyContent: 'flex-end', width: '100%' }}>
-              <View
-                style={{
-                  height: `${Math.max(6, ratio * 100)}%`,
-                  borderRadius: radius.sm,
-                  backgroundColor: ratio > 0.01 ? colors.accent : colors.surfaceSunken,
-                }}
-              />
+          <View
+            key={key}
+            accessible
+            accessibilityLabel={`${label}: ${score} trên 100`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] - 2, paddingVertical: 7 }}
+          >
+            <ThemedText variant="body" style={{ width: 52 }}>
+              {label}
+            </ThemedText>
+            <View style={{ flex: 1, height: 5, borderRadius: radius.full, backgroundColor: c.surfaceSunken, overflow: 'hidden' }}>
+              <View style={{ width: `${score}%`, height: '100%', borderRadius: radius.full, backgroundColor: c.info }} />
             </View>
-            <ThemedText variant="caption" color="faint">
-              {p.minutesStudied}
+            <ThemedText variant="title" style={{ width: 40, textAlign: 'right', fontVariant: ['tabular-nums'] }}>
+              {score}
             </ThemedText>
           </View>
         )
       })}
-    </View>
+      <ThemedText variant="caption" color="muted">
+        Điểm năng lực trên thang 100
+      </ThemedText>
+    </MeCard>
   )
 }
 
-function SessionRow({ session, isLast }: { session: AiSpeakingSession; isLast: boolean }) {
-  const { colors } = useTheme()
-  const mode = sessionModeLabel(session.sessionMode)
-  const hasReport = !!session.interviewReportJson
+function WeekCard({ minutes }: { minutes: number[] }) {
+  const c = useTheme().colors
+  const bars = weekdayBars(minutes, new Date())
+  const total = bars.reduce((sum, b) => sum + b.minutes, 0)
+  const barArea = CHART_HEIGHT - CHART_LABEL_SPACE
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: space[3],
-        paddingVertical: space[2],
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: colors.border,
-      }}
-    >
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: radius.md,
-          backgroundColor: colors.accentSoft,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <GaGlyph name={session.sessionMode === 'INTERVIEW' ? 'phongvan' : 'hoithoai'} size={18} />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <ThemedText variant="bodyStrong" numberOfLines={1}>
-          {session.interviewPosition || session.topic || 'Buổi luyện nói'}
+    <MeCard style={{ gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+        <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
+          Phút học tuần này
         </ThemedText>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <GaGlyph name="thoigian" size={12} ink="faint" />
-          <ThemedText variant="caption" color="muted">
-            {shortDate(session.startedAt)} • {mode}
-          </ThemedText>
-        </View>
+        <ThemedText variant="caption" color="muted">
+          {`${formatCountVi(total)} phút`}
+        </ThemedText>
       </View>
-      {hasReport ? <Pill label="Báo cáo" tone="success" /> : null}
-    </View>
-  )
-}
-
-function StreakHeroCard({
-  streakDays,
-  xpLevel,
-  wordsLearned,
-  speakingMinutes,
-}: {
-  streakDays: number
-  xpLevel: number
-  wordsLearned: number
-  speakingMinutes: number
-}) {
-  const { colors } = useTheme()
-  const totals: { label: string; value: string }[] = [
-    { label: 'Cấp độ', value: `Lv ${xpLevel}` },
-    { label: 'Từ đã học', value: String(wordsLearned) },
-    { label: 'Phút nói', value: String(speakingMinutes) },
-  ]
-  return (
-    <Card
-      padded={false}
-      style={{ backgroundColor: colors.inkSurface, borderColor: colors.inkSurface, overflow: 'hidden' }}
-    >
-      {/* Streak — the day-one engagement metric */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4], padding: space[5] }}>
-        <View
-          style={{
-            width: 60,
-            height: 60,
-            borderRadius: radius.lg,
-            backgroundColor: colors.accentSoft,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <GaGlyph name="chuoi" size={30} ink="accent" />
-        </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Caption color={colors.accent}>Chuỗi học</Caption>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
-            <ThemedText variant="displayLg" style={{ color: colors.onInk }}>
-              {String(streakDays)}
+      <View
+        accessible
+        accessibilityLabel={`Phút học tuần này: ${bars.map((b) => `${b.label} ${b.minutes} phút`).join(', ')}`}
+        style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2], height: CHART_HEIGHT }}
+      >
+        {bars.map((b) => (
+          <View key={b.label} style={{ flex: 1, alignItems: 'stretch', gap: space[1] }}>
+            <View style={{ height: barArea, justifyContent: 'flex-end' }}>
+              <View
+                style={{
+                  height: Math.max(4, b.ratio * barArea),
+                  borderTopLeftRadius: 6,
+                  borderTopRightRadius: 6,
+                  borderBottomLeftRadius: 3,
+                  borderBottomRightRadius: 3,
+                  backgroundColor: b.isToday ? c.accent : b.minutes > 0 ? c.info : c.surfaceSunken,
+                  borderWidth: b.isToday ? 1.5 : 0,
+                  borderColor: c.inkSurface,
+                }}
+              />
+            </View>
+            <ThemedText variant="caption" color={b.isToday ? 'primary' : 'muted'} align="center" style={{ fontSize: 11, lineHeight: 14 }}>
+              {b.label}
             </ThemedText>
-            <ThemedText variant="bodyStrong" style={{ color: colors.onInkMuted }}>
-              ngày
-            </ThemedText>
-          </View>
-        </View>
-      </View>
-      {/* Totals strip — hairline-divided editorial figures */}
-      <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.onInkMuted }}>
-        {totals.map((t, i) => (
-          <View
-            key={t.label}
-            style={{
-              flex: 1,
-              paddingVertical: space[3],
-              paddingHorizontal: space[4],
-              borderLeftWidth: i > 0 ? 1 : 0,
-              borderLeftColor: colors.onInkMuted,
-            }}
-          >
-            <ThemedText variant="monoLg" style={{ color: colors.onInk, fontSize: 20, lineHeight: 24 }}>
-              {t.value}
-            </ThemedText>
-            <Caption color={colors.onInkMuted} style={{ marginTop: 2 }}>
-              {t.label}
-            </Caption>
           </View>
         ))}
       </View>
-    </Card>
+    </MeCard>
+  )
+}
+
+function TotalsStrip({ streakDays, wordsLearned, speakingMinutes }: { streakDays: number; wordsLearned: number; speakingMinutes: number }) {
+  const c = useTheme().colors
+  const totals = [
+    { label: 'Chuỗi ngày', value: streakDays },
+    { label: 'Từ đã học', value: wordsLearned },
+    { label: 'Phút nói', value: speakingMinutes },
+  ]
+  return (
+    <View style={{ flexDirection: 'row', gap: space[2] }}>
+      {totals.map((t) => (
+        <View
+          key={t.label}
+          accessible
+          accessibilityLabel={`${t.label}: ${t.value}`}
+          style={{ flex: 1, alignItems: 'center', paddingVertical: space[3] - 2, borderRadius: radius.md, backgroundColor: c.surfaceSunken }}
+        >
+          <ThemedText variant="title" style={{ fontSize: 20, lineHeight: 24, fontVariant: ['tabular-nums'] }}>
+            {formatCountVi(t.value)}
+          </ThemedText>
+          <ThemedText variant="caption" color="muted" style={{ fontSize: 11.5 }}>
+            {t.label}
+          </ThemedText>
+        </View>
+      ))}
+    </View>
   )
 }
 
@@ -424,208 +352,158 @@ function XpLevelCard({
 }) {
   const total = progressInLevel + xpNeededForNext
   const ratio = total > 0 ? progressInLevel / total : 1
-  const { colors } = useTheme()
   return (
-    <Card style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <View
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: radius.lg,
-            backgroundColor: colors.accentSoft,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <ThemedText variant="monoLg" color="accent">
-            {level}
-          </ThemedText>
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Caption>Kinh nghiệm</Caption>
-          <ThemedText variant="title">Cấp độ {level}</ThemedText>
-          <ThemedText variant="caption" color="muted">
-            {totalXp} XP tích luỹ
-          </ThemedText>
-        </View>
-        <GaGlyph name="capdo" size={20} ink="primary" />
-      </View>
-      <View style={{ gap: 4 }}>
-        <ProgressBar value={ratio} />
-        <ThemedText variant="caption" color="faint" align="right">
-          {xpNeededForNext > 0 ? `Còn ${xpNeededForNext} XP lên cấp ${level + 1}` : 'Đã đạt cấp tối đa'}
+    <MeCard style={{ gap: space[2] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+        <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
+          {`Kinh nghiệm · Cấp ${level}`}
+        </ThemedText>
+        <ThemedText variant="caption" color="muted">
+          {xpNeededForNext > 0 ? `Còn ${formatCountVi(xpNeededForNext)} XP lên cấp ${level + 1}` : 'Đã đạt cấp tối đa'}
         </ThemedText>
       </View>
-    </Card>
+      <ProgressBar value={ratio} />
+      <ThemedText variant="caption" color="muted">
+        {`${formatCountVi(totalXp)} XP tích luỹ`}
+      </ThemedText>
+    </MeCard>
   )
 }
 
-function AchievementsCard({ achievements, pending }: { achievements: Achievement[]; pending: Achievement[] }) {
+const BADGE_COLUMNS = 4
+
+function AchievementsGrid({ achievements, pending }: { achievements: Achievement[]; pending: Achievement[] }) {
   const pendingCodes = new Set(pending.map((p) => p.code))
   const unlocked = achievements.filter((a) => a.unlocked).length
+  const rows: Achievement[][] = []
+  for (let i = 0; i < achievements.length; i += BADGE_COLUMNS) rows.push(achievements.slice(i, i + BADGE_COLUMNS))
   return (
-    <Card style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <View style={{ gap: 4 }}>
-          <Caption>Huy hiệu</Caption>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <GaGlyph name="thithu" size={18} ink="primary" />
-            <ThemedText variant="title">Thành tựu</ThemedText>
-          </View>
+    <View style={{ gap: space[2] }}>
+      <SectionHead title="Huy hiệu" right={`${unlocked}/${achievements.length} đã mở`} style={{ marginTop: space[4], marginBottom: space[1] }} />
+      {rows.map((row, r) => (
+        <View key={r} style={{ flexDirection: 'row', gap: space[2] }}>
+          {row.map((a) => (
+            <AchievementTile key={a.id} achievement={a} isNew={pendingCodes.has(a.code)} />
+          ))}
+          {/* Hàng cuối thiếu ô: chèn ô trống để các ô giữ cùng bề rộng. */}
+          {Array.from({ length: BADGE_COLUMNS - row.length }, (_, k) => (
+            <View key={`pad-${k}`} style={{ flex: 1 }} />
+          ))}
         </View>
-        <Pill label={`${unlocked}/${achievements.length}`} tone="accent" />
-      </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], rowGap: space[3] }}>
-        {achievements.map((a) => (
-          <AchievementBadge key={a.id} achievement={a} isNew={pendingCodes.has(a.code)} />
-        ))}
-      </View>
-    </Card>
-  )
-}
-
-function AchievementBadge({ achievement, isNew }: { achievement: Achievement; isNew: boolean }) {
-  const { colors } = useTheme()
-  const rarityColor: Record<Rarity, string> = {
-    COMMON: colors.border,
-    RARE: colors.info,
-    EPIC: colors.accent,
-    LEGENDARY: colors.brand,
-  }
-  const accent = rarityColor[achievement.rarity] ?? colors.border
-  const unlocked = achievement.unlocked
-  return (
-    <View style={{ width: '30%', alignItems: 'center', gap: 4, opacity: unlocked ? 1 : 0.45 }}>
-      <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: radius.lg,
-          backgroundColor: colors.surfaceSunken,
-          borderWidth: unlocked ? 2 : 1,
-          borderColor: unlocked ? accent : colors.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {unlocked ? (
-          <ThemedText style={{ fontSize: 26 }}>{achievement.iconEmoji}</ThemedText>
-        ) : (
-          <GaGlyph name="khoa" size={26} ink="muted" />
-        )}
-        {isNew ? (
-          <View
-            style={{
-              position: 'absolute',
-              top: -5,
-              right: -5,
-              backgroundColor: colors.brand,
-              borderRadius: radius.full,
-              paddingHorizontal: 5,
-              paddingVertical: 1,
-            }}
-          >
-            <ThemedText variant="caption" style={{ color: colors.onAccent, fontSize: 9 }}>
-              Mới
-            </ThemedText>
-          </View>
-        ) : null}
-      </View>
-      <ThemedText variant="caption" color={unlocked ? 'secondary' : 'faint'} align="center" numberOfLines={2}>
-        {achievement.nameVi}
-      </ThemedText>
+      ))}
     </View>
   )
 }
 
-function LeaderboardCard({ entries, meId }: { entries: LeaderboardEntry[]; meId?: number }) {
-  const { colors } = useTheme()
-  const rankColor = (rank: number) =>
-    rank === 1 ? colors.brand : rank <= 3 ? colors.accentText : colors.textMuted
+function AchievementTile({ achievement, isNew }: { achievement: Achievement; isNew: boolean }) {
+  const c = useTheme().colors
+  const unlocked = achievement.unlocked
+  const name = stripEmoji(achievement.nameVi) || 'Huy hiệu'
   return (
-    <Card style={{ gap: space[2] }}>
-      <View style={{ gap: 4, marginBottom: space[1] }}>
-        <Caption>Cộng đồng</Caption>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <GaGlyph name="thithu" size={18} ink="primary" />
-          <ThemedText variant="title">Bảng xếp hạng</ThemedText>
+    <View
+      accessible
+      accessibilityLabel={`${name}${unlocked ? '' : ', chưa mở'}${isNew ? ', mới' : ''}`}
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: space[3],
+        paddingHorizontal: space[1],
+        borderRadius: radius.lg,
+        backgroundColor: c.surface,
+        borderWidth: 1,
+        borderColor: c.border,
+        opacity: unlocked ? 1 : 0.4,
+      }}
+    >
+      <GaGlyph name={achievementGlyph(achievement.code)} size={26} ink={unlocked ? 'primary' : 'muted'} gold={unlocked ? 'accent' : 'none'} />
+      <ThemedText variant="caption" color="secondary" align="center" numberOfLines={2} style={{ fontSize: 11, lineHeight: 14 }}>
+        {name}
+      </ThemedText>
+      {isNew ? (
+        <View style={{ position: 'absolute', top: -6, right: -4, backgroundColor: c.brand, borderRadius: radius.full, paddingHorizontal: 6, paddingVertical: 1 }}>
+          <ThemedText variant="caption" style={{ color: c.onBrand, fontSize: 10, lineHeight: 13, fontFamily: fonts.bodyBold }}>
+            Mới
+          </ThemedText>
         </View>
-      </View>
-      {entries.map((e) => {
-        const me = meId != null && e.userId === meId
-        return (
-          <View
-            key={e.userId}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: space[3],
-              paddingVertical: space[2],
-              paddingHorizontal: me ? space[2] : 0,
-              marginHorizontal: me ? -space[2] : 0,
-              borderRadius: radius.md,
-              backgroundColor: me ? colors.accentSoft : 'transparent',
-            }}
-          >
-            <ThemedText variant="monoLg" style={{ width: 28, color: rankColor(e.rank) }}>
-              {e.rank}
-            </ThemedText>
-            <ThemedText variant={me ? 'bodyStrong' : 'body'} style={{ flex: 1 }} numberOfLines={1}>
-              {e.displayName}
-              {me ? ' (Bạn)' : ''}
-            </ThemedText>
-            <ThemedText variant="label" color="muted">
-              {e.totalXp} XP
-            </ThemedText>
-          </View>
-        )
-      })}
-    </Card>
+      ) : null}
+    </View>
+  )
+}
+
+function Leaderboard({ entries, meId }: { entries: LeaderboardEntry[]; meId?: number }) {
+  return (
+    <View>
+      <SectionHead title="Bảng xếp hạng" right="Toàn app" style={{ marginTop: space[4], marginBottom: space[3] }} />
+      <RowList>
+        {entries.map((e) => {
+          const me = meId != null && e.userId === meId
+          return (
+            <Row
+              key={e.userId}
+              highlighted={me}
+              title={`${e.displayName}${me ? ' (Bạn)' : ''}`}
+              leading={
+                <ThemedText variant="title" style={{ width: 32, fontVariant: ['tabular-nums'] }}>
+                  {e.rank}
+                </ThemedText>
+              }
+              trailing={
+                <ThemedText variant="caption" color="muted">
+                  {`${formatCountVi(e.totalXp)} XP`}
+                </ThemedText>
+              }
+            />
+          )
+        })}
+      </RowList>
+    </View>
   )
 }
 
 function ErrorSkillsCard({ errors }: { errors: ErrorSkill[] }) {
-  const { colors } = useTheme()
+  const c = useTheme().colors
   return (
-    <Card style={{ gap: space[3] }}>
-      <View style={{ gap: 4 }}>
-        <Caption color={colors.danger}>Trọng tâm ôn tập</Caption>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <GaGlyph name="muctieu" size={18} ink="danger" gold="danger" />
-          <ThemedText variant="title">Cần cải thiện</ThemedText>
-        </View>
-      </View>
-      {errors.map((e, i) => (
-        <View
-          key={e.errorCode}
-          style={{
-            gap: 4,
-            paddingTop: i > 0 ? space[3] : 0,
-            borderTopWidth: i > 0 ? 1 : 0,
-            borderTopColor: colors.border,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
-            <ThemedText variant="label" color="secondary" style={{ flex: 1 }} numberOfLines={1}>
-              {e.ruleViShort ?? getErrorTitle(e.errorCode)}
-            </ThemedText>
-            <Pill label={`${e.count} lần`} tone="neutral" />
-          </View>
-          {e.sampleWrong && e.sampleCorrected ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <ThemedText variant="caption" style={{ color: colors.danger, textDecorationLine: 'line-through' }}>
-                {e.sampleWrong}
+    <View>
+      <SectionHead title="Cần cải thiện" right="30 ngày qua" style={{ marginTop: space[4], marginBottom: space[3] }} />
+      <RowList>
+        {errors.map((e) => (
+          <View key={e.errorCode} style={{ gap: 4, paddingVertical: space[3], paddingHorizontal: space[4] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
+              <ThemedText variant="body" style={{ flex: 1, fontFamily: fonts.bodyMedium }} numberOfLines={1}>
+                {e.ruleViShort ?? getErrorTitle(e.errorCode)}
               </ThemedText>
-              <Icon icon={ArrowRight} size={12} color="faint" />
-              <ThemedText variant="caption" style={{ color: colors.success }}>
-                {e.sampleCorrected}
-              </ThemedText>
+              <Badge label={`${e.count} lần`} />
             </View>
-          ) : null}
-        </View>
-      ))}
-    </Card>
+            {e.sampleWrong && e.sampleCorrected ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <ThemedText variant="caption" style={{ color: c.danger, textDecorationLine: 'line-through' }}>
+                  {e.sampleWrong}
+                </ThemedText>
+                <Icon icon={ArrowRight} size={12} color="faint" />
+                <ThemedText variant="caption" style={{ color: c.success }}>
+                  {e.sampleCorrected}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
+        ))}
+      </RowList>
+    </View>
+  )
+}
+
+function SessionRow({ session }: { session: AiSpeakingSession }) {
+  const mode = sessionModeLabel(session.sessionMode)
+  const hasReport = !!session.interviewReportJson
+  const date = shortDate(session.startedAt)
+  return (
+    <Row
+      glyph={session.sessionMode === 'INTERVIEW' ? 'phongvan' : 'hoithoai'}
+      title={session.interviewPosition || session.topic || 'Buổi luyện nói'}
+      subtitle={date ? `${date} · ${mode}` : mode}
+      trailing={hasReport ? <Badge label="Báo cáo" tone="success" /> : undefined}
+    />
   )
 }
 

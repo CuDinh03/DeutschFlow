@@ -11,14 +11,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { fonts } from '@/lib/theme/tokens'
 import { useMaintenanceStore } from '@/stores/useMaintenanceStore'
 
-const YELLOW = '#FFCD00'
-const INK = '#211B0C'
-const PAPER = '#FAF7EF'
-const GOLD = '#8A6C00'
-const GOLD_SOFT = '#FFF3BF'
-const MUTED = '#6A6149'
-const SUBTLE = '#9A9078'
-const LINE = '#E6DFC9'
+const INK = '#171615'
+const PAPER = '#FAF9F6'
+const GOLD = '#171615' // chữ trên nền vàng nhạt dùng mực (v3.4)
+const GOLD_SOFT = '#FFF1BF'
+const MUTED = '#6E6A63'
+const SUBTLE = '#8A847B'
+const LINE = '#E6E0D6'
 
 const POLL_MS = 30_000
 const TICK_MS = 15_000

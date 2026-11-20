@@ -1,4 +1,7 @@
-// Nhãn 4 tab chính của khu học viên — MỘT nguồn duy nhất.
+// Nhãn 5 tab chính của khu học viên — MỘT nguồn duy nhất.
+//
+// Owner chốt 18/11/2026: bộ tab theo khu học viên trên web (/v2/student: Hôm nay · Học ·
+// Luyện nói · Luyện thi · Tiến bộ). "Hồ sơ" thôi là tab, mở từ ảnh đại diện (AvatarButton).
 //
 // Owner chốt 10/09/2026 (soi web /v2/student/dashboard): mỗi ngôn ngữ thuần một
 // thứ tiếng, bỏ lối "nhãn Đức + dòng nghĩa". Bản mobile chỉ có tiếng Việt nên
@@ -15,7 +18,8 @@ export const TAB_LABELS = {
   index: 'Hôm nay',
   learn: 'Học',
   speaking: 'Luyện nói',
-  profile: 'Hồ sơ',
+  exam: 'Luyện thi',
+  stats: 'Tiến bộ',
 } as const
 
 export type TabRouteName = keyof typeof TAB_LABELS

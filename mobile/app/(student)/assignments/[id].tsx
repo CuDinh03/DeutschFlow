@@ -14,7 +14,7 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from 'expo-audio'
-import { Camera, ExternalLink, FileText, Image as ImageIcon, Link2, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X, RotateCcw } from 'lucide-react-native'
+import { ExternalLink, FileText, Image as ImageIcon, Link2, Mic, Music, Square, Video as VideoIcon, X, RotateCcw } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { ensureAiConsent } from '@/lib/aiConsent'
@@ -25,16 +25,15 @@ import {
 import { useRecorderBlurGuard } from '@/hooks/useRecorderBlurGuard'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, ErrorState, Icon, Pill, ProgressRing, Screen, Skeleton, TextField, ThemedText, YellowSquare,
-GaGlyph } from '@/components/ui'
+  Button, Card, ErrorState, GaGlyph, Icon, ProgressRing, Screen, Skeleton, TextField, ThemedText,
+} from '@/components/ui'
+import { Chip, Eyebrow, ListBlock, StatusBadge, TopBar, listRowStyle, type BadgeTone } from '@/components/classroom/ClassroomParts'
+import { assignmentTypeLabel, clockLabel, shortDate } from '@/lib/classroomUi'
 import { useBackTo } from '@/hooks/useBackTo'
 
-const TYPE_LABELS: Record<string, string> = {
-  ESSAY: 'Viết luận',
-  MOCK_TEST: 'Thi thử',
-  SPEAKING_SCENARIO: 'Luyện Nói AI',
-}
-const typeLabel = (t: string) => TYPE_LABELS[t] ?? 'Bài tập chung'
+// Giao diện v3.4 (Đợt 6B, mẫu `assign`): thanh đầu "Chi tiết bài tập", hàng nhãn loại + trạng thái +
+// hạn nộp, tên bài lớn, thẻ "Đề bài", khối nộp bài với chip đính kèm. Logic nộp/nộp lại/ghi âm giữ nguyên.
+const typeLabel = assignmentTypeLabel
 
 // Phân loại trạng thái dùng chung với classes/[id].tsx — định nghĩa + lý do ở
 // lib/studentClassesApi.ts (gương AssignmentStatus.java backend, F-14 soát 02/09).
@@ -127,10 +126,10 @@ function AssignmentDetailRunner() {
   if (detailQ.isLoading) {
     return (
       <Screen>
-        <AppHeader title="Đang tải bài tập…" onBack={goBack} />
-        <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
-          <Skeleton height={120} />
-          <Skeleton height={160} />
+        <TopBar title="Chi tiết bài tập" subtitle="Đang tải bài tập…" onBack={goBack} />
+        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[4] }}>
+          <Skeleton height={120} radius="lg" />
+          <Skeleton height={160} radius="lg" />
         </View>
       </Screen>
     )
@@ -138,7 +137,7 @@ function AssignmentDetailRunner() {
   if (detailQ.error || !detailQ.data) {
     return (
       <Screen>
-        <AppHeader title="Không mở được bài tập" onBack={goBack} />
+        <TopBar title="Chi tiết bài tập" onBack={goBack} />
         <ErrorState
           message={detailQ.error ? apiMessage(detailQ.error) : 'Không tìm thấy bài tập này.'}
           onRetry={() => void detailQ.refetch()}
@@ -154,13 +153,13 @@ function AssignmentDetailRunner() {
 
   return (
     <Screen>
-      <AppHeader title={a.topic || 'Chi tiết bài tập'} subtitle={typeLabel(a.assignmentType)} onBack={goBack} />
+      <TopBar title="Chi tiết bài tập" onBack={goBack} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[5] }}
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingTop: space[4], paddingBottom: space[8], gap: space[5] }}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}
           keyboardShouldPersistTaps="handled"
         >
@@ -203,40 +202,41 @@ function AssignmentDetailRunner() {
   )
 }
 
-// Status chip on the left, due date on the right — the reference's top meta row.
+// Hàng nhãn (`.badge` loại bài + trạng thái) và hạn nộp ở trên, tên bài lớn ở dưới (mẫu `assign`).
 function StatusRow({ assignment: a }: { assignment: StudentAssignment }) {
-  const c = useTheme().colors
+  const status = statusBadge(a.status, a.teacherScore)
+  const due = shortDate(a.dueDate)
+  const dueClock = clockLabel(a.dueDate)
   return (
-    <View style={{ gap: space[3], paddingTop: space[1] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
-        <StatusPill status={a.status} score={a.teacherScore} />
-        {a.dueDate && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-            <GaGlyph name="thoigian" size={12} ink="muted" />
-            <ThemedText variant="caption" color="secondary">
-              Hạn {new Date(a.dueDate).toLocaleDateString('vi-VN')}
-            </ThemedText>
-          </View>
-        )}
+    <View style={{ gap: space[2] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space[1] + 2 }}>
+        <StatusBadge label={typeLabel(a.assignmentType)} />
+        <StatusBadge label={status.label} tone={status.tone} />
+        <View style={{ flex: 1 }} />
+        {due ? (
+          <ThemedText variant="caption" color="muted" style={{ fontSize: 13 }}>
+            {`Hạn ${due}${dueClock ? ` · ${dueClock}` : ''}`}
+          </ThemedText>
+        ) : null}
       </View>
-      <View style={{ height: 1, backgroundColor: c.border }} />
+      <ThemedText variant="titleLg" accessibilityRole="header">{a.topic || 'Bài tập'}</ThemedText>
     </View>
   )
 }
 
-function StatusPill({ status, score }: { status: string; score: number | null }) {
+function statusBadge(status: string, score: number | null): { label: string; tone: BadgeTone } {
   // Phân loại dùng CHUNG với màn danh sách bài của lớp (assignmentStatusView) — V-12c.
   switch (assignmentStatusView(status)) {
     case 'graded':
-      return <Pill tone="success" glyph="hoanthanh" label={`Đã chấm${score != null ? ` · ${score}/100` : ''}`} />
+      return { label: `Đã chấm${score != null ? ` · ${score}/100` : ''}`, tone: 'success' }
     case 'gradingFailed':
       // Đã nộp NHƯNG khâu chấm chết — gộp vào "Đã nộp" là giấu mất chuyện bài chưa được chấm.
-      return <Pill tone="danger" glyph="canhbao" label={GRADING_FAILED_LABEL} />
+      return { label: GRADING_FAILED_LABEL, tone: 'danger' }
     case 'awaitingTeacher':
       // AI_GRADED hiển thị y như SUBMITTED: backend cố ý không công bố khâu chấm AI cho học viên.
-      return <Pill tone="info" icon={Upload} label="Đã nộp" />
+      return { label: 'Đã nộp', tone: 'info' }
     default:
-      return <Pill tone="danger" glyph="canhbao" label="Chưa nộp" />
+      return { label: 'Chưa nộp', tone: 'danger' }
   }
 }
 
@@ -266,7 +266,7 @@ function GradedHero({ assignment: a }: { assignment: StudentAssignment }) {
           </View>
         </View>
         <View style={{ flex: 1, gap: space[1] }}>
-          <Caption color={c.accent}>Đã chấm</Caption>
+          <ThemedText variant="label" style={{ color: c.accent, letterSpacing: 1, textTransform: 'uppercase', fontSize: 11.5 }}>Đã chấm</ThemedText>
           <ThemedText variant="titleLg" style={{ color: c.onInk }}>
             {verdict}
           </ThemedText>
@@ -287,29 +287,21 @@ function DescriptionCard({ assignment: a }: { assignment: StudentAssignment }) {
     await openInApp(a.attachmentUrl, 'Không mở được tài liệu đính kèm')
   }
   return (
-    <View style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <YellowSquare size={8} />
-        <Caption>Đề bài</Caption>
-      </View>
-      <Card>
-        <View style={{ gap: space[3] }}>
-          <ThemedText variant="body" color="secondary">
-            {a.description || 'Không có mô tả chi tiết.'}
-          </ThemedText>
-          {a.attachmentUrl && (
-            <Button
-              label="Xem tài liệu đính kèm"
-              variant="ghost"
-              size="sm"
-              icon={FileText}
-              fullWidth={false}
-              onPress={openAttachment}
-            />
-          )}
+    <Card style={{ gap: space[2] }}>
+      <Eyebrow>Đề bài</Eyebrow>
+      <ThemedText variant="body">
+        {a.description || 'Không có mô tả chi tiết.'}
+      </ThemedText>
+      {a.attachmentUrl && (
+        <View style={{ flexDirection: 'row', marginTop: space[2] }}>
+          <Chip
+            label="Xem tài liệu đính kèm"
+            leading={<Icon icon={FileText} size={16} color="secondary" />}
+            onPress={() => void openAttachment()}
+          />
         </View>
-      </Card>
-    </View>
+      )}
+    </Card>
   )
 }
 
@@ -347,48 +339,40 @@ function MaterialsCard({ assignmentId }: { assignmentId: number }) {
   if (items.length === 0) return null
 
   return (
-    <View style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <YellowSquare size={8} />
-        <Caption>Tài liệu được giao</Caption>
-      </View>
-      <Card>
-        <View style={{ gap: space[2] }}>
-          {items.map((m) => {
-            const KindIcon = MATERIAL_KIND_ICON[m.kind] ?? FileText
-            const busy = opening === m.id
-            return (
-              <Pressable
-                key={m.id}
-                onPress={() => void open(m)}
-                disabled={busy}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: space[3],
-                  paddingVertical: space[3],
-                  paddingHorizontal: space[3],
-                  borderRadius: radius.md,
-                  borderWidth: 1,
-                  borderColor: c.border,
-                  backgroundColor: c.surface,
-                  opacity: pressed || busy ? 0.6 : 1,
-                })}
-              >
-                <Icon icon={KindIcon} size={16} color="muted" />
-                <ThemedText variant="body" style={{ flex: 1 }} numberOfLines={1}>
-                  {m.title}
-                </ThemedText>
-                <ThemedText variant="caption" color="muted">{m.kind}</ThemedText>
-                <Icon icon={ExternalLink} size={14} color="muted" />
-              </Pressable>
-            )
-          })}
-        </View>
-        <ThemedText variant="caption" color="muted" style={{ marginTop: space[2] }}>
-          Chạm để mở đọc ngay trong ứng dụng.
-        </ThemedText>
-      </Card>
+    <View style={{ gap: space[2] }}>
+      <Eyebrow>Tài liệu được giao</Eyebrow>
+      <ListBlock>
+        {items.map((m, i) => {
+          const KindIcon = MATERIAL_KIND_ICON[m.kind] ?? FileText
+          const busy = opening === m.id
+          return (
+            <Pressable
+              key={m.id}
+              onPress={() => void open(m)}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={`Mở tài liệu ${m.title}`}
+              accessibilityState={{ busy, disabled: busy }}
+              style={({ pressed }) => listRowStyle(c.border, i === 0, {
+                backgroundColor: pressed ? c.surfaceSunken : 'transparent',
+                opacity: busy ? 0.6 : 1,
+              })}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: radius.sm, backgroundColor: c.surfaceSunken, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon icon={KindIcon} size={16} color="secondary" />
+              </View>
+              <ThemedText variant="bodyStrong" style={{ flex: 1 }} numberOfLines={1}>
+                {m.title}
+              </ThemedText>
+              <ThemedText variant="caption" color="muted">{m.kind}</ThemedText>
+              <Icon icon={ExternalLink} size={14} color="muted" />
+            </Pressable>
+          )
+        })}
+      </ListBlock>
+      <ThemedText variant="caption" color="muted">
+        Chạm để mở đọc ngay trong ứng dụng.
+      </ThemedText>
     </View>
   )
 }
@@ -406,38 +390,33 @@ function SubmitForm({
   const canSubmit = content.trim().length > 0 || file != null
   return (
     <View style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <YellowSquare size={8} />
-        <Caption>Nộp bài làm</Caption>
+      <ThemedText variant="bodyStrong" accessibilityRole="header">Nộp bài làm</ThemedText>
+      <View style={{ gap: space[3] }}>
+        <TextField
+          label="Nội dung bài làm (không bắt buộc nếu đã đính kèm)"
+          placeholder="Nhập bài viết của bạn vào đây…"
+          value={content}
+          onChangeText={setContent}
+          multiline
+          textAlignVertical="top"
+          style={{ minHeight: 140 }}
+          accessibilityLabel="Nội dung bài làm"
+        />
+        <AttachmentPicker file={file} setFile={setFile} disabled={loading} />
+        <Button
+          label={loading ? 'Đang nộp…' : 'Xác nhận nộp bài'}
+          glyph="hoanthanh"
+          loading={loading}
+          disabled={!canSubmit}
+          onPress={onSubmit}
+        />
+        {/* V-12c: câu cũ ("Sau khi nộp sẽ không sửa lại được") NGƯỢC với chính màn này — ngay
+            dưới bài đã nộp có nút "Nộp lại" — và ngược với backend: isAwaitingTeacher
+            (SUBMITTED/AI_GRADED/GRADING_FAILED) vẫn cho nộp đè cho tới khi giáo viên chốt điểm. */}
+        <ThemedText variant="caption" color="muted" align="center">
+          Nộp xong bạn vẫn nộp lại được cho tới khi giáo viên chấm
+        </ThemedText>
       </View>
-      <Card>
-        <View style={{ gap: space[3] }}>
-          <TextField
-            label="Nội dung bài làm (không bắt buộc nếu đã đính kèm)"
-            placeholder="Nhập bài viết của bạn vào đây…"
-            value={content}
-            onChangeText={setContent}
-            multiline
-            textAlignVertical="top"
-            style={{ minHeight: 140 }}
-            accessibilityLabel="Nội dung bài làm"
-          />
-          <AttachmentPicker file={file} setFile={setFile} disabled={loading} />
-          <Button
-            label={loading ? 'Đang nộp…' : 'Xác nhận nộp bài'}
-            glyph="hoanthanh"
-            loading={loading}
-            disabled={!canSubmit}
-            onPress={onSubmit}
-          />
-          {/* V-12c: câu cũ ("Sau khi nộp sẽ không sửa lại được") NGƯỢC với chính màn này — ngay
-              dưới bài đã nộp có nút "Nộp lại" — và ngược với backend: isAwaitingTeacher
-              (SUBMITTED/AI_GRADED/GRADING_FAILED) vẫn cho nộp đè cho tới khi giáo viên chốt điểm. */}
-          <ThemedText variant="caption" color="muted" align="center">
-            Nộp xong bạn vẫn nộp lại được cho tới khi giáo viên chấm
-          </ThemedText>
-        </View>
-      </Card>
     </View>
   )
 }
@@ -589,23 +568,26 @@ function AttachmentPicker({
 
   return (
     <View style={{ gap: space[2] }}>
-      <ThemedText variant="caption" color="muted">Đính kèm (không bắt buộc) · tối đa 10MB</ThemedText>
+      <ThemedText variant="caption" color="muted" style={{ fontSize: 13 }}>Đính kèm (không bắt buộc) · tối đa 10MB</ThemedText>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
-        <PickButton icon={Camera} label="Chụp ảnh" disabled={disabled} onPress={() => void pickImage(true)} />
-        <PickButton icon={ImageIcon} label="Ảnh" disabled={disabled} onPress={() => void pickImage(false)} />
-        <PickButton icon={Paperclip} label="Tệp" disabled={disabled} onPress={() => void pickDocument()} />
-        <PickButton glyph="speaking" label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
+        <PickChip glyph="camera" label="Chụp ảnh" disabled={disabled} onPress={() => void pickImage(true)} />
+        <PickChip icon={ImageIcon} label="Ảnh" disabled={disabled} onPress={() => void pickImage(false)} />
+        <PickChip icon={FileText} label="Tệp" disabled={disabled} onPress={() => void pickDocument()} />
+        <PickChip glyph="speaking" label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
       </View>
     </View>
   )
 }
 
-function PickButton({
+function PickChip({
   icon, glyph, label, disabled, onPress,
 }: {
-  icon?: typeof Camera; glyph?: GlyphName; label: string; disabled: boolean; onPress: () => void
+  icon?: typeof FileText; glyph?: GlyphName; label: string; disabled: boolean; onPress: () => void
 }) {
-  return <Button label={label} icon={icon} glyph={glyph} variant="secondary" size="sm" fullWidth={false} disabled={disabled} onPress={onPress} />
+  const leading = glyph
+    ? <GaGlyph name={glyph} size={16} ink="secondary" />
+    : icon ? <Icon icon={icon} size={16} color="secondary" /> : null
+  return <Chip label={label} leading={leading} disabled={disabled} onPress={onPress} />
 }
 
 function formatSeconds(s: number): string {
@@ -698,7 +680,7 @@ function SubmissionView({ assignment: a, onResubmit }: { assignment: StudentAssi
       <View style={{ gap: space[3] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <GaGlyph name="hoanthanh" size={14} ink="success" gold="success" />
-          <Caption>Bài đã nộp</Caption>
+          <Eyebrow>Bài đã nộp</Eyebrow>
         </View>
         <Card>
           <View style={{ gap: space[3] }}>
@@ -727,7 +709,7 @@ function SubmissionView({ assignment: a, onResubmit }: { assignment: StudentAssi
 
       {isGraded(a.status) && (
         <View style={{ gap: space[3] }}>
-          <Caption>{a.status === 'GRADED' ? 'Đánh giá từ AI' : 'Nhận xét từ giáo viên'}</Caption>
+          <Eyebrow>{a.status === 'GRADED' ? 'Đánh giá từ AI' : 'Nhận xét từ giáo viên'}</Eyebrow>
           <Card style={{ borderLeftWidth: 3, borderLeftColor: c.success }}>
             <View style={{ gap: space[2] }}>
               {a.teacherScore != null ? (

@@ -145,7 +145,7 @@ export function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
       // Correction is persisted on the assistant row but describes the learner's previous turn —
       // attach it to the most recent user turn so it renders under the user bubble (matches the live
       // flow). Suggestions are not persisted, so the assistant turn carries an empty list on resume.
-      if (m.correction) {
+      if (m.correction || m.errors?.length) {
         for (let k = turns.length - 1; k >= 0; k--) {
           if (turns[k].role === 'user') {
             turns[k] = {
@@ -154,6 +154,7 @@ export function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
                 correction: m.correction,
                 explanationVi: m.explanationVi,
                 grammarPoint: m.grammarPoint,
+                errors: m.errors ?? [],
               },
             }
             break
@@ -178,6 +179,20 @@ export function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
   return turns
 }
 
+/** Năm pha phỏng vấn theo `InterviewPhase` của backend, đúng thứ tự. */
+export const INTERVIEW_PHASES = ['INTRO', 'ICE_BREAKER', 'HARD_SKILLS', 'STAR_SOFT', 'CLOSING'] as const
+
+/** Vị trí pha (0–4); khoá lạ hoặc chưa có ⇒ -1. */
+export function interviewPhaseIndex(phaseKey: string | null | undefined): number {
+  return phaseKey ? (INTERVIEW_PHASES as readonly string[]).indexOf(phaseKey) : -1
+}
+
+/** Đồng hồ buổi mm:ss (không âm). */
+export function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 export function phaseLabel(phaseKey: string): string {
   switch (phaseKey) {
     case 'INTRO':
@@ -193,4 +208,22 @@ export function phaseLabel(phaseKey: string): string {
     default:
       return phaseKey
   }
+}
+
+/** Dòng trạng thái trên dock nhập của phòng hội thoại (mẫu v3.4 `speakchat`, Đợt 5C). */
+export function chatStatus(o: {
+  recording: boolean
+  transcribing: boolean
+  sending: boolean
+  aiSpeaking: boolean
+  finishing: boolean
+  name: string | null
+}): string {
+  const who = o.name?.trim() || 'AI'
+  if (o.finishing) return 'Đang tạo báo cáo…'
+  if (o.recording) return 'Đang nghe bạn nói · bấm lần nữa để dừng'
+  if (o.transcribing) return 'Đang nhận diện giọng nói…'
+  if (o.sending) return `${who} đang trả lời…`
+  if (o.aiSpeaking) return `${who} đang nói`
+  return `Đến lượt bạn · trả lời ${who}`
 }

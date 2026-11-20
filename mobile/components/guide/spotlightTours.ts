@@ -105,7 +105,7 @@ function speakingIntroSteps(): SpotlightStep[] {
       id: 'mode_tabs',
       targetId: SPOTLIGHT_TARGETS.speakingModeTabs,
       title: 'Chọn cách luyện',
-      desc: 'Hội thoại tự do, phỏng vấn thử hoặc bài học theo tình huống — rồi chọn mentor đồng hành bên dưới.',
+      desc: 'Phỏng vấn thử theo đúng nghề của bạn, hoặc nói tự do với AI về chủ đề đời sống. Chuyển qua lại ở đây.',
     },
   ]
 }

@@ -15,9 +15,10 @@
 // nội dung chảy xuống dưới kính; các màn TAB chừa đáy bằng useTabBarClearance.
 
 import { BlurView } from 'expo-blur'
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect'
 import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
-import { type LayoutChangeEvent, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
+import { type LayoutChangeEvent, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   runOnJS,
@@ -36,18 +37,39 @@ import { GaGlyph } from './GaGlyph'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { TAB_LABELS } from '@/lib/tabLabels'
 
-// Biểu tượng nhận diện của 4 tab = bộ Galerie (mobile/GALERIE_GLYPHS.md).
+// Biểu tượng nhận diện của 5 tab = bộ Galerie (mobile/GALERIE_GLYPHS.md).
+// Bộ tab theo khu học viên trên web (owner chốt 18/11/2026).
 const ICONS: Record<string, GlyphName> = {
   index: 'heute',
   learn: 'hoc',
   speaking: 'speaking',
-  profile: 'hoso',
+  exam: 'thithu',
+  stats: 'thongke',
 }
 
 // Fallback khi route chưa khai `title` trong Tabs.Screen — nguồn nhãn chính vẫn là
 // options.title của _layout (trước đây map này ĐÈ title, nên đổi nhãn ở layout
 // không có tác dụng — vd nhãn của cụm màn 02/09 không bao giờ hiện). Từ 10/09/2026
 // cả hai đường đọc CÙNG một bảng (lib/tabLabels) nên không thể lệch nhau nữa.
+
+/**
+ * Liquid Glass THẬT của iOS 26 (Đợt 7b, 19/11/2026): có API thì nền thanh tab là `GlassView` hệ thống
+ * (khúc xạ, ánh viền, tự đổi sáng/tối theo nội dung phía sau); máy iOS < 26 hoặc Android rơi về lớp
+ * `BlurView` + lớp tô + viền sáng như trước. Đo một lần — khả năng của máy không đổi trong lúc chạy.
+ */
+let liquidGlassCache: boolean | null = null
+function hasLiquidGlass(): boolean {
+  if (liquidGlassCache == null) {
+    try {
+      // Thêm isGlassEffectAPIAvailable: vài bản iOS 26 beta báo có Liquid Glass nhưng thiếu API ⇒ crash
+      // (khuyến nghị của chính expo-glass-effect).
+      liquidGlassCache = Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()
+    } catch {
+      liquidGlassCache = false
+    }
+  }
+  return liquidGlassCache
+}
 
 const BAR_HEIGHT = 64
 const INDICATOR_HEIGHT = 48
@@ -177,7 +199,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   }))
 
   // Hide the floating bar on pushed detail screens (href:null routes that aren't
-  // one of the 4 real tabs). They have their own AppHeader + back button, and the
+  // one of the 5 real tabs). They have their own AppHeader + back button, and the
   // bar would otherwise float over their bottom content — e.g. the skill tree's
   // companion/zoom controls. Placed after all hooks to respect rules-of-hooks.
   const focusedRoute = state.routes[state.index]
@@ -237,22 +259,32 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             borderColor: edgeBorder,
           }}
         >
-          <BlurView
-            intensity={theme.isDark ? 50 : 65}
-            tint={theme.blurTint}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: glassTint }]} />
-          <View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: StyleSheet.hairlineWidth * 2,
-              backgroundColor: topHighlight,
-            }}
-          />
+          {hasLiquidGlass() ? (
+            <GlassView
+              glassEffectStyle="regular"
+              colorScheme={theme.isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : (
+            <>
+              <BlurView
+                intensity={theme.isDark ? 50 : 65}
+                tint={theme.blurTint}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: glassTint }]} />
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: StyleSheet.hairlineWidth * 2,
+                  backgroundColor: topHighlight,
+                }}
+              />
+            </>
+          )}
 
           <GestureDetector gesture={swipeGesture}>
           <View

@@ -49,6 +49,8 @@ export interface ExamDirective {
   prueferVoice: string | null
   lastAiRole: string | null
   lastAiText: string | null
+  /** Chỉ số các ý trên thẻ đề (`stimulus.prompts`) đã được nói tới; backend cũ không gửi. */
+  coveredPoints?: number[] | null
 }
 
 export interface PrepMaterial {
@@ -170,6 +172,15 @@ export interface WeakPointView {
   contexts: WeaknessContext[]
 }
 
+/** Một lời trong hội thoại đã lưu của phiên (`GET /sessions/{id}/transcript`, "Xem lại hội thoại"). */
+export interface TranscriptLineView {
+  teilNo: number
+  seq: number
+  role: string
+  text: string
+  eval: Record<string, unknown> | null
+}
+
 export interface RedemittelPackView { archetype: string; phrases: string[] }
 export interface WeaknessView { weakPoints: WeakPointView[]; packs: RedemittelPackView[] }
 
@@ -239,6 +250,9 @@ export const examSpeakingApi = {
 
   getResult: (id: number) =>
     api.get<ExamResultView>(`/speaking/exam/sessions/${id}/result`).then((r) => r.data),
+
+  getTranscript: (id: number) =>
+    api.get<TranscriptLineView[]>(`/speaking/exam/sessions/${id}/transcript`).then((r) => r.data ?? []),
 
   listResults: () => api.get<ExamResultView[]>('/speaking/exam/results').then((r) => r.data ?? []),
 

@@ -17,6 +17,7 @@ import {
   FadeIn,
   ErrorState,
   useTabBarClearance,
+  AvatarButton,
 GaGlyph } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 import { nextStudyDay } from '@/lib/roadmapDay'
@@ -153,7 +154,10 @@ export default function LearnScreen() {
 function LearnHeader() {
   return (
     <View style={{ paddingHorizontal: space[5], paddingTop: space[3], paddingBottom: space[2], gap: space[1] }}>
-      <Caption>Thư viện học tập</Caption>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Caption>Thư viện học tập</Caption>
+        <AvatarButton />
+      </View>
       <ThemedText variant="display">Học tập</ThemedText>
       <ThemedText variant="body" color="muted">
         Tiếp tục lộ trình của bạn
