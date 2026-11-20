@@ -102,3 +102,16 @@ export function recentInterviews(sessions: readonly AiSpeakingSession[], now: Da
       score: reportScore(s.interviewReportJson),
     }))
 }
+
+export interface RecentConversation {
+  id: number
+  title: string
+  when: string
+}
+
+/** Buổi hội thoại (Nói tự do) gần nhất đã kết thúc — dòng "Buổi gần đây" của nhánh Nói tự do. */
+export function recentConversation(sessions: readonly AiSpeakingSession[], now: Date): RecentConversation | null {
+  const s = sessions.find((x) => x.sessionMode === 'COMMUNICATION' && !!x.endedAt)
+  if (!s) return null
+  return { id: s.id, title: s.topic?.trim() || 'Hội thoại', when: dayLabel(s.endedAt, now) ?? '' }
+}

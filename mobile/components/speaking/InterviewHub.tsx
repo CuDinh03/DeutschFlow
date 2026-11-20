@@ -8,7 +8,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, TextInput, View, type 
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, Search, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Button, Card, GaGlyph, Icon, Skeleton, ThemedText, useTabBarClearance } from '@/components/ui'
+import { BrushMark, Button, Card, GaGlyph, Icon, Skeleton, ThemedText, useTabBarClearance } from '@/components/ui'
 import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 import { fetchOccupationInterviewInfo, fetchOccupations, occupationName, searchOccupations, type OccupationSummary } from '@/lib/occupations'
 import { WORKPLACE_INTERVIEWERS, isWorkplaceInterviewerId, resolveStagePersona } from '@/lib/workplaceInterviewers'
@@ -348,19 +348,5 @@ function InterviewerCard({ code, cefr, starting, disabled, onStart }: { code: st
         />
       </View>
     </Card>
-  )
-}
-
-/** Chữ có vệt bút dạ vàng phía dưới, như `.mark` của mẫu v3.4. */
-function BrushMark({ children }: { children: string }) {
-  const c = useTheme().colors
-  return (
-    <View style={{ alignSelf: 'flex-start' }}>
-      <View
-        pointerEvents="none"
-        style={{ position: 'absolute', left: -2, right: -2, bottom: 4, height: '42%', borderRadius: 6, backgroundColor: c.accent, transform: [{ rotate: '-1deg' }] }}
-      />
-      <ThemedText variant="display">{children}</ThemedText>
-    </View>
   )
 }
