@@ -209,3 +209,21 @@ export function phaseLabel(phaseKey: string): string {
       return phaseKey
   }
 }
+
+/** Dòng trạng thái trên dock nhập của phòng hội thoại (mẫu v3.4 `speakchat`, Đợt 5C). */
+export function chatStatus(o: {
+  recording: boolean
+  transcribing: boolean
+  sending: boolean
+  aiSpeaking: boolean
+  finishing: boolean
+  name: string | null
+}): string {
+  const who = o.name?.trim() || 'AI'
+  if (o.finishing) return 'Đang tạo báo cáo…'
+  if (o.recording) return 'Đang nghe bạn nói · bấm lần nữa để dừng'
+  if (o.transcribing) return 'Đang nhận diện giọng nói…'
+  if (o.sending) return `${who} đang trả lời…`
+  if (o.aiSpeaking) return `${who} đang nói`
+  return `Đến lượt bạn · trả lời ${who}`
+}

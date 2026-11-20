@@ -5,7 +5,7 @@ import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, type Href } from 'expo-router'
 import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
-import { Square, RotateCcw, ChevronRight } from 'lucide-react-native'
+import { Square, RotateCcw, ChevronRight, ArrowLeft } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import { presentMinorAudioBlocked } from '@/lib/minorAudio'
@@ -14,7 +14,8 @@ import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, GaGlyph } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, EmptyState, ErrorState, Skeleton, GaGlyph, BrushMark, IconButton } from '@/components/ui'
+import { dayMonth, isoWeek } from '@/lib/weeklyUi'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
@@ -81,10 +82,31 @@ export default function WeeklySpeakingScreen() {
     await Promise.all([refetchPrompt(), refetchHistory()])
   })
 
+  // Đầu màn theo mẫu v3.4 `weekly` (Đợt 5C): nút quay lại, nhãn PRO, eyebrow tuần, tiêu đề có vệt vàng.
+  const week = isoWeek(prompt?.weekStartDate)
+  const header = (
+    <View style={{ paddingHorizontal: space[5], paddingTop: space[2], gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Quay lại" onPress={goBack} />
+        <View style={{ flex: 1 }} />
+        <Pill label="PRO" tone="accent" />
+      </View>
+      <View style={{ gap: space[1] }}>
+        <ThemedText variant="label" color="muted" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+          {week != null ? `Luyện nói tuần · tuần ${week}` : 'Luyện nói tuần'}
+        </ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2] }} accessible accessibilityRole="header" accessibilityLabel="Thử thách tuần này">
+          <ThemedText variant="display">Thử thách</ThemedText>
+          <BrushMark>tuần này</BrushMark>
+        </View>
+      </View>
+    </View>
+  )
+
   if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
-        <AppHeader title="Luyện nói tuần" onBack={goBack} />
+        {header}
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             glyph="khoa"
@@ -100,12 +122,12 @@ export default function WeeklySpeakingScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Luyện nói tuần" onBack={goBack} />
+      {header}
 
       <Screen
         scroll
         edges={[]}
-        contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4], paddingTop: space[2] }}
+        contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4], paddingTop: space[4] }}
         refreshing={pull.refreshing}
         onRefresh={() => void pull.onRefresh()}
       >
@@ -125,65 +147,54 @@ export default function WeeklySpeakingScreen() {
             }}
           />
         ) : prompt ? (
-          <Card style={{ borderColor: c.info + '66' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3] }}>
-              <GaGlyph name="chuoi" size={16} ink="info" gold="info" />
-              <ThemedText variant="label" color="info">
-                Thử thách tuần này
-              </ThemedText>
-              <View style={{ marginLeft: 'auto' }}>
-                <Pill label={prompt.cefrBand} tone="neutral" />
-              </View>
+          <View style={{ padding: space[5], borderRadius: radius.xl, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, gap: space[2] }}>
+            <ThemedText variant="titleLg">{`„${prompt.title}“`}</ThemedText>
+            <ThemedText variant="caption" color="secondary">
+              {`Trình độ ${prompt.cefrBand} · tuần từ ${dayMonth(prompt.weekStartDate)}. Nói một mạch, bấm dừng là nộp.`}
+            </ThemedText>
+            <View style={{ marginTop: space[3] }}>
+              <WeeklyRecorder promptId={prompt.id} cefrBand={prompt.cefrBand} />
             </View>
-            <ThemedText variant="title" style={{ marginBottom: space[1] }}>
-              {prompt.title}
-            </ThemedText>
-            <ThemedText variant="caption" color="muted" style={{ marginBottom: space[4] }}>
-              {prompt.weekStartDate}
-            </ThemedText>
-            <WeeklyRecorder promptId={prompt.id} cefrBand={prompt.cefrBand} />
-          </Card>
+          </View>
         ) : null}
 
         {history.length > 0 ? (
-          <View>
-            <SectionHeader title="Lịch sử nộp bài" />
-            <View style={{ gap: space[2] }}>
-              {history.map((sub) => (
-                <Card
-                  key={sub.id}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(student)/weekly-detail',
-                      params: { id: String(sub.id), title: sub.promptTitle },
-                    } as unknown as Href)
-                  }
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
+          <View style={{ gap: space[2] }}>
+            <ThemedText variant="title">Lịch sử nộp bài</ThemedText>
+            <View style={{ borderRadius: radius.xl, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}>
+              {history.map((sub, idx) => {
+                const w = isoWeek(sub.weekStartDate)
+                return (
+                  <Pressable
+                    key={sub.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${sub.promptTitle}${sub.taskScoreOrNull != null ? `, ${sub.taskScoreOrNull} trên 5 điểm` : ''}`}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(student)/weekly-detail',
+                        params: { id: String(sub.id), title: sub.promptTitle, week: w != null ? String(w) : '' },
+                      } as unknown as Href)
+                    }
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4], paddingVertical: space[3],
+                      borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: c.border,
+                    }}
+                  >
                     <View style={{ flex: 1, gap: 2 }}>
-                      <ThemedText variant="bodyStrong">{sub.promptTitle}</ThemedText>
-                      <ThemedText variant="caption" color="muted">
-                        {sub.weekStartDate} · {sub.cefrBand}
+                      <ThemedText variant="bodyStrong" numberOfLines={1}>
+                        {w != null ? `Tuần ${w} · ${sub.promptTitle}` : sub.promptTitle}
+                      </ThemedText>
+                      <ThemedText variant="caption" color="secondary">
+                        {`Từ ${dayMonth(sub.weekStartDate)} · ${sub.cefrBand}`}
                       </ThemedText>
                     </View>
                     {sub.taskScoreOrNull != null ? (
-                      <View
-                        style={{
-                          backgroundColor: c.successSoft,
-                          borderRadius: radius.md,
-                          paddingHorizontal: space[2],
-                          paddingVertical: space[1],
-                        }}
-                      >
-                        <ThemedText variant="bodyStrong" color="success">
-                          {sub.taskScoreOrNull}/5
-                        </ThemedText>
-                      </View>
+                      <ThemedText variant="monoLg">{`${sub.taskScoreOrNull}/5`}</ThemedText>
                     ) : null}
                     <Icon icon={ChevronRight} size={16} color="faint" />
-                  </View>
-                </Card>
-              ))}
+                  </Pressable>
+                )
+              })}
             </View>
           </View>
         ) : null}
@@ -329,24 +340,27 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
 
   const isRec = phase === 'recording'
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={isRec ? 'Dừng và nộp bài' : 'Ghi âm trả lời'}
-      onPress={isRec ? stopAndSubmit : start}
-      style={{
-        height: 52,
-        borderRadius: radius.lg,
-        backgroundColor: isRec ? colors.danger : colors.accent,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: space[2],
-      }}
-    >
-      {isRec ? <Icon icon={Square} size={20} color="onAccent" fill /> : <GaGlyph name="speaking" size={20} ink="onAccent" gold="ink" />}
-      <ThemedText variant="bodyStrong" color="onAccent">
-        {isRec ? 'Dừng & nộp bài' : 'Ghi âm trả lời'}
-      </ThemedText>
-    </Pressable>
+    <View style={{ alignItems: 'center', gap: space[2] }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={isRec ? 'Dừng và nộp bài' : 'Ghi âm trả lời'}
+        onPress={isRec ? stopAndSubmit : start}
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          backgroundColor: isRec ? colors.danger : colors.accent,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+        }}
+      >
+        {isRec ? <Icon icon={Square} size={26} color="onAccent" fill /> : <GaGlyph name="speaking" size={30} ink="onAccent" gold="ink" />}
+      </Pressable>
+      <ThemedText variant="label">{isRec ? 'Đang ghi · bấm để dừng và nộp' : 'Ghi âm trả lời'}</ThemedText>
+    </View>
   )
 }
