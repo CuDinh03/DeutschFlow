@@ -27,7 +27,9 @@ export function MarkedObjGroup({
   const on = marksSource != null
   // Màn cha dựng `marksSource` mới mỗi lần vẽ — chỉ đọc lại đề khi Teil / đề đổi.
   const info = useMemo(() => (on ? appMarkInfo(sectionsJson, teilKey) : null), [on, sectionsJson, teilKey])
-  const marks = usePassageMarks({ source: info ? marksSource : null, texts: info?.texts ?? NO_TEXTS, strike: info?.strike })
+  // Lesen 3: chạm mẩu tin là chọn tình huống (`AdBoard`) ⇒ mở Teil với bút tắt; bật bút mới tô.
+  const initialPen = props.group.telcType === 'MATCH_AD_X' ? null : 'y'
+  const marks = usePassageMarks({ source: info ? marksSource : null, texts: info?.texts ?? NO_TEXTS, strike: info?.strike, initialPen })
   const flush = marks.flush
   // Rời màn (đổi tab, mở màn khác) ⇒ lưu ngay, không đợi hẹn giờ.
   useFocusEffect(

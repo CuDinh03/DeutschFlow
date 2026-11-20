@@ -37,7 +37,7 @@ export function MarkedRun({
   const own = useMemo(() => (given ? null : sentencesIn(text, from, end, splitOnNewline)), [given, text, from, end, splitOnNewline])
   const sentences = given ?? own ?? []
   const words = useMemo(() => wordRanges(text, from, end), [text, from, end])
-  const editable = layer.status === 'ready' && !layer.hidden
+  const editable = layer.status === 'ready' && !layer.hidden && layer.pen != null
   const marks = layer.hidden ? [] : layer.pack.marks
   const segs = lineSegments(text, { start: from, end, text: '' }, sentences, marks, block, words)
   return (

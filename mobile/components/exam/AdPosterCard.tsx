@@ -1,8 +1,9 @@
 // Một mẩu rao vặt telc Lesen Teil 3 dựng như tờ dán trên bảng tin (mẫu v3.4 `lesen3` `.ad.*`, Đợt 7a).
 // Sáu kiểu luân phiên: khung đậm, viết tay, băng đen, nền xám, áp phích viền đôi, chữ đánh máy.
 // Phông viết tay và đánh máy là phông hệ thống iOS (Bradley Hand, Courier) — không thêm phông vào app.
+// 20/11: chạm mẩu (`onPress`) ⇒ khay chọn tình huống (`AdBoard`); mẩu đã gán hiện nhãn "Câu 14" góc phải.
 
-import { Platform, View } from 'react-native'
+import { Platform, Pressable, View } from 'react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText } from '@/components/ui'
 import { adStyleAt, splitAdRanges } from '@/lib/adPoster'
@@ -17,7 +18,23 @@ const INK = '#1C1B19'
 const HAND_FONT = Platform.select({ ios: 'BradleyHandITCTT-Bold', default: undefined })
 const TYPE_FONT = Platform.select({ ios: 'Courier', default: 'monospace' })
 
-export function AdPosterCard({ letter, label, index, marks }: { letter: string; label: string; index: number; marks?: MarksLayer | null }) {
+export function AdPosterCard({
+  letter,
+  label,
+  index,
+  marks,
+  assignedTo,
+  onPress,
+}: {
+  letter: string
+  label: string
+  index: number
+  marks?: MarksLayer | null
+  /** Số tình huống đang dùng mẩu này (đã gán) — hiện nhãn góc phải. */
+  assignedTo?: string[]
+  /** Có ⇒ chạm mẩu mở khay chọn tình huống. */
+  onPress?: () => void
+}) {
   const c = useTheme().colors
   const style = adStyleAt(index)
   // Bút đánh dấu (khối `ad:<k>`, Đợt 4f): vẽ tiêu đề / thân từ chữ của khối để vị trí khớp server.
@@ -44,13 +61,27 @@ export function AdPosterCard({ letter, label, index, marks }: { letter: string; 
   const bodyFont = style === 'hand' ? { fontFamily: HAND_FONT, fontSize: 16, lineHeight: 20 } : undefined
   const center = style === 'grau' || style === 'plakat'
 
+  const used = assignedTo ?? []
+  const penOn = !!block && !!marks && marks.pen != null && marks.status === 'ready' && !marks.hidden
   return (
-    <View
+    <Pressable
       accessible
-      accessibilityLabel={`Mẩu ${letter}. ${label}`}
-      accessibilityHint={block ? 'Bút đánh dấu: chạm vào một câu trong mẩu để tô bằng bút đang chọn.' : undefined}
+      disabled={!onPress}
+      onPress={onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`Mẩu ${letter}${used.length ? `, đang chọn cho câu ${used.join(', ')}` : ''}. ${label}`}
+      accessibilityHint={
+        onPress
+          ? penOn
+            ? 'Đang bật bút: chạm chữ để tô, chạm chữ cái của mẩu để chọn tình huống.'
+            : 'Chạm để chọn tình huống hợp với mẩu này.'
+          : undefined
+      }
       accessibilityLanguage="de-DE"
-      style={[{ padding: space[3], borderRadius: 3, overflow: 'visible', marginTop: 6, marginLeft: 6 }, frame]}
+      style={({ pressed }) => [
+        { padding: space[3], borderRadius: 3, overflow: 'visible' as const, marginTop: 6, marginLeft: 6, opacity: pressed ? 0.8 : 1 },
+        frame,
+      ]}
     >
       <View
         style={{
@@ -60,6 +91,16 @@ export function AdPosterCard({ letter, label, index, marks }: { letter: string; 
       >
         <ThemedText variant="label" style={{ color: c.onInk }}>{letter}</ThemedText>
       </View>
+      {used.length ? (
+        <View
+          style={{
+            position: 'absolute', top: -10, right: -4, zIndex: 1, paddingHorizontal: space[2], height: 24,
+            borderRadius: 12, backgroundColor: c.info, alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <ThemedText variant="label" style={{ color: c.onBrand, fontVariant: ['tabular-nums'] }}>{`Câu ${used.join(', ')}`}</ThemedText>
+        </View>
+      ) : null}
       {headline ? (
         style === 'band' ? (
           <View style={{ backgroundColor: INK, paddingHorizontal: space[3], paddingVertical: space[2], marginBottom: space[2], borderTopLeftRadius: radius.sm, borderTopRightRadius: radius.sm }}>
@@ -88,6 +129,6 @@ export function AdPosterCard({ letter, label, index, marks }: { letter: string; 
       >
         {body}
       </ThemedText>
-    </View>
+    </Pressable>
   )
 }

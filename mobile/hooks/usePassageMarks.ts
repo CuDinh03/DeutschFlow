@@ -40,8 +40,9 @@ export interface MarksLayer {
   /** Chữ từng khối của Teil (`lib/marksBlocks.marksTexts`). */
   texts: Record<string, string>
   status: MarksStatus
-  pen: Pen
-  setPen: (pen: Pen) => void
+  /** `null` = đang tắt bút (Lesen 3: chạm mẩu tin để chọn tình huống thay vì tô). */
+  pen: Pen | null
+  setPen: (pen: Pen | null) => void
   /** Ẩn tạm mọi đánh dấu để đọc lại bài sạch (không lưu). */
   hidden: boolean
   setHidden: (v: boolean) => void
@@ -70,18 +71,21 @@ export function usePassageMarks({
   source,
   texts,
   strike = NO_STRIKE,
+  initialPen = 'y',
 }: {
   source: MarksSource | null
   texts: Record<string, string>
   /** Phương án gạch bỏ được theo câu (`lib/marksBlocks.strikeOptions`). */
   strike?: Record<string, string[]>
+  /** Bút lúc mở Teil; `null` = tắt (chạm chữ không tô). */
+  initialPen?: Pen | null
 }): MarksLayer {
   const key = sourceKeyOf(source)
   const [pack, setPack] = useState<MarksPack>(emptyPack)
   const [status, setStatus] = useState<MarksStatus>(source ? 'loading' : 'off')
   const [dropped, setDropped] = useState(false)
   const [saveState, setSaveState] = useState<MarksSaveState>('idle')
-  const [pen, setPen] = useState<Pen>('y')
+  const [pen, setPen] = useState<Pen | null>(initialPen)
   const [hidden, setHidden] = useState(false)
   const [full, setFull] = useState(false)
   const [undoDepth, setUndoDepth] = useState(0)
@@ -153,7 +157,7 @@ export function usePassageMarks({
 
   const applyWith = useCallback(
     (piece: Piece, fn: typeof applyPen) => {
-      if (!editable) return
+      if (!editable || !pen) return
       const cur = latest.current
       const next = fn(cur, textsRef.current, piece, pen)
       // Chặn theo gói MỚI: một lần chạm có thể tách mảnh (+1) và thêm mảnh (+1) ⇒ vượt 300, server trả 400.

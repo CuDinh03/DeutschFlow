@@ -31,6 +31,7 @@ jest.mock('../ReadingPassage', () => ({ ReadingPassage: function ReadingPassage(
 jest.mock('../MarksToolbar', () => ({ MarksToolbar: function MarksToolbar() { return null } }))
 jest.mock('../MarkablePassage', () => ({ MarkablePassage: function MarkablePassage() { return null } }))
 jest.mock('../MarkedRun', () => ({ MarkedRun: function MarkedRun() { return null } }))
+jest.mock('../AdBoard', () => ({ AdBoard: function AdBoard() { return null } }))
 jest.mock('../HeadlineMatch', () => ({ HeadlineMatch: function HeadlineMatch() { return null } }))
 jest.mock('@/lib/api', () => ({ __esModule: true, default: {}, apiMessage: () => '' }))
 
