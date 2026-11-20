@@ -3,7 +3,7 @@ import { View, KeyboardAvoidingView, Platform, Alert, ScrollView, Pressable } fr
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import { Check } from 'lucide-react-native'
+import { ArrowLeft, Check } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
@@ -20,7 +20,8 @@ import {
   wasSignupVerified,
 } from '@/lib/registrationPin'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, TextField, Button, Icon } from '@/components/ui'
+import { Screen, ThemedText, TextField, Button, Icon, IconButton } from '@/components/ui'
+import { AuthHeading } from '@/components/auth/AuthHeading'
 import { getDeviceLocale, useT } from '@/lib/i18n'
 import { authMessages } from '@/lib/i18n/messages/auth'
 
@@ -147,14 +148,25 @@ export default function RegisterScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
+      {/* Mẫu v3.4 `signup`: nút quay lại ở đầu màn. Màn này luôn được push (từ Đăng nhập hoặc
+          Onboarding); chỉ khi không còn gì phía sau (mở thẳng) mới về Đăng nhập. */}
+      <View style={{ paddingHorizontal: space[5], paddingTop: space[2] }}>
+        <IconButton
+          icon={ArrowLeft}
+          accessibilityLabel={t('common.back')}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(auth)/login'))}
+          disabled={loading}
+        />
+      </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView
-          style={{ flex: 1, paddingHorizontal: space[6] }}
-          contentContainerStyle={{ justifyContent: 'center', flexGrow: 1, paddingVertical: space[10] }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: space[6], paddingTop: space[5], paddingBottom: space[8] }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
           <MotiView
@@ -162,29 +174,12 @@ export default function RegisterScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: motion.duration.slow }}
           >
-            <View style={{ alignItems: 'center', marginBottom: space[10] }}>
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: radius.xl,
-                  backgroundColor: theme.colors.accent,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: space[4],
-                }}
-              >
-                <ThemedText variant="display" color="onAccent">
-                  D
-                </ThemedText>
-              </View>
-              <ThemedText variant="titleLg">{t('register.title')}</ThemedText>
-              <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }}>
-                {t('register.subtitle')}
-              </ThemedText>
-            </View>
+            <AuthHeading lead={t('register.titleLead')} mark={t('register.titleMark')} />
+            <ThemedText variant="body" color="secondary" style={{ marginTop: space[2] }}>
+              {t('register.subtitle')}
+            </ThemedText>
 
-            <View style={{ gap: space[4] }}>
+            <View style={{ gap: space[4], marginTop: space[6] }}>
               <TextField
                 label={t('register.displayName')}
                 value={displayName}
@@ -308,6 +303,7 @@ export default function RegisterScreen() {
 
               <Button
                 label={t('register.submit')}
+                variant="yellow"
                 onPress={handleRegister}
                 loading={loading}
                 disabled={!agree}
@@ -315,13 +311,17 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>
-              <ThemedText variant="body" color="muted">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: space[6] }}>
+              <ThemedText variant="body" color="secondary">
                 {t('register.haveAccount')}{' '}
               </ThemedText>
               <Link href="/(auth)/login" asChild>
-                <Pressable accessibilityRole="button" accessibilityLabel={t('common.login')} hitSlop={6}>
-                  <ThemedText variant="bodyStrong" color="accent">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.login')}
+                  hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                >
+                  <ThemedText variant="bodyStrong" color="info">
                     {t('common.login')}
                   </ThemedText>
                 </Pressable>

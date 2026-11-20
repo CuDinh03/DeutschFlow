@@ -29,6 +29,24 @@ export function resendSecondsLeft(sentAtMs: number, resendAfterSeconds: number, 
   return Math.max(0, Math.ceil((sentAtMs + resendAfterSeconds * 1000 - nowMs) / 1000))
 }
 
+/** Đồng hồ đếm ngược "Gửi lại sau 0:42" (mẫu v3.4 `pin`): phút:giây, giây luôn hai chữ số. */
+export function formatCountdown(seconds: number): string {
+  const total = Number.isFinite(seconds) ? Math.max(0, Math.ceil(seconds)) : 0
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/**
+ * Tách câu dẫn quanh địa chỉ email để in đậm email (mẫu v3.4 `pin`) mà không phải cắt bản dịch thành
+ * nhiều mảnh: dịch đủ câu với `{email}` = `marker`, rồi cắt tại marker. Không có marker ⇒ cả câu ở `before`.
+ */
+export function splitAtMarker(text: string, marker: string): { before: string; after: string; found: boolean } {
+  const at = marker ? text.indexOf(marker) : -1
+  if (at < 0) return { before: text, after: '', found: false }
+  return { before: text.slice(0, at), after: text.slice(at + marker.length), found: true }
+}
+
 /** HTTP status của lỗi axios-like, hoặc undefined khi không có response (mất mạng/timeout). */
 export function errorStatus(e: unknown): number | undefined {
   return (e as ErrLike)?.response?.status
