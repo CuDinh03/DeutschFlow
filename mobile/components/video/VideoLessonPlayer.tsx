@@ -4,7 +4,8 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, cancelAnimation } from 'react-native-reanimated'
 import { Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Icon } from '@/components/ui'
+import { ThemedText, Icon, IconButton, ProgressBar } from '@/components/ui'
+import { Chip, Rail, SectionHead } from '@/components/learn/HocOnParts'
 import { useBlurGuard } from '@/hooks/useBlurGuard'
 import type { VideoTimeline } from '@/lib/videoLessonApi'
 
@@ -16,6 +17,9 @@ const MIN_SCENE_MS = 2500
  * while its German narration plays, then auto-advances. When a scene has no narration
  * audio it is paced by `durationMs` instead. Audio streams straight from the scene's
  * S3 URL via expo-audio (same approach as the AI-speaking screen).
+ *
+ * Giao diện v3.4 (Đợt 6A, mẫu `video`): khung mực bo lớn, nút phát tròn vàng ở góc khung, thanh tiến
+ * độ theo cảnh, hàng chip các từ trong video (chạm để nhảy tới cảnh). Logic phát/tự chuyển cảnh giữ nguyên.
  */
 export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
   const c = useTheme().colors
@@ -125,20 +129,20 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View>
       <View
         style={{
-          marginHorizontal: space[5],
-          borderRadius: radius.xl,
+          borderRadius: radius.lg,
           overflow: 'hidden',
           aspectRatio: 4 / 3,
-          backgroundColor: c.surfaceSunken,
+          backgroundColor: c.inkSurface,
         }}
       >
         {scene.imageUrl ? (
           <Animated.Image
             source={{ uri: scene.imageUrl }}
             resizeMode="cover"
+            accessibilityLabel={`${scene.germanWord}: ${scene.translation}`}
             style={[{ width: '100%', height: '100%' }, imageStyle]}
           />
         ) : (
@@ -147,7 +151,6 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
               {
                 width: '100%',
                 height: '100%',
-                backgroundColor: c.accentSoft,
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: space[5],
@@ -155,93 +158,89 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
               imageStyle,
             ]}
           >
-            <ThemedText variant="displayLg" color="primary" align="center">
+            <ThemedText variant="displayLg" color="onInk" align="center" accessibilityLanguage="de-DE">
               {scene.germanWord}
             </ThemedText>
+            {scene.translation ? (
+              <ThemedText variant="body" align="center" style={{ color: c.onInkMuted, marginTop: space[1] }}>
+                {scene.translation}
+              </ThemedText>
+            ) : null}
           </Animated.View>
         )}
+
+        {/* Mẫu `.vplay`: nút phát tròn vàng ở góc dưới phải khung. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={playing ? 'Tạm dừng' : 'Phát'}
+          onPress={onTogglePlay}
+          style={({ pressed }) => ({
+            position: 'absolute',
+            right: 14,
+            bottom: 14,
+            width: 52,
+            height: 52,
+            borderRadius: radius.full,
+            backgroundColor: c.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+            transform: [{ scale: pressed ? 0.94 : 1 }],
+          })}
+        >
+          <Icon icon={playing ? Pause : Play} size={24} color="onAccent" />
+        </Pressable>
       </View>
 
-      {/* Scene progress dots */}
-      <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center', marginTop: space[3] }}>
-        {scenes.map((s, i) => (
-          <View
-            key={s.seq}
-            style={{
-              width: i === index ? 18 : 6,
-              height: 6,
-              borderRadius: radius.full,
-              backgroundColor: i === index ? c.accent : c.border,
-            }}
-          />
-        ))}
+      {/* Tiến độ theo cảnh + chuyển cảnh trước/sau. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], marginTop: space[3] }}>
+        <IconButton
+          icon={ChevronLeft}
+          accessibilityLabel="Câu trước"
+          disabled={atStart}
+          color="secondary"
+          onPress={() => setIndex(index - 1)}
+        />
+        <View style={{ flex: 1 }}>
+          <ProgressBar value={(index + 1) / scenes.length} height={6} />
+        </View>
+        <ThemedText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
+          {index + 1} / {scenes.length}
+        </ThemedText>
+        <IconButton
+          icon={ChevronRight}
+          accessibilityLabel="Câu sau"
+          disabled={atEnd}
+          color="secondary"
+          onPress={() => setIndex(index + 1)}
+        />
       </View>
 
-      {/* Captions */}
-      <View style={{ paddingHorizontal: space[5], marginTop: space[4], gap: space[2], flex: 1 }}>
-        <ThemedText variant="titleLg">{scene.captionDe}</ThemedText>
+      {/* Phụ đề */}
+      <View style={{ marginTop: space[4], gap: space[1] }}>
+        <ThemedText variant="titleLg" accessibilityLanguage="de-DE">
+          {scene.captionDe}
+        </ThemedText>
         <ThemedText variant="body" color="muted">
           {scene.captionVi}
         </ThemedText>
       </View>
 
-      {/* Controls */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: space[6],
-          paddingVertical: space[5],
-        }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Câu trước"
-          accessibilityState={{ disabled: atStart }}
-          hitSlop={10}
-          disabled={atStart}
-          onPress={() => setIndex(index - 1)}
-          style={{ opacity: atStart ? 0.3 : 1 }}
-        >
-          <Icon icon={ChevronLeft} size={28} color="muted" />
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={playing ? 'Tạm dừng' : 'Phát'}
-          hitSlop={10}
-          onPress={onTogglePlay}
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: radius.full,
-            backgroundColor: c.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon icon={playing ? Pause : Play} size={28} color="onAccent" />
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Câu sau"
-          accessibilityState={{ disabled: atEnd }}
-          hitSlop={10}
-          disabled={atEnd}
-          onPress={() => setIndex(index + 1)}
-          style={{ opacity: atEnd ? 0.3 : 1 }}
-        >
-          <Icon icon={ChevronRight} size={28} color="muted" />
-        </Pressable>
-      </View>
-
-      <View style={{ alignItems: 'center', paddingBottom: space[4] }}>
-        <ThemedText variant="caption" color="faint">
-          {index + 1} / {scenes.length}
-        </ThemedText>
-      </View>
+      {scenes.length > 1 ? (
+        <>
+          <SectionHead title="Trong video này" right={`${scenes.length} cảnh`} />
+          <Rail>
+            {scenes.map((s, i) => (
+              <Chip
+                key={s.seq}
+                label={s.germanWord || s.captionDe}
+                on={i === index}
+                accessibilityLabel={`Tới cảnh ${i + 1}: ${s.germanWord || s.captionDe}`}
+                onPress={() => setIndex(i)}
+              />
+            ))}
+          </Rail>
+        </>
+      ) : null}
     </View>
   )
 }
