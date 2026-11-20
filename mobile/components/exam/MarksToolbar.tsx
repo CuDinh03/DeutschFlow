@@ -83,10 +83,10 @@ export function MarksToolbar({ layer, hint }: { layer: MarksLayer; hint?: string
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Hoàn tác đánh dấu"
-          accessibilityState={{ disabled: !layer.canUndo || !ready }}
-          disabled={!layer.canUndo || !ready}
+          accessibilityState={{ disabled: !layer.canUndo || !pensOn }}
+          disabled={!layer.canUndo || !pensOn}
           onPress={layer.undo}
-          style={iconBtn(false, !layer.canUndo || !ready)}
+          style={iconBtn(false, !layer.canUndo || !pensOn)}
         >
           <Icon icon={Undo2} size={18} color="primary" />
         </Pressable>
@@ -129,8 +129,10 @@ function MarksStatusLine({ layer, hint }: { layer: MarksLayer; hint?: string }) 
   const warn: string[] = []
   if (layer.full) warn.push('Đã đủ số đánh dấu cho Teil này. Tẩy bớt rồi tô tiếp.')
   if (layer.saveState === 'error') warn.push('Chưa lưu được đánh dấu. App sẽ thử lại khi bạn tô tiếp hoặc rời màn.')
+  if (layer.saveState === 'rejected') warn.push('Không lưu được đánh dấu này. Hoàn tác lần tô vừa rồi hoặc tô tiếp để lưu bản mới.')
+  if (layer.saveState === 'closed') warn.push('Lượt thi đã đóng, đánh dấu không lưu nữa.')
   if (layer.dropped) warn.push('Bài vừa được sửa chữ nên một số đánh dấu cũ đã bỏ.')
-  const bad = layer.full || layer.saveState === 'error'
+  const bad = layer.full || layer.saveState === 'error' || layer.saveState === 'rejected' || layer.saveState === 'closed'
   const base = layer.hidden
     ? 'Đang ẩn đánh dấu. Bấm hình con mắt để hiện lại và tô tiếp.'
     : hint ?? 'Chọn bút rồi chạm vào một câu để tô; chạm lại để xoá.'

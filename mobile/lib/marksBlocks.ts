@@ -130,15 +130,37 @@ export function marksSupported(teil: RawTeil | null, kind: TeilKind): boolean {
 }
 
 /**
- * Teil có bút trên APP: đúng luật web (`MARK_SECTIONS` + `marksSupported`), bỏ Hören. Trả chữ các khối, hoặc
- * `null` khi không có bút.
+ * Phương án gạch bỏ được theo câu — đúng luật server (`PassageMarksValidator.optionsOf`): chỉ câu có
+ * `options` RIÊNG dạng đối tượng `{a: …, b: …}`, khoá là chữ cái. Câu khác gạch bỏ ⇒ server trả 400.
  */
-export function appMarkTexts(sectionsJson: string | null | undefined, teilKey: string): Record<string, string> | null {
+export function strikeOptions(teil: RawTeil | null): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  if (!teil) return out
+  for (const it of items(teil)) {
+    const opts = it.options
+    if (it.id == null || !opts || typeof opts !== 'object' || Array.isArray(opts)) continue
+    out[String(it.id)] = Object.keys(opts as Record<string, unknown>)
+  }
+  return out
+}
+
+export interface AppMarkInfo {
+  /** Chữ từng khối. */
+  texts: Record<string, string>
+  /** Phương án gạch bỏ được theo câu. */
+  strike: Record<string, string[]>
+}
+
+/**
+ * Teil có bút trên APP: đúng luật web (`MARK_SECTIONS` + `marksSupported`), bỏ Hören. Trả chữ các khối +
+ * phương án gạch bỏ được, hoặc `null` khi không có bút.
+ */
+export function appMarkInfo(sectionsJson: string | null | undefined, teilKey: string): AppMarkInfo | null {
   const section = /^([A-Z]+)-\d+$/.exec(teilKey)?.[1] ?? ''
   if (!APP_MARK_SECTIONS.includes(section)) return null
   const teil = rawTeilOf(sectionsJson, teilKey)
   if (!marksSupported(teil, teilKindOf(teil, teilKey))) return null
-  return marksTexts(teil)
+  return { texts: marksTexts(teil), strike: strikeOptions(teil) }
 }
 
 /**
@@ -166,4 +188,9 @@ export function gapPieces(text: string): GapPiece[] {
   }
   if (cursor < text.length) out.push({ kind: 'text', s: cursor, e: text.length })
   return out
+}
+
+/** Có ít nhất một chữ trên màn khớp khối đánh dấu (để quyết định có hiện thanh bút không). */
+export function anyBlockShown(texts: Record<string, string> | null | undefined, shown: readonly [string, string | null | undefined][]): boolean {
+  return shown.some(([block, text]) => matchBlock(texts, block, text) != null)
 }

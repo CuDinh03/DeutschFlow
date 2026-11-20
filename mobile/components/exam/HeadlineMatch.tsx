@@ -20,8 +20,6 @@ import type { MarksLayer } from '@/hooks/usePassageMarks'
 import { MarkedRun } from './MarkedRun'
 import { FlagToggle, ItemExplanation } from './ItemParts'
 
-/** Nền navy 7% của ô đã chọn (mẫu `.hslot.ok`). */
-const NAVY_TINT = 'rgba(35,64,110,0.07)'
 const TEXT_FONT = { fontFamily: fonts.displaySemi, fontSize: 15.5, lineHeight: 24 }
 
 interface Props {
@@ -176,7 +174,7 @@ function HeadlineSlot({
   const ok = !!picked
   const tone = result ? (result.isCorrect ? c.success : c.danger) : ok ? c.info : null
   const border = tone ?? (current ? c.textPrimary : c.borderStrong)
-  const bg = result ? (result.isCorrect ? c.successSoft : c.dangerSoft) : ok ? NAVY_TINT : current ? c.accentSoft : c.surfaceSunken
+  const bg = result ? (result.isCorrect ? c.successSoft : c.dangerSoft) : ok ? c.infoSoft : current ? c.accentSoft : c.surfaceSunken
   const a11y = result
     ? `Đoạn ${num}: ${ok ? `bạn chọn ${picked}. ${label}` : 'chưa chọn'}. ${result.isCorrect ? 'Đúng' : `Chưa đúng, đáp án ${result.correct}. ${correctLabel ?? ''}`}`
     : ok
@@ -279,7 +277,7 @@ function HeadlineTray({
           }}
         >
           <BlurView intensity={40} tint={t.blurTint} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.72)', padding: space[3] + 2, gap: space[2], flexShrink: 1 }}>
+          <View style={{ backgroundColor: c.glassFill, padding: space[3] + 2, gap: space[2], flexShrink: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
               <ThemedText variant="label" style={{ flex: 1 }} accessibilityRole="header">
                 {`Tiêu đề cho đoạn ${num} · a–${pool[pool.length - 1]?.key ?? 'j'}`}
@@ -325,7 +323,7 @@ function HeadlineTray({
                       borderWidth: 1.5,
                       borderStyle: taken ? 'dashed' : 'solid',
                       borderColor: mine ? c.info : c.borderStrong,
-                      backgroundColor: mine ? NAVY_TINT : taken ? 'transparent' : pressed ? c.surfaceSunken : 'rgba(255,255,255,0.78)',
+                      backgroundColor: mine ? c.infoSoft : taken ? 'transparent' : pressed ? c.surfaceSunken : c.glassFillStrong,
                     })}
                   >
                     <View style={{ width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: mine ? c.info : c.surfaceSunken }}>

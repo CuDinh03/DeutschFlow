@@ -5,7 +5,7 @@
 
 import { useCallback, useMemo } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { appMarkTexts } from '@/lib/marksBlocks'
+import { appMarkInfo } from '@/lib/marksBlocks'
 import { usePassageMarks, type MarksSource } from '@/hooks/usePassageMarks'
 import { ObjGroupView } from './ExamTeilBody'
 
@@ -26,8 +26,8 @@ export function MarkedObjGroup({
   const teilKey = marksSource?.teilKey ?? ''
   const on = marksSource != null
   // Màn cha dựng `marksSource` mới mỗi lần vẽ — chỉ đọc lại đề khi Teil / đề đổi.
-  const texts = useMemo(() => (on ? appMarkTexts(sectionsJson, teilKey) : null), [on, sectionsJson, teilKey])
-  const marks = usePassageMarks({ source: texts ? marksSource : null, texts: texts ?? NO_TEXTS })
+  const info = useMemo(() => (on ? appMarkInfo(sectionsJson, teilKey) : null), [on, sectionsJson, teilKey])
+  const marks = usePassageMarks({ source: info ? marksSource : null, texts: info?.texts ?? NO_TEXTS, strike: info?.strike })
   const flush = marks.flush
   // Rời màn (đổi tab, mở màn khác) ⇒ lưu ngay, không đợi hẹn giờ.
   useFocusEffect(
@@ -38,5 +38,5 @@ export function MarkedObjGroup({
       [flush],
     ),
   )
-  return <ObjGroupView {...props} marks={texts ? marks : null} />
+  return <ObjGroupView {...props} marks={info ? marks : null} />
 }

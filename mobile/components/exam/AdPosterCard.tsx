@@ -46,8 +46,9 @@ export function AdPosterCard({ letter, label, index, marks }: { letter: string; 
 
   return (
     <View
-      accessible={!block}
-      accessibilityLabel={block ? undefined : `Mẩu ${letter}. ${label}`}
+      accessible
+      accessibilityLabel={`Mẩu ${letter}. ${label}`}
+      accessibilityHint={block ? 'Bút đánh dấu: chạm vào một câu trong mẩu để tô bằng bút đang chọn.' : undefined}
       accessibilityLanguage="de-DE"
       style={[{ padding: space[3], borderRadius: 3, overflow: 'visible', marginTop: 6, marginLeft: 6 }, frame]}
     >

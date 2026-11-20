@@ -21,7 +21,7 @@ import { MarkedRun } from './MarkedRun'
 import { MarksToolbar } from './MarksToolbar'
 import { FlagToggle, ItemExplanation } from './ItemParts'
 import { HeadlineMatch } from './HeadlineMatch'
-import { matchBlock } from '@/lib/marksBlocks'
+import { anyBlockShown, matchBlock } from '@/lib/marksBlocks'
 import type { MarksLayer } from '@/hooks/usePassageMarks'
 
 interface ObjGroupViewProps {
@@ -89,6 +89,17 @@ export function ObjGroupView({
   const passageMarked = !!ml && !!group.passage && matchBlock(ml.texts, 'ctx', group.passage) != null
   // Lesen Teil 1 telc: thẻ đoạn văn + ô chọn tiêu đề + khay (mẫu v3.4 `lesen1`) thay cho kho tiêu đề + thẻ câu.
   const headlineMatch = group.telcType === 'MATCH_HEADLINE' && !!group.pool && group.items.every((it) => !!it.passage)
+  // Thanh bút chỉ khi có ít nhất một chữ trên màn tô được (chữ app dựng khớp chữ khối của server).
+  const toolbarOn =
+    !!ml &&
+    anyBlockShown(ml.texts, [
+      ['ctx', group.passage],
+      ['gap', group.gappedText],
+      ...(group.telcType === 'MATCH_AD_X' ? (group.pool ?? []).map((o): [string, string] => [`ad:${o.key}`, o.label]) : []),
+      ...group.items.flatMap((it): [string, string | undefined][] =>
+        headlineMatch ? [[`t:${it.id}`, it.passage]] : [[`q:${it.id}`, it.question], [`t:${it.id}`, it.passage]],
+      ),
+    ])
   return (
     <View style={{ gap: space[3] }}>
       {hideTitle ? null : <Caption>{group.title}</Caption>}
@@ -99,7 +110,7 @@ export function ObjGroupView({
         </ThemedText>
       ) : null}
 
-      {ml && !hideBody ? <MarksToolbar layer={ml} /> : null}
+      {ml && toolbarOn && !hideBody ? <MarksToolbar layer={ml} /> : null}
 
       {group.ansage && !review && onGatePhaseChange ? (
         <HoerenGate
@@ -401,9 +412,11 @@ function QuestionCard({
   const { colors } = useTheme()
   const qBlock = marks ? matchBlock(marks.texts, `q:${item.id}`, item.question) : null
   const tBlock = marks ? matchBlock(marks.texts, `t:${item.id}`, item.passage) : null
-  // Gạch bỏ phương án như web: chỉ câu trắc nghiệm từng câu (không phải kho chung của Teil), khoá = chữ
-  // cái phương án; khoá khi đang xem kết quả.
-  const canStrike = !!marks && marks.status === 'ready' && !reviewing && !group?.telcType && !!item.optionKeys
+  // Gạch bỏ phương án như web: chỉ câu trắc nghiệm từng câu (không phải kho chung của Teil); phương án nào
+  // gạch được theo luật server (`marks.canStrike`: câu có `options` riêng dạng đối tượng). Khoá khi đang
+  // xem kết quả hoặc đang ẩn đánh dấu.
+  const strikeOn = !!marks && marks.status === 'ready' && !marks.hidden && !reviewing && !group?.telcType
+  const strikable = (opt: string) => strikeOn && !!marks && marks.canStrike(item.id, opt)
   const question = qBlock && marks ? <MarkedRun layer={marks} block={qBlock} /> : item.question
   // Giá trị nộp tách khỏi nhãn: trắc nghiệm options object nộp chữ cái A/B/C (AC-MOBFIX-03).
   const choices = itemChoices(item)
@@ -453,12 +466,20 @@ function QuestionCard({
               mark={mark}
               onPress={() => {
                 // Chọn một phương án đã gạch bỏ ⇒ bỏ gạch (như web).
-                if (marks && canStrike && marks.isStruck(item.id, choice.value)) marks.toggleStrike(item.id, choice.value)
+                if (marks && strikable(choice.value) && marks.isStruck(item.id, choice.value)) marks.toggleStrike(item.id, choice.value)
                 onSelect(choice.value)
               }}
-              struck={marks && !!item.optionKeys && !group?.telcType ? marks.isStruck(item.id, choice.value) : false}
-              // Phương án đang chọn thì không gạch bỏ được (web bỏ chọn; app không gửi đáp án rỗng lên server).
-              onStrike={canStrike && marks && selected !== choice.value ? () => marks.toggleStrike(item.id, choice.value) : undefined}
+              struck={!!marks && !marks.hidden && !group?.telcType && marks.isStruck(item.id, choice.value)}
+              onStrike={
+                marks && strikable(choice.value)
+                  ? () => {
+                      const on = !marks.isStruck(item.id, choice.value)
+                      marks.toggleStrike(item.id, choice.value)
+                      // Gạch bỏ phương án đang chọn ⇒ bỏ chọn (như web; màn cha xoá khoá khi giá trị rỗng).
+                      if (on && selected === choice.value) onSelect('')
+                    }
+                  : undefined
+              }
             />
           )
         })}

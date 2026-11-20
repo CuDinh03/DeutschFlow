@@ -125,6 +125,7 @@ describe('ObjGroupView + bút đánh dấu (Đợt 4f)', () => {
     status: 'ready', pen: 'y', setPen: () => {}, hidden: false, setHidden: () => {}, dropped: false, saveState: 'idle', full: false,
     canUndo: false, undo: () => {}, retry: () => {}, tap: () => {}, flush: async () => {},
     isStruck: (id, opt) => id === 'LV2-6' && opt === 'c', toggleStrike: jest.fn(),
+    canStrike: (id, opt) => id === 'LV2-6' && ['a', 'b', 'c'].includes(opt),
     ...over,
   })
   const typeName = (e: El) => (typeof e.type === 'function' ? (e.type as { name: string }).name : String(e.type))
@@ -132,14 +133,18 @@ describe('ObjGroupView + bút đánh dấu (Đợt 4f)', () => {
   const strikeButtons = (tree: unknown) =>
     collect(tree, (e) => typeof e.props.accessibilityLabel === 'string' && /phương án/.test(e.props.accessibilityLabel as string))
 
-  it('có lớp: thanh bút, bài đọc có bút, đề câu qua lớp đánh dấu, nút gạch bỏ trừ phương án đang chọn', () => {
+  it('có lớp: thanh bút, bài đọc có bút, đề câu qua lớp đánh dấu, nút gạch bỏ từng phương án', () => {
     const tree = expand(ObjGroupView({ ...props, marks: layer() }))
     const names = collect(tree, () => true).map(typeName)
     expect(names).toEqual(expect.arrayContaining(['MarksToolbar', 'MarkablePassage', 'MarkedRun']))
     expect(names).not.toContain('ReadingPassage')
     const runs = collect(tree, (e) => typeName(e) === 'MarkedRun')
     expect(runs.map((e) => e.props.block)).toEqual(['q:LV2-6'])
-    expect(strikeButtons(tree).map((e) => e.props.accessibilityLabel)).toEqual(['Gạch bỏ phương án b. zwei', 'Bỏ gạch phương án c. drei'])
+    expect(strikeButtons(tree).map((e) => e.props.accessibilityLabel)).toEqual([
+      'Gạch bỏ phương án a. eins',
+      'Gạch bỏ phương án b. zwei',
+      'Bỏ gạch phương án c. drei',
+    ])
     expect(rows(tree).map((e) => String(e.props.label))[2]).toContain('(đã gạch bỏ)')
   })
 
@@ -155,9 +160,20 @@ describe('ObjGroupView + bút đánh dấu (Đợt 4f)', () => {
     expect(strikeButtons(tree)).toHaveLength(0)
   })
 
-  it('chữ trên màn lệch chữ khối ⇒ không cho tô khối đó', () => {
+  it('chữ trên màn lệch chữ khối ⇒ không cho tô khối đó; không khối nào khớp ⇒ không thanh bút', () => {
     const tree = expand(ObjGroupView({ ...props, marks: layer({ texts: { ctx: 'Anderer Text.', 'q:LV2-6': 'Was stimmt?' } }) }))
     expect(collect(tree, () => true).map(typeName)).not.toContain('MarkablePassage')
+    expect(collect(tree, () => true).map(typeName)).toContain('MarksToolbar')
+    const none = expand(ObjGroupView({ ...props, marks: layer({ texts: { ctx: 'Anderer Text.' } }) }))
+    expect(collect(none, () => true).map(typeName)).not.toContain('MarksToolbar')
+  })
+
+  it('gạch bỏ theo luật server (canStrike) và khoá khi đang ẩn đánh dấu', () => {
+    const onlyB = expand(ObjGroupView({ ...props, marks: layer({ canStrike: (_id, opt) => opt === 'b' }) }))
+    expect(strikeButtons(onlyB).map((e) => e.props.accessibilityLabel)).toEqual(['Gạch bỏ phương án b. zwei'])
+    const hidden = expand(ObjGroupView({ ...props, marks: layer({ hidden: true }) }))
+    expect(strikeButtons(hidden)).toHaveLength(0)
+    expect(rows(hidden).map((e) => String(e.props.label))[2]).not.toContain('(đã gạch bỏ)')
   })
 })
 

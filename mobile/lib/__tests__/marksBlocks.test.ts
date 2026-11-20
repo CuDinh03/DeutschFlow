@@ -1,11 +1,13 @@
 import {
-  appMarkTexts,
+  anyBlockShown,
+  appMarkInfo,
   gapPieces,
   hoerenLines,
   marksSupported,
   marksTexts,
   matchBlock,
   rawTeilOf,
+  strikeOptions,
   teilKindOf,
   type RawTeil,
 } from '@/lib/marksBlocks'
@@ -99,14 +101,41 @@ describe('marksSupported / appMarkTexts — Teil nào có bút', () => {
     expect(marksSupported(null, 'mc')).toBe(false)
   })
   test('app: Lesen + Sprachbausteine; Hören không (app không in lời bài), Viết không', () => {
-    expect(appMarkTexts(json, 'LESEN-1')).toMatchObject({ 't:LV1-1': 'Erster Text.\nZweite Zeile.' })
-    expect(appMarkTexts(json, 'LESEN-2')).toMatchObject({ ctx: 'Satz eins.\nSatz zwei.' })
-    expect(appMarkTexts(json, 'LESEN-3')).toMatchObject({ 'ad:a': 'Anzeige A' })
-    expect(appMarkTexts(json, 'SPRACHBAUSTEINE-1')).toMatchObject({ gap: expect.any(String) })
-    expect(appMarkTexts(json, 'HOEREN-1')).toBeNull()
-    expect(appMarkTexts(json, 'SCHREIBEN-1')).toBeNull()
-    expect(appMarkTexts(json, 'LESEN-9')).toBeNull()
-    expect(appMarkTexts(null, 'LESEN-2')).toBeNull()
+    expect(appMarkInfo(json, 'LESEN-1')?.texts).toMatchObject({ 't:LV1-1': 'Erster Text.\nZweite Zeile.' })
+    expect(appMarkInfo(json, 'LESEN-2')?.texts).toMatchObject({ ctx: 'Satz eins.\nSatz zwei.' })
+    expect(appMarkInfo(json, 'LESEN-2')?.strike).toEqual({ 'LV2-6': ['a', 'b', 'c'] })
+    expect(appMarkInfo(json, 'LESEN-3')?.texts).toMatchObject({ 'ad:a': 'Anzeige A' })
+    expect(appMarkInfo(json, 'SPRACHBAUSTEINE-1')?.texts).toMatchObject({ gap: expect.any(String) })
+    expect(appMarkInfo(json, 'HOEREN-1')).toBeNull()
+    expect(appMarkInfo(json, 'SCHREIBEN-1')).toBeNull()
+    expect(appMarkInfo(json, 'LESEN-9')).toBeNull()
+    expect(appMarkInfo(null, 'LESEN-2')).toBeNull()
+  })
+})
+
+describe('strikeOptions — như PassageMarksValidator.optionsOf', () => {
+  test('chỉ câu có options riêng dạng đối tượng; mảng / không có / thiếu id ⇒ không gạch được', () => {
+    expect(
+      strikeOptions({
+        items: [
+          { id: 'A', options: { a: 'x', b: 'y' } },
+          { id: 'B', options: ['x', 'y'] },
+          { id: 'C', correct: 'richtig' },
+          { options: { a: 'x' } },
+        ],
+      }),
+    ).toEqual({ A: ['a', 'b'] })
+    expect(strikeOptions(lesen1)).toEqual({})
+    expect(strikeOptions(null)).toEqual({})
+  })
+})
+
+describe('anyBlockShown', () => {
+  test('ít nhất một chữ trên màn khớp khối', () => {
+    const texts = { ctx: 'A', 'q:1': 'Frage' }
+    expect(anyBlockShown(texts, [['ctx', 'B'], ['q:1', 'Frage']])).toBe(true)
+    expect(anyBlockShown(texts, [['ctx', 'B'], ['q:2', 'Frage'], ['gap', undefined]])).toBe(false)
+    expect(anyBlockShown(null, [['ctx', 'A']])).toBe(false)
   })
 })
 
