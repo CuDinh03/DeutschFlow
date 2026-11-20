@@ -151,8 +151,22 @@ export default function SpeakingExamRoomScreen() {
   // chạy theo server — chỉ tắt tiếng, không tạm dừng bài thi hộ người dùng.
   const pendingResultsNav = useRef(false)
   const focusedRef = useBlurGuard(
-    () => stopVoice(),
     () => {
+      stopVoice()
+      // Modal vẫn nổi trên tab khác khi màn bị ẩn ⇒ đóng tạm; lời giám khảo đang giữ để dành khi quay lại.
+      setGuideOpen(false)
+    },
+    () => {
+      // Quay lại màn: lời giám khảo còn giữ thì phát (đã xem hướng dẫn) hoặc mở lại hướng dẫn (chưa xem).
+      if (heldSpeechRef.current) {
+        if (guideSeenRef.current === true) {
+          const held = heldSpeechRef.current
+          heldSpeechRef.current = null
+          void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
+        } else if (guideSeenRef.current === false) {
+          setGuideOpen(true)
+        }
+      }
       // Poll chấm xong trong lúc blur → đã hoãn điều hướng; giờ màn sáng lại mới đi.
       if (pendingResultsNav.current) {
         pendingResultsNav.current = false
@@ -239,9 +253,11 @@ export default function SpeakingExamRoomScreen() {
       guideSeenRef.current = true
       void markOralGuideSeen()
     }
+    // Màn đang ẩn thì giữ lời lại, phát khi quay lại màn (useBlurGuard onFocus).
     const held = heldSpeechRef.current
+    if (!held || !focusedRef.current) return
     heldSpeechRef.current = null
-    if (held && focusedRef.current) void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
+    void speakExamSequence([{ role: 'PRUEFER', text: held }], setAiSpeaker)
   }
 
   // Nạp phiên lần đầu. Màn nằm dưới Tabs nên KHÔNG unmount giữa hai bài thi —

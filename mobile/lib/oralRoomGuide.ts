@@ -34,7 +34,7 @@ export const ORAL_GUIDE_STEPS: readonly { title: string; body: string }[] = [
   },
   {
     title: 'Tự dừng khi im',
-    body: 'Bật công tắc này thì nói xong im khoảng 2 giây là tự gửi. Chưa nói gì thì không bị cắt.',
+    body: 'Bật công tắc Tự dừng khi im (dưới nút micro) thì nói xong im khoảng 2 giây là tự gửi. Chưa nói gì thì không bị cắt.',
   },
   {
     title: 'Thẻ đề',

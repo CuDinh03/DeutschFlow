@@ -1,6 +1,6 @@
 // Hướng dẫn phòng thi nói (nút "?" của mẫu v3.4, Đợt 5B): tấm dưới, đi lần lượt các bước.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal, Pressable, View } from 'react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Button, ThemedText } from '@/components/ui'
@@ -9,6 +9,10 @@ import { ORAL_GUIDE_STEPS } from '@/lib/oralRoomGuide'
 export function OralRoomGuide({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const c = useTheme().colors
   const [step, setStep] = useState(0)
+  // Màn cha có thể tự đóng tấm (mở phiên mới, rời màn) ⇒ mỗi lần mở lại bắt đầu từ bước 1.
+  useEffect(() => {
+    if (visible) setStep(0)
+  }, [visible])
   const last = step >= ORAL_GUIDE_STEPS.length - 1
   const cur = ORAL_GUIDE_STEPS[Math.min(step, ORAL_GUIDE_STEPS.length - 1)]
 
