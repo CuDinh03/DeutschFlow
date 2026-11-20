@@ -20,8 +20,11 @@ export interface ServerDraft {
   sectionIndex: number | null
   questionIndex: number | null
   version: number
-  /** Câu đánh dấu của bản trên server (B3); `undefined` khi server không gửi. */
-  flags?: string[]
+  /**
+   * Câu đánh dấu của bản trên server (B3). Server BỎ trường `flags` khi danh sách rỗng, nên vắng
+   * trường ⇒ `[]` (máy khác đã bỏ hết cờ) chứ không phải "giữ cờ cũ".
+   */
+  flags: string[]
 }
 
 export type DraftSaveResult =
@@ -181,9 +184,7 @@ export function classifyDraftSaveError(status: number, data: unknown): DraftSave
           sectionIndex: typeof rawDraft.section_index === 'number' ? rawDraft.section_index : null,
           questionIndex: typeof rawDraft.question_index === 'number' ? rawDraft.question_index : null,
           version: typeof rawDraft.version === 'number' ? rawDraft.version : serverVersion,
-          ...(Array.isArray(rawDraft.flags)
-            ? { flags: (rawDraft.flags as unknown[]).filter((x): x is string => typeof x === 'string') }
-            : {}),
+          flags: parseDraftFlags(rawDraft.flags),
         }
       : null
     return { kind: 'conflict', serverVersion: Number.isFinite(serverVersion) ? serverVersion : 0, draft }
@@ -198,6 +199,14 @@ export function classifyDraftSaveError(status: number, data: unknown): DraftSave
 export function resyncCountdown(localSeconds: number, serverSeconds: number, toleranceSeconds = 5): number {
   if (!Number.isFinite(serverSeconds) || serverSeconds < 0) return localSeconds
   return Math.abs(localSeconds - serverSeconds) > toleranceSeconds ? serverSeconds : localSeconds
+}
+
+/**
+ * Danh sách cờ "xem lại" từ server (`/start` và thân 409). Server bỏ trường khi rỗng ⇒ vắng/sai kiểu
+ * đều là `[]`; lọc phần tử không phải chuỗi hoặc rỗng.
+ */
+export function parseDraftFlags(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && x !== '') : []
 }
 
 /** Parses a draft answers_json string into the runner's answer map (defensive on shape). */
