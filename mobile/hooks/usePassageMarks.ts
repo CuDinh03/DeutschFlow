@@ -1,42 +1,125 @@
-// Đánh dấu bài đọc của một Teil luyện (Đợt 4c, 19/11/2026) — tải gói đã lưu (web hoặc app), áp bút, tự
-// lưu sau 0,8 giây ngưng chạm; app xuống nền hoặc rời màn thì lưu ngay. Tải lỗi thì KHÔNG cho tô (tô trên
-// gói rỗng rồi lưu là xoá mất đánh dấu đã làm trên web), chỉ cho thử lại.
+// Bút đánh dấu của một Teil (Đợt 4c 19/11, mở rộng Đợt 4f 20/11/2026) — bản app của `usePassageMarks` web.
+// Nơi lưu: luyện Teil (`/mock-exams/practice/{examId}/teile/{key}/marks`, bài chẩn đoán dùng chung) hoặc
+// một lượt thi thử (`/mock-exams/attempts/{attemptId}/teile/{key}/marks`). Tải gói đã lưu (web hoặc app),
+// áp bút, hoàn tác, ẩn tạm; lưu qua `createMarksSaver` (lib/marksSaver.ts: hẹn giờ, nối đuôi, phân loại
+// lỗi). Tải lỗi thì KHÔNG cho tô (tô trên gói rỗng rồi lưu là xoá mất đánh dấu đã làm trên web).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState } from 'react-native'
-import { getPracticeMarks, savePracticeMarks } from '@/lib/telcPracticeApi'
-import { applyPen, CONTEXT_BLOCK, dropStale, emptyPack, MAX_MARKS, parsePack, type MarksPack, type Pen, type Piece } from '@/lib/passageMarks'
+import { getAttemptMarks, getPracticeMarks, saveAttemptMarks, savePracticeMarks } from '@/lib/telcPracticeApi'
+import { applyPen, dropStale, emptyPack, isStruck, MAX_MARKS, parsePack, setStruck, type MarksPack, type Pen, type Piece } from '@/lib/passageMarks'
+import { createMarksSaver, createUndoStack, type MarksSaver, type MarksSaveState } from '@/lib/marksSaver'
 
-export const MARKS_AUTOSAVE_MS = 800
+export { MARKS_AUTOSAVE_MS, type MarksSaveState } from '@/lib/marksSaver'
 
 export type MarksStatus = 'off' | 'loading' | 'ready' | 'error'
 
-export function usePassageMarks({ examId, teilKey, context }: { examId: number; teilKey: string; context: string | null }) {
+/** Nơi lưu gói: luyện Teil (một gói / người × đề × Teil) hoặc một lượt thi thử (một gói / lượt × Teil). */
+export type MarksSource =
+  | { kind: 'practice'; examId: number; teilKey: string }
+  | { kind: 'attempt'; attemptId: number; teilKey: string }
+
+function sourceKeyOf(s: MarksSource | null): string {
+  if (!s) return ''
+  return s.kind === 'practice' ? `p:${s.examId}:${s.teilKey}` : `a:${s.attemptId}:${s.teilKey}`
+}
+
+function load(s: MarksSource) {
+  return s.kind === 'practice' ? getPracticeMarks(s.examId, s.teilKey) : getAttemptMarks(s.attemptId, s.teilKey)
+}
+
+function save(s: MarksSource, pack: MarksPack) {
+  return s.kind === 'practice' ? savePracticeMarks(s.examId, s.teilKey, pack) : saveAttemptMarks(s.attemptId, s.teilKey, pack)
+}
+
+const NO_STRIKE: Record<string, string[]> = {}
+
+/** Lớp đánh dấu truyền xuống thân Teil (`ObjGroupView` nhận qua props — thân Teil không gọi hook). */
+export interface MarksLayer {
+  pack: MarksPack
+  /** Chữ từng khối của Teil (`lib/marksBlocks.marksTexts`). */
+  texts: Record<string, string>
+  status: MarksStatus
+  pen: Pen
+  setPen: (pen: Pen) => void
+  /** Ẩn tạm mọi đánh dấu để đọc lại bài sạch (không lưu). */
+  hidden: boolean
+  setHidden: (v: boolean) => void
+  /** Lúc tải có khối đã đổi chữ ⇒ đánh dấu của khối đó bị bỏ (báo một dòng). */
+  dropped: boolean
+  saveState: MarksSaveState
+  /** Lần chạm vừa rồi không áp được vì đã đủ giới hạn đánh dấu của server. */
+  full: boolean
+  canUndo: boolean
+  undo: () => void
+  retry: () => void
+  /** Áp bút đang chọn lên một câu. */
+  tap: (piece: Piece) => void
+  isStruck: (itemId: string, opt: string) => boolean
+  /** Phương án này gạch bỏ được không (luật server: câu có `options` riêng dạng đối tượng). */
+  canStrike: (itemId: string, opt: string) => boolean
+  /** Gạch bỏ / bỏ gạch một phương án. */
+  toggleStrike: (itemId: string, opt: string) => void
+  /** Lưu ngay phần chưa lưu (rời màn). */
+  flush: () => Promise<void>
+}
+
+export function usePassageMarks({
+  source,
+  texts,
+  strike = NO_STRIKE,
+}: {
+  source: MarksSource | null
+  texts: Record<string, string>
+  /** Phương án gạch bỏ được theo câu (`lib/marksBlocks.strikeOptions`). */
+  strike?: Record<string, string[]>
+}): MarksLayer {
+  const key = sourceKeyOf(source)
   const [pack, setPack] = useState<MarksPack>(emptyPack)
-  const [status, setStatus] = useState<MarksStatus>(context ? 'loading' : 'off')
+  const [status, setStatus] = useState<MarksStatus>(source ? 'loading' : 'off')
   const [dropped, setDropped] = useState(false)
-  const [saveFailed, setSaveFailed] = useState(false)
+  const [saveState, setSaveState] = useState<MarksSaveState>('idle')
+  const [pen, setPen] = useState<Pen>('y')
+  const [hidden, setHidden] = useState(false)
+  const [full, setFull] = useState(false)
+  const [undoDepth, setUndoDepth] = useState(0)
   const [attempt, setAttempt] = useState(0)
+  const undoStack = useRef(createUndoStack<MarksPack>())
   const latest = useRef(pack)
-  const dirty = useRef(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const texts = useMemo(() => {
-    const out: Record<string, string> = {}
-    if (context) out[CONTEXT_BLOCK] = context
-    return out
-  }, [context])
+  const saver = useRef<MarksSaver<MarksPack> | null>(null)
+  const sourceRef = useRef(source)
+  sourceRef.current = source
+  const textsRef = useRef(texts)
+  textsRef.current = texts
+
+  // Một bộ lưu cho mỗi nguồn; đổi nguồn / rời màn thì lưu nốt vào nguồn cũ rồi đóng.
+  useEffect(() => {
+    const src = sourceRef.current
+    if (!src) return
+    const s = createMarksSaver<MarksPack>({ save: (p) => save(src, p), onState: setSaveState })
+    saver.current = s
+    setSaveState('idle')
+    return () => {
+      if (saver.current === s) saver.current = null
+      void s.close()
+    }
+  }, [key])
 
   useEffect(() => {
-    if (!context || !Number.isFinite(examId)) {
+    undoStack.current.clear()
+    setUndoDepth(0)
+    setFull(false)
+    const src = sourceRef.current
+    if (!src) {
       setStatus('off')
       return
     }
     let alive = true
     setStatus('loading')
-    getPracticeMarks(examId, teilKey)
+    load(src)
       .then((res) => {
         if (!alive) return
-        const fresh = dropStale(parsePack(res?.marks), { [CONTEXT_BLOCK]: context })
+        const fresh = dropStale(parsePack(res?.marks), textsRef.current)
         latest.current = fresh.pack
         setPack(fresh.pack)
         setDropped(fresh.dropped)
@@ -48,63 +131,91 @@ export function usePassageMarks({ examId, teilKey, context }: { examId: number; 
     return () => {
       alive = false
     }
-  }, [examId, teilKey, context, attempt])
+  }, [key, attempt])
 
-  // Lưu NỐI ĐUÔI: đang có một PUT bay thì chỉ đánh dấu bẩn, xong lượt này mới lưu tiếp — hai PUT chồng
-  // nhau mà tới server sai thứ tự thì gói cũ thắng (server ghi đè cả gói).
-  const saving = useRef(false)
   const flush = useCallback(async () => {
-    if (timer.current) {
-      clearTimeout(timer.current)
-      timer.current = null
-    }
-    if (saving.current || !dirty.current) return
-    saving.current = true
-    try {
-      while (dirty.current) {
-        dirty.current = false
-        try {
-          await savePracticeMarks(examId, teilKey, latest.current)
-          setSaveFailed(false)
-        } catch {
-          dirty.current = true
-          setSaveFailed(true)
-          break
-        }
-      }
-    } finally {
-      saving.current = false
-    }
-  }, [examId, teilKey])
+    await saver.current?.flush()
+  }, [])
 
-  /** Áp bút lên một câu. Trả `false` khi chưa áp được (chưa tải xong, hoặc đã đủ giới hạn đánh dấu). */
-  const apply = useCallback(
-    (piece: Piece, pen: Pen): boolean => {
-      if (status !== 'ready') return false
-      const next = applyPen(latest.current, texts, piece, pen)
+  const commit = useCallback((next: MarksPack) => {
+    const cur = latest.current
+    if (next === cur) return
+    undoStack.current.push(cur)
+    setUndoDepth(undoStack.current.depth())
+    latest.current = next
+    setPack(next)
+    saver.current?.change(next)
+  }, [])
+
+  const editable = status === 'ready' && !hidden
+
+  const tap = useCallback(
+    (piece: Piece) => {
+      if (!editable) return
+      const cur = latest.current
+      const next = applyPen(cur, textsRef.current, piece, pen)
       // Chặn theo gói MỚI: một lần chạm có thể tách mảnh (+1) và thêm mảnh (+1) ⇒ vượt 300, server trả 400.
-      if (next.marks.length > latest.current.marks.length && next.marks.length > MAX_MARKS) return false
-      latest.current = next
-      setPack(next)
-      dirty.current = true
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => void flush(), MARKS_AUTOSAVE_MS)
-      return true
+      const over = next.marks.length > cur.marks.length && next.marks.length > MAX_MARKS
+      setFull(over)
+      if (!over) commit(next)
     },
-    [status, texts, flush],
+    [editable, pen, commit],
   )
+
+  const canStrike = useCallback((itemId: string, opt: string) => strike[itemId]?.includes(opt) ?? false, [strike])
+
+  const toggleStrike = useCallback(
+    (itemId: string, opt: string) => {
+      // Như `tap`: đang ẩn đánh dấu thì không sửa gì (gạch bỏ cũng là đánh dấu).
+      if (!editable || !canStrike(itemId, opt)) return
+      const cur = latest.current
+      commit(setStruck(cur, itemId, opt, !isStruck(cur, itemId, opt)))
+    },
+    [editable, canStrike, commit],
+  )
+
+  const undo = useCallback(() => {
+    if (!editable) return
+    const prev = undoStack.current.pop()
+    setUndoDepth(undoStack.current.depth())
+    if (!prev) return
+    latest.current = prev
+    setPack(prev)
+    setFull(false)
+    saver.current?.change(prev)
+  }, [editable])
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
       if (s !== 'active') void flush()
     })
-    return () => {
-      sub.remove()
-      void flush()
-    }
+    return () => sub.remove()
   }, [flush])
 
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
+  const struck = useCallback((itemId: string, opt: string) => isStruck(pack, itemId, opt), [pack])
 
-  return { pack, status, dropped, saveFailed, apply, flush, retry }
+  return useMemo(
+    () => ({
+      pack,
+      texts,
+      status,
+      pen,
+      setPen,
+      hidden,
+      setHidden,
+      dropped,
+      saveState,
+      full,
+      canUndo: undoDepth > 0,
+      undo,
+      retry,
+      tap,
+      isStruck: struck,
+      canStrike,
+      toggleStrike,
+      flush,
+    }),
+    [pack, texts, status, pen, hidden, dropped, saveState, full, undoDepth, undo, retry, tap, struck, canStrike, toggleStrike, flush],
+  )
 }

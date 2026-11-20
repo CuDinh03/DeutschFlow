@@ -215,6 +215,22 @@ export async function savePracticeMarks(examId: number, teilKey: string, marks: 
   return data
 }
 
+/** Đánh dấu bài đọc theo lượt thi thử (một gói / lượt × Teil, như web — `MockExamAttemptMarksController`). */
+export function attemptMarksPath(attemptId: number, teilKey: string): string {
+  return `/mock-exams/attempts/${attemptId}/teile/${teilKey}/marks`
+}
+
+export async function getAttemptMarks(attemptId: number, teilKey: string): Promise<PracticeMarks> {
+  const { data } = await api.get<PracticeMarks>(attemptMarksPath(attemptId, teilKey))
+  return data
+}
+
+/** Ghi đè cả gói. 409 = lượt đã huỷ. */
+export async function saveAttemptMarks(attemptId: number, teilKey: string, marks: unknown): Promise<PracticeMarks> {
+  const { data } = await api.put<PracticeMarks>(attemptMarksPath(attemptId, teilKey), { marks })
+  return data
+}
+
 /** Gửi bài Viết rồi chờ AI chấm xong (job nền, tối đa 3 phút như web). */
 export async function gradePracticeWriting(examId: number, text: string, elapsedSeconds: number): Promise<WritingEvaluation> {
   const { data } = await api.post<{ jobId: string }>(`/mock-exams/practice/${examId}/schreiben`, { text, elapsedSeconds })

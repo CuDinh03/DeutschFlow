@@ -11,15 +11,13 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { apiMessage } from '@/lib/api'
 import { space, useTheme } from '@/lib/theme'
 import { AppHeader, Button, Card, EmptyState, ErrorState, Screen, Skeleton, ThemedText } from '@/components/ui'
-import { ObjGroupView, WritingTaskView } from '@/components/exam/ExamTeilBody'
+import { WritingTaskView } from '@/components/exam/ExamTeilBody'
+import { MarkedObjGroup } from '@/components/exam/MarkedObjGroup'
 import { WritingResultCard } from '@/components/exam/WritingResultCard'
 import type { HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { parseExamSections, type ExamObjItem } from '@/lib/examApi'
 import { askPracticeItemAi, checkPracticeTeil, getPracticeOverview, gradePracticeWriting, resetPracticeTeil, type PracticeOverview, type PracticeProgress, type PracticeTeilResult, type WritingEvaluation } from '@/lib/telcPracticeApi'
-import { normalizeBlock, teilContext } from '@/lib/passageMarks'
-import { MarkablePassage } from '@/components/exam/MarkablePassage'
 import { AskAiPanel, MyNote, NoteField } from '@/components/exam/ItemAssist'
-import { usePassageMarks } from '@/hooks/usePassageMarks'
 import { useLeitpunktChecks } from '@/hooks/useLeitpunktChecks'
 import { stopExamTts } from '@/lib/examTts'
 import { answeredCount, formatClock, locateTeil, nextTeilKey, objectiveResult, practiceOverviewKey, scoreSummary, teilTitle, WRITING_TEXT_KEY, writingResult } from '@/lib/practiceTeil'
@@ -76,15 +74,6 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   )
   const draft = usePracticeDraft({ examId, teilKey, enabled: loaded && !checked, latest, onSaved })
 
-  // Bài đọc có bút đánh dấu (như web): chỉ khi luyện Teil Lesen (không ở bài chẩn đoán) và bài đọc trên
-  // màn đúng là `teil.context` — khối `ctx` mà server kiểm vị trí.
-  const markContext = useMemo(() => {
-    if (diag || located?.kind !== 'objective' || located.section !== 'LESEN' || !located.group.passage) return null
-    const ctx = teilContext(overview?.sectionsJson, teilKey)
-    return ctx && ctx === normalizeBlock(located.group.passage) ? ctx : null
-  }, [diag, located, overview?.sectionsJson, teilKey])
-  const marks = usePassageMarks({ examId, teilKey, context: markContext })
-  const flushMarks = marks.flush
   // Ô "đã viết ý này" của bài Viết — chỉ lưu trên máy.
   const leitpunkte = useLeitpunktChecks(examId, teilKey, !diag && located?.kind === 'writing' ? located.task.points : undefined)
 
@@ -124,9 +113,8 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
         stopExamTts()
         setPhase((ph) => (ph === 'ready' ? ph : 'idle'))
         void draft.flush()
-        void flushMarks()
       }
-    }, [draft, flushMarks]),
+    }, [draft]),
   )
   /** Chế độ chẩn đoán xong một phần thì về màn bài chẩn đoán — chỉ khi học viên còn ở màn này. */
   const backToDiagnostic = () => {
@@ -145,7 +133,11 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
 
   const setAnswer = (id: string, value: string) => {
     if (checked) return
-    const next = { ...answers, [id]: value }
+    // Nối từ bản mới nhất (không từ `answers` của lần vẽ): Lesen 1 "chuyển" tiêu đề gọi hai lần liền
+    // (bỏ ở đoạn cũ rồi gắn đoạn mới). Giá trị rỗng = bỏ chọn ⇒ xoá khoá.
+    const next = { ...latest.current.answers }
+    if (value) next[id] = value
+    else delete next[id]
     setAnswers(next)
     latest.current = snapshot(next, seconds, notes)
     draft.schedule()
@@ -259,24 +251,6 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
       </View>
     )
   }
-  const markablePassage =
-    markContext && located?.kind === 'objective' ? (
-      <MarkablePassage
-        context={markContext}
-        title={located.group.passageTitle}
-        vorspann={located.group.vorspann}
-        numbered={located.group.passageLines === true}
-        glossary={located.group.glossary}
-        quelle={located.group.quelle}
-        pack={marks.pack}
-        status={marks.status}
-        dropped={marks.dropped}
-        saveFailed={marks.saveFailed}
-        onApply={marks.apply}
-        onRetry={marks.retry}
-      />
-    ) : null
-
   return (
     <Screen edges={['top']}>
       <AppHeader title={teilTitle(teilKey)} subtitle={diag ? 'Bài chẩn đoán' : overview?.title} onBack={goBack} />
@@ -315,7 +289,10 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
           ) : null}
 
           {located.kind === 'objective' ? (
-            <ObjGroupView
+            // Bút đánh dấu như web: Lesen 1/2/3 + Sprachbausteine, cả bài chẩn đoán (lưu cùng chỗ luyện Teil).
+            <MarkedObjGroup
+              marksSource={{ kind: 'practice', examId, teilKey }}
+              sectionsJson={overview?.sectionsJson}
               group={located.group}
               section={located.section}
               format={parsed?.format}
@@ -327,8 +304,8 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
               review={review}
               unlimitedPlays={checked}
               hideStrategy={diag}
-              passageOverride={markablePassage}
               renderItemExtra={itemExtra}
+              hideTitle
             />
           ) : evaluation ? (
             <WritingResultCard evaluation={evaluation} essay={answers[WRITING_TEXT_KEY]} />

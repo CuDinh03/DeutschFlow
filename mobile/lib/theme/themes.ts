@@ -62,6 +62,9 @@ export interface ThemeColors {
   overlay: string
   skeletonBase: string
   skeletonHighlight: string
+  // Kính (khay, tấm nổi trên BlurView): lớp tô trắng mờ của tấm và của dòng trong tấm.
+  glassFill: string
+  glassFillStrong: string
 }
 
 export interface Theme {
@@ -114,6 +117,8 @@ export const lightColors: ThemeColors = {
   onInk: '#FAF9F6',
   onInkMuted: 'rgba(255,255,255,0.68)',
   overlay: 'rgba(23,22,21,0.45)',
+  glassFill: 'rgba(255,255,255,0.72)',
+  glassFillStrong: 'rgba(255,255,255,0.78)',
   skeletonBase: '#EFEAE1',
   skeletonHighlight: '#F7F4EE',
 }

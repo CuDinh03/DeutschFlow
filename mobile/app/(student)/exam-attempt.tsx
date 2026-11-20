@@ -7,7 +7,8 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Button, AppHeader, EmptyState, ErrorState, Skeleton, GaGlyph } from '@/components/ui'
 import { attemptTotalScore, finishPayload, isAttemptAlreadyFinished, parseExamSections, skippedSectionsLabel, type AttemptResultDto, type ExamBudget, type ExamGate } from '@/lib/examApi'
 import type { HoerenGatePhase } from '@/components/exam/HoerenGate'
-import { ObjGroupView, WritingTaskView } from '@/components/exam/ExamTeilBody'
+import { WritingTaskView } from '@/components/exam/ExamTeilBody'
+import { MarkedObjGroup } from '@/components/exam/MarkedObjGroup'
 import { MockRunBar, SaveStatus, type TeilChip } from '@/components/exam/mock/MockRunBar'
 import { MockResultView } from '@/components/exam/mock/MockResultView'
 import { MockStoppedView } from '@/components/exam/mock/MockStoppedView'
@@ -452,7 +453,13 @@ function ExamAttemptRunner() {
 
   const onAnswer = useCallback((id: string, val: string) => {
     touchedRef.current = true
-    setAnswers((prev) => ({ ...prev, [id]: val }))
+    // Giá trị rỗng = bỏ chọn (Lesen 1 chuyển tiêu đề sang đoạn khác) ⇒ xoá khoá, không gửi đáp án rỗng.
+    setAnswers((prev) => {
+      const next = { ...prev }
+      if (val) next[id] = val
+      else delete next[id]
+      return next
+    })
   }, [])
 
   const onToggleFlag = useCallback((id: string) => {
@@ -689,7 +696,12 @@ function ExamAttemptRunner() {
               for (const it of group.items) blockOfItemRef.current[it.id] = blockKey
               return (
                 <View key={gi} onLayout={(e) => { blockYRef.current[blockKey] = { section: section.name, y: e.nativeEvent.layout.y } }}>
-                  <ObjGroupView
+                  {/* Bút đánh dấu theo lượt (như web): màu, gạch chân, gạch bỏ phương án; key theo Teil để gói
+                      đánh dấu không lẫn khi đề đổi thứ tự. */}
+                  <MarkedObjGroup
+                    key={blockKey}
+                    marksSource={Number.isFinite(attemptId) ? { kind: 'attempt', attemptId, teilKey: blockKey } : null}
+                    sectionsJson={data?.sections_json}
                     group={group}
                     section={section.name}
                     format={parsed.format}
