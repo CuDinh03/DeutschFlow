@@ -2,8 +2,8 @@
 // thi thử `exam-attempt.tsx` (19/11/2026) để màn luyện từng Teil (`exam-teil.tsx`) và bài chẩn đoán
 // dùng lại đúng một chỗ dựng cho mọi dạng bài telc. Sau khi kiểm tra, `review` tô đúng/sai từng câu.
 
-import { TextInput, View } from 'react-native'
-import { Check, X } from 'lucide-react-native'
+import { Pressable, TextInput, View } from 'react-native'
+import { Check, Flag, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, Icon, SelectableRow, ThemedText } from '@/components/ui'
 import { itemChoices, NONE_OF_THEM, type ExamObjGroup, type ExamObjItem, type ExamWritingTask } from '@/lib/examApi'
@@ -30,6 +30,11 @@ interface ObjGroupViewProps {
   unlimitedPlays?: boolean
   /** Ẩn thẻ chiến thuật (bài chẩn đoán làm như thi thật). */
   hideStrategy?: boolean
+  /** Thi thử: câu đã "đánh dấu xem lại" (chung với web). Không truyền ⇒ không có nút cờ. */
+  flags?: readonly string[]
+  onToggleFlag?: (itemId: string) => void
+  /** Vị trí từng câu trong Teil (để nhảy tới câu đánh dấu). */
+  onItemLayout?: (itemId: string, y: number) => void
 }
 
 export function ObjGroupView({
@@ -44,6 +49,9 @@ export function ObjGroupView({
   review,
   unlimitedPlays = false,
   hideStrategy = false,
+  flags,
+  onToggleFlag,
+  onItemLayout,
 }: ObjGroupViewProps) {
   const c = useTheme().colors
   const phase = review ? 'ready' : gatePhase
@@ -133,7 +141,7 @@ export function ObjGroupView({
 
       {!hideBody &&
         group.items.map((item) => (
-          <View key={item.id} style={{ gap: space[2] }}>
+          <View key={item.id} style={{ gap: space[2] }} onLayout={onItemLayout ? (e) => onItemLayout(item.id, e.nativeEvent.layout.y) : undefined}>
             {item.audio ? <ExamAudio script={item.audio} label={item.question} maxPlays={plays} locked={audioLocked} compact /> : null}
             <QuestionCard
               item={item}
@@ -143,6 +151,8 @@ export function ObjGroupView({
               onSelect={(val) => onAnswer(item.id, val)}
               result={review?.get(item.id)}
               reviewing={!!review}
+              flagged={flags ? flags.includes(item.id) : undefined}
+              onToggleFlag={onToggleFlag ? () => onToggleFlag(item.id) : undefined}
             />
           </View>
         ))}
@@ -237,6 +247,8 @@ function QuestionCard({
   onSelect,
   result,
   reviewing = false,
+  flagged,
+  onToggleFlag,
 }: {
   item: ExamObjItem
   /** Teil chứa câu này — cần cho luật "mỗi lựa chọn một lần" của đề telc. */
@@ -247,6 +259,9 @@ function QuestionCard({
   result?: PracticeItemResult
   /** Đang xem kết quả: không chọn lại được, nhưng không làm mờ hay đọc "(đã dùng)". */
   reviewing?: boolean
+  /** Thi thử: câu có cờ "xem lại"; `undefined` ⇒ không có nút cờ. */
+  flagged?: boolean
+  onToggleFlag?: () => void
 }) {
   const { colors } = useTheme()
   // Giá trị nộp tách khỏi nhãn: trắc nghiệm options object nộp chữ cái A/B/C (AC-MOBFIX-03).
@@ -275,7 +290,14 @@ function QuestionCard({
           </ThemedText>
         </View>
       ) : null}
-      <ThemedText variant="title" accessibilityLanguage="de-DE">{item.question}</ThemedText>
+      {onToggleFlag ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+          <ThemedText variant="title" accessibilityLanguage="de-DE" style={{ flex: 1 }}>{item.question}</ThemedText>
+          <FlagToggle on={!!flagged} onPress={onToggleFlag} />
+        </View>
+      ) : (
+        <ThemedText variant="title" accessibilityLanguage="de-DE">{item.question}</ThemedText>
+      )}
       <View style={{ gap: space[2] }}>
         {allChoices.map((choice) => {
           const mark = result ? (same(choice.value, result.correct) ? 'right' : same(choice.value, result.given) ? 'wrong' : null) : null
@@ -401,5 +423,32 @@ function Choice({
         {label}
       </ThemedText>
     </SelectableRow>
+  )
+}
+
+/** Cờ "đánh dấu xem lại" của một câu thi thử (mẫu `mockrun`): bật thì nền vàng nhạt, viền cam. */
+function FlagToggle({ on, onPress }: { on: boolean; onPress: () => void }) {
+  const { colors } = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={on ? 'Bỏ đánh dấu xem lại' : 'Đánh dấu xem lại'}
+      accessibilityState={{ selected: on }}
+      hitSlop={4}
+      style={({ pressed }) => ({
+        width: 36,
+        height: 36,
+        borderRadius: radius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: on ? 2 : 1,
+        borderColor: on ? colors.orange : colors.border,
+        backgroundColor: on ? colors.accentSoft : colors.surface,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Icon icon={Flag} size={18} color={on ? 'primary' : 'muted'} />
+    </Pressable>
   )
 }

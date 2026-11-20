@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, AppState, View } from 'react-native'
+import { ActivityIndicator, Alert, AppState, StyleSheet, View, type ScrollView } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useFocusEffect, useLocalSearchParams, useNavigation, type Href } from 'expo-router'
 import api, { apiMessage } from '@/lib/api'
@@ -10,6 +10,11 @@ import type { HoerenGatePhase } from '@/components/exam/HoerenGate'
 import { ObjGroupView, WritingTaskView } from '@/components/exam/ExamTeilBody'
 import { MockRunBar, SaveStatus, type TeilChip } from '@/components/exam/mock/MockRunBar'
 import { MockResultView } from '@/components/exam/mock/MockResultView'
+import { MockStoppedView } from '@/components/exam/mock/MockStoppedView'
+import { FlaggedNav } from '@/components/exam/mock/FlaggedNav'
+import { useSpotlightScrollHost } from '@/components/guide/spotlightScrollHost'
+import { flaggedEntries } from '@/lib/mockFlags'
+import { stopPreview, stopPreviewMessage, stopResultFromDetailed, touchedAny, type RunTeil, type StopResult } from '@/lib/mockStop'
 import { pollAsyncJob, AsyncJobFailedError, AsyncJobTimeoutError } from '@/lib/asyncJobs'
 import { trackFeatureAction } from '@/lib/analytics'
 import { useHardwareBack } from '@/hooks/useHardwareBack'
@@ -17,11 +22,13 @@ import { PARENT_OF } from '@/lib/screenParents'
 import { parseDraftAnswers, takeAttemptDraft, takeAttemptStart } from '@/lib/attemptDraft'
 import { answeredCount as groupAnswered } from '@/lib/practiceTeil'
 import { asHref, oralRoute } from '@/lib/examRoutes'
-import { saveAttemptDraft } from '@/lib/mockAttemptApi'
+import { saveAttemptDraft, stopAttempt } from '@/lib/mockAttemptApi'
+import { stopExamTts } from '@/lib/examTts'
 import {
   anchorFromServer,
   createDraftAutosaver,
   mergeConflict,
+  mergeFlags,
   nextStage,
   rawSectionNames,
   resumeStage,
@@ -32,6 +39,7 @@ import {
   stageOf,
   stagesIn,
   teilChipLabel,
+  toggleFlag,
   unansweredCount,
   type ClockAnchor,
   type DraftAutosaver,
@@ -87,12 +95,31 @@ function ExamAttemptRunner() {
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [stagePicked, setStagePicked] = useState<number | null>(null)
   const [focused, setFocused] = useState(true)
+  // Cờ "đánh dấu xem lại" (V374) — lưu cùng nháp như web, nên đánh dấu trên web thì app thấy.
+  const [flags, setFlags] = useState<string[]>(() => start?.flags ?? [])
+  // Dừng giữa chừng (Đợt 4e): đang gọi /stop, và kết quả khi đã dừng.
+  const [stopping, setStopping] = useState(false)
+  const [stopped, setStopped] = useState<StopResult | null>(null)
 
   const answersRef = useRef(answers)
   answersRef.current = answers
   // Bản server đã xác nhận gần nhất (gốc của phép gộp ba chiều khi lệch phiên bản) + bản đang gửi.
   const ackedRef = useRef<Record<string, string>>(answers)
   const sendingRef = useRef<Record<string, string> | null>(null)
+  const flagsRef = useRef(flags)
+  flagsRef.current = flags
+  const ackedFlagsRef = useRef<string[]>(flags)
+  const sendingFlagsRef = useRef<string[] | undefined>(undefined)
+  // Chỉ gửi `flags` khi đã biết cờ trên server (mở qua /start, hoặc 409 mang bản nháp) hoặc người học vừa
+  // đổi cờ — không thì gửi mảng rỗng sẽ xoá cờ đã đặt trên web. Server BỎ trường `flags` khi không có cờ
+  // nào (`MockExamDraftService.parseFlags` trả null cho mảng rỗng), nên vắng = rỗng.
+  const flagsKnownRef = useRef(start != null)
+  // Vị trí trong ScrollView để nhảy tới Teil / câu đánh dấu: phần → nhóm/Teil → câu.
+  const scrollHostRef = useRef<ScrollView | null>(null)
+  const sectionYRef = useRef<Record<string, number>>({})
+  const blockYRef = useRef<Record<string, { section: string; y: number }>>({})
+  const itemYRef = useRef<Record<string, { block: string; y: number }>>({})
+  const blockOfItemRef = useRef<Record<string, string>>({})
   const saverRef = useRef<DraftAutosaver | null>(null)
   // Đang nộp (từ lúc bấm, kể cả lúc chờ lưu nốt nháp): chặn bấm nộp lần hai và tự nộp.
   const finishingRef = useRef(false)
@@ -130,7 +157,7 @@ function ExamAttemptRunner() {
   const answeredCount = Object.keys(answers).filter((k) => (answers[k] ?? '').trim().length > 0).length
   // Đúng những phần đề NÀY có mà app không dựng được — không phải câu liệt kê cứng "Nghe/Viết/Nói".
   const skippedLabel = skippedSectionsLabel(parsed?.skippedSections ?? [])
-  const finished = score != null || finishAccepted
+  const finished = score != null || finishAccepted || stopped != null
   const inProgress = !finished && !!parsed && parsed.sections.length > 0
   const remaining = serverExpired ? 0 : secondsLeft(clock, nowMs)
 
@@ -138,6 +165,20 @@ function ExamAttemptRunner() {
   const showExistingResult = useCallback(async () => {
     try {
       const res = await api.get<AttemptResultDto>(`/mock-exams/attempts/${attemptId}/result`)
+      // Lượt bị huỷ ở nơi khác (dừng khi chưa làm câu nào): không có kết quả để hiện.
+      if (res.data.status === 'CANCELLED') {
+        Alert.alert('Lượt thi đã huỷ', 'Lượt này đã được dừng ở nơi khác khi chưa có câu nào, nên không có điểm.', [
+          { text: 'Đã hiểu', onPress: () => router.navigate(PARENT_OF['exam-attempt']) },
+        ])
+        return
+      }
+      // Lượt đã "Dừng giữa chừng" ở nơi khác: không có tổng điểm — hiện điểm từng Teil, đừng hiện "0 điểm".
+      if (res.data.status === 'PARTIAL') {
+        setStopped(stopResultFromDetailed(attemptId, res.data.detailed_scores_json) ?? {
+          attemptId, status: 'PARTIAL', alreadyClosed: true, teileDone: null, teileCounted: null, teileTotal: null, teile: [],
+        })
+        return
+      }
       setResult(res.data)
       setGates(res.data.gates)
       setBudget(res.data.budget)
@@ -161,10 +202,12 @@ function ExamAttemptRunner() {
         // Đang nộp: KHÔNG giả "đã lưu" (nộp lỗi thì hộp Tạm rời sẽ báo sai là đã lưu) — coi như chưa lưu.
         if (submittingRef.current) return Promise.resolve({ kind: 'error' as const })
         sendingRef.current = payload.answers
+        sendingFlagsRef.current = payload.flags
         return saveAttemptDraft(attemptId, payload, base)
       },
       onSaved: ({ clock: body }) => {
         if (sendingRef.current) ackedRef.current = sendingRef.current
+        if (sendingFlagsRef.current) ackedFlagsRef.current = sendingFlagsRef.current
         // Mỗi lần lưu kéo đồng hồ về sự thật của server.
         const a = anchorFromServer(body, Date.now())
         if (a) setClock(a)
@@ -178,7 +221,21 @@ function ExamAttemptRunner() {
         ackedRef.current = serverAnswers
         answersRef.current = merged
         setAnswers(merged)
-        saver.notifyChange({ answers: merged, sectionIndex: sectionIndexRef.current })
+        // Cờ gộp cùng luật. Có bản nháp mà vắng `flags` = server không còn cờ nào (web vừa bỏ hết).
+        let mergedFlags = flagsRef.current
+        if (draft) {
+          const serverFlags = draft.flags ?? []
+          mergedFlags = mergeFlags(flagsRef.current, serverFlags, ackedFlagsRef.current)
+          ackedFlagsRef.current = serverFlags
+          flagsKnownRef.current = true
+          flagsRef.current = mergedFlags
+          setFlags(mergedFlags)
+        }
+        saver.notifyChange({
+          answers: merged,
+          sectionIndex: sectionIndexRef.current,
+          ...(flagsKnownRef.current ? { flags: mergedFlags } : {}),
+        })
       },
       onExpired: () => setServerExpired(true),
       onClosed: () => {
@@ -196,8 +253,8 @@ function ExamAttemptRunner() {
 
   useEffect(() => {
     if (!touchedRef.current || finished) return
-    saverRef.current?.notifyChange({ answers, sectionIndex })
-  }, [answers, sectionIndex, finished])
+    saverRef.current?.notifyChange({ answers, sectionIndex, ...(flagsKnownRef.current ? { flags } : {}) })
+  }, [answers, sectionIndex, flags, finished])
 
   // App xuống nền: lưu ngay (iOS chỉ cho vài giây). Lên lại: cập nhật đồng hồ ngay, không chờ nhịp.
   useEffect(() => {
@@ -235,6 +292,7 @@ function ExamAttemptRunner() {
     if (finishingRef.current) return
     if (!opts?.auto && answeredCount === 0) return
     finishingRef.current = true
+    stopExamTts()
     setSubmitting(true)
     try {
       // Lưu nốt nháp (và chờ lần lưu đang bay) TRƯỚC khi chặn lưu, để không có PATCH đua với /finish và
@@ -368,8 +426,16 @@ function ExamAttemptRunner() {
     if (inProgress && !submitting) confirmLeave(leave)
     else leave()
   }, [inProgress, submitting, confirmLeave])
-  // Back cứng Android cũng qua hộp xác nhận rời bài (Tabs không có stack nên beforeRemove không bắn).
-  useHardwareBack(handleBack)
+  // Back cứng Android đi cùng đường với nút X (hộp Dừng / Tạm rời) khi đang thi; ngoài lúc thi thì như
+  // nút back. Tabs không có stack nên beforeRemove không bắn.
+  const requestExitRef = useRef<(() => void) | null>(null)
+  // Đặt lại mỗi lần render: chỉ màn đang thi (nhánh cuối) mới gán, các màn kết quả/đang tải không dùng bản cũ.
+  requestExitRef.current = null
+  const onHardwareBack = useCallback(() => {
+    if (requestExitRef.current) requestExitRef.current()
+    else handleBack()
+  }, [handleBack])
+  useHardwareBack(onHardwareBack)
 
   // Guard the swipe-back / hardware-back gesture too, not just the header button.
   useEffect(() => {
@@ -389,7 +455,80 @@ function ExamAttemptRunner() {
     setAnswers((prev) => ({ ...prev, [id]: val }))
   }, [])
 
+  const onToggleFlag = useCallback((id: string) => {
+    touchedRef.current = true
+    flagsKnownRef.current = true
+    setFlags((prev) => toggleFlag(prev, id))
+  }, [])
+
+  // ── nhảy tới Teil / câu ─────────────────────────────────────────────────────
+  const scrollToY = useCallback((y: number) => {
+    scrollHostRef.current?.scrollTo({ y: Math.max(0, y - space[3]), animated: true })
+  }, [])
+  const jumpToBlock = useCallback((key: string) => {
+    const b = blockYRef.current[key]
+    if (b) scrollToY((sectionYRef.current[b.section] ?? 0) + b.y)
+  }, [scrollToY])
+  const jumpToItem = useCallback((id: string) => {
+    const it = itemYRef.current[id]
+    const b = it ? blockYRef.current[it.block] : undefined
+    if (it && b) scrollToY((sectionYRef.current[b.section] ?? 0) + b.y + it.y)
+    // Câu đang ẩn (Teil nghe chưa bấm bắt đầu) không có vị trí: tới đầu Teil chứa nó.
+    else if (blockOfItemRef.current[id]) jumpToBlock(blockOfItemRef.current[id])
+  }, [scrollToY, jumpToBlock])
+
+  // ── dừng giữa chừng ─────────────────────────────────────────────────────────
+  // Như web (owner chốt 07/11/2026): server chấm theo Teil những Teil đã chạm, Viết dở không chấm, đồng hồ
+  // dừng; lượt ghi "Dừng giữa chừng". Chưa chạm câu nào ⇒ huỷ lượt (không vào lịch sử) rồi rời, không hỏi.
+  const leaveToParent = useCallback(() => {
+    allowLeaveRef.current = true
+    router.navigate(PARENT_OF['exam-attempt'])
+  }, [])
+
+  async function stopNow() {
+    if (finishingRef.current) return
+    finishingRef.current = true
+    submittingRef.current = true
+    stopExamTts()
+    setStopping(true)
+    try {
+      const r = await stopAttempt(attemptId, answersRef.current)
+      saverRef.current?.dispose()
+      trackFeatureAction('mock_exam', 'quit', { status: r.status })
+      if (r.alreadyClosed && r.status !== 'CANCELLED') {
+        // Lượt đã đóng ở nơi khác (web, hoặc hết giờ): /stop không kèm điểm — đọc kết quả có sẵn.
+        await showExistingResult()
+      } else if (r.status === 'PARTIAL') {
+        setStopped(r)
+      } else {
+        // CANCELLED: không câu nào được tính (ví dụ chỉ làm phần server không chấm).
+        Alert.alert('Đã huỷ lượt thi', 'Chưa có câu nào được tính điểm nên lượt này bị huỷ, không vào lịch sử thi.', [
+          { text: 'Đã hiểu', onPress: leaveToParent },
+        ])
+      }
+    } catch (e) {
+      // Chưa dừng được: lượt vẫn mở như cũ, tự lưu chạy tiếp.
+      submittingRef.current = false
+      finishingRef.current = false
+      Alert.alert('Chưa dừng được bài thi', `${apiMessage(e) || 'Mất kết nối.'} Bài vẫn mở, bạn có thể làm tiếp hoặc thử dừng lại.`)
+    } finally {
+      setStopping(false)
+    }
+  }
+  const stopNowRef = useRef(stopNow)
+  stopNowRef.current = stopNow
+
   // ── khung ──────────────────────────────────────────────────────────────────
+  if (stopped) {
+    return (
+      <Screen edges={['top']}>
+        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], paddingTop: space[4] }}>
+          <MockStoppedView result={stopped} title={params.title ?? 'Thi thử trọn đề'} onBack={leaveToParent} />
+        </Screen>
+      </Screen>
+    )
+  }
+
   if (score != null) {
     return (
       <Screen edges={['top']}>
@@ -448,24 +587,6 @@ function ExamAttemptRunner() {
     )
   }
 
-  if (submitting) {
-    return (
-      <Screen edges={['top']}>
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[5] }}>
-          <Card style={{ gap: space[3], alignItems: 'center', paddingVertical: space[8] }}>
-            <ActivityIndicator color={c.textPrimary} />
-            <ThemedText variant="title" align="center" accessibilityRole="header" accessibilityLiveRegion="polite">
-              {timedOut ? 'Hết giờ. Bài đang được nộp' : 'Đang nộp và chấm bài…'}
-            </ThemedText>
-            <ThemedText variant="caption" color="muted" align="center">
-              Trắc nghiệm chấm ngay; bài viết AI chấm khoảng một phút.
-            </ThemedText>
-          </Card>
-        </View>
-      </Screen>
-    )
-  }
-
   const stageSections = parsed.sections.filter((sec) => stages.length <= 1 || stageOf(sec.name) === stage)
   const chips: TeilChip[] = stageSections.flatMap((sec) => [
     ...sec.groups.map((g, i) => {
@@ -477,6 +598,50 @@ function ExamAttemptRunner() {
       return { key: w.answerKey, label: teilChipLabel('SCHREIBEN', w.teil, done, 1), complete: done === 1 }
     }),
   ])
+  // Teil của cả lượt (mọi chặng) theo cách server chấm khi dừng: trắc nghiệm theo câu, Viết theo bài.
+  const runTeile: RunTeil[] = parsed.sections.flatMap((sec) => [
+    ...sec.groups.map((g, i): RunTeil => ({ key: `${sec.name}-${g.teilNo ?? i + 1}`, writing: false, answered: groupAnswered(g, answers), total: g.items.length })),
+    ...sec.writing.map((w): RunTeil => ({ key: `SCHREIBEN-${w.teil}`, writing: true, answered: (answers[w.answerKey] ?? '').trim() ? 1 : 0, total: 1 })),
+  ])
+  const flagged = flaggedEntries(stageSections, flags)
+
+  requestExitRef.current = inProgress ? requestExit : null
+
+  // Tạm rời từ hộp Dừng: lưu rồi rời ngay; chỉ hỏi lại khi chưa lưu được (mất mạng).
+  async function leaveAfterSave() {
+    const saved = await waitAtMost(saverRef.current?.flush().catch(() => false) ?? Promise.resolve(true), LEAVE_FLUSH_WAIT_MS)
+    if (saved) leaveToParent()
+    else confirmLeave(leaveToParent)
+  }
+
+  // Nút X (mẫu `mockrun`: "Dừng thi thử"): dừng và chấm phần đã làm, hoặc tạm rời giữ lượt.
+  function requestExit() {
+    if (!inProgress || stopping) {
+      handleBack()
+      return
+    }
+    // Chỉ khi mở qua /start (đã nạp nháp server): mở không qua /start thì máy có thể chưa thấy câu đã làm trên web.
+    if (start != null && !touchedAny(answersRef.current)) {
+      // Như web: chưa làm câu nào thì huỷ lượt rồi rời, không hỏi. Huỷ lỗi vẫn rời — lượt rỗng được chốt
+      // khi quá giờ.
+      finishingRef.current = true
+      submittingRef.current = true
+      saverRef.current?.dispose()
+      void stopAttempt(attemptId, {}).catch(() => undefined)
+      leaveToParent()
+      return
+    }
+    Alert.alert(
+      'Dừng bài thi thử?',
+      `${stopPreviewMessage(stopPreview(runTeile))}\n\nTạm rời thì giữ lượt, nhưng đồng hồ vẫn chạy.`,
+      [
+        { text: 'Làm tiếp', style: 'cancel' },
+        { text: 'Tạm rời', onPress: () => void leaveAfterSave() },
+        { text: 'Dừng và chấm', style: 'destructive', onPress: () => void stopNowRef.current() },
+      ],
+    )
+  }
+
   const notices = [
     start?.closedPrevious ? 'Lượt thi trước của đề này đã hết giờ khi bạn rời đi; phần đã làm được lưu vào lịch sử với nhãn “Dừng giữa chừng”.' : null,
     start && Object.keys(start.answers).length > 0 ? `Đã khôi phục ${Object.keys(start.answers).length} câu đã làm.` : null,
@@ -492,10 +657,12 @@ function ExamAttemptRunner() {
         stages={stages}
         secondsLeft={remaining}
         chips={chips}
-        onExit={handleBack}
+        onExit={requestExit}
+        onChipPress={jumpToBlock}
       />
       {/* key theo chặng: sang chặng mới thì cuộn về đầu chặng. */}
       <Screen key={`stage-${stage}`} scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
+        <ScrollHostBridge target={scrollHostRef} />
         {notices.length > 0 ? (
           <View style={{ flexDirection: 'row', gap: space[3], backgroundColor: c.infoSoft, borderRadius: radius.md, padding: space[3] }}>
             <GaGlyph name="thithu" size={18} ink="info" gold="info" />
@@ -508,7 +675,7 @@ function ExamAttemptRunner() {
         ) : null}
 
         {stageSections.map((section) => (
-          <View key={section.name} style={{ gap: space[4] }}>
+          <View key={section.name} style={{ gap: space[4] }} onLayout={(e) => { sectionYRef.current[section.name] = e.nativeEvent.layout.y }}>
             {/* Đầu phần — học viên phải biết mình đang ở phần nào và phần đó bao nhiêu điểm. */}
             <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space[2] }}>
               <ThemedText variant="title" accessibilityRole="header">{section.label}</ThemedText>
@@ -518,31 +685,38 @@ function ExamAttemptRunner() {
             {section.groups.map((group, gi) => {
               // Cổng nghi thức (đề telc): Ansage → đọc câu hỏi → nghe được. Đề Goethe không khai ⇒ không cổng.
               const gateKey = `${section.name}-${group.title}`
+              const blockKey = `${section.name}-${group.teilNo ?? gi + 1}`
+              for (const it of group.items) blockOfItemRef.current[it.id] = blockKey
               return (
-                <ObjGroupView
-                  key={gi}
-                  group={group}
-                  section={section.name}
-                  format={parsed.format}
-                  level={params.level}
-                  answers={answers}
-                  onAnswer={onAnswer}
-                  gatePhase={group.ansage ? (hoerenPhases[gateKey] ?? 'idle') : undefined}
-                  onGatePhaseChange={(phase) => setHoerenPhases((prev) => ({ ...prev, [gateKey]: phase }))}
-                />
+                <View key={gi} onLayout={(e) => { blockYRef.current[blockKey] = { section: section.name, y: e.nativeEvent.layout.y } }}>
+                  <ObjGroupView
+                    group={group}
+                    section={section.name}
+                    format={parsed.format}
+                    level={params.level}
+                    answers={answers}
+                    onAnswer={onAnswer}
+                    gatePhase={group.ansage ? (hoerenPhases[gateKey] ?? 'idle') : undefined}
+                    onGatePhaseChange={(phase) => setHoerenPhases((prev) => ({ ...prev, [gateKey]: phase }))}
+                    flags={flags}
+                    onToggleFlag={onToggleFlag}
+                    onItemLayout={(id, y) => { itemYRef.current[id] = { block: blockKey, y } }}
+                  />
+                </View>
               )
             })}
 
             {section.writing.map((task) => (
-              <WritingTaskView
-                key={task.answerKey}
-                task={task}
-                section={section.name}
-                format={parsed.format}
-                level={params.level}
-                value={answers[task.answerKey] ?? ''}
-                onChange={(val) => onAnswer(task.answerKey, val)}
-              />
+              <View key={task.answerKey} onLayout={(e) => { blockYRef.current[task.answerKey] = { section: section.name, y: e.nativeEvent.layout.y } }}>
+                <WritingTaskView
+                  task={task}
+                  section={section.name}
+                  format={parsed.format}
+                  level={params.level}
+                  value={answers[task.answerKey] ?? ''}
+                  onChange={(val) => onAnswer(task.answerKey, val)}
+                />
+              </View>
             ))}
           </View>
         ))}
@@ -553,6 +727,7 @@ function ExamAttemptRunner() {
           </ThemedText>
           <SaveStatus state={saveState} />
         </View>
+        <FlaggedNav entries={flagged} onJump={jumpToItem} />
 
         <View style={{ gap: space[2] }}>
           {after != null ? (
@@ -565,6 +740,30 @@ function ExamAttemptRunner() {
           )}
         </View>
       </Screen>
+      {/* Đang nộp / đang dừng: lớp phủ ĐÈ lên bài, không thay cây — nộp/dừng lỗi thì quay lại đúng chỗ, lượt
+          nghe Hören đã dùng không bị đặt lại. */}
+      {submitting || stopping ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg, justifyContent: 'center', paddingHorizontal: space[5] }]}>
+          <Card style={{ gap: space[3], alignItems: 'center', paddingVertical: space[8] }}>
+            <ActivityIndicator color={c.textPrimary} />
+            <ThemedText variant="title" align="center" accessibilityRole="header" accessibilityLiveRegion="polite">
+              {stopping ? 'Đang dừng và chấm phần đã làm…' : timedOut ? 'Hết giờ. Bài đang được nộp' : 'Đang nộp và chấm bài…'}
+            </ThemedText>
+            <ThemedText variant="caption" color="muted" align="center">
+              {stopping ? 'Teil đã làm được chấm ngay; bài viết dở không chấm.' : 'Trắc nghiệm chấm ngay; bài viết AI chấm khoảng một phút.'}
+            </ThemedText>
+          </Card>
+        </View>
+      ) : null}
     </Screen>
   )
+}
+
+/** Lấy ScrollView của `Screen scroll` (qua context có sẵn của tour) để màn cuộn tới Teil / câu. */
+function ScrollHostBridge({ target }: { target: { current: ScrollView | null } }) {
+  const host = useSpotlightScrollHost()
+  useEffect(() => {
+    target.current = host?.current ?? null
+  })
+  return null
 }
