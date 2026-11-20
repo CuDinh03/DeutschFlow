@@ -7,7 +7,9 @@ import {
   parsePack,
   sentenceRanges,
   splitLines,
-  teilContext,
+  sentencesIn,
+  setStruck,
+  isStruck,
   type MarksPack,
 } from '@/lib/passageMarks'
 
@@ -110,15 +112,20 @@ describe('lineSegments', () => {
   })
 })
 
-describe('teilContext', () => {
-  const json = JSON.stringify({
-    sections: [{ name: 'LESEN', teile: [{ teil: 1, context: 'A' }, { teil: 2, context: 'Zeile 1\r\nZeile 2' }] }],
+describe('sentencesIn — câu của một đoạn trong khối', () => {
+  test('vị trí tính trên cả khối', () => {
+    const text = 'Hallo ___1___ Welt. Gut so! Ende'
+    expect(sentencesIn(text, 13, text.length)).toEqual([[14, 19], [20, 27], [28, 32]])
   })
-  test('lấy `context` thô theo khoá Teil, chuẩn hoá xuống dòng', () => {
-    expect(teilContext(json, 'LESEN-2')).toBe('Zeile 1\nZeile 2')
-    expect(teilContext(json, 'LESEN-3')).toBeNull()
-    expect(teilContext(json, 'HOEREN-1')).toBeNull()
-    expect(teilContext('{', 'LESEN-2')).toBeNull()
+})
+
+describe('setStruck / isStruck', () => {
+  test('bật, tắt, bỏ khoá câu khi rỗng; không đụng gói cũ', () => {
+    const a = setStruck(emptyPack(), 'LV2-6', 'b', true)
+    expect(isStruck(a, 'LV2-6', 'b')).toBe(true)
+    const b = setStruck(a, 'LV2-6', 'b', false)
+    expect(b.struck).toEqual({})
+    expect(isStruck(a, 'LV2-6', 'b')).toBe(true)
   })
 })
 

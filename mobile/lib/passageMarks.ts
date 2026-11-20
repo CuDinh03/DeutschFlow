@@ -6,8 +6,9 @@
 // câu (như mẫu iOS `attempt`). Đánh dấu do web tạo (một cụm bất kỳ, gắn số câu, ghi chú) vẫn hiện đủ màu và
 // gạch chân; app giữ nguyên `q`, `n`, `struck` khi lưu lại.
 //
-// Vị trí là ký tự `[s, e)` trên chữ của một KHỐI; app chỉ dùng khối `ctx` = bài đọc (`teil.context`,
-// `\r\n` → `\n`), y như `PassageMarksValidator.blocksOf` phía server.
+// Vị trí là ký tự `[s, e)` trên chữ của một KHỐI (`ctx`, `q:<id>`, `t:<id>`, `ad:<k>`, `gap` — xem
+// `lib/marksBlocks.ts`), y như `PassageMarksValidator.blocksOf` phía server. Đợt 4f (20/11/2026) mở thêm
+// Lesen 1, Lesen 3, Sprachbausteine, đề câu, thi thử và bài chẩn đoán như web.
 
 export type MarkKind = 'hl' | 'ul'
 export type MarkColor = 'y' | 'g' | 'p'
@@ -308,19 +309,23 @@ export function lineSegments(
   return out
 }
 
-/** Bài đọc của Teil để đánh dấu: `teil.context` thô trong `sectionsJson` (khối `ctx` phía server). */
-export function teilContext(sectionsJson: string | null | undefined, teilKey: string): string | null {
-  const m = /^([A-Z]+)-(\d+)$/.exec(teilKey)
-  if (!sectionsJson || !m) return null
-  try {
-    const root = JSON.parse(sectionsJson) as { sections?: { name?: unknown; teile?: unknown }[] }
-    const section = (root.sections ?? []).find((s) => s?.name === m[1])
-    const teile = Array.isArray(section?.teile) ? (section.teile as Record<string, unknown>[]) : []
-    const n = Number(m[2])
-    const teil = teile.find((t) => t?.teil === n) ?? (teile.every((t) => t?.teil == null) ? teile[n - 1] : undefined)
-    const ctx = teil?.context
-    return typeof ctx === 'string' && ctx.trim() ? normalizeBlock(ctx) : null
-  } catch {
-    return null
-  }
+/** Câu của một đoạn `[from, to)` trong khối (vị trí trên cả khối) — đoạn chữ giữa hai ô trống, tiêu đề mẩu tin… */
+export function sentencesIn(text: string, from: number, to: number, splitOnNewline = true): [number, number][] {
+  return sentenceRanges(text.slice(from, to), splitOnNewline).map(([a, b]) => [a + from, b + from])
+}
+
+// ─── gạch bỏ phương án (như web: chỉ câu trắc nghiệm từng câu, khoá = chữ cái phương án) ───────────────
+
+export function isStruck(pack: MarksPack, itemId: string, opt: string): boolean {
+  return pack.struck[itemId]?.includes(opt) ?? false
+}
+
+export function setStruck(pack: MarksPack, itemId: string, opt: string, on: boolean): MarksPack {
+  const cur = new Set(pack.struck[itemId] ?? [])
+  if (on) cur.add(opt)
+  else cur.delete(opt)
+  const struck = { ...pack.struck }
+  if (cur.size) struck[itemId] = Array.from(cur)
+  else delete struck[itemId]
+  return { ...pack, struck }
 }

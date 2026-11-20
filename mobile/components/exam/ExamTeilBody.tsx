@@ -4,7 +4,7 @@
 
 import type { ReactNode } from 'react'
 import { Pressable, TextInput, View } from 'react-native'
-import { Check, Flag, X } from 'lucide-react-native'
+import { Check, CircleSlash, Flag, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, Icon, SelectableRow, ThemedText } from '@/components/ui'
 import { itemChoices, NONE_OF_THEM, type ExamObjGroup, type ExamObjItem, type ExamWritingTask } from '@/lib/examApi'
@@ -16,6 +16,11 @@ import { HoerenGate, type HoerenGatePhase } from './HoerenGate'
 import { TelcGapText } from './TelcGapText'
 import { ReadingPassage } from './ReadingPassage'
 import { AdPosterCard } from './AdPosterCard'
+import { MarkablePassage } from './MarkablePassage'
+import { MarkedRun } from './MarkedRun'
+import { MarksToolbar } from './MarksToolbar'
+import { matchBlock } from '@/lib/marksBlocks'
+import type { MarksLayer } from '@/hooks/usePassageMarks'
 
 interface ObjGroupViewProps {
   group: ExamObjGroup
@@ -38,8 +43,12 @@ interface ObjGroupViewProps {
   onToggleFlag?: (itemId: string) => void
   /** Vị trí từng câu trong Teil (để nhảy tới câu đánh dấu). */
   onItemLayout?: (itemId: string, y: number) => void
-  /** Bài đọc dựng sẵn thay cho bài đọc mặc định (luyện Teil: bài đọc có bút đánh dấu). */
-  passageOverride?: ReactNode
+  /**
+   * Bút đánh dấu của Teil (Đợt 4f) — lớp do màn cha tạo bằng `usePassageMarks` (thân Teil không gọi hook).
+   * Có thì: thanh bút đầu Teil, chạm câu để tô trên bài đọc, đoạn văn Lesen 1, mẩu rao vặt, thư điền
+   * khuyết, đề câu; câu trắc nghiệm từng câu có nút gạch bỏ phương án. Không truyền ⇒ chữ thường.
+   */
+  marks?: MarksLayer | null
   /** Phần thêm cuối thẻ từng câu (luyện Teil: "Vì sao tôi chọn", "Hỏi AI về câu này"). */
   renderItemExtra?: (item: ExamObjItem) => ReactNode
 }
@@ -59,7 +68,7 @@ export function ObjGroupView({
   flags,
   onToggleFlag,
   onItemLayout,
-  passageOverride,
+  marks,
   renderItemExtra,
 }: ObjGroupViewProps) {
   const c = useTheme().colors
@@ -71,6 +80,8 @@ export function ObjGroupView({
   // Mỗi nhân vật một giọng, chia một lần cho cả Teil như web — người dẫn một giọng cố định cho cả đề.
   // Tính thẳng (vài chục dòng, một hash) — không dùng hook để test dựng cây bằng cách gọi hàm vẫn chạy.
   const teilVoices = assignTeilVoices(group.audio, group.items.map((it) => it.audio))
+  const ml = marks && marks.status !== 'off' ? marks : null
+  const passageMarked = !!ml && !!group.passage && matchBlock(ml.texts, 'ctx', group.passage) != null
   return (
     <View style={{ gap: space[3] }}>
       <Caption>{group.title}</Caption>
@@ -80,6 +91,8 @@ export function ObjGroupView({
           {group.instruction}
         </ThemedText>
       ) : null}
+
+      {ml && !hideBody ? <MarksToolbar layer={ml} /> : null}
 
       {group.ansage && !review && onGatePhaseChange ? (
         <HoerenGate
@@ -100,7 +113,7 @@ export function ObjGroupView({
         <View style={{ gap: space[3] }}>
           <Caption>Các mẩu rao vặt · mỗi mẩu chỉ dùng một lần</Caption>
           {group.pool.map((opt, i) => (
-            <AdPosterCard key={opt.key} letter={opt.key} label={opt.label} index={i} />
+            <AdPosterCard key={opt.key} letter={opt.key} label={opt.label} index={i} marks={ml} />
           ))}
         </View>
       ) : null}
@@ -125,11 +138,18 @@ export function ObjGroupView({
       ) : null}
 
       {group.gappedText ? (
-        <TelcGapText text={group.gappedText} items={group.items} answers={answers} showWord={group.telcType === 'GAP_WORDBANK'} />
+        <TelcGapText text={group.gappedText} items={group.items} answers={answers} showWord={group.telcType === 'GAP_WORDBANK'} marks={ml} />
       ) : null}
 
-      {passageOverride ? (
-        passageOverride
+      {passageMarked && ml ? (
+        <MarkablePassage
+          layer={ml}
+          title={group.passageTitle}
+          vorspann={group.vorspann}
+          numbered={group.passageLines === true}
+          glossary={group.glossary}
+          quelle={group.quelle}
+        />
       ) : group.passage ? (
         group.passageLines || group.vorspann || group.glossary || group.quelle ? (
           <ReadingPassage
@@ -178,6 +198,7 @@ export function ObjGroupView({
               flagged={flags ? flags.includes(item.id) : undefined}
               onToggleFlag={onToggleFlag ? () => onToggleFlag(item.id) : undefined}
               extra={renderItemExtra?.(item)}
+              marks={ml}
             />
           </View>
         ))}
@@ -337,6 +358,7 @@ function QuestionCard({
   flagged,
   onToggleFlag,
   extra,
+  marks,
 }: {
   item: ExamObjItem
   /** Teil chứa câu này — cần cho luật "mỗi lựa chọn một lần" của đề telc. */
@@ -351,8 +373,16 @@ function QuestionCard({
   flagged?: boolean
   onToggleFlag?: () => void
   extra?: ReactNode
+  /** Bút đánh dấu của Teil: đề câu (`q:<id>`), đoạn văn Lesen 1 (`t:<id>`), gạch bỏ phương án. */
+  marks?: MarksLayer | null
 }) {
   const { colors } = useTheme()
+  const qBlock = marks ? matchBlock(marks.texts, `q:${item.id}`, item.question) : null
+  const tBlock = marks ? matchBlock(marks.texts, `t:${item.id}`, item.passage) : null
+  // Gạch bỏ phương án như web: chỉ câu trắc nghiệm từng câu (không phải kho chung của Teil), khoá = chữ
+  // cái phương án; khoá khi đang xem kết quả.
+  const canStrike = !!marks && marks.status === 'ready' && !reviewing && !group?.telcType && !!item.optionKeys
+  const question = qBlock && marks ? <MarkedRun layer={marks} block={qBlock} /> : item.question
   // Giá trị nộp tách khỏi nhãn: trắc nghiệm options object nộp chữ cái A/B/C (AC-MOBFIX-03).
   const choices = itemChoices(item)
 
@@ -375,17 +405,17 @@ function QuestionCard({
         <View style={{ gap: space[2], backgroundColor: colors.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
           <Caption>Đoạn văn</Caption>
           <ThemedText variant="body" color="secondary" accessibilityLanguage="de-DE">
-            {item.passage}
+            {tBlock && marks ? <MarkedRun layer={marks} block={tBlock} /> : item.passage}
           </ThemedText>
         </View>
       ) : null}
       {onToggleFlag ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-          <ThemedText variant="title" accessibilityLanguage="de-DE" style={{ flex: 1 }}>{item.question}</ThemedText>
+          <ThemedText variant="title" accessibilityLanguage="de-DE" style={{ flex: 1 }}>{question}</ThemedText>
           <FlagToggle on={!!flagged} onPress={onToggleFlag} />
         </View>
       ) : (
-        <ThemedText variant="title" accessibilityLanguage="de-DE">{item.question}</ThemedText>
+        <ThemedText variant="title" accessibilityLanguage="de-DE">{question}</ThemedText>
       )}
       <View style={{ gap: space[2] }}>
         {allChoices.map((choice) => {
@@ -399,7 +429,14 @@ function QuestionCard({
               locked={!reviewing && used.has(choice.value) && selected !== choice.value}
               reviewing={reviewing}
               mark={mark}
-              onPress={() => onSelect(choice.value)}
+              onPress={() => {
+                // Chọn một phương án đã gạch bỏ ⇒ bỏ gạch (như web).
+                if (marks && canStrike && marks.isStruck(item.id, choice.value)) marks.toggleStrike(item.id, choice.value)
+                onSelect(choice.value)
+              }}
+              struck={marks && !!item.optionKeys && !group?.telcType ? marks.isStruck(item.id, choice.value) : false}
+              // Phương án đang chọn thì không gạch bỏ được (web bỏ chọn; app không gửi đáp án rỗng lên server).
+              onStrike={canStrike && marks && selected !== choice.value ? () => marks.toggleStrike(item.id, choice.value) : undefined}
             />
           )
         })}
@@ -451,6 +488,8 @@ function Choice({
   reviewing = false,
   german = true,
   onPress,
+  struck = false,
+  onStrike,
 }: {
   label: string
   /** Nhãn tiếng Đức (đọc bằng giọng Đức); "không mẩu nào hợp" là tiếng Việt. */
@@ -461,6 +500,10 @@ function Choice({
   /** Sau khi kiểm tra: `right` = đáp án đúng, `wrong` = lựa chọn sai của học viên. */
   mark?: 'right' | 'wrong' | null
   onPress: () => void
+  /** Phương án đã gạch bỏ (bút đánh dấu): chữ gạch ngang, mờ. */
+  struck?: boolean
+  /** Có ⇒ nút gạch bỏ / bỏ gạch cạnh phương án. */
+  onStrike?: () => void
 }) {
   const { colors } = useTheme()
   const reviewed = mark !== null
@@ -468,10 +511,10 @@ function Choice({
   const border = mark === 'right' ? colors.success : mark === 'wrong' ? colors.danger : active ? colors.accent : colors.border
   const bg = mark === 'right' ? colors.successSoft : mark === 'wrong' ? colors.dangerSoft : active ? colors.accentSoft : colors.surface
   const suffix = mark === 'right' ? ' (đáp án đúng)' : mark === 'wrong' ? ' (bạn chọn, chưa đúng)' : locked && !active ? ' (đã dùng)' : ''
-  return (
+  const row = (
     <SelectableRow
       role="radio"
-      label={`${label}${suffix}`}
+      label={`${label}${suffix}${struck ? ' (đã gạch bỏ)' : ''}`}
       selected={active}
       disabled={blocked}
       onPress={blocked ? () => {} : onPress}
@@ -488,7 +531,8 @@ function Choice({
         paddingVertical: active || reviewed ? space[4] - 1 : space[4],
         // `SelectableRow` chỉ chặn thao tác và khai trợ năng; dấu hiệu NHÌN THẤY phải do đây đặt,
         // bằng không lựa chọn đã khoá trông y hệt lựa chọn còn bấm được. Lúc xem kết quả thì không mờ.
-        opacity: locked && !active ? 0.45 : 1,
+        opacity: (locked || struck) && !active ? 0.45 : 1,
+        flex: onStrike ? 1 : undefined,
       }}
     >
       <View
@@ -509,10 +553,40 @@ function Choice({
           <Icon icon={Check} size={13} color="onAccent" strokeWidth={3} />
         ) : null}
       </View>
-      <ThemedText variant={active ? 'bodyStrong' : 'body'} color={active ? 'primary' : 'secondary'} style={{ flex: 1 }} accessibilityLanguage={german ? 'de-DE' : undefined}>
+      <ThemedText
+        variant={active ? 'bodyStrong' : 'body'}
+        color={active ? 'primary' : 'secondary'}
+        style={{ flex: 1, textDecorationLine: struck ? 'line-through' : 'none' }}
+        accessibilityLanguage={german ? 'de-DE' : undefined}
+      >
         {label}
       </ThemedText>
     </SelectableRow>
+  )
+  if (!onStrike) return row
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: space[2] }}>
+      {row}
+      <Pressable
+        onPress={onStrike}
+        accessibilityRole="button"
+        accessibilityLabel={struck ? `Bỏ gạch phương án ${label}` : `Gạch bỏ phương án ${label}`}
+        accessibilityState={{ selected: struck }}
+        hitSlop={2}
+        style={({ pressed }) => ({
+          width: 44,
+          borderRadius: radius.sm,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderStyle: struck ? 'solid' : 'dashed',
+          borderColor: struck ? colors.inkSurface : colors.borderStrong,
+          backgroundColor: struck ? colors.inkSurface : pressed ? colors.surfaceSunken : colors.surface,
+        })}
+      >
+        <Icon icon={CircleSlash} size={18} color={struck ? 'onInk' : 'muted'} />
+      </Pressable>
+    </View>
   )
 }
 

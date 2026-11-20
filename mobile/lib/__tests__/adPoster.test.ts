@@ -1,4 +1,4 @@
-import { AD_STYLES, adStyleAt, splitAd } from '../adPoster'
+import { AD_STYLES, adStyleAt, splitAd, splitAdRanges } from '../adPoster'
 
 describe('adPoster', () => {
   it('kiểu thẻ luân phiên đủ 6 kiểu', () => {
@@ -26,5 +26,14 @@ describe('adPoster', () => {
       body: 'Ab sofort, Teilzeit.',
     })
     expect(splitAd('Gesucht: Babysitter für zwei Kinder.')).toEqual({ headline: 'Gesucht:', body: 'Babysitter für zwei Kinder.' })
+  })
+  it('splitAdRanges: vị trí trên chuỗi gốc, cắt ra đúng như splitAd', () => {
+    for (const label of ['  Sprachkurs Deutsch \n Abends, 2x pro Woche.  ', 'Fahrrad zu verkaufen! Fast neu, 80 Euro.', 'Nur ein Satz.', ' Kopf\n ']) {
+      const r = splitAdRanges(label)
+      const want = splitAd(label)
+      expect(r.headline ? label.slice(r.headline[0], r.headline[1]) : null).toBe(want.headline)
+      expect(label.slice(r.body[0], r.body[1])).toBe(want.body)
+    }
+    expect(splitAdRanges('  Kopf\nRumpf')).toEqual({ headline: [2, 6], body: [7, 12] })
   })
 })

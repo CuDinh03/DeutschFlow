@@ -30,7 +30,7 @@ import {
 } from '@/lib/mockResult'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { ExamBudgetCard } from '@/components/exam/ExamBudgetCard'
-import { ObjGroupView } from '@/components/exam/ExamTeilBody'
+import { MarkedObjGroup } from '@/components/exam/MarkedObjGroup'
 import { WritingResultCard } from '@/components/exam/WritingResultCard'
 
 const SECTION_GLYPH: Record<string, GlyphName> = { LESEN: 'doc', SPRACHBAUSTEINE: 'nguphap', HOEREN: 'nghe', SCHREIBEN: 'viet' }
@@ -81,7 +81,7 @@ export function MockResultView(p: Props) {
   const date = shortDate(p.finishedAt)
 
   if (open && analysis) {
-    return <TeilReview attemptKey={open} analysis={analysis} parsed={parsedAnalysis} format={p.format} level={p.level} onClose={() => setOpen(null)} />
+    return <TeilReview attemptId={p.attemptId} attemptKey={open} analysis={analysis} parsed={parsedAnalysis} format={p.format} level={p.level} onClose={() => setOpen(null)} />
   }
 
   return (
@@ -296,6 +296,7 @@ function ScoreLine({ label, value, strong = false, german = false }: { label: st
 
 /** Một Teil của lượt đã chấm: đề với đáp án đã chọn, tô đúng/sai, lời giải từng câu; bài Viết thì phiếu chấm. */
 function TeilReview({
+  attemptId,
   attemptKey,
   analysis,
   parsed,
@@ -303,6 +304,7 @@ function TeilReview({
   level,
   onClose,
 }: {
+  attemptId: number
   attemptKey: string
   analysis: NonNullable<Awaited<ReturnType<typeof getAttemptAnalysis>>>
   parsed: ReturnType<typeof parseExamSections> | null
@@ -329,7 +331,11 @@ function TeilReview({
         ) : null}
       </View>
       {located?.kind === 'objective' && review ? (
-        <ObjGroupView
+        // Xem lại: thấy lại và sửa tiếp đánh dấu lúc thi của lượt này (như web).
+        <MarkedObjGroup
+          key={attemptKey}
+          marksSource={{ kind: 'attempt', attemptId, teilKey: attemptKey }}
+          sectionsJson={analysis.sectionsJson}
           group={located.group}
           section={located.section}
           format={format}

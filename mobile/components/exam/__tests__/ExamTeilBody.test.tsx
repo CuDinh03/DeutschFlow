@@ -6,6 +6,7 @@ import type { ReactElement } from 'react'
 import { ObjGroupView } from '../ExamTeilBody'
 import { parseExamSections, type ExamObjGroup } from '@/lib/examApi'
 import type { PracticeItemResult } from '@/lib/telcPracticeApi'
+import type { MarksLayer } from '@/hooks/usePassageMarks'
 
 // jest tự đưa jest.mock lên trước các import.
 
@@ -26,7 +27,10 @@ jest.mock('../TeilStrategyCard', () => ({ TeilStrategyCard: () => null }))
 jest.mock('../ExamAudio', () => ({ ExamAudio: () => null }))
 jest.mock('../HoerenGate', () => ({ HoerenGate: () => null }))
 jest.mock('../TelcGapText', () => ({ TelcGapText: () => null }))
-jest.mock('../ReadingPassage', () => ({ ReadingPassage: () => null }))
+jest.mock('../ReadingPassage', () => ({ ReadingPassage: function ReadingPassage() { return null } }))
+jest.mock('../MarksToolbar', () => ({ MarksToolbar: function MarksToolbar() { return null } }))
+jest.mock('../MarkablePassage', () => ({ MarkablePassage: function MarkablePassage() { return null } }))
+jest.mock('../MarkedRun', () => ({ MarkedRun: function MarkedRun() { return null } }))
 jest.mock('@/lib/api', () => ({ __esModule: true, default: {}, apiMessage: () => '' }))
 
 
@@ -98,5 +102,60 @@ describe('ObjGroupView', () => {
     expect(labels[5]).toContain('(đáp án đúng)')
     const texts = collect(tree, (e) => typeof e.props.children === 'string').map((e) => e.props.children)
     expect(texts).toEqual(expect.arrayContaining(['Vì sao chưa đúng', 'Bằng chứng trong bài']))
+  })
+})
+
+describe('ObjGroupView + bút đánh dấu (Đợt 4f)', () => {
+  const lesen2 = parseExamSections(
+    JSON.stringify({
+      format: 'TELC',
+      sections: [{
+        name: 'LESEN',
+        teile: [{
+          teil: 2, type: 'MULTIPLE_CHOICE', context: 'Satz eins. Satz zwei.',
+          items: [{ id: 'LV2-6', question: 'Was stimmt?', options: { a: 'eins', b: 'zwei', c: 'drei' } }],
+        }],
+      }],
+    }),
+  ).sections[0].groups[0] as ExamObjGroup
+  const layer = (over: Partial<MarksLayer> = {}): MarksLayer => ({
+    pack: { v: 1, blocks: {}, marks: [], struck: { 'LV2-6': ['c'] } },
+    texts: { ctx: 'Satz eins. Satz zwei.', 'q:LV2-6': 'Was stimmt?' },
+    status: 'ready', pen: 'y', setPen: () => {}, hidden: false, setHidden: () => {}, dropped: false, saveState: 'idle', full: false,
+    canUndo: false, undo: () => {}, retry: () => {}, tap: () => {}, flush: async () => {},
+    isStruck: (id, opt) => id === 'LV2-6' && opt === 'c', toggleStrike: jest.fn(),
+    ...over,
+  })
+  const typeName = (e: El) => (typeof e.type === 'function' ? (e.type as { name: string }).name : String(e.type))
+  const props = { group: lesen2, section: 'LESEN', answers: { 'LV2-6': 'a' } as Record<string, string>, onAnswer: () => {} }
+  const strikeButtons = (tree: unknown) =>
+    collect(tree, (e) => typeof e.props.accessibilityLabel === 'string' && /phương án/.test(e.props.accessibilityLabel as string))
+
+  it('có lớp: thanh bút, bài đọc có bút, đề câu qua lớp đánh dấu, nút gạch bỏ trừ phương án đang chọn', () => {
+    const tree = expand(ObjGroupView({ ...props, marks: layer() }))
+    const names = collect(tree, () => true).map(typeName)
+    expect(names).toEqual(expect.arrayContaining(['MarksToolbar', 'MarkablePassage', 'MarkedRun']))
+    expect(names).not.toContain('ReadingPassage')
+    const runs = collect(tree, (e) => typeName(e) === 'MarkedRun')
+    expect(runs.map((e) => e.props.block)).toEqual(['q:LV2-6'])
+    expect(strikeButtons(tree).map((e) => e.props.accessibilityLabel)).toEqual(['Gạch bỏ phương án b. zwei', 'Bỏ gạch phương án c. drei'])
+    expect(rows(tree).map((e) => String(e.props.label))[2]).toContain('(đã gạch bỏ)')
+  })
+
+  it('không lớp, hoặc đang xem kết quả: không thanh bút, không nút gạch bỏ', () => {
+    const plain = collect(expand(ObjGroupView(props)), () => true).map(typeName)
+    expect(plain).not.toContain('MarksToolbar')
+    expect(plain).not.toContain('MarkedRun')
+    const res: PracticeItemResult = {
+      id: 'LV2-6', label: '6', given: 'a', givenText: null, correct: 'b', correctText: null, answered: true, isCorrect: false, points: 0,
+      whyRight: null, whyWrong: null, trap: null, evidence: [], need: null, rule: null,
+    }
+    const tree = expand(ObjGroupView({ ...props, marks: layer(), review: new Map([['LV2-6', res]]) }))
+    expect(strikeButtons(tree)).toHaveLength(0)
+  })
+
+  it('chữ trên màn lệch chữ khối ⇒ không cho tô khối đó', () => {
+    const tree = expand(ObjGroupView({ ...props, marks: layer({ texts: { ctx: 'Anderer Text.', 'q:LV2-6': 'Was stimmt?' } }) }))
+    expect(collect(tree, () => true).map(typeName)).not.toContain('MarkablePassage')
   })
 })

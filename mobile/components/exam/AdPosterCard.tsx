@@ -5,7 +5,10 @@
 import { Platform, View } from 'react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText } from '@/components/ui'
-import { adStyleAt, splitAd } from '@/lib/adPoster'
+import { adStyleAt, splitAdRanges } from '@/lib/adPoster'
+import { matchBlock } from '@/lib/marksBlocks'
+import type { MarksLayer } from '@/hooks/usePassageMarks'
+import { MarkedRun } from './MarkedRun'
 
 /** Giấy dán bảng tin — màu giấy cố định (như đề in), không theo nền sáng/tối của app. */
 const PAPER = '#FFFDF7'
@@ -14,10 +17,17 @@ const INK = '#1C1B19'
 const HAND_FONT = Platform.select({ ios: 'BradleyHandITCTT-Bold', default: undefined })
 const TYPE_FONT = Platform.select({ ios: 'Courier', default: 'monospace' })
 
-export function AdPosterCard({ letter, label, index }: { letter: string; label: string; index: number }) {
+export function AdPosterCard({ letter, label, index, marks }: { letter: string; label: string; index: number; marks?: MarksLayer | null }) {
   const c = useTheme().colors
   const style = adStyleAt(index)
-  const { headline, body } = splitAd(label)
+  // Bút đánh dấu (khối `ad:<k>`, Đợt 4f): vẽ tiêu đề / thân từ chữ của khối để vị trí khớp server.
+  const block = marks ? matchBlock(marks.texts, `ad:${letter}`, label) : null
+  const source = block && marks ? marks.texts[block] : label
+  const ranges = splitAdRanges(source)
+  const run = (r: [number, number]) =>
+    block && marks ? <MarkedRun layer={marks} block={block} from={r[0]} to={r[1]} /> : source.slice(r[0], r[1])
+  const headline = ranges.headline ? run(ranges.headline) : null
+  const body = run(ranges.body)
 
   const frame =
     style === 'rahmen' ? { borderWidth: 1.5, borderTopWidth: 6, borderColor: INK, backgroundColor: PAPER }
@@ -36,8 +46,8 @@ export function AdPosterCard({ letter, label, index }: { letter: string; label: 
 
   return (
     <View
-      accessible
-      accessibilityLabel={`Mẩu ${letter}. ${label}`}
+      accessible={!block}
+      accessibilityLabel={block ? undefined : `Mẩu ${letter}. ${label}`}
       accessibilityLanguage="de-DE"
       style={[{ padding: space[3], borderRadius: 3, overflow: 'visible', marginTop: 6, marginLeft: 6 }, frame]}
     >
