@@ -14,8 +14,13 @@ import { AppHeader, Button, Card, EmptyState, ErrorState, Screen, Skeleton, Them
 import { ObjGroupView, WritingTaskView } from '@/components/exam/ExamTeilBody'
 import { WritingResultCard } from '@/components/exam/WritingResultCard'
 import type { HoerenGatePhase } from '@/components/exam/HoerenGate'
-import { parseExamSections } from '@/lib/examApi'
-import { checkPracticeTeil, getPracticeOverview, gradePracticeWriting, resetPracticeTeil, type PracticeOverview, type PracticeProgress, type PracticeTeilResult, type WritingEvaluation } from '@/lib/telcPracticeApi'
+import { parseExamSections, type ExamObjItem } from '@/lib/examApi'
+import { askPracticeItemAi, checkPracticeTeil, getPracticeOverview, gradePracticeWriting, resetPracticeTeil, type PracticeOverview, type PracticeProgress, type PracticeTeilResult, type WritingEvaluation } from '@/lib/telcPracticeApi'
+import { normalizeBlock, teilContext } from '@/lib/passageMarks'
+import { MarkablePassage } from '@/components/exam/MarkablePassage'
+import { AskAiPanel, MyNote, NoteField } from '@/components/exam/ItemAssist'
+import { usePassageMarks } from '@/hooks/usePassageMarks'
+import { useLeitpunktChecks } from '@/hooks/useLeitpunktChecks'
 import { stopExamTts } from '@/lib/examTts'
 import { answeredCount, formatClock, locateTeil, nextTeilKey, objectiveResult, practiceOverviewKey, scoreSummary, teilTitle, WRITING_TEXT_KEY, writingResult } from '@/lib/practiceTeil'
 import { asHref, diagnosticRoute, examSetRoute, teilRoute } from '@/lib/examRoutes'
@@ -48,6 +53,8 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
 
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [seconds, setSeconds] = useState(0)
+  // "Vì sao tôi chọn" theo câu (như web): chỉ khi luyện Teil trắc nghiệm, không ở bài chẩn đoán.
+  const [notes, setNotes] = useState<Record<string, string>>({})
   const [result, setResult] = useState<PracticeTeilResult | null>(null)
   const [evaluation, setEvaluation] = useState<WritingEvaluation | null>(null)
   const [phase, setPhase] = useState<HoerenGatePhase>('idle')
@@ -55,8 +62,10 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   const [loaded, setLoaded] = useState(false)
   const checked = !!result || !!evaluation
   const isWriting = teilKey.startsWith('SCHREIBEN')
-  const latest = useRef({ answers, seconds })
-  latest.current = { answers, seconds }
+  const withNotes = !diag && !isWriting
+  const snapshot = (a: Record<string, string>, sec: number, n: Record<string, string>) => (withNotes ? { answers: a, seconds: sec, notes: n } : { answers: a, seconds: sec })
+  const latest = useRef(snapshot(answers, seconds, notes))
+  latest.current = snapshot(answers, seconds, notes)
   // Lưu nháp xong thì ghi tiến độ vào bộ nhớ đệm: mở lại Teil (hoặc màn Đề) thấy ngay bản mới.
   const onSaved = useCallback(
     (progress: PracticeProgress) =>
@@ -67,6 +76,18 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   )
   const draft = usePracticeDraft({ examId, teilKey, enabled: loaded && !checked, latest, onSaved })
 
+  // Bài đọc có bút đánh dấu (như web): chỉ khi luyện Teil Lesen (không ở bài chẩn đoán) và bài đọc trên
+  // màn đúng là `teil.context` — khối `ctx` mà server kiểm vị trí.
+  const markContext = useMemo(() => {
+    if (diag || located?.kind !== 'objective' || located.section !== 'LESEN' || !located.group.passage) return null
+    const ctx = teilContext(overview?.sectionsJson, teilKey)
+    return ctx && ctx === normalizeBlock(located.group.passage) ? ctx : null
+  }, [diag, located, overview?.sectionsJson, teilKey])
+  const marks = usePassageMarks({ examId, teilKey, context: markContext })
+  const flushMarks = marks.flush
+  // Ô "đã viết ý này" của bài Viết — chỉ lưu trên máy.
+  const leitpunkte = useLeitpunktChecks(examId, teilKey, !diag && located?.kind === 'writing' ? located.task.points : undefined)
+
   // Nạp tiến độ đã lưu một lần, SAU lượt tải lại lúc mở (nháp, đồng hồ, kết quả đã kiểm tra).
   // Kết quả là trắc nghiệm hay phiếu chấm Viết quyết định theo phần thi, không đoán theo hình dạng.
   useEffect(() => {
@@ -74,15 +95,19 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
     const p = meta.progress
     const a = p?.answers ?? {}
     const sec = p?.elapsedSeconds ?? 0
+    const n = p?.notes ?? {}
     setAnswers(a)
     setSeconds(sec)
-    latest.current = { answers: a, seconds: sec }
+    setNotes(n)
+    latest.current = snapshot(a, sec, n)
     draft.baseline()
     if (p?.checked) {
       if (isWriting) setEvaluation(writingResult(p.result))
       else setResult(objectiveResult(p.result))
     }
     setLoaded(true)
+    // `snapshot` chỉ đọc `withNotes` (cố định theo Teil) — không cần chạy lại khi hàm đổi danh tính.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meta, loaded, isFetching, isWriting, draft])
 
   // Đồng hồ đếm lên mỗi giây khi màn đang mở, app đang dùng và chưa kiểm tra. Không bao giờ tự nộp.
@@ -99,8 +124,9 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
         stopExamTts()
         setPhase((ph) => (ph === 'ready' ? ph : 'idle'))
         void draft.flush()
+        void flushMarks()
       }
-    }, [draft]),
+    }, [draft, flushMarks]),
   )
   /** Chế độ chẩn đoán xong một phần thì về màn bài chẩn đoán — chỉ khi học viên còn ở màn này. */
   const backToDiagnostic = () => {
@@ -121,7 +147,17 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
     if (checked) return
     const next = { ...answers, [id]: value }
     setAnswers(next)
-    latest.current = { answers: next, seconds }
+    latest.current = snapshot(next, seconds, notes)
+    draft.schedule()
+  }
+
+  const setNote = (id: string, text: string) => {
+    if (checked || !withNotes) return
+    const next = { ...notes }
+    if (text.trim()) next[id] = text
+    else delete next[id]
+    setNotes(next)
+    latest.current = snapshot(answers, seconds, next)
     draft.schedule()
   }
 
@@ -135,8 +171,9 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
     setBusy(true)
     try {
       draft.reset()
-      const p = await checkPracticeTeil(examId, teilKey, answers, seconds)
+      const p = await checkPracticeTeil(examId, teilKey, answers, seconds, withNotes ? notes : undefined)
       setResult(objectiveResult(p.result))
+      if (p.notes) setNotes(p.notes)
       captureEvent('practice_teil_checked', { teil: teilKey, score: p.score ?? null, max: p.max ?? null, diag })
       refreshAfterCheck()
       if (diag) backToDiagnostic()
@@ -189,6 +226,8 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
             await resetPracticeTeil(examId, teilKey)
             draft.reset()
             setAnswers({})
+            setNotes({})
+            if (isWriting) leitpunkte.clear()
             setResult(null)
             setEvaluation(null)
             setSeconds(0)
@@ -206,6 +245,37 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
   const goNext = () => router.replace(asHref(next ? teilRoute(examId, next) : examSetRoute(examId)))
   const review = useMemo(() => (result ? new Map(result.items.map((r) => [r.id, r])) : undefined), [result])
   const summary = result ? scoreSummary(result.score, result.max) : null
+
+  /** Cuối thẻ từng câu: "Vì sao tôi chọn" lúc làm, ghi chú + "Hỏi AI về câu này" sau khi kiểm tra. */
+  const itemExtra = (item: ExamObjItem) => {
+    if (!withNotes) return null
+    // Khoá khi đang kiểm tra: phản hồi kiểm tra đặt lại ghi chú, chữ gõ trong lúc chờ sẽ bị đè.
+    if (!checked) return <NoteField label="câu này" value={notes[item.id] ?? ''} onChange={(text) => setNote(item.id, text)} editable={!busy} />
+    const mine = notes[item.id]?.trim()
+    return (
+      <View style={{ gap: space[3] }}>
+        {mine ? <MyNote text={mine} /> : null}
+        <AskAiPanel itemLabel={item.question} ask={() => askPracticeItemAi(examId, teilKey, item.id, 'vi')} />
+      </View>
+    )
+  }
+  const markablePassage =
+    markContext && located?.kind === 'objective' ? (
+      <MarkablePassage
+        context={markContext}
+        title={located.group.passageTitle}
+        vorspann={located.group.vorspann}
+        numbered={located.group.passageLines === true}
+        glossary={located.group.glossary}
+        quelle={located.group.quelle}
+        pack={marks.pack}
+        status={marks.status}
+        dropped={marks.dropped}
+        saveFailed={marks.saveFailed}
+        onApply={marks.apply}
+        onRetry={marks.retry}
+      />
+    ) : null
 
   return (
     <Screen edges={['top']}>
@@ -257,9 +327,11 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
               review={review}
               unlimitedPlays={checked}
               hideStrategy={diag}
+              passageOverride={markablePassage}
+              renderItemExtra={itemExtra}
             />
           ) : evaluation ? (
-            <WritingResultCard evaluation={evaluation} />
+            <WritingResultCard evaluation={evaluation} essay={answers[WRITING_TEXT_KEY]} />
           ) : (
             <WritingTaskView
               task={located.task}
@@ -270,6 +342,8 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
               onChange={(text) => setAnswer(WRITING_TEXT_KEY, text)}
               editable={!busy}
               hideStrategy={diag}
+              checkedPoints={diag ? undefined : leitpunkte.checked}
+              onTogglePoint={diag ? undefined : leitpunkte.toggle}
             />
           )}
 

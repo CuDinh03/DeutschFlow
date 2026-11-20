@@ -13,6 +13,8 @@ export const PRACTICE_AUTOSAVE_MS = 1500
 export interface DraftState {
   answers: Record<string, string>
   seconds: number
+  /** Ghi chú "Vì sao tôi chọn" theo câu. Vắng ⇒ server giữ ghi chú đã lưu (bài chẩn đoán, bài Viết). */
+  notes?: Record<string, string>
 }
 
 interface Options {
@@ -52,7 +54,7 @@ export function usePracticeDraft({ examId, teilKey, enabled, latest, onSaved }: 
     const gen = generation.current
     dirty.current = false
     try {
-      const saved = await savePracticeDraft(examId, teilKey, snap.answers, snap.seconds)
+      const saved = await savePracticeDraft(examId, teilKey, snap.answers, snap.seconds, snap.notes)
       if (gen !== generation.current) return
       lastSent.current = sig
       if (saved) onSavedRef.current?.(saved)

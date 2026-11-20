@@ -9,10 +9,11 @@ import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-ro
 import { ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import type { GlyphName } from '@/lib/galerieGlyphs'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { AppHeader, Button, Card, ErrorState, GaGlyph, Icon, Pill, Screen, SectionHeader, Skeleton, ThemedText } from '@/components/ui'
 import { getPracticeOverview, type PracticeTeil } from '@/lib/telcPracticeApi'
 import type { ExamAttempt } from '@/lib/examApi'
+import { CHART_PASS_PCT, scoreBars, type ScoreBar } from '@/lib/examScoreChart'
 import { continueTeil, practiceOverviewKey, teilStatus } from '@/lib/practiceTeil'
 import { checkedCount, sectionShort } from '@/lib/examHub'
 import { fullExamRoute, oralRoute, teilRoute } from '@/lib/examRoutes'
@@ -140,6 +141,7 @@ function ExamSet({ examId }: { examId: number }) {
           {finished.length > 0 ? (
             <View style={{ gap: space[3] }}>
               <SectionHeader title="Lịch sử thi thử" />
+              <ScoreChart bars={scoreBars(attempts, examId, max)} />
               {finished.map((a) => (
                 <Pressable
                   key={a.id}
@@ -164,6 +166,75 @@ function ExamSet({ examId }: { examId: number }) {
         </Screen>
       )}
     </Screen>
+  )
+}
+
+const CHART_HEIGHT = 120
+/** Chiều cao của cột 100% — chừa chỗ cho số điểm trên đầu cột. */
+const BAR_SPAN = CHART_HEIGHT - 20
+
+/**
+ * Điểm phần viết các lượt nộp đủ gần nhất (mẫu `set`): cột theo %, vạch đứt 60%, cột đạt màu navy, lượt
+ * mới nhất màu vàng. Dựng bằng View, không thêm thư viện biểu đồ. Chưa có lượt nộp đủ thì không vẽ.
+ */
+function ScoreChart({ bars }: { bars: ScoreBar[] }) {
+  const c = useTheme().colors
+  if (bars.length === 0) return null
+  const summary = bars.map((b) => `${b.label}: ${b.pct}%`).join(', ')
+  return (
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`Điểm phần viết ${bars.length} lượt thi thử gần nhất, mức đỗ 60%. ${summary}`}
+      style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, padding: space[4], gap: space[2] }}
+    >
+      <ThemedText variant="caption" color="muted">Phần viết · % điểm từng lượt nộp đủ</ThemedText>
+      <View>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2], height: CHART_HEIGHT }}>
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: (BAR_SPAN * CHART_PASS_PCT) / 100,
+              borderTopWidth: 1.5,
+              borderStyle: 'dashed',
+              borderColor: c.textPrimary,
+              zIndex: 1,
+            }}
+          >
+            <ThemedText variant="caption" style={{ position: 'absolute', left: 0, top: 2, fontFamily: fonts.bodyBold, backgroundColor: c.surface, paddingRight: space[1] }}>
+              60%
+            </ThemedText>
+          </View>
+          {bars.map((b) => (
+            <View key={b.id} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: CHART_HEIGHT }}>
+              <ThemedText variant="label" style={{ fontVariant: ['tabular-nums'], marginBottom: 2 }}>{b.pct}</ThemedText>
+              <View
+                style={{
+                  alignSelf: 'stretch',
+                  height: Math.max(8, (BAR_SPAN * b.pct) / 100),
+                  borderTopLeftRadius: 6,
+                  borderTopRightRadius: 6,
+                  borderBottomLeftRadius: 3,
+                  borderBottomRightRadius: 3,
+                  backgroundColor: b.latest ? c.accent : b.passed ? c.info : c.borderStrong,
+                  borderWidth: b.latest ? 1.5 : 0,
+                  borderColor: c.textPrimary,
+                }}
+              />
+            </View>
+          ))}
+        </View>
+        <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[1] }}>
+          {bars.map((b) => (
+            <ThemedText key={b.id} variant="caption" color="muted" align="center" style={{ flex: 1, fontVariant: ['tabular-nums'] }}>
+              {b.label}
+            </ThemedText>
+          ))}
+        </View>
+      </View>
+    </View>
   )
 }
 

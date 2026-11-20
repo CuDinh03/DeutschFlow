@@ -152,11 +152,12 @@ export async function savePracticeDraft(
   teilKey: string,
   answers: Record<string, string>,
   elapsedSeconds: number,
+  notes?: Record<string, string>,
 ): Promise<PracticeProgress | null> {
-  const { data } = await api.put<PracticeProgress | null>(`/mock-exams/practice/${examId}/teile/${teilKey}/draft`, {
-    answers,
-    elapsedSeconds,
-  })
+  const { data } = await api.put<PracticeProgress | null>(
+    `/mock-exams/practice/${examId}/teile/${teilKey}/draft`,
+    notes ? { answers, elapsedSeconds, notes } : { answers, elapsedSeconds },
+  )
   return data
 }
 
@@ -165,17 +166,53 @@ export async function checkPracticeTeil(
   teilKey: string,
   answers: Record<string, string>,
   elapsedSeconds: number,
+  notes?: Record<string, string>,
 ): Promise<PracticeProgress> {
-  const { data } = await api.post<PracticeProgress>(`/mock-exams/practice/${examId}/teile/${teilKey}/check`, {
-    answers,
-    elapsedSeconds,
-  })
+  const { data } = await api.post<PracticeProgress>(
+    `/mock-exams/practice/${examId}/teile/${teilKey}/check`,
+    notes ? { answers, elapsedSeconds, notes } : { answers, elapsedSeconds },
+  )
+  return data
+}
+
+/** Ghi chú "Vì sao tôi chọn" dài nhất (khớp `MockExamPracticeService.MAX_NOTE_CHARS`, như web). */
+export const NOTE_MAX = 300
+
+/**
+ * "Hỏi AI về câu này" cho một câu của Teil luyện ĐÃ kiểm tra (B3, như web). Server giữ bộ nhớ đệm:
+ * câu đã có lời giải thích thì không trừ lượt AI. 409 = chưa nộp, 429 = hết lượt AI.
+ */
+export async function askPracticeItemAi(examId: number, teilKey: string, itemId: string, locale: string): Promise<ItemAiAnswer> {
+  const { data } = await api.post<ItemAiAnswer>(
+    `/mock-exams/practice/${examId}/teile/${encodeURIComponent(teilKey)}/items/${encodeURIComponent(itemId)}/ask-ai`,
+    { locale },
+  )
   return data
 }
 
 /** "Làm lại" Teil (giữ đánh dấu bài đọc như mặc định của server). */
 export async function resetPracticeTeil(examId: number, teilKey: string): Promise<void> {
   await api.delete(`/mock-exams/practice/${examId}/teile/${teilKey}`)
+}
+
+/** Gói đánh dấu bài đọc của Teil (dùng chung với web) — xem `lib/passageMarks.ts`. */
+export interface PracticeMarks {
+  marks: unknown
+  updatedAt: string | null
+}
+
+export function practiceMarksPath(examId: number, teilKey: string): string {
+  return `/mock-exams/practice/${examId}/teile/${teilKey}/marks`
+}
+
+export async function getPracticeMarks(examId: number, teilKey: string): Promise<PracticeMarks> {
+  const { data } = await api.get<PracticeMarks>(practiceMarksPath(examId, teilKey))
+  return data
+}
+
+export async function savePracticeMarks(examId: number, teilKey: string, marks: unknown): Promise<PracticeMarks> {
+  const { data } = await api.put<PracticeMarks>(practiceMarksPath(examId, teilKey), { marks })
+  return data
 }
 
 /** Gửi bài Viết rồi chờ AI chấm xong (job nền, tối đa 3 phút như web). */

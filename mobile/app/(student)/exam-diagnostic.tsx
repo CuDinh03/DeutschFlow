@@ -15,7 +15,8 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { AppHeader, Button, Card, ErrorState, GaGlyph, Icon, Screen, SelectableChip, Skeleton, ThemedText } from '@/components/ui'
 import { examDiagnosticApi, ORAL_PART, type DiagnosticView } from '@/lib/examDiagnosticApi'
 import { getPracticeOverview, type PracticeOverview } from '@/lib/telcPracticeApi'
-import { parseExamDate } from '@/lib/examPlanApi'
+import { EXAM_PLAN_QUERY_KEY, examPlanApi, parseExamDate } from '@/lib/examPlanApi'
+import { planLine, planSummary, skillStats } from '@/lib/diagnosticSummary'
 import { practiceOverviewKey, teilTitle } from '@/lib/practiceTeil'
 import { sectionShort, statusOf, STATUS_LABEL, type SkillId } from '@/lib/examHub'
 import { diagnosticTeilRoute, oralRoute } from '@/lib/examRoutes'
@@ -235,16 +236,34 @@ function RunList({ view, overview, onView }: { view: DiagnosticView; overview: P
 
 function ResultView({ view, onDone }: { view: DiagnosticView; onDone: () => void }) {
   const c = useTheme().colors
+  // Lịch ôn sinh lúc bắt đầu bài chẩn đoán: lấy số tuần, phút mỗi ngày, số lần thi thử như web.
+  const { data: plan } = useQuery({ queryKey: EXAM_PLAN_QUERY_KEY, queryFn: examPlanApi.get })
+  const summary = planSummary(plan)
+  const stats = skillStats(view.skills)
   const scored = SKILLS.filter((s) => typeof view.skills[s] === 'number')
   const weakest = [...scored].sort((a, b) => (view.skills[a] as number) - (view.skills[b] as number))[0]
+  const finished = view.finishedAt ? view.finishedAt.slice(0, 10).split('-').reverse().slice(0, 2).join('/') : null
   return (
     <View style={{ gap: space[4] }}>
-      <ThemedText variant="titleLg">{weakest ? `${sectionShort(weakest)} cần luyện trước` : 'Kết quả bài chẩn đoán'}</ThemedText>
+      <View accessibilityRole="header" style={{ gap: space[1] }}>
+        <ThemedText variant="label" color="muted" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+          {finished ? `Kết quả bài chẩn đoán · ${finished}` : 'Kết quả bài chẩn đoán'}
+        </ThemedText>
+        <ThemedText variant="titleLg">{weakest ? `${sectionShort(weakest)} cần luyện trước` : 'Kết quả bài chẩn đoán'}</ThemedText>
+      </View>
       {view.shortForm ? (
         <ThemedText variant="body" color="secondary">
           Kết quả này là của bài chẩn đoán bản ngắn (chỉ Teil 1 mỗi phần). Làm lại để đo đủ mọi Teil như đề thật.
         </ThemedText>
       ) : null}
+      <View style={{ flexDirection: 'row', gap: space[3] }}>
+        <StatCard value={stats.average != null ? `${stats.average}%` : '—'} label="Trung bình các kỹ năng" />
+        <StatCard
+          value={`${stats.passed}/${stats.scored || SKILLS.length}`}
+          label="Kỹ năng đạt mức đỗ 60%"
+          tone={stats.scored > 0 && stats.passed === stats.scored ? 'success' : undefined}
+        />
+      </View>
       <Card style={{ gap: space[3] }}>
         {SKILLS.map((s) => {
           const pct = view.skills[s]
@@ -262,8 +281,34 @@ function ResultView({ view, onDone }: { view: DiagnosticView; onDone: () => void
         })}
         <ThemedText variant="caption" color="muted">Viết và Nói do AI chấm theo tiêu chí telc, là điểm ước tính.</ThemedText>
       </Card>
-      <ThemedText variant="body" color="secondary">Lịch ôn theo tuần đã sẵn sàng ở tab Luyện thi.</ThemedText>
-      <Button label="Xem lịch ôn" onPress={onDone} />
+      <View style={{ gap: space[2], borderRadius: radius.xl, backgroundColor: c.inkSurface, padding: space[5] }}>
+        <ThemedText variant="label" color="onInk" style={{ letterSpacing: 1, textTransform: 'uppercase', color: c.onInkMuted }}>
+          Lịch ôn đã sẵn sàng
+        </ThemedText>
+        <ThemedText variant="title" color="onInk" style={{ fontVariant: ['tabular-nums'] }}>
+          {summary ? planLine(summary) : 'Lịch ôn theo tuần ở tab Luyện thi'}
+        </ThemedText>
+        <ThemedText variant="body" style={{ color: c.onInkMuted }}>
+          Lịch xếp theo ngày thi và số phút mỗi ngày bạn đã chọn.
+        </ThemedText>
+        <Button label="Xem lịch ôn" variant="yellow" onPress={onDone} style={{ marginTop: space[2] }} />
+      </View>
+    </View>
+  )
+}
+
+function StatCard({ value, label, tone }: { value: string; label: string; tone?: 'success' }) {
+  const c = useTheme().colors
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${label}: ${value}`}
+      style={{ flex: 1, gap: space[1], padding: space[4], borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}
+    >
+      <ThemedText variant="displayLg" color={tone} style={{ fontVariant: ['tabular-nums'] }}>
+        {value}
+      </ThemedText>
+      <ThemedText variant="caption" color="muted">{label}</ThemedText>
     </View>
   )
 }
