@@ -31,6 +31,7 @@ jest.mock('../ReadingPassage', () => ({ ReadingPassage: function ReadingPassage(
 jest.mock('../MarksToolbar', () => ({ MarksToolbar: function MarksToolbar() { return null } }))
 jest.mock('../MarkablePassage', () => ({ MarkablePassage: function MarkablePassage() { return null } }))
 jest.mock('../MarkedRun', () => ({ MarkedRun: function MarkedRun() { return null } }))
+jest.mock('../HeadlineMatch', () => ({ HeadlineMatch: function HeadlineMatch() { return null } }))
 jest.mock('@/lib/api', () => ({ __esModule: true, default: {}, apiMessage: () => '' }))
 
 
@@ -157,5 +158,40 @@ describe('ObjGroupView + bút đánh dấu (Đợt 4f)', () => {
   it('chữ trên màn lệch chữ khối ⇒ không cho tô khối đó', () => {
     const tree = expand(ObjGroupView({ ...props, marks: layer({ texts: { ctx: 'Anderer Text.', 'q:LV2-6': 'Was stimmt?' } }) }))
     expect(collect(tree, () => true).map(typeName)).not.toContain('MarkablePassage')
+  })
+})
+
+describe('ObjGroupView — Lesen Teil 1 kiểu mẫu v3.4', () => {
+  const lesen1 = parseExamSections(
+    JSON.stringify({
+      format: 'TELC',
+      sections: [{
+        name: 'LESEN',
+        teile: [{
+          teil: 1, type: 'MATCH_HEADLINE', single_use: true,
+          headlines: { a: 'Kopf A', b: 'Kopf B', c: 'Kopf C' },
+          items: [{ id: 'LV1-1', question: 'Text 1', text: 'Erster Text.' }, { id: 'LV1-2', question: 'Text 2', text: 'Zweiter Text.' }],
+        }],
+      }],
+    }),
+  ).sections[0].groups[0] as ExamObjGroup
+  const typeName = (e: El) => (typeof e.type === 'function' ? (e.type as { name: string }).name : String(e.type))
+  const props = { group: lesen1, section: 'LESEN', answers: { 'LV1-1': 'a' } as Record<string, string>, onAnswer: () => {} }
+
+  it('dựng HeadlineMatch thay cho hộp "Các tiêu đề" + thẻ câu có nút chọn; truyền đủ đáp án, kết quả, bút', () => {
+    const tree = expand(ObjGroupView({ ...props, marks: null }))
+    const hm = collect(tree, (e) => typeName(e) === 'HeadlineMatch')
+    expect(hm).toHaveLength(1)
+    expect(hm[0].props.answers).toEqual({ 'LV1-1': 'a' })
+    expect(rows(tree)).toHaveLength(0)
+    const texts = collect(tree, (e) => typeof e.props.children === 'string').map((e) => e.props.children)
+    expect(texts).not.toContain('Các tiêu đề')
+    expect(texts).toContain('Teil 1')
+  })
+
+  it('hideTitle ẩn dòng tên Teil (màn đã ghi ở thanh đầu)', () => {
+    const tree = expand(ObjGroupView({ ...props, hideTitle: true }))
+    const texts = collect(tree, (e) => typeof e.props.children === 'string').map((e) => e.props.children)
+    expect(texts).not.toContain('Teil 1')
   })
 })

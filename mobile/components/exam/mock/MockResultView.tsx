@@ -345,6 +345,7 @@ function TeilReview({
           review={review}
           unlimitedPlays
           hideStrategy
+          hideTitle
         />
       ) : located?.kind === 'writing' && analysis.writing ? (
         <View style={{ gap: space[3] }}>

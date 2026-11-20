@@ -453,7 +453,13 @@ function ExamAttemptRunner() {
 
   const onAnswer = useCallback((id: string, val: string) => {
     touchedRef.current = true
-    setAnswers((prev) => ({ ...prev, [id]: val }))
+    // Giá trị rỗng = bỏ chọn (Lesen 1 chuyển tiêu đề sang đoạn khác) ⇒ xoá khoá, không gửi đáp án rỗng.
+    setAnswers((prev) => {
+      const next = { ...prev }
+      if (val) next[id] = val
+      else delete next[id]
+      return next
+    })
   }, [])
 
   const onToggleFlag = useCallback((id: string) => {

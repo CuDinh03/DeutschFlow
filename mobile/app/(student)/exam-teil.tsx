@@ -133,7 +133,11 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
 
   const setAnswer = (id: string, value: string) => {
     if (checked) return
-    const next = { ...answers, [id]: value }
+    // Nối từ bản mới nhất (không từ `answers` của lần vẽ): Lesen 1 "chuyển" tiêu đề gọi hai lần liền
+    // (bỏ ở đoạn cũ rồi gắn đoạn mới). Giá trị rỗng = bỏ chọn ⇒ xoá khoá.
+    const next = { ...latest.current.answers }
+    if (value) next[id] = value
+    else delete next[id]
     setAnswers(next)
     latest.current = snapshot(next, seconds, notes)
     draft.schedule()
@@ -301,6 +305,7 @@ function TeilRunner({ examId, teilKey, diag }: { examId: number; teilKey: string
               unlimitedPlays={checked}
               hideStrategy={diag}
               renderItemExtra={itemExtra}
+              hideTitle
             />
           ) : evaluation ? (
             <WritingResultCard evaluation={evaluation} essay={answers[WRITING_TEXT_KEY]} />

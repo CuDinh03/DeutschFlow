@@ -4,7 +4,7 @@
 
 import type { ReactNode } from 'react'
 import { Pressable, TextInput, View } from 'react-native'
-import { Check, CircleSlash, Flag, X } from 'lucide-react-native'
+import { Check, CircleSlash, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Caption, Card, Icon, SelectableRow, ThemedText } from '@/components/ui'
 import { itemChoices, NONE_OF_THEM, type ExamObjGroup, type ExamObjItem, type ExamWritingTask } from '@/lib/examApi'
@@ -19,6 +19,8 @@ import { AdPosterCard } from './AdPosterCard'
 import { MarkablePassage } from './MarkablePassage'
 import { MarkedRun } from './MarkedRun'
 import { MarksToolbar } from './MarksToolbar'
+import { FlagToggle, ItemExplanation } from './ItemParts'
+import { HeadlineMatch } from './HeadlineMatch'
 import { matchBlock } from '@/lib/marksBlocks'
 import type { MarksLayer } from '@/hooks/usePassageMarks'
 
@@ -51,6 +53,8 @@ interface ObjGroupViewProps {
   marks?: MarksLayer | null
   /** Phần thêm cuối thẻ từng câu (luyện Teil: "Vì sao tôi chọn", "Hỏi AI về câu này"). */
   renderItemExtra?: (item: ExamObjItem) => ReactNode
+  /** Ẩn dòng tên Teil đầu khối khi màn đã ghi tên Teil ở thanh đầu (luyện một Teil, xem lại một Teil). */
+  hideTitle?: boolean
 }
 
 export function ObjGroupView({
@@ -70,6 +74,7 @@ export function ObjGroupView({
   onItemLayout,
   marks,
   renderItemExtra,
+  hideTitle = false,
 }: ObjGroupViewProps) {
   const c = useTheme().colors
   const phase = review ? 'ready' : gatePhase
@@ -82,10 +87,12 @@ export function ObjGroupView({
   const teilVoices = assignTeilVoices(group.audio, group.items.map((it) => it.audio))
   const ml = marks && marks.status !== 'off' ? marks : null
   const passageMarked = !!ml && !!group.passage && matchBlock(ml.texts, 'ctx', group.passage) != null
+  // Lesen Teil 1 telc: thẻ đoạn văn + ô chọn tiêu đề + khay (mẫu v3.4 `lesen1`) thay cho kho tiêu đề + thẻ câu.
+  const headlineMatch = group.telcType === 'MATCH_HEADLINE' && !!group.pool && group.items.every((it) => !!it.passage)
   return (
     <View style={{ gap: space[3] }}>
-      <Caption>{group.title}</Caption>
-      {hideStrategy ? null : <TeilStrategyCard provider={format} level={level} section={section} teil={group.teilNo} />}
+      {hideTitle ? null : <Caption>{group.title}</Caption>}
+      {hideStrategy ? null : <TeilStrategyCard provider={format} level={level} section={section} teil={group.teilNo} hideComingSoon />}
       {group.instruction ? (
         <ThemedText variant="body" color="secondary">
           {group.instruction}
@@ -118,7 +125,7 @@ export function ObjGroupView({
         </View>
       ) : null}
 
-      {group.pool && group.telcType === 'MATCH_HEADLINE' ? (
+      {group.pool && group.telcType === 'MATCH_HEADLINE' && !headlineMatch ? (
         <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
           <Caption>Các tiêu đề</Caption>
           {group.pool.map((opt) => (
@@ -183,7 +190,22 @@ export function ObjGroupView({
         </View>
       ) : null}
 
+      {headlineMatch && !hideBody ? (
+        <HeadlineMatch
+          group={group}
+          answers={answers}
+          onAnswer={onAnswer}
+          review={review}
+          flags={flags}
+          onToggleFlag={onToggleFlag}
+          onItemLayout={onItemLayout}
+          marks={ml}
+          renderItemExtra={renderItemExtra}
+        />
+      ) : null}
+
       {!hideBody &&
+        !headlineMatch &&
         group.items.map((item, idx) => (
           <View key={item.id} style={{ gap: space[2] }} onLayout={onItemLayout ? (e) => onItemLayout(item.id, e.nativeEvent.layout.y) : undefined}>
             {item.audio ? <ExamAudio script={item.audio} label={item.question} maxPlays={plays} locked={audioLocked} compact voices={teilVoices.items[idx]} /> : null}
@@ -236,7 +258,7 @@ export function WritingTaskView({
   return (
     <Card style={{ gap: space[3] }}>
       {task.instruction ? <ThemedText variant="title">{task.instruction}</ThemedText> : null}
-      {hideStrategy ? null : <TeilStrategyCard provider={format} level={level} section={section} teil={task.teil} />}
+      {hideStrategy ? null : <TeilStrategyCard provider={format} level={level} section={section} teil={task.teil} hideComingSoon />}
       {/* Đề telc in nguyên văn E-Mail của bạn (Von/Betreff/thân thư); có nó thì dòng prompt là thừa. */}
       {task.stimulus ? (
         <View style={{ gap: space[2], borderWidth: 1.5, borderColor: c.borderStrong, borderRadius: radius.md, padding: space[3] }}>
@@ -447,39 +469,6 @@ function QuestionCard({
   )
 }
 
-/** Phân tích một câu sau khi kiểm tra (như web): vì sao đúng, vì sao sai, bẫy, bằng chứng trong bài. */
-function ItemExplanation({ result }: { result: PracticeItemResult }) {
-  const c = useTheme().colors
-  const lines: { label: string; text: string }[] = []
-  if (!result.isCorrect && result.whyWrong) lines.push({ label: 'Vì sao chưa đúng', text: result.whyWrong })
-  if (result.whyRight) lines.push({ label: 'Vì sao đáp án đúng', text: result.whyRight })
-  if (result.trap) lines.push({ label: 'Bẫy của câu', text: result.trap })
-  if (result.rule) lines.push({ label: 'Quy tắc', text: result.rule })
-  return (
-    <View style={{ gap: space[2], backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3] }}>
-      <ThemedText variant="label" style={{ color: result.isCorrect ? c.success : c.danger }}>
-        {result.isCorrect ? 'Đúng' : result.answered ? `Sai · đáp án đúng: ${result.correctText ?? result.correct}` : `Chưa trả lời · đáp án: ${result.correctText ?? result.correct}`}
-      </ThemedText>
-      {lines.map((l) => (
-        <View key={l.label} style={{ gap: 2 }}>
-          <Caption>{l.label}</Caption>
-          <ThemedText variant="body" color="secondary">{l.text}</ThemedText>
-        </View>
-      ))}
-      {result.evidence.length > 0 ? (
-        <View style={{ gap: 2 }}>
-          <Caption>Bằng chứng trong bài</Caption>
-          {result.evidence.map((e, i) => (
-            <ThemedText key={i} variant="body" accessibilityLanguage="de-DE" style={{ backgroundColor: c.accentSoft }}>
-              „{e}“
-            </ThemedText>
-          ))}
-        </View>
-      ) : null}
-    </View>
-  )
-}
-
 function Choice({
   label,
   active,
@@ -587,32 +576,5 @@ function Choice({
         <Icon icon={CircleSlash} size={18} color={struck ? 'onInk' : 'muted'} />
       </Pressable>
     </View>
-  )
-}
-
-/** Cờ "đánh dấu xem lại" của một câu thi thử (mẫu `mockrun`): bật thì nền vàng nhạt, viền cam. */
-function FlagToggle({ on, onPress }: { on: boolean; onPress: () => void }) {
-  const { colors } = useTheme()
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={on ? 'Bỏ đánh dấu xem lại' : 'Đánh dấu xem lại'}
-      accessibilityState={{ selected: on }}
-      hitSlop={4}
-      style={({ pressed }) => ({
-        width: 36,
-        height: 36,
-        borderRadius: radius.md,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: on ? 2 : 1,
-        borderColor: on ? colors.orange : colors.border,
-        backgroundColor: on ? colors.accentSoft : colors.surface,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Icon icon={Flag} size={18} color={on ? 'primary' : 'muted'} />
-    </Pressable>
   )
 }
