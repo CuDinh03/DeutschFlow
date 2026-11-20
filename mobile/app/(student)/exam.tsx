@@ -9,11 +9,13 @@
 import { useCallback, useState } from 'react'
 import { Alert, View } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
-import { useFocusEffect } from 'expo-router'
+import { router, useFocusEffect, type Href } from 'expo-router'
+import { CircleHelp } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
-import { space, useTheme } from '@/lib/theme'
+import { RoundIconButton } from '@/components/home/RoundIconButton'
+import { space } from '@/lib/theme'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
-import { AvatarButton, EmptyState, ErrorState, ListRow, Screen, SectionHeader, Skeleton, ThemedText, useTabBarClearance } from '@/components/ui'
+import { AvatarButton, BrushMark, EmptyState, ErrorState, ListRow, Screen, SectionHeader, Skeleton, ThemedText, useTabBarClearance } from '@/components/ui'
 import { EXAM_HUB_QUERY_KEY, hubSuggestions, isNewcomer, useExamHub, type ExamHubData } from '@/hooks/useExamHub'
 import { checkedCount, teilRouteFor, type Skill } from '@/lib/examHub'
 import { examPlanApi, swapLocally, type ExamPlan } from '@/lib/examPlanApi'
@@ -23,7 +25,6 @@ import { SkillBars, WeekRail } from '@/components/exam/hub/SkillsAndWeek'
 
 export default function ExamScreen() {
   const tabClearance = useTabBarClearance()
-  const c = useTheme().colors
   const queryClient = useQueryClient()
   const { data, derived, isLoading, isError, refetch, dataUpdatedAt } = useExamHub()
   const pull = usePullRefresh(async () => {
@@ -74,11 +75,24 @@ export default function ExamScreen() {
           <ThemedText variant="label" color="muted" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>
             Luyện thi telc
           </ThemedText>
-          <ThemedText variant="displayLg" accessibilityRole="header">
-            telc Deutsch{' '}
-            <ThemedText variant="displayLg" style={{ backgroundColor: c.accent }}>{` ${level} `}</ThemedText>
-          </ThemedText>
+          <View
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel={`telc Deutsch ${level}`}
+            style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: space[2] }}
+          >
+            <ThemedText variant="display">telc Deutsch</ThemedText>
+            <BrushMark>{level}</BrushMark>
+          </View>
         </View>
+        {/* Mẫu `exam`: nút "?" cạnh ảnh đại diện. App chưa có tour riêng cho Luyện thi (web có `ScreenTour`)
+            nên mở màn Hướng dẫn; nút back của màn đó về lại tab này. */}
+        <RoundIconButton
+          icon={CircleHelp}
+          label="Xem hướng dẫn"
+          hint="Mở màn Hướng dẫn sử dụng"
+          onPress={() => router.push('/(student)/guide' as unknown as Href)}
+        />
         <AvatarButton />
       </View>
 
