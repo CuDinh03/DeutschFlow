@@ -1,5 +1,6 @@
 import {
   applyPen,
+  applyPenWord,
   dropStale,
   emptyPack,
   fnv1a,
@@ -10,7 +11,9 @@ import {
   sentencesIn,
   setStruck,
   isStruck,
+  wordRanges,
   type MarksPack,
+  type Piece,
 } from '@/lib/passageMarks'
 
 const TEXT = 'Seit einem Jahr gibt es Paten. Jede neue Kraft bekommt Hilfe! Die Paten helfen auch bei „Ämtern“.'
@@ -163,3 +166,72 @@ describe('giữ đánh dấu web ngoài bài đọc (soát Đợt 4c)', () => {
   })
 })
 
+
+describe('wordRanges + applyPenWord — chạm từ để tô như bôi chọn web', () => {
+  const text = 'Insgesamt waren die Jungen mit 51 Prozent nur knapp in der Mehrheit. Nur wenige Kinder.'
+  const texts = { ctx: text }
+  const w = (word: string, nth = 0): Piece => {
+    let i = -1
+    for (let k = 0; k <= nth; k++) i = text.indexOf(word, i + 1)
+    return { b: 'ctx', s: i, e: i + word.length }
+  }
+  const spans = (p: MarksPack) => p.marks.map((m) => `${m.k}${m.c ?? ''}:${text.slice(m.s, m.e)}`).sort()
+
+  test('từ bỏ dấu câu hai đầu, giữ số và dấu nối bên trong', () => {
+    const t = '„Mehrheit.“ 6.000 Schul-Anfänger (0,7)'
+    expect(wordRanges(t).map(([a, b]) => t.slice(a, b))).toEqual(['Mehrheit', '6.000', 'Schul-Anfänger', '0,7'])
+    expect(wordRanges('  ')).toEqual([])
+    expect(wordRanges(t, 12, 17).map(([a, b]) => t.slice(a, b))).toEqual(['6.000'])
+  })
+
+  test('chạm một từ chỉ tô từ đó, không tô cả câu', () => {
+    const p = applyPenWord(emptyPack(), texts, w('Jungen'), 'g')
+    expect(spans(p)).toEqual(['hlg:Jungen'])
+    expect(p.blocks.ctx).toBe(fnv1a(text))
+  })
+
+  test('chạm từ kế bên cùng bút ⇒ nối thành một mảnh; qua dấu chấm cuối câu cũng nối', () => {
+    let p = applyPenWord(emptyPack(), texts, w('Jungen'), 'y')
+    p = applyPenWord(p, texts, w('mit'), 'y')
+    p = applyPenWord(p, texts, w('51'), 'y')
+    expect(spans(p)).toEqual(['hly:Jungen mit 51'])
+    p = applyPenWord(p, texts, w('Mehrheit'), 'y')
+    p = applyPenWord(p, texts, w('Nur'), 'y')
+    expect(spans(p)).toEqual(['hly:Jungen mit 51', 'hly:Mehrheit. Nur'])
+  })
+
+  test('không nối với mảnh khác màu hay mảnh ở xa', () => {
+    let p = applyPenWord(emptyPack(), texts, w('Jungen'), 'y')
+    p = applyPenWord(p, texts, w('mit'), 'g')
+    p = applyPenWord(p, texts, w('Prozent'), 'g')
+    expect(spans(p)).toEqual(['hlg:Prozent', 'hlg:mit', 'hly:Jungen'])
+  })
+
+  test('chạm lại từ giữa cụm ⇒ bỏ từ đó, mảnh tách đôi không sót khoảng trắng', () => {
+    let p = emptyPack()
+    for (const x of ['Jungen', 'mit', '51']) p = applyPenWord(p, texts, w(x), 'y')
+    p = applyPenWord(p, texts, w('mit'), 'y')
+    expect(spans(p)).toEqual(['hly:51', 'hly:Jungen'])
+  })
+
+  test('bút màu khác đè lên từ đã tô; gạch chân và tẩy theo từ', () => {
+    let p = applyPenWord(emptyPack(), texts, w('Jungen'), 'y')
+    p = applyPenWord(p, texts, w('Jungen'), 'p')
+    expect(spans(p)).toEqual(['hlp:Jungen'])
+    p = applyPenWord(p, texts, w('Jungen'), 'ul')
+    expect(spans(p)).toEqual(['hlp:Jungen', 'ul:Jungen'])
+    p = applyPenWord(p, texts, w('Jungen'), 'erase')
+    expect(spans(p)).toEqual([])
+  })
+
+  test('nhấn giữ vẫn tô cả câu (applyPen); lineSegments tách theo từ', () => {
+    const [s0] = sentenceRanges(text)
+    const p = applyPen(emptyPack(), texts, { b: 'ctx', s: s0[0], e: s0[1] }, 'g')
+    expect(spans(p)).toEqual(['hlg:Insgesamt waren die Jungen mit 51 Prozent nur knapp in der Mehrheit.'])
+    const words = wordRanges(text)
+    const segs = lineSegments(text, { start: 0, end: 20, text: '' }, sentenceRanges(text), [], 'ctx', words)
+    expect(segs.map((g) => [g.text, g.word ? 'w' : '-'])).toEqual([
+      ['Insgesamt', 'w'], [' ', '-'], ['waren', 'w'], [' ', '-'], ['die', 'w'], [' ', '-'],
+    ])
+  })
+})

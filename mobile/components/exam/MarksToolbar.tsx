@@ -1,7 +1,7 @@
 // Thanh bút đánh dấu của một Teil (Đợt 4f, 20/11/2026) — bản app của `MarksBar` web: chọn bút (Từ khoá
 // vàng · Bằng chứng xanh · Chưa chắc hồng · Gạch chân · Tẩy), Hoàn tác, Ẩn/hiện đánh dấu, trạng thái lưu,
 // báo đánh dấu cũ bị bỏ khi bài vừa sửa chữ. Bỏ so với web: gợi ý bôi chọn chữ / gắn số câu / ghi chú
-// (app tô theo câu, chưa có gắn câu và ghi chú), nút "?" (gợi ý ngắn luôn hiện một dòng bên dưới).
+// (app tô theo từ — chạm nối cụm, nhấn giữ cả câu — chưa có gắn câu và ghi chú), nút "?" (gợi ý ngắn luôn hiện một dòng bên dưới).
 
 import { Pressable, ScrollView, View } from 'react-native'
 import { Eraser, Eye, EyeOff, Undo2 } from 'lucide-react-native'
@@ -135,7 +135,7 @@ function MarksStatusLine({ layer, hint }: { layer: MarksLayer; hint?: string }) 
   const bad = layer.full || layer.saveState === 'error' || layer.saveState === 'rejected' || layer.saveState === 'closed'
   const base = layer.hidden
     ? 'Đang ẩn đánh dấu. Bấm hình con mắt để hiện lại và tô tiếp.'
-    : hint ?? 'Chọn bút rồi chạm vào một câu để tô; chạm lại để xoá.'
+    : hint ?? 'Chạm từng từ để tô, chạm từ kế bên để nối cụm; nhấn giữ = cả câu. Chạm lại để xoá.'
   const saved = layer.saveState === 'saving' ? ' Đang lưu…' : layer.saveState === 'saved' ? ' Đã lưu, đồng bộ với bản web.' : ''
   return (
     <ThemedText

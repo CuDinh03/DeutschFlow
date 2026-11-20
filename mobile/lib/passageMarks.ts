@@ -189,6 +189,82 @@ function newMark(piece: Piece, k: MarkKind, c: MarkColor | null, carry?: Mark): 
   return { id: uid('h'), g: uid('g'), b: piece.b, s: piece.s, e: piece.e, k, c, q: carry?.q ?? null, n: carry?.n ?? '' }
 }
 
+// ─── tô theo từ (20/11, owner: "chọn từ trên iOS đang chọn cả câu, không giống web") ─────────────
+// Web bôi chọn chữ tuỳ ý; app không có bôi chọn ⇒ chạm một TỪ thì tô từ đó, chạm từ kế bên (cách nhau chỉ
+// khoảng trắng / dấu câu) cùng bút thì nối thành một mảnh — tô dần thành cụm như bôi trên web. Chạm lại từ
+// đã tô đúng bút đó ⇒ bỏ từ đó (mảnh tách đôi, khoảng trắng hai bên rơi theo). Nhấn giữ = cả câu (`applyPen`).
+
+const WORD_EDGE = /[\s.,;:!?…"'“”„«»()[\]{}<>–—-]/
+/** Khoảng giữa hai từ được nối khi tô liền: chỉ khoảng trắng + dấu câu, ngắn. */
+const JOIN_GAP = /^[\s.,;:!?…"'“”„«»()–—-]{0,4}$/
+
+/** Từ của đoạn `[from, to)` trong khối: chuỗi không khoảng trắng, bỏ dấu câu hai đầu ("Mehrheit." → "Mehrheit"). */
+export function wordRanges(text: string, from = 0, to = text.length): [number, number][] {
+  const out: [number, number][] = []
+  const end = Math.min(to, text.length)
+  let i = Math.max(0, from)
+  while (i < end) {
+    while (i < end && /\s/.test(text[i])) i++
+    let j = i
+    while (j < end && !/\s/.test(text[j])) j++
+    let a = i
+    let b = j
+    while (a < b && WORD_EDGE.test(text[a])) a++
+    while (b > a && WORD_EDGE.test(text[b - 1])) b--
+    if (b > a) out.push([a, b])
+    i = j
+  }
+  return out
+}
+
+function penFilter(pen: Exclude<Pen, 'erase'>): (m: Mark) => boolean {
+  return pen === 'ul' ? (m) => m.k === 'ul' : (m) => m.k === 'hl' && m.c === pen
+}
+
+/** Nới `[s, e)` sang khoảng trắng hai bên (bỏ một từ khỏi giữa mảnh thì không sót vệt khoảng trắng). */
+function withSpaces(text: string, piece: Piece): Piece {
+  let s = piece.s
+  let e = piece.e
+  while (s > 0 && /[ \t]/.test(text[s - 1])) s--
+  while (e < text.length && /[ \t]/.test(text[e])) e++
+  return { b: piece.b, s, e }
+}
+
+/**
+ * Áp bút lên một TỪ (`word`):
+ * - tẩy: bỏ mọi lớp trên từ (kèm khoảng trắng hai bên);
+ * - từ đã phủ trọn bằng đúng bút này ⇒ bỏ (như chạm lại câu trên `applyPen`);
+ * - không thì tô, nối với mảnh cùng bút chồng lên hoặc liền kề (chỉ cách khoảng trắng/dấu câu) thành một mảnh.
+ */
+export function applyPenWord(pack: MarksPack, texts: Record<string, string>, word: Piece, pen: Pen): MarksPack {
+  if (word.e <= word.s) return pack
+  const text = texts[word.b] ?? ''
+  if (pen === 'erase') return applyPen(pack, texts, withSpaces(text, word), 'erase')
+  const same = penFilter(pen)
+  if (coveredFully(pack.marks, word, same)) {
+    const touched = pack.marks.filter((m) => m.b === word.b && same(m) && m.e > word.s && m.s < word.e)
+    // Mảnh mang gắn câu / ghi chú của web: để `applyPen` giữ dữ liệu đó như khi chạm lại câu.
+    if (touched.some(hasWebData)) return applyPen(pack, texts, word, pen)
+    return stamp({ ...pack, marks: subtract(pack.marks, withSpaces(text, word), same) }, texts)
+  }
+  let s = word.s
+  let e = word.e
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const m of pack.marks) {
+      if (m.b !== word.b || !same(m)) continue
+      const touches =
+        (m.e > s && m.s < e) || (m.e <= s && JOIN_GAP.test(text.slice(m.e, s))) || (m.s >= e && JOIN_GAP.test(text.slice(e, m.s)))
+      if (!touches || (m.s >= s && m.e <= e)) continue
+      s = Math.min(s, m.s)
+      e = Math.max(e, m.e)
+      grew = true
+    }
+  }
+  return applyPen(pack, texts, { b: word.b, s, e }, pen)
+}
+
 export function isFull(pack: MarksPack): boolean {
   return pack.marks.length >= MAX_MARKS
 }
@@ -256,7 +332,8 @@ export function sentenceRanges(text: string, splitOnNewline = true): [number, nu
   return out
 }
 
-/** Một đoạn chữ hiển thị: cùng kiểu tô suốt đoạn. `sentence` = câu chứa đoạn (null = khoảng trắng giữa câu). */
+/** Một đoạn chữ hiển thị: cùng kiểu tô suốt đoạn. `sentence` = câu chứa đoạn (null = khoảng trắng giữa câu);
+ *  `word` = từ chứa đoạn (null = khoảng trắng / dấu câu). */
 export interface Segment {
   start: number
   end: number
@@ -264,6 +341,7 @@ export interface Segment {
   color: MarkColor | null
   underline: boolean
   sentence: [number, number] | null
+  word: [number, number] | null
 }
 
 /**
@@ -276,6 +354,7 @@ export function lineSegments(
   sentences: readonly [number, number][],
   marks: readonly Mark[],
   block = CONTEXT_BLOCK,
+  words: readonly [number, number][] = [],
 ): Segment[] {
   if (line.end <= line.start) return []
   const clip = (x: number) => Math.min(line.end, Math.max(line.start, x))
@@ -289,6 +368,11 @@ export function lineSegments(
   for (const m of inBlock) {
     cuts.add(clip(m.s))
     cuts.add(clip(m.e))
+  }
+  for (const [a, b] of words) {
+    if (b <= line.start || a >= line.end) continue
+    cuts.add(clip(a))
+    cuts.add(clip(b))
   }
   const points = Array.from(cuts).sort((a, b) => a - b)
   const out: Segment[] = []
@@ -304,7 +388,8 @@ export function lineSegments(
       else underline = true
     }
     const sentence = sentences.find(([x, y]) => x <= a && b <= y) ?? null
-    out.push({ start: a, end: b, text: text.slice(a, b), color, underline, sentence })
+    const word = words.find(([x, y]) => x <= a && b <= y) ?? null
+    out.push({ start: a, end: b, text: text.slice(a, b), color, underline, sentence, word })
   }
   return out
 }

@@ -123,7 +123,7 @@ describe('ObjGroupView + bút đánh dấu (Đợt 4f)', () => {
     pack: { v: 1, blocks: {}, marks: [], struck: { 'LV2-6': ['c'] } },
     texts: { ctx: 'Satz eins. Satz zwei.', 'q:LV2-6': 'Was stimmt?' },
     status: 'ready', pen: 'y', setPen: () => {}, hidden: false, setHidden: () => {}, dropped: false, saveState: 'idle', full: false,
-    canUndo: false, undo: () => {}, retry: () => {}, tap: () => {}, flush: async () => {},
+    canUndo: false, undo: () => {}, retry: () => {}, tap: () => {}, tapWord: () => {}, flush: async () => {},
     isStruck: (id, opt) => id === 'LV2-6' && opt === 'c', toggleStrike: jest.fn(),
     canStrike: (id, opt) => id === 'LV2-6' && ['a', 'b', 'c'].includes(opt),
     ...over,
