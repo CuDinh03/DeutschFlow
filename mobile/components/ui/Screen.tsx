@@ -6,6 +6,7 @@ import { RefreshControl, ScrollView, View, type ViewStyle, type StyleProp } from
 import { useSafeAreaInsets, type Edge } from 'react-native-safe-area-context'
 import { space, useTheme } from '@/lib/theme'
 import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
+import { insetPadding } from '@/lib/screenInset'
 
 interface ScreenProps {
   children: ReactNode
@@ -35,25 +36,19 @@ export function Screen({
   // chiếu sáng — host lấy ScrollView qua context này (components/guide).
   const scrollRef = useRef<ScrollView | null>(null)
 
-  // Chỉ đặt inset cho cạnh ĐƯỢC chọn. Trước 05/09 cạnh bị loại vẫn ghi `paddingLeft: 0` /
-  // `paddingRight: 0`; Yoga ưu tiên key theo cạnh hơn `paddingHorizontal`, nên
-  // `contentStyle={{ paddingHorizontal }}` của các màn `edges={[]}` (Sửa lỗi, Lernweg,
-  // phòng thi nói, Đổi mật khẩu…) bị vô hiệu → nội dung sát mép màn hình.
-  const inset: ViewStyle = {
-    ...(edges.includes('top') ? { paddingTop: insets.top } : null),
-    ...(edges.includes('bottom') ? { paddingBottom: insets.bottom } : null),
-    ...(edges.includes('left') ? { paddingLeft: insets.left } : null),
-    ...(edges.includes('right') ? { paddingRight: insets.right } : null),
-  }
-
+  // Chỉ đặt inset cho cạnh ĐƯỢC chọn (05/09: cạnh bị loại ghi `paddingLeft: 0` từng vô hiệu
+  // `paddingHorizontal` của màn `edges={[]}`), và CỘNG với đệm của màn thay vì để `contentStyle` đè
+  // mất inset (20/11: nút back Chứng nhận nằm dưới thanh trạng thái) — xem `lib/screenInset`.
+  // Đặt SAU `pad` và `contentStyle` trong mảng style.
   const pad: ViewStyle = padded ? { paddingHorizontal: space[5] } : {}
+  const inset = insetPadding(edges, insets, [pad, contentStyle] as never) as ViewStyle
 
   if (scroll) {
     return (
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1, backgroundColor: theme.colors.bg }}
-        contentContainerStyle={[inset, pad, contentStyle]}
+        contentContainerStyle={[pad, contentStyle, inset]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         // iOS: tự chừa chỗ cho bàn phím để ô nhập cuối màn (ô Viết, ghi chú) không bị che.
@@ -76,7 +71,7 @@ export function Screen({
   }
 
   return (
-    <View style={[{ flex: 1, backgroundColor: theme.colors.bg }, inset, pad, contentStyle]}>
+    <View style={[{ flex: 1, backgroundColor: theme.colors.bg }, pad, contentStyle, inset]}>
       {children}
     </View>
   )
