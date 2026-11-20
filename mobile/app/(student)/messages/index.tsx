@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react'
-import { View } from 'react-native'
+import { useCallback } from 'react'
+import { Pressable, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router, useFocusEffect } from 'expo-router'
@@ -7,22 +7,26 @@ import { ChevronRight } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { messagesApi, type Conversation } from '@/lib/messagesApi'
 import { fetchMyClasses, type MyClassroom } from '@/lib/studentClassesApi'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, SelectableChip, Skeleton, ThemedText,
-GaGlyph } from '@/components/ui'
+  Button, EmptyState, ErrorState, GaGlyph, Icon, Screen, Skeleton, ThemedText,
+} from '@/components/ui'
+import {
+  InitialAvatar, ListBlock, MarkTitle, SectionTitle, TopBar, listRowStyle,
+} from '@/components/classroom/ClassroomParts'
+import { nameInitial } from '@/lib/classroomUi'
 import { useBackToMainTab } from '@/hooks/useBackTo'
 
 // Unified inbox (QA build 15): personal 1:1 threads and class group channels
-// live under ONE "Tin nhắn" entry, split by tab — mirrors the web unified
-// inbox (#286). The class tab reuses the student's class list; each row opens
-// the existing class-chat screen.
-type InboxTab = 'personal' | 'class'
-
+// live under ONE "Tin nhắn" entry — mirrors the web unified inbox (#286). The class
+// part reuses the student's class list; each row opens the existing class-chat screen.
+//
+// Giao diện v3.4 (Đợt 6B, mẫu `inbox`): tiêu đề "Tin nhắn" có vệt vàng, hai mục xếp chồng
+// "Tin nhắn cá nhân" và "Tin nhắn nhóm lớp" (thay cho hai tab cũ), mỗi mục một khối danh sách.
+// Hai truy vấn vẫn như cũ; kéo để làm mới thì làm mới cả hai.
 export default function MessagesHubScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackToMainTab()
-  const [tab, setTab] = useState<InboxTab>('personal')
 
   const conv = useQuery({
     queryKey: ['conversations'],
@@ -38,216 +42,200 @@ export default function MessagesHubScreen() {
   const refetchConv = conv.refetch
   // Re-fetch each time the list regains focus (e.g. after reading a thread) so unread clears.
   useFocusEffect(useCallback(() => { void refetchConv() }, [refetchConv]))
-  const pullConv = usePullRefresh(conv.refetch)
-  const pullClasses = usePullRefresh(classes.refetch)
+  const pull = usePullRefresh(async () => {
+    await Promise.all([conv.refetch(), classes.refetch()])
+  })
 
   const totalUnread = (conv.data ?? []).reduce((sum, c) => sum + c.unread, 0)
+  const noConversations = !conv.isLoading && !conv.isError && (conv.data?.length ?? 0) === 0
+  const noClasses = !classes.isLoading && !classes.isError && (classes.data?.length ?? 0) === 0
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Tin nhắn" subtitle="Cá nhân · Nhóm lớp" onBack={goBack} />
+      <TopBar onBack={goBack} />
+      <Screen
+        scroll
+        edges={[]}
+        contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], paddingTop: space[4] }}
+        refreshing={pull.refreshing}
+        onRefresh={() => void pull.onRefresh()}
+      >
+        <MarkTitle plain="Tin" mark="nhắn" />
+        <ThemedText variant="caption" color="muted" style={{ fontSize: 13, marginTop: space[1] }}>
+          {totalUnread > 0 ? `Cá nhân · Nhóm lớp · ${totalUnread} tin chưa đọc` : 'Cá nhân · Nhóm lớp'}
+        </ThemedText>
 
-      <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginBottom: space[3] }}>
-        <SelectableChip label="Tin nhắn cá nhân" selected={tab === 'personal'} onPress={() => setTab('personal')}>
-          <Pill
-            label={totalUnread > 0 ? `Cá nhân · ${totalUnread}` : 'Cá nhân'}
-            tone={tab === 'personal' ? 'accent' : 'neutral'}
-            solid={tab === 'personal'}
-          />
-        </SelectableChip>
-        <SelectableChip label="Tin nhắn nhóm lớp" selected={tab === 'class'} onPress={() => setTab('class')}>
-          <Pill label="Nhóm lớp" tone={tab === 'class' ? 'accent' : 'neutral'} solid={tab === 'class'} />
-        </SelectableChip>
-      </View>
-
-      {tab === 'personal' ? renderPersonalTab() : renderClassTab()}
+        {noConversations && noClasses ? (
+          <View style={{ paddingTop: space[8] }}>
+            <EmptyState
+              glyph="hoithoai"
+              title="Chưa có tin nhắn"
+              message="Mở trang lớp học → tab Giáo viên → Nhắn tin để bắt đầu trò chuyện."
+              actionLabel="Xem lớp của tôi"
+              onAction={() => router.push('/(student)/classes')}
+            />
+          </View>
+        ) : (
+          <>
+            <SectionTitle>Tin nhắn cá nhân</SectionTitle>
+            {renderPersonal()}
+            <SectionTitle>Tin nhắn nhóm lớp</SectionTitle>
+            {renderClasses()}
+          </>
+        )}
+      </Screen>
     </Screen>
   )
 
   // Plain render helpers (no hooks) — NOT nested components, which would
   // remount their subtree on every parent re-render.
-  function renderPersonalTab() {
+  function renderPersonal() {
     if (conv.isLoading) return <RowSkeletons />
     if (conv.isError) return <ErrorState message={apiMessage(conv.error)} onRetry={() => void conv.refetch()} />
     if ((conv.data?.length ?? 0) === 0) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState
-            glyph="hoithoai"
-            title="Chưa có tin nhắn"
-            message="Mở trang lớp học → tab Giáo viên → Nhắn tin để bắt đầu trò chuyện."
-            actionLabel="Xem lớp của tôi"
-            onAction={() => router.push('/(student)/classes')}
-          />
-        </View>
+        <ThemedText variant="body" color="muted">
+          Chưa có tin nhắn. Mở trang lớp học → tab Giáo viên → Nhắn tin để bắt đầu trò chuyện.
+        </ThemedText>
       )
     }
     return (
-      <Screen
-        scroll
-        edges={[]}
-        contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[2], paddingTop: space[2] }}
-        refreshing={pullConv.refreshing}
-        onRefresh={() => void pullConv.onRefresh()}
-      >
-        {conv.data!.map((c) => (
-          <ConversationRow key={c.userId} conv={c} />
+      <ListBlock>
+        {conv.data!.map((c, i) => (
+          <ConversationRow key={c.userId} conv={c} first={i === 0} />
         ))}
-      </Screen>
+      </ListBlock>
     )
   }
 
-  function renderClassTab() {
+  function renderClasses() {
     if (classes.isLoading) return <RowSkeletons />
     if (classes.isError) return <ErrorState message={apiMessage(classes.error)} onRetry={() => void classes.refetch()} />
     if ((classes.data?.length ?? 0) === 0) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState
-            glyph="lophoc"
-            title="Chưa vào lớp nào"
-            message="Vào một lớp học để trò chuyện cùng cả lớp trong kênh nhóm."
-            actionLabel="Xem lớp của tôi"
-            onAction={() => router.push('/(student)/classes')}
+        <View style={{ gap: space[3], alignItems: 'flex-start' }}>
+          <ThemedText variant="body" color="muted">
+            Vào một lớp học để trò chuyện cùng cả lớp trong kênh nhóm.
+          </ThemedText>
+          <Button
+            label="Xem lớp của tôi"
+            variant="secondary"
+            size="sm"
+            fullWidth={false}
+            onPress={() => router.push('/(student)/classes')}
           />
         </View>
       )
     }
     return (
-      <Screen
-        scroll
-        edges={[]}
-        contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[2], paddingTop: space[2] }}
-        refreshing={pullClasses.refreshing}
-        onRefresh={() => void pullClasses.onRefresh()}
-      >
-        {classes.data!.map((k) => (
-          <ClassChannelRow key={k.id} klass={k} />
+      <ListBlock>
+        {classes.data!.map((k, i) => (
+          <ClassChannelRow key={k.id} klass={k} first={i === 0} />
         ))}
-      </Screen>
+      </ListBlock>
     )
   }
 }
 
-function ClassChannelRow({ klass }: { klass: MyClassroom }) {
+function ClassChannelRow({ klass, first }: { klass: MyClassroom; first: boolean }) {
   const c = useTheme().colors
   const teacherNames = klass.teachers.map((t) => t.displayName).join(', ')
   return (
-    <Card
+    <Pressable
       onPress={() =>
         router.push({
           pathname: '/(student)/class-chat/[classId]',
           params: { classId: String(klass.id), className: klass.name, from: 'messages' },
         })
       }
+      accessibilityRole="button"
       accessibilityLabel={`Kênh chat lớp ${klass.name}`}
+      style={({ pressed }) => listRowStyle(c.border, first, { backgroundColor: pressed ? c.surfaceSunken : 'transparent' })}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: radius.md,
-            backgroundColor: c.accentSoft,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <GaGlyph name="lophoc" size={20} ink="primary" />
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText variant="bodyStrong" numberOfLines={1}>
-            {klass.name}
-          </ThemedText>
-          <ThemedText variant="caption" color="muted" numberOfLines={1}>
-            {teacherNames ? `GV: ${teacherNames}` : 'Kênh chat cả lớp'}
-          </ThemedText>
-        </View>
-        <Icon icon={ChevronRight} size={18} color="muted" />
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: radius.full,
+          backgroundColor: c.accent,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <GaGlyph name="lophoc" size={22} ink="onAccent" gold="ink" />
       </View>
-    </Card>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <ThemedText variant="bodyStrong" numberOfLines={1}>
+          {klass.name}
+        </ThemedText>
+        <ThemedText variant="caption" color="muted" numberOfLines={1}>
+          {teacherNames ? `Kênh chat cả lớp · GV: ${teacherNames}` : 'Kênh chat cả lớp'}
+        </ThemedText>
+      </View>
+      <Icon icon={ChevronRight} size={18} color="faint" />
+    </Pressable>
   )
 }
 
 function RowSkeletons() {
   return (
-    <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
-      <Skeleton height={72} radius="md" />
-      <Skeleton height={72} radius="md" />
-      <Skeleton height={72} radius="md" />
+    <View style={{ gap: space[2] }}>
+      <Skeleton height={64} radius="lg" />
+      <Skeleton height={64} radius="lg" />
     </View>
   )
 }
 
-function ConversationRow({ conv }: { conv: Conversation }) {
+function ConversationRow({ conv, first }: { conv: Conversation; first: boolean }) {
   const c = useTheme().colors
   const hasUnread = conv.unread > 0
   return (
-    <Card
+    <Pressable
       onPress={() =>
         router.push({
           pathname: '/(student)/messages/[userId]',
           params: { userId: String(conv.userId), name: conv.displayName },
         })
       }
+      accessibilityRole="button"
       accessibilityLabel={`Trò chuyện với ${conv.displayName}${hasUnread ? `, ${conv.unread} tin chưa đọc` : ''}`}
+      style={({ pressed }) => listRowStyle(c.border, first, { backgroundColor: pressed ? c.surfaceSunken : 'transparent' })}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <Avatar name={conv.displayName} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <ThemedText variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
-              {conv.displayName}
-            </ThemedText>
-            <Caption color={c.textFaint}>{timeAgo(conv.lastAt)}</Caption>
-          </View>
-          <ThemedText
-            variant="caption"
-            color={hasUnread ? 'primary' : 'muted'}
-            numberOfLines={1}
-            style={hasUnread ? { fontWeight: '600' } : undefined}
-          >
-            {conv.lastMessage ?? 'Bắt đầu trò chuyện'}
-          </ThemedText>
-        </View>
+      <InitialAvatar initial={nameInitial(conv.displayName)} size={44} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <ThemedText variant="bodyStrong" numberOfLines={1}>
+          {conv.displayName}
+        </ThemedText>
+        <ThemedText
+          variant="caption"
+          color={hasUnread ? 'primary' : 'muted'}
+          numberOfLines={1}
+          style={hasUnread ? { fontFamily: fonts.bodySemi } : undefined}
+        >
+          {conv.lastMessage ?? 'Bắt đầu trò chuyện'}
+        </ThemedText>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <ThemedText variant="caption" color="muted">{timeAgo(conv.lastAt)}</ThemedText>
         {hasUnread ? (
           <View
             style={{
               minWidth: 20,
               height: 20,
-              paddingHorizontal: 5,
+              paddingHorizontal: 6,
               borderRadius: radius.full,
               backgroundColor: c.danger,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <ThemedText variant="caption" style={{ color: c.onBrand, fontSize: 10 }}>
+            <ThemedText variant="caption" style={{ color: c.onBrand, fontSize: 11.5, fontFamily: fonts.bodyBold }}>
               {conv.unread > 9 ? '9+' : String(conv.unread)}
             </ThemedText>
           </View>
         ) : null}
       </View>
-    </Card>
-  )
-}
-
-function Avatar({ name }: { name: string }) {
-  const c = useTheme().colors
-  const initial = name.trim().charAt(0).toUpperCase() || '?'
-  return (
-    <View
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: radius.md,
-        backgroundColor: c.accentSoft,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <ThemedText variant="title" color="accent">{initial}</ThemedText>
-    </View>
+    </Pressable>
   )
 }
 
