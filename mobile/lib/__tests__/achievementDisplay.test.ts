@@ -30,6 +30,7 @@ describe('stripEmoji', () => {
     expect(stripEmoji('Bước vào chuyên ngành 🚀')).toBe('Bước vào chuyên ngành')
     expect(stripEmoji('🎙️ Buổi nói đầu tiên')).toBe('Buổi nói đầu tiên')
     expect(stripEmoji('Tuần 🗓️ vàng')).toBe('Tuần vàng')
+    expect(stripEmoji('Bạn đã mở khóa huy hiệu "Người ôn tập 📚"! +50 XP')).toBe('Bạn đã mở khóa huy hiệu "Người ôn tập"! +50 XP')
   })
 
   test('giữ nguyên chữ tiếng Việt có dấu', () => {

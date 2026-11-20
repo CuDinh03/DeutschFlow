@@ -1,9 +1,11 @@
-// Notification list shapes + mapping. Pure (no imports) so it is trivially
-// unit-testable. Backend GET /api/notifications -> NotificationPageResponse.
+// Notification list shapes + mapping. Pure (only the pure `lib/emoji`) so it is
+// trivially unit-testable. Backend GET /api/notifications -> NotificationPageResponse.
 // The backend now renders `title`/`body` server-side (NotificationContentRenderer)
 // so every type has meaningful, recorded content; we prefer those and fall back
 // to the freeform `payload` map for older backends. Status is `read`, timestamp
 // is `createdAtUtc`.
+
+import { stripEmoji } from '@/lib/emoji'
 
 export interface Notification {
   id: number
@@ -265,5 +267,15 @@ export function mapNotification(item: RawNotificationItem): Notification {
         : typeof p.message === 'string' && p.message
           ? p.message
           : ''
-  return { id: item.id, title, body, type: item.type, isRead: item.read, createdAt: item.createdAtUtc, payload: p }
+  // Mobile không hiện emoji: chữ máy chủ có thể mang emoji ở giữa (tên huy hiệu seed V111 "Người ôn tập 📚")
+  // ⇒ bỏ hết khi hiển thị; tiêu đề toàn emoji thì giữ như cũ (stripLeadingEmoji cũng giữ).
+  return {
+    id: item.id,
+    title: stripEmoji(title) || title,
+    body: stripEmoji(body),
+    type: item.type,
+    isRead: item.read,
+    createdAt: item.createdAtUtc,
+    payload: p,
+  }
 }
