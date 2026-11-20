@@ -30,5 +30,6 @@ export function stripEmoji(text: string | null | undefined): string {
     }
     out += ch
   }
-  return out.replace(/\s+/g, ' ').trim()
+  // Gộp khoảng trắng ngang, giữ xuống dòng (nội dung thông báo nhiều dòng).
+  return out.replace(/[ \t]{2,}/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').trim()
 }

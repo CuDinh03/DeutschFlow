@@ -235,3 +235,35 @@ describe('wordRanges + applyPenWord — chạm từ để tô như bôi chọn w
     ])
   })
 })
+
+describe('applyPenWord / applyPen — không làm mất gắn câu, ghi chú của web (soát #971)', () => {
+  const text = 'Insgesamt waren die Jungen mit 51 Prozent nur knapp in der Mehrheit.'
+  const texts = { ctx: text }
+  const at = (w: string) => ({ s: text.indexOf(w), e: text.indexOf(w) + w.length })
+  const web = parsePack({
+    v: 1,
+    blocks: { ctx: fnv1a(text) },
+    marks: [
+      { id: 'a', g: 'g1', b: 'ctx', ...at('Jungen'), k: 'hl', c: 'y', q: null, n: 'ghi chú A' },
+      { id: 'b', g: 'g2', b: 'ctx', ...at('51'), k: 'hl', c: 'y', q: 'LV2-7', n: 'ghi chú B' },
+    ],
+    struck: {},
+  })
+  const kept = (p: MarksPack) => p.marks.filter((m) => m.n).map((m) => `${m.n}|${m.q ?? ''}|${text.slice(m.s, m.e)}`).sort()
+
+  test('chạm từ giữa hai mảnh web cùng bút: không gộp, giữ cả hai ghi chú', () => {
+    const p = applyPenWord(web, texts, { b: 'ctx', ...at('mit') }, 'y')
+    expect(kept(p)).toEqual(['ghi chú A||Jungen', 'ghi chú B|LV2-7|51'])
+    expect(p.marks.some((m) => text.slice(m.s, m.e) === 'mit' && m.c === 'y')).toBe(true)
+  })
+
+  test('chạm lại từ thuộc mảnh web: không đổi gì (không tách, không nhân bản ghi chú)', () => {
+    expect(applyPenWord(web, texts, { b: 'ctx', ...at('Jungen') }, 'y')).toBe(web)
+  })
+
+  test('nhấn giữ tô cả câu chứa hai mảnh web: giữ cả hai, lớp mới đè lên', () => {
+    const p = applyPen(web, texts, { b: 'ctx', s: 0, e: text.length }, 'g')
+    expect(kept(p)).toEqual(['ghi chú A||Jungen', 'ghi chú B|LV2-7|51'])
+    expect(p.marks[p.marks.length - 1]).toMatchObject({ s: 0, e: text.length, k: 'hl', c: 'g' })
+  })
+})

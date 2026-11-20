@@ -41,7 +41,7 @@ export function AdBoard({ group, answers, onAnswer, reviewing, marks }: Props) {
 
   return (
     <View style={{ gap: space[3] }}>
-      <Caption>Các mẩu rao vặt · mỗi mẩu chỉ dùng một lần</Caption>
+      <Caption>{group.singleUse ? 'Các mẩu rao vặt · mỗi mẩu chỉ dùng một lần' : 'Các mẩu rao vặt'}</Caption>
       {reviewing ? null : (
         <ThemedText variant="caption" color="muted">
           Chạm một mẩu tin để chọn tình huống hợp với nó.

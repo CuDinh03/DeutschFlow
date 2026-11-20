@@ -43,3 +43,9 @@ describe('stripEmoji', () => {
     expect(stripEmoji('🔥')).toBe('')
   })
 })
+
+describe('stripEmoji — giữ xuống dòng', () => {
+  test('nội dung nhiều dòng không bị ép thành một dòng', () => {
+    expect(stripEmoji('Dòng một 🎉\nDòng  hai')).toBe('Dòng một\nDòng hai')
+  })
+})

@@ -170,17 +170,22 @@ export function applyPen(pack: MarksPack, texts: Record<string, string>, piece: 
   if (pen === 'erase') {
     // Tẩy không xoá mảnh mang gắn câu / ghi chú của web (app không hiện được, xoá là mất âm thầm).
     marks = subtract(marks, piece, (m) => !hasWebData(m))
-  } else if (pen === 'ul') {
-    const full = coveredFully(marks, piece, (m) => m.k === 'ul')
-    const carry = marks.find((m) => inPiece(m) && m.k === 'ul' && hasWebData(m))
-    marks = subtract(marks, piece, (m) => m.k === 'ul')
-    if (!full || carry) marks.push(newMark(piece, 'ul', null, carry))
   } else {
-    const same = coveredFully(marks, piece, (m) => m.k === 'hl' && m.c === pen)
-    // Tô đè: mang theo gắn câu + ghi chú của mảnh web trong câu này sang mảnh mới.
-    const carry = marks.find((m) => inPiece(m) && m.k === 'hl' && hasWebData(m))
-    marks = subtract(marks, piece, (m) => m.k === 'hl')
-    if (!same || carry) marks.push(newMark(piece, 'hl', pen, carry))
+    const k: MarkKind = pen === 'ul' ? 'ul' : 'hl'
+    const c: MarkColor | null = pen === 'ul' ? null : pen
+    const full = coveredFully(marks, piece, (m) => m.k === k && (k === 'ul' || m.c === c))
+    const web = marks.filter((m) => inPiece(m) && m.k === k && hasWebData(m))
+    if (web.length >= 2) {
+      // Nhiều mảnh web (gắn câu / ghi chú) trong vùng: một mảnh mới chỉ mang được dữ liệu của MỘT mảnh ⇒
+      // giữ nguyên mọi mảnh web, chỉ thay mảnh thường; vẽ lớp mới đè lên (lớp cuối thắng khi hiển thị).
+      marks = subtract(marks, piece, (m) => m.k === k && !hasWebData(m))
+      if (!full) marks.push(newMark(piece, k, c))
+    } else {
+      // Tô đè: mang theo gắn câu + ghi chú của (một) mảnh web trong vùng sang mảnh mới.
+      const carry = web[0]
+      marks = subtract(marks, piece, (m) => m.k === k)
+      if (!full || carry) marks.push(newMark(piece, k, c, carry))
+    }
   }
   return stamp({ ...pack, marks }, texts)
 }
@@ -233,8 +238,10 @@ function withSpaces(text: string, piece: Piece): Piece {
 /**
  * Áp bút lên một TỪ (`word`):
  * - tẩy: bỏ mọi lớp trên từ (kèm khoảng trắng hai bên);
- * - từ đã phủ trọn bằng đúng bút này ⇒ bỏ (như chạm lại câu trên `applyPen`);
- * - không thì tô, nối với mảnh cùng bút chồng lên hoặc liền kề (chỉ cách khoảng trắng/dấu câu) thành một mảnh.
+ * - từ đã phủ trọn bằng đúng bút này ⇒ bỏ (như chạm lại câu trên `applyPen`); từ thuộc mảnh web có gắn
+ *   câu / ghi chú thì không đổi (không tách mảnh web);
+ * - không thì tô, nối với mảnh THƯỜNG cùng bút chồng lên hoặc liền kề (chỉ cách khoảng trắng/dấu câu) thành
+ *   một mảnh; mảnh web không bị gộp (giữ nguyên gắn câu / ghi chú).
  */
 export function applyPenWord(pack: MarksPack, texts: Record<string, string>, word: Piece, pen: Pen): MarksPack {
   if (word.e <= word.s) return pack
@@ -243,8 +250,9 @@ export function applyPenWord(pack: MarksPack, texts: Record<string, string>, wor
   const same = penFilter(pen)
   if (coveredFully(pack.marks, word, same)) {
     const touched = pack.marks.filter((m) => m.b === word.b && same(m) && m.e > word.s && m.s < word.e)
-    // Mảnh mang gắn câu / ghi chú của web: để `applyPen` giữ dữ liệu đó như khi chạm lại câu.
-    if (touched.some(hasWebData)) return applyPen(pack, texts, word, pen)
+    // Từ nằm trong mảnh mang gắn câu / ghi chú của web: không tách mảnh đó (tách = nhân bản ghi chú, mảnh
+    // phình dần tới MAX_MARKS) ⇒ chạm lại không đổi gì; bỏ tô mảnh đó trên web.
+    if (touched.some(hasWebData)) return pack
     return stamp({ ...pack, marks: subtract(pack.marks, withSpaces(text, word), same) }, texts)
   }
   let s = word.s
@@ -253,7 +261,8 @@ export function applyPenWord(pack: MarksPack, texts: Record<string, string>, wor
   while (grew) {
     grew = false
     for (const m of pack.marks) {
-      if (m.b !== word.b || !same(m)) continue
+      // Không nối qua mảnh web: gom ≥2 mảnh web vào một mảnh là mất gắn câu / ghi chú của mảnh còn lại.
+      if (m.b !== word.b || !same(m) || hasWebData(m)) continue
       const touches =
         (m.e > s && m.s < e) || (m.e <= s && JOIN_GAP.test(text.slice(m.e, s))) || (m.s >= e && JOIN_GAP.test(text.slice(e, m.s)))
       if (!touches || (m.s >= s && m.e <= e)) continue
