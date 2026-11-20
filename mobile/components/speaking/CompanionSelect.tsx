@@ -1,21 +1,23 @@
 // Persona + mode selector for AI Speaking — RN parity of the web CompanionSelect.
 // Hàng mode 4 ô (Hội thoại / Phỏng vấn / Thi nói / Luyện tập), grouped personas
 // with avatars, per-persona accent theming, and mode-specific config (position /
-// scenario / level). "Thi nói" là lối vào Luyện thi Nói Goethe (điều hướng sang
-// hub thi, không phải một sessionMode); "Luyện tập" (LESSON) đang KHOÁ theo
-// quyết định 02/09 — mở lại khi luồng lesson được làm mới.
+// scenario / level). "Thi nói" là lối vào sảnh thi nói telc (điều hướng, không
+// phải một sessionMode); "Luyện tập" (LESSON) đang KHOÁ theo quyết định 02/09 —
+// mở lại khi luồng lesson được làm mới.
+//
+// Giao diện v3.4 (Đợt 5, 19/11/2026): đây là nhánh "Nói tự do" của tab Luyện nói. Thanh chuyển
+// Phỏng vấn | Nói tự do và ảnh đại diện nằm ở đầu tab (`SpeakingTrackBar`); ô "Phỏng vấn" chuyển
+// sang nhánh Phỏng vấn theo nghề (`InterviewHub`) thay vì lưới người phỏng vấn theo ngành.
 
 import { useMemo, useRef, useState } from 'react'
 import type { GlyphName } from '@/lib/galerieGlyphs'
-import { Pressable, ScrollView, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { MotiView } from 'moti'
 import { useQuery } from '@tanstack/react-query'
-import { Check } from 'lucide-react-native'
+import { Check, ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText, Icon, Button, useTabBarClearance, GaGlyph, AvatarButton } from '@/components/ui'
-import { SpotlightTarget } from '@/components/guide/SpotlightTour'
-import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
-import { SpotlightScrollHostProvider } from '@/components/guide/spotlightScrollHost'
+import { BrushMark, ThemedText, Icon, Button, Pill, useTabBarClearance, GaGlyph } from '@/components/ui'
+import { recentConversation } from '@/lib/interviewHub'
 import {
   PERSONA_LIST,
   PERSONA_GROUPS,
@@ -26,10 +28,6 @@ import { PersonaAvatar } from '@/components/speaking/PersonaAvatar'
 import { speakingApi, type SpeakingSessionMode } from '@/lib/speakingApi'
 import { practiceBand } from '@/lib/learnerBand'
 import { useLearnerLevel } from '@/hooks/useLearnerLevel'
-import { fetchOccupationInterviewInfo, occupationName } from '@/lib/occupations'
-import { WORKPLACE_INTERVIEWERS, isWorkplaceInterviewerId, resolveStagePersona } from '@/lib/workplaceInterviewers'
-import { PERSONA_TOKENS } from '@/lib/personas'
-import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 
 export interface StartArgs {
   /** Không có khi phỏng vấn theo nghề (K3b) — backend chọn người phỏng vấn theo `occupationCode`. */
@@ -51,18 +49,26 @@ interface CompanionSelectProps {
   isPro: boolean
   starting: boolean
   onStart: (args: StartArgs) => void
-  /** Mở hub Luyện thi Nói Goethe — ô "Thi nói" trên hàng mode. */
+  /** Mở sảnh thi nói telc — ô "Thi nói" trên hàng mode. */
   onOpenExam: () => void
+  /** Sang nhánh Phỏng vấn theo nghề — ô "Phỏng vấn" trên hàng mode. */
+  onOpenInterview: () => void
   /** Preselect a mode (e.g. routed in from onboarding's INTERVIEW_FIRST). */
   initialMode?: SpeakingSessionMode
+  /** Mở Thử thách nói tuần (dòng dưới thẻ thiết lập, mẫu v3.4 `speak`). */
+  onOpenWeekly: () => void
+  /** Mở lại phiếu kết quả của buổi hội thoại gần nhất. */
+  onOpenRecent: (sessionId: number) => void
+  /** Phiếu đang được tải (spinner trên dòng "Buổi gần đây"). */
+  loadingReportId: number | null
 }
 
 /** 'EXAM' là ô điều hướng (không phải sessionMode); `locked` = ô hiển thị nhưng chưa mở. */
-const MODES: { key: SpeakingSessionMode | 'EXAM'; label: string; glyph: GlyphName; locked?: boolean }[] = [
-  { key: 'COMMUNICATION', label: 'Hội thoại', glyph: 'hoithoai' },
-  { key: 'INTERVIEW', label: 'Phỏng vấn', glyph: 'phongvan' },
-  { key: 'EXAM', label: 'Thi nói', glyph: 'thinoi' },
-  { key: 'LESSON', label: 'Luyện tập', glyph: 'hoc', locked: true },
+const MODES: { key: SpeakingSessionMode | 'EXAM'; label: string; sub: string; glyph: GlyphName; locked?: boolean }[] = [
+  { key: 'COMMUNICATION', label: 'Hội thoại', sub: 'Chủ đề đời sống', glyph: 'hoithoai' },
+  { key: 'INTERVIEW', label: 'Phỏng vấn', sub: 'Theo nghề của bạn', glyph: 'phongvan' },
+  { key: 'EXAM', label: 'Thi nói', sub: 'telc · 3 Teil', glyph: 'thinoi' },
+  { key: 'LESSON', label: 'Luyện tập', sub: 'Sắp mở lại', glyph: 'hoc', locked: true },
 ]
 
 const GROUP_ICONS: Record<PersonaGroup, GlyphName> = {
@@ -85,16 +91,19 @@ const EXPERIENCE: { id: string; label: string }[] = [
   { id: '5Y', label: '5+ năm' },
 ]
 
-export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialMode }: CompanionSelectProps) {
+export function CompanionSelect({
+  isPro, starting, onStart, onOpenExam, onOpenInterview, initialMode, onOpenWeekly, onOpenRecent, loadingReportId,
+}: CompanionSelectProps) {
   const theme = useTheme()
   // Thanh tab liquid-glass nổi đè lên nội dung — nút "Bắt đầu" cuối trang phải
   // nằm trên kính, không bị pill che.
   const tabClearance = useTabBarClearance(space[6])
   // Cho tour host cuộn hàng mode vào tầm nhìn trước khi chiếu sáng (màn nhỏ).
   const scrollRef = useRef<ScrollView | null>(null)
-  // LESSON đang khoá — deep link cũ ?mode=LESSON rơi êm về Hội thoại.
+  // LESSON đang khoá — deep link cũ ?mode=LESSON rơi êm về Hội thoại. INTERVIEW nay là nhánh riêng
+  // của tab (InterviewHub), màn này chỉ còn Hội thoại.
   const [mode, setMode] = useState<SpeakingSessionMode>(
-    initialMode && initialMode !== 'LESSON' ? initialMode : 'COMMUNICATION',
+    initialMode && initialMode !== 'LESSON' && initialMode !== 'INTERVIEW' ? initialMode : 'COMMUNICATION',
   )
   const [group, setGroup] = useState<PersonaGroup>('it')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -105,7 +114,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
   // (getMyLearningProfile → clamp). Trước 17/09/2026 khởi tạo cứng 'B1' nên tài khoản A0 mở phiên
   // hội thoại B1 — backend không kẹp lại band client gửi (ChatPrepService.resolveSessionLevel).
   const [cefrPick, setCefrPick] = useState<string | null>(null)
-  const { currentLevel, occupationCode } = useLearnerLevel()
+  const { currentLevel } = useLearnerLevel()
   const cefr = cefrPick ?? practiceBand(currentLevel)
 
   // Backend personas carry `difficulty` → used to lock ADVANCED ones for free users.
@@ -114,6 +123,13 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
     queryFn: () => speakingApi.getPersonas(),
     staleTime: 300_000,
   })
+  // Cùng khoá cache với "Buổi gần đây" của nhánh Phỏng vấn (InterviewHub) — một lần tải cho cả hai.
+  const sessionsQ = useQuery({
+    queryKey: ['ai-speaking-sessions', 'recent-interviews'],
+    queryFn: () => speakingApi.listSessions(40),
+    staleTime: 60_000,
+  })
+  const recent = useMemo(() => recentConversation(sessionsQ.data ?? [], new Date()), [sessionsQ.data])
   const lockedCodes = useMemo(
     () =>
       new Set(
@@ -170,7 +186,8 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
       persona: selected,
       sessionMode: mode,
       topic,
-      cefrLevel: mode === 'INTERVIEW' ? 'C1' : cefr,
+      // Mức theo hồ sơ hoặc chip người học chọn; trước 19/11/2026 phỏng vấn bị ép C1 (lỗi, owner chốt 18/11).
+      cefrLevel: cefr,
       interviewPosition: mode === 'INTERVIEW' ? position ?? undefined : undefined,
       experienceLevel: mode === 'INTERVIEW' ? experience : undefined,
     })
@@ -183,25 +200,23 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
       contentContainerStyle={{ paddingBottom: tabClearance }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <ThemedText variant="displayLg">Luyện nói</ThemedText>
-          {/* Lối vào Tôi và cài đặt (Hồ sơ thôi là tab, owner chốt 18/11/2026). */}
-          <AvatarButton />
+      <View style={{ paddingHorizontal: space[5], paddingTop: space[4] }}>
+        <View
+          style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: space[2] }}
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel="Luyện nói với AI"
+        >
+          <ThemedText variant="display">Luyện nói</ThemedText>
+          <BrushMark>với AI</BrushMark>
         </View>
-        <ThemedText variant="body" color="muted" style={{ marginTop: 2 }}>
-          Chọn cách luyện và người đồng hành
+        <ThemedText variant="body" color="secondary" style={{ marginTop: space[2] }}>
+          Chọn cách luyện và người đồng hành.
         </ThemedText>
       </View>
 
-      {/* Mode tabs — anchor cho coach mark speaking_intro (onboarding v1 §6).
-          marginHorizontal thay paddingHorizontal: neo đo đúng hàng 4 ô nên khung
-          vàng ôm sát các ô thay vì ôm cả lề màn hình (QA 05/09). */}
-      <SpotlightScrollHostProvider value={scrollRef}>
-      <SpotlightTarget
-        id={SPOTLIGHT_TARGETS.speakingModeTabs}
-        style={{ flexDirection: 'row', gap: space[2], marginHorizontal: space[5], marginTop: space[4] }}
-      >
+      {/* Bốn ô chế độ 2×2 (mẫu v3.4 `speak`). Neo tour speaking_intro ở thanh Phỏng vấn | Nói tự do (Đợt 5). */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginHorizontal: space[5], marginTop: space[4] }}>
         {MODES.map((m) => {
           const active = mode === m.key
           const locked = m.locked === true
@@ -210,55 +225,48 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
               key={m.key}
               accessibilityRole="button"
               accessibilityState={{ selected: active, disabled: locked }}
-              accessibilityLabel={locked ? `${m.label} — sắp mở lại` : m.label}
+              accessibilityLabel={locked ? `${m.label}, sắp mở lại` : `${m.label}, ${m.sub}`}
               disabled={locked}
               onPress={() => {
                 if (m.key === 'EXAM') {
                   onOpenExam()
                   return
                 }
+                if (m.key === 'INTERVIEW') {
+                  onOpenInterview()
+                  return
+                }
                 switchMode(m.key)
               }}
               style={{
-                flex: 1,
-                paddingVertical: space[3],
+                flexBasis: '48%',
+                flexGrow: 1,
+                padding: space[3],
                 borderRadius: radius.lg,
-                alignItems: 'center',
                 gap: 4,
-                backgroundColor: active ? theme.colors.accent : theme.colors.surface,
-                borderWidth: 1,
-                borderColor: active ? theme.colors.accent : theme.colors.border,
-                opacity: locked ? 0.45 : 1,
+                backgroundColor: active ? theme.colors.accentSoft : theme.colors.surface,
+                borderWidth: active ? 2 : 1,
+                borderColor: active ? theme.colors.textPrimary : theme.colors.border,
+                opacity: locked ? 0.5 : 1,
               }}
             >
-              <GaGlyph name={locked ? 'khoa' : m.glyph} size={20} ink={active ? 'onAccent' : 'secondary'} gold={active ? 'ink' : 'accent'} />
-              <ThemedText
-                variant="label"
-                numberOfLines={1}
-                style={{ color: active ? theme.colors.onAccent : theme.colors.textSecondary }}
-              >
-                {m.label}
-              </ThemedText>
+              <GaGlyph name={locked ? 'khoa' : m.glyph} size={26} ink="primary" />
+              <ThemedText variant="bodyStrong" numberOfLines={1}>{m.label}</ThemedText>
+              <ThemedText variant="caption" color="secondary" numberOfLines={1}>{m.sub}</ThemedText>
             </Pressable>
           )
         })}
-      </SpotlightTarget>
-      </SpotlightScrollHostProvider>
+      </View>
 
-      {mode === 'INTERVIEW' && occupationCode ? (
-        <OccupationInterviewCard
-          occupationCode={occupationCode}
-          cefr={cefr}
-          starting={starting}
-          onStart={onStart}
-        />
-      ) : null}
+      <ThemedText variant="label" color="muted" style={{ marginHorizontal: space[5], marginTop: space[5] }}>
+        Người đồng hành
+      </ThemedText>
 
       {/* Group chips */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: space[5], gap: space[2], marginTop: space[4] }}
+        contentContainerStyle={{ paddingHorizontal: space[5], gap: space[2], marginTop: space[2] }}
       >
         {groups.map((g) => {
           const active = group === g.id
@@ -324,7 +332,7 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
             borderRadius: radius.xl,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
-            borderColor: selected.accent + '55',
+            borderColor: theme.colors.borderStrong,
             gap: space[3],
           }}
         >
@@ -381,9 +389,31 @@ export function CompanionSelect({ isPro, starting, onStart, onOpenExam, initialM
             </ConfigGroup>
           )}
 
-          <Button label={`Bắt đầu với ${selected.name}`} onPress={start} loading={starting} disabled={!ready} />
+          {/* Khoá khi đang tải phiếu cũ (như InterviewHub) — tránh đua mở phiếu cũ với phiên mới. */}
+          <Button label={`Bắt đầu với ${selected.name}`} onPress={start} loading={starting} disabled={!ready || loadingReportId !== null} />
         </View>
       ) : null}
+
+      <View style={{ marginHorizontal: space[5], marginTop: space[5], borderRadius: radius.xl, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
+        <ListRow
+          glyph="lich"
+          title="Thử thách nói tuần"
+          desc="Một đề mỗi tuần, chấm chi tiết"
+          right={!isPro ? <Pill label="PRO" tone="accent" /> : undefined}
+          onPress={onOpenWeekly}
+        />
+        {recent ? (
+          <ListRow
+            glyph="thongke"
+            title="Buổi gần đây"
+            desc={`${recent.title} · ${recent.when}`}
+            divider
+            loading={loadingReportId === recent.id}
+            disabled={loadingReportId !== null}
+            onPress={() => onOpenRecent(recent.id)}
+          />
+        ) : null}
+      </View>
     </ScrollView>
   )
 }
@@ -494,83 +524,6 @@ function PersonaCard({
   )
 }
 
-/**
- * K3b (21/10/2026): "Phỏng vấn theo nghề của bạn" — nghề lấy từ hồ sơ (onboarding 2e). Trước K3b không
- * client nào gửi `occupationCode` ⇒ lớp câu hỏi theo nghề (2b) và 8 người tuyển dụng (2c) không tới
- * người học. Nghề không tải được ⇒ thẻ ẩn, màn cũ giữ nguyên. Gương web `OccupationInterviewCard`.
- */
-function OccupationInterviewCard({
-  occupationCode,
-  cefr,
-  starting,
-  onStart,
-}: {
-  occupationCode: string
-  cefr: string
-  starting: boolean
-  onStart: (args: StartArgs) => void
-}) {
-  const theme = useTheme()
-  const [experience, setExperience] = useState<string>('1-2Y')
-  const { data: info } = useQuery({
-    queryKey: ['occupation-interview', occupationCode],
-    queryFn: () => fetchOccupationInterviewInfo(occupationCode),
-    staleTime: 600_000,
-    retry: 1,
-  })
-  if (!info) return null
-
-  const stageId = resolveStagePersona(info.personaCode)
-  const interviewer = isWorkplaceInterviewerId(stageId) ? WORKPLACE_INTERVIEWERS[stageId] : PERSONA_TOKENS[stageId]
-  const accent = interviewer.accent
-
-  return (
-    <View
-      style={{
-        marginHorizontal: space[5],
-        marginTop: space[4],
-        padding: space[4],
-        borderRadius: radius.xl,
-        backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: theme.colors.textPrimary,
-        gap: space[3],
-      }}
-    >
-      <ThemedText variant="label" color="muted">Phỏng vấn theo nghề của bạn</ThemedText>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <PersonaBubbleAvatar personaId={stageId} size={52} ringColor={accent} paused />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ThemedText variant="bodyStrong" numberOfLines={2}>{info.occupation.nameDe}</ThemedText>
-          <ThemedText variant="caption" color="muted" numberOfLines={1}>{occupationName(info.occupation, 'vi')}</ThemedText>
-          <ThemedText variant="caption" color="muted" numberOfLines={1}>Người phỏng vấn: {interviewer.name}</ThemedText>
-        </View>
-      </View>
-      <ConfigGroup label="Kinh nghiệm">
-        {EXPERIENCE.map((e) => (
-          <ChoiceChip key={e.id} label={e.label} active={experience === e.id} accent={accent} onPress={() => setExperience(e.id)} />
-        ))}
-      </ConfigGroup>
-      <Button
-        label="Bắt đầu phỏng vấn"
-        loading={starting}
-        onPress={() =>
-          onStart({
-            sessionMode: 'INTERVIEW',
-            topic: info.interviewPosition,
-            cefrLevel: cefr,
-            experienceLevel: experience,
-            occupationCode,
-          })
-        }
-      />
-      <ThemedText variant="caption" color="muted">
-        Câu hỏi theo đúng nghề bạn chọn. Hoặc chọn người phỏng vấn khác bên dưới.
-      </ThemedText>
-    </View>
-  )
-}
-
 function ConfigGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={{ gap: space[2] }}>
@@ -609,6 +562,42 @@ function ChoiceChip({
       <ThemedText variant="label" style={{ color: active ? accent : theme.colors.textSecondary }}>
         {label}
       </ThemedText>
+    </Pressable>
+  )
+}
+
+function ListRow({
+  glyph, title, desc, right, divider = false, loading = false, disabled = false, onPress,
+}: {
+  glyph: GlyphName
+  title: string
+  desc: string
+  right?: React.ReactNode
+  divider?: boolean
+  loading?: boolean
+  disabled?: boolean
+  onPress: () => void
+}) {
+  const theme = useTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${desc}`}
+      accessibilityState={{ disabled, busy: loading }}
+      disabled={disabled}
+      onPress={onPress}
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4], paddingVertical: space[3],
+        borderTopWidth: divider ? 1 : 0, borderTopColor: theme.colors.border,
+      }}
+    >
+      <GaGlyph name={glyph} size={20} ink="primary" />
+      <View style={{ flex: 1, gap: 2 }}>
+        <ThemedText variant="bodyStrong">{title}</ThemedText>
+        <ThemedText variant="caption" color="secondary" numberOfLines={1}>{desc}</ThemedText>
+      </View>
+      {right}
+      {loading ? <ActivityIndicator color={theme.colors.textMuted} /> : <Icon icon={ChevronRight} size={16} color="faint" />}
     </Pressable>
   )
 }

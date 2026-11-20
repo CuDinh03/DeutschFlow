@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import type { GlyphName } from '@/lib/galerieGlyphs'
 import { View, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
@@ -8,7 +7,9 @@ import { Check, X, Eye } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton, Caption, SelectableRow, GaGlyph } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Button, EmptyState, ErrorState, Skeleton, SelectableRow, GaGlyph, ProgressBar } from '@/components/ui'
+import { Badge, Eyebrow, RuledNote, TopBar } from '@/components/learn/HocOnParts'
+import { answeredScored, EXERCISE_KIND_LABEL, exerciseKinds } from '@/lib/hocOnUi'
 import {
   skillTreeApi,
   isFillCorrect,
@@ -31,6 +32,9 @@ const SCORED = new Set(['MULTIPLE_CHOICE', 'FILL_BLANK'])
 // derived nextNode self-heals when the observer catches up (the lesson is already graded).
 const REVEAL_TREE_CAP_MS = 3000
 
+// Giao diện v3.4 (Đợt 6A, mẫu `practice`): nút thoát + thanh tiến độ "đã làm/tổng" ở đầu màn,
+// thẻ "Các dạng bài trong bài học này", mỗi câu có nhãn dạng bài. Vẫn làm hết rồi nộp một lần
+// như trước — logic chấm/nộp không đổi.
 export default function NodePracticeScreen() {
   // Remount the runner when nodeId changes so stale submitted/result/answers (and the
   // per-exercise child state) from the previous lesson never leak in via "Bài tiếp theo".
@@ -85,6 +89,8 @@ function NodePracticeRunner() {
   }, [data?.content?.exercises])
 
   const scoredCount = exercises.filter((e) => SCORED.has(e.type)).length
+  const answered = answeredScored(exercises, answers)
+  const kinds = exerciseKinds(exercises.map((e) => e.type))
   const nextNode = result?.completed ? findNextNode(tree, nodeId) : undefined
 
   function setChoice(id: string, choice: number) {
@@ -154,10 +160,18 @@ function NodePracticeRunner() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
-        title={params.title ?? data?.titleVi ?? 'Luyện tập'}
-        onBack={goBack}
-      />
+      <TopBar onBack={goBack} backIcon={X} backLabel="Thoát" title={scoredCount > 0 ? undefined : params.title ?? data?.titleVi ?? 'Luyện tập'}>
+        {scoredCount > 0 && !isLoading && !isError ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+            <View style={{ flex: 1 }}>
+              <ProgressBar value={answered / scoredCount} />
+            </View>
+            <ThemedText variant="label" accessibilityLabel={`Đã làm ${answered} trên ${scoredCount} câu chấm điểm`}>
+              {answered}/{scoredCount}
+            </ThemedText>
+          </View>
+        ) : undefined}
+      </TopBar>
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
@@ -175,13 +189,15 @@ function NodePracticeRunner() {
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-        <Screen scroll keyboardInsets={false} edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
+        <Screen scroll keyboardInsets={false} edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[4] }}>
           {result ? (
             result.completed ? (
               // Completion = the climactic moment: editorial ink hero (mirrors Home).
-              <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[3] }}>
+              <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, borderRadius: radius.lg, gap: space[3] }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Caption color={c.accent}>Hoàn thành chặng</Caption>
+                  <ThemedText variant="label" style={{ color: c.accent, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    Hoàn thành chặng
+                  </ThemedText>
                   {scoredCount > 0 ? (
                     <ThemedText variant="monoLg" style={{ color: c.onInk }}>
                       {result.correct}/{result.total}
@@ -194,12 +210,12 @@ function NodePracticeRunner() {
                       width: 36,
                       height: 36,
                       borderRadius: radius.md,
-                      backgroundColor: c.accentSoft,
+                      backgroundColor: c.accent,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <GaGlyph name="thithu" size={18} ink="primary" />
+                    <GaGlyph name="thithu" size={18} ink="primary" gold="ink" />
                   </View>
                   <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
                     {completionTitle(result.xp, result.alreadyCompleted)}
@@ -210,11 +226,11 @@ function NodePracticeRunner() {
                 </ThemedText>
               </Card>
             ) : (
-              <Card style={{ gap: space[2], borderColor: c.borderStrong }}>
+              <Card style={{ gap: space[2], borderColor: c.borderStrong, borderRadius: radius.lg }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Caption>Kết quả</Caption>
+                  <Eyebrow>Kết quả</Eyebrow>
                   {scoredCount > 0 ? (
-                    <ThemedText variant="monoLg" color="accent">
+                    <ThemedText variant="monoLg">
                       {result.correct}/{result.total}
                     </ThemedText>
                   ) : null}
@@ -227,9 +243,23 @@ function NodePracticeRunner() {
           ) : null}
 
           {!result ? (
-            <Caption style={{ paddingHorizontal: space[1], paddingTop: space[1] }}>
-              {scoredCount > 0 ? `${exercises.length} bài tập` : 'Tự luyện'}
-            </Caption>
+            <View style={{ gap: space[1] }}>
+              <Eyebrow>{scoredCount > 0 ? `${exercises.length} bài tập` : 'Tự luyện'}</Eyebrow>
+              <ThemedText variant="titleLg" accessibilityRole="header">
+                {params.title ?? data?.titleVi ?? 'Luyện tập'}
+              </ThemedText>
+            </View>
+          ) : null}
+
+          {!result && kinds.length > 0 ? (
+            <View style={{ backgroundColor: c.surfaceSunken, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, paddingVertical: space[3], paddingHorizontal: space[4], gap: space[2] }}>
+              <ThemedText variant="label">Các dạng bài trong bài học này</ThemedText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {kinds.map((k) => (
+                  <Badge key={k} label={k} />
+                ))}
+              </View>
+            </View>
           ) : null}
 
           {exercises.map((ex, i) => (
@@ -298,18 +328,18 @@ function ExerciseCard({
 }) {
   switch (exercise.type) {
     case 'MULTIPLE_CHOICE':
-      return <McCard index={index} ex={exercise as ExerciseMultipleChoice} answer={answer} submitted={submitted} onChoice={onChoice} glyph={EXERCISE_ICON.MULTIPLE_CHOICE} />
+      return <McCard index={index} ex={exercise as ExerciseMultipleChoice} answer={answer} submitted={submitted} onChoice={onChoice} />
     case 'FILL_BLANK':
-      return <FillCard index={index} ex={exercise as ExerciseFillBlank} answer={answer} submitted={submitted} onText={onText} glyph={EXERCISE_ICON.FILL_BLANK} />
+      return <FillCard index={index} ex={exercise as ExerciseFillBlank} answer={answer} submitted={submitted} onText={onText} />
     case 'TRANSLATE':
-      return <RevealCard index={index} prompt={(exercise as ExerciseTranslate).sentence} answer={(exercise as ExerciseTranslate).answer} kind="Dịch" />
+      return <RevealCard index={index} prompt={(exercise as ExerciseTranslate).sentence} answer={(exercise as ExerciseTranslate).answer} kind={EXERCISE_KIND_LABEL.TRANSLATE} />
     case 'REORDER':
       return (
         <RevealCard
           index={index}
           prompt={(exercise as ExerciseReorder).translation ?? (exercise as ExerciseReorder).words.join(' / ')}
           answer={(exercise as ExerciseReorder).correct_order.join(' ')}
-          kind="Sắp xếp"
+          kind={EXERCISE_KIND_LABEL.REORDER}
         />
       )
     default:
@@ -317,41 +347,12 @@ function ExerciseCard({
   }
 }
 
-// Exercise-type glyph — a quiet leading cue for the recognition tasks (MC/Fill),
-// which otherwise carry no type marker. TRANSLATE/REORDER keep their existing
-// "Dịch"/"Sắp xếp" text badge, so an icon there would just duplicate it.
-const EXERCISE_ICON: Record<'MULTIPLE_CHOICE' | 'FILL_BLANK', GlyphName> = {
-  MULTIPLE_CHOICE: 'baigiao',
-  FILL_BLANK: 'viet',
-}
-
-function Prompt({ index, text, badge, glyph }: { index: number; text?: string; badge?: string; glyph?: GlyphName }) {
-  const c = useTheme().colors
+/** Đầu một câu: nhãn "Câu n · dạng bài" (mẫu `.eyebrow`) rồi đề bài. */
+function Prompt({ index, text, kind }: { index: number; text?: string; kind: string }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-      {glyph ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: radius.sm,
-            backgroundColor: c.surfaceSunken,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <GaGlyph name={glyph} size={13} ink="muted" />
-        </View>
-      ) : null}
-      <ThemedText variant="label" color="faint">
-        {index}.
-      </ThemedText>
-      <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
-        {text}
-      </ThemedText>
-      {badge ? <Pill label={badge} tone="neutral" /> : null}
+    <View style={{ gap: space[1] }}>
+      <Eyebrow>{`Câu ${index} · ${kind}`}</Eyebrow>
+      <ThemedText variant="bodyLg">{text}</ThemedText>
     </View>
   )
 }
@@ -362,24 +363,22 @@ function McCard({
   answer,
   submitted,
   onChoice,
-  glyph,
 }: {
   index: number
   ex: ExerciseMultipleChoice
   answer?: Answer
   submitted: boolean
   onChoice: (v: number) => void
-  glyph?: GlyphName
 }) {
   const c = useTheme().colors
   return (
-    <Card style={{ gap: space[3] }}>
-      <Prompt index={index} text={ex.question_vi ?? ex.question} glyph={glyph} />
+    <Card style={{ gap: space[3], borderRadius: radius.lg }}>
+      <Prompt index={index} text={ex.question_vi ?? ex.question} kind={EXERCISE_KIND_LABEL.MULTIPLE_CHOICE} />
       <View style={{ gap: space[2] }}>
         {ex.options.map((opt, i) => {
           const selected = answer?.choice === i
           const isAnswer = i === ex.correct
-          const border = submitted ? (isAnswer ? c.success : selected ? c.danger : c.border) : selected ? c.accent : c.border
+          const border = submitted ? (isAnswer ? c.success : selected ? c.danger : c.border) : selected ? c.textPrimary : c.borderStrong
           const bg = submitted ? (isAnswer ? c.successSoft : selected ? c.dangerSoft : c.surface) : selected ? c.accentSoft : c.surface
           return (
             <SelectableRow
@@ -392,19 +391,19 @@ function McCard({
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: space[2],
-                borderWidth: 1,
+                borderWidth: 1.5,
                 borderColor: border,
                 backgroundColor: bg,
                 borderRadius: radius.md,
-                paddingHorizontal: space[3],
-                paddingVertical: space[3],
+                paddingHorizontal: space[4],
+                minHeight: 52,
               }}
             >
-              <ThemedText variant="body" style={{ flex: 1 }}>
+              <ThemedText variant="body" style={{ flex: 1, paddingVertical: space[3] }}>
                 {opt}
               </ThemedText>
               {/* Non-colour cue so the chosen option isn't conveyed by accent fill alone (color-blind). */}
-              {!submitted && selected ? <Icon icon={Check} size={16} color="accent" /> : null}
+              {!submitted && selected ? <Icon icon={Check} size={16} color="primary" /> : null}
               {submitted && isAnswer ? <Icon icon={Check} size={16} color="success" /> : null}
               {submitted && selected && !isAnswer ? <Icon icon={X} size={16} color="danger" /> : null}
             </SelectableRow>
@@ -421,22 +420,20 @@ function FillCard({
   answer,
   submitted,
   onText,
-  glyph,
 }: {
   index: number
   ex: ExerciseFillBlank
   answer?: Answer
   submitted: boolean
   onText: (v: string) => void
-  glyph?: GlyphName
 }) {
   const c = useTheme().colors
   const ok = submitted && isFillCorrect(answer?.text ?? '', ex)
   return (
-    <Card style={{ gap: space[2] }}>
-      <Prompt index={index} text={ex.sentence_de ?? ex.question_vi} glyph={glyph} />
+    <Card style={{ gap: space[2], borderRadius: radius.lg }}>
+      <Prompt index={index} text={ex.sentence_de ?? ex.question_vi} kind={EXERCISE_KIND_LABEL.FILL_BLANK} />
       {ex.hint_vi ? (
-        <ThemedText variant="caption" color="faint">
+        <ThemedText variant="caption" color="muted">
           Gợi ý: {ex.hint_vi}
         </ThemedText>
       ) : null}
@@ -447,13 +444,14 @@ function FillCard({
         placeholder="Nhập đáp án…"
         placeholderTextColor={c.textFaint}
         autoCapitalize="none"
+        accessibilityLabel={`Đáp án câu ${index}`}
         style={{
-          backgroundColor: c.surfaceSunken,
-          borderRadius: radius.md,
-          borderWidth: 1,
-          borderColor: submitted ? (ok ? c.success : c.danger) : c.border,
-          paddingHorizontal: space[3],
-          paddingVertical: space[3],
+          backgroundColor: c.surface,
+          borderRadius: radius.sm,
+          borderWidth: 1.5,
+          borderColor: submitted ? (ok ? c.success : c.danger) : c.borderStrong,
+          paddingHorizontal: space[4],
+          minHeight: 52,
           color: c.textPrimary,
           fontFamily: fonts.bodyRegular,
           fontSize: 15,
@@ -478,21 +476,35 @@ function RevealCard({ index, prompt, answer, kind }: { index: number; prompt?: s
   const c = useTheme().colors
   const [shown, setShown] = useState(false)
   return (
-    <Card style={{ gap: space[2] }}>
-      <Prompt index={index} text={prompt} badge={kind} />
+    <Card style={{ gap: space[3], borderRadius: radius.lg }}>
+      <Prompt index={index} text={prompt} kind={kind} />
       {shown ? (
-        <ThemedText variant="body" style={{ color: c.success }}>
-          {answer}
-        </ThemedText>
+        <RuledNote>
+          <ThemedText variant="bodyLg" style={{ color: c.success }} accessibilityLanguage="de-DE">
+            {answer}
+          </ThemedText>
+        </RuledNote>
       ) : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Xem đáp án"
+          hitSlop={{ top: 4, bottom: 4 }}
           onPress={() => setShown(true)}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            alignSelf: 'flex-start',
+            height: 36,
+            paddingHorizontal: 14,
+            borderRadius: radius.full,
+            backgroundColor: c.surfaceSunken,
+            borderWidth: 1,
+            borderColor: c.border,
+          }}
         >
-          <Icon icon={Eye} size={14} color="accent" />
-          <ThemedText variant="label" color="accent">
+          <Icon icon={Eye} size={14} color="secondary" />
+          <ThemedText variant="label" color="secondary">
             Xem đáp án
           </ThemedText>
         </Pressable>

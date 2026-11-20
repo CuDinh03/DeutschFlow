@@ -156,11 +156,20 @@ export async function speakExamLine(role: string, text: string, persona?: string
   }
 }
 
-/** Phát lần lượt nhiều lượt AI (B1 T3: partner trả lời rồi giám khảo hỏi = 2 lượt). */
-export async function speakExamSequence(turns: readonly { role: string; text: string }[]): Promise<void> {
+/**
+ * Phát lần lượt nhiều lượt AI (B1 T3: partner trả lời rồi giám khảo hỏi = 2 lượt).
+ * `onSpeaker` (tuỳ chọn): báo vai đang phát để phòng thi sáng đúng người; `null` khi chuỗi đọc xong.
+ * Chuỗi bị huỷ (stopExamTts, chuỗi mới chen) thì KHÔNG báo `null` — bên huỷ tự đặt lại.
+ */
+export async function speakExamSequence(
+  turns: readonly { role: string; text: string }[],
+  onSpeaker?: (role: string | null) => void,
+): Promise<void> {
   const mySeq = ++seqGen
   for (const t of turns) {
     if (mySeq !== seqGen) return // stopExamTts() hoặc chuỗi mới đã chen — nhường
+    if (!muted && t.text.trim()) onSpeaker?.(t.role)
     await speakExamLine(t.role, t.text)
   }
+  if (mySeq === seqGen) onSpeaker?.(null)
 }

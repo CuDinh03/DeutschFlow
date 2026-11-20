@@ -9,19 +9,22 @@ import {
   Platform,
   ScrollView,
 } from 'react-native'
-import { Check } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { BIRTH_DATE_SELF_DECLARE_ENABLED, profileApi, toIsoBirthDate } from '@/lib/profileApi'
+import { avatarInitial } from '@/lib/avatarInitial'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, Icon, AppHeader, TextField, Card, Caption, GaGlyph, Button } from '@/components/ui'
+import { Screen, ThemedText, TextField, GaGlyph, Button } from '@/components/ui'
+import { MeCard, PageTitle, SubHeader } from '@/components/me/MeParts'
 import { useBackTo } from '@/hooks/useBackTo'
 import { PARENT_OF } from '@/lib/screenParents'
 
 /** Cùng trần với backend (UserAvatarService.MAX_AVATAR_BYTES). */
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
+// Giao diện v3.4 (Đợt 6C, 19/11/2026; mẫu `profileedit`): nút "Lưu thay đổi" trên hàng đầu, thẻ ảnh
+// đại diện có chip đổi ảnh, ô nhập có nhãn. Kiểm tra hợp lệ và luồng lưu giữ nguyên.
 export default function EditProfileScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
   const goBack = useBackTo(PARENT_OF['settings/profile'])
@@ -184,135 +187,137 @@ export default function EditProfileScreen() {
   // thoại cũng thấy nút Lưu sáng sẵn dù chưa sửa gì.
   const infoChanged = trimmed !== (user?.displayName ?? '') || phone.trim() !== loadedPhone
   const canSave = trimmed.length >= 2 && infoChanged
-  const initial = (displayName || user?.displayName || '?').charAt(0).toUpperCase()
+  const initial = avatarInitial(displayName || user?.displayName)
 
   return (
     <Screen edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <AppHeader
-          title="Chỉnh sửa hồ sơ"
-          subtitle="Thông tin cá nhân"
-          onBack={goBack}
-          right={
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Lưu thay đổi"
-              accessibilityState={{ disabled: !canSave || saveInfo.isPending }}
-              onPress={() => canSave && saveInfo.mutate()}
-              disabled={!canSave || saveInfo.isPending}
-              hitSlop={8}
-            >
-              {saveInfo.isPending ? (
-                <ActivityIndicator size="small" color={c.accent} />
-              ) : (
-                <Icon icon={Check} size={22} color={canSave ? 'accent' : 'faint'} />
-              )}
-            </Pressable>
-          }
-        />
+        <View style={{ paddingHorizontal: space[5], paddingTop: space[2] }}>
+          <SubHeader
+            onBack={goBack}
+            right={
+              <Button
+                label="Lưu thay đổi"
+                size="sm"
+                fullWidth={false}
+                onPress={() => canSave && saveInfo.mutate()}
+                loading={saveInfo.isPending}
+                disabled={!canSave || saveInfo.isPending}
+              />
+            }
+          />
+        </View>
 
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: space[5], paddingTop: space[4], paddingBottom: space[10], gap: space[6] }}
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingTop: space[4], paddingBottom: space[10], gap: space[4] }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Identity — editorial ink hero, mirroring the Home/Profile idiom */}
-          <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Đổi ảnh đại diện"
-                onPress={changeAvatar}
-                disabled={avatarBusy}
-              >
-                {avatarUrl ? (
-                  <Image
-                    source={{ uri: avatarUrl }}
-                    style={{ width: 64, height: 64, borderRadius: radius.md }}
-                    accessibilityIgnoresInvertColors
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: radius.md,
-                      backgroundColor: c.accent,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {avatarBusy ? (
-                      <ActivityIndicator size="small" color={c.onAccent} />
-                    ) : (
-                      <ThemedText variant="displayLg" color="onAccent">
-                        {initial}
-                      </ThemedText>
-                    )}
-                  </View>
-                )}
-              </Pressable>
-              <View style={{ flex: 1, gap: space[1] }}>
-                <Caption color={c.accent}>Đang chỉnh sửa</Caption>
-                <ThemedText variant="titleLg" style={{ color: c.onInk }} numberOfLines={1}>
-                  {trimmed || user?.displayName || 'Hồ sơ của bạn'}
-                </ThemedText>
-                <ThemedText variant="caption" style={{ color: c.onInkMuted }} numberOfLines={1}>
-                  {user?.email}
-                </ThemedText>
-              </View>
-            </View>
-          </Card>
+          <PageTitle title="Thông tin cá nhân" />
 
-          <Button
-            label={avatarBusy ? 'Đang xử lý…' : avatarUrl ? 'Đổi ảnh đại diện' : 'Thêm ảnh đại diện'}
-            variant="secondary"
-            onPress={changeAvatar}
-            disabled={avatarBusy}
+          {/* Ảnh đại diện (mẫu `profileedit`): ảnh tròn, trần 5MB, chip đổi ảnh. */}
+          <MeCard style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] + 2 }}>
+            {/* Ảnh cũng bấm được, nhưng ẩn khỏi trình đọc màn hình — chip bên cạnh đã có nhãn (khỏi đọc trùng). */}
+            <Pressable
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+              onPress={changeAvatar}
+              disabled={avatarBusy}
+            >
+              {avatarUrl ? (
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={{ width: 64, height: 64, borderRadius: radius.full }}
+                  accessibilityIgnoresInvertColors
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: radius.full,
+                    backgroundColor: c.accent,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {avatarBusy ? (
+                    <ActivityIndicator size="small" color={c.onAccent} />
+                  ) : (
+                    <ThemedText variant="display" color="onAccent">
+                      {initial}
+                    </ThemedText>
+                  )}
+                </View>
+              )}
+            </Pressable>
+            <View style={{ flex: 1, gap: 2 }}>
+              <ThemedText variant="bodyStrong">Ảnh đại diện</ThemedText>
+              <ThemedText variant="caption" color="muted">
+                Tối đa 5MB
+              </ThemedText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={avatarUrl ? 'Đổi ảnh đại diện' : 'Thêm ảnh đại diện'}
+              accessibilityState={{ disabled: avatarBusy }}
+              onPress={changeAvatar}
+              disabled={avatarBusy}
+              hitSlop={4}
+              style={({ pressed }) => ({
+                height: 36,
+                paddingHorizontal: space[3] + 2,
+                borderRadius: radius.full,
+                backgroundColor: c.surfaceSunken,
+                borderWidth: 1,
+                borderColor: c.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed || avatarBusy ? 0.6 : 1,
+              })}
+            >
+              <ThemedText variant="label">{avatarBusy ? 'Đang xử lý…' : avatarUrl ? 'Đổi ảnh' : 'Thêm ảnh'}</ThemedText>
+            </Pressable>
+          </MeCard>
+
+          <TextField
+            label="Tên hiển thị"
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Nhập tên của bạn"
+            returnKeyType="done"
+            error={nameTooShort ? 'Tên phải có ít nhất 2 ký tự.' : undefined}
           />
 
-          {/* Display name */}
-          <View style={{ gap: space[2] }}>
-            <Caption>Tên hiển thị</Caption>
-            <TextField
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder="Nhập tên của bạn"
-              returnKeyType="done"
-              error={nameTooShort ? 'Tên phải có ít nhất 2 ký tự.' : undefined}
-            />
-          </View>
-
-          {/* Phone */}
-          <View style={{ gap: space[2] }}>
-            <Caption>Số điện thoại</Caption>
-            <TextField
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="0xxxxxxxxx"
-              keyboardType="phone-pad"
-              returnKeyType="done"
-            />
-          </View>
+          <TextField
+            label="Số điện thoại"
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="0xxxxxxxxx"
+            keyboardType="phone-pad"
+            returnKeyType="done"
+          />
 
           {/* Birth date — ghi một lần. Cờ BIRTH_DATE_SELF_DECLARE_ENABLED giữ lại để tắt nhanh
               (xem lib/profileApi.ts). */}
           {BIRTH_DATE_SELF_DECLARE_ENABLED && (
           <View style={{ gap: space[2] }}>
-            <Caption>Ngày sinh</Caption>
+            <ThemedText variant="label" color="secondary">Ngày sinh</ThemedText>
             {birthDateLocked ? (
-              <Card tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <MeCard tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <GaGlyph name="khoa" size={16} ink="muted" />
                 <ThemedText variant="bodyLg" color="muted" style={{ flex: 1 }}>
                   {savedBirthDate ?? ''}
                 </ThemedText>
-              </Card>
+              </MeCard>
             ) : (
-              <View style={{ flexDirection: 'row', gap: space[3] }}>
+              <View style={{ flexDirection: 'row', gap: space[2] }}>
                 <View style={{ flex: 1 }}>
                   <TextField
                     value={birthDay}
                     onChangeText={setBirthDay}
                     placeholder="Ngày"
+                    accessibilityLabel="Ngày sinh: ngày"
                     keyboardType="number-pad"
                     maxLength={2}
                   />
@@ -322,15 +327,17 @@ export default function EditProfileScreen() {
                     value={birthMonth}
                     onChangeText={setBirthMonth}
                     placeholder="Tháng"
+                    accessibilityLabel="Ngày sinh: tháng"
                     keyboardType="number-pad"
                     maxLength={2}
                   />
                 </View>
-                <View style={{ flex: 1.3 }}>
+                <View style={{ flex: 1.4 }}>
                   <TextField
                     value={birthYear}
                     onChangeText={setBirthYear}
                     placeholder="Năm"
+                    accessibilityLabel="Ngày sinh: năm"
                     keyboardType="number-pad"
                     maxLength={4}
                   />
@@ -362,26 +369,13 @@ export default function EditProfileScreen() {
 
           {/* Email — locked field */}
           <View style={{ gap: space[2] }}>
-            <Caption>Email</Caption>
-            <Card tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: radius.sm,
-                  backgroundColor: c.surface,
-                  borderWidth: 1,
-                  borderColor: c.border,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <GaGlyph name="khoa" size={16} ink="muted" />
-              </View>
+            <ThemedText variant="label" color="secondary">Email</ThemedText>
+            <MeCard tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[3] }}>
+              <GaGlyph name="khoa" size={16} ink="muted" />
               <ThemedText variant="bodyLg" color="muted" style={{ flex: 1 }} numberOfLines={1}>
                 {user?.email}
               </ThemedText>
-            </Card>
+            </MeCard>
             <ThemedText variant="caption" color="muted">
               Email không thể thay đổi từ ứng dụng.
             </ThemedText>

@@ -3,18 +3,19 @@ import { View, KeyboardAvoidingView, Platform, Alert, Pressable, ScrollView } fr
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import api from '@/lib/api'
 import { fetchOnboardingContext } from '@/lib/onboardingContext'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
-import { motion, space, useTheme } from '@/lib/theme'
+import { motion, space } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
-import { Screen, ThemedText, TextField, Button, BrandMark } from '@/components/ui'
+import { Screen, ThemedText, TextField, Button } from '@/components/ui'
+import { AuthAura } from '@/components/auth/AuthAura'
+import { AuthHeading } from '@/components/auth/AuthHeading'
+import { AuthWordmark } from '@/components/auth/AuthWordmark'
 import { useT } from '@/lib/i18n'
 import { authMessages } from '@/lib/i18n/messages/auth'
 
 export default function LoginScreen() {
-  const theme = useTheme()
   const t = useT(authMessages)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -55,13 +56,15 @@ export default function LoginScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
+      <AuthAura />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: space[6] }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: space[6], paddingTop: space[7], paddingBottom: space[8] }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
@@ -70,22 +73,16 @@ export default function LoginScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: motion.duration.slow }}
           >
-            <View style={{ alignItems: 'center', marginBottom: space[10] }}>
-              <View style={{ marginBottom: space[4] }}>
-                <BrandMark size={60} />
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-                <ThemedText variant="titleLg">Deutsch</ThemedText>
-                <ThemedText variant="titleLg" color="brand">
-                  Flow
-                </ThemedText>
-              </View>
-              <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }}>
-                {t('login.tagline')}
-              </ThemedText>
+            {/* Mẫu v3.4 `login`: logo + chữ thương hiệu, tiêu đề lớn có vệt vàng, rồi form. */}
+            <AuthWordmark />
+            <View style={{ marginTop: space[10] }}>
+              <AuthHeading lead={t('login.titleLead')} mark={t('login.titleMark')} stacked />
             </View>
+            <ThemedText variant="body" color="secondary" style={{ marginTop: space[3] }}>
+              {t('login.subtitle')}
+            </ThemedText>
 
-            <View style={{ gap: space[4] }}>
+            <View style={{ gap: space[4], marginTop: space[7] }}>
               <TextField
                 label={t('common.email')}
                 value={email}
@@ -103,39 +100,57 @@ export default function LoginScreen() {
                 secureTextEntry
                 autoComplete="current-password"
               />
-              <Button label={t('common.login')} onPress={handleLogin} loading={loading} style={{ marginTop: space[1] }} />
-
-              <Pressable accessibilityRole="button" accessibilityLabel={t('login.forgotA11y')} hitSlop={8} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center', marginTop: space[2] }}>
-                <ThemedText variant="caption" color="accent">{t('login.forgot')}</ThemedText>
-              </Pressable>
-
-              {/* Đợt 3 (G-1): lối "Học thử" không còn sau cờ PostHog `onboarding-value-first` —
-                  màn Chào mừng là cửa vào phễu khách; ở đây chỉ giữ cổng quay lại. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('login.tryFreeA11y')}
-                hitSlop={8}
-                onPress={() => { void Haptics.selectionAsync(); router.push('/(auth)/onboarding') }}
-                style={{ alignItems: 'center', marginTop: space[3] }}
-              >
-                <ThemedText variant="bodyStrong" color="accent">
-                  {t('login.tryFree')}
-                </ThemedText>
-              </Pressable>
             </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>
-              <ThemedText variant="body" color="muted">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('login.forgotA11y')}
+              hitSlop={{ top: 14, bottom: 14, left: 8, right: 8 }}
+              onPress={() => router.push('/(auth)/forgot-password')}
+              style={{ alignSelf: 'flex-end', marginTop: space[3] }}
+            >
+              <ThemedText variant="label" color="info">{t('login.forgot')}</ThemedText>
+            </Pressable>
+
+            <Button
+              label={t('common.login')}
+              variant="yellow"
+              onPress={handleLogin}
+              loading={loading}
+              style={{ marginTop: space[5] }}
+            />
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: space[6] }}>
+              <ThemedText variant="body" color="secondary">
                 {t('login.noAccount')}{' '}
               </ThemedText>
               <Link href="/(auth)/register" asChild>
-                <Pressable accessibilityRole="button" accessibilityLabel={t('login.registerFree')} hitSlop={6}>
-                  <ThemedText variant="bodyStrong" color="accent">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('login.registerFree')}
+                  hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                >
+                  <ThemedText variant="bodyStrong" color="info">
                     {t('login.registerFree')}
                   </ThemedText>
                 </Pressable>
               </Link>
             </View>
+
+            {/* Đợt 3 (G-1): lối "Học thử" không còn sau cờ PostHog `onboarding-value-first` —
+                màn Chào mừng là cửa vào phễu khách; ở đây chỉ giữ cổng quay lại. Mẫu v3.4 không vẽ
+                lối này nhưng điều hướng giữ nguyên: đặt dưới cùng, cỡ chữ nhãn. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('login.tryFreeA11y')}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              onPress={() => { void Haptics.selectionAsync(); router.push('/(auth)/onboarding') }}
+              style={{ alignSelf: 'center', marginTop: space[4] }}
+            >
+              <ThemedText variant="label" color="info" align="center">
+                {t('login.tryFree')}
+              </ThemedText>
+            </Pressable>
           </MotiView>
         </ScrollView>
       </KeyboardAvoidingView>

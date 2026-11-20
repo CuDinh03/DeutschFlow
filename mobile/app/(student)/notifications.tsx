@@ -1,24 +1,21 @@
+import { useMemo } from 'react'
 import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { router } from 'expo-router'
-import { CheckCheck } from 'lucide-react-native'
-import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
-  Card,
   ThemedText,
-  Icon,
-  Caption,
-  YellowSquare,
-  AppHeader,
   EmptyState,
   ErrorState,
   Skeleton, GaGlyph } from '@/components/ui'
+import { Chip, MarkTitle, TopBar } from '@/components/classroom/ClassroomParts'
+import { groupByDay } from '@/lib/classroomUi'
 import {
   mapNotification,
   notificationIconKey,
@@ -66,32 +63,9 @@ function notificationTypeIcon(type: string): GlyphName {
   return ICON_BY_KEY[notificationIconKey(type)]
 }
 
-// Presentation-only: editorial date buckets (HÔM NAY / HÔM QUA / TRƯỚC ĐÓ)
-// derived from the already-fetched list. No extra fetch.
-type ListEntry =
-  | { kind: 'header'; key: string; label: string }
-  | { kind: 'item'; key: string; notif: Notification }
-
-function dateBucket(iso: string): string {
-  const d = new Date(iso)
-  if (isToday(d)) return 'Hôm nay'
-  if (isYesterday(d)) return 'Hôm qua'
-  return 'Trước đó'
-}
-
-function buildEntries(notifs: Notification[]): ListEntry[] {
-  const entries: ListEntry[] = []
-  let lastBucket: string | null = null
-  for (const notif of notifs) {
-    const bucket = dateBucket(notif.createdAt)
-    if (bucket !== lastBucket) {
-      entries.push({ kind: 'header', key: `h-${bucket}`, label: bucket })
-      lastBucket = bucket
-    }
-    entries.push({ kind: 'item', key: `n-${notif.id}`, notif })
-  }
-  return entries
-}
+// Presentation-only: nhóm ngày (Hôm nay / Hôm qua / Trước đó) tính từ danh sách đã tải, không gọi
+// thêm API. Hàm thuần `groupByDay` ở lib/classroomUi (có test), đánh dấu dòng đầu/cuối mỗi nhóm để
+// vẽ mỗi nhóm thành một khối danh sách liền như mẫu v3.4 `notifs`.
 
 export default function NotificationsScreen() {
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
@@ -139,31 +113,29 @@ export default function NotificationsScreen() {
   }
 
   const unreadCount = notifs.filter((n) => !n.isRead).length
-  const entries = buildEntries(notifs)
+  // Khoá theo ngày: màn không unmount, qua nửa đêm thì nhóm Hôm nay/Hôm qua phải tính lại.
+  const dayKey = new Date().toDateString()
+  const entries = useMemo(() => groupByDay(notifs, (n) => `n-${n.id}`, new Date(dayKey)), [notifs, dayKey])
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
-        title="Thông báo"
+      {/* Giao diện v3.4 (Đợt 6B, mẫu `notifs`): chip "Đánh dấu tất cả đã đọc" ở thanh đầu, tiêu đề
+          có vệt vàng, mỗi nhóm ngày một khối danh sách; dòng chưa đọc nền vàng nhạt + chấm đỏ. */}
+      <TopBar
         onBack={goBack}
         right={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Đánh dấu tất cả đã đọc"
-            accessibilityState={{ disabled: notifs.length === 0 }}
-            onPress={() => markAllRead.mutate()}
-            hitSlop={8}
+          <Chip
+            label="Đánh dấu tất cả đã đọc"
             disabled={notifs.length === 0}
-          >
-            <Icon icon={CheckCheck} size={22} color={notifs.length === 0 ? 'faint' : 'secondary'} />
-          </Pressable>
+            onPress={() => markAllRead.mutate()}
+          />
         }
       />
       {isLoading ? (
-        <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
-          <Skeleton height={76} radius="md" />
-          <Skeleton height={76} radius="md" />
-          <Skeleton height={76} radius="md" />
+        <View style={{ paddingHorizontal: space[5], gap: space[2], paddingTop: space[4] }}>
+          <Skeleton height={64} radius="lg" />
+          <Skeleton height={64} radius="lg" />
+          <Skeleton height={64} radius="lg" />
         </View>
       ) : isError ? (
         <ErrorState onRetry={() => void refetch()} />
@@ -182,14 +154,14 @@ export default function NotificationsScreen() {
             />
           }
           ListHeaderComponent={
-            notifs.length > 0 ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[3] }}>
-                <YellowSquare size={9} />
-                <Caption>
+            <View style={{ paddingTop: space[4], gap: space[1] }}>
+              <MarkTitle plain="Thông" mark="báo" />
+              {notifs.length > 0 ? (
+                <ThemedText variant="caption" color="muted" style={{ fontSize: 13 }}>
                   {unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : 'Tất cả đã đọc'}
-                </Caption>
-              </View>
-            ) : null
+                </ThemedText>
+              ) : null}
+            </View>
           }
           ListEmptyComponent={
             <EmptyState glyph="thongbao" title="Chưa có thông báo" message="Thông báo mới sẽ xuất hiện ở đây." />
@@ -197,56 +169,61 @@ export default function NotificationsScreen() {
           renderItem={({ item: entry }) => {
             if (entry.kind === 'header') {
               return (
-                <Caption color={c.textMuted} style={{ marginTop: space[4], marginBottom: space[2] }}>
+                <ThemedText variant="title" accessibilityRole="header" style={{ marginTop: space[6], marginBottom: space[3] }}>
                   {entry.label}
-                </Caption>
+                </ThemedText>
               )
             }
-            const item = entry.notif
+            const item = entry.item
+            const title = stripLeadingEmoji(item.title)
+            const when = formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: vi })
+            const corner = radius.lg
             return (
-              <Card
-                bordered
+              <Pressable
                 onPress={() => openNotification(item)}
-                style={{
-                  marginBottom: space[2],
-                  borderColor: item.isRead ? c.border : c.accentSoft,
-                  backgroundColor: item.isRead ? c.surface : c.accentSoft,
-                }}
+                accessibilityRole="button"
+                accessibilityLabel={`${notificationTypeLabel(item.type)}: ${title}${item.body ? `. ${item.body}` : ''}. ${when}${item.isRead ? '' : '. Chưa đọc'}`}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: space[3] + 2,
+                  minHeight: 56,
+                  paddingHorizontal: space[4],
+                  paddingVertical: space[2] + 2,
+                  backgroundColor: pressed ? c.surfaceSunken : item.isRead ? c.surface : c.accentSoft,
+                  borderColor: c.border,
+                  borderLeftWidth: 1,
+                  borderRightWidth: 1,
+                  borderTopWidth: 1,
+                  borderBottomWidth: entry.last ? 1 : 0,
+                  borderTopLeftRadius: entry.first ? corner : 0,
+                  borderTopRightRadius: entry.first ? corner : 0,
+                  borderBottomLeftRadius: entry.last ? corner : 0,
+                  borderBottomRightRadius: entry.last ? corner : 0,
+                })}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-                  {/* Type icon tile — surface-on-yellow when unread (card bg is
-                      accentSoft), soft-yellow-on-white when read. */}
-                  <View
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: radius.md,
-                      backgroundColor: item.isRead ? c.accentSoft : c.surface,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <GaGlyph name={notificationTypeIcon(item.type)} size={20} />
-                  </View>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                      {!item.isRead ? <YellowSquare size={8} /> : null}
-                      <Caption color={item.isRead ? c.textFaint : c.accentText}>
-                        {notificationTypeLabel(item.type)}
-                      </Caption>
-                    </View>
-                    <ThemedText variant="bodyStrong">{stripLeadingEmoji(item.title)}</ThemedText>
-                    {item.body ? (
-                      <ThemedText variant="caption" color="secondary">
-                        {item.body}
-                      </ThemedText>
-                    ) : null}
-                    <ThemedText variant="caption" color="faint" style={{ marginTop: 2 }}>
-                      {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: vi })}
-                    </ThemedText>
-                  </View>
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: radius.sm,
+                    backgroundColor: item.isRead ? c.surfaceSunken : c.surface,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <GaGlyph name={notificationTypeIcon(item.type)} size={20} />
                 </View>
-              </Card>
+                <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+                  <ThemedText variant="bodyStrong">{title}</ThemedText>
+                  <ThemedText variant="caption" color="muted">
+                    {item.body ? `${item.body} · ${when}` : when}
+                  </ThemedText>
+                </View>
+                {!item.isRead ? (
+                  <View style={{ width: 8, height: 8, borderRadius: radius.full, backgroundColor: c.danger }} />
+                ) : null}
+              </Pressable>
             )
           }}
         />

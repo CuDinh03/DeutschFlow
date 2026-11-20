@@ -3,15 +3,18 @@ import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { usePullRefresh } from '@/hooks/usePullRefresh'
 import { useLocalSearchParams } from 'expo-router'
-import { MapPin, Video } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { fetchClassSessions, type ClassSession } from '@/lib/studentClassesApi'
-import { space, useTheme } from '@/lib/theme'
+import { space, radius, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, Screen, Skeleton, ThemedText,
-GaGlyph } from '@/components/ui'
+  EmptyState, ErrorState, Screen, Skeleton, ThemedText,
+} from '@/components/ui'
+import { ListBlock, SectionTitle, StatusBadge, TopBar, listRowStyle, type BadgeTone } from '@/components/classroom/ClassroomParts'
+import { clockLabel, sessionDayBox } from '@/lib/classroomUi'
 import { useBackTo } from '@/hooks/useBackTo'
 
+// Giao diện v3.4 (Đợt 6B, mẫu `cschedule`): thanh đầu "Lịch buổi học" + tên lớp, hai khối danh sách
+// "Sắp tới" / "Đã qua"; mỗi dòng có ô ngày (số + thứ), giờ học, phòng, nhãn trạng thái.
 export default function ClassScheduleScreen() {
   const params = useLocalSearchParams<{ classId: string; className?: string }>()
   // Back tường minh về màn cha — Tabs firstRoute sẽ về Heute (xem lib/screenParents).
@@ -37,16 +40,12 @@ export default function ClassScheduleScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader
-        title={className}
-        subtitle="Lịch buổi học"
-        onBack={goBack}
-      />
+      <TopBar title="Lịch buổi học" subtitle={className} onBack={goBack} />
 
       {q.isLoading ? (
-        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
-          <Skeleton height={84} radius="md" />
-          <Skeleton height={84} radius="md" />
+        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[4] }}>
+          <Skeleton height={84} radius="lg" />
+          <Skeleton height={84} radius="lg" />
         </View>
       ) : q.isError ? (
         <ErrorState message={apiMessage(q.error)} onRetry={() => void q.refetch()} />
@@ -62,24 +61,28 @@ export default function ClassScheduleScreen() {
         <Screen
           scroll
           edges={[]}
-          contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}
+          contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10] }}
           refreshing={pull.refreshing}
           onRefresh={() => void pull.onRefresh()}
         >
           {upcoming.length > 0 ? (
-            <View style={{ gap: space[2] }}>
-              <Caption>Sắp tới</Caption>
-              {upcoming.map((s) => (
-                <SessionRow key={s.id} session={s} />
-              ))}
+            <View>
+              <SectionTitle>Sắp tới</SectionTitle>
+              <ListBlock>
+                {upcoming.map((s, i) => (
+                  <SessionRow key={s.id} session={s} first={i === 0} />
+                ))}
+              </ListBlock>
             </View>
           ) : null}
           {past.length > 0 ? (
-            <View style={{ gap: space[2] }}>
-              <Caption>Đã qua</Caption>
-              {past.map((s) => (
-                <SessionRow key={s.id} session={s} past />
-              ))}
+            <View>
+              <SectionTitle>Đã qua</SectionTitle>
+              <ListBlock style={{ opacity: 0.7 }}>
+                {past.map((s, i) => (
+                  <SessionRow key={s.id} session={s} first={i === 0} past />
+                ))}
+              </ListBlock>
             </View>
           ) : null}
         </Screen>
@@ -88,57 +91,64 @@ export default function ClassScheduleScreen() {
   )
 }
 
-function SessionRow({ session, past }: { session: ClassSession; past?: boolean }) {
+function SessionRow({ session, first, past }: { session: ClassSession; first: boolean; past?: boolean }) {
+  const c = useTheme().colors
   const start = new Date(session.startAt)
   const valid = !Number.isNaN(start.getTime())
   const end = valid ? new Date(start.getTime() + session.durationMinutes * 60_000) : null
-  const st = sessionStatus(session.status)
+  const box = sessionDayBox(session.startAt)
+  const st = sessionStatus(session.status, past)
   const cancelled = session.status === 'CANCELLED'
   const online = session.mode === 'ONLINE'
+  const where = online ? 'Học online' : session.room ? `Phòng ${session.room}` : 'Chưa có phòng'
+  const when = valid && end ? `${clockLabel(start.toISOString())} – ${clockLabel(end.toISOString())}` : `${session.durationMinutes} phút`
   return (
-    <Card style={{ opacity: past || cancelled ? 0.65 : 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <View style={{ alignItems: 'center', minWidth: 46 }}>
-          <ThemedText variant="caption" color="muted">
-            {valid ? start.toLocaleDateString('vi-VN', { weekday: 'short' }) : ''}
-          </ThemedText>
-          <ThemedText variant="titleLg">{valid ? String(start.getDate()) : '—'}</ThemedText>
-          <ThemedText variant="caption" color="faint">{valid ? `Th${start.getMonth() + 1}` : ''}</ThemedText>
-        </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <GaGlyph name="thoigian" size={13} ink="muted" />
-            <ThemedText
-              variant="bodyStrong"
-              style={cancelled ? { textDecorationLine: 'line-through' } : undefined}
-            >
-              {valid && end ? `${clock(start)}–${clock(end)}` : `${session.durationMinutes} phút`}
-            </ThemedText>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Icon icon={online ? Video : MapPin} size={13} color="faint" />
-            <ThemedText variant="caption" color="muted">
-              {online ? 'Học online' : session.room ? `Phòng ${session.room}` : 'Chưa có phòng'}
-            </ThemedText>
-          </View>
-        </View>
-        <Pill tone={st.tone} label={st.label} />
+    <View
+      style={listRowStyle(c.border, first)}
+      accessible
+      accessibilityLabel={`${valid ? start.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' }) : ''}, ${when}, ${where}, ${st.label}`}
+    >
+      <View
+        style={{
+          width: 46,
+          height: 50,
+          borderRadius: radius.md,
+          backgroundColor: c.surfaceSunken,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ThemedText variant="title" style={{ lineHeight: 22, fontVariant: ['tabular-nums'] }}>{box?.day ?? '—'}</ThemedText>
+        <ThemedText variant="caption" color="muted" style={{ fontSize: 11, lineHeight: 13 }}>{box?.weekday ?? ''}</ThemedText>
       </View>
-    </Card>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <ThemedText
+          variant="bodyStrong"
+          style={cancelled ? { textDecorationLine: 'line-through' } : undefined}
+        >
+          {when}
+        </ThemedText>
+        <ThemedText variant="caption" color="muted" numberOfLines={1}>
+          {where}
+          {box ? ` · ${box.month}` : ''}
+        </ThemedText>
+      </View>
+      <StatusBadge tone={st.tone} label={st.label} />
+    </View>
   )
 }
 
-function sessionStatus(status: ClassSession['status']): { label: string; tone: 'success' | 'danger' | 'accent' } {
+/**
+ * Nhãn trạng thái buổi. Buổi ĐÃ QUA vẫn ở trạng thái đã xếp thì hiện "Đã qua" (mẫu ghi "Đã học",
+ * nhưng API lịch không cho biết học viên có đi học hay không — điểm danh nằm ở tab Đánh giá).
+ */
+function sessionStatus(status: ClassSession['status'], past?: boolean): { label: string; tone: BadgeTone } {
   switch (status) {
     case 'CANCELLED':
       return { label: 'Đã huỷ', tone: 'danger' }
     case 'MOVED':
       return { label: 'Dời lịch', tone: 'accent' }
     default:
-      return { label: 'Đã xếp', tone: 'success' }
+      return past ? { label: 'Đã qua', tone: 'neutral' } : { label: 'Đã xếp', tone: 'success' }
   }
-}
-
-function clock(d: Date): string {
-  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
 }

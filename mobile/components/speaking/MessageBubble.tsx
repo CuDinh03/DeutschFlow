@@ -7,6 +7,7 @@ import { RevealText } from '@/components/speaking/RevealText'
 import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 import { MessageTranslation } from '@/components/speaking/MessageTranslation'
 import { usableSuggestions, type ChatTurn } from '@/lib/speakingChat'
+import { markSegments, usableErrors } from '@/lib/correctionMarks'
 import type { StagePersonaId } from '@/lib/workplaceInterviewers'
 
 export const MessageBubble = memo(function MessageBubble({
@@ -31,7 +32,10 @@ export const MessageBubble = memo(function MessageBubble({
   const fb = turn.feedback
   // Correction belongs to what the LEARNER said → render under the user bubble.
   // Suggestions answer the AI's latest question → render under the assistant bubble.
-  const showCorrection = isUser && !!fb?.correction
+  // Giao diện v3.4 (Đợt 5): lỗi có cấu trúc ⇒ phiếu sửa kiểu giấy bài làm — gạch chỗ sai trong câu đã nói,
+  // tô vàng chỗ sửa trong câu chuẩn, từng lỗi một dòng giải thích ngắn.
+  const errors = isUser ? usableErrors(fb?.errors) : []
+  const showCorrection = isUser && (!!fb?.correction || errors.length > 0)
   // Wire NON_NULL: suggestion có thể thiếu germanText (LLM bỏ trống) — lọc trước khi render,
   // chip "💡 " rỗng vừa vô nghĩa vừa là đường đưa undefined vào typewriter (RedBox 04/09).
   const suggestions = !isUser ? usableSuggestions(fb?.suggestions) : []
@@ -50,8 +54,29 @@ export const MessageBubble = memo(function MessageBubble({
         }}
       >
         {isUser ? (
-          <ThemedText variant="body" color="onAccent">
-            {turn.content}
+          <ThemedText variant="body" color="onAccent" accessibilityLanguage="de-DE">
+            {errors.length > 0
+              ? markSegments(turn.content, errors.map((e) => e.wrongSpan)).map((seg, k) =>
+                  seg.mark ? (
+                    <ThemedText
+                      key={k}
+                      variant="body"
+                      // Chữ giữ màu thường trên nền vàng (đỏ trên vàng chỉ ~3:1); chỗ sai = nền sáng + gạch chấm đỏ.
+                      style={{
+                        color: colors.onAccent,
+                        backgroundColor: 'rgba(255,255,255,0.55)',
+                        textDecorationLine: 'underline',
+                        textDecorationStyle: 'dotted',
+                        textDecorationColor: colors.danger,
+                      }}
+                    >
+                      {seg.text}
+                    </ThemedText>
+                  ) : (
+                    seg.text
+                  ),
+                )
+              : turn.content}
           </ThemedText>
         ) : (
           <RevealText text={turn.content} active={active} variant="body" color="primary" />
@@ -93,14 +118,51 @@ export const MessageBubble = memo(function MessageBubble({
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}
             >
               <ThemedText variant="label" color="success">
-                Nên nói
+                {errors.length > 0 ? 'Câu chuẩn' : 'Nên nói'}
               </ThemedText>
               {fb?.grammarPoint ? <Pill label={fb.grammarPoint} tone="success" /> : null}
             </View>
-            <ThemedText variant="bodyStrong" color="primary">
-              {fb?.correction}
-            </ThemedText>
-            {fb?.explanationVi ? (
+            {fb?.correction ? (
+              <ThemedText variant="bodyStrong" color="primary" accessibilityLanguage="de-DE">
+                {errors.length > 0
+                  ? markSegments(fb.correction, errors.map((e) => e.correctedSpan)).map((seg, k) =>
+                      seg.mark ? (
+                        <ThemedText key={k} variant="bodyStrong" style={{ backgroundColor: colors.accent, color: colors.textPrimary }}>
+                          {seg.text}
+                        </ThemedText>
+                      ) : (
+                        seg.text
+                      ),
+                    )
+                  : fb.correction}
+              </ThemedText>
+            ) : null}
+            {errors.map((e, k) => (
+              <View key={k} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+                <View
+                  style={{
+                    minWidth: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    marginTop: 1,
+                    backgroundColor: colors.dangerSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ThemedText variant="caption" color="danger">{k + 1}</ThemedText>
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <ThemedText variant="label" color="primary" accessibilityLanguage="de-DE">
+                    {e.wrongSpan} → {e.correctedSpan}
+                  </ThemedText>
+                  {e.ruleViShort ? (
+                    <ThemedText variant="caption" color="secondary">{e.ruleViShort}</ThemedText>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+            {errors.every((e) => !e.ruleViShort?.trim()) && fb?.explanationVi ? (
               <ThemedText variant="caption" color="muted">
                 {fb.explanationVi}
               </ThemedText>
