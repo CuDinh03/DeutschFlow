@@ -413,7 +413,9 @@ export function ExamRoom({ sessionId, returnHref }: Props) {
   const saveNotes = useCallback(async () => {
     try {
       const { data } = await examSpeakingApi.saveNotes(sessionId, notes)
-      setSession(data)
+      // Chỉ lấy ghi chú: lượt lưu có thể đọc phiên lúc còn PREP rồi về SAU phản hồi "Vào thi" — lấy cả
+      // phiên thì giao diện quay về phòng chuẩn bị trong khi server đã IN_PART (19/11/2026).
+      setSession((prev) => (prev && prev.id === data.id ? { ...prev, notesText: data.notesText } : prev))
     } catch (e) {
       setError(apiMessage(e))
     }
