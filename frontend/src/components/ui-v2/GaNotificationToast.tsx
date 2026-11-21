@@ -63,7 +63,7 @@ export function GaNotificationToast({
     <div
       data-role={role}
       // 22.25rem = 356px — đúng bề rộng viewport mặc định của sonner để thẻ không tràn ol.
-      className="ga-scope relative w-[min(calc(100vw-2rem),22.25rem)] overflow-hidden rounded-ga border border-ga-line bg-ga-card text-ga-ink shadow-ga-panel"
+      className="ga-scope relative w-[min(calc(100vw-2rem),22.25rem)] overflow-hidden rounded-ga-md border border-ga-line bg-ga-card text-ga-ink shadow-ga-lg"
     >
       <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${TONE_BAR[tone]}`} />
 

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-/** GaCard — surface/panel (token cardPad 24px, radius, hover shadow optional). */
+/** GaCard — thẻ nền v3.4: bo 18px, viền mảnh, bóng ấm nhẹ; `hover` nâng bóng lên một bậc. */
 export interface GaCardProps extends React.HTMLAttributes<HTMLDivElement> {
   hover?: boolean
 }
@@ -10,8 +10,8 @@ export function GaCard({ className, hover = false, ...props }: GaCardProps) {
   return (
     <div
       className={cn(
-        'rounded-ga border border-ga-line bg-ga-card',
-        hover && 'transition-shadow duration-150 hover:shadow-ga-card-hover',
+        'rounded-ga-md border border-ga-line bg-ga-card shadow-ga-sm',
+        hover && 'transition-shadow duration-150 hover:shadow-ga-md',
         className,
       )}
       {...props}

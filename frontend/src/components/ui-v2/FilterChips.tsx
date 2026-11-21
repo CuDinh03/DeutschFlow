@@ -48,7 +48,7 @@ export function FilterChips<V extends string = string>({
             data-testid={testIdPrefix ? `${testIdPrefix}-${o.value}` : undefined}
             onClick={() => onChange(o.value)}
             className={cn(
-              'ga-ui min-h-[40px] cursor-pointer rounded-ga border px-3.5 py-2 text-ga-caption font-semibold transition-colors lg:min-h-0',
+              'ga-ui min-h-[40px] cursor-pointer rounded-ga-pill border px-3.5 py-2 text-ga-caption font-semibold transition-colors lg:min-h-0',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
               active
                 ? 'border-ga-ink bg-ga-ink text-ga-card'

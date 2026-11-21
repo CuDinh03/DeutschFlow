@@ -6,9 +6,11 @@ import { cn } from '@/lib/utils'
 /**
  * GaBtn — Galerie 2.0 button. Manifest: variants primary|yellow|ghost|ink,
  * states default|hover|disabled|loading. Tokens only (no hardcoded color).
+ * v3.4: nút bo tròn pill ở mọi vai trò, nhấn thì lún nhẹ (tắt khi reduced-motion) — cùng dáng với
+ * luật `.ga-public [data-slot='ga-btn']` mà trang công khai đã dùng.
  */
 const gaBtnVariants = cva(
-  'ga-ui inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-ga font-semibold transition-[background-color,opacity,box-shadow] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
+  'ga-ui inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-ga-pill font-semibold transition-[background-color,opacity,box-shadow,transform] duration-150 outline-none motion-safe:active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
   {
     variants: {
       variant: {

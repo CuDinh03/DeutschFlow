@@ -139,7 +139,7 @@ export function ItemAnalysis({
             <p className="mt-3 text-ga-caption font-semibold uppercase tracking-wide text-ga-muted">{t('evidence')}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5" lang="de">
               {item.evidence.map((e) => (
-                <mark key={e} className="rounded-ga bg-ga-yellow-soft px-1.5 py-0.5 text-ga-small text-ga-ink">
+                <mark key={e} className="rounded-ga-mark bg-ga-yellow-soft px-1.5 py-0.5 text-ga-small text-ga-ink">
                   {e}
                 </mark>
               ))}

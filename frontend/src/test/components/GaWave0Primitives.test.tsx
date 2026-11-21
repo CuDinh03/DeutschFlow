@@ -65,7 +65,7 @@ describe('GaInput / GaTextarea — aria-invalid + focus-visible', () => {
     expect(input.className).toContain('aria-[invalid=true]:border-ga-red')
     expect(input.className).toContain('focus-visible:ring-2')
     expect(input.className).toContain('min-h-11')
-    expect(input.className).toContain('rounded-ga-touch')
+    expect(input.className).toContain('rounded-ga-control')
   })
 
   it('mặc định không aria-invalid; disabled có style riêng', () => {
