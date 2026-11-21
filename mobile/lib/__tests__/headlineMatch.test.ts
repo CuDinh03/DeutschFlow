@@ -1,4 +1,4 @@
-import { answeredItems, CLEARED, holderOf, nextOpenItem, pickHeadline, usedHeadlines } from '@/lib/headlineMatch'
+import { answeredItems, CLEARED, holderOf, nextOpenItem, pickHeadline, trayLayout, usedHeadlines } from '@/lib/headlineMatch'
 
 const ids = ['1', '2', '3', '4', '5']
 
@@ -46,5 +46,22 @@ describe('pickHeadline', () => {
     const answers = { '1': 'a', '2': 'b', '3': 'c', '4': 'd' }
     expect(pickHeadline(ids, answers, '5', 'e').next).toBeNull()
     expect(answers).toEqual({ '1': 'a', '2': 'b', '3': 'c', '4': 'd' })
+  })
+})
+
+describe('trayLayout — khay không che mất đoạn văn', () => {
+  test('khay gần hết màn (chừa tai thỏ + 12), đoạn văn ~42% chiều cao màn', () => {
+    expect(trayLayout(852, 59)).toEqual({ sheetMax: 781, passageMax: 358 })
+    expect(trayLayout(667, 20)).toEqual({ sheetMax: 635, passageMax: 280 })
+  })
+  test('đoạn văn luôn nhỏ hơn khay để còn chỗ cho tiêu đề', () => {
+    for (const [h, top] of [[568, 20], [932, 59], [1366, 24]]) {
+      const { sheetMax, passageMax } = trayLayout(h, top)
+      expect(passageMax).toBeLessThan(sheetMax / 2)
+    }
+  })
+  test('số âm / bằng 0 không ra kích thước âm', () => {
+    expect(trayLayout(0, 50)).toEqual({ sheetMax: 0, passageMax: 0 })
+    expect(trayLayout(800, -10).sheetMax).toBe(788)
   })
 })

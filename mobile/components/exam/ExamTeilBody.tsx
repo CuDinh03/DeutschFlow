@@ -15,7 +15,7 @@ import { assignTeilVoices } from '@/lib/hoerenVoices'
 import { HoerenGate, type HoerenGatePhase } from './HoerenGate'
 import { TelcGapText } from './TelcGapText'
 import { ReadingPassage } from './ReadingPassage'
-import { AdPosterCard } from './AdPosterCard'
+import { AdBoard } from './AdBoard'
 import { MarkablePassage } from './MarkablePassage'
 import { MarkedRun } from './MarkedRun'
 import { MarksToolbar } from './MarksToolbar'
@@ -110,7 +110,12 @@ export function ObjGroupView({
         </ThemedText>
       ) : null}
 
-      {ml && toolbarOn && !hideBody ? <MarksToolbar layer={ml} /> : null}
+      {ml && toolbarOn && !hideBody ? (
+        <MarksToolbar
+          layer={ml}
+          offHint={group.telcType === 'MATCH_AD_X' ? 'Bút đang tắt: chạm mẩu tin để chọn tình huống. Muốn tô thì chọn một bút, chạm lại bút để tắt.' : undefined}
+        />
+      ) : null}
 
       {group.ansage && !review && onGatePhaseChange ? (
         <HoerenGate
@@ -126,14 +131,9 @@ export function ObjGroupView({
       {!hideBody && group.audio ? <ExamAudio script={group.audio} label={group.title} maxPlays={plays} locked={audioLocked} voices={teilVoices.group} /> : null}
 
       {/* Kho lựa chọn dùng chung cả Teil — in một lần ở đầu như đề giấy. */}
-      {/* Lesen Teil 3: mẩu rao vặt dựng như tờ dán bảng tin, sáu kiểu luân phiên (Đợt 7a). */}
+      {/* Lesen Teil 3: mẩu rao vặt dựng như tờ dán bảng tin (Đợt 7a); chạm mẩu ⇒ khay chọn tình huống (20/11). */}
       {group.pool && group.telcType === 'MATCH_AD_X' ? (
-        <View style={{ gap: space[3] }}>
-          <Caption>Các mẩu rao vặt · mỗi mẩu chỉ dùng một lần</Caption>
-          {group.pool.map((opt, i) => (
-            <AdPosterCard key={opt.key} letter={opt.key} label={opt.label} index={i} marks={ml} />
-          ))}
-        </View>
+        <AdBoard group={group} answers={answers} onAnswer={onAnswer} reviewing={!!review} marks={ml} />
       ) : null}
 
       {group.pool && group.telcType === 'MATCH_HEADLINE' && !headlineMatch ? (

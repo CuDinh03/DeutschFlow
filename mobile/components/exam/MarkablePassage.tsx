@@ -1,6 +1,6 @@
 // Bài đọc Lesen 2 có bút đánh dấu (mẫu iOS `attempt`, Đợt 4c 19/11/2026; Đợt 4f 20/11 tách thanh bút ra
-// `MarksToolbar` dùng chung cả Teil) — bản app của `PassageMarker` web: chọn bút rồi chạm vào một câu để
-// tô, chạm lại để xoá. Giữ đúng bố cục của `ReadingPassage` (tiêu đề, Vorspann, số dòng mỗi 5 dòng, chú
+// `MarksToolbar` dùng chung cả Teil) — bản app của `PassageMarker` web: chọn bút rồi chạm từng từ để tô
+// (nối cụm như bôi chọn web; nhấn giữ = cả câu), chạm lại để xoá. Giữ đúng bố cục của `ReadingPassage` (tiêu đề, Vorspann, số dòng mỗi 5 dòng, chú
 // thích từ khó, nguồn). Đánh dấu dùng chung với web (`lib/passageMarks.ts`), khối `ctx`.
 
 import { useMemo } from 'react'
@@ -31,7 +31,7 @@ export function MarkablePassage({ layer, title, vorspann, numbered, glossary, qu
   let counted = 0
   return (
     <View
-      accessibilityHint="Chọn bút rồi chạm vào một câu để tô, chạm lại để xoá."
+      accessibilityHint="Chọn bút rồi chạm từng từ để tô, chạm từ kế bên để nối thành cụm, nhấn giữ để tô cả câu; chạm lại để xoá."
       style={{ gap: space[2], borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, padding: space[4] }}
     >
       <Caption>Bài đọc</Caption>

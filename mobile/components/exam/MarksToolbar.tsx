@@ -1,7 +1,7 @@
 // Thanh bút đánh dấu của một Teil (Đợt 4f, 20/11/2026) — bản app của `MarksBar` web: chọn bút (Từ khoá
 // vàng · Bằng chứng xanh · Chưa chắc hồng · Gạch chân · Tẩy), Hoàn tác, Ẩn/hiện đánh dấu, trạng thái lưu,
 // báo đánh dấu cũ bị bỏ khi bài vừa sửa chữ. Bỏ so với web: gợi ý bôi chọn chữ / gắn số câu / ghi chú
-// (app tô theo câu, chưa có gắn câu và ghi chú), nút "?" (gợi ý ngắn luôn hiện một dòng bên dưới).
+// (app tô theo từ — chạm nối cụm, nhấn giữ cả câu — chưa có gắn câu và ghi chú), nút "?" (gợi ý ngắn luôn hiện một dòng bên dưới).
 
 import { Pressable, ScrollView, View } from 'react-native'
 import { Eraser, Eye, EyeOff, Undo2 } from 'lucide-react-native'
@@ -19,7 +19,7 @@ const PENS: { pen: Pen; label: string; a11y: string }[] = [
   { pen: 'erase', label: 'Tẩy', a11y: 'Tẩy đánh dấu' },
 ]
 
-export function MarksToolbar({ layer, hint }: { layer: MarksLayer; hint?: string }) {
+export function MarksToolbar({ layer, hint, offHint }: { layer: MarksLayer; hint?: string; offHint?: string }) {
   const c = useTheme().colors
   const ready = layer.status === 'ready'
   const pensOn = ready && !layer.hidden
@@ -50,11 +50,11 @@ export function MarksToolbar({ layer, hint }: { layer: MarksLayer; hint?: string
               <Pressable
                 key={p.pen}
                 accessibilityRole="button"
-                accessibilityLabel={p.a11y}
+                accessibilityLabel={on ? `${p.a11y} (đang bật, chạm để tắt bút)` : p.a11y}
                 accessibilityState={{ selected: on, disabled: !pensOn }}
                 disabled={!pensOn}
                 hitSlop={4}
-                onPress={() => layer.setPen(p.pen)}
+                onPress={() => layer.setPen(on ? null : p.pen)}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -101,12 +101,12 @@ export function MarksToolbar({ layer, hint }: { layer: MarksLayer; hint?: string
           <Icon icon={layer.hidden ? EyeOff : Eye} size={18} color={layer.hidden ? 'onInk' : 'primary'} />
         </Pressable>
       </View>
-      <MarksStatusLine layer={layer} hint={hint} />
+      <MarksStatusLine layer={layer} hint={hint} offHint={offHint} />
     </View>
   )
 }
 
-function MarksStatusLine({ layer, hint }: { layer: MarksLayer; hint?: string }) {
+function MarksStatusLine({ layer, hint, offHint }: { layer: MarksLayer; hint?: string; offHint?: string }) {
   const c = useTheme().colors
   if (layer.status === 'loading') return <ThemedText variant="caption" color="muted">Đang tải đánh dấu…</ThemedText>
   if (layer.status === 'error') {
@@ -135,7 +135,9 @@ function MarksStatusLine({ layer, hint }: { layer: MarksLayer; hint?: string }) 
   const bad = layer.full || layer.saveState === 'error' || layer.saveState === 'rejected' || layer.saveState === 'closed'
   const base = layer.hidden
     ? 'Đang ẩn đánh dấu. Bấm hình con mắt để hiện lại và tô tiếp.'
-    : hint ?? 'Chọn bút rồi chạm vào một câu để tô; chạm lại để xoá.'
+    : layer.pen == null
+      ? offHint ?? 'Đang tắt bút. Chọn một bút để tô.'
+      : hint ?? 'Chạm từng từ để tô, chạm từ kế bên để nối cụm; nhấn giữ = cả câu. Chạm lại để xoá. Chạm lại bút đang chọn để tắt.'
   const saved = layer.saveState === 'saving' ? ' Đang lưu…' : layer.saveState === 'saved' ? ' Đã lưu, đồng bộ với bản web.' : ''
   return (
     <ThemedText

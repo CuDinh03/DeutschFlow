@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import { getAttemptMarks, getPracticeMarks, saveAttemptMarks, savePracticeMarks } from '@/lib/telcPracticeApi'
-import { applyPen, dropStale, emptyPack, isStruck, MAX_MARKS, parsePack, setStruck, type MarksPack, type Pen, type Piece } from '@/lib/passageMarks'
+import { applyPen, applyPenWord, dropStale, emptyPack, isStruck, MAX_MARKS, parsePack, setStruck, type MarksPack, type Pen, type Piece } from '@/lib/passageMarks'
 import { createMarksSaver, createUndoStack, type MarksSaver, type MarksSaveState } from '@/lib/marksSaver'
 
 export { MARKS_AUTOSAVE_MS, type MarksSaveState } from '@/lib/marksSaver'
@@ -40,8 +40,9 @@ export interface MarksLayer {
   /** Chữ từng khối của Teil (`lib/marksBlocks.marksTexts`). */
   texts: Record<string, string>
   status: MarksStatus
-  pen: Pen
-  setPen: (pen: Pen) => void
+  /** `null` = đang tắt bút (Lesen 3: chạm mẩu tin để chọn tình huống thay vì tô). */
+  pen: Pen | null
+  setPen: (pen: Pen | null) => void
   /** Ẩn tạm mọi đánh dấu để đọc lại bài sạch (không lưu). */
   hidden: boolean
   setHidden: (v: boolean) => void
@@ -53,8 +54,10 @@ export interface MarksLayer {
   canUndo: boolean
   undo: () => void
   retry: () => void
-  /** Áp bút đang chọn lên một câu. */
+  /** Áp bút đang chọn lên cả một câu (nhấn giữ). */
   tap: (piece: Piece) => void
+  /** Áp bút đang chọn lên một từ (chạm) — nối với mảnh cùng bút liền kề, như bôi chọn trên web. */
+  tapWord: (piece: Piece) => void
   isStruck: (itemId: string, opt: string) => boolean
   /** Phương án này gạch bỏ được không (luật server: câu có `options` riêng dạng đối tượng). */
   canStrike: (itemId: string, opt: string) => boolean
@@ -68,18 +71,21 @@ export function usePassageMarks({
   source,
   texts,
   strike = NO_STRIKE,
+  initialPen = 'y',
 }: {
   source: MarksSource | null
   texts: Record<string, string>
   /** Phương án gạch bỏ được theo câu (`lib/marksBlocks.strikeOptions`). */
   strike?: Record<string, string[]>
+  /** Bút lúc mở Teil; `null` = tắt (chạm chữ không tô). */
+  initialPen?: Pen | null
 }): MarksLayer {
   const key = sourceKeyOf(source)
   const [pack, setPack] = useState<MarksPack>(emptyPack)
   const [status, setStatus] = useState<MarksStatus>(source ? 'loading' : 'off')
   const [dropped, setDropped] = useState(false)
   const [saveState, setSaveState] = useState<MarksSaveState>('idle')
-  const [pen, setPen] = useState<Pen>('y')
+  const [pen, setPen] = useState<Pen | null>(initialPen)
   const [hidden, setHidden] = useState(false)
   const [full, setFull] = useState(false)
   const [undoDepth, setUndoDepth] = useState(0)
@@ -149,11 +155,11 @@ export function usePassageMarks({
 
   const editable = status === 'ready' && !hidden
 
-  const tap = useCallback(
-    (piece: Piece) => {
-      if (!editable) return
+  const applyWith = useCallback(
+    (piece: Piece, fn: typeof applyPen) => {
+      if (!editable || !pen) return
       const cur = latest.current
-      const next = applyPen(cur, textsRef.current, piece, pen)
+      const next = fn(cur, textsRef.current, piece, pen)
       // Chặn theo gói MỚI: một lần chạm có thể tách mảnh (+1) và thêm mảnh (+1) ⇒ vượt 300, server trả 400.
       const over = next.marks.length > cur.marks.length && next.marks.length > MAX_MARKS
       setFull(over)
@@ -161,6 +167,8 @@ export function usePassageMarks({
     },
     [editable, pen, commit],
   )
+  const tap = useCallback((piece: Piece) => applyWith(piece, applyPen), [applyWith])
+  const tapWord = useCallback((piece: Piece) => applyWith(piece, applyPenWord), [applyWith])
 
   const canStrike = useCallback((itemId: string, opt: string) => strike[itemId]?.includes(opt) ?? false, [strike])
 
@@ -211,11 +219,12 @@ export function usePassageMarks({
       undo,
       retry,
       tap,
+      tapWord,
       isStruck: struck,
       canStrike,
       toggleStrike,
       flush,
     }),
-    [pack, texts, status, pen, hidden, dropped, saveState, full, undoDepth, undo, retry, tap, struck, canStrike, toggleStrike, flush],
+    [pack, texts, status, pen, hidden, dropped, saveState, full, undoDepth, undo, retry, tap, tapWord, struck, canStrike, toggleStrike, flush],
   )
 }
