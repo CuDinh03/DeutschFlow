@@ -136,7 +136,7 @@ export function AiConsentHost() {
 
             <ThemedText variant="caption" color="secondary" style={{ marginTop: space[5], lineHeight: 18 }}>
               Dữ liệu chỉ được dùng để xử lý yêu cầu học tập của bạn — không dùng cho quảng cáo. Bạn có
-              thể đổi quyết định bất cứ lúc nào trong Hồ sơ → Quyền riêng tư. Nếu không đồng ý, bạn vẫn
+              thể đổi quyết định bất cứ lúc nào trong Hồ sơ → Dữ liệu và tính năng AI. Nếu không đồng ý, bạn vẫn
               dùng được toàn bộ tính năng không có AI.
             </ThemedText>
 

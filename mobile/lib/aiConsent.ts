@@ -14,9 +14,12 @@ import * as SecureStore from 'expo-secure-store'
 const KEY = 'df_ai_consent_v1'
 
 /**
- * Đối tác AI nhận dữ liệu của người dùng — cùng danh sách, cùng thứ tự với chính sách quyền riêng tư web
- * (`frontend/src/content/legal/privacy.ts`, mục 5 "Third parties and sub-processors"). Đổi nhà cung cấp AI
- * ở backend thì sửa cả hai nơi (22/11/2026: thêm Fireworks AI — trước đó bảng đồng ý thiếu bên xử lý chính).
+ * Đối tác AI nhận nội dung của người dùng (bản ghi âm, ảnh bài viết, hội thoại) — cùng tên, cùng thứ tự với
+ * các bên AI trong chính sách quyền riêng tư web (`frontend/src/content/legal/privacy.ts`, mục 5 "Third
+ * parties and sub-processors"; DeepL ở mục đó chỉ dịch nội dung học của hệ thống nên không nêu ở đây). Đổi nhà
+ * cung cấp AI ở backend thì sửa cả hai nơi (22/11/2026: thêm Fireworks AI — trước đó thiếu bên xử lý chính).
+ * Chuỗi xin quyền micro trong `app.json` còn ghi "(Groq, OpenAI)": sửa ở bản build native kế tiếp (đổi
+ * `app.json` là đổi fingerprint, không đi bằng OTA).
  */
 export const AI_PARTNERS = ['Fireworks AI', 'Groq', 'OpenAI', 'Google (Gemini)'] as const
 

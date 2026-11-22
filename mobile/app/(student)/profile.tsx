@@ -82,7 +82,7 @@ export default function ProfileScreen() {
     const label = status === 'granted' ? 'Đang bật' : status === 'denied' ? 'Đang tắt' : 'Chưa quyết định'
     Alert.alert(
       'Dữ liệu & tính năng AI',
-      `Trạng thái hiện tại: ${label}.\n\nKhi bật, bản ghi âm, ảnh bài viết và nội dung hội thoại của bạn được gửi tới đối tác AI (${aiPartnersText()}) để nhận dạng giọng nói, chấm và phản hồi bài. Không dùng cho quảng cáo.`,
+      `Trạng thái hiện tại: ${label}.\n\nKhi bật, bản ghi âm, ảnh bài viết và nội dung hội thoại của bạn được gửi tới các đối tác AI ${aiPartnersText()} để nhận dạng giọng nói, chấm và phản hồi bài. Không dùng cho quảng cáo.`,
       [
         { text: 'Đóng', style: 'cancel' },
         status === 'granted'
