@@ -376,7 +376,7 @@ export default function SpeakingScreen() {
 
   async function startSession(args: StartArgs) {
     // 5.1.1(i): the whole conversation (voice + typed text) is processed by a third-party
-    // AI (Groq/OpenAI) — disclose & get consent before the session ever starts.
+    // AI (`AI_PARTNERS`) — disclose & get consent before the session ever starts.
     if (!(await ensureAiConsent())) return
     setStarting(true)
     trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode, assignment: args.assignmentId != null })

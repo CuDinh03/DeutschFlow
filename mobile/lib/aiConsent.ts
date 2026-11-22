@@ -3,8 +3,8 @@ import * as SecureStore from 'expo-secure-store'
 // One-time (revocable) consent for sharing user content with third-party AI services.
 //
 // App Store Review 5.1.1(i)/5.1.2(i): before ANY user data (voice recordings, photos of
-// written work, conversation text) is sent to a third-party AI provider (Groq, OpenAI,
-// Google Gemini), the app must (a) disclose exactly what is sent and to whom, and
+// written work, conversation text) is sent to a third-party AI provider (`AI_PARTNERS`),
+// the app must (a) disclose exactly what is sent and to whom, and
 // (b) obtain the user's permission. Every entry point that captures content destined
 // for an AI endpoint must call `ensureAiConsent()` FIRST and abort when it returns false.
 //
@@ -12,6 +12,22 @@ import * as SecureStore from 'expo-secure-store'
 // root layout; this module is the tiny imperative bridge + persistence.
 
 const KEY = 'df_ai_consent_v1'
+
+/**
+ * Đối tác AI nhận nội dung của người dùng (bản ghi âm, ảnh bài viết, hội thoại) — cùng tên, cùng thứ tự với
+ * các bên AI trong chính sách quyền riêng tư web (`frontend/src/content/legal/privacy.ts`, mục 5 "Third
+ * parties and sub-processors"; DeepL ở mục đó chỉ dịch nội dung học của hệ thống nên không nêu ở đây). Đổi nhà
+ * cung cấp AI ở backend thì sửa cả hai nơi (22/11/2026: thêm Fireworks AI — trước đó thiếu bên xử lý chính).
+ * Chuỗi xin quyền micro trong `app.json` còn ghi "(Groq, OpenAI)": sửa ở bản build native kế tiếp (đổi
+ * `app.json` là đổi fingerprint, không đi bằng OTA).
+ */
+export const AI_PARTNERS = ['Fireworks AI', 'Groq', 'OpenAI', 'Google (Gemini)'] as const
+
+/** "A, B, C và D" — dùng trong câu tiếng Việt. */
+export function aiPartnersText(names: readonly string[] = AI_PARTNERS): string {
+  if (names.length <= 1) return names.join('')
+  return `${names.slice(0, -1).join(', ')} và ${names[names.length - 1]}`
+}
 
 export type AiConsentStatus = 'granted' | 'denied' | 'unset'
 
