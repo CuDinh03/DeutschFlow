@@ -14,7 +14,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { planDisplayName } from '@/lib/iapProducts'
-import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
+import { aiPartnersText, getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
 import { Screen, ThemedText, Pill, FadeIn, GaGlyph, IconButton, Button } from '@/components/ui'
 import { Badge, Eyebrow, MeCard, Row, RowList, SubHeader } from '@/components/me/MeParts'
 import { useBackToLastTab } from '@/hooks/useBackTo'
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
     const label = status === 'granted' ? 'Đang bật' : status === 'denied' ? 'Đang tắt' : 'Chưa quyết định'
     Alert.alert(
       'Dữ liệu & tính năng AI',
-      `Trạng thái hiện tại: ${label}.\n\nKhi bật, bản ghi âm, ảnh bài viết và nội dung hội thoại của bạn được gửi tới đối tác AI (Groq, OpenAI, Google Gemini) để nhận dạng giọng nói, chấm và phản hồi bài. Không dùng cho quảng cáo.`,
+      `Trạng thái hiện tại: ${label}.\n\nKhi bật, bản ghi âm, ảnh bài viết và nội dung hội thoại của bạn được gửi tới đối tác AI (${aiPartnersText()}) để nhận dạng giọng nói, chấm và phản hồi bài. Không dùng cho quảng cáo.`,
       [
         { text: 'Đóng', style: 'cancel' },
         status === 'granted'

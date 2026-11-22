@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { GlyphName } from '@/lib/galerieGlyphs'
 import { Modal, Pressable, ScrollView, View } from 'react-native'
 import { ExternalLink } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Button, Icon, GaGlyph } from '@/components/ui'
-import { registerAiConsentPresenter, setAiConsent } from '@/lib/aiConsent'
+import { AI_PARTNERS, registerAiConsentPresenter, setAiConsent } from '@/lib/aiConsent'
 import { openPrivacyPolicy } from '@/lib/legal'
 import { captureEvent } from '@/lib/analytics'
 
@@ -98,9 +98,14 @@ export function AiConsentHost() {
             <ThemedText variant="titleLg">Tính năng AI & dữ liệu của bạn</ThemedText>
             <ThemedText variant="body" color="secondary" style={{ marginTop: space[2] }}>
               Để luyện nói, chấm bài và phản hồi tự động, MyDeutschFlow gửi một phần dữ liệu của bạn
-              tới các đối tác AI: <ThemedText variant="bodyStrong">Groq</ThemedText>,{' '}
-              <ThemedText variant="bodyStrong">OpenAI</ThemedText> và{' '}
-              <ThemedText variant="bodyStrong">Google (Gemini)</ThemedText>.
+              tới các đối tác AI:{' '}
+              {AI_PARTNERS.map((name, i) => (
+                <Fragment key={name}>
+                  {i === 0 ? '' : i === AI_PARTNERS.length - 1 ? ' và ' : ', '}
+                  <ThemedText variant="bodyStrong">{name}</ThemedText>
+                </Fragment>
+              ))}
+              .
             </ThemedText>
 
             <View style={{ gap: space[4], marginTop: space[5] }}>
