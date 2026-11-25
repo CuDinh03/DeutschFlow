@@ -856,7 +856,7 @@ function highlight(text: string, evidence: string[]): React.ReactNode {
     if (!best) break
     if (best.at > 0) parts.push(rest.slice(0, best.at))
     parts.push(
-      <mark key={key++} className="ga-evidence-glow rounded-ga bg-ga-yellow-soft text-ga-ink shadow-[inset_0_-2px_0_var(--ga-yellow)]">
+      <mark key={key++} className="ga-evidence-glow rounded-ga-mark bg-ga-yellow-soft text-ga-ink shadow-[inset_0_-2px_0_var(--ga-yellow)]">
         {best.ev}
       </mark>,
     )

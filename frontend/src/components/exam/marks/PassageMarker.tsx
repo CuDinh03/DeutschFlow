@@ -515,7 +515,7 @@ export function PassageMarker({ marks, rootRef, canEdit, items, currentItemId, f
             )}
             <button type="button" className={cn(btn, tap)} aria-expanded={tagsOpen} onClick={() => setTagsOpen((v) => !v)} aria-label={t('tag')} title={`${t('tag')} (T)`}>
               <Hash size={17} aria-hidden />
-              {curQ && <span className="rounded-ga bg-ga-yellow px-1 text-ga-caption tabular-nums">{labelOf(curQ)}</span>}
+              {curQ && <span className="rounded-ga-mark bg-ga-yellow px-1 text-ga-caption tabular-nums">{labelOf(curQ)}</span>}
             </button>
             <button type="button" className={cn(btn, tap)} onClick={onNote} aria-label={t('note')} title={`${t('note')} (N)`}>
               <MessageSquareText size={17} aria-hidden />

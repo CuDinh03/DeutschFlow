@@ -34,7 +34,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   const t = useTranslations('v2.student.examSpeaking.stimulus')
   if (!stimulus) {
     return (
-      <div className="rounded-ga border border-dashed border-ga-line bg-ga-surface p-5 text-center">
+      <div className="rounded-ga-paper border border-dashed border-ga-line bg-ga-surface p-5 text-center">
         <p className="ga-ui text-[13px] text-ga-muted">{t('none')}</p>
       </div>
     )
@@ -45,7 +45,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
     const owner = candidateAction === 'ANSWER' ? t('partnerCard') : t('yourCard')
     return (
       <div
-        className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]"
+        className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]"
         data-testid="stimulus-theme-card"
       >
         <GaCap className="mb-3 block">{owner}</GaCap>
@@ -62,11 +62,11 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
     const owner = candidateAction === 'ANSWER' ? t('partnerCard') : t('yourCard')
     return (
       <div
-        className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]"
+        className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]"
         data-testid="stimulus-picture-card"
       >
         <GaCap className="mb-3 block">{owner}</GaCap>
-        <div className="grid h-32 place-items-center rounded-ga bg-ga-surface text-ga-ink">
+        <div className="grid h-32 place-items-center rounded-ga-paper bg-ga-surface text-ga-ink">
           <Icon size={64} aria-hidden />
         </div>
         <p className="font-ga-display mt-3 text-center text-[22px] font-medium text-ga-ink">
@@ -80,7 +80,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'KEYWORD_CARD') {
     const keywords = Array.isArray(stimulus.keywords) ? (stimulus.keywords as unknown[]).map(String) : []
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-keyword-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-keyword-card">
         <GaCap className="mb-3 block">{t('yourCard')}</GaCap>
         <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
           {keywords.map((k) => (
@@ -88,13 +88,13 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
           ))}
         </ul>
         {stepIndex >= 1 && (
-          <div className="mt-4 rounded-ga bg-ga-surface p-3">
+          <div className="mt-4 rounded-ga-paper bg-ga-surface p-3">
             <p className="ga-ui text-[12px] uppercase tracking-wide text-ga-muted">{t('spell')}</p>
             <p className="font-ga-display text-[22px] font-medium text-ga-ink">{String(stimulus.spell ?? '')}</p>
           </div>
         )}
         {stepIndex >= 2 && (
-          <div className="mt-2 rounded-ga bg-ga-surface p-3">
+          <div className="mt-2 rounded-ga-paper bg-ga-surface p-3">
             <p className="ga-ui text-[12px] uppercase tracking-wide text-ga-muted">{t('number')}</p>
             <p className="font-ga-display text-[22px] font-medium tabular-nums text-ga-ink">{String(stimulus.number ?? '')}</p>
           </div>
@@ -106,7 +106,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'PERSON_CARD') {
     const owner = candidateAction === 'ANSWER' ? t('partnerCard') : t('yourCard')
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-person-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-person-card">
         <GaCap className="mb-3 block">{owner}</GaCap>
         <p className="ga-ui text-[12px] uppercase tracking-wide text-ga-muted">{t('keyword')}</p>
         <p className="font-ga-display text-[36px] font-semibold leading-tight text-ga-ink">{String(stimulus.keyword ?? '')}</p>
@@ -118,7 +118,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'QUESTION_WORD_CARD') {
     const owner = candidateAction === 'ANSWER' ? t('partnerCard') : t('yourCard')
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-question-word-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-question-word-card">
         <GaCap className="mb-3 block">{owner}</GaCap>
         <p className="ga-ui text-[12px] uppercase tracking-wide text-ga-muted">{t('thema')}</p>
         <p className="font-ga-display text-[22px] font-medium text-ga-ink">{String(stimulus.thema ?? '')}</p>
@@ -131,13 +131,13 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'PROMPT_CARD') {
     const hints = Array.isArray(stimulus.hints) ? (stimulus.hints as unknown[]).map(String) : []
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-prompt-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-prompt-card">
         <GaCap className="mb-3 block">{t('yourCard')}</GaCap>
         <p className="font-ga-display text-[24px] font-medium leading-snug text-ga-ink">{String(stimulus.prompt ?? '')}</p>
         {hints.length > 0 && (
           <ul className="mt-4 flex flex-wrap gap-2">
             {hints.map((h) => (
-              <li key={h} className="ga-ui rounded-ga bg-ga-surface px-3 py-1.5 text-[14px] text-ga-ink">{h}</li>
+              <li key={h} className="ga-ui rounded-ga-paper bg-ga-surface px-3 py-1.5 text-[14px] text-ga-ink">{h}</li>
             ))}
           </ul>
         )}
@@ -151,7 +151,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
     const cal = (stimulus.candidateCalendar ?? {}) as Record<string, unknown>
     const days = Object.keys(cal)
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-calendar-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-calendar-card">
         <GaCap className="mb-2 block">{t('situation')}</GaCap>
         <p className="ga-ui text-[15px] text-ga-ink">{String(stimulus.situation ?? '')}</p>
         {stimulus.goal ? <p className="ga-ui mt-1 text-[13px] font-semibold text-ga-ink">{String(stimulus.goal)}</p> : null}
@@ -183,7 +183,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
     const prompts = Array.isArray(stimulus.prompts) ? (stimulus.prompts as unknown[]).map(String) : []
     const instruction = typeof stimulus.instruction === 'string' && stimulus.instruction.trim() ? stimulus.instruction : null
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-planning-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-planning-card">
         <GaCap className="mb-2 block">{t('situation')}</GaCap>
         <p className="ga-ui text-[15px] text-ga-ink">{String(stimulus.situation ?? '')}</p>
         {prompts.length > 0 && (
@@ -221,7 +221,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'TOPIC_CHOICE') {
     const aspects = Array.isArray(stimulus.aspects) ? (stimulus.aspects as unknown[]).map(String) : []
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-topic-choice-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-topic-choice-card">
         <GaCap className="mb-2 block">{t('yourTopic')}</GaCap>
         {stimulus.context ? <p className="ga-ui mb-2 text-[12.5px] text-ga-muted">{String(stimulus.context)}</p> : null}
         <p className="ga-ui text-[17px] font-semibold leading-snug text-ga-ink">{String(stimulus.topic ?? '')}</p>
@@ -248,7 +248,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   // partnerStance là lập trường riêng của partner-AI — đã bị lược ở server, không bao giờ tới đây.
   if (type === 'DEBATE_CARD' || type === 'DEBATE_TEXT') {
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-debate-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-debate-card">
         <GaCap className="mb-2 block">{t('debate')}</GaCap>
         {stimulus.context ? <p className="ga-ui mb-2 text-[12.5px] text-ga-muted">{String(stimulus.context)}</p> : null}
         {stimulus.text ? (
@@ -265,13 +265,13 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'FOLIEN_DECK') {
     const folien = Array.isArray(stimulus.folien) ? (stimulus.folien as unknown[]).map(String) : []
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-folien-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-folien-card">
         <GaCap className="mb-2 block">{t('topic')}</GaCap>
         <p className="font-ga-display text-[22px] font-medium leading-snug text-ga-ink">{String(stimulus.topic ?? '')}</p>
         <ol className="mt-4 space-y-2">
           {folien.map((f, i) => (
-            <li key={f} className="flex items-start gap-3 rounded-ga bg-ga-surface p-2.5">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-ga bg-ga-ink font-ga-display text-[14px] font-semibold text-ga-bg">{i + 1}</span>
+            <li key={f} className="flex items-start gap-3 rounded-ga-paper bg-ga-surface p-2.5">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-ga-paper bg-ga-ink font-ga-display text-[14px] font-semibold text-ga-bg">{i + 1}</span>
               <span className="ga-ui text-[13.5px] text-ga-ink">{f}</span>
             </li>
           ))}
@@ -283,7 +283,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'PARTNER_PRESENTATION') {
     // Văn bản bài trình bày của partner nằm ở khóa partner* (server không gửi) — nó đến dưới dạng lượt nói.
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-partner-presentation-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-partner-presentation-card">
         <GaCap className="mb-2 block">{t('partnerTopic')}</GaCap>
         <p className="font-ga-display text-[22px] font-medium leading-snug text-ga-ink">{String(stimulus.topic ?? '')}</p>
         <p className="ga-ui mt-3 text-[13.5px] text-ga-ink">{String(stimulus.instruction ?? t('feedbackHint'))}</p>
@@ -294,12 +294,12 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   if (type === 'CONTACT_CARD') {
     const topics = Array.isArray(stimulus.topics) ? (stimulus.topics as unknown[]).map(String) : []
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-contact-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-contact-card">
         <GaCap className="mb-2 block">{t('yourCard')}</GaCap>
         <p className="ga-ui text-[13.5px] text-ga-ink">{String(stimulus.instruction ?? '')}</p>
         <ul className="mt-3 flex flex-wrap gap-2">
           {topics.map((h) => (
-            <li key={h} className="ga-ui rounded-ga bg-ga-surface px-3 py-1.5 text-[14px] text-ga-ink">{h}</li>
+            <li key={h} className="ga-ui rounded-ga-paper bg-ga-surface px-3 py-1.5 text-[14px] text-ga-ink">{h}</li>
           ))}
         </ul>
       </div>
@@ -312,7 +312,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
     const op = (stimulus.candidateOpinion ?? null) as { name?: string; age?: number | string; job?: string; quote?: string } | null
     const person = [op?.name, op?.age != null ? String(op.age) : null, op?.job].filter(Boolean).join(', ')
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-opinion-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-opinion-card">
         <GaCap className="mb-2 block">{t('meinungA')}</GaCap>
         <p className="font-ga-display text-[20px] font-medium leading-snug text-ga-ink">{String(stimulus.thema ?? '')}</p>
         {op && (
@@ -331,7 +331,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
     const series = chart?.series ?? []
     const max = Math.max(1, ...series.map((s) => Number(s.value) || 0))
     return (
-      <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-graphic-card">
+      <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5 shadow-[6px_6px_0_0_var(--ga-yellow)]" data-testid="stimulus-graphic-card">
         <GaCap className="mb-2 block">{t('vorlageA')}</GaCap>
         <p className="font-ga-display text-[20px] font-medium leading-snug text-ga-ink">{String(stimulus.thema ?? '')}</p>
         <p className="ga-ui mt-2 text-[13.5px] text-ga-ink">{String(stimulus.candidateText ?? '')}</p>
@@ -363,7 +363,7 @@ export function StimulusCard({ stimulus, stepIndex, candidateAction, coveredPoin
   // Fallback: các loại đề đợt sau (B2 Vortrag, Debatte…) vẫn hiện được nội dung thô — không bao giờ lộ khóa partner*.
   const entries = Object.entries(stimulus).filter(([k]) => k !== 'type' && !k.startsWith('partner'))
   return (
-    <div className="rounded-ga border-2 border-ga-ink bg-ga-card p-5" data-testid="stimulus-generic-card">
+    <div className="rounded-ga-paper border-2 border-ga-ink bg-ga-card p-5" data-testid="stimulus-generic-card">
       <GaCap className="mb-3 block">{t('yourCard')}</GaCap>
       <dl className="space-y-2">
         {entries.map(([k, v]) => (

@@ -40,7 +40,7 @@ export const GaSelectTrigger = React.forwardRef<
       data-slot="ga-select-trigger"
       aria-invalid={invalid || undefined}
       className={cn(
-        'flex w-full min-w-0 items-center justify-between gap-2 rounded-ga-touch border border-ga-line bg-ga-card px-3.5 py-2.5 text-ga-small font-medium text-ga-ink',
+        'flex w-full min-w-0 items-center justify-between gap-2 rounded-ga-control border border-ga-line bg-ga-card px-3.5 py-2.5 text-ga-small font-medium text-ga-ink',
         'min-h-11 lg:min-h-9',
         'outline-none focus-visible:ring-2 focus-visible:ring-ga-focus',
         'disabled:pointer-events-none disabled:opacity-50',
@@ -97,7 +97,7 @@ export const GaSelectItem = React.forwardRef<
       ref={ref}
       data-slot="ga-select-item"
       className={cn(
-        'relative flex min-h-11 cursor-default select-none items-center gap-2 rounded-ga px-3 py-2.5 text-ga-small text-ga-ink outline-none lg:min-h-0',
+        'relative flex min-h-11 cursor-default select-none items-center gap-2 rounded-ga-touch px-3 py-2.5 text-ga-small text-ga-ink outline-none lg:min-h-0',
         // Highlight bàn phím/hover: nền surface + KHÔNG chỉ đổi màu — kèm chuyển weight khi checked.
         'data-[highlighted]:bg-ga-surface data-[state=checked]:font-semibold',
         'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',

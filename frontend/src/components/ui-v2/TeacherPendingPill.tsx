@@ -33,7 +33,7 @@ export function TeacherPendingPill() {
   }, [])
 
   // Pill hiện từ md (768 < lg) nên vẫn thuộc vùng chạm tay → min-h 44px dưới lg (Gate 0 review).
-  const pillBase = 'inline-flex min-h-11 items-center whitespace-nowrap rounded-ga px-3 py-[7px] text-[12.5px] font-semibold lg:min-h-0'
+  const pillBase = 'inline-flex min-h-11 items-center whitespace-nowrap rounded-ga-pill px-3 py-[7px] text-[12.5px] font-semibold lg:min-h-0'
 
   if (pending === null) {
     return <span className={`${pillBase} bg-ga-accent-soft text-ga-accent`}>{t('roleChipTeacher')}</span>

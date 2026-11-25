@@ -65,7 +65,7 @@ export const GaTooltipContent = React.forwardRef<
         data-role={role}
         sideOffset={sideOffset}
         className={cn(
-          'ga-scope z-50 max-w-xs rounded-ga bg-ga-ink px-2.5 py-1.5 text-ga-caption font-medium text-ga-bg shadow-ga-panel',
+          'ga-scope z-50 max-w-xs rounded-ga-touch bg-ga-ink px-2.5 py-1.5 text-ga-caption font-medium text-ga-bg shadow-ga-md',
           'animate-in fade-in',
           className,
         )}

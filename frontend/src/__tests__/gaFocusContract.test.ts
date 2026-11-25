@@ -1,8 +1,8 @@
 /**
  * Gate 0 review — FOCUS CONTRACT static scan.
  *
- * Contract: focus indicator dùng semantic token `--ga-focus` (navy #27406B, ≥3:1 trên warm paper),
- * KHÔNG dùng role accent (`--ga-accent` — student = #FFCD00 chỉ ~1.4:1, fail WCAG 3:1) và
+ * Contract: focus indicator dùng semantic token `--ga-focus` (navy #23406E, ≥3:1 trên warm paper),
+ * KHÔNG dùng role accent (`--ga-accent` — student = #FFC900 chỉ ~1.4:1, fail WCAG 3:1) và
  * KHÔNG được override theo role. Kiểm cho đủ 4 role bằng cách chứng minh token role-independent:
  * `--ga-focus` khai đúng 1 lần trong `.ga-scope` base và không xuất hiện trong bất kỳ block
  * `[data-role=…]` nào của galerie.css.

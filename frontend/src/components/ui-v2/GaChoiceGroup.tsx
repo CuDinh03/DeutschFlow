@@ -177,7 +177,7 @@ export function GaChoiceGroup<V extends string | number>({
               onChange(o.value)
             }}
             className={cn(
-              'ga-ui flex min-h-11 items-center gap-3 rounded-ga-touch border-[1.5px] px-3 py-2 text-left text-ga-body font-medium transition-colors duration-150',
+              'ga-ui flex min-h-11 items-center gap-3 rounded-ga-sm border-[1.5px] px-3 py-2 text-left text-ga-body font-medium transition-colors duration-150',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ga-focus focus-visible:ring-offset-1',
               layout === 'wrap' ? 'max-w-full' : 'w-full',
               locked ? 'cursor-default' : 'active:scale-[0.995]',

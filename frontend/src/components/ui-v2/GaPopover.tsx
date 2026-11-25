@@ -65,7 +65,7 @@ export const GaPopoverContent = React.forwardRef<
         sideOffset={sideOffset}
         className={cn(
           // `ga-scope` tái khai báo token trên panel portaled (xem gaScope.tsx).
-          'ga-scope z-50 rounded-ga border border-ga-line bg-ga-card text-ga-ink shadow-ga-panel outline-none',
+          'ga-scope z-50 rounded-ga-md border border-ga-line bg-ga-card text-ga-ink shadow-ga-lg outline-none',
           'data-[state=open]:animate-in data-[state=open]:fade-in',
           className,
         )}

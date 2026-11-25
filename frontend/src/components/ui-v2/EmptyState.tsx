@@ -26,7 +26,7 @@ export function EmptyState({
     <div
       className={cn(
         'flex flex-col items-center justify-center gap-3 px-4 py-10 text-center lg:px-6 lg:py-14',
-        variant === 'invite' && 'rounded-ga border border-dashed border-ga-line bg-ga-card',
+        variant === 'invite' && 'rounded-ga-md border border-dashed border-ga-line bg-ga-card',
         className,
       )}
     >
