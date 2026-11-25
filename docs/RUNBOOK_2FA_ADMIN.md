@@ -83,6 +83,12 @@ Deploy lại bản mới sau đó: dữ liệu 2FA còn nguyên, admin chỉ c�
 - Mã ĐÚNG nhưng vừa dùng (cùng bước 30 giây đã dùng ở tab/thiết bị khác, hoặc bấm lại sau khi đã vào) ⇒ `400
   MFA_CODE_ALREADY_USED`, "Mã này vừa được dùng. Chờ mã mới…". KHÔNG tính là lần sai. Chỉ mã khớp đúng một bước
   trong cửa sổ mới rơi vào đây; mã gõ sai vẫn là lần sai.
+- **Đồng hồ máy chủ phải đúng tới vài giây** — 2FA chỉ nhận ±1 bước 30 s. VPS production chặn UDP ra ngoài nên NTP
+  (`systemd-timesyncd`, UDP 123) không bao giờ đồng bộ được: 25/11/2026 máy chủ chậm ~61 s ⇒ mã vừa hiện trên điện
+  thoại luôn bị từ chối, chỉ mã đã cũ > 30 s mới qua. Đã thay bằng `htpdate` (lấy giờ qua HTTPS, cấu hình
+  `/etc/default/htpdate`, `HTP_OPTIONS="-D -s"`, `timedatectl set-ntp false`). Dựng lại máy chủ thì cài lại y như vậy.
+  Kiểm từ ngoài: trường `timestamp` trong body lỗi của `https://api.mydeutschflow.com/api/<đường-không-có>` là giờ
+  JVM; KHÔNG dùng header `Date` (Cloudflare tự đặt).
 - "Mã trên điện thoại đúng mà bị báo sai": xem log backend
   `docker logs deutschflow-backend 2>&1 | grep 'khớp bước lệch'` (màu green: `deutschflow-backend-green`). Có dòng `[MFA] userId=<id> mã TOTP bị từ chối
   nhưng khớp bước lệch N (… giây, thiết bị nhanh/chậm)` ⇒ đồng hồ điện thoại lệch: bật đặt giờ tự động (Google
