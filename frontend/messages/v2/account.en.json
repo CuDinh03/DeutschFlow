@@ -109,7 +109,9 @@
       "mfaCodeLabel": "6-digit code",
       "mfaCancel": "Cancel",
       "mfaErrorCode": "The code is wrong or already used. Wait for a new code and try again.",
-      "mfaErrorRateLimited": "Too many wrong attempts. Please try again in 15 minutes.",
+      "mfaErrorRateLimited": "Too many wrong attempts. Please try again later.",
+      "mfaErrorRateLimitedWait": "Too many wrong attempts. You can try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "mfaErrorAlreadyUsed": "This code was just used. Wait for a new code (up to 30 seconds) and enter it.",
       "mfaCodesTitle": "New recovery codes",
       "mfaCodesDesc": "Your old codes no longer work. Save these 10 codes — they are shown only this one time.",
       "mfaCodesCopy": "Copy all",
@@ -135,6 +137,8 @@
         "mfaEnabled": "Two-factor authentication turned on",
         "mfaRecoveryUsed": "A recovery code was used",
         "mfaResetBySupport": "The support team reset two-factor authentication",
+        "mfaLocked": "Two-factor code entry was blocked after too many wrong attempts",
+        "mfaUnlockedBySupport": "The support team unblocked two-factor code entry",
         "other": "Security change"
       }
     },

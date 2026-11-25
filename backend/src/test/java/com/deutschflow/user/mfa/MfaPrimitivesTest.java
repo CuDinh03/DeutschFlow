@@ -206,11 +206,11 @@ class MfaPrimitivesTest {
     }
 
     @Test
-    @DisplayName("otpauth URI: issuer DeutschFlow, nhãn là email, tham số chuẩn")
+    @DisplayName("otpauth URI: issuer theo cấu hình, nhãn là email, tham số chuẩn")
     void otpauthUri() {
-        String uri = MfaService.otpauthUri("a+b@x.com", "JBSWY3DPEHPK3PXP");
-        assertThat(uri).isEqualTo("otpauth://totp/DeutschFlow:a%2Bb%40x.com?secret=JBSWY3DPEHPK3PXP"
-                + "&issuer=DeutschFlow&algorithm=SHA1&digits=6&period=30");
+        String uri = MfaService.otpauthUri("myDeutschFlow", "a+b@x.com", "JBSWY3DPEHPK3PXP");
+        assertThat(uri).isEqualTo("otpauth://totp/myDeutschFlow:a%2Bb%40x.com?secret=JBSWY3DPEHPK3PXP"
+                + "&issuer=myDeutschFlow&algorithm=SHA1&digits=6&period=30");
     }
 
     @Test

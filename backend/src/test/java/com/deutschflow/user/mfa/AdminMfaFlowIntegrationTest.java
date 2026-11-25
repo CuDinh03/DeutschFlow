@@ -85,6 +85,7 @@ class AdminMfaFlowIntegrationTest extends AbstractPostgresIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtService jwtService;
+    @Autowired private com.deutschflow.user.service.AuthRateLimiterService rateLimiter;
 
     @MockBean private TransactionalMail mail;
 
@@ -166,7 +167,7 @@ class AdminMfaFlowIntegrationTest extends AbstractPostgresIntegrationTest {
 
         MvcResult start = postJson("/api/auth/mfa/enroll/start", Map.of("mfaToken", mfaToken, "emailCode", emailCode))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.otpauthUri").value(org.hamcrest.Matchers.startsWith("otpauth://totp/DeutschFlow:")))
+                .andExpect(jsonPath("$.otpauthUri").value(org.hamcrest.Matchers.startsWith("otpauth://totp/myDeutschFlow:")))
                 .andReturn();
         String secret = json(start).get("secretBase32").asText();
         String token2 = json(start).get("mfaToken").asText();
@@ -268,7 +269,7 @@ class AdminMfaFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         String usedCode = Totp.code(Base32.decode(e.secretB32()), lastStep);
         postJson("/api/auth/mfa/verify", Map.of("mfaToken", token, "code", usedCode))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.extensions.code").value("MFA_CODE_INVALID"));
+                .andExpect(jsonPath("$.extensions.code").value("MFA_CODE_ALREADY_USED"));
 
         // Mã khôi phục lần một → phiên + cookie.
         String recovery = e.recoveryCodes().get(0);
@@ -392,6 +393,105 @@ class AdminMfaFlowIntegrationTest extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + plain))
                 .andExpect(status().isNoContent());
+    }
+
+    private ResultActions postJsonFrom(String ip, String path, Map<String, ?> body) throws Exception {
+        return mockMvc.perform(post(path).header("X-Forwarded-For", ip).contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)));
+    }
+
+    @Test
+    @DisplayName("Ngân sách thật 5 lần: mã vừa dùng KHÔNG trừ lượt; mã sai trừ; đầy → 429 kèm thời gian còn lại; "
+            + "admin khác gỡ khoá (lý do + vết) → mã mới vào được; tự gỡ khoá → 403")
+    void replayNotCountedBudgetRetryAfterAndAdminUnlock() throws Exception {
+        org.springframework.test.util.ReflectionTestUtils.setField(rateLimiter, "mfaFailureMax", 5);
+        try {
+            User target = newUser(User.Role.ADMIN);
+            Enrolled e = enroll(target);
+            // IP riêng cho ca này: ngân sách theo IP không dính lần sai của các ca khác.
+            String ip = "198.51.100." + (10 + (int) (Math.random() * 200));
+            MvcResult loginRes = postJsonFrom(ip, "/api/auth/login", Map.of("email", target.getEmail(), "password", PASSWORD))
+                    .andExpect(status().isOk()).andReturn();
+            String token = json(loginRes).get("mfaToken").asText();
+            byte[] secret = Base32.decode(e.secretB32());
+            long lastStep = jdbc.queryForObject("SELECT last_used_step FROM user_mfa WHERE user_id = ?", Long.class, target.getId());
+            String usedCode = Totp.code(secret, lastStep);
+
+            // 7 lần gửi lại mã vừa dùng: lỗi riêng, không lần nào trừ ngân sách (nếu trừ thì lần 6 đã 429).
+            for (int i = 0; i < 7; i++) {
+                postJsonFrom(ip, "/api/auth/mfa/verify", Map.of("mfaToken", token, "code", usedCode))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.extensions.code").value("MFA_CODE_ALREADY_USED"));
+            }
+            assertThat(rateLimiter.mfaFailuresInWindow(target.getId())).isZero();
+
+            // 5 lần sai thật → mỗi lần trừ một lượt.
+            String nextCode = Totp.code(secret, lastStep + 1);
+            String bad = "000000".equals(nextCode) || "000000".equals(usedCode) ? "999999" : "000000";
+            for (int i = 0; i < 5; i++) {
+                postJsonFrom(ip, "/api/auth/mfa/verify", Map.of("mfaToken", token, "code", bad))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.extensions.code").value("MFA_CODE_INVALID"));
+            }
+            // Đầy: kể cả mã đúng cũng 429, kèm số giây còn lại (≤ 15 phút) ở header và body.
+            MvcResult limited = postJsonFrom(ip, "/api/auth/mfa/verify", Map.of("mfaToken", token, "code", nextCode))
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(jsonPath("$.extensions.code").value("RATE_LIMITED"))
+                    .andReturn();
+            int retryAfter = Integer.parseInt(limited.getResponse().getHeader("Retry-After"));
+            assertThat(retryAfter).isBetween(1, 900);
+            assertThat(json(limited).get("extensions").get("retryAfterSeconds").asInt()).isEqualTo(retryAfter);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE event_name = 'user.mfa.locked' AND target_id = ?",
+                    Integer.class, String.valueOf(target.getId()))).isEqualTo(1);
+
+            User other = newUser(User.Role.ADMIN);
+            String otherToken = jwtService.generateAccessToken(other, null, null, Instant.now());
+            String unlockPath = "/api/admin/users/" + target.getId() + "/mfa/unlock";
+            // Thiếu lý do → 400, chưa gỡ gì.
+            mockMvc.perform(post(unlockPath).header("Authorization", "Bearer " + otherToken)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"ngắn\"}"))
+                    .andExpect(status().isBadRequest());
+            assertThat(rateLimiter.mfaFailuresInWindow(target.getId())).isEqualTo(5);
+
+            mockMvc.perform(post(unlockPath).header("Authorization", "Bearer " + otherToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("reason", "Gõ nhầm mã nhiều lần, đã gọi xác minh"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.clearedFailures").value(5));
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM audit_logs WHERE event_name = 'admin.user.mfa.unlock' AND target_id = ? AND actor_user_id = ?",
+                    Integer.class, String.valueOf(target.getId()), other.getId())).isEqualTo(1);
+            assertThat(jdbc.queryForObject(
+                    "SELECT metadata_json::text FROM audit_logs WHERE event_name = 'admin.user.mfa.unlock' AND target_id = ?",
+                    String.class, String.valueOf(target.getId()))).contains(ip).contains("Gõ nhầm mã nhiều lần");
+            // Bí mật TOTP + mã khôi phục giữ nguyên.
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM user_mfa WHERE user_id = ? AND enabled_at IS NOT NULL",
+                    Integer.class, target.getId())).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM user_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL",
+                    Integer.class, target.getId())).isEqualTo(10);
+
+            // Gỡ cả phần lần sai của người này ở ngân sách IP ⇒ cùng IP, mã của bước kế tiếp vào được.
+            postJsonFrom(ip, "/api/auth/mfa/verify", Map.of("mfaToken", token, "code", nextCode))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.accessToken").exists());
+
+            // Tự gỡ khoá cho mình → 403, kể cả có lý do.
+            mockMvc.perform(post("/api/admin/users/" + other.getId() + "/mfa/unlock")
+                            .header("Authorization", "Bearer " + otherToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("reason", "Tự gỡ khoá cho chính mình xem sao"))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.extensions.code").value("MFA_UNLOCK_SELF_FORBIDDEN"));
+
+            // Người không phải ADMIN không gọi được.
+            User student = newUser(User.Role.STUDENT);
+            mockMvc.perform(post(unlockPath).header("Authorization", "Bearer " + jwtService.generateAccessToken(student))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("reason", "Học viên thử gọi đường admin"))))
+                    .andExpect(status().isForbidden());
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(rateLimiter, "mfaFailureMax", 10000);
+        }
     }
 
     @Test

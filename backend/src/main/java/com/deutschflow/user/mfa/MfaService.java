@@ -60,7 +60,12 @@ import java.util.concurrent.Executor;
 @Service
 public class MfaService {
 
-    static final String ISSUER = "DeutschFlow";
+    /**
+     * Tên hiện trong ứng dụng xác thực (issuer của URI {@code otpauth://}). Mặc định cho production; máy dev/staging
+     * đặt {@code MFA_ISSUER} (ví dụ "DeutschFlow (dev)") để mục của từng môi trường không trùng tên. Chỉ ảnh hưởng
+     * lần đăng ký MỚI — mục đã quét giữ tên cũ (ứng dụng xác thực lưu sẵn tên, máy chủ không đổi được).
+     */
+    static final String DEFAULT_ISSUER = "myDeutschFlow";
     static final int EMAIL_CODE_TTL_MINUTES = 10;
     static final int EMAIL_CODE_MAX_ATTEMPTS = 5;
     /** Dưới ngưỡng này thì báo "sắp hết mã khôi phục". */
@@ -81,6 +86,13 @@ public class MfaService {
     private final AuditLogService auditLogService;
     private final AuditOrgResolver auditOrgResolver;
     private final TransactionTemplate tx;
+
+    private String issuer = DEFAULT_ISSUER;
+
+    @org.springframework.beans.factory.annotation.Value("${app.security.mfa.issuer:" + DEFAULT_ISSUER + "}")
+    void setIssuer(String issuer) {
+        this.issuer = sanitizeIssuer(issuer);
+    }
 
     /** Phiên hỗ trợ chỉ-đọc (V370): đóng phiên của admin bị đặt lại 2FA. Null trong test dựng tay. */
     private org.springframework.context.ApplicationEventPublisher supportSessionEvents;
@@ -191,7 +203,8 @@ public class MfaService {
                 throw MfaException.tokenInvalid();
             }
             String secretB32 = Base32.encode(secret);
-            return new EnrollmentStart(otpauthUri(user.getEmail(), secretB32), secretB32, challengeTokens.issue(user.getId()));
+            return new EnrollmentStart(otpauthUri(issuer, user.getEmail(), secretB32), secretB32,
+                    challengeTokens.issue(user.getId()));
         } finally {
             rateLimiter.refundMfaAttempt(attempt); // no-op khi lượt đã thành lần sai
         }
@@ -216,9 +229,9 @@ public class MfaService {
                     throw alreadyEnabled();
                 }
                 byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
-                OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
-                if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
-                    return "wrong"; // sai, hoặc phát lại bước đã dùng — claimStep không ghi gì
+                TotpCheck check = checkTotp(user.getId(), secret, totpCode);
+                if (check != TotpCheck.OK) {
+                    return check == TotpCheck.REPLAY ? "replay" : "wrong"; // claimStep không ghi gì
                 }
                 // Đốt token sau khi giữ được bước TOTP, trong cùng transaction: thua → ném → rollback.
                 if (!challengeTokens.burn(c)) {
@@ -236,6 +249,9 @@ public class MfaService {
             });
             if ("wrong".equals(outcome)) {
                 throw fail(user, ip, attempt);
+            }
+            if ("replay".equals(outcome)) {
+                throw alreadyUsed(user); // finally trả chỗ: không phải lần sai
             }
             if ("already".equals(outcome)) {
                 throw alreadyEnabled();
@@ -275,9 +291,9 @@ public class MfaService {
                     remaining = store.remainingRecoveryCodes(user.getId());
                 } else {
                     byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
-                    OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
-                    if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
-                        return VerifyOutcome.WRONG;
+                    TotpCheck check = checkTotp(user.getId(), secret, totpCode);
+                    if (check != TotpCheck.OK) {
+                        return check == TotpCheck.REPLAY ? VerifyOutcome.REPLAY : VerifyOutcome.WRONG;
                     }
                 }
                 // Đốt token TRONG transaction, SAU khi đã giữ mã: một request song song đã đổi token này ra phiên
@@ -285,8 +301,11 @@ public class MfaService {
                 if (!challengeTokens.burn(c)) {
                     throw MfaException.tokenInvalid();
                 }
-                return new VerifyOutcome(true, remaining);
+                return new VerifyOutcome(true, false, remaining);
             });
+            if (outcome != null && outcome.replay()) {
+                throw alreadyUsed(user); // finally trả chỗ: không phải lần sai; token thử thách chưa bị đốt
+            }
             if (outcome == null || !outcome.ok()) {
                 throw fail(user, ip, attempt);
             }
@@ -310,8 +329,34 @@ public class MfaService {
     }
 
     /** Kết quả kiểm mã trong transaction của {@link #verify}. */
-    private record VerifyOutcome(boolean ok, Integer recoveryRemaining) {
-        static final VerifyOutcome WRONG = new VerifyOutcome(false, null);
+    private record VerifyOutcome(boolean ok, boolean replay, Integer recoveryRemaining) {
+        static final VerifyOutcome WRONG = new VerifyOutcome(false, false, null);
+        static final VerifyOutcome REPLAY = new VerifyOutcome(false, true, null);
+    }
+
+    /** Kết quả kiểm một mã TOTP dưới khoá dòng {@code user_mfa}. */
+    enum TotpCheck {
+        /** Khớp một bước chưa dùng — bước đã được giữ ({@code last_used_step}). */
+        OK,
+        /** Không khớp bước nào trong cửa sổ — lần sai, tính vào ngân sách. */
+        WRONG,
+        /**
+         * KHỚP HMAC một bước trong cửa sổ nhưng bước đó ≤ {@code last_used_step}: mã thật, vừa dùng rồi. Không tính
+         * là lần sai (người gõ mã đúng không bị khoá oan) nhưng vẫn từ chối — chặn phát lại giữ nguyên. Mã đoán bừa
+         * gần như không bao giờ rơi vào đây (phải trùng đúng mã của bước đã dùng), và kể cả trùng thì bước đó cũng
+         * không bao giờ dùng lại được, nên không mở thêm đường dò.
+         */
+        REPLAY
+    }
+
+    /** Gọi TRONG transaction, sau {@link UserMfaStore#findForUpdate} (dòng đã khoá). */
+    private TotpCheck checkTotp(long userId, byte[] secret, String totpCode) {
+        OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
+        if (step.isEmpty()) {
+            return TotpCheck.WRONG;
+        }
+        // Dòng tồn tại và đang bị khoá ⇒ claimStep thua chỉ có thể vì last_used_step ≥ step.
+        return store.claimStep(userId, step.getAsLong()) ? TotpCheck.OK : TotpCheck.REPLAY;
     }
 
     // ─── Đã có phiên ─────────────────────────────────────────────────────────
@@ -330,20 +375,23 @@ public class MfaService {
         try {
             List<String> codes = RecoveryCodes.generate();
             byte[] pepper = keys.recoveryPepper();
-            Boolean ok = tx.execute(s -> {
+            TotpCheck ok = tx.execute(s -> {
                 UserMfaStore.MfaRow row = store.findForUpdate(user.getId()).filter(UserMfaStore.MfaRow::enabled)
                         .orElseThrow(MfaService::notEnrolled);
                 byte[] secret = keys.cipher().decrypt(user.getId(), row.secretEnc());
-                OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
-                if (step.isEmpty() || !store.claimStep(user.getId(), step.getAsLong())) {
-                    return false;
+                TotpCheck check = checkTotp(user.getId(), secret, totpCode);
+                if (check != TotpCheck.OK) {
+                    return check;
                 }
                 store.replaceRecoveryCodes(user.getId(), hashAll(pepper, user.getId(), codes));
                 auditLogService.log("user.mfa.recovery_regenerated", AuditActor.of(user), "USER",
                         String.valueOf(user.getId()), Map.of("recoveryCodesIssued", codes.size()));
-                return true;
+                return TotpCheck.OK;
             });
-            if (!Boolean.TRUE.equals(ok)) {
+            if (ok == TotpCheck.REPLAY) {
+                throw alreadyUsed(user);
+            }
+            if (ok != TotpCheck.OK) {
                 throw fail(user, ip, attempt);
             }
             return codes;
@@ -399,6 +447,35 @@ public class MfaService {
         return result;
     }
 
+    /**
+     * Một ADMIN gỡ khoá NHẬP SAI 2FA của người khác (đã chạm 5 lần sai / 15 phút, không muốn chờ): xoá các lần sai
+     * của người đó khỏi ngân sách chống dò, ghi vết {@code admin.user.mfa.unlock}. KHÔNG đụng bí mật TOTP, mã khôi
+     * phục hay phiên — người đó vẫn phải nhập đúng mã. Không bao giờ cho tự gỡ khoá chính mình.
+     */
+    public Map<String, Object> adminUnlockFailures(User actor, long targetUserId, String reason) {
+        if (actor == null) {
+            throw new MfaException(HttpStatus.FORBIDDEN, MfaException.MFA_UNLOCK_SELF_FORBIDDEN, "Thiếu người thao tác.");
+        }
+        if (actor.getId() != null && actor.getId() == targetUserId) {
+            throw new MfaException(HttpStatus.FORBIDDEN, MfaException.MFA_UNLOCK_SELF_FORBIDDEN,
+                    "Không thể tự gỡ khoá nhập sai xác thực hai lớp của chính mình. Nhờ một quản trị viên khác.");
+        }
+        userRepository.findById(targetUserId).orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng."));
+        // Ghi vết TRƯỚC khi gỡ: ghi vết hỏng thì không gỡ — không có lần nới chống dò nào mà không để lại dấu.
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("failuresInWindow", rateLimiter.mfaFailuresInWindow(targetUserId));
+        meta.put("failureIps", rateLimiter.mfaFailureIpsInWindow(targetUserId));
+        meta.put("reason", reason);
+        auditLogService.log("admin.user.mfa.unlock", AuditActor.of(actor), "USER", String.valueOf(targetUserId),
+                auditOrgResolver.forUser(targetUserId), meta);
+        int cleared = rateLimiter.clearMfaFailuresForUser(targetUserId);
+        log.info("[MFA] userId={} gỡ khoá nhập sai 2FA của userId={} ({} lượt)", actor.getId(), targetUserId, cleared);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("userId", targetUserId);
+        out.put("clearedFailures", cleared);
+        return out;
+    }
+
     // ─── Nội bộ ──────────────────────────────────────────────────────────────
 
     /** Trong transaction: kiểm mã email mới nhất còn mở; sai thì cộng lần sai (COMMIT) và trả false. */
@@ -429,7 +506,7 @@ public class MfaService {
      */
     private AuthRateLimiterService.MfaAttempt acquireAttempt(long userId, String ip) {
         return rateLimiter.tryAcquireMfaAttempt(userId, ip).orElseThrow(() -> new RateLimitExceededException(
-                "Quá nhiều lần nhập sai mã. Vui lòng thử lại sau.", rateLimiter.mfaRetryAfterSeconds()));
+                "Quá nhiều lần nhập sai mã. Vui lòng thử lại sau.", rateLimiter.mfaRetryAfterSeconds(userId, ip)));
     }
 
     /** Lượt đang giữ chỗ thành một lần sai; lần sai làm chạm trần thì để lại vết {@code user.mfa.locked}. Trả lỗi để ném. */
@@ -446,6 +523,12 @@ public class MfaService {
             log.warn("[MFA] userId={} chạm trần nhập sai 2FA", user.getId());
         }
         return MfaException.codeInvalid();
+    }
+
+    /** Mã đúng nhưng đã dùng: không phải lần sai. Không ghi mã ra log. */
+    private static MfaException alreadyUsed(User user) {
+        log.info("[MFA] userId={} gửi lại mã TOTP của bước đã dùng — từ chối, không tính lần sai", user.getId());
+        return MfaException.codeAlreadyUsed();
     }
 
     private User loadUser(long userId) {
@@ -490,9 +573,18 @@ public class MfaService {
         return hashes;
     }
 
-    static String otpauthUri(String email, String secretB32) {
-        String label = enc(ISSUER) + ":" + enc(email);
-        return "otpauth://totp/" + label + "?secret=" + secretB32 + "&issuer=" + enc(ISSUER)
+    /** Issuer không được chứa ':' (dấu tách nhãn trong otpauth); rỗng → mặc định. */
+    static String sanitizeIssuer(String raw) {
+        String v = raw == null ? "" : raw.replace(":", "").trim();
+        if (v.length() > 64) {
+            v = v.substring(0, 64).trim();
+        }
+        return v.isEmpty() ? DEFAULT_ISSUER : v;
+    }
+
+    static String otpauthUri(String issuer, String email, String secretB32) {
+        String label = enc(issuer) + ":" + enc(email);
+        return "otpauth://totp/" + label + "?secret=" + secretB32 + "&issuer=" + enc(issuer)
                 + "&algorithm=SHA1&digits=" + Totp.DIGITS + "&period=" + Totp.STEP_SECONDS;
     }
 

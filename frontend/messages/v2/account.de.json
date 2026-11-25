@@ -109,7 +109,9 @@
       "mfaCodeLabel": "6-stelliger Code",
       "mfaCancel": "Abbrechen",
       "mfaErrorCode": "Der Code ist falsch oder wurde schon verwendet. Warten Sie auf einen neuen Code.",
-      "mfaErrorRateLimited": "Zu viele Fehlversuche. Bitte versuchen Sie es in 15 Minuten erneut.",
+      "mfaErrorRateLimited": "Zu viele Fehlversuche. Bitte versuchen Sie es später erneut.",
+      "mfaErrorRateLimitedWait": "Zu viele Fehlversuche. Sie können es in {minutes, plural, one {# Minute} other {# Minuten}} erneut versuchen.",
+      "mfaErrorAlreadyUsed": "Dieser Code wurde gerade verwendet. Warten Sie auf einen neuen Code (höchstens 30 Sekunden).",
       "mfaCodesTitle": "Neue Wiederherstellungscodes",
       "mfaCodesDesc": "Ihre alten Codes sind ungültig. Speichern Sie diese 10 Codes — sie werden nur dieses eine Mal angezeigt.",
       "mfaCodesCopy": "Alle kopieren",
@@ -135,6 +137,8 @@
         "mfaEnabled": "Zwei-Faktor-Authentifizierung aktiviert",
         "mfaRecoveryUsed": "Ein Wiederherstellungscode wurde verwendet",
         "mfaResetBySupport": "Das Support-Team hat die Zwei-Faktor-Authentifizierung zurückgesetzt",
+        "mfaLocked": "Die Eingabe des Zwei-Faktor-Codes wurde nach zu vielen Fehlversuchen gesperrt",
+        "mfaUnlockedBySupport": "Das Support-Team hat die Eingabe des Zwei-Faktor-Codes entsperrt",
         "other": "Sicherheitsänderung"
       }
     },

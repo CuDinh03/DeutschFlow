@@ -627,6 +627,19 @@
         "mfaReset": "Reset 2FA",
         "mfaNote": "Use this when this admin lost their phone and has no recovery codes left. They will set up 2FA again at their next sign-in.",
         "mfaResetDone": "Two-factor authentication was reset",
+        "mfaUnlock": "Unlock 2FA attempts",
+        "mfaUnlockNote": "Use this when this admin typed wrong codes too many times and is blocked for up to 15 minutes. It only clears the counted wrong attempts; the authenticator app and recovery codes stay as they are.",
+        "mfaUnlockDone": "Unlocked: cleared {count, plural, one {# wrong attempt} other {# wrong attempts}}",
+        "mfaUnlockNothing": "This person has no wrong attempts counted right now",
+        "confirmMfaUnlock": {
+          "title": "Unlock 2FA attempts?",
+          "description": "{name} can enter a verification code again right away instead of waiting up to 15 minutes.",
+          "detailVerify": "Confirm it really is this person (call or meet them) before unlocking: a run of wrong codes can also be someone else guessing.",
+          "detailKeep": "The authenticator app, recovery codes and sessions do not change; this person still needs a correct code.",
+          "detailAudit": "The action is recorded in the audit log with your reason.",
+          "confirm": "Unlock",
+          "cancel": "Cancel"
+        },
         "confirmMfa": {
           "title": "Reset two-factor authentication?",
           "description": "{name} will be signed out on every device and must set up 2FA again (email code + authenticator app) at their next sign-in.",

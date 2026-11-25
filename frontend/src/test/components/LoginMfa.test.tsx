@@ -55,11 +55,11 @@ function challenge(enrolled: boolean) {
   return { data: { mfaRequired: true, mfaToken: 'mfa-1', enrolled, emailHint: 'o***@x.com' } }
 }
 
-function axiosError(status: number, code?: string) {
+function axiosError(status: number, code?: string, extra: Record<string, unknown> = {}, headers: Record<string, string> = {}) {
   return {
     isAxiosError: true,
     message: 'Request failed',
-    response: { status, data: { detail: 'x', ...(code ? { extensions: { code } } : {}) }, headers: {} },
+    response: { status, data: { detail: 'x', ...(code ? { extensions: { code, ...extra } } : {}) }, headers },
   }
 }
 
@@ -139,7 +139,7 @@ describe('/v2/login — 2FA ADMIN', () => {
     expect(mocks.setTokens).not.toHaveBeenCalled()
   })
 
-  it('quá số lần sai (429) → câu chờ 15 phút', async () => {
+  it('quá số lần sai (429) không kèm thời gian → câu chung, không hứa "15 phút"', async () => {
     const user = userEvent.setup()
     mocks.post.mockResolvedValueOnce(challenge(true)).mockRejectedValueOnce(axiosError(429, 'RATE_LIMITED'))
     renderPage()
@@ -148,7 +148,66 @@ describe('/v2/login — 2FA ADMIN', () => {
     await user.type(await screen.findByLabelText('Mã 6 số'), '000000')
     await user.click(screen.getByRole('button', { name: 'Xác minh' }))
 
-    expect(await screen.findByText(/thử lại sau 15 phút/)).toBeTruthy()
+    expect(await screen.findByText('Nhập sai quá nhiều lần. Vui lòng thử lại sau.')).toBeTruthy()
+  })
+
+  it('429 kèm retryAfterSeconds → nói còn bao lâu (làm tròn lên phút), khoá nút Xác minh, gợi ý nhờ admin khác', async () => {
+    const user = userEvent.setup()
+    mocks.post
+      .mockResolvedValueOnce(challenge(true))
+      .mockRejectedValueOnce(axiosError(429, 'RATE_LIMITED', { retryAfterSeconds: 312 }, { 'retry-after': '312' }))
+    renderPage()
+    await submitPassword(user)
+
+    await user.type(await screen.findByLabelText('Mã 6 số'), '000000')
+    await user.click(screen.getByRole('button', { name: 'Xác minh' }))
+
+    expect(await screen.findByText(/Thử lại được sau 6 phút\./)).toBeTruthy()
+    expect(screen.getByText(/nhờ một quản trị viên khác gỡ khoá/)).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Xác minh' }) as HTMLButtonElement).disabled).toBe(true)
+    // Gõ phím không xoá câu đếm ngược.
+    await user.type(screen.getByLabelText('Mã 6 số'), '1')
+    expect(screen.getByText(/Thử lại được sau 6 phút\./)).toBeTruthy()
+  })
+
+  it('429 còn dưới một phút → đếm bằng giây; hết giờ thì mở lại nút', async () => {
+    const user = userEvent.setup()
+    mocks.post
+      .mockResolvedValueOnce(challenge(true))
+      .mockRejectedValueOnce(axiosError(429, 'RATE_LIMITED', {}, { 'retry-after': '2' }))
+    renderPage()
+    await submitPassword(user)
+
+    await user.type(await screen.findByLabelText('Mã 6 số'), '000000')
+    await user.click(screen.getByRole('button', { name: 'Xác minh' }))
+
+    expect(await screen.findByText(/Thử lại được sau 2 giây\./)).toBeTruthy()
+    await waitFor(() => expect(screen.queryByText(/Thử lại được sau/)).toBeNull(), { timeout: 4000 })
+    expect((screen.getByRole('button', { name: 'Xác minh' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('mã vừa dùng (MFA_CODE_ALREADY_USED) → câu riêng "chờ mã mới", xoá ô mã, không phải câu "mã sai"', async () => {
+    const user = userEvent.setup()
+    mocks.post
+      .mockResolvedValueOnce(challenge(true))
+      .mockRejectedValueOnce(axiosError(400, 'MFA_CODE_ALREADY_USED'))
+      .mockResolvedValueOnce({ data: ADMIN_SESSION })
+    renderPage()
+    await submitPassword(user)
+
+    await user.type(await screen.findByLabelText('Mã 6 số'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Xác minh' }))
+
+    expect(await screen.findByText(/Mã này vừa được dùng\. Chờ mã mới/)).toBeTruthy()
+    expect(screen.queryByText('Mã không đúng hoặc đã hết hạn.')).toBeNull()
+    expect(mocks.setTokens).not.toHaveBeenCalled()
+    expect((screen.getByLabelText('Mã 6 số') as HTMLInputElement).value).toBe('')
+
+    // Mã mới → vào được, cùng token thử thách.
+    await user.type(screen.getByLabelText('Mã 6 số'), '654321')
+    await user.click(screen.getByRole('button', { name: 'Xác minh' }))
+    await waitFor(() => expect(mocks.post).toHaveBeenLastCalledWith('/auth/mfa/verify', { mfaToken: 'mfa-1', code: '654321' }))
+    await waitFor(() => expect(mocks.setTokens).toHaveBeenCalledWith(ADMIN_SESSION))
   })
 
   it('token thử thách hết hạn → câu riêng + "Đăng nhập lại" quay về ô mật khẩu', async () => {

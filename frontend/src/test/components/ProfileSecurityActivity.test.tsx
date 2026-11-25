@@ -86,4 +86,22 @@ describe('SecurityActivity — hoạt động bảo mật của chính mình', (
     expect(await screen.findByText('Thay đổi bảo mật')).toBeTruthy()
     expect(screen.queryByText('user.passkey.added')).toBeNull()
   })
+
+  it('bị chặn nhập mã 2FA + admin gỡ chặn → hai nhãn riêng (người bị dò mã nhìn thấy)', async () => {
+    mocks.get.mockResolvedValue({
+      data: {
+        items: [
+          { event: 'admin.user.mfa.unlock', occurredAt: iso(60_000) },
+          { event: 'user.mfa.locked', occurredAt: iso(120_000) },
+        ],
+        total: 2,
+        page: 0,
+        size: 10,
+      },
+    })
+    renderIt()
+
+    expect(await screen.findByText('Đội hỗ trợ đã gỡ chặn nhập mã xác thực hai lớp')).toBeTruthy()
+    expect(screen.getByText('Tạm chặn nhập mã xác thực hai lớp vì nhập sai nhiều lần')).toBeTruthy()
+  })
 })

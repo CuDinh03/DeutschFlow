@@ -208,7 +208,11 @@
       "reasonMfa": "Phiên quản trị cần xác thực hai lớp. Vui lòng đăng nhập lại.",
       "errors": {
         "codeInvalid": "Mã không đúng hoặc đã hết hạn.",
-        "rateLimited": "Nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.",
+        "codeAlreadyUsed": "Mã này vừa được dùng. Chờ mã mới (tối đa 30 giây) rồi nhập lại. Lần này không tính là nhập sai.",
+        "rateLimited": "Nhập sai quá nhiều lần. Vui lòng thử lại sau.",
+        "rateLimitedWait": "Nhập sai quá nhiều lần. Thử lại được sau {wait}. Nếu cần vào ngay, nhờ một quản trị viên khác gỡ khoá.",
+        "waitSeconds": "{count} giây",
+        "waitMinutes": "{count} phút",
         "expired": "Phiên xác thực đã hết hạn.",
         "notConfigured": "Máy chủ chưa cấu hình xác thực hai lớp. Vui lòng liên hệ người vận hành.",
         "emailUnavailable": "Chưa gửi được thư chứa mã. Vui lòng thử lại sau.",

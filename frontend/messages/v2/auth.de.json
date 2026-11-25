@@ -208,7 +208,11 @@
       "reasonMfa": "Admin-Sitzungen erfordern die Zwei-Faktor-Authentifizierung. Bitte melde dich erneut an.",
       "errors": {
         "codeInvalid": "Der Code ist falsch oder abgelaufen.",
-        "rateLimited": "Zu viele Fehlversuche. Bitte versuch es in 15 Minuten erneut.",
+        "codeAlreadyUsed": "Dieser Code wurde gerade verwendet. Warte auf einen neuen Code (höchstens 30 Sekunden) und gib ihn ein. Dieser Versuch zählt nicht als Fehlversuch.",
+        "rateLimited": "Zu viele Fehlversuche. Bitte versuch es später erneut.",
+        "rateLimitedWait": "Zu viele Fehlversuche. Du kannst es in {wait} erneut versuchen. Wenn du sofort Zugang brauchst, bitte einen anderen Admin, dich zu entsperren.",
+        "waitSeconds": "{count, plural, one {# Sekunde} other {# Sekunden}}",
+        "waitMinutes": "{count, plural, one {# Minute} other {# Minuten}}",
         "expired": "Deine Bestätigungssitzung ist abgelaufen.",
         "notConfigured": "Die Zwei-Faktor-Authentifizierung ist auf dem Server nicht eingerichtet. Bitte wende dich an den Betreiber.",
         "emailUnavailable": "Die E-Mail mit dem Code konnte nicht gesendet werden. Bitte versuch es später erneut.",

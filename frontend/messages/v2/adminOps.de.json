@@ -627,6 +627,19 @@
         "mfaReset": "2FA zurücksetzen",
         "mfaNote": "Verwenden, wenn dieser Admin sein Telefon verloren hat und keine Wiederherstellungscodes mehr besitzt. Bei der nächsten Anmeldung richtet er 2FA neu ein.",
         "mfaResetDone": "Zwei-Faktor-Authentifizierung zurückgesetzt",
+        "mfaUnlock": "2FA-Sperre aufheben",
+        "mfaUnlockNote": "Verwenden, wenn dieser Admin zu oft einen falschen Code eingegeben hat und bis zu 15 Minuten gesperrt ist. Es werden nur die gezählten Fehlversuche gelöscht; Authenticator-App und Wiederherstellungscodes bleiben unverändert.",
+        "mfaUnlockDone": "Entsperrt: {count, plural, one {# Fehlversuch} other {# Fehlversuche}} gelöscht",
+        "mfaUnlockNothing": "Für diese Person werden derzeit keine Fehlversuche gezählt",
+        "confirmMfaUnlock": {
+          "title": "2FA-Sperre aufheben?",
+          "description": "{name} kann sofort wieder einen Bestätigungscode eingeben, statt bis zu 15 Minuten zu warten.",
+          "detailVerify": "Prüfen Sie vorher, dass es wirklich diese Person ist (Anruf, persönlich): eine Reihe falscher Codes kann auch ein Rateversuch von jemand anderem sein.",
+          "detailKeep": "Authenticator-App, Wiederherstellungscodes und Sitzungen ändern sich nicht; die Person braucht weiterhin einen richtigen Code.",
+          "detailAudit": "Die Aktion wird mit Ihrer Begründung im Protokoll festgehalten.",
+          "confirm": "Entsperren",
+          "cancel": "Abbrechen"
+        },
         "confirmMfa": {
           "title": "Zwei-Faktor-Authentifizierung zurücksetzen?",
           "description": "{name} wird auf allen Geräten abgemeldet und muss 2FA bei der nächsten Anmeldung neu einrichten (E-Mail-Code + Authenticator-App).",
