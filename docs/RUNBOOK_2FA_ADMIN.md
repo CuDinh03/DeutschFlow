@@ -83,6 +83,12 @@ Deploy lại bản mới sau đó: dữ liệu 2FA còn nguyên, admin chỉ c�
 - Mã ĐÚNG nhưng vừa dùng (cùng bước 30 giây đã dùng ở tab/thiết bị khác, hoặc bấm lại sau khi đã vào) ⇒ `400
   MFA_CODE_ALREADY_USED`, "Mã này vừa được dùng. Chờ mã mới…". KHÔNG tính là lần sai. Chỉ mã khớp đúng một bước
   trong cửa sổ mới rơi vào đây; mã gõ sai vẫn là lần sai.
+- "Mã trên điện thoại đúng mà bị báo sai": xem log backend
+  `docker logs deutschflow-backend 2>&1 | grep 'khớp bước lệch'` (màu green: `deutschflow-backend-green`). Có dòng `[MFA] userId=<id> mã TOTP bị từ chối
+  nhưng khớp bước lệch N (… giây, thiết bị nhanh/chậm)` ⇒ đồng hồ điện thoại lệch: bật đặt giờ tự động (Google
+  Authenticator Android: Cài đặt → Hiệu chỉnh thời gian cho mã). Lượt đó vẫn tính là lần sai; log không ghi mã.
+  Không có dòng nào mà vẫn bị từ chối ⇒ mã không khớp bước nào trong ±5 phút: gõ nhầm, hoặc mục trong ứng dụng xác
+  thực không còn khớp bí mật trên máy chủ (cần đặt lại 2FA, §4/§5).
 - Bị khoá nhập sai mà không muốn chờ: admin KHÁC vào `/v2/admin/users/<id>` → "Gỡ khoá nhập sai 2FA" (bắt buộc lý
   do, ghi vết `admin.user.mfa.unlock`). Chỉ xoá lần sai đang tính (của người đó, ở cả bộ đếm theo tài khoản và theo
   các IP họ đã nhập); không đụng bí mật TOTP, mã khôi phục, phiên. Không tự gỡ được cho mình

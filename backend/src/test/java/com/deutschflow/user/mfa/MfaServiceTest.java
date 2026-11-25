@@ -180,6 +180,25 @@ class MfaServiceTest {
     }
 
     @Test
+    @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    @DisplayName("mã của bước lệch 3 (đồng hồ thiết bị nhanh 90 s) → VẪN là lần sai; log máy chủ ghi độ lệch, không ghi mã")
+    void verifyDriftedCodeStillWrongButLogged(org.springframework.boot.test.system.CapturedOutput output) {
+        enrolled();
+        String drifted = Totp.code(secret, Totp.stepAt(Instant.now()) + 3);
+        org.junit.jupiter.api.Assumptions.assumeTrue(Totp.verify(secret, drifted, Totp.stepAt(Instant.now()), 1).isEmpty(),
+                "trùng mã hiếm gặp với một bước trong cửa sổ");
+
+        MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", drifted, null, IP));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_INVALID);
+        verify(rateLimiter).commitMfaFailure(attempt);
+        verify(store, never()).claimStep(anyLong(), anyLong());
+        assertThat(output.getOut() + output.getErr())
+                .contains("userId=1 mã TOTP bị từ chối nhưng khớp bước lệch")
+                .doesNotContain(drifted);
+    }
+
+    @Test
     @DisplayName("mã sai định dạng (không phải 6 chữ số) → lần sai, không bao giờ là 'đã dùng'")
     void verifyMalformedCodeIsWrong() {
         enrolled();

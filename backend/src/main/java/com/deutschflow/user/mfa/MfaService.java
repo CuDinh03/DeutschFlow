@@ -349,10 +349,15 @@ public class MfaService {
         REPLAY
     }
 
+    /** Xa nhất bao nhiêu bước (mỗi bước 30 s) thì còn tìm độ lệch đồng hồ để ghi log: 10 bước = 5 phút. */
+    static final int DRIFT_DIAGNOSTIC_STEPS = 10;
+
     /** Gọi TRONG transaction, sau {@link UserMfaStore#findForUpdate} (dòng đã khoá). */
     private TotpCheck checkTotp(long userId, byte[] secret, String totpCode) {
-        OptionalLong step = Totp.verify(secret, totpCode, Totp.stepAt(Instant.now()), Totp.DEFAULT_WINDOW);
+        long nowStep = Totp.stepAt(Instant.now());
+        OptionalLong step = Totp.verify(secret, totpCode, nowStep, Totp.DEFAULT_WINDOW);
         if (step.isEmpty()) {
+            logClockDrift(userId, secret, totpCode, nowStep);
             return TotpCheck.WRONG;
         }
         // Dòng tồn tại và đang bị khoá ⇒ claimStep thua chỉ có thể vì last_used_step ≥ step.
@@ -523,6 +528,25 @@ public class MfaService {
             log.warn("[MFA] userId={} chạm trần nhập sai 2FA", user.getId());
         }
         return MfaException.codeInvalid();
+    }
+
+    /**
+     * Chẩn đoán "mã trên điện thoại đúng mà bị báo sai": mã bị từ chối nhưng khớp một bước NGOÀI cửa sổ (≤ 5 phút)
+     * ⇒ đồng hồ thiết bị lệch. Chỉ ghi log máy chủ (userId + độ lệch, KHÔNG ghi mã); lượt vẫn là lần sai như cũ.
+     */
+    private static void logClockDrift(long userId, byte[] secret, String totpCode, long nowStep) {
+        try {
+            java.util.OptionalInt drift = Totp.driftOffset(secret, totpCode, nowStep, Totp.DEFAULT_WINDOW,
+                    DRIFT_DIAGNOSTIC_STEPS);
+            if (drift.isPresent()) {
+                int offset = drift.getAsInt();
+                log.warn("[MFA] userId={} mã TOTP bị từ chối nhưng khớp bước lệch {} ({} giây, thiết bị {}) — đồng hồ "
+                                + "thiết bị lệch, bật đặt giờ tự động",
+                        userId, offset, offset * Totp.STEP_SECONDS, offset > 0 ? "nhanh" : "chậm");
+            }
+        } catch (RuntimeException e) {
+            log.debug("[MFA] Không chẩn đoán được độ lệch đồng hồ: {}", e.getMessage());
+        }
     }
 
     /** Mã đúng nhưng đã dùng: không phải lần sai. Không ghi mã ra log. */

@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 
 /**
@@ -90,6 +91,35 @@ public final class Totp {
             }
         }
         return matched == Long.MIN_VALUE ? OptionalLong.empty() : OptionalLong.of(matched);
+    }
+
+    /**
+     * CHỈ ĐỂ CHẨN ĐOÁN (không bao giờ dùng để chấp nhận mã): mã đã bị {@link #verify} từ chối có khớp bước nào
+     * NGOÀI cửa sổ, trong {@code [nowStep - maxOffset, nowStep + maxOffset]} không? Khớp ⇒ đồng hồ thiết bị gần như
+     * chắc chắn lệch đúng chừng ấy bước. Như {@link #verify}: so hằng thời gian, luôn thử hết mọi bước (không thoát
+     * sớm) nên thời gian phản hồi không phụ thuộc mã khớp bước nào. Kết quả chỉ được ghi log phía máy chủ.
+     *
+     * @return độ lệch (bước, âm = thiết bị chậm, dương = thiết bị nhanh) gần 0 nhất; rỗng khi không khớp bước nào
+     */
+    public static OptionalInt driftOffset(byte[] key, String candidate, long nowStep, int window, int maxOffset) {
+        if (candidate == null || maxOffset <= window) {
+            return OptionalInt.empty();
+        }
+        String typed = candidate.replaceAll("\\s", "");
+        if (typed.length() != DIGITS || !typed.chars().allMatch(Character::isDigit)) {
+            return OptionalInt.empty();
+        }
+        byte[] typedBytes = typed.getBytes(StandardCharsets.US_ASCII);
+        int best = Integer.MAX_VALUE;
+        for (int offset = -maxOffset; offset <= maxOffset; offset++) {
+            byte[] expected = code(key, nowStep + offset).getBytes(StandardCharsets.US_ASCII);
+            boolean outside = Math.abs(offset) > window;
+            // Không break: mọi bước đều được tính.
+            if (MessageDigest.isEqual(expected, typedBytes) && outside && Math.abs(offset) < Math.abs(best)) {
+                best = offset;
+            }
+        }
+        return best == Integer.MAX_VALUE ? OptionalInt.empty() : OptionalInt.of(best);
     }
 
     private static byte[] hmacSha1(byte[] key, byte[] message) {
