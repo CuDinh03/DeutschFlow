@@ -87,6 +87,17 @@ Deploy lại bản mới sau đó: dữ liệu 2FA còn nguyên, admin chỉ c�
   (`systemd-timesyncd`, UDP 123) không bao giờ đồng bộ được: 25/11/2026 máy chủ chậm ~61 s ⇒ mã vừa hiện trên điện
   thoại luôn bị từ chối, chỉ mã đã cũ > 30 s mới qua. Đã thay bằng `htpdate` (lấy giờ qua HTTPS, cấu hình
   `/etc/default/htpdate`, `HTP_OPTIONS="-D -s"`, `timedatectl set-ntp false`). Dựng lại máy chủ thì cài lại y như vậy.
+  `-D` = chạy nền, tự chỉnh định kỳ; service `enabled` (WantedBy `multi-user.target`) nên tự lên khi khởi động lại.
+  Gói Ubuntu để `Restart=no` — thêm drop-in để tiến trình chết thì tự chạy lại, và bỏ `www.cloudflare.com` (HEAD không
+  trả `Date`, log báo `no timestamp`):
+  ```bash
+  sudo mkdir -p /etc/systemd/system/htpdate.service.d
+  printf '[Service]\nRestart=on-failure\nRestartSec=30\n' | sudo tee /etc/systemd/system/htpdate.service.d/restart.conf
+  sudo sed -i 's#https://www.cloudflare.com#https://www.microsoft.com#' /etc/default/htpdate
+  sudo systemctl daemon-reload && sudo systemctl restart htpdate
+  ```
+  Kiểm: `systemctl is-enabled htpdate; systemctl is-active htpdate; systemctl show htpdate -p Restart;
+  journalctl -u htpdate -n 5`.
   Kiểm từ ngoài: trường `timestamp` trong body lỗi của `https://api.mydeutschflow.com/api/<đường-không-có>` là giờ
   JVM; KHÔNG dùng header `Date` (Cloudflare tự đặt).
 - "Mã trên điện thoại đúng mà bị báo sai": xem log backend
