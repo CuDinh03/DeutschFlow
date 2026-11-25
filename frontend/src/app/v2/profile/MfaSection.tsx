@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
-import { mfaApi, mfaErrorKind, type MfaStatus } from '@/lib/mfaApi'
+import { mfaApi, mfaErrorKind, mfaRetryAfterSeconds, type MfaStatus } from '@/lib/mfaApi'
 import { GaBtn } from '@/components/ui-v2'
 import { RecoveryCodesPanel } from '../_mfa/RecoveryCodesPanel'
 
@@ -52,13 +52,19 @@ export function MfaSection() {
       setCode('')
     } catch (e) {
       const kind = mfaErrorKind(e)
+      const wait = mfaRetryAfterSeconds(e)
       setError(
         kind === 'codeInvalid'
           ? t('mfaErrorCode')
-          : kind === 'rateLimited'
-            ? t('mfaErrorRateLimited')
-            : apiMessage(e),
+          : kind === 'codeAlreadyUsed'
+            ? t('mfaErrorAlreadyUsed')
+            : kind === 'rateLimited'
+              ? wait === null
+                ? t('mfaErrorRateLimited')
+                : t('mfaErrorRateLimitedWait', { minutes: Math.max(1, Math.ceil(wait / 60)) })
+              : apiMessage(e),
       )
+      if (kind === 'codeAlreadyUsed') setCode('')
     } finally {
       setBusy(false)
     }

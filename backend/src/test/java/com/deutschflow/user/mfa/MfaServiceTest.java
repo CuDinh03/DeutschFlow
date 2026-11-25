@@ -152,17 +152,62 @@ class MfaServiceTest {
     }
 
     @Test
-    @DisplayName("phát lại mã đã dùng (claimStep = 0 dòng) → MFA_CODE_INVALID, ghi lần sai, không phiên")
-    void verifyReplayRejected() {
+    @DisplayName("mã ĐÚNG nhưng bước đã dùng (claimStep = 0 dòng) → MFA_CODE_ALREADY_USED, KHÔNG tính lần sai, không phiên, token còn nguyên")
+    void verifyReplayRejectedWithoutCountingFailure() {
         enrolled();
         when(store.claimStep(eq(1L), anyLong())).thenReturn(false);
 
         MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", currentCode(), null, IP));
 
-        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_INVALID);
-        verify(rateLimiter).commitMfaFailure(attempt);
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_ALREADY_USED);
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(rateLimiter, never()).commitMfaFailure(any());
+        verify(rateLimiter).refundMfaAttempt(attempt);
         verify(authService, never()).completeMfaLogin(any(), any());
         verify(challengeTokens, never()).burn(any());
+    }
+
+    @Test
+    @DisplayName("mã không khớp bước nào → MFA_CODE_INVALID, tính lần sai, không thử giữ bước")
+    void verifyWrongCodeCountsFailure() {
+        enrolled();
+
+        MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", wrongCode(), null, IP));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_INVALID);
+        verify(rateLimiter).commitMfaFailure(attempt);
+        verify(store, never()).claimStep(anyLong(), anyLong());
+    }
+
+    @Test
+    @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    @DisplayName("mã của bước lệch 3 (đồng hồ thiết bị nhanh 90 s) → VẪN là lần sai; log máy chủ ghi độ lệch, không ghi mã")
+    void verifyDriftedCodeStillWrongButLogged(org.springframework.boot.test.system.CapturedOutput output) {
+        enrolled();
+        String drifted = Totp.code(secret, Totp.stepAt(Instant.now()) + 3);
+        org.junit.jupiter.api.Assumptions.assumeTrue(Totp.verify(secret, drifted, Totp.stepAt(Instant.now()), 1).isEmpty(),
+                "trùng mã hiếm gặp với một bước trong cửa sổ");
+
+        MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", drifted, null, IP));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_INVALID);
+        verify(rateLimiter).commitMfaFailure(attempt);
+        verify(store, never()).claimStep(anyLong(), anyLong());
+        assertThat(output.getOut() + output.getErr())
+                .contains("userId=1 mã TOTP bị từ chối nhưng khớp bước lệch")
+                .doesNotContain(drifted);
+    }
+
+    @Test
+    @DisplayName("mã sai định dạng (không phải 6 chữ số) → lần sai, không bao giờ là 'đã dùng'")
+    void verifyMalformedCodeIsWrong() {
+        enrolled();
+        when(store.claimStep(eq(1L), anyLong())).thenReturn(false);
+
+        MfaException ex = assertThrows(MfaException.class, () -> service.verify("tok", "12a456", null, IP));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_INVALID);
+        verify(rateLimiter).commitMfaFailure(attempt);
     }
 
     @Test
@@ -180,9 +225,12 @@ class MfaServiceTest {
     @DisplayName("ngân sách đầy (không giữ được chỗ) → 429 kể cả mã đúng, không chạm DB")
     void blockedReturns429() {
         when(rateLimiter.tryAcquireMfaAttempt(1L, IP)).thenReturn(Optional.empty());
-        when(rateLimiter.mfaRetryAfterSeconds()).thenReturn(900);
+        when(rateLimiter.mfaRetryAfterSeconds(1L, IP)).thenReturn(312);
 
-        assertThrows(RateLimitExceededException.class, () -> service.verify("tok", currentCode(), null, IP));
+        RateLimitExceededException ex = assertThrows(RateLimitExceededException.class,
+                () -> service.verify("tok", currentCode(), null, IP));
+
+        assertThat(ex.getRetryAfterSeconds()).isEqualTo(312); // thời gian còn lại thật, không phải luôn 15 phút
 
         verify(store, never()).find(anyLong());
         verify(store, never()).findForUpdate(anyLong());
@@ -328,7 +376,7 @@ class MfaServiceTest {
 
         var start = service.beginEnrollment("tok", "123456", IP);
 
-        assertThat(start.otpauthUri()).startsWith("otpauth://totp/DeutschFlow:").contains("secret=" + start.secretBase32());
+        assertThat(start.otpauthUri()).startsWith("otpauth://totp/myDeutschFlow:").contains("secret=" + start.secretBase32());
         assertThat(start.mfaToken()).isEqualTo("tok-2");
         ArgumentCaptor<String> enc = ArgumentCaptor.forClass(String.class);
         verify(store).upsertPending(eq(1L), enc.capture());
@@ -382,6 +430,38 @@ class MfaServiceTest {
     }
 
     @Test
+    @DisplayName("xác nhận đăng ký: mã đúng nhưng bước đã dùng → MFA_CODE_ALREADY_USED, không tính lần sai, không bật")
+    void confirmEnrollmentReplay() {
+        pending();
+        when(store.claimStep(eq(1L), anyLong())).thenReturn(false);
+
+        MfaException ex = assertThrows(MfaException.class, () -> service.confirmEnrollment("tok", currentCode(), IP));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_ALREADY_USED);
+        verify(store, never()).enable(anyLong(), any());
+        verify(rateLimiter, never()).commitMfaFailure(any());
+        verify(rateLimiter).refundMfaAttempt(attempt);
+    }
+
+    @Test
+    @DisplayName("issuer cấu hình theo môi trường đi vào URI otpauth; ':' bị loại, rỗng → mặc định")
+    void issuerConfigurable() {
+        String hash = RegistrationCodes.hash(keys.emailCodePepper(), 55L, "123456");
+        when(store.latestOpenEmailCodeForUpdate(1L)).thenReturn(Optional.of(
+                new UserMfaStore.EmailCodeRow(55L, hash, 0, Instant.now().plusSeconds(300))));
+        when(store.upsertPending(eq(1L), anyString())).thenReturn(true);
+        service.setIssuer("DeutschFlow (dev)");
+
+        var start = service.beginEnrollment("tok", "123456", IP);
+
+        assertThat(start.otpauthUri()).startsWith("otpauth://totp/DeutschFlow%20%28dev%29:")
+                .contains("&issuer=DeutschFlow%20%28dev%29&");
+        assertThat(MfaService.sanitizeIssuer("a:b")).isEqualTo("ab");
+        assertThat(MfaService.sanitizeIssuer("  ")).isEqualTo(MfaService.DEFAULT_ISSUER);
+        assertThat(MfaService.sanitizeIssuer(null)).isEqualTo(MfaService.DEFAULT_ISSUER);
+    }
+
+    @Test
     @DisplayName("xác nhận khi chưa bắt đầu → 409 MFA_ENROLLMENT_NOT_STARTED")
     void confirmWithoutStart() {
         when(store.find(1L)).thenReturn(Optional.empty());
@@ -405,6 +485,78 @@ class MfaServiceTest {
         assertThat(codes).hasSize(10);
         verify(store).replaceRecoveryCodes(eq(1L), any());
         verify(auditLogService).log(eq("user.mfa.recovery_regenerated"), any(), eq("USER"), eq("1"), anyMap());
+    }
+
+    @Test
+    @DisplayName("tạo lại mã khôi phục: mã đúng nhưng bước đã dùng → MFA_CODE_ALREADY_USED, không tính lần sai")
+    void regenerateReplay() {
+        enrolled();
+        when(store.claimStep(eq(1L), anyLong())).thenReturn(false);
+
+        MfaException ex = assertThrows(MfaException.class,
+                () -> service.regenerateRecoveryCodes(admin, currentCode(), IP));
+
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_CODE_ALREADY_USED);
+        verify(store, never()).replaceRecoveryCodes(anyLong(), any());
+        verify(rateLimiter, never()).commitMfaFailure(any());
+        verify(rateLimiter).refundMfaAttempt(attempt);
+    }
+
+    @Test
+    @DisplayName("tạo lại mã khôi phục: mã sai → lần sai")
+    void regenerateWrong() {
+        enrolled();
+
+        assertThrows(MfaException.class, () -> service.regenerateRecoveryCodes(admin, wrongCode(), IP));
+
+        verify(rateLimiter).commitMfaFailure(attempt);
+    }
+
+    @Test
+    @DisplayName("admin tự gỡ khoá nhập sai 2FA của chính mình → 403 MFA_UNLOCK_SELF_FORBIDDEN, không gỡ, không ghi vết")
+    void adminUnlockSelfForbidden() {
+        MfaException ex = assertThrows(MfaException.class,
+                () -> service.adminUnlockFailures(admin, 1L, "lý do đủ dài ở đây"));
+
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(ex.getCode()).isEqualTo(MfaException.MFA_UNLOCK_SELF_FORBIDDEN);
+        verify(rateLimiter, never()).clearMfaFailuresForUser(anyLong());
+        verify(auditLogService, never()).log(eq("admin.user.mfa.unlock"), any(), any(), any(), any(), anyMap());
+    }
+
+    @Test
+    @DisplayName("admin khác gỡ khoá: ghi vết có lý do TRƯỚC khi gỡ, xoá lần sai, không đụng bí mật/phiên")
+    void adminUnlockOther() {
+        User other = User.builder().id(5L).email("second@x.com").role(User.Role.ADMIN).active(true).passwordHash("h").build();
+        when(userRepository.findById(5L)).thenReturn(Optional.of(other));
+        when(rateLimiter.mfaFailuresInWindow(5L)).thenReturn(5L);
+        when(rateLimiter.clearMfaFailuresForUser(5L)).thenReturn(5);
+        when(rateLimiter.mfaFailureIpsInWindow(5L)).thenReturn(List.of("203.0.113.9"));
+
+        Map<String, Object> out = service.adminUnlockFailures(admin, 5L, "Gõ nhầm mã nhiều lần, đã gọi xác minh");
+
+        assertThat(out).containsEntry("userId", 5L).containsEntry("clearedFailures", 5);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        var order = inOrder(auditLogService, rateLimiter);
+        order.verify(auditLogService).log(eq("admin.user.mfa.unlock"), any(), eq("USER"), eq("5"), any(), meta.capture());
+        order.verify(rateLimiter).clearMfaFailuresForUser(5L);
+        assertThat(meta.getValue()).containsEntry("reason", "Gõ nhầm mã nhiều lần, đã gọi xác minh")
+                .containsEntry("failuresInWindow", 5L)
+                .containsEntry("failureIps", List.of("203.0.113.9"));
+        verify(store, never()).deleteAll(anyLong());
+        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
+    }
+
+    @Test
+    @DisplayName("gỡ khoá người không tồn tại → 404, không gỡ gì")
+    void adminUnlockUnknownUser() {
+        when(userRepository.findById(77L)).thenReturn(Optional.empty());
+
+        assertThrows(com.deutschflow.common.exception.NotFoundException.class,
+                () -> service.adminUnlockFailures(admin, 77L, "lý do đủ dài ở đây"));
+
+        verify(rateLimiter, never()).clearMfaFailuresForUser(anyLong());
     }
 
     @Test

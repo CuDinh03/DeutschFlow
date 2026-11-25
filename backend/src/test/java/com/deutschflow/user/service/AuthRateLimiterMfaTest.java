@@ -3,7 +3,13 @@ package com.deutschflow.user.service;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.RedisScript;
+
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -13,6 +19,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Ngân sách 2FA (mặc định 5 lượt / 15 phút) theo người dùng và theo IP — bộ nhớ (không Redis). Mỗi lượt GIỮ CHỖ
@@ -147,5 +160,119 @@ class AuthRateLimiterMfaTest {
         }
         assertThat(rl.allowMfaEmailSend(1L)).isFalse();
         assertThat(rl.allowMfaEmailSend(2L)).isTrue();
+    }
+
+    // ─── thời gian còn lại + gỡ khoá theo người dùng (25/11/2026) ──────────────────
+
+    @Test
+    @DisplayName("bị khoá ngay sau 5 lần sai → còn ~15 phút; không bao giờ vượt trần cửa sổ, tối thiểu 1 giây")
+    void retryAfterRemainingInMemory() {
+        AuthRateLimiterService rl = limiter();
+        for (int i = 0; i < 5; i++) {
+            failOnce(rl, 1L, "ip");
+        }
+        int wait = rl.mfaRetryAfterSeconds(1L, "ip");
+        assertThat(wait).isEqualTo(900); // ~899,9 s làm tròn lên phút, kẹp ở trần cửa sổ
+        assertThat(rl.mfaRetryAfterSeconds(2L, "ip-khac")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Redis: thời gian còn lại = lượt phải rời cửa sổ, lấy max của người dùng và IP; trên 1 phút làm tròn lên phút")
+    @SuppressWarnings("unchecked")
+    void retryAfterRemainingRedis() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        when(redis.execute(any(RedisScript.class), eq(List.of("rl:mfa-fail-user|1")), any(), any(), any()))
+                .thenReturn(312_400L);
+        when(redis.execute(any(RedisScript.class), eq(List.of("rl:mfa-fail-ip|203.0.113.9")), any(), any(), any()))
+                .thenReturn(40_000L);
+        AuthRateLimiterService rl = new AuthRateLimiterService(3, 60, 5, 120, 2, 600, 4, 60, 2, 900, redis);
+
+        assertThat(rl.mfaRetryAfterSeconds(1L, "203.0.113.9")).isEqualTo(360);
+        // Dưới một phút: tính bằng giây (làm tròn lên).
+        when(redis.execute(any(RedisScript.class), eq(List.of("rl:mfa-fail-user|2")), any(), any(), any()))
+                .thenReturn(40_100L);
+        when(redis.execute(any(RedisScript.class), eq(List.of("rl:mfa-fail-ip|198.51.100.1")), any(), any(), any()))
+                .thenReturn(0L);
+        assertThat(rl.mfaRetryAfterSeconds(2L, "198.51.100.1")).isEqualTo(41);
+    }
+
+    @Test
+    @DisplayName("IP đã gây lần sai của một người (để ghi vết gỡ khoá): khác nhau, đúng người")
+    void failureIpsForUser() {
+        AuthRateLimiterService rl = limiter();
+        failOnce(rl, 1L, "203.0.113.9");
+        failOnce(rl, 1L, "203.0.113.9");
+        failOnce(rl, 1L, "198.51.100.1");
+        failOnce(rl, 2L, "192.0.2.5");
+
+        assertThat(rl.mfaFailureIpsInWindow(1L)).containsExactly("203.0.113.9", "198.51.100.1");
+        assertThat(rl.mfaFailureIpsInWindow(3L)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("gỡ khoá một người: xoá lần sai của người đó ở ngân sách người dùng VÀ IP; lần sai của người khác cùng IP vẫn tính")
+    void clearFailuresForUserInMemory() {
+        AuthRateLimiterService rl = limiter();
+        for (int i = 0; i < 3; i++) {
+            failOnce(rl, 1L, "203.0.113.9");
+        }
+        failOnce(rl, 2L, "203.0.113.9");
+        failOnce(rl, 2L, "203.0.113.9");
+        failOnce(rl, 1L, "198.51.100.1");
+        failOnce(rl, 1L, "198.51.100.1");
+        assertThat(rl.isMfaBlocked(1L, "x")).isTrue();
+        assertThat(rl.isMfaBlocked(99L, "203.0.113.9")).isTrue();
+        assertThat(rl.mfaFailuresInWindow(1L)).isEqualTo(5);
+
+        assertThat(rl.clearMfaFailuresForUser(1L)).isEqualTo(5);
+
+        assertThat(rl.mfaFailuresInWindow(1L)).isZero();
+        assertThat(rl.isMfaBlocked(1L, "x")).isFalse();
+        assertThat(rl.isMfaBlocked(99L, "203.0.113.9")).isFalse();
+        assertThat(rl.mfaFailuresInWindow(2L)).isEqualTo(2);
+        // IP 203.0.113.9 còn đúng 2 lần sai của người 2: thêm 3 lần nữa là đầy lại.
+        for (long u = 10; u < 13; u++) {
+            failOnce(rl, u, "203.0.113.9");
+        }
+        assertThat(rl.isMfaBlocked(99L, "203.0.113.9")).isTrue();
+    }
+
+    @Test
+    @DisplayName("gỡ khoá khi không có lần sai nào → 0, không lỗi")
+    void clearFailuresNothing() {
+        assertThat(limiter().clearMfaFailuresForUser(42L)).isZero();
+    }
+
+    @Test
+    @DisplayName("Redis: member gắn nhãn IP/người dùng; gỡ khoá chỉ xoá member của đúng người ở khoá IP")
+    @SuppressWarnings("unchecked")
+    void clearFailuresForUserRedis() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        ZSetOperations<String, String> zset = mock(ZSetOperations.class);
+        when(redis.opsForZSet()).thenReturn(zset);
+        when(redis.execute(any(RedisScript.class), any(List.class), any(), any(), any(), any())).thenReturn(1L);
+        AuthRateLimiterService rl = new AuthRateLimiterService(3, 60, 5, 120, 2, 600, 4, 60, 2, 900, redis);
+
+        rl.tryAcquireMfaAttempt(1L, "203.0.113.9").orElseThrow();
+        ArgumentCaptor<Object> args = ArgumentCaptor.forClass(Object.class);
+        verify(redis, org.mockito.Mockito.times(2)).execute(any(RedisScript.class), any(List.class),
+                args.capture(), args.capture(), args.capture(), args.capture());
+        List<Object> all = args.getAllValues();
+        assertThat((String) all.get(3)).endsWith("|203.0.113.9");
+        assertThat((String) all.get(7)).endsWith("|u1");
+
+        when(zset.range("rl:mfa-fail-user|1", 0, -1))
+                .thenReturn(new LinkedHashSet<>(List.of("1-1|203.0.113.9", "2-2|203.0.113.9", "3-3|198.51.100.1")));
+        when(zset.range("rl:mfa-fail-ip|203.0.113.9", 0, -1))
+                .thenReturn(new LinkedHashSet<>(List.of("1-1|u1", "2-2|u1", "9-9|u2")));
+        when(zset.range("rl:mfa-fail-ip|198.51.100.1", 0, -1))
+                .thenReturn(new LinkedHashSet<>(List.of("3-3|u1")));
+
+        assertThat(rl.clearMfaFailuresForUser(1L)).isEqualTo(3);
+
+        verify(redis).delete("rl:mfa-fail-user|1");
+        verify(zset).remove("rl:mfa-fail-ip|203.0.113.9", "1-1|u1", "2-2|u1");
+        verify(zset).remove("rl:mfa-fail-ip|198.51.100.1", "3-3|u1");
+        verify(zset, never()).remove(eq("rl:mfa-fail-ip|203.0.113.9"), eq("9-9|u2"));
     }
 }

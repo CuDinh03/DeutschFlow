@@ -21,6 +21,7 @@ log, PR hay chat.
 | `MFA_KEY_ID` | Không (mặc định `k1`) | Ghi kèm từng bí mật đã mã hoá, để sau này xoay khoá. |
 | `ADMIN_MFA_ENFORCED` | Không (mặc định `true`) | **Kill-switch**. `false` ⇒ admin CHƯA bật 2FA đăng nhập bằng mật khẩu; admin ĐÃ bật vẫn phải nhập mã. Chỉ dùng theo §5, bật lại ngay. Preflight cảnh báo khi đang `false`. |
 | `ADMIN_MFA_MAX_SESSION_HOURS` | Không (mặc định `12`) | Tuổi tối đa của một lần qua 2FA. Quá mốc ⇒ refresh bị từ chối, phải đăng nhập lại. |
+| `MFA_ISSUER` | Không (mặc định `myDeutschFlow`) | Tên hiện trong ứng dụng xác thực. Production để mặc định; máy dev/staging đặt ví dụ `DeutschFlow (dev)` để các mục không trùng tên. Chỉ áp cho lần đăng ký 2FA MỚI — mục đã quét giữ tên cũ (đổi tên thì đổi trong ứng dụng xác thực). Không dùng dấu `:`. |
 
 Thư mã email đi qua SMTP sẵn có (`spring.mail.*`). SMTP hỏng ⇒ admin CHƯA bật 2FA không bật được
 (`503 MFA_EMAIL_UNAVAILABLE`) — xem §5.3.
@@ -75,9 +76,48 @@ Deploy lại bản mới sau đó: dữ liệu 2FA còn nguyên, admin chỉ c�
   `MFA_REQUIRED`).
 - Còn < 3 mã khôi phục ⇒ thông báo + email. Tạo bộ mới: Hồ sơ → Bảo mật → "Tạo mã khôi phục mới" (cần mã 6 số hiện
   tại; bộ cũ hết hiệu lực ngay).
-- Nhập sai 5 lần / 15 phút (theo tài khoản và theo IP) ⇒ `429`, chờ hết cửa sổ. Mỗi lượt nhập mã giữ chỗ trong
-  bộ đếm TRƯỚC khi kiểm (gửi song song không vượt được 5); mã đúng được trả chỗ. Bộ đếm nằm ở Redis
-  (`rl:mfa-fail-user|<id>`, `rl:mfa-fail-ip|<ip>`); restart Redis/backend xoá bộ đếm.
+- Nhập sai 5 lần / 15 phút (theo tài khoản và theo IP) ⇒ `429` kèm `Retry-After` = số giây còn lại (cửa sổ trượt:
+  lần sai cũ nhất rời cửa sổ là mở lại một lượt); trang đăng nhập hiện "Thử lại được sau N phút" và đếm ngược. Mỗi
+  lượt nhập mã giữ chỗ trong bộ đếm TRƯỚC khi kiểm (gửi song song không vượt được 5); mã đúng được trả chỗ. Bộ đếm
+  nằm ở Redis (`rl:mfa-fail-user|<id>`, `rl:mfa-fail-ip|<ip>`); restart Redis/backend xoá bộ đếm.
+- Mã ĐÚNG nhưng vừa dùng (cùng bước 30 giây đã dùng ở tab/thiết bị khác, hoặc bấm lại sau khi đã vào) ⇒ `400
+  MFA_CODE_ALREADY_USED`, "Mã này vừa được dùng. Chờ mã mới…". KHÔNG tính là lần sai. Chỉ mã khớp đúng một bước
+  trong cửa sổ mới rơi vào đây; mã gõ sai vẫn là lần sai.
+- **Đồng hồ máy chủ phải đúng tới vài giây** — 2FA chỉ nhận ±1 bước 30 s. VPS production chặn UDP ra ngoài nên NTP
+  (`systemd-timesyncd`, UDP 123) không bao giờ đồng bộ được: 25/11/2026 máy chủ chậm ~61 s ⇒ mã vừa hiện trên điện
+  thoại luôn bị từ chối, chỉ mã đã cũ > 30 s mới qua. Đã thay bằng `htpdate` (lấy giờ qua HTTPS, cấu hình
+  `/etc/default/htpdate`, `HTP_OPTIONS="-D -s"`, `timedatectl set-ntp false`). Dựng lại máy chủ thì cài lại y như vậy.
+  `-D` = chạy nền, tự chỉnh định kỳ; service `enabled` (WantedBy `multi-user.target`) nên tự lên khi khởi động lại.
+  Gói Ubuntu để `Restart=no` — thêm drop-in để tiến trình chết thì tự chạy lại, và bỏ `www.cloudflare.com` (HEAD không
+  trả `Date`, log báo `no timestamp`):
+  ```bash
+  sudo mkdir -p /etc/systemd/system/htpdate.service.d
+  printf '[Service]\nRestart=on-failure\nRestartSec=30\n' | sudo tee /etc/systemd/system/htpdate.service.d/restart.conf
+  sudo sed -i 's#https://www.cloudflare.com#https://www.microsoft.com#' /etc/default/htpdate
+  sudo systemctl daemon-reload && sudo systemctl restart htpdate
+  ```
+  Kiểm: `systemctl is-enabled htpdate; systemctl is-active htpdate; systemctl show htpdate -p Restart;
+  journalctl -u htpdate -n 5`.
+  Kiểm từ ngoài: trường `timestamp` trong body lỗi của `https://api.mydeutschflow.com/api/<đường-không-có>` là giờ
+  JVM; KHÔNG dùng header `Date` (Cloudflare tự đặt).
+- "Mã trên điện thoại đúng mà bị báo sai": xem log backend
+  `docker logs deutschflow-backend 2>&1 | grep 'khớp bước lệch'` (màu green: `deutschflow-backend-green`). Có dòng `[MFA] userId=<id> mã TOTP bị từ chối
+  nhưng khớp bước lệch N (… giây, thiết bị nhanh/chậm)` ⇒ đồng hồ điện thoại lệch: bật đặt giờ tự động (Google
+  Authenticator Android: Cài đặt → Hiệu chỉnh thời gian cho mã). Lượt đó vẫn tính là lần sai; log không ghi mã.
+  Không có dòng nào mà vẫn bị từ chối ⇒ mã không khớp bước nào trong ±5 phút: gõ nhầm, hoặc mục trong ứng dụng xác
+  thực không còn khớp bí mật trên máy chủ (cần đặt lại 2FA, §4/§5).
+- Bị khoá nhập sai mà không muốn chờ: admin KHÁC vào `/v2/admin/users/<id>` → "Gỡ khoá nhập sai 2FA" (bắt buộc lý
+  do, ghi vết `admin.user.mfa.unlock`). Chỉ xoá lần sai đang tính (của người đó, ở cả bộ đếm theo tài khoản và theo
+  các IP họ đã nhập); không đụng bí mật TOTP, mã khôi phục, phiên. Không tự gỡ được cho mình
+  (`403 MFA_UNLOCK_SELF_FORBIDDEN`). Trước khi gỡ, xác minh đúng là người đó: chuỗi lần sai cũng có thể là kẻ dò mã.
+  Vết gỡ khoá ghi kèm các IP đã gây lần sai (`failureIps`) — IP lạ thì đừng gỡ, cân nhắc đổi mật khẩu người đó. Khi
+  Redis hỏng (bộ đếm rơi về bộ nhớ từng node), gỡ khoá chỉ xoá được bộ nhớ của node nhận request.
+  Trong lúc deploy blue-green bản có nút này, lần sai do màu cũ ghi chưa mang nhãn người dùng/IP: gỡ khoá lúc đó xoá
+  được bộ đếm theo tài khoản nhưng không xoá phần ở bộ đếm theo IP (hết cửa sổ 15 phút là sạch).
+- Chỉ có MỘT admin và bị khoá nhập sai: chờ hết thời gian trên màn hình (tối đa 15 phút). Không cần gỡ tay; nếu
+  thật sự phải gỡ ngay, trên máy chủ (thay `<id>` bằng user id, `<ip>` bằng IP đã nhập — xem vết `user.mfa.locked`):
+  `docker exec deutschflow-redis redis-cli DEL 'rl:mfa-fail-user|<id>' 'rl:mfa-fail-ip|<ip>'` — lệnh này xoá cả lần
+  sai của người khác cùng IP, ghi lại vào sổ vận hành là đã làm.
 - Có từ hai ADMIN trở lên: admin mất điện thoại + hết mã ⇒ admin KHÁC vào `/v2/admin/users/<id>` → "Đặt lại 2FA"
   (bắt buộc lý do, cắt mọi phiên, ghi vết `admin.user.mfa.reset`). Không ai tự đặt lại được cho chính mình.
 

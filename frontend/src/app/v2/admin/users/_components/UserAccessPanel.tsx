@@ -37,6 +37,8 @@ export interface UserAccessPanelProps {
  *   ADMIN_PASSWORD_RESET_FORBIDDEN; admin tự đặt lại qua "Quên mật khẩu".
  * - đặt lại 2FA (chỉ khi người đích là ADMIN và KHÔNG phải mình — 09/11/2026): danger + lý do; cắt mọi phiên,
  *   người đích phải thiết lập lại 2FA ở lần đăng nhập tới.
+ * - gỡ khoá nhập sai 2FA (cùng điều kiện — 25/11/2026): caution + lý do; chỉ xoá các lần sai đang tính, không
+ *   đụng bí mật/mã khôi phục/phiên. Backend cấm tự gỡ (403 MFA_UNLOCK_SELF_FORBIDDEN).
  */
 export function UserAccessPanel({ userId, userName, email, role, isActive, onChanged, isSelf = false }: UserAccessPanelProps) {
   const t = useTranslations('v2.adminOps.users.detail')
@@ -61,6 +63,8 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
   const [confirmMfa, setConfirmMfa] = useState(false)
   const [savingMfa, setSavingMfa] = useState(false)
   const canResetMfa = currentRole === 'ADMIN' && !isSelf
+  const [confirmUnlock, setConfirmUnlock] = useState(false)
+  const [savingUnlock, setSavingUnlock] = useState(false)
 
   const applyRole = async (reason?: string) => {
     setSavingRole(true)
@@ -123,6 +127,22 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
     } finally {
       setSavingMfa(false)
       setConfirmMfa(false)
+    }
+  }
+
+  const applyMfaUnlock = async (reason: string) => {
+    setSavingUnlock(true)
+    setError('')
+    try {
+      const { data } = await mfaApi.adminUnlock(userId, reason)
+      toast.success(
+        data.clearedFailures > 0 ? t('mfaUnlockDone', { count: data.clearedFailures }) : t('mfaUnlockNothing'),
+      )
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setSavingUnlock(false)
+      setConfirmUnlock(false)
     }
   }
 
@@ -222,9 +242,15 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
       {canResetMfa && (
         <div className="space-y-2 border-t border-ga-line pt-5" data-testid="user-mfa-reset">
           <GaCap>{t('mfaCap')}</GaCap>
-          <GaBtn variant="ghost" loading={savingMfa} onClick={() => setConfirmMfa(true)}>
-            {t('mfaReset')}
-          </GaBtn>
+          <div className="flex flex-wrap gap-2">
+            <GaBtn variant="ghost" loading={savingUnlock} onClick={() => setConfirmUnlock(true)}>
+              {t('mfaUnlock')}
+            </GaBtn>
+            <GaBtn variant="ghost" loading={savingMfa} onClick={() => setConfirmMfa(true)}>
+              {t('mfaReset')}
+            </GaBtn>
+          </div>
+          <p className="ga-ui text-ga-caption text-ga-subtle">{t('mfaUnlockNote')}</p>
           <p className="ga-ui text-ga-caption text-ga-subtle">{t('mfaNote')}</p>
         </div>
       )}
@@ -275,6 +301,20 @@ export function UserAccessPanel({ userId, userName, email, role, isActive, onCha
         cancelLabel={t('confirmPw.cancel')}
         loading={savingPw}
         onConfirm={({ reason }) => reason && void applyPassword(reason)}
+      />
+
+      <ConfirmDialog
+        open={confirmUnlock}
+        onOpenChange={setConfirmUnlock}
+        tone="caution"
+        requireReason
+        title={t('confirmMfaUnlock.title')}
+        description={t('confirmMfaUnlock.description', { name: userName })}
+        details={[t('confirmMfaUnlock.detailVerify'), t('confirmMfaUnlock.detailKeep'), t('confirmMfaUnlock.detailAudit')]}
+        confirmLabel={t('confirmMfaUnlock.confirm')}
+        cancelLabel={t('confirmMfaUnlock.cancel')}
+        loading={savingUnlock}
+        onConfirm={({ reason }) => reason && void applyMfaUnlock(reason)}
       />
 
       <ConfirmDialog

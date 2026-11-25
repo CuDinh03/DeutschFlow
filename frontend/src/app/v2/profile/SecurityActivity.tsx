@@ -24,6 +24,8 @@ const EVENT_KEY: Record<string, string> = {
   'user.mfa.enabled': 'securityEvents.mfaEnabled',
   'user.mfa.recovery_used': 'securityEvents.mfaRecoveryUsed',
   'admin.user.mfa.reset': 'securityEvents.mfaResetBySupport',
+  'user.mfa.locked': 'securityEvents.mfaLocked',
+  'admin.user.mfa.unlock': 'securityEvents.mfaUnlockedBySupport',
 }
 
 /**

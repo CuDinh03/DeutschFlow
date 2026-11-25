@@ -508,6 +508,9 @@ app:
       encryption-key: ${MFA_ENCRYPTION_KEY:}
       key-id: ${MFA_KEY_ID:k1}
       recovery-pepper: ${MFA_RECOVERY_PEPPER:}
+      # Tên hiện trong ứng dụng xác thực (issuer otpauth). Máy dev/staging đặt MFA_ISSUER="DeutschFlow (dev)" để mục
+      # không trùng tên với production. Chỉ áp cho lần đăng ký 2FA MỚI; mục đã quét giữ tên cũ.
+      issuer: ${MFA_ISSUER:myDeutschFlow}
     # Kiểm "người thật" ở đăng ký — Cloudflare Turnstile (owner chốt 07/11/2026). Mặc định TẮT.
     # Bật: Cloudflare dashboard → Turnstile → Add widget (mode Managed, hostname mydeutschflow.com);
     # secret vào backend.env (TURNSTILE_SECRET), site key vào frontend-build.env

@@ -78,6 +78,47 @@ describe('UserAccessPanel — đặt lại 2FA', () => {
     expect(screen.queryByTestId('user-mfa-reset')).toBeNull()
   })
 
+  it('gỡ khoá nhập sai 2FA: hộp xác nhận + lý do → POST unlock, báo số lần sai đã xoá', async () => {
+    const user = userEvent.setup()
+    const { toast } = await import('sonner')
+    mocks.post.mockResolvedValueOnce({ data: { userId: 7, clearedFailures: 5 } })
+    renderPanel()
+
+    await user.click(screen.getByRole('button', { name: 'Gỡ khoá nhập sai 2FA' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Gỡ khoá nhập sai 2FA?')).toBeTruthy()
+    expect(within(dialog).getByText(/xác minh đúng là người này/)).toBeTruthy()
+    const confirm = within(dialog).getByRole('button', { name: 'Gỡ khoá' }) as HTMLButtonElement
+    expect(confirm.disabled).toBe(true) // thiếu lý do
+    await user.type(within(dialog).getByTestId('confirm-reason'), 'Gõ nhầm mã nhiều lần, đã gọi xác minh')
+    await user.click(confirm)
+
+    await waitFor(() =>
+      expect(mocks.post).toHaveBeenCalledWith('/admin/users/7/mfa/unlock', { reason: 'Gõ nhầm mã nhiều lần, đã gọi xác minh' }),
+    )
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Đã gỡ khoá: xoá 5 lần nhập sai'))
+    expect(mocks.post).not.toHaveBeenCalledWith('/admin/users/7/mfa/reset', expect.anything())
+  })
+
+  it('gỡ khoá khi không có lần sai nào → câu "không bị tính lần nhập sai nào"', async () => {
+    const user = userEvent.setup()
+    const { toast } = await import('sonner')
+    mocks.post.mockResolvedValueOnce({ data: { userId: 7, clearedFailures: 0 } })
+    renderPanel()
+
+    await user.click(screen.getByRole('button', { name: 'Gỡ khoá nhập sai 2FA' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByTestId('confirm-reason'), 'Kiểm tra trước khi hỗ trợ người dùng')
+    await user.click(within(dialog).getByRole('button', { name: 'Gỡ khoá' }))
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Người này hiện không bị tính lần nhập sai nào'))
+  })
+
+  it('hồ sơ của CHÍNH MÌNH: không có nút gỡ khoá', () => {
+    renderPanel({ isSelf: true })
+    expect(screen.queryByRole('button', { name: 'Gỡ khoá nhập sai 2FA' })).toBeNull()
+  })
+
   it('bấm Hủy trong hộp xác nhận thì không gọi API', async () => {
     const user = userEvent.setup()
     renderPanel()

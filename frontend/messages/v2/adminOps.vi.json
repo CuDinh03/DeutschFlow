@@ -627,6 +627,19 @@
         "mfaReset": "Đặt lại 2FA",
         "mfaNote": "Dùng khi quản trị viên này mất điện thoại và hết mã khôi phục. Họ sẽ phải thiết lập lại 2FA ở lần đăng nhập tới.",
         "mfaResetDone": "Đã đặt lại xác thực hai lớp",
+        "mfaUnlock": "Gỡ khoá nhập sai 2FA",
+        "mfaUnlockNote": "Dùng khi quản trị viên này gõ sai mã nhiều lần và đang bị chặn tối đa 15 phút. Chỉ xoá các lần sai đã tính; ứng dụng xác thực và mã khôi phục giữ nguyên.",
+        "mfaUnlockDone": "Đã gỡ khoá: xoá {count} lần nhập sai",
+        "mfaUnlockNothing": "Người này hiện không bị tính lần nhập sai nào",
+        "confirmMfaUnlock": {
+          "title": "Gỡ khoá nhập sai 2FA?",
+          "description": "{name} sẽ nhập mã xác thực lại được ngay, không phải chờ hết 15 phút.",
+          "detailVerify": "Hãy xác minh đúng là người này (gọi điện, gặp trực tiếp) trước khi gỡ: chuỗi lần sai cũng có thể là người khác đang dò mã.",
+          "detailKeep": "Không đổi ứng dụng xác thực, mã khôi phục hay phiên đăng nhập; người này vẫn phải nhập đúng mã.",
+          "detailAudit": "Thao tác được ghi vào nhật ký kèm lý do.",
+          "confirm": "Gỡ khoá",
+          "cancel": "Hủy"
+        },
         "confirmMfa": {
           "title": "Đặt lại xác thực hai lớp?",
           "description": "{name} sẽ bị đăng xuất khỏi mọi thiết bị và phải thiết lập lại 2FA (mã email + ứng dụng xác thực) ở lần đăng nhập tới.",

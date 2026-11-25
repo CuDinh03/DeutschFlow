@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * Đặt lại 2FA của một người dùng khác (mất điện thoại + hết mã khôi phục). Chỉ ADMIN, KHÔNG BAO GIỜ cho chính
+ * Đặt lại 2FA của một người dùng khác (mất điện thoại + hết mã khôi phục), hoặc gỡ khoá nhập sai 2FA. Chỉ ADMIN, KHÔNG BAO GIỜ cho chính
  * mình (403 {@code MFA_RESET_SELF_FORBIDDEN}), bắt buộc lý do 10–500 ký tự như các thao tác nhạy cảm đợt 1.
  * Xoá bí mật + mã khôi phục, cắt mọi phiên, ghi vết {@code admin.user.mfa.reset}, báo cho người bị đặt lại.
  *
@@ -41,5 +41,21 @@ public class AdminMfaController {
         }
         String reason = AdminManagementController.requireReason(request == null ? null : request.reason());
         return mfaService.adminReset(actor, userId, reason);
+    }
+
+    /**
+     * Gỡ khoá NHẬP SAI 2FA của một người khác (đã bị 429 sau 5 lần sai, không muốn chờ hết cửa sổ). Chỉ xoá các
+     * lần sai trong ngân sách chống dò; bí mật TOTP, mã khôi phục, phiên giữ nguyên. Cũng bắt buộc lý do, cũng cấm
+     * tự gỡ cho mình (403 {@code MFA_UNLOCK_SELF_FORBIDDEN}); ghi vết {@code admin.user.mfa.unlock}.
+     */
+    @PostMapping("/{userId}/mfa/unlock")
+    public Map<String, Object> unlock(@PathVariable Long userId,
+                                      @RequestBody(required = false) ResetMfaRequest request,
+                                      @AuthenticationPrincipal User actor) {
+        if (actor != null && actor.getId() != null && actor.getId().equals(userId)) {
+            return mfaService.adminUnlockFailures(actor, userId, null);
+        }
+        String reason = AdminManagementController.requireReason(request == null ? null : request.reason());
+        return mfaService.adminUnlockFailures(actor, userId, reason);
     }
 }

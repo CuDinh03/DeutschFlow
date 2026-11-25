@@ -208,7 +208,11 @@
       "reasonMfa": "Admin sessions require two-factor authentication. Please sign in again.",
       "errors": {
         "codeInvalid": "The code is wrong or has expired.",
-        "rateLimited": "Too many wrong attempts. Please try again in 15 minutes.",
+        "codeAlreadyUsed": "This code was just used. Wait for a new code (up to 30 seconds) and enter it. This attempt does not count as a wrong one.",
+        "rateLimited": "Too many wrong attempts. Please try again later.",
+        "rateLimitedWait": "Too many wrong attempts. You can try again in {wait}. If you need access now, ask another admin to unlock you.",
+        "waitSeconds": "{count, plural, one {# second} other {# seconds}}",
+        "waitMinutes": "{count, plural, one {# minute} other {# minutes}}",
         "expired": "Your verification session has expired.",
         "notConfigured": "Two-factor authentication is not configured on the server. Please contact the operator.",
         "emailUnavailable": "We could not send the code email. Please try again later.",

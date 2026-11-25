@@ -43,7 +43,10 @@ public class UserSecurityEventsService {
             "support_session.ended",
             "user.mfa.enabled",
             "user.mfa.recovery_used",
-            "admin.user.mfa.reset");
+            "admin.user.mfa.reset",
+            // 25/11/2026: bị chặn vì nhập sai mã 2FA nhiều lần, và admin khác gỡ chặn — người bị dò mã thấy được.
+            "user.mfa.locked",
+            "admin.user.mfa.unlock");
 
     private final JdbcTemplate jdbcTemplate;
 

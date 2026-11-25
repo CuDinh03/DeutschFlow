@@ -11,9 +11,11 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -94,7 +96,7 @@ public class AuthRateLimiterService {
     // Xác thực hai lớp (09/11/2026). Đếm LẦN SAI (lần đúng được trả chỗ): 5 lần sai / 15 phút theo người dùng
     // VÀ theo IP — chạm một trong hai là 429 tới hết cửa sổ. Mỗi lượt GIỮ CHỖ trước khi kiểm mã
     // (tryAcquireMfaAttempt) nên lượt đang kiểm dở cũng chiếm ngân sách. Gửi mã email 2FA: 5 thư / giờ / người dùng.
-    private final ConcurrentHashMap<String, Deque<Instant>> mfaFailureAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<MfaMark>> mfaFailureAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> mfaEmailSendAttempts = new ConcurrentHashMap<>();
     @Value("${app.auth.rate-limit.mfa-failure-max-per-window:5}")
     private int  mfaFailureMax = 5;
@@ -110,6 +112,7 @@ public class AuthRateLimiterService {
     private final DefaultRedisScript<Long> slidingWindowScript;
     private final DefaultRedisScript<Long> countScript;
     private final DefaultRedisScript<Long> reserveScript;
+    private final DefaultRedisScript<Long> waitScript;
     private final AtomicLong nonce = new AtomicLong();
     private volatile boolean redisDownWarned = false;
 
@@ -146,6 +149,30 @@ public class AuthRateLimiterService {
             return count + 1
             """;
 
+    /**
+     * Chờ bao lâu (ms) tới khi khoá có lại một chỗ, không ghi: KEYS[1]=zset key; ARGV[1]=now(ms); ARGV[2]=window(ms);
+     * ARGV[3]=max. Còn chỗ → 0; đầy → (điểm của lượt phải rời cửa sổ) + window − now.
+     */
+    private static final String WAIT_LUA = """
+            local now = tonumber(ARGV[1])
+            local window = tonumber(ARGV[2])
+            redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, now - window)
+            local count = redis.call('ZCARD', KEYS[1])
+            local max = tonumber(ARGV[3])
+            if count < max then
+              return 0
+            end
+            local e = redis.call('ZRANGE', KEYS[1], count - max, count - max, 'WITHSCORES')
+            if e[2] == nil then
+              return 0
+            end
+            local wait = tonumber(e[2]) + window - now
+            if wait < 0 then
+              return 0
+            end
+            return math.floor(wait)
+            """;
+
     /** Đếm không ghi: KEYS[1]=zset key; ARGV[1]=now(ms); ARGV[2]=window(ms). */
     private static final String COUNT_LUA = """
             local clearBefore = tonumber(ARGV[1]) - tonumber(ARGV[2])
@@ -180,6 +207,7 @@ public class AuthRateLimiterService {
         this.slidingWindowScript = new DefaultRedisScript<>(SLIDING_WINDOW_LUA, Long.class);
         this.countScript = new DefaultRedisScript<>(COUNT_LUA, Long.class);
         this.reserveScript = new DefaultRedisScript<>(RESERVE_LUA, Long.class);
+        this.waitScript = new DefaultRedisScript<>(WAIT_LUA, Long.class);
         log.info("[RateLimiter] storage = {}", this.redis != null ? "Redis (shared) + in-memory fallback" : "in-memory only");
     }
 
@@ -247,8 +275,8 @@ public class AuthRateLimiterService {
     public boolean isMfaBlocked(long userId, String ip) {
         long window = Math.max(1L, mfaFailureWindow);
         int max = Math.max(1, mfaFailureMax);
-        return countInWindow(mfaFailureAttempts, mfaUserKey(userId), window) >= max
-                || countInWindow(mfaFailureAttempts, mfaIpKey(ip), window) >= max;
+        return countMfaInWindow(mfaUserKey(userId), window) >= max
+                || countMfaInWindow(mfaIpKey(ip), window) >= max;
     }
 
     /**
@@ -272,8 +300,25 @@ public class AuthRateLimiterService {
         }
     }
 
-    /** Một chỗ giữ trong một khoá: Redis (member của ZSET) hoặc bộ nhớ của node (phần tử Instant, so bằng ==). */
-    private record MfaSlot(String key, boolean redis, String member, Instant at, long countAfter) {}
+    /**
+     * Một chỗ giữ trong một khoá: Redis (member của ZSET) hoặc bộ nhớ của node (phần tử {@link MfaMark}, so bằng ==).
+     * Member Redis mang nhãn để admin gỡ khoá đúng người (xem {@link #clearMfaFailuresForUser}): ở khoá người dùng
+     * là {@code <ms>-<n>|<ip>}, ở khoá IP là {@code <ms>-<n>|u<userId>}.
+     */
+    private record MfaSlot(String key, boolean redis, String member, MfaMark mark, long countAfter) {}
+
+    /** Phần tử của hàng đợi bộ nhớ (khi Redis hỏng): thời điểm + ai/ở đâu, để gỡ khoá theo người dùng. */
+    private static final class MfaMark {
+        final Instant at;
+        final long userId;
+        final String ip;
+
+        MfaMark(Instant at, long userId, String ip) {
+            this.at = at;
+            this.userId = userId;
+            this.ip = ip;
+        }
+    }
 
     /**
      * GIỮ CHỖ NGUYÊN TỬ cho một lượt nhập mã 2FA, TRƯỚC khi kiểm mã: mỗi ngân sách đếm lần sai + lượt đang kiểm dở;
@@ -286,11 +331,12 @@ public class AuthRateLimiterService {
     public Optional<MfaAttempt> tryAcquireMfaAttempt(long userId, String ip) {
         long window = Math.max(1L, mfaFailureWindow);
         int max = Math.max(1, mfaFailureMax);
-        MfaSlot userSlot = reserveMfaSlot(mfaUserKey(userId), max, window);
+        String safeIp = safe(ip);
+        MfaSlot userSlot = reserveMfaSlot(mfaUserKey(userId), "|" + safeIp, userId, safeIp, max, window);
         if (userSlot == null) {
             return Optional.empty();
         }
-        MfaSlot ipSlot = reserveMfaSlot(mfaIpKey(ip), max, window);
+        MfaSlot ipSlot = reserveMfaSlot(mfaIpKey(ip), "|u" + userId, userId, safeIp, max, window);
         if (ipSlot == null) {
             releaseMfaSlot(userSlot);
             return Optional.empty();
@@ -311,7 +357,7 @@ public class AuthRateLimiterService {
         return attempt.reachesLimit();
     }
 
-    /** Trả chỗ của một lượt KHÔNG phải lần sai (mã đúng, request hỏng). No-op khi lượt đã kết thúc. */
+    /** Trả chỗ của một lượt KHÔNG phải lần sai (mã đúng, mã vừa dùng, request hỏng). No-op khi lượt đã kết thúc. */
     public void refundMfaAttempt(MfaAttempt attempt) {
         if (attempt == null || !attempt.settled.compareAndSet(false, true)) {
             return;
@@ -322,11 +368,11 @@ public class AuthRateLimiterService {
     }
 
     /** Giữ một chỗ trong khoá {@code key}; {@code null} khi khoá đã có {@code max} lượt trong cửa sổ. */
-    private MfaSlot reserveMfaSlot(String key, int max, long windowSeconds) {
+    private MfaSlot reserveMfaSlot(String key, String tag, long userId, String ip, int max, long windowSeconds) {
         if (redis != null) {
             try {
                 long now = System.currentTimeMillis();
-                String member = now + "-" + nonce.incrementAndGet();
+                String member = now + "-" + nonce.incrementAndGet() + tag;
                 Long count = redis.execute(reserveScript, List.of("rl:" + key),
                         Long.toString(now), Long.toString(windowSeconds * 1000L), Integer.toString(max), member);
                 redisDownWarned = false;
@@ -335,27 +381,19 @@ public class AuthRateLimiterService {
                 }
                 return new MfaSlot(key, true, member, null, count);
             } catch (Exception e) {
-                if (!redisDownWarned) {
-                    redisDownWarned = true;
-                    log.warn("[RateLimiter] Redis unavailable — falling back to in-memory per-node limiting: {}",
-                            e.getMessage());
-                }
+                warnRedisDown(e);
             }
         }
         Instant now = Instant.now();
-        Instant windowStart = now.minusSeconds(windowSeconds);
-        Deque<Instant> deque = mfaFailureAttempts.computeIfAbsent(key, k -> new ArrayDeque<>());
+        Deque<MfaMark> deque = mfaFailureAttempts.computeIfAbsent(key, k -> new ArrayDeque<>());
         synchronized (deque) {
-            while (!deque.isEmpty() && deque.peekFirst().isBefore(windowStart)) {
-                deque.pollFirst();
-            }
+            pruneMfa(deque, now.minusSeconds(windowSeconds));
             if (deque.size() >= max) {
                 return null;
             }
-            // new Instant riêng (không dùng chung tham chiếu) để trả chỗ đúng phần tử này bằng ==.
-            Instant at = Instant.ofEpochSecond(now.getEpochSecond(), now.getNano());
-            deque.addLast(at);
-            return new MfaSlot(key, false, null, at, deque.size());
+            MfaMark mark = new MfaMark(now, userId, ip);
+            deque.addLast(mark);
+            return new MfaSlot(key, false, null, mark, deque.size());
         }
     }
 
@@ -369,14 +407,14 @@ public class AuthRateLimiterService {
             }
             return;
         }
-        Deque<Instant> deque = mfaFailureAttempts.get(slot.key());
+        Deque<MfaMark> deque = mfaFailureAttempts.get(slot.key());
         if (deque == null) {
             return;
         }
         synchronized (deque) {
-            Iterator<Instant> it = deque.iterator();
+            Iterator<MfaMark> it = deque.iterator();
             while (it.hasNext()) {
-                if (it.next() == slot.at()) {
+                if (it.next() == slot.mark()) {
                     it.remove();
                     return;
                 }
@@ -384,7 +422,200 @@ public class AuthRateLimiterService {
         }
     }
 
+    /** Trần cửa sổ — dùng khi không biết người/IP (giá trị lớn nhất có thể phải chờ). */
     public int mfaRetryAfterSeconds() { return (int) Math.max(1L, mfaFailureWindow); }
+
+    /**
+     * Số giây tới khi cả hai ngân sách (người dùng + IP) có lại ít nhất một chỗ — theo cửa sổ TRƯỢT: lượt cũ nhất
+     * rời cửa sổ là mở được một lượt mới, không phải luôn đủ 15 phút. Chỉ ĐỌC. Tối thiểu 1, tối đa trần cửa sổ.
+     */
+    public int mfaRetryAfterSeconds(long userId, String ip) {
+        long window = Math.max(1L, mfaFailureWindow);
+        int max = Math.max(1, mfaFailureMax);
+        long waitMs = Math.max(mfaWaitMs(mfaUserKey(userId), max, window), mfaWaitMs(mfaIpKey(ip), max, window));
+        long seconds = (waitMs + 999L) / 1000L;
+        // Trên một phút thì làm tròn LÊN phút: đủ cho người dùng, không lộ mốc chính xác tới từng giây.
+        if (seconds > 60L) {
+            seconds = ((seconds + 59L) / 60L) * 60L;
+        }
+        return (int) Math.min(window, Math.max(1L, seconds));
+    }
+
+    /** Mili-giây tới khi khoá {@code key} có lại một chỗ; 0 khi còn chỗ. */
+    private long mfaWaitMs(String key, int max, long windowSeconds) {
+        long windowMs = windowSeconds * 1000L;
+        if (redis != null) {
+            try {
+                Long wait = redis.execute(waitScript, List.of("rl:" + key),
+                        Long.toString(System.currentTimeMillis()), Long.toString(windowMs), Integer.toString(max));
+                redisDownWarned = false;
+                return wait == null ? 0L : Math.max(0L, wait);
+            } catch (Exception e) {
+                warnRedisDown(e);
+            }
+        }
+        Deque<MfaMark> deque = mfaFailureAttempts.get(key);
+        if (deque == null) {
+            return 0L;
+        }
+        Instant now = Instant.now();
+        synchronized (deque) {
+            pruneMfa(deque, now.minusSeconds(windowSeconds));
+            if (deque.size() < max) {
+                return 0L;
+            }
+            // Phần tử thứ (size − max) tính từ cũ nhất phải rời cửa sổ thì còn đúng max − 1 lượt.
+            int index = deque.size() - max;
+            Iterator<MfaMark> it = deque.iterator();
+            MfaMark mark = it.next();
+            for (int i = 0; i < index; i++) {
+                mark = it.next();
+            }
+            return Math.max(0L, mark.at.plusMillis(windowMs).toEpochMilli() - now.toEpochMilli());
+        }
+    }
+
+    /** Số lượt 2FA (lần sai + lượt đang kiểm dở) của một người trong cửa sổ hiện tại. Chỉ ĐỌC. */
+    public long mfaFailuresInWindow(long userId) {
+        return countMfaInWindow(mfaUserKey(userId), Math.max(1L, mfaFailureWindow));
+    }
+
+    private static final int MFA_IPS_MAX = 10;
+
+    /** Các IP (khác nhau, tối đa 10) đã gây lần sai 2FA của một người trong cửa sổ. Chỉ ĐỌC — để ghi vết. */
+    public List<String> mfaFailureIpsInWindow(long userId) {
+        String userKey = mfaUserKey(userId);
+        long window = Math.max(1L, mfaFailureWindow);
+        Set<String> ips = new LinkedHashSet<>();
+        if (redis != null) {
+            try {
+                long now = System.currentTimeMillis();
+                Set<String> members = redis.opsForZSet().rangeByScore("rl:" + userKey, now - window * 1000L, now);
+                if (members != null) {
+                    for (String m : members) {
+                        int bar = m.indexOf('|');
+                        if (bar >= 0) {
+                            ips.add(m.substring(bar + 1));
+                        }
+                    }
+                }
+                redisDownWarned = false;
+            } catch (Exception e) {
+                warnRedisDown(e);
+            }
+        }
+        Deque<MfaMark> deque = mfaFailureAttempts.get(userKey);
+        if (deque != null) {
+            synchronized (deque) {
+                pruneMfa(deque, Instant.now().minusSeconds(window));
+                for (MfaMark mark : deque) {
+                    ips.add(mark.ip);
+                }
+            }
+        }
+        return ips.stream().limit(MFA_IPS_MAX).toList();
+    }
+
+    /**
+     * ADMIN gỡ khoá nhập sai 2FA của một người: xoá mọi lần sai của người đó trong ngân sách theo người dùng VÀ phần
+     * lần sai CỦA NGƯỜI ĐÓ trong ngân sách của các IP họ đã nhập (lần sai của người khác cùng IP vẫn tính). Không
+     * đụng tới bí mật TOTP. Không nguyên tử: mọi lượt của người đó đã giữ chỗ TỚI lúc gỡ (kể cả lượt đang kiểm dở) bị
+     * xoá theo — tương đương "gỡ khoá xoá mọi thứ tới lúc đó", không cho thêm lượt nào ngoài việc gỡ. Redis hỏng và có
+     * nhiều node thì chỉ xoá được bộ nhớ của node nhận request.
+     *
+     * @return số lần sai (kể cả lượt đang kiểm dở) đã xoá khỏi ngân sách theo người dùng
+     */
+    public int clearMfaFailuresForUser(long userId) {
+        String userKey = mfaUserKey(userId);
+        String userTag = "|u" + userId;
+        int cleared = 0;
+        if (redis != null) {
+            try {
+                Set<String> members = redis.opsForZSet().range("rl:" + userKey, 0, -1);
+                Set<String> ips = new LinkedHashSet<>();
+                if (members != null) {
+                    cleared = members.size();
+                    for (String m : members) {
+                        int bar = m.indexOf('|');
+                        if (bar >= 0) {
+                            ips.add(m.substring(bar + 1));
+                        }
+                    }
+                }
+                redis.delete("rl:" + userKey);
+                for (String ip : ips) {
+                    String ipKey = "rl:" + mfaIpKey(ip);
+                    Set<String> ipMembers = redis.opsForZSet().range(ipKey, 0, -1);
+                    if (ipMembers == null) {
+                        continue;
+                    }
+                    Object[] mine = ipMembers.stream().filter(m -> m.endsWith(userTag)).toArray();
+                    if (mine.length > 0) {
+                        redis.opsForZSet().remove(ipKey, mine);
+                    }
+                }
+                redisDownWarned = false;
+            } catch (Exception e) {
+                warnRedisDown(e);
+            }
+        }
+        // Bộ nhớ của node (dữ liệu từ lúc Redis hỏng, hoặc khi không có Redis).
+        Deque<MfaMark> userDeque = mfaFailureAttempts.remove(userKey);
+        Set<String> ips = new LinkedHashSet<>();
+        if (userDeque != null) {
+            synchronized (userDeque) {
+                cleared += userDeque.size();
+                for (MfaMark mark : userDeque) {
+                    ips.add(mark.ip);
+                }
+            }
+        }
+        for (String ip : ips) {
+            Deque<MfaMark> ipDeque = mfaFailureAttempts.get(mfaIpKey(ip));
+            if (ipDeque == null) {
+                continue;
+            }
+            synchronized (ipDeque) {
+                ipDeque.removeIf(mark -> mark.userId == userId);
+            }
+        }
+        return cleared;
+    }
+
+    private long countMfaInWindow(String key, long windowSeconds) {
+        if (redis != null) {
+            try {
+                long now = System.currentTimeMillis();
+                Long count = redis.execute(countScript, List.of("rl:" + key),
+                        Long.toString(now), Long.toString(windowSeconds * 1000L));
+                redisDownWarned = false;
+                return count == null ? 0L : count;
+            } catch (Exception e) {
+                warnRedisDown(e);
+            }
+        }
+        Deque<MfaMark> deque = mfaFailureAttempts.get(key);
+        if (deque == null) {
+            return 0L;
+        }
+        synchronized (deque) {
+            pruneMfa(deque, Instant.now().minusSeconds(windowSeconds));
+            return deque.size();
+        }
+    }
+
+    private static void pruneMfa(Deque<MfaMark> deque, Instant windowStart) {
+        while (!deque.isEmpty() && deque.peekFirst().at.isBefore(windowStart)) {
+            deque.pollFirst();
+        }
+    }
+
+    private void warnRedisDown(Exception e) {
+        if (!redisDownWarned) {
+            redisDownWarned = true;
+            log.warn("[RateLimiter] Redis unavailable — falling back to in-memory per-node limiting: {}", e.getMessage());
+        }
+    }
 
     /** Trần gửi mã email đăng ký 2FA theo người dùng. */
     public boolean allowMfaEmailSend(long userId) {
@@ -446,39 +677,6 @@ public class AuthRateLimiterService {
             }
         }
         return checkInMemory(fallbackStore, key, max, windowSeconds);
-    }
-
-    /**
-     * Số lượt còn trong cửa sổ, KHÔNG ghi thêm. Redis: dọn phần quá hạn rồi ZCARD (cùng khoá {@code rl:} với
-     * {@link #check}); Redis hỏng → bộ nhớ của node.
-     */
-    private long countInWindow(ConcurrentHashMap<String, Deque<Instant>> fallbackStore, String key, long windowSeconds) {
-        if (redis != null) {
-            try {
-                long now = System.currentTimeMillis();
-                Long count = redis.execute(countScript, List.of("rl:" + key),
-                        Long.toString(now), Long.toString(windowSeconds * 1000L));
-                redisDownWarned = false;
-                return count == null ? 0L : count;
-            } catch (Exception e) {
-                if (!redisDownWarned) {
-                    redisDownWarned = true;
-                    log.warn("[RateLimiter] Redis unavailable — falling back to in-memory per-node limiting: {}",
-                            e.getMessage());
-                }
-            }
-        }
-        Deque<Instant> deque = fallbackStore.get(key);
-        if (deque == null) {
-            return 0L;
-        }
-        Instant windowStart = Instant.now().minusSeconds(windowSeconds);
-        synchronized (deque) {
-            while (!deque.isEmpty() && deque.peekFirst().isBefore(windowStart)) {
-                deque.pollFirst();
-            }
-            return deque.size();
-        }
     }
 
     private boolean checkInMemory(ConcurrentHashMap<String, Deque<Instant>> store,

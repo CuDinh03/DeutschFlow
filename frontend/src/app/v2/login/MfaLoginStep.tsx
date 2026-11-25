@@ -4,7 +4,15 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Copy } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
-import { mfaApi, mfaErrorKind, type AuthSession, type MfaChallenge, type MfaErrorKind } from '@/lib/mfaApi'
+import {
+  mfaApi,
+  mfaErrorKind,
+  mfaRetryAfterSeconds,
+  mfaWaitParts,
+  type AuthSession,
+  type MfaChallenge,
+  type MfaErrorKind,
+} from '@/lib/mfaApi'
 import { GaCap, GaBtn } from '@/components/ui-v2'
 import { GaField, GaOtpField, AuthErrorBanner } from '../authShared'
 import { RecoveryCodesPanel } from '../_mfa/RecoveryCodesPanel'
@@ -37,6 +45,9 @@ export function MfaLoginStep({
   const [busy, setBusy] = useState(false)
   const [errorKind, setErrorKind] = useState<MfaErrorKind | null>(null)
   const [errorText, setErrorText] = useState('')
+  // 429 (quá số lần sai): mốc mở lại theo đồng hồ máy + "bây giờ" để đếm ngược; các nút gửi mã khoá tới mốc đó.
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
   // verify
   const [code, setCode] = useState('')
@@ -67,16 +78,43 @@ export function MfaLoginStep({
     }
   }, [otpauthUri])
 
+  useEffect(() => {
+    if (lockedUntil === null) return
+    const id = window.setInterval(() => {
+      const ts = Date.now()
+      setNow(ts)
+      if (ts >= lockedUntil) {
+        setLockedUntil(null)
+        setErrorKind((k) => (k === 'rateLimited' ? null : k))
+      }
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [lockedUntil])
+
   const fail = (e: unknown) => {
     const kind = mfaErrorKind(e)
     setErrorKind(kind)
     setErrorText(kind === 'other' ? apiMessage(e) : '')
+    if (kind === 'rateLimited') {
+      const wait = mfaRetryAfterSeconds(e)
+      const ts = Date.now()
+      setNow(ts)
+      setLockedUntil(wait === null ? null : ts + wait * 1000)
+    }
+    // Mã vừa dùng: xoá ô để người dùng gõ mã MỚI chứ không bấm lại đúng mã cũ.
+    if (kind === 'codeAlreadyUsed') {
+      setCode('')
+      setTotp('')
+    }
   }
 
   const clearError = () => {
+    // Đang trong thời gian chờ thì giữ câu đếm ngược — gõ phím không xoá được nó.
+    if (lockedUntil !== null) return
     setErrorKind(null)
     setErrorText('')
   }
+  const locked = lockedUntil !== null
 
   const run = async (fn: () => Promise<void>) => {
     if (busy) return
@@ -148,8 +186,15 @@ export function MfaLoginStep({
         return ''
       case 'codeInvalid':
         return t('errors.codeInvalid')
-      case 'rateLimited':
-        return t('errors.rateLimited')
+      case 'codeAlreadyUsed':
+        return t('errors.codeAlreadyUsed')
+      case 'rateLimited': {
+        if (lockedUntil === null) return t('errors.rateLimited')
+        const { unit, count } = mfaWaitParts((lockedUntil - now) / 1000)
+        return t('errors.rateLimitedWait', {
+          wait: unit === 'seconds' ? t('errors.waitSeconds', { count }) : t('errors.waitMinutes', { count }),
+        })
+      }
       case 'expired':
         return t('errors.expired')
       case 'notConfigured':
@@ -230,7 +275,7 @@ export function MfaLoginStep({
             size="lg"
             className="mb-4 w-full"
             loading={busy}
-            disabled={busy || (useRecovery ? recovery.trim().length < 10 : code.length !== 6)}
+            disabled={busy || locked || (useRecovery ? recovery.trim().length < 10 : code.length !== 6)}
           >
             {busy ? t('verifying') : t('verify')}
           </GaBtn>
@@ -303,7 +348,7 @@ export function MfaLoginStep({
             size="lg"
             className="mb-4 w-full"
             loading={busy}
-            disabled={busy || emailCode.length !== 6}
+            disabled={busy || locked || emailCode.length !== 6}
           >
             {t('continue')}
           </GaBtn>
@@ -375,7 +420,7 @@ export function MfaLoginStep({
             size="lg"
             className="mb-4 w-full"
             loading={busy}
-            disabled={busy || totp.length !== 6}
+            disabled={busy || locked || totp.length !== 6}
           >
             {busy ? t('confirming') : t('confirm')}
           </GaBtn>

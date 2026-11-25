@@ -109,7 +109,9 @@
       "mfaCodeLabel": "Mã 6 số",
       "mfaCancel": "Huỷ",
       "mfaErrorCode": "Mã không đúng hoặc đã dùng. Chờ mã mới rồi thử lại.",
-      "mfaErrorRateLimited": "Nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.",
+      "mfaErrorRateLimited": "Nhập sai quá nhiều lần. Vui lòng thử lại sau.",
+      "mfaErrorRateLimitedWait": "Nhập sai quá nhiều lần. Thử lại được sau {minutes} phút.",
+      "mfaErrorAlreadyUsed": "Mã này vừa được dùng. Chờ mã mới (tối đa 30 giây) rồi nhập lại.",
       "mfaCodesTitle": "Mã khôi phục mới",
       "mfaCodesDesc": "Bộ mã cũ đã hết hiệu lực. Lưu 10 mã này — chúng chỉ hiện duy nhất lần này.",
       "mfaCodesCopy": "Sao chép tất cả",
@@ -135,6 +137,8 @@
         "mfaEnabled": "Đã bật xác thực hai lớp",
         "mfaRecoveryUsed": "Đã dùng mã khôi phục",
         "mfaResetBySupport": "Đội hỗ trợ đã đặt lại xác thực hai lớp",
+        "mfaLocked": "Tạm chặn nhập mã xác thực hai lớp vì nhập sai nhiều lần",
+        "mfaUnlockedBySupport": "Đội hỗ trợ đã gỡ chặn nhập mã xác thực hai lớp",
         "other": "Thay đổi bảo mật"
       }
     },

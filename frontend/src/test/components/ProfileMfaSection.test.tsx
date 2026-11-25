@@ -75,4 +75,32 @@ describe('MfaSection', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Mã không đúng hoặc đã dùng')
     expect(screen.queryByTestId('recovery-codes-panel')).toBeNull()
   })
+
+  it('mã vừa dùng → câu "chờ mã mới", không phải câu mã sai', async () => {
+    const user = userEvent.setup()
+    mocks.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 400, data: { extensions: { code: 'MFA_CODE_ALREADY_USED' } } },
+    })
+    renderSection()
+    await user.click(await screen.findByRole('button', { name: 'Tạo mã khôi phục mới' }))
+    await user.type(screen.getByLabelText('Mã 6 số'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Tạo mã khôi phục mới' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Mã này vừa được dùng')
+  })
+
+  it('429 kèm thời gian → nói còn bao nhiêu phút', async () => {
+    const user = userEvent.setup()
+    mocks.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 429, data: { extensions: { code: 'RATE_LIMITED', retryAfterSeconds: 61 } }, headers: {} },
+    })
+    renderSection()
+    await user.click(await screen.findByRole('button', { name: 'Tạo mã khôi phục mới' }))
+    await user.type(screen.getByLabelText('Mã 6 số'), '000000')
+    await user.click(screen.getByRole('button', { name: 'Tạo mã khôi phục mới' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Thử lại được sau 2 phút')
+  })
 })

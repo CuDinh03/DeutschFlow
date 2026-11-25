@@ -104,6 +104,23 @@ class TotpTest {
     }
 
     @Test
+    @DisplayName("chẩn đoán lệch giờ: mã của bước ±3, ±10 → trả độ lệch; trong cửa sổ, quá 10 bước, mã sai/sai định dạng → rỗng")
+    void driftOffsetDiagnostic() {
+        long now = 1_000_000L;
+        assertThat(Totp.driftOffset(RFC_KEY, Totp.code(RFC_KEY, now + 3), now, 1, 10)).hasValue(3);
+        assertThat(Totp.driftOffset(RFC_KEY, Totp.code(RFC_KEY, now - 10), now, 1, 10)).hasValue(-10);
+        // Trong cửa sổ không phải "lệch" (verify đã chấp nhận) — không bao giờ báo.
+        assertThat(Totp.driftOffset(RFC_KEY, Totp.code(RFC_KEY, now + 1), now, 1, 10)).isEmpty();
+        assertThat(Totp.driftOffset(RFC_KEY, Totp.code(RFC_KEY, now), now, 1, 10)).isEmpty();
+        assertThat(Totp.driftOffset(RFC_KEY, Totp.code(RFC_KEY, now + 11), now, 1, 10)).isEmpty();
+        assertThat(Totp.driftOffset(RFC_KEY, null, now, 1, 10)).isEmpty();
+        assertThat(Totp.driftOffset(RFC_KEY, "12a456", now, 1, 10)).isEmpty();
+        assertThat(Totp.driftOffset(RFC_KEY, Totp.code(RFC_KEY, now + 3), now, 1, 1)).isEmpty();
+        // Chỉ chẩn đoán: verify vẫn từ chối đúng mã đó.
+        assertThat(Totp.verify(RFC_KEY, Totp.code(RFC_KEY, now + 3), now, 1)).isEmpty();
+    }
+
+    @Test
     @DisplayName("bước = floor(epoch / 30)")
     void stepComputation() {
         assertThat(Totp.stepAt(Instant.ofEpochSecond(59))).isEqualTo(1L);
