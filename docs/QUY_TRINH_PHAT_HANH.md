@@ -5,7 +5,7 @@
 >
 > Repo PUBLIC (công khai lại từ 11/2026; từng private từ 08/11/2026, có thể đổi lại): tài liệu này vẫn **không** chứa IP máy chủ, đường dẫn khoá, giá trị secret. Các chi tiết đó nằm ở tài liệu vận hành local trên máy owner (`docs/DEPLOY_TU_HOST.md`, `docs/KE_HOACH_SERVER_MAY_NHA.md` — không commit).
 >
-> Cập nhật lần cuối: 16/11/2026 — **production chuyển từ máy chủ tại nhà sang VPS thuê** sau khi máy nhà chết 15/11 (§0.1, §1, §5.0, §8). Trước đó 13/11/2026: frontend gọi backend qua mạng nội bộ `deutschflow-api-net`; deploy backend từ chối khi Xưởng đề đang chạy (§6.1).
+> Cập nhật lần cuối: 25/11/2026 — đồng hồ VPS đồng bộ bằng `htpdate` vì NTP (UDP) bị chặn (§8.2). Trước đó 16/11/2026 — **production chuyển từ máy chủ tại nhà sang VPS thuê** sau khi máy nhà chết 15/11 (§0.1, §1, §5.0, §8). Trước đó 13/11/2026: frontend gọi backend qua mạng nội bộ `deutschflow-api-net`; deploy backend từ chối khi Xưởng đề đang chạy (§6.1).
 
 ---
 
@@ -269,6 +269,7 @@ Khi owner ra lệnh build bản mới lên store, phiên làm việc **tự tín
 - nginx chỉ nghe `127.0.0.1:80`; site cấu hình bằng `deploy/self-host/install-nginx.sh` (`deutschflow.nginx.conf`). Đổi cấu hình: `nginx -t` rồi `systemctl reload nginx` (reload êm, request đang chạy vẫn xong).
 - Máy chủ không mở cổng vào Internet; mọi đường vào qua Cloudflare Tunnel. Header `Server: cloudflare` trên production là bình thường.
 - Tunnel trên VPS chạy `protocol: http2` (dòng cuối `/etc/cloudflared/config.yml`): nhà cung cấp VPS chặn QUIC (UDP 7844), để mặc định thì cloudflared không nối được. Dùng lại đúng tunnel của máy nhà (credential chép từ đĩa máy cũ) nên DNS không đổi.
+- **Đồng hồ máy chủ**: VPS chặn UDP ra ngoài nên NTP (`systemd-timesyncd`, UDP 123) không bao giờ đồng bộ được — 25/11/2026 đồng hồ chậm ~61 s làm 2FA admin từ chối mã đúng. Giờ đồng bộ bằng `htpdate` qua HTTPS (`/etc/default/htpdate`, chạy nền, `enabled`), `timedatectl set-ntp false`. Dựng máy mới thì cài lại; chi tiết và cách đo giờ JVM từ ngoài ở `docs/RUNBOOK_2FA_ADMIN.md` §4. Header `Date` qua Cloudflare **không** phản ánh giờ máy chủ.
 - **Không chạy hai connector của cùng tunnel trên hai máy có dữ liệu khác nhau** — Cloudflare chia traffic cho cả hai. Chuyển máy chủ lần sau: tắt connector cũ trước, hoặc xoay credential tunnel.
 
 ### 8.3 Backup và restore
