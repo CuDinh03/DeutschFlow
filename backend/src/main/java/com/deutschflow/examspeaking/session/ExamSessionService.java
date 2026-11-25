@@ -70,6 +70,8 @@ public class ExamSessionService {
     static final long TURN_ESTIMATED_TOKENS = 700L;
     static final long DRILL_EVAL_ESTIMATED_TOKENS = 600L;
     static final long STT_ESTIMATED_TOKENS = 200L;
+    /** Trần độ dài ghi chú (Konzeptpapier) lưu cho một phiên. */
+    static final int NOTES_MAX_CHARS = 4000;
     static final long MOCK_GRADING_ESTIMATED_TOKENS = 12_000L;
     /** F-08: mock phải có ngân sách chấm ngay lúc TẠO — thi trọn bài rồi mới biết hết ví là đánh đổi sai. */
     static final long MOCK_CREATE_ESTIMATED_TOKENS = MOCK_GRADING_ESTIMATED_TOKENS + TURN_ESTIMATED_TOKENS;
@@ -460,7 +462,7 @@ public class ExamSessionService {
                     PrueferScriptService.Moment.PART_INTRO, stimulus(updated.part(teilNo), 0)).textDe());
         }
         sessionRepository.save(s);
-        return view(s, bp, updated, null);
+        return view(s, bp, updated, null, sessionRepository.findNotesText(s.getId()));
     }
 
     /** Vorbereitungszeit hiệu lực: SHORT (mặc định) = 5′ rút gọn (mục 4b kế hoạch); FULL = chuẩn thi thật. */
@@ -483,7 +485,8 @@ public class ExamSessionService {
         }
         advanceInternal(s, bp, plan, Instant.now());
         sessionRepository.save(s);
-        return view(s, bp, plan, null);
+        // Ghi chú đọc lại từ DB: lượt tự lưu ghi chú có thể vừa commit sau khi phiên được nạp.
+        return view(s, bp, plan, null, sessionRepository.findNotesText(s.getId()));
     }
 
     @Transactional
@@ -521,11 +524,17 @@ public class ExamSessionService {
         return view(s, blueprint(s), plan(s), null);
     }
 
+    /**
+     * Lưu ghi chú bằng một UPDATE riêng cột ghi chú (không tranh khoá lạc quan với "Vào thi" / chọn
+     * chủ đề đang chạy cùng lúc), rồi đọc lại phiên để trả snapshot mới nhất.
+     */
     @Transactional
     public ExamSessionView saveNotes(long userId, long sessionId, String notes) {
+        String text = notes == null ? null : notes.substring(0, Math.min(notes.length(), NOTES_MAX_CHARS));
+        if (sessionRepository.updateNotes(sessionId, userId, text, Instant.now()) == 0) {
+            load(userId, sessionId); // ném NotFoundException như trước
+        }
         SpeakingExamSession s = load(userId, sessionId);
-        s.setNotesText(notes == null ? null : notes.substring(0, Math.min(notes.length(), 4000)));
-        sessionRepository.save(s);
         return view(s, blueprint(s), plan(s), null);
     }
 
@@ -791,6 +800,11 @@ public class ExamSessionService {
     }
 
     private ExamSessionView view(SpeakingExamSession s, ExamBlueprint bp, SessionPlan plan, Map<String, Object> lastEval) {
+        return view(s, bp, plan, lastEval, s.getNotesText());
+    }
+
+    private ExamSessionView view(SpeakingExamSession s, ExamBlueprint bp, SessionPlan plan, Map<String, Object> lastEval,
+                                 String notesText) {
         Instant now = Instant.now();
         ExamSessionView.Directive directive = null;
         if (SpeakingExamSession.STATE_IN_PART.equals(s.getState())) {
@@ -817,7 +831,7 @@ public class ExamSessionService {
                 ? prepMaterials(bp, plan) : null;
         return new ExamSessionView(s.getId(), bp.provider().name(), bp.level(), s.getMode(), s.getState(),
                 s.getCurrentPart(), s.getCurrentStep(), plan.parts().size(), now, prepDeadline, prepSec, materials,
-                s.getPartDeadlineAt(), directive, lastEval, s.getNotesText(), s.getGradingJobId(), resultAvailable,
+                s.getPartDeadlineAt(), directive, lastEval, notesText, s.getGradingJobId(), resultAvailable,
                 s.isRetainAudio(), s.getGradingError());
     }
 
