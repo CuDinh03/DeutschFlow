@@ -89,6 +89,8 @@ Deploy lại bản mới sau đó: dữ liệu 2FA còn nguyên, admin chỉ c�
   (`403 MFA_UNLOCK_SELF_FORBIDDEN`). Trước khi gỡ, xác minh đúng là người đó: chuỗi lần sai cũng có thể là kẻ dò mã.
   Vết gỡ khoá ghi kèm các IP đã gây lần sai (`failureIps`) — IP lạ thì đừng gỡ, cân nhắc đổi mật khẩu người đó. Khi
   Redis hỏng (bộ đếm rơi về bộ nhớ từng node), gỡ khoá chỉ xoá được bộ nhớ của node nhận request.
+  Trong lúc deploy blue-green bản có nút này, lần sai do màu cũ ghi chưa mang nhãn người dùng/IP: gỡ khoá lúc đó xoá
+  được bộ đếm theo tài khoản nhưng không xoá phần ở bộ đếm theo IP (hết cửa sổ 15 phút là sạch).
 - Chỉ có MỘT admin và bị khoá nhập sai: chờ hết thời gian trên màn hình (tối đa 15 phút). Không cần gỡ tay; nếu
   thật sự phải gỡ ngay, trên máy chủ (thay `<id>` bằng user id, `<ip>` bằng IP đã nhập — xem vết `user.mfa.locked`):
   `docker exec deutschflow-redis redis-cli DEL 'rl:mfa-fail-user|<id>' 'rl:mfa-fail-ip|<ip>'` — lệnh này xoá cả lần

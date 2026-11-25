@@ -241,7 +241,7 @@ describe('/v2/login — 2FA ADMIN', () => {
       .mockResolvedValueOnce({ data: { emailHint: 'o***@x.com', expiresInSeconds: 600 } })
       .mockResolvedValueOnce({
         data: {
-          otpauthUri: 'otpauth://totp/DeutschFlow:owner%40x.com?secret=JBSWY3DPEHPK3PXP&issuer=DeutschFlow',
+          otpauthUri: 'otpauth://totp/myDeutschFlow:owner%40x.com?secret=JBSWY3DPEHPK3PXP&issuer=myDeutschFlow',
           secretBase32: 'JBSWY3DPEHPK3PXP',
           mfaToken: 'mfa-2',
         },
